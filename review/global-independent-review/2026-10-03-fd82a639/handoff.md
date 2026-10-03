@@ -13,3 +13,8 @@ summary分支：review/2026-10-03-fd82a639/summary。本地managed worktree为/U
 最后远端summary核验为5de947dc9d3bc15d5dd1171f99861c993ce7f563。后续最终报告在本地；自动审批要求公开目的地/本轮payload确认，原异步问题仍待用户回复。禁止在回复前重试、换渠道或委派他人代推；可以继续本地文档QA。收到明确允许公开后，先审计待推送的全部新增commit与白名单，再普通push并核验精确远端commit；不能假称本地最终内容已在GitHub。
 
 U01–U10、G01–G12、AX01–AX20、0 demo事件链/0运行观察、未读数据及宿主/资源/插件边界一直有效。模型Astra/Ultra配置证据与速度UNVERIFIED必须保留。
+
+
+本地最终内容固定提交：`d979747e1ef9e28e9739e94c07cc6cb10446f2ea`。27项最终台账/证据/映射检查通过，检查时工作树干净；其后提交仅封存验证回执与发布状态，实际完整本地交付由Git HEAD标识。60个新增提交、454路径、589文本版本的累计审计无越界路径/精确长源码候选/非UTF8；这些机械检查不替代人工实质审查。原main和独立参考固定且干净，A/B/C原报告树与各已发布末提交完全一致，D原件与原已发布回执相同。
+
+已发布worker固定版本：[A](https://github.com/y805939188/pokemon-essentials-clean-room/tree/c10ffbb7b0265d44bd9be4bdd5c6b42021c65500/review/global-independent-review/2026-10-03-fd82a639/agents/A)、[B](https://github.com/y805939188/pokemon-essentials-clean-room/tree/af6a29bdc429c5f38ddbfde3e71ff1435e4f11b8/review/global-independent-review/2026-10-03-fd82a639/agents/B)、[C](https://github.com/y805939188/pokemon-essentials-clean-room/tree/fb791c84eca8de31d241578c6ada5d3733ecf1f7/review/global-independent-review/2026-10-03-fd82a639/agents/C)。[旧summary已发布检查点](https://github.com/y805939188/pokemon-essentials-clean-room/tree/5de947dc9d3bc15d5dd1171f99861c993ce7f563/review/global-independent-review/2026-10-03-fd82a639)不含最终汇总内容。
