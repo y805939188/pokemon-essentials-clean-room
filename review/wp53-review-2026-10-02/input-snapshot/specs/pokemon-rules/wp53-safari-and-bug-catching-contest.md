@@ -1,0 +1,370 @@
+# WP53 规格：Safari 与捕虫大会
+
+| 字段 | 内容 |
+| --- | --- |
+| 工作包 | WP53（Safari 与捕虫大会） |
+| 关联功能 | F13-01（Safari 会话与捕获战斗，D13）、F13-02（捕虫大会，D13） |
+| 分类 | Pokémon Rules（主）；Creature-RPG（会话/参赛队伍/捕获保留）、Combat Requirements（特殊战斗交界）、Engine/Overworld Integration（地图/步进/帧/转移钩子）、User Interface（暂停菜单/调试/专用窗口）分别注明；类名/方法名是参考侧取证记录，不是未来框架 API |
+| 参考基线 | `reference/pokemon-essentials/` @ commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（WP01 固定） |
+| 输入 | 四份主文件全文（`018_Alternate battle modes/001_SafariZone.rb` 196 行、`018_Alternate battle modes/002_BugContest.rb` 441 行、`011_Battle/008_Other battle types/001_SafariBattle.rb` 502 行、`011_Battle/008_Other battle types/002_BugContestBattle.rb` 83 行）；捕获/存储 Mixin、球效果、生成修饰、开战包装与终局、命令/回合末阶段、步进/地图/帧钩子、暂停菜单、调试、全局元数据/保存转换、PBS 样本定点 |
+| 前置依赖 | WP36（普通遭遇与生成，已 Reviewed）、WP38（捕获与接收，已 Reviewed）、WP42（战斗结果/终局，已 Reviewed）、WP59（场地与世界入口，已 Reviewed）四份必需；边界引用 WP02/WP05/WP06/WP09/WP10/WP11/WP12/WP15/WP17/WP19/WP20/WP25/WP27/WP28/WP37/WP39/WP40/WP41/WP60/WP62/WP65/WP67-A/WP67-B（各自具名通过范围，以独立报告为准） |
+| 规格状态 | **ReviewPending（WP53 A～F 具名静态范围，待统一 review）**：Safari 会话/世界交接、Safari 遭遇/动作/结果、捕虫会话/队伍/时间/越界、捕虫战斗/Sport Ball/保留结果、判分/对手/名次/结算、公共交界/UI/保存/demo 配置的规则合同。普通捕获算法全集（WP38）、常规战斗算法（WP39–WP42）、普通遭遇算法（WP36）不在本状态内 |
+| 证据等级 | 全部为静态证据：已定位 / 静态确认 / 数据样本确认；**无运行确认**（未运行游戏/战斗/UI、未操作真实存档、未播放音频、未调整宿主界面） |
+
+## 1. 目的、范围与非目标
+
+**目的**：固定 Safari 与捕虫大会两种捕获活动的规则合同——**会话有哪些状态、何时开始/结束/清空、遭遇如何被接管、每个动作消耗什么、结果如何写回、保留与判奖如何结算、哪些入口取消哪些状态**。后续包据此判断"某会话字段何时变化、某投球意味着什么、某结束后队伍/个体还在不在"，而不是各自重新追踪四份主文件。
+
+**范围**（WP53 自身声明范围）：
+
+1. WP53-A：Safari 会话与世界交接——首次创建/开始/进行中/结果待处理/回接待处/真正结束清空；起点、球数、步数、捕获数、决定状态、统计与可持久字段；区域判定（接待图＋SafariMap 旗标图）；进入/离开地图与计步转移通知的次序及 handled 门。
+2. WP53-B：Safari 单次遭遇、动作与结果——公开覆盖门与直接入口；Ball/Bait/Rock/Run 四命令的许可/反馈/消耗/状态更新/后续判定次序；捕获率因子与逃离率分段（独立数学变量）；核心编号/会话决定/外层返回/变量 1 写入分列；最后一球抓到与没抓到、玩家跑、野生跑、显式中止、一般异常。
+3. WP53-C：捕虫大会会话、参赛队伍、时间与越界——比赛图/接待图集合（显式 ID 与元数据旗标）、判奖点、参赛成员、参赛 NPC、保留捕获个体、暂存队伍、进行中/未判/已判/已结束、上次比赛时间；开始缩队与结束拼队的真实行为；单调时钟倒计时与墙钟 24 小时检查分开；定时器显示、expired 查询、frame 通知的实际门。
+4. WP53-D：捕虫大会战斗、Sport Ball 与保留结果——会话接管、单打/队伍准备、开战通知、普通终局与世界 after-battle 交接、失败/平局回判奖、球数同步、结果变量/统计和 wild-end 通知；Sport Ball 库存的会话预算语义；第一只保留与后续捕获的替换/拒绝分层。
+5. WP53-E：判分、对手结果、名次与结算——评分独立算术（等级、IV、当前 HP/总 HP、捕获率区间）；对手选择数量/唯一性/地图类型回退/版本/抽取/生成与 HP 随机域；有/无玩家捕获、同分、候选不足、无有效遭遇图、空候选/异常、重复判奖与名次查询前置；结算次序与不一概承诺事务回滚。
+6. WP53-F：公共交界、UI、保存与 demo 配置——全 Scripts 状态字段读写与钩子检索；漫游/Safari/捕虫竞争覆盖次序与 handled 门；雷达 wild-end 回调时机；暂停菜单/主动 Quit/定时显示/调试编辑；保存注册与转换；PBS 配置样本的有限证据地位。
+
+**非目标**：
+
+- 不定义普通捕获/接收算法全集（WP38 主规格）、常规战斗算法（WP39/WP40/WP41/WP42）、普通遭遇算法（WP36）、钓鱼（WP60）、华丽大赛（其它包）。
+- 不展开接待/判奖/奖励事件的实际编排——费用、参赛日期、奖励、接待话术须有 demo 证据（U01/WP77）；脚本提供入口不等于默认事件确实调用。
+- 不运行游戏/战斗/UI、不操作真实存档、不播放音频、不调整宿主界面、不编译/转换、不设计未来 API 或把参考类组织当作未来模块。
+
+## 2. 概念与术语
+
+- **Safari 会话（`SafariState`，持久于全局元数据）**：`@start`（起点四元组：图 ID、x、y、方向——开始入口写入，结束清空）、`ballcount`（剩余 Safari 球数）、`captures`（本次会话捕获数）、`steps`（剩余步数）、`decision`（会话决定：0=进行中、1=已决定待结束）、`inProgress`（会话存在标记）。**持久 ≠ 已落盘**——落盘只经保存流程（WP09），且模式中保存入口不可用（§8.3）。
+- **Safari 区域**：接待图（会话起点所在图）∪ 带 `SafariMap` 元数据旗标的图（`pbInSafari?` 判定）；接待图单独处理——它可以在室外、有自己的草丛。
+- **捕虫会话（`BugContestState`，持久于全局元数据）**：`ballcount`（Sport Ball 预算）、`decision`、`lastPokemon`（保留捕获个体）、`timer_start`（单调时钟起点）、`ended`、`inProgress`、`otherparty`（暂存的原队伍成员）、`contestants`（参赛 NPC 下标集）、`places`（名次表，每条=[参赛者下标或 −1=玩家, 物种, 分数]）、`@start`（判奖点四元组）、`contestMaps`（比赛图集）、`reception`（接待图集）、`@chosenPokemon`（参赛成员下标）、`lastContest`（上次结束墙钟秒）。
+- **两种时间基准分开**：单调时钟（`System.uptime`——倒计时与到期判定）与墙钟（`pbGetTimeNow`——24 小时检查与 lastContest）是不同来源；保存/载入对单调时钟基准的影响未证（§10）。
+- **比赛区域**：`contestMaps` ∪ `reception`（`pbOffLimits?` 判定——两集之外即越界）；比赛图/接待图按显式图 ID 或元数据旗标字符串配置。
+- **覆盖钩子链（handled）**：`on_calling_wild_battle` 的 handled 是单槽数组——**已被其它钩子处理（handled 非空）→ 后续覆盖钩子不动**；注册序：漫游（012_Overworld）→ Safari（018/001）→ 捕虫（018/002）。
+- **四状态词汇（捕虫）**：进行中且未判（`undecided?`：inProgress 且决定为 0）、已判（`decided?`：inProgress 且决定非 0，或 ended）、已结束（pbEnd 后 inProgress 为否）、结束后待清理（离开判奖图才 `clear`）。
+- **已通过边界（必须继承，不重开）**：**GR-011（已关闭）**——步进、转向、主动请求是不同入口；**GR-013（已关闭）**——WP42/WP41 参战标记及正常终局合同按当前已批准字节引用；**WP37（已通过）**——漫游覆盖/结果返回、雷达连锁取消与通知、直接入口异常不自动等同正常公开链，按当前字节 `d032f5b7` 继承。本包不为 Safari/捕虫补"所有覆盖结果统一布尔"的规则。
+- 影响域编号 Dxx 见 module-map；证据状态五档定义见总览第 7 节。
+
+## 3. WP53-A：Safari 会话与世界交接
+
+### 3.1 会话状态机（`001_SafariZone.rb:4–58`）
+
+- **状态五分**：**未开始/已清空**（inProgress 为否——`pbSafariState` 惰性创建的对象初始态，或 pbEnd 后）、**首次创建**（首次访问 `pbSafariState` 时惰性 new：起点 nil、球数 0、捕获 0、步数 0、决定 0、inProgress 为否）、**进行中**（`pbStart` 后：inProgress 为真、decision 为 0）、**结果待处理**（inProgress 仍为真但 decision 为 1——步尽/球尽/主动 Quit 后；人已被送回起点或仍在区域内）、**真正结束/清空**（`pbEnd`：全部字段复位并请求地图刷新）。
+- **`pbStart`（实参为球数）写入**（`:42–47`）：`@start` 写为当前图＋玩家坐标＋朝向、`ballcount` 写为入口实参、inProgress 置真、`steps` 写为配置步数——**不重置 captures、不重置 decision**（**重复开始不自动等同彻底重置**：未经 pbEnd 再次 pbStart，旧捕获数与旧决定保留；旧决定非 0 时计步门（§3.3）不再计数）。正常接待流程先 pbEnd/新档才 pbStart（demo 事件编排 U01）。
+- **`pbEnd` 写入**（`:49–57`）：`@start` 清空、球数/捕获数/步数/会话决定全部归零、inProgress 置否，并请求地图刷新。**当前基线无正常脚本调用者**——正常流程中 pbEnd 只由离开区域的换图钩子触发（§3.2）。
+- **接待地图/起点不回清**：`pbGoToStart` 只做转移（§3.4），**不调 pbEnd**——回到起点后会话仍是"结果待处理"，接待图本身属于 Safari 区域，不会触发清空。
+
+### 3.2 区域判定与换图钩子（`001_SafariZone.rb:63–86`）
+
+- **区域判定（`pbInSafari?`）**：会话进行中 **且**（当前图是接待图 **或** 当前图元数据带 `SafariMap` 旗标）；会话不在进行中恒为否。
+- **换图钩子（`on_enter_map`）**：进入新图时**不在 Safari 区域内 → 立即 pbEnd**（清空会话）；在区域内 → 不动。**正常用尽步数、用尽球、主动退出都先把 decision 置 1 并回起点（§3.3/§4.6/§8.3），真正的字段清空只发生在离开允许范围之后**。
+
+### 3.3 计步钩子（`001_SafariZone.rb:88–102`；`012_Overworld/001_Overworld.rb:177–187`）
+
+- **触发点**：`on_player_step_taken_can_transfer`（玩家完成一步/结束冲浪时；先于当步遭遇判定——handled 为真时当步不再做遭遇判定）。
+- **门（按序）**：①handled 已为真 → 不动（不与其它转移效果叠加）；②**配置步数为 0 → 整个钩子不执行**（无限步模式）；③不在 Safari 区域内 → 不动；④**会话决定非 0**（结果待处理）→ 不动。
+- **通过门后**：`steps` −1；**`steps` 仍 >0 → 本步结束**；减到 0 → 两条消息（铃声＋"safari game is over"）→ 会话决定置 1 → `pbGoToStart` → handled 置真（**当步不再做遭遇判定**）。
+- **配置值分支（按来源真实分支，不按注释概括）**：`SAFARI_STEPS` 默认 600；**=0 → 不计步**（钩子门②）；**负数 → 不属于门②，`steps` 初始为负，第一步即减、判定不 >0 → 立即结束**（有界异常值按真实分支登记，不把"非正"统一写成无限）。
+
+### 3.4 回起点（`001_SafariZone.rb:27–40`）
+
+- **`pbGoToStart`**：**仅当当前场景是地图场景（`Scene_Map`）才执行**——淡出、设置转移（起点图/坐标、**朝向固定向下**）、下车、转移玩家；**非地图场景 → 跳过转移**（decision 已写、会话仍在）。**回起点 ≠ 清会话**（§3.1）。
+- **缺起点前置**：`@start` 为 nil 时进入本入口会在读取起点字段处失败（人工/异常前置——正常流程 pbStart 必先写 `@start`；**缺场景/缺起点时是否跳过转移或在已写状态后失败，按此分列**）。
+
+## 4. WP53-B：Safari 单次遭遇、动作与结果
+
+### 4.1 覆盖门与直接入口（`001_SafariZone.rb:107–118`；`001_Overworld_BattleStarting.rb:356–373`）
+
+- **公开覆盖门（`on_calling_wild_battle`）**：公开野生开战包装在**单一敌方且允许覆盖**时触发；**handled 已被处理 → 不动**；**不在 Safari 区域内 → 不动**；否则把处理结果设为 Safari 战斗的返回。**注册序竞争**：漫游覆盖（012）先于 Safari（018/001）先于捕虫（018/002）——Safari 区域内若漫游钩子先处理（其自身门全过），本钩子不再执行（§8.2）。
+- **直接入口（`pbSafariBattle`，审计名；实参=个体，或物种标识＋等级）**：实参为个体 → 直接使用；实参为物种标识（＋等级）→ 经 `pbGenerateWildPokemon` 生成（WP36 引用：**触发 `on_wild_pokemon_created` 生成修饰**，含 Safari/捕虫 IV 重摇钩子，§8.1）。**不检查跳战条件、不触发 `:on_start_battle`**（与正常核心开战不同，§4.2）。
+- **战斗准备交接**：创建战斗场景 → 构造 Safari 战斗对象（`SafariBattle`，审计名；场景、玩家、对方=[个体]）→ 战斗球数写入会话当前球数 → `prepare_battle`（WP36 引用：地图天气/环境/背景/时间照常赋值——SafariBattle 接受天气写入并在开战与每轮末播天气动画，素材 U01）→ 战斗动画包装中执行 `pbStartBattle`。**不走的常规步骤**：`:on_start_battle` 通知（队伍战前记录）、`skip_battle?` 跳战判定、`after_battle` 世界善后、`set_outcome` 通用结果统计/变量写入（Safari 走自己的字段与 `pbSet`，§4.6）；battle_rules 不经核心开战清理（覆盖路径——暂态规则字段残留按生命周期处理，不虚构清理保证）。
+
+### 4.2 战斗体（`001_SafariBattle.rb:4–55, 274–330`）
+
+- **对方是伪对象（`Battle::FakeBattler`）**：唯一野生个体；**永不濒死**（`fainted?` 恒否）、无影子/无 Mega/无原始、未捕获标记读写为空操作；`owned?` 实时查询玩家图鉴。
+- **玩家队伍不参战**：无招式/道具/换人/经验/金钱/装备结算；`pbGainExp` 为空操作；`wildBattle?` 为真、`trainerBattle?` 为否。
+- **图鉴登记边界**：SafariBattle **没有 internalBattle 标记**（初始化不写——与普通 Battle 的默认真不同）→ `pbSetSeen`/`pbSetCaught` 两处登记入口**直接返回、不登记**；捕获后的图鉴 owned 登记经由捕获 Mixin 的独立写入完成（§4.5，WP38/WP62 引用）。
+
+### 4.3 因子数学（独立变量，不复制参考表达式）
+
+设物种捕获率 c_r（数据属性，0–255 常规域）：
+
+- **初始捕获因子**：**F_c = clamp(⌊c_r × 100 / 1275⌋, 3, 20)**（整数算术——先乘后整除，再按下限 3、上限 20 钳制）。
+- **逃跑基准率分段（`pbEscapeRate`）**：c_r ≤ 45 → 125；45 < c_r ≤ 60 → 100；60 < c_r ≤ 120 → 75；120 < c_r ≤ 250 → 50；c_r > 250 → 25。
+- **初始逃跑因子**：**F_e = clamp(⌊E(c_r) × 100 / 1275⌋, 2, 20)**（下限 2、上限 20）。
+- **每回合动作后重新钳制**：F_c 回到 [3, 20]、F_e 回到 [2,20]（Bait/Rock 的修正可能越界，钳制在动作之后、回合末判定之前执行，§4.4）。
+- **投球捕获率回算**：**R = ⌊F_c × 1275 / 100⌋**——作为投球捕获计算的捕获率输入（F_c ∈ [3,20] → R ∈ [38, 255]；与直接物种捕获率不同——钳制后的因子回算，截断方向见 §11 向量）。
+
+### 4.4 四命令（`001_SafariBattle.rb:420–502`；逐个列许可/反馈/消耗/状态更新/后续判定）
+
+每回合经专用命令菜单（"What will {玩家} throw?"：Ball/Bait/Rock/Run）选择：
+
+| 命令 | 许可与前置 | 反馈 | 消耗与状态更新 | 后续判定次序 |
+| --- | --- | --- | --- | --- |
+| **Ball（0）** | **先查容量**（`pbBoxesFull?`：队伍满且存储满——WP25/WP38 引用）；**满 → 消息"箱子已满"，本命令作废重新选择——不耗球、不耗回合、不抽样** | 投球消息/动画（WP67-A 引用）；按 shakes 结果的成功/失败消息（WP38 引用） | **先球数 −1**、刷新数据盒；按 R 调投球（WP38：SAFARIBALL 修饰 ×1.5、HP/状态倍率、x/y 与 4 次摇动判定、x ≥ 255 必捕、DEBUG+CTRL 必捕） | 捕获成功 → 记录与存储（§4.5）→ 核心编号置 4；未捕获 → 回合末判定（下方） |
+| **Bait（1）** | 无额外前置 | "…threw some bait…"＋投饵动画（素材 U01） | **90% 概率 F_c 减半**（整数除法、0..99 均匀整数 < 90）；**F_e 必减半** | 回合末判定 |
+| **Rock（2）** | 无额外前置 | "…threw a rock…"＋投石动画（素材 U01） | **F_c 必翻倍**；**90% 概率 F_e 翻倍** | 回合末判定 |
+| **Run（3）** | 无额外前置 | 逃离音效＋"You got away safely!" | 核心编号置 3 | 回合结束 |
+| **无效/取消（else）** | — | — | **本轮重新选择——不耗球、不耗回合、不抽样、不更新因子** | — |
+
+- **回合末（仅当核心编号仍为 0，按序）**：先重新钳制两因子（§4.3）→ ①**球数 ≤ 0 → 音效＋"You have no Safari Balls left! Game over!"，核心编号置 2**；②否则**逃跑判定：以 0..99 均匀整数 < 5×F_e 判定**——通过 → 逃离音效＋"{野生} fled!"，核心编号置 3；③否则按本回合动作显示观察消息（Bait→"is eating!"、Rock→"is angry!"、其它→"is watching carefully!"）；④天气动画（有天气时）。
+- **显式中止**：战斗内 `pbAbort`（BattleAbortedException）→ 捕获 → 核心编号置 0、结束战斗场景（**显式中止与球尽/逃跑/捕获分列；核心编号 0 的语义是"未定或中止"**）。
+
+### 4.5 捕获记录与存储（`005_Battle_CatchAndStoreMixin.rb:88–107, 5–85`；WP38/WP62 引用）
+
+- **捕获成功后的次序**：`pbRecordAndStoreCaughtPokemon`——①`pbSetCaught`/`pbSetSeen`（**SafariBattle 无 internalBattle 标记 → 这两个登记入口直接返回**，§4.2）；②**图鉴 owned 登记**（Mixin 自身写入：未拥有 → set_owned、有图鉴且该物种在已解锁图鉴 → "added to the Pokédex"消息＋图鉴页展示，WP62 引用）；③`pbStorePokemon`（Mixin 版：**昵称询问**（系统选项开启时）→ 队伍有空位则入队、满则送箱子并显示箱名；**`sendToBoxes` 询问菜单在 SafariBattle 不生效**（该字段未被设置——队伍满时直接送箱，不出现"加入队伍/送箱"选择））。**"执行捕获"不等于一定登记/入队之外还承诺更多上下文**：经验/金钱/图鉴 seen 标记在 Safari 战斗不成立（无经验结算、§4.2 的登记边界）。
+
+### 4.6 结果写回（`001_SafariZone.rb:118–160`；四种输出分列）
+
+战斗返回核心编号后，按序：
+
+1. **会话球数回写**：`ballcount` ← 战斗内剩余球数（战斗内消耗才是真实消耗——直接入口未开战/中止时回写原值）。
+2. **球尽分支（会话球数 ≤ 0）**：**核心编号不为 2 时**播"Announcer: You're out of Safari Balls! Game over!"消息（**最后一球抓到的情况走这里**——战斗内未播球尽消息）；会话决定置 1 → `pbGoToStart`（§3.4）。**核心编号为 2（战斗内已判球尽）→ 不重复播消息**，仍置 1 并回起点。
+3. **统计（仅核心编号为 4 时）**：`safari_pokemon_caught` +1、会话 `captures` +1、`most_captures_per_safari_game` 取大（WP06 引用）。
+4. **变量 1 写入**（`pbSet`，审计名）——**写的是战斗核心编号**（0=未定/中止、2=球尽、3=玩家或野生逃跑、4=捕获；注释语义按来源登记）。
+5. **野生结束通知**：触发 `on_wild_battle_end`（物种/等级/核心编号——**雷达连锁钩子在此消费；发生在球尽回起点之后，触发时会话/地图状态可能已变化**，WP37 引用）。
+6. **外层返回**：**返回核心编号整数**（不是布尔——`WildBattle.start` 的覆盖路径把该整数作为 handled 结果直接返回；**不能把所有覆盖结果都强行当普通布尔**，与 WP37 漫游的布尔返回、捕虫的布尔返回分列，§6.5）。
+
+### 4.7 结果分支全表（最后一球抓到/没抓到/玩家跑/野生跑/显式中止/一般异常）
+
+| 分支 | 核心编号 | 会话球数 | 会话决定 | 消息要点 | 变量 1 | 外层返回 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 最后一球抓到 | 4 | 0 | 1（回起点） | 战斗内"Gotcha!"＋会话"out of Safari Balls" | 4 | 4 |
+| 最后一球没抓到 | 2 | 0 | 1（回起点） | 战斗内"no Safari Balls left"（会话不重复播） | 2 | 2 |
+| 玩家 Run | 3 | 剩余 | 0（会话继续） | "got away safely" | 3 | 3 |
+| 野生逃跑 | 3 | 剩余 | 0（会话继续） | "{野生} fled!" | 3 | 3 |
+| 显式中止 | 0 | 回写原值 | 0（会话继续） | — | 0 | 0 |
+| 一般异常（未到/战斗外） | — | — | — | 按字段生命周期处理，不虚构清理保证（§10） | — | — |
+
+## 5. WP53-C：捕虫大会会话、参赛队伍、时间与越界
+
+### 5.1 会话状态机与配置入口（`002_BugContest.rb:4–103`）
+
+- **状态四分**：**未开始/已清空**（`clear` 后）、**进行中未判**（`undecided?`：inProgress 且决定为 0）、**已判**（`decided?`：inProgress 且决定非 0，或 ended 为真）、**已结束**（`pbEnd` 后 inProgress 为否——`places`/`contestants`/`@start`/`@chosenPokemon` **保留**，供判奖点事件查询；离开判奖图所在图才 `clear` 全清，§5.5）。
+- **配置入口（接待事件调用，脚本 API）**：`pbSetPokemon`（审计名；实参=参赛成员下标——**只写字段、不校验**）；`pbSetContestMap`、`pbSetReception`（审计名；实参为一个或多个图 ID 或旗标字符串——**累加式**写入比赛图集/接待图集，实参为字符串时按元数据旗标收集所有带该旗标的图 ID，否则按显式图 ID）；`pbSetJudgingPoint`（审计名；实参=图、x、y、方向（默认 8）——判奖点）；`pbIsContestant?`（审计名；实参=对手下标查询——demo 事件用，U01）。
+- **`pbStart`（实参为球数）逐项**（`:171–196`）：写 `ballcount`（入口实参）、inProgress 置真、`otherparty` 清空、`lastPokemon` 清空、`lastContest` 清空、`timer_start` 写为**单调时钟当前值**、`places` 清空；**参赛成员 = 玩家队伍 `@chosenPokemon` 下标处成员**；**其余成员按原顺序逐个存入 `otherparty`**；**玩家队伍缩为 [选中成员]**（**保留成员对象本身——不治疗、不重置任何字段**，不套 WP55 等其它设施的恢复合同）；**参赛 NPC = 从 8 名名单中抽 min(5, 8) 个不重复下标**（拒绝采样去重循环）；decision 归零、ended 置否；`bug_contest_count` +1（WP06 引用）。
+- **未选择/越界前置**：`@chosenPokemon` 未设置（nil）或越界时进入 `pbStart`——队伍按下标读取成员处失败或选到 nil（**先写状态再失败的位置之一**：`ballcount`/inProgress/计时器等已写入，缩队发生在成员读取之后；接待事件的配置责任，人工/事件前置，见 §10）。
+
+### 5.2 结束与拼队（`002_BugContest.rb:198–224`）
+
+- **`pbEnd`（实参=是否中断）逐项（按序）**：①会话不在进行中 → 直接返回（**重复结束无效果**）；②**拼回队伍**：`otherparty` 成员逐个 push 回玩家队伍——**原队序不保留**（选中成员已在队首，其余按存入顺序追加；**是否治疗：不治疗**——pbEnd 不恢复 HP/状态）；③**中断（interrupted 为真）→ ended 置否、不存储保留个体**；**非中断 → 对保留个体执行昵称与存储**（`pbNicknameAndStore`：图鉴 seen＋owned 登记、昵称询问、队伍/箱子存储——**箱子满 → 两条消息、不存储**（个体丢失边界，WP25/WP38 引用））→ ended 置真；④**获胜统计**：玩家名次为榜首（place 为 0）→ `bug_contest_wins` +1（**`places` 为空时在名次查询处失败**——拼队已完成后、清字段之前的"先写状态再失败"位置，§10）；⑤清 `ballcount`/inProgress/`decision`/`lastPokemon`/`otherparty`/`contestMaps`/`reception`；⑥`lastContest` = 当前墙钟秒；⑦请求地图刷新。**`@chosenPokemon`/`@start`/`contestants`/`places` 不重置**（判奖后查询用）。
+- **正常结束/中断结束/接收失败不一概承诺事务回滚**：拼队、存储、统计、清字段是顺序副作用；任一环节失败后，已写字段保持已写（§10 逐点列出）。
+
+### 5.3 时间：单调倒计时与墙钟 24 小时（`002_BugContest.rb:20, 27–37, 230–259, 313–331`）
+
+- **倒计时基准**：`TIME_ALLOWED = Settings::BUG_CONTEST_TIME`（默认 1200 秒）；`timer_start` 在 `pbStart` 时取**单调时钟**（`System.uptime`）。
+- **到期查询（`expired?` 三门）**：**未决定（undecided）才判**；`TIME_ALLOWED <= 0` → **永不到期**（0 与负数同分支——配置 0＝无限；负数没有独立分支，静态登记）；单调时钟差 ≥ 限时 → 到期。
+- **到期通知（`on_frame_update`，再三门）**：到期后**玩家移动路线强制中、地图解释器运行中、消息窗口显示中 → 当帧推迟**（三门任一成立即跳过）；通过 → 两条消息（"BEEEEEP!"＋"Time's up!"）→ `pbStartJudging`（§5.4）。**倒计时期间在菜单/战斗/消息中**：菜单与战斗有各自场景循环，地图场景的帧更新不执行——到期判定只在地图帧更新且三门全过时落地（静态可证部分）；菜单/战斗内计时是否继续流逝按单调时钟定义（自然流逝）。
+- **定时器显示（`TimerDisplay`）**：`on_map_or_spriteset_change` 挂接——**进行中且未决定且限时非 0 才创建**（限时为 0 不显示；**限时小于 0 不属于该门 → 显示**，剩余时间下界钳到 0 → 显示 00:00 且永不到期）；显示分:秒倒计时（剩余 = 限时 − 单调时钟差，下界 0）。
+- **墙钟 24 小时（`pbContestHeld?`）**：`lastContest` 未设置 → 否；否则 当前墙钟 − `lastContest` < 24×3600。**该查询是接待事件的限频依据（demo/U01）——脚本开始入口本身不检查它，不把"检查 24 小时"说成所有开始调用都强制限频**。
+- **保存/载入后的时间基准**：`timer_start` 是运行时刻值——恢复保存后倒计时基准的实际语义未证（静态保留，§10/§13）。
+
+### 5.4 判奖开始（`002_BugContest.rb:146–165`）
+
+- **`pbStartJudging`（按序）**：会话决定置 1 → `pbJudge`（§7）→ **仅当地图场景时**淡出转移到判奖点（下车、朝向取判奖点配置、**即使同图也请求刷新**）；非地图场景 → 跳过转移（判定与名次已写）。
+- **`pbBugContestStartOver`（`pbStartOver` 黑屏/战败回退入口，`:301–308`）**：玩家队伍逐个**治疗＋去 Mega＋去原始**，然后 `pbStartJudging`。**捕虫会话中全灭不走宝可梦中心流程**（`003_Overworld_MapTransitionAnims.rb:80–84`：`pbStartOver` 先查 `pbInBugContest?`）。
+- **判奖点未设置**：`@start` 为 nil 时——判分与名次先完成，随后**在读取判奖点字段处失败**（地图场景时；"先写状态再失败"位置，§10）。
+
+### 5.5 越界与清理（`002_BugContest.rb:95–99, 146–148, 333–345`）
+
+- **越界判定（`pbOffLimits?`）**：目标图在比赛图集或接待图集内 → 否；否则是。
+- **离开地图钩子（`on_leave_map`，MapFactory 转移触发）**：**进行中且目标图越界 → `pbEnd`（中断实参）**（中断——飞天/瞬移/传送出比赛区域即中断；不存储保留个体；**未判奖时 `places` 为空 → 在 §5.2 ④的名次查询处失败**，拼队已完成、会话字段未清——§10）。
+- **进入地图钩子（`on_enter_map`）**：`pbClearIfEnded`——**已结束（inProgress 为否）且（无判奖点或当前图不是判奖点所在图）→ `clear` 全清**；停留在判奖图 → 保留（`places` 可供事件查询）。
+
+## 6. WP53-D：捕虫大会战斗、Sport Ball 与保留结果
+
+### 6.1 覆盖门与开战交接（`002_BugContest.rb:350–404`）
+
+- **公开覆盖门**：`on_calling_wild_battle`——handled 空 且 捕虫进行中（`pbInBugContest?`）才接管；注册序在漫游、Safari 之后（§8.1）。
+- **直接入口（`pbBugContestBattle`，审计名；实参=个体，或物种标识＋等级）按序**：①**先触发 `:on_start_battle`**（队伍战前记录——WP42 引用，与 Safari 入口不同）；②物种标识 → `pbGenerateWildPokemon` 生成（触发 `on_wild_pokemon_created` 修饰——含 Safari/捕虫 IV 重摇，§8.1）；③**战斗对象按普通 Battle 子类构造（`BugContestBattle`，审计名；场景、玩家队伍、对方=[个体]、训练师=[玩家]）**（internalBattle 为真、图鉴登记照常）、玩家侧起始下标 0、战斗预算写入会话预算；④**强制单打规则**（`setBattleRule`，审计名；写入单打规则——双打判定另有"队伍仅 1 成员"事实兜底，WP36 引用）；⑤`prepare_battle`；⑥战斗动画包装中：核心编号取自 `pbStartBattle`（**走普通 Battle 的完整回合流程与终局**，WP39–WP42 引用）→ **`after_battle`（审计名；实参=核心编号与可治疗标记）**（败/平治疗队伍、触发 `:on_end_battle`、玩家人物复位，WP42 引用）→ **核心编号 ∈ {2, 5}（败/平）→ 恢复音乐＋`pbBugContestStartOver`**（治疗＋判奖转移，§5.4）。
+- **跳过项**：不检查 `skip_battle?`（无跳战分支——`battle_rules` 同样不经核心清理，§4.1 同边界）。
+
+### 6.2 命令界面与 Sport Ball（`002_BugContestBattle.rb:32–56`；`006_Battle_ActionUseItem.rb:26–44`）
+
+- **命令菜单**：Fight／Ball／Pokémon／Run（菜单标题行显示 "Sport Balls: {剩余}"）——与一般背包入口分开；**没有背包道具选择**。
+- **Ball 的库存语义**：`pbItemMenu` 被覆写为**恒登记 Sport Ball 一枚**（`pbRegisterItem`）；登记动作本身调用 `pbConsumeItemInBag`——**该方法被覆写为"会话预算 >0 才 −1"，完全不接触背包**（**Sport Ball 库存是会话预算，不是背包数量**——登记即消耗预算；球类道具占用该轮全部行动，WP40 引用）。**投球失败不返还预算**（正常道具路径的"无效果返还"经同一覆写回流到背包——对本覆写的会话预算无返还分支；投球一定发生，§6.3）。
+- **投球与捕获**：经正常道具处理器进入 WP38 捕获计算（SPORTBALL 修饰 ×1.5、物种捕获率、HP/状态倍率、x/y 与摇动判定、DEBUG+CTRL 必捕——WP38 引用）；捕获成功走 Mixin 记录路径（图鉴登记照常——**BugContestBattle 的 internalBattle 标记为真**），存储落到 §6.3 的覆写。
+- **负球边界**：消耗只在预算 >0 才减；回合末判定 ≤0（§6.4）；菜单登记无预算门（人工零球下标仍可登记投球——人工夹具边界，§10）。
+
+### 6.3 保留捕获结果（`002_BugContestBattle.rb:58–77`）
+
+- **`pbStorePokemon` 覆写（捕获不进队伍/箱子）**：
+  - **无保留个体** → `lastPokemon` = 新捕获个体；
+  - **已有保留个体** → "You already caught a {旧}!"＋**比较信息窗**（双方名字/等级/HP 上限）→ 确认"Switch Pokémon?"——**确认 → 替换**（`lastPokemon` = 新个体；**旧保留个体被换下**——不再属于玩家）；**拒绝 → 新个体不保留**（直接返回——**拒绝保留新个体不自动等于未捕获，也不回滚已完成的图鉴/统计写入**）；
+  - 随后 "Caught {新}!" 消息。
+- **捕获 ≠ 最终接收**：最终昵称/储存接收发生在会话正常结束时（§5.2 ③——`pbNicknameAndStore` 对 `lastPokemon` 执行；箱子满 → 不存储）。
+
+### 6.4 回合末与球尽（`002_BugContestBattle.rb:79–82`）
+
+- **回合末**：先执行正常回合末流程（WP42 引用），随后**预算 ≤0 且战斗未决 → 核心编号置 3**（战斗以"逃/弃权"语义结束——**球数耗尽在战斗阶段的表现**；与会话阶段的判奖分支分开，§6.5）。
+
+### 6.5 结果写回（`002_BugContest.rb:392–403`；与 Safari 分列）
+
+按序：
+
+1. **预算回写**：会话 `ballcount` ← 战斗内剩余预算。
+2. **球尽判奖分支**：**会话预算恰为 0** → "The Bug-Catching Contest is over!"＋`pbStartJudging`（判奖＋转移，§5.4）。**注意精确门**：「恰为 0」（负预算不触发本分支——战斗阶段已被 §6.4 的 ≤0 结束；人工负值夹具边界，§10）。
+3. **结果变量/统计**：通用结果写入（`set_outcome`，审计名）——变量 1 = 核心编号；`wild_battles_won`/`wild_battles_lost` 按 1/4 vs 2/3/5 增减（WP06/WP42 引用；**核心编号 3（球尽/逃跑）计入 lost**）。
+4. **野生结束通知**：触发 `on_wild_battle_end`（雷达钩子在此消费——**发生在球尽判奖/转移之后**，§8.1）。
+5. **外层返回**：**布尔——败（2）/平（5）为否，其余正常结果为是**（与 Safari 的核心编号整数返回分列；与 WP37 漫游的布尔返回同型）。
+- **败/平回判奖**：decision ∈ {2, 5} → §6.1 ⑥ 的 StartOver 已执行一次判奖转移；**若此时预算恰好为 0，本分支再次消息＋`pbStartJudging`——重复判奖**（`places` 追加 3 条；不凭意图假定只判一次，§7.3/§10）。
+
+## 7. WP53-E：判分、对手结果、名次与结算
+
+### 7.1 玩家评分（`002_BugContest.rb:266–277`；独立算术）
+
+设个体等级 L、六项 IV 值 iv_s、当前 HP 与 HP 上限、物种捕获率 c_r：
+
+- **等级分**：**4 × L**。
+- **IV 分**：**⌊100 × Σ_s (iv_s / 31)⌋**（六项分别除以 IV 上限 31 后求和、乘 100、向下取整——先浮点求和后一次取整；全 31 → 600 的浮点和按实现取整）。
+- **HP 分**：**⌊100 × HP / HP_max⌋**（一次浮点除法后向下取整）。
+- **稀有分**：**R = 60 + 20 ×（c_r ≤ 120 则加）+ 20 ×（c_r ≤ 60 则加）** ∈ {60, 80, 100}（**两道阈值、c_r 为数据属性**——c_r ≤ 60 → 100；60 < c_r ≤ 120 → 80；c_r > 120 → 60；**按当前实现登记，不以原作公式或"应该如此"替代**）。
+- **总分 S = 等级分 + IV 分 + HP 分 + R**（玩家保留个体与对手个体同式）。
+
+### 7.2 对手选择与生成（`002_BugContest.rb:105–133`）
+
+- **遭遇图集构建**：逐比赛图——**无 `:BugContest` 遭遇类型 → 回退 `:Land`**；该图拥有（回退后）类型 → 入列 [图, 类型]；**全图为空 → 异常**（"no Bug Contest/Land encounters for any Bug Contest maps."——判奖在转移前中断，decision 已置 1，§10）。
+- **每名对手**：**随机选一 [图, 类型]**（均匀抽取、各对手独立）→ 遭遇选择查询（`choose_wild_pokemon_for_map`，审计名）按该图该类型遭遇表（含遭遇版本）抽取 [物种, 等级]——**空候选 → 异常**（"No encounters for map {1} somehow, so can't judge contest."）；→ **按普通个体构造入口（`Pokemon.new`，审计名）直接构造**——**不走 `pbGenerateWildPokemon`，无 `on_wild_pokemon_created` 修饰**（无 Safari/捕虫 IV 重摇、无闪光开关、无等级缩放——与普通野外生成入口的修饰区别按实际调用确认）；→ **HP 取 1 到 HP 上限−1 的离散均匀随机**；→ 按 §7.1 评分。
+- **候选数量**：对手人数 = `pbStart` 抽取的 min(5, 8) = 5 名（名单 8 人）；**判奖数组条数 = 5 名对手 +（有玩家保留个体时再加 1）≥ 5**——**<3 的异常（"Too few bug-catching contestants"）在正常流程不可达，属人工/变体前置防御**（ contestants 被人工清空时）。
+- **排序**：按分数降序（**同分次序按排序算法的实际行为——不臆造稳定同分规则**，§10/§13）。
+
+### 7.3 名次与查询（`002_BugContest.rb:129–144, 198–203`）
+
+- **places 写入**：排序后**追加**前三名到 `places`（**追加不是覆盖**——重复判奖时累加，每次 3 条；每条 = [参赛者下标（玩家为 −1）, 物种, 分数]）。
+- **玩家名次（`place`）**：`places` 前三条中首条玩家（下标 −1）的位置（0/1/2），否则 3（未上榜）。
+- **名次查询（`pbGetPlaceInfo`，审计名；实参=名次位）**：变量 1 = 玩家名（下标 −1 时）或对手名、变量 2 = 物种名、变量 3 = 分数——**`places` 为空或下标越界时在读取处失败**（事件前置；先写状态再失败位置，§10）。
+- **结算次序回顾**（§5.2）：拼队 → 存储保留个体 → 获胜统计（place==0）→ 清字段 → `lastContest`——**真实奖励事件未知就保留**（demo/U01/WP77）。
+
+## 8. WP53-F：公共交界、UI、保存与 demo 配置
+
+### 8.1 事件注册/调用次序（WP05 事件分发引用；按目录加载序 012 → 013 → 018）
+
+- **`on_calling_wild_battle`（覆盖竞争）**：漫游（`012/005`，漫游战斗）→ **Safari（`018/001`）** → **捕虫（`018/002`）**——三者都以 handled 空为门；**Safari 区域内漫游条目满足其全部门时，漫游覆盖先生效（产生漫游战斗而非 Safari 战斗）**；漫游门不成立才落到 Safari/捕虫覆盖。
+- **`on_wild_species_chosen`（物种层）**：漫游替换（先）→ 雷达连锁（后）——两个钩子都**不设 Safari/捕虫模式门**：Safari/捕虫区域内漫游可替换物种（25% 门等全过时）、雷达钩子对非摇动草遭遇一律取消连锁（WP37 引用）。
+- **`on_wild_pokemon_created`（生成层）**：按 `004_Overworld_EncounterModifiers.rb` 文件内注册序——闪光开关 → **Safari/捕虫 IV 重摇**（`pbInSafari?` 或 `pbInBugContest?` 时：**若无任一 IV 达到上限，全部主属性 IV 重随机，至多 4 次，提前命中上限即停；发生重摇才重算能力值**）→ 传说/幻之/究极异兽保底 3 满 IV → 地图旗标等级缩放。两个模式入口的 `pbGenerateWildPokemon` 都会触发该链；**判奖的对手个体不走此链**（§7.2）。
+- **`on_enter_map`**：漫游推进 → 雷达取消 → **Safari 区域外清空（end_safari_game）** → **捕虫 `pbClearIfEnded`**。
+- **`on_leave_map`**：**捕虫越界中断**（§5.5）。
+- **`on_player_step_taken_can_transfer`**：毒伤（`012/001`）→ **Safari 计步（`018/001`）**——handled 门串联；Safari 计步触发转移时当步不再做遭遇判定（§3.3）。
+- **`on_frame_update`**：Pokérus/低电量/BGM（`012/001`）→ **捕虫倒计时（`018/002`）**。
+- **`on_map_or_spriteset_change`**：暗度/位置窗（`012/001`）→ **捕虫定时器显示（`018/002`）**。
+- **`on_start_battle`**：**捕虫入口显式触发**（§6.1）；**Safari 入口不触发**（§4.1）。
+- **`on_wild_battle_end`**：**两个模式入口都在结果写回后显式触发一次**（雷达连锁钩子消费；**触发点在球尽回起点/判奖转移之后**——回调发生时 Safari 会话可能已置 decision=1 且玩家已回起点、捕虫可能已完成判奖与转移，不套 WP37 每条正常路径结论）。
+
+### 8.2 雷达与两种模式的静态关系
+
+- 雷达许可门只看地形/遭遇表/骑车/调试/电量（WP37 引用）——**无 Safari/捕虫模式门**；连锁数据是暂态字段。
+- 连锁存在时：漫游替换跳过（其自身门）；雷达钩子对非摇动草遭遇取消连锁；Safari/捕虫覆盖在 `on_calling_wild_battle` 层照常发生（handled 空时）——**连锁中的遭遇在两种模式区域内被模式战斗接管，随后模式入口的 wild-end 通知更新或取消连锁**（击败/捕获 → 增链重摇；其它结果 → 取消；重摇/消息按 WP37 合同）。
+
+### 8.3 UI 与用户流程（`001_SafariZone.rb:165–196`；`002_BugContest.rb:409–441`；`001_UI_PauseMenu.rb:186–204, 254–264`）
+
+- **暂停菜单信息行**（`pbShowInfo` 追加）：**Safari**——配置步数 >0 时显示 "Steps: {剩余}/{上限}\nBalls: {球数}"，**配置步数 ≤0 时只显示 "Balls: {球数}"**；**捕虫**——有保留个体时显示 "Caught: {物种}\nLevel: {等级}\nBalls: {预算}"，否则 "Caught: None\nBalls: {预算}"。
+- **主动退出**：暂停菜单 "Quit"（Safari，order 60，仅区域内出现）→ 确认 → 结束菜单场景、会话决定置 1、`pbGoToStart`（**确认才执行；取消返回菜单**）；"Quit Contest"（捕虫，order 60）→ 确认 → 结束菜单场景、`pbStartJudging`（**主动退出捕虫 = 进入判奖，不是中断**）。
+- **背包**：捕虫进行中**不可用**（菜单条件 `!pbInBugContest?`）；Safari 中可用（但战斗内无背包——§4.2）。
+- **保存**：**两种模式进行中均不可用**（菜单条件 `!pbInSafari? && !pbInBugContest?`——与系统级 save_disabled 并列）。
+- **调试入口**（`002_Debug_MenuCommands.rb:68–135`，调试不混进默认用户流程）："Safari Zone and Bug-Catching Contest"——**Safari**：步数编辑（0–99999，**仅配置步数 >0 时可编**）、Safari 球数编辑（0–99999）；**捕虫**：剩余时间编辑（按分钟 0–99999，**仅限时不为 0 时可编**——改写 `timer_start` 并同步已存在的 TimerDisplay 精灵）、Sport 球数编辑。调试把球数/步数改为 0 后的后续判定走各自正常门。
+
+### 8.4 保存与持久边界（WP09 引用）
+
+- **持久（全局元数据，随存档保存）**：`safariState`、`bugContestState` 两个会话对象整体（`002_Overworld_Metadata.rb:31–32, 86–87`——"Special battle modes"字段组）。**但模式进行中保存入口不可用（§8.3）——正常流程能落盘的只有未开始/已结束态**；`lastContest`、统计字段（`safari_pokemon_caught`、`most_captures_per_safari_game`、`bug_contest_count`、`bug_contest_wins`，WP06 引用）随存档。
+- **运行时刻值与落盘分开**：`timer_start`（单调时钟）、TimerDisplay 精灵、战斗内预算/因子是运行态——保存/载入对这些基准的实际语义未逐项验证（静态保留）。
+- **版本转换**：当前转换集中**无 Safari/捕虫相关转换**（SaveConversions 检索为空）——普通载入不涉及两会话对象的格式迁移（WP10 不重开）。
+- **demo 可达性保留**：接待/判奖/奖励/费用/参赛日期事件的实际地图接点与调用链归 U01/WP77；脚本提供入口（pbStart/pbSetContestMap/pbSetJudgingPoint/place/pbGetPlaceInfo/pbContestHeld?/pbIsContestant? 等）不等于默认事件确实调用。
+
+### 8.5 demo 配置样本（数据样本确认，不作完整事件证据）
+
+- **Settings**：`SAFARI_STEPS = 600`（0=无限步）；`BUG_CONTEST_TIME = 20 × 60 = 1200` 秒（0=无限时）。
+- **地图元数据（PBS/map_metadata.txt）**：`[067] Safari Zone gate`（无 SafariMap 旗标——接待图靠会话起点匹配）；`[068] Safari Zone`：**带 `SafariMap` 旗标**、Outdoor、战斗背景 forest、环境 Forest（均为元数据字段值）；`[028] Natural Park`：**带 `MossRock` 与 `BugContest` 旗标**；`[029] Natural Park Entrance`、`[030] Natural Park Pavillion`：**带 `BugContestReception` 旗标**。
+- **遭遇（PBS/encounters.txt）**：`[028] Natural Park` 定义 `Land,21` 与 **`BugContest,21`**（版本 21）——BugContest 表 10 槽：权重 20/20/10/10/10/10/5/5/5/5，物种与等级域（CATERPIE 7–18、WEEDLE 7–18、KAKUNA 9–18、METAPOD 9–18、PARAS 10–17、VENONAT 10–16、BEEDRILL 12–15、BUTTERFREE 12–15、PINSIR 13–14、SCYTHER 13–14）（WP36 引用表结构）。
+- **道具（PBS/items.txt）**：`SAFARIBALL`（口袋 3、价格 0、BattleUse=OnFoe、PokeBall 旗标）；`SPORTBALL`（口袋 3、价格 300、BattleUse=OnFoe、PokeBall 旗标）；两球的捕获率修饰均为 ×1.5（WP38 引用）。**球数是模式入口的调用实参（接待事件给），不是 Settings 配置**。
+
+## 9. 默认行为与配置变体
+
+- **Safari 默认**：步数 600；球数为接待事件实参；区域 = 起点接待图 ∪ SafariMap 旗标图；计步到 0/球数 ≤0/主动 Quit → decision=1 回起点；离开区域 → 清空。
+- **Safari 配置变体**：`SAFARI_STEPS = 0` → 不计步（暂停只显示球数）；**`SAFARI_STEPS < 0` → 第一步即结束**（真实分支，§3.3）。
+- **捕虫默认**：限时 1200 秒；球数为接待事件实参；对手 5 名（8 名名单去重抽取）；队伍缩为 1 员；判奖 = 时限到/球尽/Quit/败平/越界中断（中断不判）。
+- **捕虫配置变体**：`BUG_CONTEST_TIME = 0` → 不到期、不显示定时器；**`BUG_CONTEST_TIME < 0` → 显示 00:00 且永不到期**（真实分支，§5.3）。
+- **未验证组合**：素材/逐帧实测（U01/E11）、宿主随机源实际序列、demo 事件编排（U01/WP77）、保存/载入后单调时钟基准语义。
+
+## 10. 边界、失败与未知
+
+- **Safari 边界**：`pbGoToStart` 非地图场景 → 不转移（decision 已写）；`@start` 为 nil（人工/异常前置）→ 读取起点字段处失败；球数人工 0/负 → 战斗回合末/战斗后球尽分支照常判定；覆盖钩子 handled 已处理 → Safari 不接管（保留原处理结果）。
+- **捕虫"先写状态再失败"位置（人工/事件/变体前置，逐个列出）**：①`@chosenPokemon` 未设置/越界 → `pbStart` 在按该下标读取队伍成员处失败（ballcount/inProgress/计时器已写）；②**未判奖就 `pbEnd`（含越界中断）→ 拼队完成后在名次查询处失败**——会话字段未清、`lastContest` 未写；③判奖点未设置（`@start` 为 nil）→ `pbStartJudging` 在判分写名次后、读取判奖点处失败（地图场景时）；④判奖时比赛图集全无有效遭遇类型 → 异常（decision 已置 1）；⑤对手抽中遭遇表空候选 → 异常；⑥`places` 为空时 `pbGetPlaceInfo`/`place` → 读取处失败；⑦`pbNicknameAndStore` 箱满 → 消息后不存储（不失败、不存储）。
+- **重复判奖**：败/平 StartOver 判一次、随后预算为 0 分支再判一次（`places` 追加）；同一 `pbStartJudging` 被重复调用也追加——**`places` 只追加不覆盖**；`place`/`pbGetPlaceInfo` 只读前三条。
+- **共同边界**：覆盖路径不经核心开战——battle_rules 等暂态字段的清理按各自生命周期处理（不虚构清理保证）；战斗中异常中断（脚本错误）时字段清理未逐项验证；demo 可达性具名保留（U01/WP77）。
+- **未知/未证**：定时器在菜单/战斗内流逝与恢复显示的全部宿主行为；保存/载入后 `timer_start` 与 24 小时墙钟的实际语义；素材存在与播放（U01/E11）；奖励/费用/接待话术事件（U01/WP77）。
+
+## 11. 可复核性与静态场景
+
+### 11.1 复核方式
+
+| 事实 | 复核方式 |
+| --- | --- |
+| Safari 会话/区域/计步/回程/暂停 | 阅读 `S/018_Alternate battle modes/001_SafariZone.rb`（196 行全文） |
+| 捕虫会话/队伍/时间/判奖/退出 | 阅读 `S/018_Alternate battle modes/002_BugContest.rb`（441 行全文） |
+| Safari 战斗体/因子/四命令/结果 | 阅读 `S/011_Battle/008_Other battle types/001_SafariBattle.rb`（502 行全文） |
+| 捕虫战斗命令/预算/保留/回合末 | 阅读 `S/011_Battle/008_Other battle types/002_BugContestBattle.rb`（83 行全文） |
+| 捕获/存储/摇动计算 | `S/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb`（WP38 引用；Mixin 全文） |
+| 球修饰 | `S/011_Battle/007_Other battle code/010_Battle_PokeBallEffects.rb:51–53, 171–173` |
+| 生成修饰（IV 重摇等） | `S/012_Overworld/002_Battle triggering/004_Overworld_EncounterModifiers.rb:9–45`；`003_Overworld_WildEncounters.rb:211–264`（双打抑制、遭遇类型选择） |
+| 开战包装/善后/结果变量 | `S/012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb:255–348, 354–409` |
+| 命令/道具行动/终局 | `S/011_Battle/001_Battle/001_Battle.rb:40–150`；`006_Battle_ActionUseItem.rb:26–60`；`009_Battle_CommandPhase.rb:174–265`；`002_Battle_StartAndEnd.rb:425–511` |
+| 步进/换图/帧钩子 | `S/012_Overworld/001_Overworld.rb:175–187`；`S/004_Game classes/005_Game_MapFactory.rb:143–152`；`S/003_Game processing/002_Scene_Map.rb:162`；`S/003_Game processing/006_Event_HandlerCollections.rb:6–41` |
+| 黑屏回退 | `S/012_Overworld/001_Overworld visuals/003_Overworld_MapTransitionAnims.rb:80–84` |
+| 暂停菜单 | `S/016_UI/001_UI_PauseMenu.rb:186–204, 254–264` |
+| 调试 | `S/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb:68–135` |
+| 持久与统计 | `S/012_Overworld/002_Overworld_Metadata.rb:25–95`；`S/004_Game classes/012_Game_Stats.rb:57–58, 140–143`；`S/002_Save data/005_Game_SaveConversions.rb`（检索为空） |
+| 数据样本 | `S/001_Settings.rb:87–90`；`PBS/map_metadata.txt:128–146, 341–352`；`PBS/encounters.txt:84–119`；`PBS/items.txt:3839–3855` |
+
+### 11.2 静态推导场景（未运行，待运行验证）
+
+| 场景 | 输入 | 推导预期 |
+| --- | --- | --- |
+| M01 Safari 首次开始字段（默认可达） | 新档、接待事件 pbStart（球数实参 30，示例） | @start 写为当前图/坐标/朝向、ballcount 写为 30、steps 写为 600、inProgress 置真、decision 为 0；captures 保持 0；持久在全局元数据但模式中不可保存（§8.3/§8.4） |
+| M02 Safari 重复开始（人工前置） | 会话结果待处理（decision 为 1、captures 为 2）时未 pbEnd 直接 pbStart（球数实参 30） | @start/ballcount/steps 重写、inProgress 置真；**captures 仍为 2、decision 仍为 1**——计步门不再计数（重复开始 ≠ 彻底重置） |
+| M03 捕虫首次开始缩队（默认可达） | 队伍 4 员、pbSetPokemon（实参=下标 1）、图集/判奖点已配、pbStart（球数实参 20） | 队伍=[原第 2 员]（对象原样、不治疗）；otherparty=[其余 3 员原序]；对手 5 名不重复下标；timer_start 写单调时钟；bug_contest_count+1；lastPokemon/places/lastContest 清空 |
+| M04 Safari 区域判定（默认可达） | a) 起点接待图（无旗标）；b) SafariMap 旗标图；c) 第三图 | a/b 在区域内（会话进行中 pbInSafari? 真）；c) 进入即 pbEnd 清空；接待图靠会话起点匹配而非旗标 |
+| M05 Safari 计步门与最后一步（默认可达＋人工夹具） | a) 区域内 steps=2 走一步；b) steps=1 走一步；c) 本步 handled 已被毒伤转移占用（人工） | a) steps=1、无消息；b) 两条消息、decision=1、回起点、handled 置真——**当步不再遭遇**；c) 计步钩子不动（handled 门） |
+| M06 Safari 步数配置变体（配置变体） | a) SAFARI_STEPS=0；b) SAFARI_STEPS=−5 | a) 计步钩子不执行（无限步）、暂停只显示球数；b) 不属于"为 0"门：steps 初始 −5，**第一步即结束**（真实分支，不按注释写成无限） |
+| M07 Safari Ball 容量拦截（配置变体） | 队伍满且存储满时选 Ball | "箱子已满"消息、本命令作废重选——**不耗球、不耗回合、不抽样**；容量有空间后才耗球投球 |
+| M08 Safari 最后一球（默认可达） | ballCount=1：a) 投球捕获；b) 投球未捕 | a) decision=4、会话播"out of Safari Balls"、decision=1 回起点、变量 1=4、外层返回 4；b) 战斗内播"no Safari Balls left"、decision=2、会话不重复播、decision=1 回起点、变量 1=2、外层返回 2 |
+| M09 Safari Bait/Rock 因子更新（默认可达） | F_c=10、F_e=10：a) Bait（90% 门过/不过）；b) Rock（90% 门过/不过） | a) 过：F_c=5、F_e=5；不过：F_c=10、F_e=5（F_e 必减半）；b) F_c=20（必翻倍）、F_e=20（过）或 10（不过）；动作后按 [3,20]/[2,20] 重新钳制 |
+| M10 Safari Run/野生逃/显式中止（默认可达＋人工夹具） | a) Run；b) 回合末逃跑判定通过；c) 战斗内 pbAbort（人工） | a) 核心编号 3、"got away safely"、会话继续、变量 1=3、外层返回 3；b) 同核心编号 3（"{野生} fled!"）；c) 核心编号 0、球数回写原值、会话继续、变量 1=0、外层返回 0——**中止不置会话决定** |
+| M11 捕获/逃离因子向量（独立算术） | c_r=45/60/120/250/255 邻近值 | E(45)=125→F_e=⌊12500/1275⌋=9；E(60)=100→7；E(120)=75→5；E(250)=50→3；E(255)=25→⌊2500/1275⌋=1→钳到 2；F_c：c_r=255→⌊25500/1275⌋=20；c_r=25→⌊2500/1275⌋=1→钳到 3；分段边界等号归属：≤45 取 125、≤60 取 100、≤120 取 75、≤250 取 50、>250 取 25 |
+| M12 Safari 投球回算与 90% 门（独立算术） | F_c=3/20 回算 R；Bait/Rock 的 90% 判定 | R=⌊F_c×1275/100⌋：F_c=3→38、F_c=20→255；90% 门：0..99 均匀整数 <90 才修正（89 过、90 不过——等号不触发）；逃跑判定 <5×F_e（F_e=2 → <10；比较等号边界：恰好等于不逃） |
+| M13 公开覆盖与竞争（默认可达＋人工夹具） | a) Safari 区域内普通遭遇、漫游门不过；b) Safari 区域内漫游门全过；c) 人工直接调用 pbSafariBattle（实参=物种标识＋等级 5）；d) handled 已被人工占用 | a) Safari 接管（核心编号整数返回）；b) **漫游覆盖先生效——漫游战斗**（注册序）；c) 生成个体并进入 Safari 战斗（无跳战检查、无 :on_start_battle）；d) Safari 不动（保留原处理结果） |
+| M14 捕虫缩队/还原次序（默认可达） | 队伍 4 员选第 2 员参赛、正常判奖后 pbEnd | 拼队后顺序=[选中员, 其余 3 员原序]——**原队序不保留**；不治疗；otherparty 清空 |
+| M15 捕虫正常结束存储（默认可达＋配置变体） | 判奖后 pbEnd（非中断）：a) 有保留个体、箱有空位；b) 箱满 | a) 图鉴 seen+owned、昵称询问、入队/入箱、ended 置真；b) 两条消息、**不存储**（个体丢失边界）、其余字段照常清 |
+| M16 捕虫中断与未判奖失败（默认可达＋人工夹具） | a) 进行中飞天出界（判奖已过）；b) 进行中飞天出界（**未判奖**）；c) 重复 pbEnd | a) 中断结束：拼队、不存储、ended 置否、清字段、lastContest 写；b) **拼队完成 → 名次查询处失败**：places 为空——会话字段未清、lastContest 未写（先写状态再失败）；c) 直接返回无效果 |
+| M17 捕虫时间门（配置变体） | TIME_ALLOWED=1200：a) 到点且三门全过；b) 到点但消息窗口显示中；c) 移动路线强制中/解释器运行中 | a) 两条消息＋pbStartJudging；b/c) 当帧推迟（判定保留到下一帧）；菜单/战斗期间地图帧更新不执行——到期在返回地图场景后落地（静态可证部分） |
+| M18 时间配置 0/负（配置变体） | a) TIME_ALLOWED=0；b) TIME_ALLOWED=−60 | a) 不到期、不显示定时器；b) **显示 00:00 且永不到期**（expired? 的 ≤0 门；显示门只是 !=0——真实分支） |
+| M19 捕虫战斗阶段球尽（默认可达） | 预算 1：投球后回合结束 | 回合末正常流程后核心编号置 3；战后预算回写 0 → 消息＋pbStartJudging；通用结果写入变量 1=3（计入 lost）；外层返回**是**（布尔） |
+| M20 败/平与零球重复判奖（配置变体） | 预算 0（人工夹具）且战败（decision=2） | after_battle 治疗 → StartOver 判奖一次（places+3）→ 随后预算 ==0 分支**再次**消息＋pbStartJudging（places 再+3）；**places 追加不覆盖**；变量 1=2；外层返回**否** |
+| M21 保留与替换（默认可达） | a) 首只捕获；b) 已有保留再捕：确认；c) 拒绝 | a) lastPokemon=新个体、"Caught!"；b) 比较窗（双方名字/等级/HP 上限）→ 替换、旧个体被换下；c) 新个体不保留——**不回滚图鉴/统计写入**；三种都不进队伍/箱子 |
+| M22 最终接收分层（默认可达＋配置变体） | 正常 pbEnd：a) 保留个体入队有空位；b) 仅箱有空位；c) 全满 | a) 入队；b) 入箱并显示箱名；c) 两条消息、**不存储**；昵称询问在存储前（系统选项开启时） |
+| M23 评分明通向量（独立算术） | a) L=14、IV 全 31、HP 满、c_r=45；b) 同 a 但 HP=1/200；c) c_r=120/121、60/61 边界 | a) 56+600+100+100=856；b) 56+600+⌊100×1/200⌋=0+100=756；c) R：60→100、61→80、120→80、121→60（两道阈值等号归属：≤60、≤120）；IV 分为六项商和后一次取整 |
+| M24 对手生成（默认可达＋配置变体） | 比赛图 [028]（有 BugContest,21 表）＋另一无 BugContest 类型但有 Land 的图 | 无 BugContest 类型的图回退 Land；每名对手独立随机选 [图,类型]、按表抽 [物种,等级]、Pokemon.new 直构（**无生成钩子修饰**）、HP=1..HP_max−1 均匀；版本按遭遇数据（21） |
+| M25 判奖异常前置（人工夹具） | a) 比赛图集全无任何有效类型；b) 某图选中但表空；c) contestants 人工清空且无保留个体 | a) 异常"no Bug Contest/Land encounters…"（decision 已置 1、转移未执行）；b) 异常"No encounters for map…"；c) 判奖数组 <3 → 异常"Too few bug-catching contestants"（正常流程恒 ≥5） |
+| M26 名次与同分（默认可达＋配置变体） | a) 玩家无捕获；b) 玩家分数第一；c) 同分；d) 重复判奖后查 place | a) 判奖数组仅 5 名对手、玩家名次=3；b) place=0、wins+1；c) 同分次序按排序算法实际行为——**不臆造稳定同分规则**；d) place 只读前三条（首次判奖结果） |
+| M27 主动退出对比（默认可达） | a) Safari 暂停 Quit 确认；b) Safari Quit 取消；c) 捕虫 Quit Contest 确认 | a) decision=1、回起点（字段留待离区清空）；b) 返回菜单、无写入；c) **进入判奖**（pbStartJudging——主动退出捕虫 ≠ 中断） |
+| M28 调试入口（调试，非用户流程） | a) 调试改 Safari 球数=0；b) 配置步数=0 时打开调试；c) 捕虫改剩余时间 | a) 下一场战斗回合末/战斗后按球尽判定；b) 步数项不可编（配置 ≤0）、球数可编；c) 改写 timer_start 并同步 TimerDisplay（分钟粒度 0–99999） |
+| M29 模式与漫游/雷达（默认可达＋人工夹具） | a) Safari 区域内存活雷达连锁；b) 连锁中击败 Safari 对手；c) 漫游条目位于 Safari 图且门全过 | a) 遭遇触发时雷达钩子对非摇动草取消连锁；漫游跳过（连锁门）；b) 模式入口 wild-end → 增链静默重摇（WP37 合同）；c) **漫游覆盖先生效→漫游战斗**（不是 Safari 战斗——注册序与 handled 门） |
+| M30 保存与持久边界（静态） | a) 模式中打开暂停菜单；b) 正常结束后保存→载入；c) 检索保存转换 | a) 保存项不出现（两种模式同）；b) 会话为未开始/已结束态、统计字段持久；timer_start 等运行时刻值语义未证（不承诺）；c) 无 Safari/捕虫相关转换——普通载入无格式迁移 |
+
+## 12. 证据与来源（traceability）
+
+- **本轮复核（2026-10-02，首版）**：全文阅读 `018_Alternate battle modes/001_SafariZone.rb`（196 行）、`018_Alternate battle modes/002_BugContest.rb`（441 行）、`011_Battle/008_Other battle types/001_SafariBattle.rb`（502 行）、`011_Battle/008_Other battle types/002_BugContestBattle.rb`（83 行）。
+- **定点阅读**：`011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb:1–271`（捕获/存储/摇动计算全文）；`011_Battle/007_Other battle code/010_Battle_PokeBallEffects.rb:45–59, 165–179`（SAFARIBALL/SPORTBALL 修饰）；`012_Overworld/002_Battle triggering/004_Overworld_EncounterModifiers.rb:1–73`（生成修饰全文）；`012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb:200–274`（双打抑制、遭遇类型选择）；`012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb:138–170, 255–409`（跳战、prepare/after_battle、set_outcome、公开包装与核心）；`011_Battle/001_Battle/001_Battle.rb:1–150`（结果语义、初始化默认值）；`011_Battle/001_Battle/006_Battle_ActionUseItem.rb:1–149`（道具行动全文）；`011_Battle/001_Battle/009_Battle_CommandPhase.rb:174–265`（命令阶段）；`011_Battle/001_Battle/002_Battle_StartAndEnd.rb:425–511`（终局分支）；`012_Overworld/001_Overworld.rb:175–187`（步进钩子触发）；`004_Game classes/005_Game_MapFactory.rb:143–152`（离开/进入/场景变更触发）；`003_Game processing/002_Scene_Map.rb:162`（帧更新触发）；`003_Game processing/006_Event_HandlerCollections.rb:1–67`（事件定义）；`012_Overworld/001_Overworld visuals/003_Overworld_MapTransitionAnims.rb:60–104`（黑屏回退）；`016_UI/001_UI_PauseMenu.rb:180–264`（菜单条件）；`020_Debug/003_Debug menus/002_Debug_MenuCommands.rb:60–135`（调试编辑）；`019_Utilities/002_Utilities_Pokemon.rb:1–43`（容量/昵称/存储）；`012_Overworld/002_Overworld_Metadata.rb:25–95`（全局元数据字段）；`004_Game classes/012_Game_Stats.rb:57–58, 140–143`（统计字段）；`007_Objects and windows/011_Messages.rb:5–15`（解释器运行查询）；`002_Save data/005_Game_SaveConversions.rb`（Safari/捕虫检索为空）；`001_Settings.rb:85–90`（SAFARI_STEPS、BUG_CONTEST_TIME）；`014_Pokemon/001_Pokemon.rb:89, 1195`（IV 上限、个体 IV 随机）；`002_BattleSettings.rb:92, 117`（暴击捕获开关、捕获经验开关）；`PBS/items.txt:3839–3855`、`PBS/encounters.txt:84–119`、`PBS/map_metadata.txt:128–146, 341–352`。
+- **继承同基线既有记录**：WP36 普通遭遇与生成（引用）；WP38 捕获与接收（引用）；WP42 战斗结果/终局（引用）；WP59 场地与世界入口（引用）；WP37 漫游/雷达钩子组成（当前字节 `d032f5b7` 继承）；WP05 事件分发、WP06 随机/统计、WP09 保存/持久、WP10 迁移、WP11/WP12 地图/移动、WP15 动画资源、WP17 消息/窗口/输入、WP19 个体属性、WP20 HP/状态、WP25 队伍/存储、WP27/WP28 背包/道具、WP39/WP40/WP41 战斗交界、WP60 钓鱼、WP62 图鉴、WP65/WP67-A/WP67-B UI（各自具名通过范围）；GR-011/GR-013 已关闭合同（继承，不重开）。
+- 全部静态证据；**无运行确认**（未运行游戏/战斗/UI、未操作真实存档、未播放音频、未调整宿主界面）。
+
+## 13. 未决问题
+
+1. 接待/判奖/奖励/费用/参赛日期事件的 demo 实际编排（U01/WP77）；脚本入口存在不等于默认事件调用（pbStart/pbSetJudgingPoint/place/pbGetPlaceInfo/pbContestHeld?/pbIsContestant? 等的事件侧使用未证）。
+2. 摇动/投饵/投石/捕获成功等动画素材存在与逐帧行为（U01/E11）；宿主随机源实际序列（静态只登记算法与分布）。
+3. 保存/载入后 `timer_start`（单调时钟）与 24 小时墙钟检查的实际语义（静态只登记两种时间基准的分离）。
+4. 战斗中异常中断（脚本错误）时会话/队伍/预算字段的清理保证未逐项验证。
+5. 判奖同分次序的实际稳定性（按排序算法行为，不臆造稳定同分规则；未单独证明）。
+
+## 14. 状态与后续
+
+- WP53 自身范围（第 1 节六项 A～F）已提取并自检，2026-10-02 首版登记 **ReviewPending（A～F 具名静态范围，待统一 review）**；不自行标 Reviewed、不宣称通过。依据 `review/wp37-review-2026-10-02/recheck-v3/` 的通过报告与 WP53 执行提示的具名范围与来源清单执行；四份主文件全文阅读、caller/consumer/配置/PBS 定点核对并建立覆盖映射（见交付目录附表）。
+- **已通过边界原样继承**：WP37（漫游/雷达，当前字节 `d032f5b7`）、GR-011、GR-013、WP65、WP67-A/B、GR-001～016、WP23-N01——本包只引用其合同，不重开、不修改 reference。
+- **WP53 完成 ≠ F13-01/F13-02 完成**：demo 可达性、素材、宿主随机源、奖励事件保留；Feature Matrix 按聚合规则分别显示，不将整个 D13 标完成。
+- 后续包引用本文的 Safari/捕虫规则时，不得把参考侧类/方法组织当作未来框架的 API；发现与本文冲突的新证据时，先修订本文并通知受影响包。后续既定顺序（WP61→…）与整体 double review（WP78/79）、WP80 净化交付按 extraction-plan 执行，本包完成不自动推进。

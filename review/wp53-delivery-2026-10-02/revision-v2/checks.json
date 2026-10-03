@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-02",
+  "package": "WP53 首审修订 v2（R01–R13 P2＋C01 P3）",
+  "purpose": "WP53 首审 14 项修订自检",
+  "method": "static reading per finding ID, own text/hash/JSON/diff checks only; full-text residual scan over the final active spec AND the v2 entry table (not only new sections); no game/battle/UI execution, no sessions, no save writes, no audio, no host operation",
+  "deliverables": {
+    "specs/pokemon-rules/wp53-safari-and-bug-catching-contest.md": {
+      "sha256_v1_reviewed": "4ade446632e3aaf8f38a04fbce1daf48ee801e4249dc1f28325f25f4b01d3233",
+      "bytes_v1": 65291,
+      "sha256_v2_current": "71df531edd2d61d5a7f06dd8d7f680a9e2eb40525f30865eb812f8e6a6a95cbc",
+      "bytes_v2": 80057
+    },
+    "review/wp53-delivery-2026-10-02/revision-v2/entry-coverage-table.md": {
+      "sha256_v1_table": "af17ea953c3b3a8b9106a039727b7ca121b2455ec7a130d972ff1e38903845c7",
+      "bytes_v1_table": 13736,
+      "sha256_v2_current": "8cdc89b95a95a8d223564fd6e18a2428c8430abd762cc882e4d41212eb2f26f0",
+      "bytes_v2": 16398
+    },
+    "status": "ReviewPending（首审修订 v2，待复审）"
+  },
+  "reference": {"head": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_clean": true},
+  "fixed_inputs": {
+    "targets_verified_pre_edit": "main spec 4ade4466/65291 and v1 table af17ea95/13736, both matched review input-snapshot",
+    "finding_sources_re_read": [
+      "001_SafariZone.rb:49-57, 63-85 (R01: no in-progress gate; lazy create + clear + refresh), 136-159 (R02: remaining-ball writeback, ball-out branch, var 1, integer return)",
+      "001_SafariBattle.rb:438-450, 473-500 (R02: decrement before throw, abort only zeroes core result), 420-500 (R11: only 0/2/3/4 reachable)",
+      "002_BugContest.rb:22-51, 146-148 (R03: clear keeps lastContest/chosenPokemon/timer_start; hook only requires not-in-progress), 65-67, 171-195 (R04: no validation after indexed read), 205-223 (R05: cleanup continues after receive failure), 129-144, 198-203 (R09: place scans first three; info query by caller index), 313-345 (R07/R03: timer sprite vs debug entry), 322-330 (R06: expiry gates only), 381-403 (R10: session judges at exactly zero)",
+      "002_BugContestBattle.rb:32-83 (R10: override only writes 3 when undecided and budget non-positive)",
+      "015_Trainers and player/001_Trainer.rb:1-40 (R04: party is a plain attribute, no nil filtering — v2 new read)",
+      "019_Utilities/002_Utilities_Pokemon.rb:1-82 (R05: joint capacity gate, receive order)",
+      "016_UI/001_UI_PauseMenu.rb:1-115 (R06: command loop calls map update helper)",
+      "007_Objects and windows/011_Messages.rb:1-25 (R06: mini-update when map scene and not faded)",
+      "003_Game processing/002_Scene_Map.rb:118-185 (R06: miniupdate -> updateSpritesets -> on_frame_update dispatch)",
+      "020_Debug/003_Debug menus/002_Debug_MenuCommands.rb:68-143 (R07: edit requires strictly positive time limit)",
+      "021_Compiler/002_Compiler_CompilePBS.rb:658-685, 690-737 (R08: header version defaults 0; type-line second value is step trigger chance; same-species-level slot weight merge — v2 new read)",
+      "012_Overworld/002_Battle triggering/004_Overworld_EncounterModifiers.rb:1-73 full (C01: registered now)",
+      "005_Battle_CatchAndStoreMixin.rb:1-108, 165-264 (R10: capture forms result 4; R12: ultra-beast pre-gate, critical branch)",
+      "002_BattleSettings.rb:87-96 (R12: critical captures default on at mechanics gen 8)",
+      "013_Items/005_Item_PokeRadar.rb:210-267 (R11: wild-end consumer inputs)"
+    ]
+  },
+  "static_acceptance_vectors": {
+    "R01": [
+      {"state": "no active Safari session, entering a plain map", "expected": "lazy create + clear + map refresh still happen; cannot skip as 'not leaving Safari'", "result": "pass"},
+      {"state": "active session inside area vs leaving area", "expected": "inside: untouched; leaving: cleared (three-way contrast M04)", "result": "pass"}
+    ],
+    "R02": [
+      {"state": "artificial: 1 ball, consumed, abort before end-of-round", "expected": "core 0, remaining 0, session ball-out message, session decision 1, go to start, var 1 = 0, outer return 0", "result": "pass"},
+      {"state": "same injection with 2 balls; abort before any consumption", "expected": "2-ball: remaining 1, no ball-out, decision stays 0; pre-consumption: ballcount unchanged — 'continue' premise is decision 0 and no ball-out", "result": "pass"}
+    ],
+    "R03": [
+      {"state": "normal end recorded time t, then leave judging map triggering clear; query within 24h of t", "expected": "pbContestHeld? still true; chosenPokemon/timer_start still present on artificial reuse; clear is not a fresh object", "result": "pass"}
+    ],
+    "R04": [
+      {"state": "legal 4-member party: index unset / index 4 / index -1 (artificial) / index 2", "expected": "unset: fails at member read after budget/activity/timer/places writes, party not replaced; 4: entry completes with a nil member in current party, all four in standby; -1: last member chosen but not excluded, duplicate object after rejoin; 2: normal shrink (M31)", "result": "pass"}
+    ],
+    "R05": [
+      {"state": "after rejoin: party has space and storage full / party full and storage has space / both full", "expected": "only box full -> joins party; only party full -> boxed; both full -> two messages and early return with no new dex/nickname/store writes from this receive, earlier battle-stage records kept, session cleanup continues (M15/M22)", "result": "pass"}
+    ],
+    "R06": [
+      {"state": "non-fadeout pause command menu open, contest expired, three deferral conditions all false, judging config valid", "expected": "next mini-update shows expiry messages and starts judging without closing the menu (chain PauseMenu 57-61 -> Messages 18-20 -> Scene_Map 121-163); fade or any deferral condition as contrast; proven for pause command loop only (M17)", "result": "pass"}
+    ],
+    "R07": [
+      {"state": "TIME_ALLOWED=-60 (and 0), contest in progress, open debug", "expected": "remaining-time item shows 'infinite' and cannot be edited; only strictly positive limits editable; debug 'infinite' vs map sprite 00:00 are different entries (M28)", "result": "pass"}
+    ],
+    "R08": [
+      {"state": "current map-028 sample", "expected": "record version 0 (header omits), BugContest step trigger parameter 21, ten slot weights 20/20/10/10/10/10/5/5/5/5; record version / trigger parameter / slot weights distinguished; version lookup stays WP36 contract (M24)", "result": "pass"}
+    ],
+    "R09": [
+      {"state": "after bounded repeat judging, places has 6 rows: query position 3 / position 6 / player place", "expected": "position 3 writes second batch's first name/species/score to vars 1/2/3; position 6 out of bounds fails; player place still scans first three only (M26-d)", "result": "pass"}
+    ],
+    "R10": [
+      {"state": "budget 1: last ball catches vs misses with battle still undecided at normal EOR vs already lost/drew", "expected": "catch: core 4 kept, session judges at exactly zero, var 1 = 4 (not 3, not lost); miss+undecided: core 3; existing 2/5 not rewritten (M19)", "result": "pass"}
+    ],
+    "R11": [
+      {"state": "Safari chain-continue contrast", "expected": "capture result 4 with chain still present, not cancelled by go-to-start map change, positive remaining balls and a valid rustle tile (M29-b); contest battle can produce defeat 1 via normal battle flow; artificial injection of 1 marked as not Safari-core output (M29-d)", "result": "pass"}
+    ],
+    "R12": [
+      {"state": "default settings, owned > 30, x large enough for positive critical threshold, no debug definite capture", "expected": "Safari can also take the critical branch (one critical-entry sampling + one shake check) instead of four normal shakes", "result": "pass"},
+      {"state": "config variant: Ultra Beast in a legal encounter table", "expected": "both modes with their mode balls take the ultra-beast reduction pre-gate, not the normal 1.5 modifier (no capture model executed, WP38 unchanged)", "result": "pass"}
+    ],
+    "R13": [
+      {"state": "final main spec, v2 table, v2 response new text", "expected": "no source-style predicate conjunctions, assignments or equality conditions at the flagged spots; audit names and independent math kept; response/checks describe locations and behaviors without re-quoting old expressions; scans measured against final bytes plus semantic checks", "result": "pass"}
+    ],
+    "C01": [
+      {"state": "v2 source-identities vs main spec §12 read claims", "expected": "EncounterModifiers registered with full disk-measured identity and 1-73 full-read range; Compiler_CompilePBS and Trainer added as v2 reads; eight existing sources extended; separate counts: 91 inherited, 1 v1-added, 3 v2-added, total 95/95 verified — not reusing the old 92 total", "result": "pass"}
+    ]
+  },
+  "clean_room_scans": {
+    "scope": "final active main spec full text AND v2 entry table (all sections and all 33 scenario rows), plus v2 response; exact-string emptiness not equated with semantic clearance; explicit negations of old conclusions not counted as still claiming them",
+    "patterns_measured_empty": "subscript assignments, subscript equality conditions, backticked calls with arguments, rand-call syntax, ==/!= operators, field=true/false assignments, predicate conjunctions of reference queries, place==0, budget==0, Class.new( forms",
+    "semantic_residuals_checked": "R01 'no script caller' claim, R02 'write back original value'/'abort does not set decision', R03 'full clear', R04 merged failure position, R05 'box full -> not stored', R06 'lands after returning to map scene', R07 'editable when non-zero', R08 'version 21', R09 'both queries read only first three', R10 'throws then round ends', R11 'defeat a Safari opponent', R12 'four normal shakes simplification' — all absent or only inside explicit negations/correction records",
+    "result": "pass"
+  },
+  "scenario_id_uniqueness": {"ids": "M01-M33", "defined_rows": 33, "v2_revised_rows": ["M04", "M10", "M15", "M17", "M19", "M20", "M22", "M24", "M26", "M28", "M29"], "added_rows": ["M31", "M32", "M33"], "duplicates": 0, "missing": 0, "cross_references_resolvable": true, "result": "pass"},
+  "entry_coverage_table_v2": {"groups": [6, 10, 9, 8, 5, 10], "total_data_rows": 48, "count_method": "mechanical, headers/separators excluded", "note": "same total as v1 by measurement, not by assumption"},
+  "diff_rebuild": {"count": 2, "main_spec_hunks": 13, "entry_table_hunks": 5, "exact": 2, "baseline": "wp53-review input-snapshot (v1 4ade4466 + v1 table af17ea95)", "result": "pass"},
+  "source_completeness": {
+    "inherited_identities": "32 dependency + 47 starter + 12 approval = 91, re-measured unchanged",
+    "v1_additional_actually_read": 1,
+    "v2_additional_actually_read": 3,
+    "extended_ranges": ["PauseMenu 1-115", "Messages 1-25", "Scene_Map 118-185", "Settings 13-20", "BattleSettings 87-96", "Utilities_Pokemon 1-82", "Debug_MenuCommands 68-143", "Item_PokeRadar 210-267"],
+    "total_identities_verified_vs_disk": "95/95",
+    "declaration": "actual direct reads only where annotated; no inherited record passed off as this-round direct reading"
+  },
+  "history_preservation": "v1 delivery materials, reviewer originals and input-snapshots byte-unchanged",
+  "scope_preservation": "WP37 (d032f5b7), WP65, WP67-A/B, GR-001..016, WP23-N01 and all other prior conclusions unchanged; reference read-only",
+  "status": "WP53 stays ReviewPending (first-review revision v2, pending re-review); 14 items not self-closed, not self-Reviewed"
+}

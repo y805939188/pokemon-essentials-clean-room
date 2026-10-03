@@ -1,0 +1,55 @@
+# 提取侧回填回应：WP55／WP56管理性回填（限定Reviewed）与WP57引用同步
+
+2026-09-29。角色：提取方管理性回填，非独立review。依据 [闭合短复审报告](../../review/wp55-wp57-closure-review-2026-09-29/report.md)（`3fcd7d92e64b3b552acc6e4d3576b56a89847e8a7beffcb1fd6df0647c37f7b9`，9,226字节）§2／§4 与 [下一批提示](../../review/wp55-wp57-closure-review-2026-09-29/next-batch-prompt.md)（`76c6dfa693070b47e7dfa2ee58bb4bdaec5ce3abab09d1e102e876c8c039bc3d`，15,964字节）§2。差异基准统一为本轮 `review/wp55-wp57-closure-review-2026-09-29/input-snapshot/`；全部改动为静态文本与登记维护，未运行Ruby／游戏／事件／生成器／解释器／网络；`reference/pokemon-essentials/`（commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，HEAD正确、普通Git状态为空）未改。已关闭的13项只继承关闭结论，未重新论证或改动其行为。
+
+## 0. 固定输入预检
+
+- 报告§1全表九项复测逐字节匹配：WP55 `b0c2c8b6…`／28,625、WP56 `700e4788…`／22,011、WP57 `7280bc30…`／15,610、矩阵 `e5eeb446…`／51,922、manifest `4f965681…`／400,252、批摘要v3 `98637c38…`／7,648、批self v3 `4c739cb0…`／20,980、批boundary v3 `30bebc0e…`／8,923、主TSV v34 `c6904ac3…`／90,335；本轮 `input-snapshot/` 全部**755项**与磁盘全量比对：0差异／0缺失／0多余；`input-manifest.json` 753条（755项减`AGENTS.md`与manifest自身）与TSV逐条一致。
+- reviewer顶层13件原件（`report.md`、`next-batch-prompt.md`、`input-manifest.json`、`current-hashes.tsv`、`changes-from-v2.diff`、`check_closure.py`、`current-self-checks.json`、`diff-checks.json`、`final-checks.json`、`identity-checks.json`、`propagation-checks.json`、`source-checks.json`、`static-checks.json`）与旧734／707／677／644／613／589／548／521快照（逐轮0差异、项数吻合）均未改动；本回应与 `backfill-diffs/` 为本目录新增材料。
+
+## 1. WP55管理性回填（限定Reviewed）
+
+按报告§4把主稿头／尾回填：**Reviewed（限定静态范围，2026-09-29闭合短复审PASS_SCOPED；管理性回填）**。范围A～F：挑战身份／即时注册与记录查询、会话状态与显式推进、对手与内容／个体创建、队伍引用替换／恢复、暂停／继续／取消／结束、保存返回／异常／不终止及具名边界，及已述单场交界；设施完整演出、接待事件、运行及其它前向范围保留。R02剩余总述（四具名写入入口及守卫）判CLOSED、原13项全部关闭（继承已关闭11项，不重新论证）。
+
+**身份与传播**：被审v3 `b0c2c8b6a28238adff0f76d94dd3e9a1be2e2231999d981a3cf4915a37375b80`（28,625字节）保留历史；回填后 `5448b255ed257bac82d8c3e8f0d6c5f64d1cbb4334c8936a5ada902152ede37e`（29,518字节），不冒充被审对象。差异仅状态行与尾部记录段；34条场景与数据未改。
+
+## 2. WP56管理性回填（限定Reviewed）
+
+按报告§4把主稿头／尾回填：**Reviewed（限定静态范围，2026-09-29闭合短复审PASS_SCOPED；管理性回填）**。范围A～F：Palace原始数据与实际抽样门、菜单分流／自动选招、Pinch（压半）与AI换人；Arena心分／成功状态／技槽／体分／2/0评判、HP提交／顺序补位、差异及已述裁判显示接点；设施完整演出、接待事件、运行及其它前向范围保留。R04差异表“成功跟踪”行收尾判CLOSED、原13项全部关闭（继承已关闭11项，不重新论证）。
+
+**身份与传播**：被审v3 `700e478823ba123af65176d3d29378327000206d6f11c1250aec933ab09f8b4d`（22,011字节）保留历史；回填后 `57e16c0b29af4eb04b7bc8fe31a0d286a5aad82d3bb69e4b4580198551178c81`（22,849字节）再经WP55引用同步为 `b38b7d785e8362db2c029e9eeff1153e52a2ba18b17cd319a9a30b33a50e2e95`（22,952字节），均不冒充被审对象。差异为状态行、尾部记录段与§7完成依赖的WP55引用行；27条场景与数据未改。
+
+## 3. WP57引用同步（回填已接受，行为不改）
+
+依报告§4，§7完成依赖对WP55的引用由“修订后待短复审”同步为回填后限定Reviewed（2026-09-29闭合短复审PASS_SCOPED）完整身份；被审v2与闭合轮受理版 `7280bc3061aef6af62b69b09e81a094f21f172be0222bb905bac01cee6aaeefc`（15,610字节）留史；同步后 `911cab336e2a6041590ed6956e48553de92958b2ed73162d9dc8347120350344`（16,059字节）。本包行为与17条场景不变，本次同步不冒充受理字节。
+
+## 4. 身份级联（只改引用与记录，不改行为）
+
+| 文件 | 轮前身份（快照） | 回填后当前身份 | 字节 | 性质 |
+| --- | --- | --- | ---: | --- |
+| WP55 主稿 | `b0c2c8b6…`（28,625） | `5448b255ed257bac82d8c3e8f0d6c5f64d1cbb4334c8936a5ada902152ede37e` | 29,518 | 头尾回填Reviewed |
+| WP56 主稿 | `700e4788…`（22,011） | `b38b7d785e8362db2c029e9eeff1153e52a2ba18b17cd319a9a30b33a50e2e95` | 22,952 | 头尾回填Reviewed＋WP55引用同步 |
+| WP57 主稿 | `7280bc30…`（15,610） | `911cab336e2a6041590ed6956e48553de92958b2ed73162d9dc8347120350344` | 16,059 | WP55引用同步 |
+| feature-matrix | `e5eeb446…`（51,922） | `38039570201dc16a96b892d607e1d08cb16523e08d4efad5e1a77566f27d775b` | 53,976 | F13-04回填＋批内三包增量（本批合计） |
+| 批boundary | `30bebc0e…`（8,923） | `5de48ab355cce9b71f3795ae2c637f7c8bef66848d24ac3e7fa167e054da40a2` | 9,461 | v4 |
+| 批self | `4c739cb0…`（20,980） | `be72db7b184e80613c53d1bd36bd6e93ee208c19f9d48c14b01c7261f61266f5` | 21,490 | v4 |
+| 批摘要 | `98637c38…`（7,648） | `78a42a6b0cff96d62772600465daddc932bc0a26f38d0f69c64f05bad6e411a5` | 9,320 | v4 |
+
+- 级联顺序（无环）：WP55 → WP56 → WP57引用 → 矩阵 → boundary → self → 摘要（每步只引用先前已固定身份）。
+- 被审v1／v2／v3及闭合前版本身份全部留史；未做全局旧哈希替换；reviewer原件与其快照保持不动。
+- 清扫：活动摘要／self／boundary／矩阵中“仅剩R02／R04”改为本轮已闭合（修订轮历史留明）；specs尾部历史“待短复审”表述保留在具名日期段落，由新日期段落后接。
+
+## 5. 材料与差异
+
+- 本目录新增 `backfill-diffs/` 共**7份**，全部相对 `review/wp55-wp57-closure-review-2026-09-29/input-snapshot/`：wp55／wp56／wp57主稿、feature-matrix（含回填与批内三包增量的合计变化）、boundary-checks、self-checks、delivery-summary；生成方式与上一轮逐字节一致（7/7复现旧轮格式），逐块在内存重建到当前字节实测 **7/7** 通过（未应用到工作区）。未改文件不造空diff（manifest／TSV按惯例不造diff）。
+- 登记：主TSV **v34→v35**、manifest **第五十九→第六十轮**；本轮闭合轮reviewer 13件、本回应／7份diff、新批（WP58／WP62／WP38）材料批末统一补登；manifest不自哈希、TSV不收自身；终值行数与完整哈希由批末交付报告实测。
+
+## 6. 保留边界与停止
+
+- 被审v3与闭合前身份留史；WP55／WP56仅限定静态范围，F13-04前向保留（设施完整演出、接待事件、运行）。
+- 限定通过集合＝**WP01–WP21、WP24–WP31、WP33–WP36、WP39–WP52（WP47=A/B、WP52=A/B/C）、WP54–WP57、WP59–WP60**；不得写“连续全部通过”。
+- 未运行游戏／Ruby／参考表达式／解释器／事件脚本／生成器／编译器／转换器／插件／网络；未操作地图／存档／输入；未实现新框架、未创建Agent／任务、未发reviewer消息、未提交推送。不启动第四包、不补做WP22／23／32／37／53。
+
+---
+
+*本回应不自哈希*；全部身份均自磁盘实测。

@@ -1,0 +1,146 @@
+--- review/wp72-wp73ab-review-2026-10-02/input-snapshot/specs/demo/wp73-a-content-editors.md	2026-10-02 15:12:19
++++ specs/demo/wp73-a-content-editors.md	2026-10-02 16:09:31
+@@ -32,12 +32,13 @@
+ 
+ - **三层持久模型**：**内存 `DATA` 层**（`GameData::X::DATA` 常量哈希——所有编辑先落在这里）；**`.dat` 层**（`GameData::X.save` 把 `DATA` 序列化写 `Data/X.dat`；`GameData::X.load` 从 `.dat` 整体重载并**丢弃内存改动**——`010_Data/001_GameData.rb:63–69, 138–144, 203–209`）；**PBS 文本层**（`Compiler.write_*` 按 `DATA` 重写对应 PBS 文件——WP04 引用）。**三类保存时机**（§4 逐项）：**逐条即时**（训练家类型/道具/物种/元数据——每次确认保存即 `register`＋`save`＋`write_*`）；**退出时确认**（训练家战斗/地区图鉴——编辑只动内存，退出时 "Save changes?" 确认才 `save`（＋反写），否则 `load` 丢弃）；**子编辑返回决定**（嵌套属性编辑的 "Save/Apply changes?" 只决定该子结构是否回写进父编辑的数据数组）。
+ - **属性列表编辑器（`pbPropertyList`）**：以 `名称=格式化值` 逐行显示属性表；**USE** 调用该属性类型的 `set` 并把**返回值直接赋给该槽**（`set` 的取消语义由各属性类型自定——多数返回旧值即不变，部分返回 nil 即清空）；**ACTION** 对该槽**确认后重置为 `defaultValue`（无 defaultValue 则 nil）**（ReadOnly 除外）；**BACK** 结束编辑——带 `saveprompt` 时给 **"Save changes?" Yes/No/Cancel**：Yes 返回真（调用方执行保存）、No 返回假（不保存）、Cancel 回到编辑；不带 `saveprompt` 时**恒返回 nil**（保存与否由调用方自行决定）。`002:1624–1706`。
++- **属性副本与嵌套数据（A-R04 新增）**：编辑的数据数组按内容分三类——**局部标量**（多数数值/文本/布尔/选择槽：改动只在本编辑的本地副本，父层不保存即丢弃）；**共享数组/哈希**（部分属性取值返回**原嵌套对象**——如蛋招池、地图尺寸数组、物种进化路径数组：池编辑的去重/排序**原地**作用于原数组，物种进化取值把原嵌套参数**转成文本**后才进入编辑）；**原地规范化**（打开即发生——**无需父层保存，运行内存也可变化；`.dat` 不因此自动保存**）。三类反例：非空无序蛋招池仅打开后选 No——原数组可已排序；有数字等级进化参数的物种打开属性后 No——原嵌套参数可已转文本；已有地图尺寸改宽后父层 No——运行内存仍可保留宽度。**不把内存变化写成已落盘，也不把所有属性都当成共享**（局部与共享按各属性取值实现分列）。
+ - **列表器（Lister）与块循环（`pbListScreenBlock`）**：列表器提供命令表/起始下标/取值/预览刷新；块循环中 **USE/ACTION 把选中值交给调用方处理**（编辑/删除），处理后重取命令表；**BACK 退出**。空表时直接返回 `value` 以 −1 为实参的结果。`003:4–112`。
+ - **ID 派生规则（新建类编辑器）**：名称 → é 转 e → 去掉非字母数字下划线 → 全大写；空 → 类型前缀＋序号（`T_%03d`/`ITEM_%03d`）；首字符非字母 → 加前缀；已存在 → 追加 `_1`…`_100` 去重；仍冲突 → 失败消息。`001:392–420, 869–897`。
+-- **校验拒绝（不写入）**：训练家战斗保存前逐项检查——**未选类型 / 名字为空 / 队伍为空**分别给 "Can't save…" 消息并回到编辑（`001:519–525`）；其它编辑器以属性类型自身范围与选择器约束为主（§3 表）。
+-- **引用失效的显示**：各 `format` 对不存在的数据 ID 显示 **"-"**（`GameData.exists?` 判定）；列表器预览图加载失败 rescue 为空白；招式/特性/物种等引用型属性在数据缺失时不崩——**只影响显示，不做级联清除**（§3）。
++- **校验拒绝（不写入；A-R02 修订——可达性分开）**：训练家战斗编辑的校验分两级——**清空类型后属性返回空结果、外层立即结束该次编辑**（**不到错误消息**）；**名字为空与队伍为空**才分别给 "Can't save…" 消息并回到编辑（`001:519–525`）；**改键冲突无唯一性拒绝**（先覆盖目标再删旧键——§4.2）；其它编辑器以属性类型自身范围与选择器约束为主（§3 表）。
++- **引用失效的显示（A-R06 修订——分两型）**：**有保护**——Species/Item/Type/Move/Ability/TrainerType/SpeciesForm/GameDataProperty 等 `format` 以存在性判定显示 **"-"**；**严格读取**——**BallProperty、`GameDataPoolProperty` 的池内容格式化、`TrainerPokemonProperty` 格式化、`WeatherEffectProperty` 格式化等直接取记录——**失效 ID 可抛异常**（人工/失效数据前提，不声称正常基线必然出错）；列表器预览图加载失败 rescue 为空白。**只影响显示或如实报错，不做级联清除**（§3.4）。
+ - **入口与可达性**：全部编辑器从调试菜单进入（WP72 §8.3 入口表——`$DEBUG` 门在调用侧；受限载入菜单同样可见）；脚本直接调用各公开函数走自身前提，不附加调试门。
+-- **已通过边界（必须继承，不重开）**：WP04（PBS 编译/反写/校验，含 `validate_compiled_pokemon` 与 `cast_csv_value` 引用点）、WP03（GameData schema/注册语义）、WP72（调试入口与工具归属）、WP18/WP19/WP21/WP24/WP27/WP31/WP34/WP36（数据语义）、WP61/WP53/WP37、WP65、WP67-A/B、GR-001～016、WP23-N01。
++- **已通过边界（必须继承，不重开）**：WP04（PBS 编译/反写/校验，含 `validate_compiled_pokemon` 与 `cast_csv_value` 引用点）、WP03（GameData schema/注册语义）、WP18/WP19/WP21/WP24/WP27/WP31/WP34/WP36（数据语义）、WP61/WP53/WP37、WP65、WP67-A/B、GR-001～016、WP23-N01。**同批待审依赖（引用其合同，不作通过结论——BATCH-R03）**：WP72（调试入口与工具归属——含归属更正：本包为其 WP73-A 归属的主体）、WP73-B（世界编辑器——本包为其复用 EncounterSlotProperty 的属主）。
+ 
+ ## 3. 属性类型目录（`002_Editor_DataTypes.rb` 全文；按输入行为分组）
+ 
+@@ -74,14 +75,17 @@
+ - **地图坐标**：MapProperty（地图列表）；MapCoordsProperty（选图＋**点选坐标**——取消保留旧值）；MapCoordsFacingProperty（再加**朝向四选**——2/4/6/8）；RegionMapCoordsProperty（区域图列表——0 个提示、1 个直选、多个选择——再点选）；MapSizeProperty（宽 1–30＋0/1 有效格串）。
+ - **WeatherEffectProperty**：天气列表（当前预选）＋概率 0–100；**取消或选 None → nil**。
+ 
+-### 3.5 复合结构型（子编辑带自身保存提示）
++### 3.5 复合结构型（A-R05 修订——按子页是否询问分型）
+ 
++- **无本页询问（BACK 直接返回给父页）**：**IVsProperty、EVsProperty、MapSizeProperty、TrainerPokemonProperty**——属性页关闭时**直接返回**（**没有本页 "Save/No" 选项**）；**IV/EV 初始化还会在传入哈希补数字顺序键**；**EV 超总额要求继续削减**（不能带着超限离开——这不是保存门，返回照样发生）。**父层是否落盘另算**（由父编辑的确认链决定）。
++- **有明确保存询问（"Save/Apply/Keep changes?"）**：**BaseStatsProperty、EffortValuesProperty、StringListProperty、TypesProperty、GameDataPoolProperty、LevelUpMovesProperty、EvolutionsProperty**——选 No 时父槽保持旧值。
++- **不与嵌套别名（§2 A-R04）混为一个事务**：无询问子页的返回值直接赋父槽；有询问子页选 No 才保证父槽不变——两者都**不直接等同落盘**。
+ - **BaseStatsProperty**：各项 1–255（缺省 10）；保存确认才回写数组。
+ - **EffortValuesProperty**：各项 0–255；**只保留 >0 的项**回写 `[stat, value]` 对。
+ - **IVsProperty(limit)**／**EVsProperty(limit)**：按 PBS 顺序逐项（LimitProperty2）；**EV 总额超限（>EV_LIMIT）时消息要求削减并回到编辑**（`002:665–671`）。
+ - **GameDataPoolProperty(模块, 允许多个, 自动排序)**：池编辑——**[ADD VALUE]**（`pbChooseFromGameDataList`；不许多个时去重并跳光标）、**Change value**（同上约束）、**Delete**、ACTION+Up/Down 换序；退出 **"Apply changes?"** 确认才回写。子类：**EggMovesProperty**（Move、不许多、自动排序）、**EggGroupsProperty**、**AbilitiesProperty**。
+ - **LevelUpMovesProperty**：等级＋招式对——**按等级排序**（同级才可换序）；添加（等级 0–最大、取消 −1；同等级同招式去重）；改等级/改招式（目标已存在时**删除本项**）；删除；退出 **"Save changes?"** 确认才回写。
+-- **EvolutionsProperty**：进化路径（物种＋方法＋参数）——添加（物种选择→方法列表→**参数编辑器**：按方法的参数类型分派——Item/Move/Species/Type/Ability 选择器、String 自由文本（去空白、空 → nil）、Integer 0–65,535（取消 −1 → nil）；无参数方法跳过）；编辑（改物种/改方法——**改方法后参数重置为 0**/改参数/删除）；**所有改动去重**（已存在相同路径时删除本项并跳光标）；退出 **"Save changes?"** 确认才回写；参数显示（无参数方法省略；未知符号常量显示常量名；空显示 "???"）。
++- **EvolutionsProperty**：进化路径（物种＋方法＋参数）——添加（物种选择→方法列表→**参数编辑器**：按方法的参数类型分派——Item/Move/Species/Type/Ability 选择器；**String 类注册**（如 LocationFlag——编辑器的字符串实例匹配不命中类对象，**实际走 0–65,535 数值输入**：默认值数值转换为 0、取消 −1 → nil——**当前基线不能输入任意地区标志文字**；不把意图当已实现、不修参考，A-R07）；**枚举符号**（param_type 为符号常量的方法——对应选择器）；Integer 0–65,535（取消 −1 → nil）；无参数方法跳过）；编辑（改物种/改方法——**改方法后参数重置为 0**/改参数/删除）；**所有改动去重**（已存在相同路径时删除本项并跳光标）；退出 **"Save changes?"** 确认才回写；参数显示（无参数方法省略；未知符号常量显示常量名；空显示 "???"）。
+ - **EncounterSlotProperty**（WP73-B 遭遇编辑复用）：`[概率(1–999), 物种/形态, 最低级, 最高级]`——新建缺省 `[20, 首个物种, 5, 5]`；**最低>最高时交换**；格式化 `概率, 名字[_形态] (Lv.a[-b])`。
+ 
+ ## 4. 六个内容编辑器逐项合同
+@@ -97,8 +101,8 @@
+ 
+ - **列表**：TrainerBattleLister（类型/名字/版本排序；预览训练家图＋队伍摘要文本）。
+ - **内存先行**：全部编辑/删除只改 `GameData::Trainer::DATA` 并置 `modified`；**退出时 `modified 且 "Save changes?" 确认 → save＋`pbConvertTrainerData`；否则 `load` 整体重载丢弃**（`001:593–598`）。
+-- **USE（已有项）**：`TrainerBattleProperty.set`——属性表：类型（TrainerTypeProperty）、名字（StringProperty）、**版本（0–9,999）**、败北台词、**最大队伍数个宝可梦槽**（TrainerPokemonProperty）、**8 个道具槽**（ItemProperty）；**保存校验**：未选类型/名字空/队伍空分别拒绝并回到编辑（`001:519–525`）；通过 → 组哈希（队伍只收有物种的槽、道具只收非空槽、保留 `pbs_file_suffix`）→ register；**键（类型/名字/版本）改变时删除旧键**；置 modified。
+-- **USE（新建项）**：先定义类型——**用现有**（列表）／**新建类型**（走 §4.1 新建流程）／取消；名字（空 → 放弃）；**版本分配**（`pbGetFreeTrainerParty`——0–255 首个空闲，无 → "没有空间"消息）；`pbNewTrainer`（save_changes 为假——`015/002:12`）生成示例队伍并 register（`{:species, :level}` 形态）＋"已添加"消息＋modified。
++- **USE（已有项，A-R02 修订）**：`TrainerBattleProperty.set`——属性表：类型（TrainerTypeProperty）、名字（StringProperty）、**版本（0–9,999）**、败北台词、**最大队伍数个宝可梦槽**（TrainerPokemonProperty）、**8 个道具槽**（ItemProperty）；**校验可达性**：**清空类型后属性返回空结果、外层立即结束该次编辑**（**不到"未选类型"消息**）；**名字空与队伍空才回校验循环**（分别 "Can't save. No name was entered."／"…Pokémon list is empty."）；通过 → 组哈希（队伍只收有物种的槽、道具只收非空槽、保留 `pbs_file_suffix`）→ register；**改键冲突**：**改成已存在的（类型,名字,版本）键时先 register 覆盖目标、再删旧键——无唯一性拒绝**（对照：A 改为已有 B 的键——内存只剩新 B、旧 A 删除；外层退出 No 仍可由 `.dat` 重载恢复）；**不得借新建 ID 去重逻辑推断编辑改键也去重**；置 modified。
++- **USE（新建项，A-R01 修订）**：先定义类型——**用现有**（列表）／**新建类型**（走 §4.1 新建流程——**该嵌套保存立即落盘**：register＋save＋`pbConvertTrainerData` 反写两份训练家 PBS——**且会把先前仅在内存的训练家编辑一并带进 PBS**）／取消；名字（空 → 放弃）；**版本分配**（`pbGetFreeTrainerParty`——0–255 首个空闲，无 → "没有空间"消息）；`pbNewTrainer`（save_changes 为假——`015/002:12–60`）**交互建队**：**首只必选**（循环直到选定——物种列表＋等级（1–最大、缺省 10））、**其后逐个"再加一只？"确认**（拒绝即结束——每只同样物种＋等级逐个选定）；随后编辑器自行组哈希 register＋"已添加"消息＋modified（**此步只动内存**）。**分层对照（A-R01）**：嵌套创建类型后中途放弃（名字取消/外层退出 No）——**类型文件与 PBS 反写已落盘保留**；外层退出 No 只重载训练家 `.dat`（内存编辑丢弃），**不回滚已写 PBS**；只用现有类型则全程无文件写入直到退出确认。
+ - **ACTION（已有项）**：严肃确认 → `DATA` 删除＋modified＋消息（**文件层仍待退出确认**）。
+ - **TrainerPokemonProperty（单个宝可梦槽）**：物种（缺省 nil）／等级（1–最大，**NonzeroLimit**）／昵称／形态（0–999）／性别／闪光／超级闪光／Shadow（BooleanProperty2 三态）／**4 招式槽**（MovePropertyForSpecies——**全空即野生招式表**，Z 键删除语义在说明中）／特性／特性位（0–99）／持有物／性格／IVs（EVsProperty 同类 LimitProperty2 子编辑）／EVs（**总额超 EV_LIMIT 循环要求削减**）／友好（0–255）／球（BallProperty）；返回时**招式去重去空**；**物种为 nil → 整个槽返回 nil**（`001:604–681`）。
+ 
+@@ -107,7 +111,7 @@
+ - **列表**：ItemLister（含 [NEW ITEM]；图标预览）。
+ - **USE（已有项）**：editor_properties → `pbPropertyList`（saveprompt）→ **确认保存**：schema 组哈希＋保留 suffix → **register＋save＋`Compiler.write_items`**（即时生效，无退出确认）。
+ - **ACTION（已有项）**：严肃确认 → 删除＋**立即 save＋write_items**＋消息。
+-- **新建**：名称 → ID 派生（`ITEM_` 前缀系）→ **口袋选择**（PocketProperty，返回 0＝放弃）→ **价格**（0–999,999，取消 −1＝放弃）→ 描述（StringProperty）→ register＋save＋write_items＋创建与图形提示消息；复数名自动为 `名称+s`。
++- **新建（A-R03 修订）**：名称 → ID 派生（`ITEM_` 前缀系）→ **口袋选择**（PocketProperty，返回 0＝放弃）→ **价格**（0–999,999——**BACK 返回 0 而非 −1**（默认值经钳制、无独立取消值）——**按 BACK 仍继续后续创建（价格 0）**；正常输入 0 同为价格 0——**口袋取消与价格 BACK 是两个不同的分支**）→ 描述（StringProperty）→ register＋save＋write_items＋创建与图形提示消息；复数名自动为 `名称+s`。
+ 
+ ### 4.4 物种（`pbPokemonEditor`；`001:926–987`）
+ 
+@@ -119,34 +123,35 @@
+ ### 4.5 全局与玩家元数据（`pbMetadataScreen`/`pbEditMetadata`/`pbEditPlayerMetadata`；`001:692–774`）
+ 
+ - **顶层**：MetadataLister——**[GLOBAL METADATA]**＝编辑全局、**Player N**＝编辑该角色、**[ADD NEW PLAYER]**＝新建角色（取最小未用 ID）；BACK 退出。
+-- **编辑**：editor_properties → `pbPropertyList`（saveprompt）→ **确认保存**：schema 组哈希（全局补 `:id => 0`；保留 suffix）→ **register＋save＋`Compiler.write_metadata`**（即时生效）。**角色不存在** → "未找到"消息返回；新建角色先以 `{:id => 新ID}` 实例化再进同一流程。
++- **编辑**：editor_properties → `pbPropertyList`（saveprompt）→ **确认保存**：schema 组哈希（全局元数据补 ID 为 0 的键；保留 suffix）→ **register＋save＋`Compiler.write_metadata`**（即时生效）。**角色不存在** → "未找到"消息返回；新建角色先以含新 ID 的数据实例化再进同一流程。
+ 
+ ### 4.6 地区图鉴列表（`pbRegionalDexEditorMain`＋`pbRegionalDexEditor`；`001:992–1202`）
+ 
+ - **主界面**：现有图鉴列表（从 `Data/regional_dexes.dat` 惰性装载的**克隆**——`001_MiscPBSData:28–34`）＋**[ADD DEX]**；**Z+Up/Down 换序**；点选：**ADD**（空白填充／全国图鉴填充——`each_species` 全物种／**按进化族分组填充**——`get_family_species` 去重连接）；**已有项**：Edit（进子编辑）/Copy（克隆追加）/Delete（无确认直接删）。
+-- **子编辑（单个图鉴）**：条目列表（nil 显示 "----------"）；**Z+Up/Down 换序、Z+Right 插入、Z+Left 删除、D 清空**；点选条目：**Change species**（物种选择——**自动去除其它位置的同物种**保证唯一）、Clear、Insert、Delete；退出 **"Save changes?"** 确认才把本图鉴数组回写主界面（子编辑先压尾部 nil）。
++- **子编辑（单个图鉴，A-R08 修订）**：**进入先移除全部空项**再取编辑副本；条目列表（nil 显示 "----------"）；**Z+Up/Down 换序、Z+Right 插入、Z+Left 删除、D 清空**；点选条目：**Change species**（物种选择——**自动去除其它位置的同物种**保证唯一）、Clear、Insert、Delete；**退出返回全量去空、父层总是接收**——**子 No 也压空洞**（[A，空，B] 不作编辑选 No，主界面得到 [A,B]）；子 Yes 同理回写；**空表保存分支非终止**（删除末项直到末项非空——**空表没有终止条件：静态推导未运行**——空白新图鉴或清空全表后选 Yes 无法退出该循环，**不保证空表可正常保存**）；外层主界面仍有克隆与最终保存门（**外层 No 不写 `.dat`**）。
+ - **总保存**：主界面 BACK → **"Save changes?" Yes**：**写 `Data/regional_dexes.dat`（`save_data`）＋清运行缓存（`$game_temp` 的地区图鉴缓存置空）＋`Compiler.write_regional_dexes`**＋"Data saved."；No：退出不写（**克隆被弃——原数据不变**）；Cancel：回到编辑。
+ 
+ ## 5. 共享基础设施（`003_Editor_Listers.rb`、`001_Editor_Utilities.rb` 全文）
+ 
+-- **通用窗口**：`pbListWindow`（小字体命令窗）；`pbListScreen`（一次性选择——USE 选定/BACK 取消，空表直接返回 `value` 以 −1 为实参的结果）；`pbListScreenBlock`（USE/ACTION 交块处理——**删除后下标钳到表尾**；BACK 退出）；`pbCommands2`（USE/BACK，取消值可正可负）；`pbCommands3`（**SPECIAL＝[5]、ACTION+Up/Down＝[1]/[2] 换序、ACTION+Left/Right＝[3]/[4] 插删**）；`pbChooseList`（ID/字母双序切换——ACTION 换序；符号 ID 按第三列匹配）。
++- **通用窗口**：`pbListWindow`（小字体命令窗）；`pbListScreen`（一次性选择——USE 选定/BACK 取消，空表直接返回 `value` 以 −1 为实参的结果）；`pbListScreenBlock`（USE/ACTION 交块处理；BACK 退出——**删除尾项后下标保持为新命令数（不是钳到最后有效项）**：窗口赋下标不校验范围，**可见选中可能失效——静态边界如实登记，不推断像素表现**，A-R09）；`pbCommands2`（USE/BACK，取消值可正可负）；`pbCommands3`（**SPECIAL＝[5]、ACTION+Up/Down＝[1]/[2] 换序、ACTION+Left/Right＝[3]/[4] 插删**）；`pbChooseList`（ID/字母双序切换——ACTION 换序；符号 ID 按第三列匹配）。
+ - **列表器**：GraphicsLister（png/gif 扫描＋**预览缩放**、"无文件"消息）；MusicFileLister（wav/ogg/mp3/midi/mid/wma、**浏览试听、dispose 恢复原播放**）；MetadataLister（全局/角色/新建三分）；MapLister（**地图树缩进显示**＋小地图预览；可选 [GLOBAL] 项返回 0）；SpeciesLister（字母序、可选 [NEW SPECIES]）；ItemLister（字母序＋图标）；TrainerTypeLister（字母序＋图像 rescue 空白）；TrainerBattleLister（类型/名字/版本三级排序＋训练家图与队伍摘要）。
+ - **选择器**：`pbChooseFromGameDataList`（模块＋可选块过滤）；`pbChooseSpeciesList`（**只列 0 形态**）；`pbChooseSpeciesFormList`（含形态 `名字_形态`）；`pbChooseTypeList`（**排除伪类型**）；`pbChooseItemList`／`pbChooseAbilityList`／`pbChooseMoveList`（全表）；`pbChooseMoveListForSpecies`（合法招式在前）；`pbChooseBallList`（球类子集、**取消返回旧值**）。
+-- **工具**：`pbGetLegalMoves`（升级＋教授＋蛋招去重——WP34 引用）；`pbSafeCopyFile`（**存在且内容相同则跳过、不同则确认覆盖**——WP74 引用）；`pbAllocateAnimation`（首个空槽/空动画位，不足扩 10——WP74 引用）；`pbMapTree`（按 parent_id 层级与 order 排序的地图树——WP11 数据引用）。
++- **工具**：`pbGetLegalMoves`（升级＋教授＋蛋招去重——WP34 引用）；`pbSafeCopyFile`（**存在且内容相同则跳过、不同则确认覆盖**——WP74 引用）；`pbAllocateAnimation`（首个空槽/空动画位；**无空槽时集合调整为目标长度 10（不是增加 10 个槽位）并返回调整前长度**——**原长度超 10 时尾部被截断**；随后导入写到返回下标可重新扩展，但**被截断内容不恢复**（12 项均非空的集合：分配先截成 10、返回 12，写 12 号位时旧 10/11 号内容已丢失）——WP74 引用，A-R10）；`pbMapTree`（按 parent_id 层级与 order 排序的地图树——WP11 数据引用）。
+ 
+ ## 6. 生效时机与取消语义汇总（本包核心问题）
+ 
+ | 编辑器 | 编辑落点 | 文件生效时机 | 取消路径 |
+ | --- | --- | --- | --- |
+-| 训练家类型（编辑/删除/新建） | 内存 register | **每次确认即** save＋write_trainer_types/trainers | pbPropertyList 选 No → 不写（内存也不变——属性数组是局部拷贝） |
+-| 训练家战斗（编辑/删除/新建） | 内存 DATA＋modified | **退出时确认才** save＋write_trainer_types/trainers | 退出选 No → **load 重载丢弃全部内存改动**（含删除） |
++| 训练家类型（编辑/删除/新建） | 内存 register | **每次确认即** save＋write_trainer_types/trainers | pbPropertyList 选 No → 不写（标量槽位是本地副本——共享嵌套对象例外见 §2 A-R04） |
++| 训练家战斗（编辑/删除/新建） | 内存 DATA＋modified | **退出时确认才** save＋write_trainer_types/trainers——**嵌套例外（A-R01）：新建流程中创建类型立即落盘并反写两份 PBS（可带出先前内存编辑）** | 退出选 No → **load 重载丢弃全部内存改动**（含删除）——**不回滚已写 PBS**；只用现有类型则全程无文件写入直到退出确认 |
+ | 道具（编辑/删除/新建） | 内存 register | **每次确认即** save＋write_items | pbPropertyList 选 No → 不写 |
+ | 物种（编辑/删除） | 内存 register | **每次确认即** save＋write_pokemon | 同上；新建不支持 |
+ | 全局/玩家元数据 | 内存 register | **每次确认即** save＋write_metadata | 同上 |
+-| 地区图鉴 | 克隆数组 | **退出时确认才** save_data(dat)＋清缓存＋write_regional_dexes | 选 No → 克隆被弃；子编辑选 No → 该图鉴数组不回写主界面 |
+-| 嵌套子结构（升级招式/进化/池/字符串列表/类型对/EV·IV） | 子编辑返回数组 | 随父编辑的保存确认回写进父数据 | 子编辑 "Save/Apply/Keep changes?" 选 No → 父槽位保持旧值 |
++| 地区图鉴 | 克隆数组（子编辑进入先去空、退出全量去空——**子 No 也压空洞**，A-R08） | **退出时确认才** save_data(dat)＋清缓存＋write_regional_dexes | 选 No → 克隆被弃；**空表保存分支非终止（静态推导未运行）——不保证空表可正常保存** |
++| 有询问子结构（升级招式/进化/池/字符串列表/类型对/基础能力/努力产出） | 子编辑返回数组 | 随父编辑的保存确认回写进父数据 | 子编辑 "Save/Apply/Keep changes?" 选 No → 父槽位保持旧值 |
++| 无询问子结构（IV/EV/地图尺寸/训练家个体，A-R05） | **BACK 直接返回赋父槽** | 父层确认链决定 | **无本页 No 选项**（EV 超总额要求继续削减——不是保存门）；父层不保存则该次改动不保留（共享嵌套对象例外见 §2 A-R04） |
+ 
+-- **取消仍写入的情形（如实登记）**：`pbPropertyList` 的 **ACTION 重置**与 **USE 赋值**在进入 "Save changes?" 之前就已写入**本地属性数组**——但它们只影响内存副本；真正落盘都经上表确认链。**没有"取消却仍落盘"的路径**。
++- **取消仍写入的情形（如实登记，A-R04）**：`pbPropertyList` 的 **ACTION 重置**与 **USE 赋值**在进入 "Save changes?" 之前就已写入**本地属性数组**——多数槽位只影响内存副本；**但共享嵌套对象（蛋招池/地图尺寸/进化路径）的原地操作不等待父层确认即可改变运行内存**（§2——**不写 `.dat` 但内存可变**）；真正落盘都经上表确认链或 §4 逐项即时链。**没有"取消却仍落盘"的路径**（新建流程中嵌套类型创建的 PBS 反写是确认流程外的落盘——§4.2 已具名）。
+ - **生效（运行时可见）**：`.dat` 保存后运行时读取方立即用新数据（运行期 `DATA` 已同步）；PBS 反写保持文本与 `.dat` 一致（WP04 生命周期）；地区图鉴另清 `$game_temp` 缓存强制下次重载。
+ 
+ ## 7. 同文件边界归属（只登记，不展开）
+@@ -193,22 +198,22 @@
+ | M02 取消语义分型（人工夹具） | a) LimitProperty2 数值取消；b) SpeciesProperty 选择取消；c) BooleanProperty2 取消；d) WeatherEffectProperty 选 None | a) 返回 nil（槽清空）；b) 返回旧值（不变）；c) 返回 nil；d) 返回 nil |
+ | M03 训练家类型编辑保存链（人工夹具） | 已有类型：改名字段后选 Yes／选 No | Yes：register＋save＋pbConvertTrainerData（类型名消息表刷新＋两 PBS 反写）；No：内存与文件均不变 |
+ | M04 训练家类型删除（人工夹具） | ACTION 已有类型并严肃确认 | **立即** DATA 删除＋save＋convert＋消息（无退出确认）；拒确认则不动 |
+-| M05 新建训练家类型 ID 派生（人工夹具） | a) 名称 "Café Owner"；b) 名称 "123"；c) 与既有 ID 冲突 | a) ID "CAFOWNER"（é→e、去非字母数字、大写）；b) "T_123"（首字符非字母加前缀）；c) 追加 _1…_100 去重，仍冲突→失败消息 |
+-| M06 训练家战斗校验（人工夹具） | a) 清掉类型后保存；b) 名字清空保存；c) 队伍全空槽保存；d) 全部合法保存且改了名字 | a) "Can't save. No trainer type was chosen."回到编辑；b) "…No name was entered."；c) "…Pokémon list is empty."；d) register 新键＋**删除旧键**＋modified |
++| M05 新建训练家类型 ID 派生（A-R11；人工夹具） | a) 名称 "Café Owner"；b) 名称 "123"；c) 与既有 ID 冲突 | a) ID **"CAFEOWNER"**（é→e、去非字母数字、大写）；b) "T_123"（首字符非字母加前缀）；c) 追加 _1…_100 去重，仍冲突→失败消息 |
++| M06 训练家战斗校验与改键（A-R02；人工夹具） | a) 清掉类型后保存；b) 名字清空保存；c) 队伍全空槽保存；d) 全部合法保存且改了名字；e) 把键改成已存在的（类型,名字,版本） | a) **属性返回空结果、外层立即结束该次编辑——不到错误消息**；b) "…No name was entered."回到校验循环；c) "…Pokémon list is empty."回到校验循环；d) register 新键＋**删除旧键**＋modified；e) **先覆盖目标、再删旧键——无唯一性拒绝**（内存只剩新键；外层退出 No 仍可由 `.dat` 重载恢复） |
+ | M07 训练家战斗退出确认（人工夹具） | a) 编辑后退出选 Yes；b) 删除后退出选 No | a) save＋convert（改动落盘）；b) **load 重载——删除被撤销** |
+-| M08 新建训练家战斗（人工夹具） | a) 新建类型链完整；b) 版本 0–255 全占用 | a) 类型→名字→空版本→示例队伍 register＋"已添加"；b) "没有空间"消息、不建 |
++| M08 新建训练家战斗（A-R01；人工夹具） | a) 新建类型链完整后中途放弃（名字取消）；b) 版本 0–255 全占用；c) 只用现有类型并退出 No | a) **类型文件与 PBS 反写已落盘保留**（嵌套保存），交互建队未开始；此前内存中的其它训练家编辑**可已被反写带进 PBS**——外层 No 只重载 `.dat`、不回滚 PBS；b) "没有空间"消息、不建；c) **全程无文件写入**（内存改动随 load 丢弃） |
+ | M09 TrainerPokemonProperty（人工夹具） | a) 物种留空；b) 四招式槽全空；c) EV 总额超限 | a) 整槽返回 nil（父编辑视为空槽）；b) 招式表空＝**野生招式表**（说明文本）；c) 消息要求削减并**回到子编辑**（不能带着超限离开） |
+ | M10 道具编辑/新建（人工夹具） | a) 已有道具改价后 Yes；b) ACTION 删除；c) 新建（口袋选 0） | a) register＋save＋write_items；b) 严肃确认后**立即**删除落盘；c) 放弃（不写） |
+ | M11 物种编辑（人工夹具） | a) 身高显示值；改后 Yes；b) ACTION 删除；c) 新建项 | a) 显示为实际 ×10；保存时 /10 回写＋validate 净化＋进化参数按方法重铸＋save＋write_pokemon＋"Data saved."；b) 严肃确认后立即删除落盘；c) "Can't add a new species."消息 |
+-| M12 元数据编辑（人工夹具） | a) 顶层选 GLOBAL；b) 选 Player 2（不存在）；c) ADD NEW PLAYER；d) 保存 Yes | a) 编辑全局（保存补 `:id => 0`）；b) "未找到"消息；c) 取最小未用 ID 实例化后进入同一属性编辑；d) register＋save＋write_metadata |
++| M12 元数据编辑（人工夹具） | a) 顶层选 GLOBAL；b) 选 Player 2（不存在）；c) ADD NEW PLAYER；d) 保存 Yes | a) 编辑全局（保存补 ID 为 0 的键）；b) "未找到"消息；c) 取最小未用 ID 实例化后进入同一属性编辑；d) register＋save＋write_metadata |
+ | M13 地区图鉴主界面（人工夹具） | a) ADD→全国图鉴填充；b) ADD→按族填充；c) Copy 一个图鉴；d) 退出选 No | a) 全物种顺序入列；b) 进化族去重连接；c) 克隆追加到末尾；d) **克隆被弃、.dat 不变** |
+-| M14 地区图鉴子编辑（人工夹具） | a) Z+Left 删条目；b) Change species 选已在其它位的物种；c) 退出选 Yes；d) 主界面退出选 Yes | a) 删除并刷新；b) **其它位自动清 nil**（唯一性）；c) 该图鉴数组（压尾 nil 后）回写主界面；d) **写 .dat＋清缓存＋write_regional_dexes＋"Data saved."** |
+-| M15 GameDataPoolProperty（人工夹具） | a) 不许多个时添加重复值；b) 改值为已存在值；c) 退出选 No | a) 不追加、光标跳到既有项；b) **删除本项**并跳光标；c) 父槽位保持旧值（池编辑不回写） |
++| M14 地区图鉴子编辑（A-R08；人工夹具） | a) 进入含 [A,空,B] 的图鉴不作编辑选 No；b) Z+Left 删条目；c) Change species 选已在其它位的物种；d) 主界面退出选 Yes；e) 空白新图鉴或清空全表后选 Yes（静态推导） | a) **主界面得到 [A,B]**（进入先去空、退出全量去空——子 No 也压空洞）；b) 删除并刷新；c) **其它位自动清 nil**（唯一性）；d) **写 .dat＋清缓存＋write_regional_dexes＋"Data saved."**；e) **非终止**（删除末项直到末项非空——空表无终止条件，**静态推导未运行，不保证空表可正常保存**；外层 No 仍不写 .dat） |
++| M15 GameDataPoolProperty（A-R04/R05；人工夹具） | a) 不许多个时添加重复值；b) 改值为已存在值；c) 退出选 No；d) 非空无序蛋招池仅打开后选 No | a) 不追加、光标跳到既有项；b) **删除本项**并跳光标；c) 父槽位保持旧值（有询问子页不回写）；d) **原数组可已排序**（池编辑打开即对原嵌套数组原地去重/排序——不写 `.dat` 但运行内存可变；无本页 No 能阻止） |
+ | M16 LevelUpMovesProperty（人工夹具） | a) 添加同级同招；b) 改等级撞到已有同级同招；c) 同级换序；d) 退出 Yes | a) 不新增、光标跳已有；b) **删除本项**、光标跳已有；c) 仅同级可换；d) 去辅助列后回写（等级排序） |
+-| M17 EvolutionsProperty（人工夹具） | a) 改方法；b) 无参数方法改参数；c) String 参数输入空白；d) 所有改动去重 | a) 方法换且**参数重置为 0**；b) "不使用参数"消息；c) 空白→nil（该路径不成立/不保存参数）；d) 相同（物种,方法,参数)已存在时删除本项跳光标 |
+-| M18 列表器行为（人工夹具） | a) 空目录 GraphicsLister；b) MusicFileLister 浏览后退出；c) MapLister 选 [GLOBAL]；d) 块循环删除最后一项 | a) "There are no files."消息；b) **dispose 恢复原 BGM**（浏览试听不残留）；c) 返回 0；d) 下标钳到新表尾 |
++| M17 EvolutionsProperty（A-R07；人工夹具） | a) 改方法；b) 无参数方法改参数；c) LocationFlag（String 类注册）改参数；d) 所有改动去重 | a) 方法换且**参数重置为 0**；b) "不使用参数"消息；c) **实际出现数值框（0–65,535、默认 0）——不能输入任意地区标志文字**（数值/枚举参数对照：枚举符号走选择器、Integer 走数值框、取消 −1 → nil）；d) 相同（物种,方法,参数）已存在时删除本项跳光标 |
++| M18 列表器行为（人工夹具） | a) 空目录 GraphicsLister；b) MusicFileLister 浏览后退出；c) MapLister 选 [GLOBAL]；d) 块循环删除最后一项 | a) "There are no files."消息；b) **dispose 恢复原 BGM**（浏览试听不残留）；c) 返回 0；d) **下标保持为新命令数（不是钳到最后有效项）**——可见选中可能失效（静态边界，不推断像素表现） |
+ | M19 选择器（人工夹具） | a) pbChooseSpeciesList；b) pbChooseTypeList；c) pbChooseMoveListForSpecies；d) pbChooseBallList 取消 | a) **只列 0 形态**；b) **排除伪类型**；c) 合法招式（升级+教授+蛋招）排序在前、全表随后；d) 返回旧值 |
+-| M20 生效时机总核（静态核对） | 六编辑器各执行一次确认保存与一次取消 | 与 §6 表逐行一致：逐条即时类（类型/道具/物种/元数据）确认即三层同步；退出确认类（训练家战斗/图鉴）取消即 load/弃克隆——**无"取消仍落盘"路径** |
++| M20 生效时机总核（A-R01/R05/R08；静态核对） | 六编辑器各执行一次确认保存与一次取消；另核新建嵌套与无询问子页 | 与 §6 表逐行一致：逐条即时类（类型/道具/物种/元数据）确认即三层同步；退出确认类（训练家战斗/图鉴）取消即 load/弃克隆——**嵌套例外：新建流程创建类型的 PBS 反写已落盘保留**；**无询问子页 BACK 直接赋父槽**（EV 超限要求削减不是保存门）；**空表保存分支非终止**；**无"取消仍落盘"路径**（嵌套反写已具名） |
+ 
+ ## 11. 证据与来源（traceability）
+ 
+@@ -226,7 +231,8 @@
+ 
+ ## 13. 状态与后续
+ 
++- 2026-10-02 **统一首审修订 v2**（统一 review 34 项中 WP73-A 的 11 项＋共通 3 项）：**R01** 新建流程嵌套保存分层——创建类型立即落盘并反写两份 PBS（可带出先前内存编辑）；外层 No 只重载 `.dat` 不回滚 PBS；交互建队首只必选、后续逐个确认。**R02** 校验可达性——清空类型立即结束该次编辑（不到消息）；名字空/队伍空才回校验循环；改键冲突先覆盖目标再删旧键（无唯一性拒绝）。**R03** 新道具价格 BACK 返回 0 而非 −1（继续创建价格 0；口袋取消才是放弃）。**R04** 属性副本三类——局部标量/共享嵌套对象（蛋招池/地图尺寸/进化路径原地操作）/原地规范化（不写 `.dat` 但内存可变）。**R05** 子页分型——无本页询问（IV/EV/地图尺寸/训练家个体 BACK 直接赋父槽）与有询问子页分开；EV 超限要求削减不是保存门。**R06** 失效引用分两型——有保护显示 "-" 与严格读取可抛异常（球/池内容/训练家个体/天气格式化）。**R07** String 类注册的进化参数（LocationFlag）实际走数值框（0–65,535、默认 0）——不能输入任意文字。**R08** 图鉴子编辑进入先去空、退出全量去空（子 No 也压空洞）；空表保存分支非终止（静态推导未运行）。**R09** 删除尾项后下标保持为新命令数（不是钳到最后有效项——可见选中可能失效）。**R10** 动画分配无空槽时调整为目标长度 10 并返回调整前长度（超长截断不恢复）。**R11** ID 向量更正为 CAFEOWNER。**BATCH-R01** 正文哈希构造式改独立散文。**BATCH-R02** 数量按最终文件重算。**BATCH-R03** 同批 WP72/WP73-B 引用改为同批待审记法。场景 M01–M20 保留（v2 修订 8 行：M05、M06、M08、M14、M15、M17、M18、M20）；v1 被审身份 `4c3e591c` 留史；v1 材料不改写。
+ - WP73-A 自身范围（第 1 节四项）已提取并自检，2026-10-02 首版登记 **ReviewPending（具名静态范围，待统一 review）**；不自行标 Reviewed、不宣称通过。依据用户批次授权（WP72＋WP73-A＋WP73-B）与 `planning/extraction-plan.md` 的 WP73-A 任务定义执行；四份编辑器主域文件分段全文阅读、持久层与训练家辅助定点核对并建立覆盖映射（见交付目录附表）。
+-- **已通过边界原样继承**：WP04、WP72（`49731474`）、WP61（`d84dff78`）、WP53（`75fc4db7`）、WP37（`d032f5b7`）、WP65、WP67-A/B、GR-001～016、WP23-N01——本包只引用其合同，不重开、不修改 reference。
++- **已通过边界原样继承**：WP04、WP61（`d84dff78`）、WP53（`75fc4db7`）、WP37（`d032f5b7`）、WP65、WP67-A/B、GR-001～016、WP23-N01——本包只引用其合同，不重开、不修改 reference；**同批待审依赖（不作通过结论）**：WP72（`49731474`）、WP73-B。
+ - **WP73-A 完成 ≠ F18-02 完成**：世界编辑器归 WP73-B；编辑器运行验证、素材、demo 编排保留；Feature Matrix 按聚合规则分别显示，不将整个 D18 标完成。
+ - 后续包引用本文的编辑器合同（三层持久、保存时机表、属性类型目录、校验拒绝）时，不得把参考侧类/方法组织当作未来框架的 API；发现与本文冲突的新证据时，先修订本文并通知受影响包。批次内后续（WP73-B）与整体 double review（WP78/79）、WP80 净化交付按 extraction-plan 执行，本包完成不自动推进。

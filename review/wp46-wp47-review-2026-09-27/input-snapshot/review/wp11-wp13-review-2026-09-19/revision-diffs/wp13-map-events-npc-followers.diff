@@ -1,0 +1,226 @@
+--- input-snapshot/specs/overworld/wp13-map-events-npc-followers.md	2026-09-19 21:17:02
++++ ../../specs/overworld/wp13-map-events-npc-followers.md	2026-09-19 22:18:06
+@@ -7,8 +7,8 @@
+ | 分类 | Engine/Overworld（事件与交互集成）；命令编号与函数名仅作内部兼容取证，不是未来框架的事件 API |
+ | 参考基线 | `reference/pokemon-essentials/` @ commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（WP01 固定） |
+ | 输入 | 证据包 E10（事件命令、触发/条件、跟随入口与兼容性空操作）、E09、E18；解释器命令全集 |
+-| 前置依赖 | WP11（地图拓扑）、WP12（地形/运动，均为本批自检版本，未外审）；WP05（通知机制，已 Reviewed） |
+-| 规格状态 | **ReviewPending（WP13 自身范围）**：2026-09-19 提交外部 review |
++| 前置依赖 | WP11（地图拓扑）、WP12（地形/运动，均为同批修订版本，未外审）；WP05（通知机制，已 Reviewed） |
++| 规格状态 | **ReviewPending（WP13 自身范围）**：2026-09-19 首版送审；2026-09-19 按外部复审 WP13-R01–R05 修订（v2），再送复审 |
+ | 证据等级 | 全部为静态证据：已定位 / 静态确认 / 数据样本确认；**无运行确认** |
+ 
+ ## 1. 目的、范围与非目标
+@@ -19,7 +19,7 @@
+ 
+ 1. WP13-A：事件页与触发（页选择、条件、触发方式、启动/结束）。
+ 2. WP13-B：解释器运行（更新循环、等待/恢复、公共事件、并行/自动运行、深度限制）。
+-3. WP13-C：解释器命令兼容矩阵（见附表 [wp13-interpreter-command-matrix](wp13-interpreter-command-matrix.md)）。
++3. WP13-C：解释器命令兼容矩阵（见附表 [wp13-interpreter-command-matrix](wp13-interpreter-command-matrix.md)）与移动路线命令矩阵（见附表 [wp13-move-route-matrix](wp13-move-route-matrix.md)）。
+ 4. WP13-D：NPC、训练家感知与跟随（NPC 移动/互动、感知、跟随者生命周期与转移限制）。
+ 5. F04-04、F04-05 中属于 WP13 部分的状态更新。
+ 
+@@ -39,7 +39,8 @@
+ - **公共事件（common event）**：全局事件，trigger 1=自动运行（主解释器执行）、trigger 2=并行处理（自有解释器）。
+ - **解释器（interpreter）**：逐条执行事件命令的循环；支持等待（消息/移动/计时）、子解释器（公共事件调用）与深度限制（100）。
+ - **命令兼容**：命令在分派中的状态（有实现/空操作（command_dummy）/标记/未分派回退）。
+-- **跟随者（follower）**：由 FollowerData 描述、以 Game_Follower 实例随行的角色；阻止地图传送与载具使用。
++- **over_trigger?**：事件的"可越格触发"判定——**不是 through 的别名**：具名图形且非 through → false；名称含 hiddenitem → false；否则按占格是否可通行判定（无图形、非 through 的事件也可能为真）。
++- **跟随者（follower）**：由 FollowerData 描述、以 Game_Follower 实例随行的事件角色；部分场地/道具入口禁止带跟随者（6.2）。
+ - 影响域编号 Dxx 见 module-map；证据状态五档定义见总览第 7 节。
+ 
+ ## 3. WP13-A：事件页与触发
+@@ -49,19 +50,21 @@
+ - 页按**从后向前**遍历：第一个条件全部满足的页成为当前页——开关 1/2 为 ON、变量 ≥ 指定值、自开关为 ON（`switchIsOn?` 支持开关名为 `s:` 前缀的脚本条件）。
+ - 无满足页（new_page 为 nil）：事件不可见、可穿透、无触发与命令列表。
+ - 页内容决定图形/移动类型/速度/频率/路线/方向/穿透/触发/命令列表；触发为 4（并行处理）时创建自有解释器。
+-- 自开关与临时自开关（`tsOn?/tsOff?/setTempSwitchOn/Off`）影响页与冷却判定（`cooledDown?/cooledDownDays?`：过期且临时自开关 A 为 OFF 时通过，否则标记刷新）。
++- 自开关与临时自开关（`tsOn?/tsOff?/setTempSwitchOn/Off`）影响页与冷却判定（`cooledDown?/cooledDownDays?`：过期且临时自开关 A 为 OFF 时通过，否则标记刷新）。临时自开关随事件实例重建丢失；页条件自开关在全局表（WP11 引用）。
+ 
+-### 3.2 触发与启动（本轮逐行阅读）
++### 3.2 触发与启动（本轮逐行阅读；WP13-R04 修订：按调用者分入口）
+ 
+-| 触发方式 | 行为 |
+-| --- | --- |
+-| 动作键（0） | 玩家在同位或面前按互动键时启动（`pbCheckEventTriggerFromDistance`/`check_event_trigger_here`/`check_event_trigger_there`，`008_Game_Player.rb:284–389`） |
+-| 玩家接触（1） | 玩家移动到事件位置或事件移动到玩家位置时启动（`check_event_trigger_touch`，`007_Game_Event.rb:142–158`） |
+-| 事件接触（2） | 事件与玩家同位且可穿透时启动（`check_event_trigger_auto`，同文件 186–195 行） |
+-| 自动运行（3） | 每帧自动启动（`check_event_trigger_auto`） |
+-| 并行处理（4） | 每帧由自有解释器执行（`refresh` 创建，`update` 驱动） |
+-| 感知（名称模式） | 事件名含 `sight(N)`/`trainer(N)` 时按距离与朝向检查（`check_event_trigger_after_turning/after_moving`，同文件 160–184 行；`pbEventCanReachPlayer?`/`pbEventFacesPlayer?`） |
++| 入口 | 调用者与守卫 | 行为 |
++| --- | --- | --- |
++| 动作键（trigger 0） | 玩家按互动键；主解释器未运行 | 同位检查（`check_event_trigger_here`：事件在同位、非跳跃、**over_trigger? 为真**才启动）与面前检查（`check_event_trigger_there`：事件在面前格、非跳跃、**over_trigger? 为假**才启动；面前格为柜台时再延伸一格）（`008_Game_Player.rb:332–389`） |
++| 玩家接触（trigger 1） | 玩家移动后步后检查（`update_event_triggering`，同文件 543–552：移动/跳跃/强制移动中不检查） | 玩家侧接触检查（`Game_Player.check_event_trigger_touch`）：triggers [1,2]、事件在移动目标格、非跳跃、over_trigger? 为假；sight/trainer 事件还要可达检查、counter 事件还要面向范围检查 |
++| 事件接触（trigger 2） | 两条路径：(a) 玩家移动失败时 `move_generic` 调用事件侧 `check_event_trigger_touch(dir)`（`007_Game_Event.rb:142–157`：**trigger == 2**、主解释器未运行、按方向的坐标对齐、非跳跃、over_trigger? 为假）；(b) 事件自身更新时 `check_event_trigger_auto`（同文件 186–195：与玩家同位、非跳跃、**over_trigger? 为真**） | 满足则启动 |
++| 感知（名称模式，trigger 2 前提） | NPC 自身转向/移动后（`check_event_trigger_after_turning/after_moving`，同文件 160–183） | 守卫：主解释器未运行、非 starting、**trigger == 2**、非跳跃、over_trigger? 为假。名含 `sight(N)`/`trainer(N)` → **可达检查**（`pbEventCanReachPlayer?`：面向范围内且沿途每格可移动，`001_Overworld.rb:340–389`）；名含 `counter(N)` → **面向范围检查**（`pbEventFacesPlayer?`，只看朝向与距离）。两者不等同 |
++| 自动运行（trigger 3） | `check_event_trigger_auto` | 每更新机会即启动 |
++| 并行处理（trigger 4） | 页选择时创建自有解释器（`refresh`），`update` 驱动 | 每更新机会由自有解释器执行 |
+ 
++**更新机会前提**（WP13-R04 修订）："每帧执行"以实际更新调用为前提——`should_update?`（同文件 260–271）对**自动/并行、强制路线、moveto 发生、名称含 update** 的事件提前许可，其余按屏幕范围（约 2 格缓冲）判定；菜单打开时 `Game_Map.update`（`004_Game_Map.rb:461–465`）**不更新地图事件但仍更新公共事件**。因此"屏幕外事件不更新"不成立（并行/自动等例外），"菜单中一切暂停"也不成立（公共事件仍更新）。
++
+ 启动后：非自动/非并行事件被锁定并清除启动标记；自动运行公共事件（trigger 1 + 开关 ON）由主解释器启动（`setup_starting_event`，`003_Interpreter.rb:54–78`）。
+ 
+ ## 4. WP13-B：解释器运行
+@@ -71,51 +74,59 @@
+ | 阶段 | 行为 |
+ | --- | --- |
+ | 冻结防护 | 每 100 次循环刷新画面一次 |
+-| 地图失联 | 当前图与解释器地图不同且无连接 → 忘记事件 ID（终止当前事件） |
++| 地图失联 | 当前图与解释器地图不同且无连接 → **仅把 event_id 置 0**（WP13-R03 修订：不清命令列表、index 或子解释器；执行循环按等待/执行继续推进）。失联只失去"本事件"上下文，不等于结束执行 |
+ | 子解释器 | 先更新子解释器（公共事件调用），结束才回到父解释器 |
+ | 消息等待 | 消息显示中不执行命令 |
+ | 移动等待 | 任一事件/跟随者/玩家处于强制移动路线时不执行命令；全部结束后清除等待 |
+-| 上岸等待 | 玩家上岸流程中不执行命令 |
+-| 计时等待 | wait_count 计时未到不执行命令 |
++| 上岸等待 | 玩家上岸流程中（ending_surf）不执行命令 |
++| 计时等待 | wait_count 计时（System.uptime）未到不执行命令 |
+ | 菜单调用 | 暂停菜单将打开时不执行命令 |
+ | 无命令时 | 主解释器尝试启动下一个待启动事件（公共事件 → 地图事件 → 自动运行公共事件） |
+ | 深度限制 | 公共事件调用深度 > 100 时提示并退出 |
++| 指令推进 | 命令返回 false → 本轮停止；返回 true → @index += 1。注意 105 在命令体内已 @index += 1 且返回 true（一次推进两条）；命令的启动效果与等待不能混谈（附表控制结果列） |
+ 
+-### 4.2 结束与恢复
++### 4.2 结束与恢复（WP13-R03 修订：三种终止状态分列）
+ 
+-- 命令列表执行完（index 到末尾）→ `command_end`：清除命令列表与跟随者覆盖，事件结束。
+-- 脚本命令异常：`execute_script` 的异常按类别处理（SystemExit/Reset 原样抛出，其他进入事件错误处理路径，`003_Interpreter.rb:138–146` 及后续）。
+-- 事件在地图切换/失联时终止（4.1）；公共事件并行处理按开关状态刷新（`Game_CommonEvent.refresh`，`009_Game_CommonEvent.rb:40–47`）。
++- **命令结束**：命令列表执行完（index 到末尾）→ `command_end`（`004_Interpreter_Commands.rb:128–135`）：**清除命令列表**、结束跟随者覆盖；主解释器且事件 ID 有效时解锁该事件。
++- **显式退出**：115（退出事件处理）→ 同样进入 command_end。
++- **地图失联**：仅 event_id 归 0（4.1），**已有命令列表继续有效**——失联后合法的全局命令（如开关赋值）仍可执行；事件的解锁/锁定上下文已失去。
++- 脚本命令异常：`execute_script` 的异常按类别处理（SystemExit/Reset 原样抛出，其他进入事件错误处理路径，`003_Interpreter.rb:138–146` 及后续；WP07 引用）。
++- 公共事件并行处理按开关状态刷新（`Game_CommonEvent.refresh`，`009_Game_CommonEvent.rb:40–47`）。
+ 
+ ## 5. WP13-C：解释器命令兼容矩阵
+ 
+-命令支持矩阵见附表 [wp13-interpreter-command-matrix](wp13-interpreter-command-matrix.md)。要点：
++命令支持矩阵见附表 [wp13-interpreter-command-matrix](wp13-interpreter-command-matrix.md)；移动路线命令为独立分派，见附表 [wp13-move-route-matrix](wp13-move-route-matrix.md)。要点（WP13-R01/R02 修订）：
+ 
+-- **有实现**：48 个命令代码（文本/流程/变量/系统/地图/视觉/音频/战斗入口/队伍部分/菜单/脚本）。
+-- **空操作（command_dummy）**：18 个——127（武器）、128（防具）、129（队伍成员）、319（装备）、320（角色名）、321（角色职业）、322（角色图形）、331–340（敌方全部：HP/SP/状态/全恢复/出现/变身/战斗动画/伤害/强制行动/中止战斗）、302（商店）。
+-- **标记（按设计无操作）**：112（循环开始）、118（标签）。
++- **直接结构分类（本快照）**：96 个主分派命令代码 = **28 空操作（command_dummy）+ 2 标记 + 66 其他实现入口**。该数字不代表所有参数分支均有效，也不作为未来版本硬编码真值。
++- **空操作 28 个**：126（增减物品）、127、128、129、133（战斗结束 ME）、301（战斗处理）、302（商店）、311、312、313、315、316、317、318、319、320、321、322、331–340。事件作者调用这些命令**无可见效果**（含 126 不改变背包、301 不启动战斗、311 不改变 HP）。
++- **标记 2 个**：112（循环开始）、118（标签）。
++- **续行不是无效数据**：401 由 101 消费、655 及相邻 355 由 355 合并；"未单独分派"仅限直接到达默认分支的代码。
++- **启动效果 ≠ 等待完成**：209 设强制路线后立即继续（210 才等待）；203 仅已有滚动时等待；205/206/207/223–225/232/234/236/242/246 启动效果后立即继续；233 设旋转速度；105 一次推进两条；355 总是返回 true。逐行口径见附表控制结果列。
+ - **未分派回退**：不在分派表中的任意命令代码 → 返回 true（跳过并继续，无效果）；不承诺标准 RMXP 命令全兼容（以附表为准）。
+ 
+ ## 6. WP13-D：NPC、训练家感知与跟随
+ 
+ ### 6.1 NPC 移动与互动
+ 
+-- NPC（事件角色）按页的移动类型/速度/频率/路线移动（`007_Game_Event.rb` 的移动与更新规则，同文件 274–301 行）；超出屏幕范围（约 2 格缓冲）的事件不更新（`should_update?`，260–272 行）。
+-- 训练家感知：事件名含 `sight(N)`/`trainer(N)` 时，在玩家移动后按距离 N 与朝向检查并启动（`check_event_trigger_after_turning/after_moving`，同文件 160–184 行）；名含 `counter(N)` 时按面向与距离检查（`pbEventFacesPlayer?`）。
++- NPC（事件角色）按页的移动类型/速度/频率/路线移动（`007_Game_Event.rb` 的移动与更新规则，同文件 274–301 行）；更新机会按 3.2 的 `should_update?` 规则（非"屏幕外一律不更新"）。
++- 训练家感知：按 3.2 感知入口（trigger 2 前提、可达/面向两种检查、跳跃与 over_trigger 守卫）；不是"进入视野即启动"。
+ - 训练家事件由战斗入口调用（`001_Overworld_BattleStarting.rb`，WP39 交界）；战斗后 NPC 的状态（再启动/再战）归 WP63/WP24。
+ 
+-### 6.2 跟随者生命周期与转移限制
++### 6.2 跟随者生命周期与转移限制（WP13-R05 修订：当前事件跟随机制的行为范围）
+ 
+-- **加入**：`FollowerFactory.add_follower(event, name, common_event_id)` 登记 FollowerData（原始地图/事件/外观/名称/可选公共事件覆盖）；`remove_follower_by_event/by_name/remove_all` 移除（`011_Game_FollowerFactory.rb:76–139`）。
++- **加入**：`FollowerFactory.add_follower(event, name, common_event_id)`（`011_Game_FollowerFactory.rb:89–103`）——**去重守卫**：同一原始图 + 事件 ID 已存在则直接返回；否则登记 FollowerData（原始地图/事件/名称、当前地图/坐标/朝向、外观克隆；名称与可选公共事件覆盖）。
++- **移除**：`remove_follower_by_event`（当前图匹配 + 原始图/事件匹配）、`remove_follower_by_name`、`remove_all_followers`（同文件 106–136）。
+ - **实例化**：Game_Follower 按 FollowerData 创建（`010_Game_Follower.rb:1–40`）；可穿透跟随（`move_through` 临时穿透）。
+-- **移动/更新**：玩家移动后跟随者依次移动（`followers.move_followers`）、转向（`turn_followers`）、更新（`followers.update`）；地图转移时 `map_transfer_followers`。
+-- **转移限制**：`can_map_transfer_with_follower?` 与 `can_ride_vehicle_with_follower?` 仅在跟随者数为 0 时为真——**有跟随者时，地图传送（飞空/瞬移等）与载具使用被阻止**（`008_Game_Player.rb:42–48`；调用点 `004_Overworld_FieldMoves.rb` 与 `013_Items`）。
++- **移动/更新**：玩家移动后跟随者依次移动（`move_followers`，工厂 165–189）：**领队链为玩家 → 前一跟随者**；每个跟随者 `follow_leader`（`010_Game_Follower.rb:134–167`）——**强制路线中跳过跟随**；相连地图时目标为领队身后格（岩架时取跳上来的一格）；不相连地图时目标为领队位置；跨图时按相对坐标向量换图定位；`instant` 或不相连时即时 moveto，否则 `fancy_moveto`（91–109：距 1 格走、2 格跳、更远直接定位）。移动后把坐标/地图/朝向写回 FollowerData 持久层。转向（`turn_followers`）、逐帧更新（`followers.update`：同步领队速度、按 visible? 设透明、冰滑时整姿停动画；玩家移动中且跟随者未动时设置/清除启动标记驱动其更新）。
++- **显式传送**：`map_transfer_followers`（工厂 242–257 区间）：跟随者放到玩家位置、朝向一致、opacity 255、写回持久层并设 `invisible_after_transfer`；玩家开始移动时清该标记并转向玩家（同文件 update）；`visible?` = 可见标记且非转移后隐藏。
++- **互动**：USE 键且非菜单/战斗/强制路线/消息/解释器时，面前格上的跟随者（非跳跃）触发 `FollowerData#interact`（38–44：需事件有命令列表且登记了公共事件 ID → 刷新、锁定并以该事件列表启动主解释器）。
++- **转移限制**：`can_map_transfer_with_follower?` 与 `can_ride_vehicle_with_follower?` 仅在跟随者数为 0 时为真（`008_Game_Player.rb:42–48`）——**但守卫只在调用它们的场地/道具入口生效**（`004_Overworld_FieldMoves.rb`、`013_Items` 等调用点）；普通显式 `Scene_Map.transfer_player` **没有此守卫**，反而会调用 `map_transfer_followers` 携带跟随者。不能由函数名推出"有跟随者就无法地图传送"。
+ - **持久化**：跟随者数据在 `$PokemonGlobal.followers` 中持久保存（WP09 登记）；`dependentEvents` 为弃用旧格式（WP10 转换）。
+-- 跟随机制是事件级跟随（事件角色随行），**不自动等同于完整"跟随宝可梦"系统**（其完整规则归后续适用包）。
++- 跟随机制是事件级跟随（事件角色随行），**不自动等同于完整"跟随宝可梦"系统**（其完整规则归后续适用包；不得无证扩张，但本节机制是当前可读源码的直接提取）。
+ 
+ ## 7. 默认行为与配置变体
+ 
+-- **基线默认**：事件页按从后向前选择；触发按 3.2 方式启动；解释器按 4.1 更新循环执行；命令按第 5 节兼容矩阵；跟随者按 6.2 生命周期与限制。
++- **基线默认**：事件页按从后向前选择；触发按 3.2 分入口启动；解释器按 4.1 更新循环执行；命令按第 5 节兼容矩阵；跟随者按 6.2 生命周期与限制。
+ - **支持但未默认启用**：开关名为 `s:` 前缀的脚本条件开关；调试穿透（$DEBUG+Ctrl，WP12 引用）；`SKIP_CONTINUE_SCREEN`（WP02 词典）。
+ - **配置/数据关联**：`GRASS_ANIMATION_ID` 等动画 ID（WP02 词典）；`SHINY_WILD_POKEMON_SWITCH`、`FATEFUL_ENCOUNTER_SWITCH` 等开关（WP02 词典）；公共事件与开关/变量的配置（作者内容）。
+ - **未验证组合**：具体 Demo 事件的收费、奖励、剧情结果（U01/U08）；缺失地图/事件材料下的完整事件流程；并行/自动事件在地图切换中的全部边界。
+@@ -124,10 +135,10 @@
+ ## 8. 边界、失败与未知
+ 
+ - 无满足页：事件不可见/可穿透/无触发（3.1）。
+-- 解释器失联：地图不同且无连接 → 事件终止（4.1）。
++- 解释器失联：地图不同且无连接 → event_id 归 0，**命令列表继续**（4.1/4.2）。
+ - 深度超限：公共事件调用 > 100 层 → 提示并退出（4.1）。
+ - 脚本异常：SystemExit/Reset 原样抛出；其他异常按事件错误处理（4.2）。
+-- 空操作命令：18 个 command_dummy 命令被跳过且无效果（第 5 节）；调用方（事件作者）若依赖这些命令将无可见效果——兼容性限制如实登记。
++- 空操作命令：28 个 command_dummy 命令被跳过且无效果（第 5 节）；调用方（事件作者）若依赖这些命令将无可见效果——兼容性限制如实登记。
+ - 缺失地图/事件材料：具体 NPC 对话、事件页、任务流程、商店库存、奖励和可达性无法确认（U01/U08）。
+ 
+ ## 9. 可复核性与静态场景
+@@ -139,28 +150,44 @@
+ | 事件页选择与触发 | 阅读 `S/004_Game classes/007_Game_Event.rb`（302 行全文） |
+ | 解释器更新循环 | 阅读 `S/003_Game processing/003_Interpreter.rb`（454 行全文） |
+ | 命令分派与兼容 | 阅读 `S/003_Game processing/004_Interpreter_Commands.rb`（1180 行全文；附表逐项） |
++| 移动路线分派 | 阅读 `S/004_Game classes/006_Game_Character.rb:420–555`（路线附表） |
+ | 公共事件 | 阅读 `S/004_Game classes/009_Game_CommonEvent.rb`（56 行全文） |
+ | 跟随者 | 阅读 `S/004_Game classes/010_Game_Follower.rb`、`011_Game_FollowerFactory.rb`；`008_Game_Player.rb:38–48` |
+-| 感知 | 阅读 `S/004_Game classes/007_Game_Event.rb:160–184` |
++| 感知与触发调用者 | 阅读 `S/004_Game classes/007_Game_Event.rb:133–195, 260–271`、`008_Game_Player.rb:332–407, 543–552`、`012_Overworld/001_Overworld.rb:340–389` |
+ 
+ ### 9.2 静态推导场景（未运行，待运行验证）
+ 
+ | 场景 | 输入 | 推导预期 |
+ | --- | --- | --- |
+-| 页条件改变 | 开关 1 变 ON | 下一帧事件切换到满足条件的页（图形/触发/列表更新） |
++| 页条件改变 | 开关 1 变 ON | 下一更新机会事件切换到满足条件的页（图形/触发/列表更新） |
+ | 无可用页 | 所有页条件均不满足 | 事件不可见、可穿透、无触发 |
+ | 等待与恢复 | 消息显示中再关闭 | 解释器从下一命令继续执行 |
+-| 并行触发 | 事件触发为 4（并行处理） | 自有解释器每帧执行该事件命令列表 |
++| 并行触发 | 事件触发为 4（并行处理） | 自有解释器按更新机会执行该事件命令列表 |
++| 屏幕外并行事件 | 并行事件在屏幕外（非菜单） | should_update? 提前许可 → 仍更新 |
++| 菜单中并行 | 菜单打开，地图并行事件与公共并行事件并存 | 地图事件不更新；公共事件仍更新 |
+ | 深度超限 | 公共事件嵌套调用 > 100 层 | 提示并退出 |
+-| 空操作命令 | 事件含 command_129（队伍成员变更） | 被跳过且无效果（事件后续命令照常继续） |
+-| 跟随者加入/移除 | add_follower / remove_all | FollowerData 增减；实例随之出现/消失 |
+-| 有跟随者时的传送 | followers.length > 0 时使用飞空 | can_map_transfer_with_follower? 为假，传送被阻止 |
+-| 感知启动 | 玩家进入 sight(3) 事件视野 | 按距离与朝向检查后启动该事件 |
+-| 地图失联 | 解释器执行中跨图到无连接地图 | 当前事件终止（忘记事件 ID） |
++| 空操作命令 | 事件含 command_126（增减物品）/301（战斗处理）/311（变更 HP） | 被跳过且无效果：背包不变、战斗不启动、HP 不变；事件后续命令照常继续 |
++| 209 与 210 | 209 设强制路线后接开关命令；另一序列 209→210→开关命令 | 前者开关命令不等路线结束即执行（若路线仍在走则受移动等待规则影响）；后者等全部强制路线结束后才执行 |
++| 新滚动与已有滚动 | 203 启动新滚动；203 在滚动中再次调用 | 前者立即继续；后者返回 false（本轮等待） |
++| 效果后下一命令 | 223/224/232/242 等启动效果后接开关命令 | 效果启动后开关命令立即执行（不等过渡/淡出完成） |
++| 355 普通 false | 355 脚本表达式求值为 false | 命令仍返回 true，解释器继续下一条（不等待） |
++| 105 后两条命令 | 105 后接两条命令 A、B | 105 输入完成后一次推进两条（A 被跳过，从 B 继续） |
++| 未支持条件类型 | 111 条件类型为 actor/item 等被注释种类 | 结果沿默认 false（走 Else） |
++| 变量除零/取余 1 | 122 除以 0 或对 1 取余 | 跳过该操作（变量不变） |
++| 314 参数差异 | 314 参数 0，HEAL_STORED_POKEMON 开/关 | 开：治疗队伍；关：治疗队伍及储存个体 |
++| 失联后续行 | 解释器地图与当前图失联，下一条为合法开关赋值 | event_id 归 0，但该命令仍执行（列表未清） |
++| 无图形非 through 同位事件 | 玩家与同位无图形、非 through 事件 | over_trigger? 可能为真 → 事件接触入口可启动 |
++| hiddenitem 事件 | 名称含 hiddenitem 的事件 | over_trigger? 为 false（同位不触发，按动作键/面前入口处理） |
++| 视线命中但不可达 | sight(3) 事件面向玩家、距离内，但中间格不可移动 | 可达检查失败 → 不启动 |
++| 跟随者加入/移除 | add_follower（重复/新事件）/remove_all | 重复加入被守卫拒绝；新事件登记 FollowerData 并出现实例；remove_all 清空 |
++| 跨图跟随 | 玩家边缘跨图到相连地图 | 跟随者目标为领队身后格，按相对向量换图定位 |
++| 显式传送携带跟随者 | 有跟随者时 Scene_Map.transfer_player | 无守卫阻止；跟随者放到玩家位置并设 invisible_after_transfer，玩家移动时恢复 |
++| 受守卫阻止的传送 | 有跟随者时使用飞空/部分道具 | 对应入口的 followers=0 守卫为假，传送被阻止 |
+ 
+ ## 10. 证据与来源（traceability）
+ 
+-- **本轮复核（2026-09-19）**：逐行阅读 `003_Interpreter.rb`（454 行）、`004_Interpreter_Commands.rb`（1180 行）、`007_Game_Event.rb`（302 行）、`009_Game_CommonEvent.rb`（56 行）、`010_Game_Follower.rb:1–40`、`011_Game_FollowerFactory.rb:76–139`、`008_Game_Player.rb:38–48, 284–389`；感知/载具守卫调用点 `004_Overworld_FieldMoves.rb`、`013_Items`。
++- **本轮复核（2026-09-19，首版）**：逐行阅读 `003_Interpreter.rb`（454 行）、`004_Interpreter_Commands.rb`（1180 行）、`007_Game_Event.rb`（302 行）、`009_Game_CommonEvent.rb`（56 行）、`010_Game_Follower.rb:1–40`、`011_Game_FollowerFactory.rb:76–139`、`008_Game_Player.rb:38–48, 284–389`；感知/载具守卫调用点 `004_Overworld_FieldMoves.rb`、`013_Items`。
++- **修订复核（2026-09-19，v2 按 WP13-R01–R05）**：重核 `004_Interpreter_Commands.rb`（126/133/301/311–318/314/204/353/355/105/111/122/203/209/210/205–207/223–225/232–236/242/246/128–135/162–178）；`003_Interpreter.rb:84–146`；`006_Game_Character.rb:420–555`（移动路线分派）；`007_Game_Event.rb:133–195, 260–271`；`008_Game_Player.rb:332–407, 543–552`；`004_Game_Map.rb:461–465`；`001_Overworld.rb:340–389`；`010_Game_Follower.rb:91–109, 134–167`；`011_Game_FollowerFactory.rb:30–50, 89–136, 165–189, 242–290`。
+ - **继承同基线既有记录**：E10（事件命令、触发/条件、跟随入口与兼容性空操作，本轮已扩展为全文核实与命令矩阵）；E09、E18；WP05 通知机制（引用）。
+ - 全部静态证据；**无运行确认**。
+ 
+@@ -168,12 +195,13 @@
+ 
+ 1. 具体 Demo 事件的收费、奖励、剧情结果与可达性（U01/U08）。
+ 2. 并行/自动事件在地图切换中的全部边界（未验证）。
+-3. 跟随机制在各运动状态下的完整行为（WP12 交界，未逐状态验证）。
++3. 完整"跟随宝可梦"系统规则（归后续适用包；当前事件跟随机制已按 6.2 提取）。
+ 4. 训练家再战与 NPC 状态推进（WP63/WP24 交界）。
+ 5. 战斗内事件/命令的行为（归战斗包）。
++6. 119 跳转标签在标签不存在时的行为、248 在未记忆时的行为（附表登记，未逐分支验证）。
+ 
+ ## 12. 状态与后续
+ 
+-- WP13 自身范围（第 1 节五项）已提取并自检，状态 **ReviewPending**，提交外部 review。
++- WP13 自身范围（第 1 节五项）已提取并自检，2026-09-19 首版送审后按 WP13-R01–R05 修订（v2），状态 **ReviewPending**，再送外部复审。
+ - **WP13 完成 ≠ F04-04/F04-05 完成**：具体 Demo 事件、完整跟随系统与战斗内事件需 WP24/WP63/WP77 与战斗包闭合；Feature Matrix 按聚合规则分别显示。
+ - 后续包引用本文的事件/命令/跟随规则时，不得把解释器结构或命令分派当作未来框架的事件 API；发现与本文冲突的新证据时，先修订本文并通知受影响包。

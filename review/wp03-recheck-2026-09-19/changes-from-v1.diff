@@ -1,0 +1,524 @@
+--- v1/specs/kernel/wp03-content-identity-and-schema.md
++++ v2/specs/kernel/wp03-content-identity-and-schema.md
+@@ -8,20 +8,20 @@
+ | 参考基线 | `reference/pokemon-essentials/` @ commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（WP01 固定） |
+ | 输入 | 证据包 E04（重点 GameData、Species、Item、Move、MapMetadata）；E05（编译期校验） |
+ | 前置依赖 | WP01（已 Reviewed）；WP02 提供配置背景（非完成依赖） |
+-| 规格状态 | **ReviewPending（WP03 自身范围）**：2026-09-19 提交外部 review |
++| 规格状态 | **ReviewPending（WP03 自身范围）**：2026-09-19 经 WP03 复审（WP03-R01～R05）修订后再送外部 review；不自行标为 Reviewed |
+ | 证据等级 | 全部为静态证据：已定位 / 静态确认 / 数据样本确认；**无运行确认** |
+ 
+ ## 1. 目的、范围与非目标
+ 
+-**目的**：建立跨域统一的内容引用概念——各类内容（物种、招式、道具、地图等）以什么身份被注册、查找、枚举和引用；未知或重复身份如何处理；固定规则与作者数据如何区分；每类内容的字段语义由哪个后续工作包负责。后续领域包引用本文的概念，不再各自发明"内容如何标识"的解释。
++**目的**：建立跨域统一的内容引用概念——各类内容（物种、招式、道具、地图等）以什么身份被注册、查找、枚举和引用；未知或重复身份如何处理；固定规则与作者数据如何区分；每类内容的字段组由哪个后续工作包负责。后续领域包引用本文的概念，不再各自发明"内容如何标识"的解释。
+ 
+ **范围**（WP03 自身声明范围，extraction-plan 第 2.1 节 (a) 类）：
+ 
+-1. WP03-A：内容身份模型（三类身份、查找语义、完整类清单）。
+-2. WP03-B：注册、查找与缺失值处理（加载、默认值、缺失文件）。
++1. WP03-A：内容身份模型（默认规则与按类的例外、查找语义、完整类清单）。
++2. WP03-B：注册、查找与缺失值处理（加载、默认值、缺失文件、查询副作用）。
+ 3. WP03-C：schema 与作者内容校验（字段约束结构、编译期错误）。
+ 4. WP03-D：固定规则与作者数据的区分。
+-5. WP03-E：字段责任目录（内容类 → 领域包指派）。
++5. WP03-E：字段责任目录（字段组 → 主要负责包 → 必要引用）。
+ 6. F01-02、F02-01 中属于 WP03 部分的状态更新。
+ 
+ **非目标**：
+@@ -34,147 +34,204 @@
+ 
+ ## 2. 概念与术语
+ 
+-- **内容身份**：一个内容条目在注册表中的唯一键。本参考实现存在三类：符号身份（:BULBASAUR 式）、整数身份（地图 ID 式）、符号+整数双身份。
+-- **复合身份**：由基础身份与序号合成的身份（物种 + 形态，如 `SPECIES_1`）。
++- **内容身份**：一个内容条目在注册表中的唯一键。默认形式有三类：符号身份、整数身份、符号+整数双身份；若按类覆写，则存在复合身份（见第 3.2 节）。
++- **复合身份**：由多个要素合成的身份，如（训练家类型, 姓名, 版本）三元组、（地图, 版本）、（物种, 形态）。
+ - **注册表**：每类内容一个内存数据表，启动时从编译产物载入；提供存在性检查、查找、枚举。
+-- **schema**：每类作者内容声明的字段约束——PBS 属性名到字段、类型模式与枚举引用的映射。
+-- **固定规则数据（hardcoded）**：在脚本中直接注册、不经 PBS 编译的内容（类型、能力值、成长曲线、进化方式等），可作作者内容的枚举引用源。
+-- **作者数据（PBS data）**：由作者在文本中定义、经编译产物载入的内容。
+-- **必选/可选数据文件**：缺失时是否强制重编译/容忍不加载（可选仅一例）。
++- **schema**：作者数据类声明的字段约束——PBS 属性名到字段、类型模式与枚举引用的映射（部分类走专用解析，无自身 schema，见第 5.1 节）。
++- **固定规则数据（hardcoded）**：在脚本中直接注册、不经 PBS 编译的内容（成长曲线、进化方式、能力值、地形等），可作作者内容的枚举引用源。
++- **作者数据（PBS data）**：由作者在文本中定义、经编译产物载入的内容；其中 Type、Move、Item 等**也是**常用的枚举引用源——"是引用源"与"是固定规则"是两个不同维度。
++- **必选/可选数据文件**：缺失时是否触发调试模式下的重编译判定（可选仅一例）。
+ - 影响域编号 Dxx 见 module-map；证据状态五档定义见总览第 7 节。
+ 
+ ## 3. WP03-A：内容身份模型
+ 
+-### 3.1 三类身份与统一查找语义
+-
+-全部内容类共用同一注册表模式（`S/010_Data/001_GameData.rb`，本轮逐行阅读确认），按身份形式分三类：
++### 3.1 默认规则：三类身份与查找语义（有明确适用范围）
++
++多数内容类共用同一注册表模式（`S/010_Data/001_GameData.rb`），按身份形式分三类。**以下只是未被覆写时的默认契约，不能据此推出每个数据类都如此**（例外见 3.2）：
+ 
+ | 身份类 | 键形式 | 接受的查找输入 | 未知身份行为 | 枚举顺序 |
+ | --- | --- | --- | --- | --- |
+-| 符号身份 | 符号 | 符号 / 条目实例 / 字符串（字符串转符号后匹配） | `get` 抛出"Unknown ID"异常；`try_get` 返回 nil；`exists?` 返回 false（nil 输入亦为 false） | 定义顺序；另有按显示名字母序的枚举 |
++| 符号身份 | 符号 | 符号 / 条目实例 / 字符串（转符号后匹配） | `get` 抛出"Unknown ID"异常；`try_get` 返回 nil；`exists?` 返回 false（nil 输入亦为 false） | 定义顺序；另有按原始名称字段（非翻译后显示名）字母序的枚举 |
+ | 整数身份 | 整数 | 条目实例 / 整数 | 同上（字符串/符号不可用于查找） | 数值顺序 |
+-| 双身份（符号+整数） | 同一条目同时以符号和整数为键（计数为条目数的两倍键） | 符号 / 条目实例 / 字符串 / 整数 | 同上 | 按整数序号顺序 |
+-
+-- 相等判定：条目与符号/字符串按符号身份比较，与整数按整数序号比较，与同类实例按身份比较（`InstanceMethods`，`001_GameData.rb` 第 217–243 行）。
+-- 反向读取：`get_property_for_PBS` 按 schema 取字段值；false 与空数组归一化为 nil（用于 PBS 反写时省略默认值）。
+-
+-### 3.2 完整内容类清单（本轮逐一核对声明）
+-
+-**作者数据类（PBS 编译，含 DATA_FILENAME）**：符号身份 14 类——Type、Ability、Move、Item、BerryPlant、Species、SpeciesMetrics、ShadowPokemon、Ribbon、Encounter、TrainerType、Trainer、DungeonParameters、PhoneMessage；整数身份 5 类——TownMap、Metadata、PlayerMetadata、MapMetadata、DungeonTileset；另有 Species 声明双 PBS 基名（pokemon + pokemon_forms，注册表展开为 :Species 与 :Species1 两个编译键）。
+-
+-**固定规则数据类（脚本内注册，无 DATA_FILENAME，load/save 为空操作）**：符号身份 15 类——GrowthRate、GenderRatio、EggGroup、BodyShape、BodyColor、Habitat、Evolution、Stat、Nature、Status、EncounterType、Environment、BattleWeather、BattleTerrain、Target；双身份 2 类——TerrainTag、Weather。
+-
+-**非 GameData 注册表的编译产物**（`002_PBS data/001_MiscPBSData.rb`）：regional_dexes、map_connections、trainer_lists、战斗动画数据与 map_infos，经独立缓存加载；编译新鲜度检查中与 GameData 数据文件一并列为必选（见 4.2）。
+-
+-**复合身份（物种 + 形态）**：形态条目以"物种符号_形态号"合成符号注册（如 `SPECIES_1`）；查找时先合成该符号，不存在则回退基础物种符号，仍不存在返回 nil；nil 输入直接返回 nil（`008_Species.rb` 第 154–163 行）。
+-
+-**来源标记**：每个条目携带 `pbs_file_suffix`（其来源文件相对基名的后缀），多文件内容可追溯到具体输入文件。
++| 双身份（符号+整数） | 同一条目同时以符号和整数为键 | 符号 / 条目实例 / 字符串 / 整数 | 同上 | 按整数序号顺序 |
++
++默认契约的补充限定（本轮核实）：
++
++- 容错仅覆盖 **nil 与类型合法的未知身份**；错误输入类型（如对道具宽容查询传入整数）触发参数验证错误（`S/001_Technical/001_Debugging/004_Validation.rb:12–29`），不是返回 nil/false。
++- `get`/`try_get` 对同类实例直接返回该实例，**不能据此推出该实例已登记**。
++- 双身份"两键一条目"以注册时无键冲突为前提；冲突边界未逐类验证。
++- 相等判定：与符号/字符串按符号身份比较，与整数按整数序号比较，与同类实例按身份比较。
++- 反向读取 `get_property_for_PBS` 按 schema 取字段值，false 与空数组归一化为 nil。
++
++### 3.2 按类例外（WP03-R01 修订：默认方法被覆写的实际契约）
++
++| 类/操作 | 实际契约（本轮逐处源码核实） |
++| --- | --- |
++| Trainer | 身份为（训练家类型, 姓名, 版本）三元组，版本默认 0；`exists?/get/try_get` 均接受该三元参数；`get` 对未知组合抛出"Unknown trainer"。队伍成员另有子字段约束（sub_schema）。`015_Trainer.rb:56–84` |
++| PhoneMessage | 联系人按三元组登记；`exists?` 接受数组或三元参数，姓名 nil 时键退化为类型符号（默认消息集按类型符号登记）；消费者依次尝试（类型, 姓名, 版本）→（类型, 姓名, 初始版本）→按字符串键 `"default"` 直取默认消息集。`021_PhoneMessage.rb:36–69`；`S/013_Items/004_Item_Phone.rb:447–452` |
++| Encounter | 按（地图, 版本）合成符号登记。`exists?` 只检查指定组合；`get` 在指定版本缺失时**回退版本 0**（两者全缺返回 nil）；枚举按地图再版本排序；按版本枚举时对缺该版本的地图补出版本 0 条目。`013_Encounter.rb:20–59`；消费者 `003_Overworld_WildEncounters.rb:13–21` |
++| Metadata | 无参 `get` 直接返回全局 0 号记录。`016_Metadata.rb:55–57` |
++| PlayerMetadata | `get(player_id)` 先按编号查找，**未知编号回退 1 号记录**（默认编号也为 1）。`017_PlayerMetadata.rb:45–49` |
++| TerrainTag | `try_get` 对 nil 输入与未知键均**回退 None 地形**。`011_TerrainTag.rb:31–36` |
++| DungeonTileset | `try_get` 对未知键**回退首条图块配置**。`019_DungeonTileset.rb:38–42` |
++| DungeonParameters | `try_get(area, version)` 先按（区域, 版本）合成符号、回退基础区域；仍缺时**新建默认参数实例返回（不登记）**。`020_DungeonParameters.rb:58–65` |
++| SpeciesMetrics | `get_species_form` 对缺失指标可能**创建并登记**记录：基础指标缺失先登记基础默认，形态指标缺失再以基础值克隆登记。**查询有副作用**；物种本身未定义则抛错。`010_SpeciesMetrics.rb:32–56` |
++| Species（形态） | `get_species_form` 以"物种_形态号"合成符号查找，形态缺失回退基础物种符号，仍缺返回 nil；nil 输入直接返回 nil。`008_Species.rb:154–163` |
++
++### 3.3 完整内容类清单（本轮逐一核对声明，WP03-C01 口径）
++
++**作者数据类（PBS 编译，含 DATA_FILENAME，共 19 个唯一类）**：符号身份 14 类——Type、Ability、Move、Item、BerryPlant、Species、SpeciesMetrics、ShadowPokemon、Ribbon、Encounter、TrainerType、Trainer、DungeonParameters、PhoneMessage；整数身份 5 类——TownMap、Metadata、PlayerMetadata、MapMetadata、DungeonTileset。`002_PBS data/` 共 21 个 Ruby 文件，其中 `001_MiscPBSData.rb`（非类产物加载）与 `009_Species_files.rb`（Species 资源解析扩展）不新增数据类。
++
++**固定规则数据类（脚本内注册，无 DATA_FILENAME，load/save 为空操作，共 17 类）**：符号身份 15 类——GrowthRate、GenderRatio、EggGroup、BodyShape、BodyColor、Habitat、Evolution、Stat、Nature、Status、EncounterType、Environment、BattleWeather、BattleTerrain、Target；双身份 2 类——TerrainTag、Weather。
++
++**合计 36 个唯一 GameData 类。** PBS 基名：18 个声明类（PlayerMetadata 无基名，由 metadata.txt 玩家节编译），经 Species 双基名（pokemon + pokemon_forms）展开为 19 项，再合并 3 个非类基名（battle_facility_lists、map_connections、regional_dexes），共 22 个基名。
++
++**非 GameData 注册表的编译产物与资源**（`001_MiscPBSData.rb:27–63`）：regional_dexes（.dat）、map_connections（.dat）、trainer_lists（.dat）、战斗动画（PkmnAnimations.rxdata，存在性检查后加载）、move2anim（.dat，缺失回退空表）、MapInfos（.rxdata）。它们的来源与加载方式各不相同，**不能统称为 PBS 作者数据编译产物**（WP03-R04 修订）。
++
++**来源标记**：PBS 来源条目携带 `pbs_file_suffix`（其来源文件相对基名的后缀）；该标记只适用于 PBS 编译条目，固定规则条目与查询时新建的默认记录不追溯到输入文件（WP03-C01 修订）。
+ 
+ ## 4. WP03-B：注册、查找与缺失值处理
+ 
+ ### 4.1 注册与加载
+ 
+-- 注册：条目按身份键写入本类数据表（双身份同时写两个键）。固定规则类在脚本加载时逐条注册（如 GrowthRate 的 6 条注册调用，第 77–173 行）。
+-- 加载：启动时统一从 `Data/*.dat` 载入全部作者数据（`GameData.load_all`，仅处理声明 DATA_FILENAME 的类）；加载本身是宿主提供的序列化读取（RGSS 内建），失败行为未验证。
+-- 新鲜度检查：编译器比对各数据文件与 PBS 的修改时间，决定是否重编译（`001_Compiler.rb` 第 1040–1076 行，详见 WP04）。
+-
+-### 4.2 缺失数据文件
+-
+-| 情形 | 行为 | 证据 |
+-| --- | --- | --- |
+-| 必选数据文件缺失 | 新鲜度检查判定必须重编译 | `001_Compiler.rb` 第 1063–1075 行（含 regional_dexes、map_connections、trainer_lists 三个非类文件） |
+-| 可选数据文件缺失（仅 ShadowPokemon，`OPTIONAL = true`） | 不强制重编译；加载时先检查文件存在，不存在则不加载（容忍缺席，本类数据为空） | `011_ShadowPokemon.rb` 第 14、27–30 行；`001_Compiler.rb` 第 1072–1074 行 |
+-| 可选类的 PBS 输入全部缺失 | 编译时直接跳过该类 | `002_Compiler_CompilePBS.rb` 第 4–6 行 |
+-
+-可选数据缺席后，其消费者（Shadow 相关流程）如何行为未逐点核实（U06，归 WP23）。
++- 注册：条目按身份键写入本类数据表（双身份同时写两个键）。固定规则类在脚本加载时逐条注册（如 GrowthRate 的 6 条注册调用）。
++- 加载：启动时统一从 `Data/*.dat` 载入全部作者数据（`GameData.load_all`，仅处理声明 DATA_FILENAME 的类）；加载本身是宿主提供的序列化读取，失败行为未验证。
++- 启动顺序（本轮核实 `999_Main/999_Main.rb:25–41`）：核心消息 → 插件 → **编译检查** → 游戏初始化 → 标题场景。编译检查仅在调试模式执行（见 4.2）。
++
++### 4.2 缺失数据文件（WP03-R04 修订：补上触发前提）
++
++| 情形 | 行为 | 前提与证据 |
++| --- | --- | --- |
++| 必选数据文件缺失 | **仅在调试模式**的编译检查中判定必须重编译；非调试模式该检查直接返回，不存在普通运行自动修复 | `001_Compiler.rb:1039–1040`（`return if !$DEBUG`）、1051–1075 行；必选清单含 GameData 各类与 map_connections、regional_dexes、trainer_lists 三个非类文件（仅此三个） |
++| 可选数据文件缺失（仅 ShadowPokemon，`OPTIONAL = true`） | 该条件本身不触发重编译判定；加载时先检查文件存在，不存在则**本次不读取** | `011_ShadowPokemon.rb:14、28–30`；`001_Compiler.rb:1063–1075` |
++| 可选类的 PBS 输入全部缺失 | 通用编译在清空数据表**之前**直接返回 | `002_Compiler_CompilePBS.rb:4–8` |
++
++重要限定（WP03-R04）：可选缺席**不等于**"数据为空"——缺失加载分支只跳过读取，**不会清空已有表**；"数据为空"只在"初始为空表且无其他登记"的前提下成立。可选数据缺席后 Shadow 消费者的行为未逐点核实（U06，归 WP23）。
+ 
+ ### 4.3 字段缺失值（默认值）
+ 
+-条目构造时对缺失字段赋类级默认值，例如（本轮阅读确认）：物种未命名显示名 → "Unnamed"、类型 → [:NORMAL]、捕获率 → 255、亲密度 → 70、身高/体重 → 1；道具卖价 → 买价的一半、BP 价 → 1、口袋 → 1；招式类型 → :NONE、命中 → 100、PP → 5、效果率 → 0；地图元数据标志 → 空表。默认值是**当前快照的类级声明**，不是 Pokémon 通用规则；完整字段语义归领域包。
++条目构造时对缺失字段赋类级默认值，例如：物种未命名显示名 → "Unnamed"、类型 → [:NORMAL]、捕获率 → 255、亲密度 → 70；道具卖价 → 买价的一半、BP 价 → 1；招式类型 → :NONE、命中 → 100、PP → 5；地图元数据标志 → 空表。默认值是**当前快照的类级声明**，不是 Pokémon 通用规则；完整字段语义归领域包。
++
++### 4.4 查询副作用（WP03-R01 增补）
++
++SpeciesMetrics 的指标查询可能创建并登记新记录（见 3.2），因此"查询后注册表内容"与"查询前"可能不同；DungeonParameters 的缺失查询返回未登记的默认实例，不改变注册表。设计测试时不能把查询都当作只读。
+ 
+ ## 5. WP03-C：schema 与作者内容校验
+ 
+-### 5.1 schema 结构
+-
+-每个作者数据类声明 schema：PBS 属性名 → [目标字段, 类型模式, 枚举引用]。多数类为常量表；Species 为方法（基础物种与形态使用不同属性集，如形态可有 Mega 相关属性，基础物种有性别/成长属性）。
+-
+-观察到的类型模式（行为描述，非完整定义；解析细节归 WP04）：
++### 5.1 schema 结构（WP03-R03 修订）
++
++作者数据类的字段约束为 PBS 属性名 → [目标字段, 类型模式, 枚举引用]。多数类为常量表；Species 为方法（基础物种与形态属性集不同）；**并非每个作者类都有自身 schema**：Encounter 走专用逐行解析（`002_Compiler_CompilePBS.rb:658–767`），Trainer 除主 schema 外还有队伍成员子约束（sub_schema）。
++
++观察到的类型模式（本轮核对 `001_Compiler.rb:384–435` 的求值行为；解析细节归 WP04）：
+ 
+ | 模式 | 含义（行为层） |
+ | --- | --- |
+-| `m` | 节名（必填身份） |
+-| `s` / `q` | 文本（q 类可含转义文本，如图鉴描述） |
+-| `u` / `v` / `i` / `f` | 数值（无符号/有符号/整数/浮点；v 见用于枚举序数） |
+-| `b` | 布尔 |
+-| `e` | 单个枚举值，引用固定规则类（如 :Type、:Move、:Item、:Weather）或内联枚举表（如道具 FieldUse 的名值映射、招式 Category 的字符串数组） |
+-| `*` 前缀 | 列表（如 `*e` 枚举列表、`*s` 文本列表） |
++| `m` | 符号值，名称字符约束（字母/数字/下划线、不以数字开头）；用于节名，也用于 Type 的相克引用（`003_Type.rb:18–27`，Weaknesses/Resistances/Immunities 为 `*m`） |
++| `s` / `q` | 文本 / 非格式化文本（如图鉴描述） |
++| `i` | 有符号整数 |
++| `u` | 非负整数（允许 0） |
++| `v` | **严格大于 0** 的整数（显式拒绝 0） |
++| `x` / `f` / `b` / `n` | 十六进制 / 浮点 / 布尔 / 名称（同 m 的字符约束） |
++| `e` | 单个枚举值：引用固定规则类或作者数据类（如 :Type、:Move、:Item、:Weather），或内联枚举表（道具 FieldUse 名值映射、招式 Category 字符串数组） |
++| `y` | 枚举或整数 |
++| `*` 前缀 | 列表（如 `*e`、`*s`、`*m`） |
+ | `^` | 可重复属性（同一属性多行累加，如 Evolution） |
+ | 复合 | 固定长度元组（如 `vvvvvv` 六项能力、`vuu` 坐标） |
+ 
+-### 5.2 编译期身份与引用校验（E05，本轮核实）
+-
+-| 校验 | 行为 | 位置 |
+-| --- | --- | --- |
+-| 重复节名 | 编译错误："Section name 'X' is used twice."，附文件/行位置报告 | `002_Compiler_CompilePBS.rb`（通用编译函数，去重检查） |
+-| 未定义枚举引用 | 编译错误："Undefined item/species/move/trainer type constant name: X."，附文件/行位置报告（枚举在写入 PBS 时也可自动补写新常量） | `001_Compiler.rb` 第 867–941 行 |
+-| 必需参数缺失 | 编译错误（如进化方式需要参数而未给） | `002_Compiler_CompilePBS.rb` 第 313–319 行 |
+-| 内容特定重复 | 地区图鉴重复物种、同种升级招式重复等逐项检查 | 同文件第 618、885 行附近 |
+-| 校验时机 | 每条目级校验（编译该节时）+ 全量终检（全部读入后） | `compile_pokemon` 等（第 283–286 行） |
++### 5.2 编译期身份与引用校验（WP03-R02/R03 修订：按入口分别表述）
++
++**重复处理按入口分开，不能统一成一种失败规则**：
++
++| 入口 | 重复身份行为 | 证据 |
++| --- | --- | --- |
++| 直接注册（`register`，含固定规则注册与专用编译的注册调用） | **不检查已存在身份**：同键后项替换前项 | `001_GameData.rb:13–15, 83–85, 158–160` |
++| 通用 PBS 编译（`compile_PBS_file_generic`） | 注册前检查：**重复节名报"Section name 'X' is used twice."** 并报告位置 | `002_Compiler_CompilePBS.rb:54–60` |
++| 训练家专用编译（`compile_trainers`） | 每节完成即直接注册，校验与终检无同身份拒绝：**两个合法同身份训练家节由后项覆盖** | `002_Compiler_CompilePBS.rb:791–861, 864–869` |
++| 训练家队伍成员招式 | 重复招式**静默去重**（非错误检查） | 同文件 885–886 行 |
++| 地区图鉴物种 | 重复物种**拒绝**："Dex list number {1} has species {2} listed twice." | 同文件 618–625 行 |
++| 遭遇条目 | 编译中相同条目**静默去重** | 同文件 695–702 行 |
++
++**引用校验**：
++
++| 校验 | 行为与真实入口 | 证据 |
++| --- | --- | --- |
++| 未定义枚举值（如道具 Move 引用未定义招式） | 通用枚举求值路径拒绝："Undefined value {1} in {2}." 并报告位置。错误入口是 `get_csv_record` → `cast_csv_value` → `checkEnumField`，**不是**特定类型的专用报错函数 | `001_Compiler.rb:438–459`；`006_Item.rb:42` |
++| 必需参数缺失 | 编译错误（如进化方式需要参数而未给） | `002_Compiler_CompilePBS.rb:313–319` |
++| 校验时机 | 条目级校验（编译该节时）+ 全量终检（全部读入后） | 同文件 283–286、859 行附近 |
++
++**已撤回的说法**（WP03-R03）："枚举在写入 PBS 时可自动补写新常量"缺乏证据——写回路径 `pbWriteCsvRecord` 是值到文本的转换，对枚举只查找已有名称或返回值/错误（`001_Compiler.rb:742–842`；`019_Utilities/001_Utilities.rb:137–153`），不创建新常量。
+ 
+ ## 6. WP03-D：固定规则与作者数据的区分
+ 
+ | 维度 | 固定规则数据 | 作者数据 |
+ | --- | --- | --- |
+-| 定义位置 | 脚本内注册（17 类） | PBS 文本编译（19 类 + 5 个非类产物） |
++| 定义位置 | 脚本内注册（17 类） | PBS 文本编译（19 类）+ 非类产物与独立资源（见 3.3） |
+ | 加载 | 无 .dat；load/save 为空操作 | 从 `Data/*.dat` 载入 |
+-| 角色 | 作者内容的枚举引用源与规则参数（类型、能力值、成长曲线、进化方式、地形、天气、目标、环境等） | 游戏实际内容（物种、招式、道具、地图、训练家等） |
+-| 可否含行为 | **可以**（如 GrowthRate 的经验公式、Evolution 的方式判定、Stat 的 PBS 顺序），不只是枚举 | 字段语义按类归领域包 |
++| 角色 | 作者内容的枚举引用源与规则参数（成长曲线、进化方式、能力值、地形、天气、目标、环境等） | 游戏实际内容（物种、招式、道具、地图、训练家等） |
++| 可否含行为 | **可以**（如 GrowthRate 的经验公式、Evolution 的方式判定），不只是枚举 | 字段语义按类归领域包 |
+ | 修改方式 | 改脚本（开发者） | 改 PBS（作者/编辑器） |
+ 
+-区分意义：判断"某行为由什么决定"时，枚举型固定规则（如类型列表）与含行为的固定规则（如成长曲线公式）必须分别对待；后者是规则本体的一部分，不能当作纯数据目录。这也回应 WP03 关键问题之二——固定规则与作者数据不能混为一谈。
+-
+-## 7. WP03-E：字段责任目录
+-
+-每类内容的字段语义由以下后续工作包负责（指派依据：module-map 的领域职责与 extraction-plan 的包范围；本表只指派责任，不展开语义）：
+-
+-| 内容类（身份类） | 责任工作包 |
+-| --- | --- |
+-| Type（符号） | WP19（属性与个体）、WP43（属性相克计算） |
+-| Ability（符号） | WP48（计算修正）、WP49（阶段触发） |
+-| Move（符号） | WP43–WP47（计算与效果族）、WP30（学习/替换）、WP16（表现引用 WP16 边界） |
+-| Item（符号） | WP27（背包/储存）、WP28（使用资格/消耗）、WP29（买卖）、WP50（持有触发） |
+-| BerryPlant（符号） | WP60（树果种植） |
+-| Species（符号，双基名） | WP18（物种与个体）、WP19（数值）、WP20（状态/招式槽）、WP21（形态）、WP30–WP35（成长/进化/繁殖）、WP62（图鉴引用） |
+-| SpeciesMetrics（符号） | WP15（资源匹配）、WP16（世界绘制） |
+-| ShadowPokemon（符号，可选） | WP23（Shadow 生命周期）、WP38（抢夺引用）、WP40（呼唤时机） |
+-| Ribbon（符号） | WP21（展示属性）、WP67-B（演出） |
+-| Encounter（符号） | WP36（遭遇选择）、WP37（漫游/雷达引用） |
+-| TrainerType（符号） | WP24（训练家内容）、WP15（资源） |
+-| Trainer（符号） | WP24（NPC 队伍）、WP63（电话再战） |
+-| DungeonParameters（符号） | WP14（随机地牢） |
+-| PhoneMessage（符号） | WP63（电话） |
+-| TownMap（整数） | WP15（资源）、WP63（地图工具） |
+-| Metadata（整数） | WP09（启动/全局元数据）、WP24（玩家元数据引用） |
+-| PlayerMetadata（整数） | WP24（玩家角色）、WP15（资源） |
+-| MapMetadata（整数） | WP11（地图拓扑）、WP12（地形/运动）、WP36（遭遇环境）、WP59（天气/场地）、WP14（地牢标志） |
+-| DungeonTileset（整数） | WP14（随机地牢）、WP15（资源） |
+-| 固定规则 17 类 | GrowthRate→WP30；GenderRatio/EggGroup→WP18/WP34；BodyShape/BodyColor/Habitat→WP18/WP15；Evolution→WP31/WP32；Stat/Nature→WP19；Status→WP20/WP44；TerrainTag→WP12/WP36；Weather→WP59/WP45；EncounterType→WP36；Environment/BattleWeather/BattleTerrain→WP45；Target→WP43 |
+-| 非类产物（regional_dexes、map_connections、trainer_lists、战斗动画、map_infos） | WP62（图鉴）、WP11（地图连接）、WP54/WP55（设施名单）、WP16/WP67-A（战斗表现）、WP11（地图信息） |
++维度澄清（WP03-R03）：Type、Move、Item 是**作者数据**（含 DATA_FILENAME、经 PBS 编译），同时也充当其他内容的枚举引用源；"是枚举引用源"不等于"是固定规则"。判断"某行为由什么决定"时，含行为的固定规则（成长公式、进化判定）与纯枚举目录必须分别对待。
++
++## 7. WP03-E：字段责任目录（字段组粒度，WP03-R05 修订）
++
++每类内容的字段语义由以下后续工作包负责。**字段组 → 主要负责包 → 必要引用/前向依赖**；单一责任的类按类整体归组。本表只指派责任，不展开语义。
++
++| 类（身份类） | 字段组 | 主要负责包 | 必要引用/前向依赖 |
++| --- | --- | --- | --- |
++| Species（符号，双基名） | 身份/物种与形态归属、来源 | WP18、WP21 | WP03（本文）；WP11（地点输入） |
++| 〃 | 基础能力/IV·EV 相关、数值字段 | WP19 | WP18、WP06 |
++| 〃 | 升级/教学/蛋招式学习表 | WP30 | WP20（招式槽状态）、WP42（战斗中生效） |
++| 〃 | 进化数据（方法/参数/前后关系） | WP31、WP32 | WP42（战后检查时机） |
++| 〃 | 蛋群/孵化步数/薰香/后代 | WP33、WP34 | WP19、WP21 |
++| 〃 | 野生持有物 | WP36 | WP18（遭遇修正引用） |
++| 〃 | Mega 石/Mega 招式/还原形态 | WP22 | WP40（战斗资格/时机）、WP12（数值联动） |
++| 〃 | 图鉴文本/分类/形态展示 | WP62、WP08 | WP15（资源）、WP21 |
++| 〃 | 特性/隐藏特性 | WP48、WP49 | WP43（计算阶段） |
++| 〃 | 性别比例/成长曲线引用 | WP19、WP30 | WP18 |
++| SpeciesMetrics（符号） | 图像尺寸/阴影/位置指标（资源选择） | WP15 | WP03；WP16（地图绘制引用边界） |
++| 〃 | 前后精灵位置/离地高度（**战斗放置**） | WP67-A | WP15、WP73-B（指标编辑）；证据：`010_SpeciesMetrics.rb:71–80` → `008_Species.rb:267–270` → `S/011_Battle/004_Scene/006_Battle_Scene_Objects.rb:590` |
++| ShadowPokemon（符号，可选） | 全部字段组 | WP23 | WP38（抢夺）、WP40（呼唤）、WP30（成长引用） |
++| Move（符号） | 数值/分类/目标/优先级 | WP43、WP19 | WP48/50（修正引用） |
++| 〃 | 效果代码/效果率 | WP44、WP46、WP47 | WP51、WP52（AI 评估引用） |
++| 〃 | 学习相关字段（机器/教学引用） | WP30 | WP28（教学道具）、WP20 |
++| Item（符号） | 口袋/价格/BP 价 | WP27、WP29 | WP24（货币）、WP16（数量呈现） |
++| 〃 | 使用上下文/机器教学 | WP28 | WP30（教学）、WP38/40（捕获/战斗资格引用） |
++| 〃 | 持有物相关（可持性/重要物品） | WP20、WP50 | WP43/44（触发阶段） |
++| 〃 | 标志（球/邮件/重要物品等分组） | WP28、WP38、WP64 | WP15（图标资源） |
++| BerryPlant（符号） | 全部字段组 | WP60 | WP27（背包）、WP06（时间） |
++| Ribbon（符号） | 全部字段组 | WP21 | WP67-B（演出） |
++| Encounter（符号） | 步率/遭遇方式/条目（含版本） | WP36、WP37 | WP12（地形）、WP24（时间/修正引用） |
++| TrainerType（符号） | 全部字段组 | WP24 | WP15（资源）、WP63（电话类型引用） |
++| Trainer（符号，三元身份） | 类型/姓名/版本身份与队伍 | WP24 | WP39（战斗输入）、WP63（再战版本推进） |
++| 〃 | 队伍成员个体配置 | WP18、WP19 | WP24；WP39 |
++| PhoneMessage（符号，三元+默认集） | 全部字段组 | WP63 | WP24（联系人）、WP17（消息呈现） |
++| MapMetadata（整数） | 户外/天气/环境/潜水/黑暗/狩猎/地牢标志 | WP11、WP12、WP59、WP14 | WP36（遭遇环境）、WP28（场地招式） |
++| 〃 | 治疗点/地图位置/地图尺寸 | WP11、WP61、WP63 | WP15（区域地图资源） |
++| 〃 | 战斗背景/音乐 | WP15、WP16、WP67-A | WP39（战斗环境输入） |
++| TownMap（整数） | 全部字段组 | WP63 | WP15（资源） |
++| Metadata（整数，全局 0 号） | 起始资源/全局默认 | WP09、WP24 | WP03 |
++| PlayerMetadata（整数，回退 1 号） | 角色外观/家/初始位置 | WP24、WP09 | WP15（角色资源） |
++| DungeonTileset（整数） | 全部字段组 | WP14 | WP15（图块资源） |
++| DungeonParameters（符号） | 全部字段组 | WP14 | WP06（随机种子） |
++| 固定规则 17 类 | GrowthRate→WP30；GenderRatio/EggGroup→WP18/WP34；BodyShape/BodyColor/Habitat→WP18/WP15；Evolution→WP31/WP32；Stat/Nature→WP19；Status→WP20/WP44；TerrainTag→WP12/WP36；Weather→WP59/WP45；EncounterType→WP36；Environment/BattleWeather/BattleTerrain→WP45；Target→WP43 | 各负责包 | 见各包 |
++| 非类产物与资源 | regional_dexes→WP62；map_connections→WP11；trainer_lists→WP54/WP55；战斗动画→WP67-A/WP74；move2anim→WP67-A；MapInfos→WP11 | 各负责包 | WP04（生命周期） |
+ 
+ ## 8. 默认行为与配置变体
+ 
+-- **基线默认**：全部作者数据按第 3.2 节清单编译载入；ShadowPokemon 为唯一可选类（当前无顶层 shadow_pokemon.txt，见 WP02 第 6.2 节，其数据缺席）。
+-- **支持但未默认启用**：Shadow 备选数据（候选材料，启用条件与完整生命周期待证，U06/WP23/WP04）。
+-- **未验证组合**：可选数据缺席时各消费者的行为（4.2 节）；多文件后缀内容的归属组合（4.1 节来源标记）。
++- **基线默认**：全部作者数据按第 3.3 节清单编译载入；ShadowPokemon 为唯一可选类（当前无顶层 shadow_pokemon.txt，其数据缺席，见 WP02 第 6.2 节）。
++- **候选材料**：Shadow 备选数据（启用条件与完整生命周期待证，U06/WP23/WP04；只登记为候选，不作支持结论）。
++- **未验证组合**：可选数据缺席时各消费者的行为（4.2 节）；多文件后缀内容的归属组合（3.3 节来源标记）。
+ - 参考快照行为、官方版本预期、未来目标分开标记；本包只记录第一类。
+ 
+ ## 9. 边界、失败与未知
+ 
+-- 运行时 `get` 遇到未知身份抛出异常；**异常的最终用户呈现**（错误对话框/崩溃）未运行验证。
+-- `try_get`/`exists?` 对 nil 与未知输入安全返回 nil/false；字符串查找经符号化转换，大小写敏感性与符号一致性未逐类验证。
+-- 双身份类以整数或符号查找同一条目等价；`count` 为键数一半（条目数）。
++- 运行时 `get` 遇到未知身份抛出异常；**异常的最终用户呈现**未运行验证。
++- 默认容错仅覆盖 nil 与类型合法的未知身份；错误输入类型触发参数验证错误（3.1 节）。
++- 查询可能有副作用（SpeciesMetrics 登记新记录，4.4 节）；缺失查询也可能返回未登记实例（DungeonParameters）。
++- 调试模式的缺失文件重编译判定不适用于非调试运行（4.2 节）。
+ - 可选数据缺席时 Shadow 消费者的容错（U06）未逐点核实。
+-- schema 类型模式的完整解析规则（错误输入的拒绝行为）归 WP04；本包只登记结构与校验锚点。
++- schema 类型模式的完整解析规则（非法输入的拒绝行为全集）归 WP04；本包只登记结构与校验锚点。
+ - 固定规则类的行为内容（成长公式、进化判定）只登记存在与责任归属，不提取规则（WP30/WP31/WP32）。
+ 
+ ## 10. 可复核性与静态场景
+@@ -183,29 +240,35 @@
+ 
+ | 事实 | 复核方式 |
+ | --- | --- |
+-| 三类身份的查找语义 | 阅读 `S/010_Data/001_GameData.rb` 三个混入模块 |
+-| 各类身份/文件声明 | 在 `S/010_Data/` 检索 `extend ClassMethods`、`DATA_FILENAME`、`PBS_BASE_FILENAME`、`OPTIONAL` |
+-| 重复节名编译错误 | 阅读 `S/021_Compiler/002_Compiler_CompilePBS.rb` 通用编译函数的去重检查 |
+-| 未定义引用编译错误 | 阅读 `S/021_Compiler/001_Compiler.rb` 第 867–941 行 |
+-| 可选类的容忍缺席 | 阅读 `011_ShadowPokemon.rb` 第 14、27–30 行与 `001_Compiler.rb` 第 1063–1075 行 |
+-| 复合身份查找 | 阅读 `008_Species.rb` 第 154–163 行 |
+-
+-### 10.2 静态推导场景（未运行，待运行验证）
++| 默认三类身份的查找语义 | 阅读 `S/010_Data/001_GameData.rb` 三个混入模块 |
++| 按类例外 | 阅读第 3.2 节表内所列各文件对应行 |
++| 重复处理三入口 | 阅读 `001_GameData.rb:13–15`、`002_Compiler_CompilePBS.rb:54–60, 791–861, 885–886, 618–625` |
++| 类型模式求值 | 阅读 `001_Compiler.rb:384–435`；Type 的 `*m` 用例 `003_Type.rb:18–27` |
++| 枚举错误入口 | 阅读 `001_Compiler.rb:438–459` |
++| 调试前提与必选清单 | 阅读 `001_Compiler.rb:1039–1075`；启动顺序 `999_Main/999_Main.rb:25–41` |
++| 可选类的容忍缺席 | 阅读 `011_ShadowPokemon.rb:14、28–30` 与 `002_Compiler_CompilePBS.rb:4–8` |
++
++### 10.2 静态推导场景（未运行，待运行验证；对应 WP03 复审 V01–V11）
+ 
+ | 场景 | 输入 | 推导预期 |
+ | --- | --- | --- |
+-| 符号查找 | `Item.get(:POKEBALL)`（已注册） | 返回该条目；`Item.exists?("POKEBALL")` 为 true |
+-| 未知符号 | `Item.get(:NOTHING)`（未注册） | 抛出 Unknown ID 异常；`try_get` 为 nil；`exists?` 为 false |
+-| nil 输入 | `Item.exists?(nil)`、`Item.try_get(nil)` | false、nil |
+-| 重复节名 | PBS 中两节同名 `[POKEBALL]` | 编译错误"used twice"并报告位置 |
+-| 未定义引用 | 道具 `Move = SOMEMOVE`（未定义） | 编译错误"Undefined move constant name"并报告位置 |
+-| 复合身份 | `Species.get_species_form(:BULBASAUR, 1)`：形态存在 / 不存在 / form 为 nil | 形态条目 / 基础物种或 nil / nil |
+-| 可选缺席 | shadow_pokemon.dat 不存在 | 该类不加载、不强制重编译（数据为空） |
++| 遭遇版本回退 | 仅有某地图版本 0，查询同地图版本 2 | `get` 回退版本 0；`exists?` 对指定组合为 false；两版本全缺时 `get` 为 nil |
++| 地形回退与类型验证 | `TerrainTag.try_get(nil)`；对 Item 宽容查询传整数 | 返回 None 地形；后者触发参数类型错误而非 nil |
++| 玩家回退 | 未知玩家编号（1 号记录存在） | 返回 1 号记录；全局元数据按 0 号记录读取 |
++| 指标副作用 | 已存在基础物种，缺失形态指标 | 查询创建并登记默认/克隆指标（注册表前后不同） |
++| 训练家与电话身份 | 同类型同姓名不同版本；电话默认消息 | 版本构成身份；默认消息集按类型符号/字符串键登记，非联系人三元身份 |
++| 直接注册 vs 通用编译 | 同键两次直接注册；两个同名道具 PBS 节 | 前者替换；后者编译拒绝"used twice" |
++| 训练家覆盖与去重 | 两个合法同身份训练家节；成员重复招式 | 后节覆盖；成员招式静默去重（与图鉴重复物种报错分开） |
++| 数值模式边界 | 对 `v` 输入 -1、0、1；对 `u` 输入 0 | `v` 前两者拒绝、1 接受；`u` 接受 0 |
++| 未定义枚举引用 | 道具 Move 引用未定义值 | 通用枚举路径拒绝并提供位置（非 parseMove 专用错误） |
++| 调试/非调试编译检查 | 必选文件缺失分别进入两种模式 | 调试检查设重编译条件；非调试入口直接返回（不证明自动恢复） |
++| Shadow 缺席与已有表 | 文件缺失，分别从空表/已有记录状态加载 | 本次不读取；已有记录不会因该分支清除 |
+ 
+ ## 11. 证据与来源（traceability）
+ 
+-- **本轮复核（2026-09-19）**：逐行阅读 `001_GameData.rb`（283 行）、`008_Species.rb`（455 行）、`006_Item.rb`（270 行）、`018_MapMetadata.rb`（138 行）；阅读 `005_Move.rb`、`001_GrowthRate.rb`、`011_ShadowPokemon.rb`、`009_Species_files.rb`、`001_MiscPBSData.rb` 头部/关键段；逐一核对 21 个 PBS 数据类与 17 个固定规则类的身份/文件声明；阅读编译器节解析（`001_Compiler.rb` 第 95–148、867–941、1040–1076 行）与通用编译函数（`002_Compiler_CompilePBS.rb` 第 4–60、283–327 行）；核实 OPTIONAL 唯一性与基名集合（19 声明 + 3 合并）。
+-- **继承同基线既有记录**：E04（注册/查找与字段抽查，本轮已扩展为全类清单）、E05（编译校验入口，本轮已核实具体错误形式）。
++- **本轮复核（2026-09-19）**：逐行阅读 `001_GameData.rb`；阅读 `008_Species.rb`、`006_Item.rb`、`005_Move.rb`、`018_MapMetadata.rb` 全文；按复审定位核实例外：`015_Trainer.rb:56–84`、`021_PhoneMessage.rb:36–69`、`013_Encounter.rb:20–59`、`016_Metadata.rb:55–57`、`017_PlayerMetadata.rb:45–49`、`011_TerrainTag.rb:31–36`、`019_DungeonTileset.rb:38–42`、`020_DungeonParameters.rb:58–65`、`010_SpeciesMetrics.rb:32–56`；编译侧：`002_Compiler_CompilePBS.rb:4–60, 283–327, 610–625, 658–767, 791–886`、`001_Compiler.rb:95–148, 384–459, 742–842, 1039–1075`；启动 `999_Main/999_Main.rb:25–41`；资源 `001_MiscPBSData.rb:27–63`；验证 `004_Validation.rb:12–29`；战斗呈现链 `006_Battle_Scene_Objects.rb:585–590`；`019_Utilities/001_Utilities.rb:137–153`。
++- **继承同基线既有记录**：E04（注册/查找与字段抽查，本轮已扩展为全类清单与按类例外）、E05（编译校验入口，本轮已按入口分别核实）。
++- **外部复审**：WP03 复审报告（`review/wp03-review-2026-09-19/report.md`）的 R01–R05 反例均已按上列源码独立核实，与报告一致。
+ - 全部静态证据；**无运行确认**。
+ 
+ ## 12. 未决问题
+@@ -214,10 +277,11 @@
+ 2. 字符串查找的大小写/符号一致性边界（未逐类验证）。
+ 3. 未知身份运行时异常的用户呈现（未运行）。
+ 4. schema 类型模式全集与非法输入的拒绝行为（归 WP04）。
+-5. 非类产物（战斗动画等）的结构未提取（归 WP16/WP67-A）。
++5. 非类产物与独立资源（战斗动画、move2anim、MapInfos 等）的结构与生命周期（归 WP04/WP16/WP67-A）。
++6. 双身份注册的键冲突边界（未逐类验证）。
+ 
+ ## 13. 状态与后续
+ 
+-- WP03 自身范围（第 1 节六项）已提取并自检，状态 **ReviewPending**，提交外部 review。
++- WP03 自身范围（第 1 节六项）已提取并自检；2026-09-19 经 WP03 复审后完成 WP03-R01（按类例外与查询副作用）、WP03-R02（重复处理按入口分开）、WP03-R03（schema 事实与错误入口）、WP03-R04（加载边界与资源来源）、WP03-R05（字段组责任目录）五项修订，状态保持 **ReviewPending**，再送外部 review。
+ - **WP03 完成 ≠ F01-02/F02-01 完成**：各类内容的字段语义全集需领域包闭合（见第 7 节责任目录）；Feature Matrix 按聚合规则分别显示。
+ - 后续包引用本文的身份/查找/缺失值概念时，不得把键名、混入模块名或目录结构当作未来框架的设计依据；发现与本文冲突的新证据时，先修订本文并通知受影响包。
+--- v1/specs/demo/wp01-baseline-and-evidence-scope.md
++++ v2/specs/demo/wp01-baseline-and-evidence-scope.md
+@@ -150,7 +150,7 @@
+ 
+ ## 10. 状态与后续
+ 
+-- WP01 自身范围（第 1 节四项）已提取并自检；2026-09-19 经 WP01 复审后完成 WP01-R01（Git 证据分离）、WP01-R02（来源逐项标注）、WP01-R03（候选变体表述）三项修订，状态保持 **ReviewPending**，与 WP02 产物一并再送外部 review。不自行标为 Reviewed。
++- WP01 自身范围（第 1 节四项）已提取并自检；2026-09-19 经 WP01 复审后完成 WP01-R01（Git 证据分离）、WP01-R02（来源逐项标注）、WP01-R03（候选变体表述）三项修订后送审。（本行是当时送审记录；最新状态：经 2026-09-19 WP02 闭合复审通过，头部规格状态为 **Reviewed**（基线、材料缺口、待证登记范围；Demo/运行未验证），以头部为准。）
+ - **WP01 完成 ≠ F18-07 完成**：F18-07 的 demo 验证范围仍属 WP77，保持 Provisional；Feature Matrix 按聚合规则同时显示两个范围的状态。
+ - **WP01 完成 ≠ WP77 完成**，也不构成任何"demo 已演示/可达"的结论。
+ - 后续包引用本包第 3、4 节界定各自结论的适用范围；发现与本包事实冲突的新证据时，先修订本包并通知受影响包，而不是在局部规格中静默覆盖。
+--- v1/specs/kernel/wp02-rule-configuration-and-data-variants.md
++++ v2/specs/kernel/wp02-rule-configuration-and-data-variants.md
+@@ -370,6 +370,6 @@
+ 
+ ## 12. 状态与后续
+ 
+-- WP02 自身范围（第 1 节六项）已提取并自检；2026-09-19 经 WP02 复审后完成 WP02-R01（逐定义清单与统计单位）、WP02-R02（数值语义）、WP02-R03（命中与消费者分层）、WP02-R04（普通发现边界与显式输入例外）、WP02-R05（语言层次与任务引用）、WP02-R06（静态预期场景）六项修订，状态保持 **ReviewPending**，再送外部 review。
++- WP02 自身范围（第 1 节六项）已提取并自检；2026-09-19 经 WP02 复审后完成 WP02-R01（逐定义清单与统计单位）、WP02-R02（数值语义）、WP02-R03（命中与消费者分层）、WP02-R04（普通发现边界与显式输入例外）、WP02-R05（语言层次与任务引用）、WP02-R06（静态预期场景）六项修订后送审，复检后又完成 F1/F2/C1 修订。（本行是当时送审记录；最新状态：经 2026-09-19 WP02 闭合复审通过，头部规格状态为 **Reviewed**（固定基线配置档案、声明默认/派生、候选材料与输入边界、静态场景范围），以头部为准。）
+ - **WP02 完成 ≠ F01-01/F02-03 完成**：F01-01 的配置语义需领域包闭合，F02-03 的变体兼容性验证需 WP04/WP79；Feature Matrix 按聚合规则分别显示。
+ - 后续包引用本词典时，应以设置文件最终文本确定**声明的默认配置**（具体行为仍需消费者、数据、状态和其他选项），并区分默认值、派生表达式与直接世代引用；Settings 键名与路径是取证记录，不是未来框架的 API 约定。
+--- v1/planning/feature-matrix.md
++++ v2/planning/feature-matrix.md
+@@ -13,13 +13,13 @@
+ | Feature ID | Domain | Feature | Short description | Classification | Reference locations | Specification status | Confidence | Notes |
+ | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+ | F01-01 | D01 | 配置与机制选择 | 版本、容量、规则开关和表现参数共同影响行为 | Generic Kernel | E02 | Reviewed（WP02 词典/派生范围）＋Inventoried（各开关领域语义范围） | 高 | Pokémon 具体策略另列；WP02 配置档案见 [wp02-rule-configuration-and-data-variants](../specs/kernel/wp02-rule-configuration-and-data-variants.md)，2026-09-19 闭合复审通过；各开关在领域规则中的完整语义待相应领域包闭合 |
+-| F01-02 | D01 | 内容身份与注册查找 | 命名内容的注册、存在性检查、查找和枚举 | Generic Kernel | E04 | ReviewPending（WP03 身份/查找/缺失值范围）＋Inventoried（各内容类字段语义范围） | 高 | 不预设未来 ID 类型；WP03 规格见 [wp03-content-identity-and-schema](../specs/kernel/wp03-content-identity-and-schema.md)；字段语义按领域包闭合 |
++| F01-02 | D01 | 内容身份与注册查找 | 命名内容的注册、存在性检查、查找和枚举 | Generic Kernel | E04 | ReviewPending（WP03 身份/查找/缺失值范围）＋Inventoried（各内容类字段语义范围） | 高 | 不预设未来 ID 类型；WP03 规格见 [wp03-content-identity-and-schema](../specs/kernel/wp03-content-identity-and-schema.md)，2026-09-19 经 WP03 复审（R01–R05）修订后再送审；字段语义按领域包闭合 |
+ | F01-03 | D01 | 事件与可扩展菜单 | 按世界/战斗通知及可用条件扩展行为和菜单 | Generic Kernel | E03、E18 | Inventoried | 高 | 与地图事件解释器分开；WP05 |
+ | F01-04 | D01 | 插件依赖与载入 | 插件元数据、版本约束、冲突、循环依赖和顺序检查 | Generic Kernel | E03、E08 | Inventoried | 高 | 当前未提供插件实例；WP05，U09 |
+ | F01-05 | D01 | 随机、时钟与计步依赖 | 随机选择、现实时间、运行时长与步数推动多个系统 | Generic Kernel | E08、E17–E19、E27–E29 | Inventoried | 中 | 不宣称已有统一随机服务；WP06 |
+ | F01-06 | D01 | 诊断与错误反馈 | 调试信息、校验错误、异常记录和部分恢复路径 | Generic Kernel | E03、E05、E08、E33 | Inventoried | 中 | 错误的用户反馈和副作用待分域核实；WP07 |
+ | F01-07 | D01 | 文件与 HTTP 支持 | 资源/数据读取及远程内容下载等基础能力 | Generic Kernel | E01、E11、E30 | Inventoried | 中 | HTTP 路径还见 `S/001_Technical/002_Files/003_HTTP_Utilities.rb`；WP07 |
+-| F02-01 | D02 | 内容目录与字段约束 | 物种、招式、道具、地图等内容具有结构及交叉引用 | Generic Kernel | E04、E34 | ReviewPending（WP03 schema/校验/责任目录范围）＋Inventoried（字段语义全集范围） | 高 | 字段语义按领域提取；WP03 规格与字段责任目录见 [wp03-content-identity-and-schema](../specs/kernel/wp03-content-identity-and-schema.md) 第 5、7 节 |
++| F02-01 | D02 | 内容目录与字段约束 | 物种、招式、道具、地图等内容具有结构及交叉引用 | Generic Kernel | E04、E34 | ReviewPending（WP03 schema/校验/责任目录范围）＋Inventoried（字段语义全集范围） | 高 | 字段语义按领域提取；WP03 规格与字段责任目录见 [wp03-content-identity-and-schema](../specs/kernel/wp03-content-identity-and-schema.md) 第 5、7 节，2026-09-19 经 WP03 复审（R01–R05）修订后再送审 |
+ | F02-02 | D02 | PBS 编译与反写 | 校验内容、构建运行数据、导出及提供位置诊断 | Demo/Developer Experience | E05 | Inventoried | 高 | 编译可能修改 PBS/地图，非只读；WP04 |
+ | F02-03 | D02 | 备选数据与机制兼容 | 各世代和 Shadow 备份内容与机制开关分别存在 | Pokémon Rules | E01、E02、E05、E34 | Reviewed（候选材料登记及已述发现边界范围）＋Provisional（切换、编译、兼容范围） | 中 | 子目录不自动启用，仅登记为候选变体材料（见 [wp02-rule-configuration-and-data-variants](../specs/kernel/wp02-rule-configuration-and-data-variants.md) 第 6 节），2026-09-19 闭合复审通过；组合兼容待核实；WP04，U03 |
+ | F02-04 | D02 | 内容到资源的匹配 | 物种/形态、训练家、道具等数据选择图像及声音 | Generic Kernel | E04、E11、E12 | Inventoried | 中 | 含参考项目特定资源命名约定；WP15 |
+--- v1/planning/review-manifest-2026-09-19.md
++++ v2/planning/review-manifest-2026-09-19.md
+@@ -3,18 +3,18 @@
+ 用途：固定总控文档与各工作包产物的版本，供外部 review 按「文件 + 哈希前缀 + 行号」引用。
+ 本清单本身不纳入自哈希；每次内容修订后重算并在此追加记录，旧条目保留为历史、标注替代关系，不回写抹除。
+ 
+-## 1. 当前有效版本（2026-09-19 状态回填与 WP03 交付后）
++## 1. 当前有效版本（2026-09-19 WP03 复审处理后）
+ 
+ | 文件 | SHA-256（前 8 位速记） | 完整 SHA-256 | 字节数 |
+ | --- | --- | --- | --- |
+ | `analysis/repository-overview.md` | `1ca34f44` | `1ca34f4442f4e997359addfb797ac209407a69ea6f3065740d65c75093b86e0e` | 29,838 |
+ | `planning/module-map.md` | `32eab70d` | `32eab70d503be63ceba06287afb648ec0b1b5fe8ca6225aaab28975c67360352` | 17,523 |
+-| `planning/feature-matrix.md` | `816b0536` | `816b05367bfc15f0b52aa87888658cc8347d29ffe3c0fbd05afd28a0d30e6efe` | 29,072 |
++| `planning/feature-matrix.md` | `55770385` | `55770385ebf478ee5c4e2bf729fb9086f3d48e0e54845f2460127542221c80e4` | 29,196 |
+ | `planning/extraction-plan.md` | `c1735877` | `c173587708c9fcaaaaa1a4079bdedaa14d02405871b3fe3cd2ed6d16caeffd78` | 46,915 |
+-| `specs/demo/wp01-baseline-and-evidence-scope.md`（WP01 修订稿 v3，状态回填） | `c952847d` | `c952847df72610300bbec20235124ba64d95aa015f0abdbaffe8ca83bb51605b` | 16,419 |
+-| `specs/kernel/wp02-rule-configuration-and-data-variants.md`（WP02 修订稿 v3，状态回填） | `272b0291` | `272b0291dda4ff81276ad9a519c8f3fa594e0f2d5f305570509b9b3d362677c4` | 37,576 |
++| `specs/demo/wp01-baseline-and-evidence-scope.md`（WP01 修订稿 v4，尾部状态同步） | `2a52e94e` | `2a52e94e615d0f1f45d55b0d14317b79e58bc6f988b76095e044f770ca41b407` | 16,543 |
++| `specs/kernel/wp02-rule-configuration-and-data-variants.md`（WP02 修订稿 v4，尾部状态同步） | `82b47151` | `82b471510ff563e6964697cb28e77ae816e190062dfafc9e328f44a81c2131fa` | 37,817 |
+ | `specs/kernel/wp02-settings-inventory-appendix.md`（WP02 附表 v2） | `f165b1cb` | `f165b1cbb32a122100a9d9f844b1184a036ad908b845bae65ae8b0a758601e8e` | 16,555 |
+-| `specs/kernel/wp03-content-identity-and-schema.md`（WP03 主文档） | `d61233f0` | `d61233f0ee48a8848cdbf92ee9c42686a01d5028d308dc15772e7d7153d83f54` | 18,721 |
++| `specs/kernel/wp03-content-identity-and-schema.md`（WP03 修订稿 v2） | `f7213e83` | `f7213e834043d80ac540c0571858cc5deebdca8297c3457a2da0f95cb0e2cc19` | 28,351 |
+ | `analysis/inventory/wp02_settings_common.py` | `ba01d4d2` | `ba01d4d23f6f2eef42b123befc6809d09bfac282a7dd9f928aa6ac31427a868d` | 8,231 |
+ | `analysis/inventory/wp02_settings_inventory.py` | `dfa38c40` | `dfa38c407258607da467e6c609e0b75c78485dc974e85f387aa9cd12969c0ca3` | 1,491 |
+ | `analysis/inventory/wp02_build_appendix.py` | `7c965c9d` | `7c965c9d36a7eccb039a703312aa10a6c418fc120db769b888666c03d73c03d6` | 12,192 |
+@@ -25,6 +25,7 @@
+ | `review/wp02-review-2026-09-19.md`（WP02 复审原件存档） | `b3923043` | `b39230435fe4a6f1aaa83f68979c9c8a529cc6f176729801c2f1d3eb41e61151` | 18,146 |
+ | `review/wp02-recheck-2026-09-19.md`（WP02 复检原件存档） | `858adc69` | `858adc69f6d525ac7e4107d9466d02d9e8143e1342dea1ec65652662eed3981a` | 14,343 |
+ | `review/wp02-closure-review-2026-09-19.md`（WP02 闭合复审原件存档） | `5f963011` | `5f9630118e9fbdda6578106b3ebb96b9db6777519650485d7569d5fb28c49d7d` | 10,820 |
++| `review/wp03-review-2026-09-19/report.md`（WP03 复审原件存档，含配套快照目录） | `6f5bd583` | `6f5bd583ee53b017828f3f3060682b31cf99eb82b5f6a82c6bc74a7eadd88846` | 15,034 |
+ 
+ 关联基线：参考仓库 commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（`v21.1-23-g8c5911e4`）。Git 状态证据的精确记录见 WP01 修订稿第 3 节（2026-09-19 15:32，R 内检查）。
+ 
+@@ -32,8 +33,8 @@
+ 
+ ### 2.1 当前哈希对应（已确认，可核实）
+ 
+-- 2026-09-19 四轮 review（联合 review、WP01 复审、WP02 复审、WP02 复检）实测哈希均与当时本地文件一致，对应关系见第 3 节历史。
+-- 2026-09-19 WP02 闭合复审实测其 manifest 的 16 项完整哈希与字节数均与实际文件一致；本地独立重算，WP02 修订稿 v2（`d6ef14ae`）、附表 v2（`f165b1cb`）、WP01 修订稿 v2（`2c1a553e`）与三份脚本、检查记录的哈希与之完全一致。本轮状态回填**之后**，上述三个文档的当前哈希已变为 `c952847d` / `272b0291` /（矩阵）`816b0536`；闭合复审实际审查的是回填前版本（见第 3 节历史），新哈希为管理性状态变更，不伪称为复审对象。
++- 2026-09-19 五轮 review（联合 review、WP01 复审、WP02 复审、WP02 复检、WP02 闭合复审）实测哈希均与当时本地文件一致，对应关系见第 3 节历史。
++- 2026-09-19 WP03 复审实测 WP03 首版（`d61233f0`）、矩阵（`816b0536`）、WP01 v3（`c952847d`）、WP02 v3（`272b0291`）与当时 manifest 的 18 项哈希及字节数全部相符；本地独立重算结果一致。本轮修订后上述四个文档的当前哈希已变为 `f7213e83` / `55770385` / `2a52e94e` / `82b47151`；WP03 复审实际审查的是修订前版本，新哈希不伪称为复审对象。
+ - 结论：各轮 review 的审查对象均能与本地文件对应；本轮修订前的被审版本即第 3 节所列历史版本。
+ 
+ ### 2.2 历史版本关系（据本地记录重建，证据受限）
+@@ -48,11 +49,12 @@
+ | --- | --- | --- | --- |
+ | `analysis/repository-overview.md` | `0421575b` | 2026-09-19 约 14:38 | 被 14:39 修订版 `1ca34f44` 替代 |
+ | `planning/module-map.md` | `0e22b7f2` | 2026-09-19 约 14:38 | 被 14:39 修订版 `32eab70d` 替代 |
+-| `planning/feature-matrix.md` | `2f4e3e31` → `5b6c7b29` → `55f6d01c` | 2026-09-19 | 依次经 R02/R03/WP01、C02/WP02 追踪修订；本轮经状态回填与 WP03 追踪修订被 `816b0536` 替代 |
++| `planning/feature-matrix.md` | `2f4e3e31` → `5b6c7b29` → `55f6d01c` → `816b0536` | 2026-09-19 | 依次经 R02/R03/WP01、C02/WP02、状态回填+WP03 追踪修订；本轮经 WP03 复审关联修订被 `55770385` 替代 |
+ | `planning/extraction-plan.md` | `aef0d7ab` → `d441c68b` | 2026-09-19 | 依次经 R02/R03、C02 修订为 `c1735877`（当前有效） |
+-| `specs/demo/wp01-baseline-and-evidence-scope.md` | `403e814c` → `515500c2` → `2c1a553e` | 2026-09-19 | 首版经 WP01-R01/R02/R03 修订；v2 经 C02 修订；本轮经状态回填被 `c952847d` 替代 |
+-| `specs/kernel/wp02-rule-configuration-and-data-variants.md` | `d322cf95` → `4352c450` → `d6ef14ae` | 2026-09-19 | 首版经 WP02-R01～R06 修订；v2 经 F1/F2/C1 修订；本轮经状态回填被 `272b0291` 替代 |
++| `specs/demo/wp01-baseline-and-evidence-scope.md` | `403e814c` → `515500c2` → `2c1a553e` → `c952847d` | 2026-09-19 | 依次经 WP01-R01/R02/R03、C02、状态回填修订；本轮经尾部状态同步（C03）被 `2a52e94e` 替代 |
++| `specs/kernel/wp02-rule-configuration-and-data-variants.md` | `d322cf95` → `4352c450` → `d6ef14ae` → `272b0291` | 2026-09-19 | 依次经 WP02-R01～R06、F1/F2/C1、状态回填修订；本轮经尾部状态同步（C03）被 `82b47151` 替代 |
+ | `specs/kernel/wp02-settings-inventory-appendix.md` | `6fba2cdd` | 2026-09-19 附表首版 | 经 F1/F2 修订被 `f165b1cb` 替代（当前有效） |
++| `specs/kernel/wp03-content-identity-and-schema.md` | `d61233f0` | 2026-09-19 WP03 首版 | 经 WP03-R01～R05 修订被 `f7213e83` 替代 |
+ | `analysis/inventory/wp02_settings_inventory.py` | `46f1ba84` | 2026-09-19 | 重构为共享模块后被 `dfa38c40` 替代（当前有效） |
+ | `analysis/inventory/wp02_build_appendix.py` | `898134d0` | 2026-09-19 | 重构为共享模块后被 `7c965c9d` 替代（当前有效） |
+ 
+@@ -64,11 +66,18 @@
+ 
+ **第三轮（WP02 复审处理）**：WP02-R01～R06 全部修订（逐定义清单附表、数值语义、命中分层、PBS 边界、语言层次、静态场景）；C01/C02/C03 同步。
+ 
+-**第四轮（WP02 复检处理）**：F1 附表值与表格结构（共享解析模块重构）、F2 设施引用集合（实际解析为 10）、C1 维护项（大小字段、展示行 75、编译调用 22、措辞收窄、引用修正）；临时目录重跑并与交付附表 diff 一致。
++**第四轮（WP02 复检处理）**：F1 附表值与表格结构（共享解析模块重构）、F2 设施引用集合（实际解析为 10）、C1 维护项；临时目录重跑并与交付附表 diff 一致。
+ 
+-**第五轮（闭合复审状态回填 + WP03，本轮）**：
++**第五轮（闭合复审状态回填 + WP03 首版）**：闭合复审归档；WP01/WP02 限定范围回填 Reviewed；矩阵 F01-01/F02-03/F18-07 同步；交付 WP03 首版（内容身份、注册与 schema）。
+ 
+-- 闭合复审（PASS_SCOPED）归档于 `review/wp02-closure-review-2026-09-19.md`，历史 review 原件均未改写。
+-- 状态回填（管理性变更，不改变任何规格内容）：WP01 → Reviewed（基线、材料缺口、待证登记范围；Demo/运行未验证）；WP02 → Reviewed（固定基线配置档案、声明默认/派生、候选材料与输入边界、静态场景范围）；矩阵 F01-01 → Reviewed（WP02 词典范围）＋Inventoried（领域语义）；F02-03 → Reviewed（候选材料登记及发现边界）＋Provisional（切换/编译/兼容）；F18-07 → Reviewed（WP01 基线范围）＋Provisional（WP77 Demo）。未验证的领域语义、数据组合与 Demo 范围保持原状态。
+-- WP03 交付：`specs/kernel/wp03-content-identity-and-schema.md`——内容身份模型（三类身份与查找语义、21 个作者数据类 + 17 个固定规则类全清单）、注册/查找/缺失值处理（含 OPTIONAL 唯一例 ShadowPokemon）、schema 与编译期校验（重复节名/未定义引用/必需参数）、固定规则与作者数据区分、字段责任目录（全部内容类 → 领域包指派）；矩阵 F01-02、F02-01 → ReviewPending（WP03 范围）＋Inventoried（字段语义全集）。
+-- WP03 状态为 **ReviewPending**，送外部 review；未执行 WP04。
++**第六轮（WP03 复审处理，本轮）**：
++
++- WP03-R01：三种共用模块改述为"有适用范围的默认规则"，新增按类例外表（Trainer/PhoneMessage/Encounter/Metadata/PlayerMetadata/TerrainTag/DungeonTileset/DungeonParameters/SpeciesMetrics/Species 形态），补查询副作用（SpeciesMetrics 查询登记新记录）与容错边界（错误输入类型触发参数验证错误；实例直接返回不等于已登记；字母序按原始名称字段）。
++- WP03-R02：重复处理按入口分开——直接注册同键替换、通用 PBS 编译重复节名报错、训练家专用编译同身份后项覆盖、训练家成员招式静默去重、图鉴重复物种报错、遭遇条目静默去重；改正"重复招式"例证对象。
++- WP03-R03：schema 事实修正——`v` 严格大于 0、`u` 允许 0、`m` 为名称约束符号值（亦用于 Type 相克引用）；Type/Move/Item 是作者数据兼枚举引用源（非固定规则）；Encounter 无自身 schema、Trainer 另有成员子约束；枚举错误入口改为通用 `checkEnumField`；撤回"自动补写新常量"（写回路径仅查找）。
++- WP03-R04：缺失文件重编译判定限定为调试模式（启动顺序：消息→插件→编译检查→初始化）；必选非类文件仅为 map_connections/regional_dexes/trainer_lists；战斗动画、MapInfos 等独立资源不再统称 PBS 编译产物；Shadow 缺席只跳过读取、不清空已有表，"数据为空"限定初始空表前提。
++- WP03-R05：字段责任目录改为字段组粒度（Species 拆 10 组、SpeciesMetrics 拆资源选择 WP15 与战斗放置 WP67-A，纠正原 WP16 错配；全部类给出字段组→主要负责包→必要引用）。
++- WP03-C01：计数口径修正——19 个唯一作者数据类（21 文件、2 个非新增类）、17 固定规则类、合计 36 个唯一 GameData 类；PBS 基名 18 声明→Species 双基名展开 19→合并 3 非类基名共 22；pbs_file_suffix 限定 PBS 来源条目。
++- WP03-C03：WP01/WP02 尾部旧 ReviewPending 文字标注为当时送审记录，以头部 Reviewed 状态为准。
++- 矩阵 F01-02/F02-01 保持 ReviewPending（关联 WP03 复审修订记录），未升级。
++- WP03 修订稿 v2 状态为 **ReviewPending**，送外部 review；未执行 WP04。

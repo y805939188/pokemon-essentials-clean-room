@@ -1,0 +1,118 @@
+# 覆盖审查表（WP79 v2；2026-10-03）
+
+规格提取方。本表回答「哪些能力、来源、配置、入口和场景已被适当处理，哪些仍缺」。计数均从稳定 ID/字段生成；**字符串匹配统计、阅读统计、行为覆盖统计分别命名**，维度分母分列不混用；证据边界（U01＋G01–G12、③④＝0、来源异常 20 项 AX）全部保留。逐维可枚举明细见 `review/wp79-coverage-review-2026-10-03/revision-v2/`（feature-details.json、source-details.json、config-details.json、ui-scenario-relations.json）。
+
+**总体结论**：113 Feature、84 个内容包（87 个计划行 − 3 个审查阶段）、E01–E34 来源包、33/33 顶层 PBS、312 个 .rb 源文件——**3 项确证遗漏已完成有界补提取**（训练家卡场景 WP79-R01、控制帮助场景 WP79-R03-1、弃用告警机制 WP79-R03-2，均待复审）；其余缺口全部落入既有待证/不适用框架，无新增无归属缺口。
+
+## 1. Feature 与领域（113 Feature × 18 领域 × 84 内容包）
+
+| 核对项 | 结果 | 明细 |
+| --- | --- | --- |
+| Feature 总数与归属 | **113/113 全部被计划包认领**（无未认领、无重复 ID） | [feature-details.json](../review/wp79-coverage-review-2026-10-03/revision-v2/feature-details.json)（逐 Feature：包、规格文件、状态、未验证子范围） |
+| 内容包↔规格文件 | **84 个内容包（87 个计划行 − WP78/79/80 三个审查阶段）与 84 个规格包 ID 一一对应**；无计划行缺规格、无规格缺计划行 | 同上 |
+| Feature 状态 | 107 Reviewed＋Inventoried、6 Reviewed＋Provisional（未验证子范围全部保留，无 ReviewPending、无 Drafted） | `planning/feature-matrix.md` 各行 |
+| 多包承接 Feature（按实际分工分类，不统称 A/B/C 拆分） | **10 个**：F02-03（WP02 配置词典＋WP04 编译管线——配置/管线分工）、F06-08（WP22 Mega＋WP23 Shadow——并列变身机制族）、F08-05（WP20 持久字段＋WP50 持物效果——字段/效果分工）、F12-05（WP47-A 属性/调用＋WP47-B 控制/变更——同域两册）、F12-06（WP48 能力计算＋WP49 阶段触发——计算/时序分工）、F12-08（WP52-A/B/C——AI 评估三包系列）、F13-04（WP55 会话＋WP56 变体——会话/变体分工）、F16-03（WP66-A 队伍＋WP66-B 盒子/图鉴——储存两域）、F18-02（WP73-A 内容编辑器＋WP73-B 世界编辑器——编辑器两域）、F18-07（WP01 基线＋WP77 demo 证据——基线/证据分工） | feature-details.json |
+| 新增补充范围（单列，不并入旧批准） | **3 个 ReviewPending**：训练家卡场景（F16-02-supp-TC）、控制帮助场景（F16-02-supp-CH）、弃用告警机制（F01-06-supp-DP） | feature-details.json supplement_rows_pending |
+| 矩阵引用 | 98 个规格链接＋1 个报告引用**全部解析存在** | 矩阵各行 |
+
+**缺口**：无。Feature 层归属闭合；未验证子范围（Inventoried/Provisional）为既有保留项，非遗漏。包 ID 一一对应是归属关系，**不构成行为覆盖证明**——行为覆盖按 §2 来源与 §4 场景明细判定。
+
+## 2. 来源（E01–E34 × reference 全集 × 阅读证据）
+
+### 2.1 E 索引包覆盖
+
+| E 包 | 责任包 | 覆盖 | E 包 | 责任包 | 覆盖 |
+| --- | --- | --- | --- | --- | --- |
+| E01 快照/基线 | WP01 | 已覆盖（Reviewed） | E18 遭遇/战斗创建 | WP36/WP39 | 已覆盖 |
+| E02 设置 | WP02 | 已覆盖 | E19 漫游/雷达/钓鱼 | WP37/WP60 | 已覆盖 |
+| E03 插件机制 | WP05 | 已覆盖（机制；真实组合 P05 待证） | E20 捕获 | WP38 | 已覆盖 |
+| E04 注册/查找 | WP03/WP24 | 已覆盖 | E21 战斗核心 | WP39–WP42 | 已覆盖 |
+| E05 编译 | WP04 | 已覆盖 | E22 伤害/状态 | WP43/WP44 | 已覆盖 |
+| E06 本地化 | WP08 | 已覆盖 | E23 场域/效果族 | WP45–WP50 | 已覆盖 |
+| E07 保存/迁移 | WP09/WP10 | 已覆盖 | E24 AI | WP51/WP52-A/B/C | 已覆盖（身份与评估合同层） |
+| E08 启动/标题 | WP09/WP65 | 已覆盖 | E25 Mega/Shadow | WP22/WP23 | 已覆盖 |
+| E09 地图/运动 | WP11/WP12 | 已覆盖 | E26 Safari/捕虫 | WP53 | 已覆盖 |
+| E10 事件/解释器 | WP13 | 已覆盖 | E27 边疆设施 | WP54–WP58/WP76 | 已覆盖 |
+| E11 资源/渲染/消息 | WP15/WP16/WP07/WP17 | 已覆盖 | E28 时间/场地/树果 | WP59/WP60/WP61 | 已覆盖 |
+| E12 个体/形态 | WP18/WP21 | 已覆盖 | E29 随机地牢 | WP14 | 已覆盖 |
+| E13 玩家/储存 | WP24/WP25 | 已覆盖 | E30 图鉴/电话/礼物 | WP62/WP63/WP64 | 已覆盖 |
+| E14 背包/道具 | WP27/WP28 | 已覆盖 | E31 界面 | WP65/WP66-A/B/C/WP67-A/B | **已覆盖（含 2 个补提取附表，待复审）** |
+| E15 商店 | WP29/WP66-C | 已覆盖 | E32 小游戏 | WP68/69/70/71 | 已覆盖 |
+| E16 成长/学习 | WP30/WP31 | 已覆盖 | E33 调试/编辑/工具 | WP72–WP76 | 已覆盖 |
+| E17 寄养/遗传/孵化 | WP33/WP34/WP35 | 已覆盖 | E34 demo 配置 | WP77 | 已覆盖 |
+
+### 2.2 reference `.rb` 源文件（312 个；非 Git 目录全 reference 共 314 个 Ruby 文件，另有 2 个根目录工具脚本——**312 不是全 reference 源码总数**）
+
+| 分类 | 数量 | 处置（逐路径明细见 [source-details.json](../review/wp79-coverage-review-2026-10-03/revision-v2/source-details.json)） |
+| --- | --- | --- |
+| 被规格引用（具名） | 290 | 已覆盖（阅读证据在各包 traceability；文件名出现不等于行为全覆盖，分层见明细） |
+| 已补提取（确证遗漏已修） | 3 | `016_UI/012_UI_TrainerCard.rb`（WP79-R01，[wp65-trainer-card-appendix](../specs/ui/wp65-trainer-card-appendix.md)，TC01–TC08）；`016_UI/001_Non-interactive UI/002_UI_Controls.rb`（WP79-R03-1，[wp65-controls-help-appendix](../specs/ui/wp65-controls-help-appendix.md)，CH01–CH05）；`001_Technical/001_Debugging/005_Deprecation.rb`（WP79-R03-2，[wp07-deprecation-appendix](../specs/kernel/wp07-deprecation-appendix.md)，DP01–DP05） |
+| 行为层已覆盖（文件级仅定位） | 2 | `010_Data/001_Hardcoded data/014_Environment.rb`（环境类别行为已由 WP45/WP36/WP59 覆盖）；`009_Scenes/001_Transitions.rb`（过渡行为已由 WP16 §4.2/§6 覆盖） |
+| 不适用（具名理由） | 17 | 精灵/渲染原语 14 个（Sprite_Picture/Timer/AnimationSprite/ScreenPosHelper、SpriteWindow_pictures/BitmapSprite/Planes、TilesetWrapper/AutotileExpander、RPG_Sprite、Overworld_Overlays、Item/Pokemon/Trainer_Sprites——可观察行为已由 WP15/WP16 覆盖）；Game_Picture（图片命令已由 WP13 命令矩阵覆盖）；Utilities_BattleAudio（战斗音频行为已由 WP15 §D 覆盖）；FileMixins（文件访问行为已由 WP07 §A 覆盖） |
+| 未引用待核 | **0** | 无（grep 逐路径复核） |
+| 根目录工具脚本（2） | 2 | `scripts_extract.rb`、`scripts_combine.rb`（WP01 快照登记——作者工具，非游戏行为；不以 312 为全 reference 总数） |
+
+### 2.3 PBS 数据文件（33 顶层＋备份）
+
+- **33/33 顶层 PBS 已覆盖**（逐文件明细见 [config-details.json](../review/wp79-coverage-review-2026-10-03/revision-v2/config-details.json)；`ribbons.txt` 行为已由 WP21 §5.2 覆盖——机制与 schema 字段目录已读，**不据此标数据内容已读全覆盖**）。
+- **备份目录**（Gen 5–8 backup 各 9 文本、Shadow Pokémon backup 4 文本）：**存在性登记**（WP02 §6.2；普通发现不扫描、无自动切换；WP77 仅身份核验未全文阅读）——存在性≠支持，启用条件 U03/U06 待证，非遗漏。
+- **未引用文件**：`cup_fancy_trainers.txt`/`cup_fancy_pkmn.txt`（非 _single 变体）**无任何列表/脚本引用**（WP76 R19 如实登记）——未引用≠遗漏，fancy 杯单双打均引用 _single 变体。
+
+## 3. 配置与数据
+
+| 核对项 | 结果 |
+| --- | --- |
+| 默认数据集 | 33 顶层 PBS（WP01 §4）→ 编译产物 `.dat`（WP04）；通用未知属性**不被消费也不报错**（WP04 §4.2） |
+| 发现机制 | 完全基名或基名+下划线、最长基名优先、不递归子目录（WP02 §6.1 主，WP04 §4.1 引用）；专用显式入口（`battle_facility_lists.txt` 10 路径样本） |
+| 候选变体 | 备份目录存在性登记（WP02 §6.2）；无自动切换机制；启用 U03/U06 待证 |
+| 编译消费边界 | schema 消费/校验/登记全路径（WP04 §4.2）；`get_property_for_PBS` 归一化 nil |
+| 语言数据 | 作者配置与玩家选择分开（WP02 §6.3；WP08 消息查找/回退主规格） |
+| 配置词典 | WP02 §4 逐定义清单＋附表检索索引；未验证组合表（WP02-E）保留 |
+| 设施名单 | 默认＋4 杯赛节；非 _single fancy 文件无引用（如实登记） |
+
+**缺口**：无新增。备份启用（U03/U06）与未验证组合（WP02-E）为既有待证项。
+
+## 4. UI 与场景/向量（逐入口关系见 [ui-scenario-relations.json](../review/wp79-coverage-review-2026-10-03/revision-v2/ui-scenario-relations.json)）
+
+| 包 | 入口覆盖 | 场景/向量 | 状态 |
+| --- | --- | --- | --- |
+| WP17 消息/窗口/输入 | 消息/选项/数量/按键交互合同 | 静态场景与口径（附表标记目录） | 已覆盖 |
+| WP63 Pokégear/地图/电话 | 工具入口、区域地图、联系人/再战 | 静态场景（含开关点读取消费） | 已覆盖 |
+| WP65 标题/载入/选项/暂停/PC | 主导航 12 项注册（含训练家卡第 50 项） | 静态场景（T24 等） | 已覆盖 |
+| WP65 附 训练家卡（WP79-R01 补提取） | 训练家卡场景（打开/只读/BACK 退出） | **TC01–TC08** | 已补提取（待复审） |
+| WP65 附 控制帮助（WP79-R03-1 补提取） | 控制帮助四页场景（确认推进/末页过渡退出） | **CH01–CH05** | 已补提取（待复审） |
+| WP07 附 弃用告警（WP79-R03-2 补提取） | 弃用告警机制（warn_method/弃用别名） | **DP01–DP05** | 已补提取（待复审） |
+| WP66-A/B/C 队伍/储存/背包商店 | 队伍/盒子/背包/PC/商店 UI | 静态场景（含取消编码与守卫消费） | 已覆盖 |
+| WP67-A/B 战斗/生命周期 | 战斗命令/成长/捕获反馈；进化/孵化/交换/净化室/名人堂/片尾 | 静态场景（共享提交序列引用） | 已覆盖 |
+| WP68–71 小游戏 | Duel/Triple Triad/Slot/Voltorb/Lottery/Mining/拼图 | 静态场景与固定向量 | 已覆盖（批次 B 通过） |
+| WP72–76 作者工具 | 调试菜单/编辑器/动画/转换/生成器 | 静态场景节 | 已覆盖（工具运行/素材 Inventoried） |
+| 全库场景行 | — | **1,731 行**（M/字母编码）＋早期规格的静态预期场景节（wp02–wp17 等编号格式） | 统计量（非完整性证明） |
+
+**缺口**：WP79-R01/R03-1/R03-2 已补提取（待复审）；其余 UI 边界（宿主/媒体/真实事件子范围）为各包 Inventoried 保留项。
+
+## 5. demo 与宿主
+
+- **WP77 已批准范围继承**：E34 九份全文（1,039 行）、跨表引用 C1–C8＋汇总（0 未解析限实际检查集合）、12 条候选链 G01–G12 统一行 ID、证据四档纪律（③已证事件链＝0、④运行观察＝0）。
+- **缺失材料**（`Data/Map*.rxdata`、`MapInfos/CommonEvents/System/Tilesets/Animations.rxdata`、`Graphics/`、`Audio/`、`Plugins/`、`Game.ini`、`Game.rxproj`）：WP01 §4.2 继承——全部事件链不可验证（U01），不补造事件演示。
+- **插件**：机制已覆盖（WP05 三阶段）；**真实第三方插件组合缺材料**（快照无 `Plugins/` 目录——P05 保留，与可静态核对的机制分开）。
+- **宿主/媒体/运行**：全部为 0（④），WP02-E 未验证组合表保留。
+
+## 6. 缺口与待证汇总（全部为既有框架，无新增无归属缺口）
+
+| 类 | 内容 | 归属 |
+| --- | --- | --- |
+| 确证遗漏（已补提取） | WP79-R01 训练家卡场景、WP79-R03-1 控制帮助场景、WP79-R03-2 弃用告警机制 | 已补提取（三份附表），**待独立复审** |
+| 材料缺失待证 | U01＋G01–G12（12 条 demo 候选链）；备份启用 U03/U06；跨系统随机 U05 | WP01/WP02/WP77 |
+| 仅运行未验证 | 全部运行观察（④）；WP02-E 未验证组合；工具/素材运行 | 运行验证阶段 |
+| 插件组合 | 真实第三方插件组合（快照无 Plugins/ 目录） | P05 |
+| 不适用 | 17 个精灵/渲染原语与辅助类（具名理由，§2.2）；弃用提示已转补提取（WP79-R03-2） | §2.2 具名 |
+| 历史已替代 | 45 份规格头部状态滞后（有意管理决策，不作当前结论） | WP68–70 backfill-register＋各通过报告 |
+
+**状态**：本表为 WP79 覆盖审查 v2（**ReviewPending，待独立复审**）；WP79-R01/R03-1/R03-2 已补提取、待复审确认关闭；WP80 预排在 WP79 复审通过后（净化交付，消费本表审定基线）。
+
+## 附：统计口径说明（R04）
+
+- **字符串匹配统计**：grep 命中数（文件名/标识在规格文本中的出现）——仅证明「被提及」，不等于阅读或覆盖。
+- **阅读统计**：全文/定点/行为层/仅定位/未读（按规格 traceability 与本轮复核）——证明「被读过」，不等于行为全覆盖。
+- **行为覆盖统计**：责任规格的行为合同与场景/向量在案（按各包批准范围与本表明细）——三列分别命名，不互相替代。
+- **保护对象时点**：相对 WP78 recheck-v6 的 31,693 个——当前为 **31,690 个不变＋manifest/TSV/coverage 三项授权变化**（coverage.md 为 WP79 任务指定填写对象，不计入「字节不变」）；规格文件基线 109 → 当前 **112**（新增 3 个补提取附表）；内容包 ID 仍 **84**（附表归入既有 WP65/WP07 包 ID，不新增包 ID）。

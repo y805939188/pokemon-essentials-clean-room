@@ -1,0 +1,300 @@
+--- input-snapshot/specs/overworld/wp12-terrain-movement-vehicles.md	2026-09-19 21:17:02
++++ ../../specs/overworld/wp12-terrain-movement-vehicles.md	2026-09-19 22:14:27
+@@ -7,8 +7,8 @@
+ | 分类 | Engine/Overworld（地图与移动集成）；地形标签名与函数名是参考侧取证记录，不是未来框架的移动 API |
+ | 参考基线 | `reference/pokemon-essentials/` @ commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（WP01 固定） |
+ | 输入 | 证据包 E09（地图连接/运动入口与互动片段）、E28（时间/场地能力）、E34（地图元数据样本）；地图、角色、玩家、TerrainTag 及实际运动/场地调用者 |
+-| 前置依赖 | WP11（地图拓扑，本批自检版本，未外审）；WP02（配置）、WP06（时间/统计），均已 Reviewed |
+-| 规格状态 | **ReviewPending（WP12 自身范围）**：2026-09-19 提交外部 review |
++| 前置依赖 | WP11（地图拓扑，同批修订版本，未外审）；WP02（配置）、WP06（时间/统计），均已 Reviewed |
++| 规格状态 | **ReviewPending（WP12 自身范围）**：2026-09-19 首版送审；2026-09-19 按外部复审 WP12-R01/R02/R03 修订（v2），再送复审 |
+ | 证据等级 | 全部为静态证据：已定位 / 静态确认 / 数据样本确认；**无运行确认** |
+ 
+ ## 1. 目的、范围与非目标
+@@ -33,10 +33,11 @@
+ ## 2. 概念与术语
+ 
+ - **地形标签（TerrainTag）**：图块/位置上的一组能力标记（可冲浪、瀑布、冰面、桥、深草、必须步行等），硬编码注册（18 个）。
+-- **通行判定**：由图块通行位（passages）、优先级、地形能力、事件阻挡、玩家阻挡共同决定的移动许可。
++- **通行判定**：由图块通行位（passages）、优先级、地形能力、事件阻挡、玩家阻挡共同决定的移动许可；**按入口分层**（地图层/角色层/玩家覆写/跟随者严格入口），不能用一个"可通行"布尔概括。
+ - **运动状态**：玩家当前的移动模式（步行/跑步/骑行/冲浪/潜水/冰滑/瀑布上下），影响速度、外观与移动规则。
+ - **载具状态**：`$PokemonGlobal` 的 surfing/diving/bicycle 标记（及 ice_sliding、bridge 等辅助状态）。
+-- **强制路线**：事件/系统接管玩家移动的状态（`move_route_forcing` 或 `$PokemonGlobal.forced_movement?`），此时普通输入不生效。
++- **强制路线**：事件/系统接管玩家移动的状态（`move_route_forcing`）；与冰滑/瀑布的 `forced_movement` 标记是**两种不同的接管机制**（4.2）。
++- **速度等级**：参考实现的速度数值（1–6）是等级不是像素/秒；每格耗时换算：1 → 1.0 秒、2 → 0.5 秒、3 → 0.25 秒、4 → 0.125 秒、5 → 0.1 秒、6 → 0.05 秒（`Game_Character.move_speed=`，110–123 行）。
+ - 影响域编号 Dxx 见 module-map；证据状态五档定义见总览第 7 节。
+ 
+ ## 3. WP12-A：地形能力与通行判定目录
+@@ -55,9 +56,9 @@
+ | Water(7) | 可冲浪、可钓鱼、战斗环境 MovingWater |
+ | Waterfall(8) | 可冲浪、瀑布主体 |
+ | WaterfallCrest(9) | 可冲浪、可钓鱼、瀑布顶 |
+-| TallGrass(10) | 深草、野外遭遇、双打遭遇、战斗环境 TallGrass、**必须步行** |
++| TallGrass(10) | 深草、野外遭遇、双打遭遇、战斗环境 TallGrass、**必须步行**（must_walk） |
+ | UnderwaterGrass(11) | 野外遭遇 |
+-| Ice(12) | 战斗环境 Ice、冰面、**必须步行或跑步** |
++| Ice(12) | 战斗环境 Ice、冰面、**必须步行或跑步**（must_walk_or_run） |
+ | Neutral(13) | **忽略通行性** |
+ | SootGrass(14) | 草沙沙、野外遭遇、战斗环境 Grass（煤灰草，供拾灰事件引用） |
+ | Bridge(15) | 桥 |
+@@ -66,88 +67,130 @@
+ 
+ 复合能力：`can_surf_freely = can_surf && !waterfall && !waterfall_crest`（非瀑布水域）。
+ 
+-### 3.2 通行判定链（本轮逐行阅读 `004_Game_Map.rb:142–268`、`006_Game_Character.rb:237–303`）
++### 3.2 通行判定链（本轮逐行阅读 `004_Game_Map.rb:142–268`、`006_Game_Character.rb:237–303`、`008_Game_Player.rb:238–250`）
+ 
+-按入口分层，**不能用一个"可通行"布尔概括**：
++**按入口分层，各层规则适用对象不同，不能混用**：
+ 
+-| 层 | 规则 |
+-| --- | --- |
+-| 图块通行位 | 目标图块在目标方向被禁（方向位）或全向被禁（0x0f）→ 不可通行；优先级为 0 的图块不受事件阻挡 |
+-| 事件阻挡 | 目标位置有非 through 事件且具名图形 → 不可通行（多格角色按占格全部检查） |
+-| 玩家阻挡 | 目标位置为玩家且具名图形 → 不可通行 |
+-| 地形-水 | 当前位于非瀑布水域（can_surf_freely）时，**只能移动到其他非瀑布水域**（否则不可通行） |
+-| 地形-冰 | 目标为冰面 → 不可通行（步行时；滑行按 4.2） |
+-| 地形-岩架 | 面朝岩架 → 跳下可过（jumpForward(2)），走上不可过 |
+-| 地形-桥 | 不在桥上（bridge == 0）时忽略桥图块；在桥上（bridge > 0）时按桥图块通行位判定 |
+-| 冲浪 | 冲浪中，非瀑布水域图块（can_surf 且非 waterfall）可通行 |
+-| 骑行 | 必须步行（must_walk）或必须步行或跑步（must_walk_or_run）地形上不可骑行 |
+-| 玩家通行（playerPassable?） | 玩家专用层：桥/冲浪/骑行/忽略通行性/通行位按上表综合 |
+-| 严格通行（passableStrict?） | 任一方向有任何通行位非零 → 不可通行（用于跟随者） |
+-| 调试穿透 | $DEBUG 且按住 Ctrl 时玩家可通行（限玩家） |
+-| 跨图 | 目标超出当前图但 validLax? 内 → 按地图工厂的跨图通行判定（WP11 主规格） |
++#### 层 1：地图层（`Game_Map.passable?`，142–246 行）
+ 
++1. 目标须在图内（`valid?`）。
++2. **图块事件**：目标位置上有图块 ID > 0、非 through、非忽略通行性的事件 → 按其图块通行位判定（方向位被禁或全向被禁 → 不可通行；优先级为 0 → 对该事件图块提前许可并继续后续判定）。
++3. **分流**：移动者是玩家 → 玩家专用层（层 2）；**其他事件** → 非玩家规则：
++   - **水上约束**：移动者当前位于非瀑布水域（can_surf_freely）时，目标须同为非瀑布水域，否则不可通行。
++   - **冰面拒绝**：目标地形为冰 → 不可通行。
++   - **岩架拒绝**：移动者当前位置即判定位置且目标地形为岩架 → 不可通行。
++   - 其余按图块通行位/优先级常规判定。
++   - **注意**：水上约束与冰面拒绝位于**非玩家分支**，不是玩家普遍规则（玩家见层 2 与 4.2）。
++
++#### 层 2：玩家专用层（`playerPassable?`，218–246 行；仅地图层分流到玩家时执行）
++
++- 不在桥上（bridge == 0）时忽略桥图块；在桥上（bridge > 0）时按桥图块通行位判定。
++- 冲浪中：可冲浪且非瀑布的水域图块 → 许可。
++- 骑行中：必须步行（must_walk）**或**必须步行或跑步（must_walk_or_run）地形 → 不可通行（二者都禁骑行）。
++- 忽略通行性图块跳过；其余按通行位/优先级常规判定（优先级 0 → 提前许可）。
++
++#### 层 3：角色层（`Game_Character.passable?`，237–257 行；所有移动者共用的外层）
++
++1. **边界检查**：目标须在图内（`map.valid?`）——先于一切其他许可。
++2. through → 许可。
++3. **地图层双向检查**：源位置按移动方向、目标位置按反方向（10 − d）分别过地图层，任一失败则不可通行（不是只查目标图块方向）。
++4. **事件碰撞**：目标位置有非 through 事件时——**非玩家移动者：任何此类事件都阻挡**（不要求具名图形）；**玩家：仅具名图形的事件阻挡**。
++5. **玩家阻挡**：目标位置为玩家且移动者具名图形 → 不可通行（玩家不因此被自身阻挡）。
++
++#### 层 4：玩家覆写（`Game_Player.passable?`，238–250 行）
++
++1. **先边界**：目标超出 validLax? 范围 → 不可通行；超出 valid? 但在 lax 内 → 交地图工厂跨图通行判定（`isPassableFromEdge?`，WP11 主规格）。
++2. **再调试穿透**：$DEBUG 且按住 Ctrl → 许可（**在边界检查之后**，不意味着任意出界坐标都可走）。
++3. 其余走角色层（层 3）。
++
++#### 层 5：跟随者严格入口（`passableStrict?` 链）
++
++- 角色层 strict 模式 → 地图层 `passableStrict?`（249–268 行）：图块**任一方向有通行位非零即不可通行**（要求全向可通）；优先级 0 提前许可；供跟随者使用（`MapFactory.isPassableStrict?`）。
++
+ ## 4. WP12-B：移动与运动状态
+ 
+ ### 4.1 移动入口与结果（本轮逐行阅读）
+ 
+ | 入口 | 行为 |
+ | --- | --- |
+-| 普通移动（`move_generic`，`008_Game_Player.rb:141–177`） | 转身；面朝岩架则跳下（jumpForward(2)+跳音+计步）并结束本步；瀑布顶且向下则进入下瀑状态（through=true、waterfalls_descended+1）；可移动则记录初位、前移、按距离累计步数/距离统计、increase_steps；不可移动则尝试事件触碰，否则碰撞（碰撞音、bump_count+1、记录初位、bumping=true） |
++| 普通移动（`move_generic`，`008_Game_Player.rb:141–177`） | 转身；**先判定能否移动**（can_move_in_direction?）：可移动时——面朝岩架则尝试跳下（jumpForward(2)，成功则跳音+increase_steps；**无论成败都结束本步，落点不许可也不转入碰撞分支**）；瀑布顶且向下则进入下瀑状态（through=true、waterfalls_descended+1）并继续；随后尝试上岸（`pbEndSurf`，见 5.2，成功则结束本步）；否则记录初位、前移、按距离累计距离统计、increase_steps。不可移动时——先尝试事件触碰，否则碰撞（碰撞音、bump_count+1、记录初位、bumping=true） |
+ | 跳跃（`jump`，`006_Game_Character.rb:767–787`） | 转向主方向；占格全部可过才跳；记录跳点、跳距、跳峰；计步；落点变化才累计距离 |
+ | 输入处理（`update_command_new`，`008_Game_Player.rb:431–458`） | 强制移动时按当前方向 move_forward；否则按方向键输入：持续同向（≥0.075 秒）则移动，换向则先转身 |
+ | 步后触发（`update_event_triggering`，同文件 543–554） | 步完成后：跟随者转身 → 远距事件检查 → 同位事件检查 → `pbOnStepTaken`（WP06 计步主规格，引用） |
+ | 碰撞（`bump_into_object`，同文件 121–128） | 碰撞音（非强制路线时）、bump_count+1、记录初位、bumping=true |
+ 
+-### 4.2 运动状态机（本轮逐行阅读 `set_movement_type` 与 `update_move`/`update_stop`）
++**计步层次**（WP12-R02 修订）：`increase_steps`（`006_Game_Character.rb:397–400`）只做两件事——**重设停止计时（stop_count = 0）并通知离开旧格（on_leave_tile）**；它不直接累加全局步数。全局计步在步完成后的 `pbOnStepTaken` 入口（WP06 主规格，引用，本文不另写第二套规则）。单次移动的阶段顺序：移动请求 → 通行判定 → 位置移动/跳跃开始 → 落地/步完成 → 距离统计（`add_move_distance_to_stats`）与 increase_steps → 步后触发（含全局计步）。
+ 
+-| 状态 | 进入前提 | 速度/外观 | 退出/切换 |
++### 4.2 运动状态机（本轮逐行阅读 `set_movement_type` 与 `can_run?`）
++
++**跑步条件（`can_run?`，52–61 行）**：
++
++- 强制路线中：按当前 move_speed > 3 判定（不看跑鞋/地形）。
++- 正常分支前提：非碰撞中、非菜单/战斗/消息/解释器运行、非跳跃。
++- 跑鞋例外：`has_running_shoes` 为假时，**冲浪、潜水或骑行中任一**也可跑（潜水是跑鞋例外之一）。
++- 地形限制：仅**必须步行**（must_walk）地形禁跑；**必须步行或跑步**（must_walk_or_run，如冰面）**不禁跑**。
++- 两者（must_walk 与 must_walk_or_run）**都禁骑行**（层 2）。
++- 最终按 runstyle 设置与 BACK 键异或切换。
++
++**状态表**（速度数值为参考速度等级，换算见第 2 节；`set_movement_type` 的速度赋值**多数受"非强制路线"前提限制**（64–99 行），且碰撞中（bumping）最后统一覆盖为 3——下表不是无条件强制值）：
++
++| 状态 | 进入前提 | 速度等级/外观 | 退出/切换 |
+ | --- | --- | --- | --- |
+-| 步行（walking） | 默认 | 速度 3 | 默认状态 |
+-| 跑步（running） | can_run?：有跑鞋（或冲浪/骑行中）、非碰撞/菜单/战斗/消息/解释器、非跳跃、非必须步行地形 | 速度 4；BACK 键按 runstyle 切换 | 条件不满足时回步行 |
+-| 骑行（cycling） | `$PokemonGlobal.bicycle = true`（`pbMountBike`） | 速度 5（跳 3）、骑行外观与 BGM | `pbDismountBike` 或 `pbCancelVehicles`（目的地不可骑行时） |
+-| 冲浪（surfing） | `$PokemonGlobal.surfing = true` | 速度 4（跳 3）、冲浪外观、上下浮动动画 | `pbCancelVehicles(cancel_swimming)` 或水上岸流程（`pbEndSurf`） |
+-| 潜水（diving） | `$PokemonGlobal.diving = true` | 速度 3、潜水外观 | 同上 |
+-| 冰滑（ice_sliding） | `$PokemonGlobal.ice_sliding` 或当前地形为冰 | 速度 4、步行外观 | 离开冰面 |
+-| 瀑布下（descending_waterfall） | 瀑布顶向下移动触发 | 速度 2、through=true、冲浪外观 | 到底后清理 |
+-| 瀑布上（ascending_waterfall） | 攀瀑流程（WP59 交界） | 速度 2、冲浪外观 | 到顶后清理 |
++| 步行（walking） | 默认 | 3 | 默认状态 |
++| 跑步（running） | can_run?（见上） | 4；BACK 键按 runstyle 切换 | 条件不满足时回步行 |
++| 骑行（cycling） | `$PokemonGlobal.bicycle = true`（`pbMountBike`） | 5（跳 3）、骑行外观与 BGM | `pbDismountBike` 或 `pbCancelVehicles`（目的地不可骑行时） |
++| 冲浪（surfing） | `$PokemonGlobal.surfing = true` | 4（跳 3）、冲浪外观、上下浮动动画 | `pbCancelVehicles(cancel_swimming)` 或上岸流程（`pbEndSurf`，5.2） |
++| 潜水（diving） | `$PokemonGlobal.diving = true` | 3、潜水外观 | 同上 |
++| 冰滑（ice_sliding） | `$PokemonGlobal.ice_sliding` 或当前地形为冰 | 4、步行外观 | 离开冰面 |
++| 瀑布下（descending_waterfall） | 瀑布顶向下移动触发 | 2、through=true、冲浪外观 | 离开瀑布地形或调试中断（5.3） |
++| 瀑布上（ascending_waterfall） | 攀瀑流程（WP59 交界） | 2、through=true、冲浪外观 | 同上 |
+ | 停止态（*_stopped） | 菜单中停止或载具更新时 | 保持对应外观、恢复基础速度 | 重新移动时 |
+ 
+-状态保持/清理：跨图转移时 `transfer_player` 取消载具（可选保留游泳）；`pbUpdateVehicle` 按当前标记恢复外观（`008_Game_Player.rb:575–585`）；`pbCancelVehicles` 按目的地决定是否清除骑行标记（`pbCanUseBike?`：always_bicycle/can_bicycle/outdoor_map 任一允许）。
++**接管机制区分**：强制路线（`move_route_forcing`）使普通输入不生效、且上述速度赋值被跳过；冰滑/瀑布的自动移动由步后订阅（`on_step_taken` 的 `auto_move_player`，`001_Overworld.rb:158–168`）驱动，是另一种接管路径，二者不能混为一种。
+ 
++状态保持/清理：跨图转移时 `transfer_player` 调 `pbCancelVehicles`（默认取消载具，可选保留游泳；WP11 引用其调用点）；`pbUpdateVehicle` 按当前标记恢复外观（`008_Game_Player.rb:575–585`）；`pbCancelVehicles` 按目的地决定是否清除骑行标记（5.1）。
++
+ ## 5. WP12-C：载具与水上运动
+ 
+-### 5.1 骑行（`pbMountBike`/`pbDismountBike`/`pbCancelVehicles`，同文件 587–615 行）
++### 5.1 骑行（`pbMountBike`/`pbDismountBike`/`pbCancelVehicles`/`pbCanUseBike?`，同文件 587–615 行）
+ 
+-- 上车：`bicycle = true`、`cycle_count += 1`、恢复骑行外观与 BGM、音效、取消雷达连锁。
+-- 下车：`bicycle = false`、恢复步行外观、按地图自动播放音乐。
+-- 转移时清理：显式传送默认取消载具（可选保留游泳）；目的地不可骑行时清除骑行标记。
++- 上车（`pbMountBike`）：**已骑行时直接返回**（不重复增加 cycle_count）；否则 `bicycle = true`、`cycle_count += 1`、恢复骑行外观与 BGM、音效、取消雷达连锁。
++- 下车（`pbDismountBike`）：`bicycle = false`、恢复步行外观、按地图自动播放音乐。
++- 载具取消（`pbCancelVehicles(destination, cancel_swimming)`）：`cancel_swimming` 为真才清 surfing/diving；**骑行按目的地图许可决定**——无目的地或目的地 `pbCanUseBike?` 为假时清 bicycle。`pbCanUseBike?` = 地图元数据的 always_bicycle / can_bicycle / outdoor_map 任一允许。**不是"所有跨图都取消载具"**：显式传送默认 `cancel_swimming = true`（WP11 引用调用点），可传 false 保留游泳；边缘切图与显式传送按各自实际调用分开。
+ 
+-### 5.2 冲浪与潜水（状态标记与通行联动）
++### 5.2 冲浪与潜水（本轮逐行阅读 `004_Overworld_FieldMoves.rb:715–751`）
+ 
+-- 冲浪：状态标记 `$PokemonGlobal.surfing`；冲浪中按 3.2 的水域通行规则移动；外观为冲浪图块并带上下浮动；上/下岸由 `pbEndSurf` 流程处理（与通行/地形联动）。
+-- 潜水：状态标记 `$PokemonGlobal.diving`；潜水目标地图由地图元数据的 dive_map_id 指定（WP15/WP59 交界）；潜水外观、速度 3。
++- **上水**（开始冲浪）：由互动订阅入口（`on_player_interact` 的 start_surfing）：未冲浪、地图非 always_bicycle、面前为非瀑布可冲浪水域、当前位置按面向可通行 → `pbSurf`。**上下岸不是同一个入口**。
++- **下水/上岸**（结束冲浪，`pbEndSurf`）：只处理**结束冲浪**——当前冲浪中、面前地形**非**可冲浪、向陆跳跃成功时才置 `ending_surf` 并结束本步移动；任一条件不满足则返回 false（不影响后续普通移动）。步后订阅（`on_step_taken` 的 surf_jump）在 `ending_surf` 时：清临时冲浪基点 → `pbCancelVehicles` → 重置遭遇步数 → 恢复地图 BGM → 清 `ending_surf`。
++- 冲浪：状态标记 `$PokemonGlobal.surfing`；冲浪中按层 2 的水域通行规则移动；外观为冲浪图块并带上下浮动。
++- 潜水：状态标记 `$PokemonGlobal.diving`；潜水目标地图由地图元数据的 dive_map_id 指定（WP15/WP59 交界）；潜水外观、速度等级 3。
+ - 水上遭遇：冲浪/潜水状态下的水域遭遇按遭遇表（WP36 主规格）；`surf_count`/`dive_count` 累计（WP06 统计）。
+ 
+-### 5.3 瀑布（本轮逐行阅读）
++### 5.3 瀑布（本轮逐行阅读 `004_Overworld_FieldMoves.rb:901–923`、`001_Overworld.rb:158–168`）
+ 
+-- 下瀑：瀑布顶（WaterfallCrest）向下移动触发：`descending_waterfall = true`、`through = true`、`waterfalls_descended += 1`、速度 2、冲浪外观（`move_generic`，`008_Game_Player.rb:154–157`）。
+-- 上瀑：攀瀑流程的资格与效果归 WP59（场地招式领域）；状态标记 `ascending_waterfall`，速度 2。
++- 下瀑：瀑布顶（WaterfallCrest）向下移动触发：`descending_waterfall = true`、`through = true`、`waterfalls_descended += 1`、速度等级 2、冲浪外观（`move_generic`，`008_Game_Player.rb:154–157`）。
++- 上瀑：攀瀑流程的资格与效果归 WP59（场地招式领域）；状态标记 `ascending_waterfall`，速度等级 2。
++- **瀑布状态清理**（`pbTraverseWaterfall`，步后订阅 `auto_move_player` 调用：当前地形为瀑布/瀑顶或瀑布标记存在时触发）：
++  - 下瀑分支（面向下）：**调试 Ctrl 按住，或当前位置既非瀑布也非瀑顶** → 清 `descending_waterfall` 与 through；否则保持/置位下瀑状态（未在下瀑时 waterfalls_descended+1）。
++  - 上瀑分支（`ascending_waterfall` 为真）：同样条件下清 `ascending_waterfall` 与 through；否则保持/置位。
++  - 冰面分支：当前地形为冰或 `ice_sliding` 时走 `pbSlideOnIce`（滑行），与瀑布分支互斥。
+ 
+ ## 6. WP12-D：许可与领域边界
+ 
+ | 守卫/输入 | 本包记录的行为 | 领域交界 |
+ | --- | --- | --- |
+-| 跑鞋（has_running_shoes） | 无跑鞋且非冲浪/骑行时不可跑（4.2） | WP24（玩家资源） |
+-| 必须步行/必须步行或跑步地形 | 该地形上不可跑/不可骑行（3.2、4.2） | 地形标签（3.1） |
++| 跑鞋（has_running_shoes） | 无跑鞋且非冲浪/潜水/骑行时不可跑（4.2） | WP24（玩家资源） |
++| 必须步行地形（must_walk） | 禁跑、禁骑行（3.2 层 2、4.2） | 地形标签（3.1） |
++| 必须步行或跑步地形（must_walk_or_run，如冰面） | **不禁跑**、禁骑行（3.2 层 2、4.2） | 地形标签（3.1） |
+ | 冲浪/潜水状态 | 影响通行、外观、速度、遭遇、距离统计 | WP36（遭遇）、WP59（场地招式）、WP15（资源） |
+ | 桥状态（bridge） | 桥上按桥图块通行位判定，不在桥上忽略桥图块 | WP11/WP15 |
+ | 徽章/场地招式许可 | 本包只记录"守卫存在与检查点"（如 pbCanUseBike?、潜水目标图、攀瀑资格） | WP24/WP59 主规格（不提前复制其规则） |
+-| 调试穿透 | $DEBUG+Ctrl 玩家可通行（3.2） | D18 调试面 |
+-| 强制路线 | 普通输入不生效，按强制路线移动（4.1） | WP13 事件解释器 |
++| 调试穿透 | $DEBUG+Ctrl 玩家可通行（在边界检查之后，3.2 层 4） | D18 调试面 |
++| 强制路线 | 普通输入不生效，按强制路线移动；速度赋值被跳过（4.1、4.2） | WP13 事件解释器 |
+ 
+ ## 7. 默认行为与配置变体
+ 
+-- **基线默认**：步行速度 3、跑步速度 4（需跑鞋）、骑行速度 5、冲浪速度 4、潜水速度 3、瀑布速度 2；地形按 3.1 能力表；通行按 3.2 判定链。
++- **基线默认**：速度等级步行 3、跑步 4（需跑鞋或冲浪/潜水/骑行）、骑行 5、冲浪 4、潜水 3、瀑布 2；地形按 3.1 能力表；通行按 3.2 分层判定链。
+ - **支持但未默认启用**：`FIELD_MOVES_COUNT_BADGES` 的徽章许可模式（WP02 词典，具体判定归 WP59）；调试穿透（$DEBUG+Ctrl）。
+ - **配置/数据关联**：`runstyle` 跑步切换方式（玩家选项）；`BADGE_FOR_*` 的场地招式徽章门槛（WP02 词典，归 WP59）；地图元数据的骑行/潜水/户外标记（WP15/WP59 交界）。
+ - **未验证组合**：真实地图的通行/滑行/上下水流程（U01）、动画/媒体结果（资源缺口）、跟随者在各状态下的完整行为（WP13）。
+@@ -156,9 +199,9 @@
+ ## 8. 边界、失败与未知
+ 
+ - 不可移动时：先尝试事件触碰，否则碰撞（4.1）；碰撞不改变位置（仅音效/计数/标记）。
+-- 岩架跳下：占格全部可过才跳；失败按普通不可移动处理（碰撞）。
+-- 下瀑后：through=true 的状态清理时机（到底后）未逐分支验证。
+-- 上/下岸流程（`pbEndSurf`）的完整条件与失败分支（WP59 交界）。
++- 岩架跳下：先过"能否移动"判定才进入岩架分支；**跳跃失败（落点不许可）时本步直接结束，不转入碰撞分支**（无碰撞音/bump 计数）。
++- 上岸失败：`pbEndSurf` 任一条件不满足（未冲浪/面前仍可冲浪/跳跃失败）→ 返回 false，不影响后续普通移动判定（5.2）。
++- 瀑布/冰面状态中断：调试 Ctrl 或离开瀑布地形时清理对应标记与 through（5.3）；各分支已按静态代码登记，真实地图流程待验证。
+ - 动画/媒体结果（资源缺口）：跳跃尘、冲浪浮动、载具 BGM 的播放未验证。
+ - 多格角色的占格判定在各状态下的组合（未逐状态验证）。
+ 
+@@ -169,10 +212,11 @@
+ | 事实 | 复核方式 |
+ | --- | --- |
+ | 地形能力表 | 阅读 `S/010_Data/001_Hardcoded data/011_TerrainTag.rb`（18 个标签） |
+-| 通行判定链 | 阅读 `S/004_Game classes/004_Game_Map.rb:142–268`、`006_Game_Character.rb:237–303` |
+-| 移动入口与结果 | 阅读 `S/004_Game classes/008_Game_Player.rb:121–193, 416–554`、`006_Game_Character.rb:746–813` |
+-| 运动状态机 | 阅读 `S/004_Game classes/008_Game_Player.rb:52–100, 460–528` |
++| 通行判定链 | 阅读 `S/004_Game classes/004_Game_Map.rb:142–268`、`006_Game_Character.rb:237–303`、`008_Game_Player.rb:238–250` |
++| 移动入口与结果 | 阅读 `S/004_Game classes/008_Game_Player.rb:121–193, 416–554`、`006_Game_Character.rb:397–400, 746–813` |
++| 运动状态机 | 阅读 `S/004_Game classes/008_Game_Player.rb:52–100, 460–528`、`006_Game_Character.rb:110–123` |
+ | 载具函数 | 阅读 `S/004_Game classes/008_Game_Player.rb:575–615` |
++| 上下水与瀑布 | 阅读 `S/012_Overworld/004_Overworld_FieldMoves.rb:715–751, 901–923`、`S/012_Overworld/001_Overworld.rb:158–168` |
+ 
+ ### 9.2 静态推导场景（未运行，待运行验证）
+ 
+@@ -180,32 +224,44 @@
+ | --- | --- | --- |
+ | 普通通行 | 前方为可通行图块 | 转身、前移、距离/步数累计 |
+ | 阻挡 | 前方为全向被禁图块 | 事件触碰尝试，失败则碰撞（音效、bump_count+1、记录初位，位置不变） |
+-| 岩架跳下 | 面朝岩架且前方两格可过 | 跳下（jumpForward(2)+跳音+计步），结束本步 |
+-| 冰面滑行 | 当前地形为冰 | 进入冰滑状态（速度 4）；按滑行规则移动 |
+-| 骑行上下车 | pbMountBike / pbDismountBike | 上车：标记、cycle_count+1、骑行外观与 BGM；下车：清除标记、步行外观 |
++| 岩架跳下（成功） | 面朝岩架且第一步可过、落点可过 | 跳下（jumpForward(2)+跳音+increase_steps），结束本步 |
++| 岩架跳下（落点阻挡） | 面朝岩架、第一步可过但落点不许可 | 不跳、**无碰撞分支**，本步直接结束 |
++| 玩家从水上向陆地 | 冲浪中面前为陆地且跳跃可成 | pbEndSurf 置 ending_surf 并结束本步；步后清理（取消载具/重置遭遇步数/恢复 BGM） |
++| 普通事件从水上向陆地 | 非玩家事件当前在非瀑布水域、目标为陆地 | 地图层非玩家分支水上约束 → 不可通行 |
++| 玩家进入冰面 | 玩家目标为冰面图块 | 玩家路径无"冰面拒绝"规则；可进入并触发滑行（4.2、5.3） |
++| 普通事件进入冰面 | 非玩家事件目标为冰面 | 地图层非玩家分支冰面拒绝 → 不可通行 |
++| 优先级 0 图块上有阻挡角色 | 目标图块优先级 0，但该位置有非 through 事件 | 图块提前许可≠最终许可；角色层事件碰撞判定：玩家被具名图形事件阻挡，非玩家移动者被任意非 through 事件阻挡 |
++| 无图形事件 | 目标位置有无 character_name 的非 through 事件 | 玩家可进入；非玩家移动者不可通行 |
++| 单向阻挡 | 源位置放行但目标位置反向被禁（或反之） | 角色层双向检查任一失败 → 不可通行 |
++| 无邻图时按 Ctrl | $DEBUG+Ctrl，目标超出 valid? 且无连接 | 工厂跨图判定无有效目标 → 不可通行（调试穿透在边界检查之后，不出 lax 范围） |
++| 冰面跑步/骑行 | 地形为冰（must_walk_or_run），其他守卫满足 | 可跑（跑鞋例外满足时）；不可骑行 |
++| 潜水无跑鞋 | 潜水中、无跑鞋 | 可跑（潜水属跑鞋例外） |
++| 强制路线速度 | 强制路线中切状态 | 速度赋值被跳过（保持当前速度）；bumping 时覆盖为 3 |
++| 骑行上下车 | pbMountBike / pbDismountBike | 上车：标记、cycle_count+1、骑行外观与 BGM；下车：清除标记、步行外观；**已骑行再上车不计数** |
+ | 冲浪通行 | 冲浪中，前方为非瀑布水域图块 | 可通行；若为瀑布图块则按瀑布规则 |
+-| 水上约束 | 当前位于非瀑布水域 | 只能移动到其他非瀑布水域（否则不可通行） |
+-| 下瀑 | 瀑布顶向下移动 | through=true、waterfalls_descended+1、速度 2 |
+-| 强制路线 | 强制路线/解释器运行中 | 普通输入不生效；按强制路线移动（不累计 stepcount，WP06 引用） |
++| 保留游泳的转移 | 显式传送且 cancel_swimming=false | surfing/diving 保留；骑行按目的地图许可决定 |
++| 下瀑 | 瀑布顶向下移动 | through=true、waterfalls_descended+1、速度等级 2 |
++| 离瀑/调试中断 | 下瀑中走到非瀑布地形或按 Ctrl | 清 descending_waterfall 与 through（pbTraverseWaterfall） |
++| 强制路线 | 强制路线/解释器运行中 | 普通输入不生效；按强制路线移动（全局计步归 WP06 引用） |
+ | 跨图通行 | 目标超出当前图但在 validLax? 内 | 按地图工厂的跨图通行判定（WP11 引用） |
+ 
+ ## 10. 证据与来源（traceability）
+ 
+-- **本轮复核（2026-09-19）**：逐行阅读 `011_TerrainTag.rb`（204 行全文）；`004_Game_Map.rb:142–268`；`006_Game_Character.rb:237–303, 746–813`；`008_Game_Player.rb:18–266, 416–615`。
++- **本轮复核（2026-09-19，首版）**：逐行阅读 `011_TerrainTag.rb`（204 行全文）；`004_Game_Map.rb:142–268`；`006_Game_Character.rb:237–303, 746–813`；`008_Game_Player.rb:18–266, 416–615`。
++- **修订复核（2026-09-19，v2 按 WP12-R01/R02/R03）**：重核 `004_Game_Map.rb:142–268`（分流与严格通行）；`006_Game_Character.rb:237–257, 397–400`；`008_Game_Player.rb:52–61, 64–99, 121–160, 238–250, 575–615`；`004_Overworld_FieldMoves.rb:715–751, 901–923`；`001_Overworld.rb:158–168`；`006_Game_Character.rb:110–123`。
+ - **继承同基线既有记录**：E09（连接/运动入口与互动片段，本轮已扩展为全文核实）；E28（时间/场地能力）；E34（地图元数据样本）；WP06 计步/统计（引用）；WP11 地图拓扑（引用）。
+ - 全部静态证据；**无运行确认**。
+ 
+ ## 11. 未决问题
+ 
+ 1. 真实地图的通行/滑行/上下水流程（U01）。
+-2. 下瀑后的 through 状态清理时机（未逐分支验证）。
+-3. 上/下岸流程（pbEndSurf）的完整条件与失败分支（WP59 交界）。
+-4. 动画/媒体结果（资源缺口）。
+-5. 多格角色在各状态下的占格判定组合（未逐状态验证）。
+-6. 徽章/场地招式资格与效果的完整规则（WP24/WP59 主规格）。
++2. 动画/媒体结果（资源缺口）。
++3. 多格角色在各状态下的占格判定组合（未逐状态验证）。
++4. 徽章/场地招式资格与效果的完整规则（WP24/WP59 主规格）。
++5. 上水入口（pbSurf）的完整效果链（动画/状态置位细节，WP59 交界，本包已登记入口与守卫）。
+ 
+ ## 12. 状态与后续
+ 
+-- WP12 自身范围（第 1 节五项）已提取并自检，状态 **ReviewPending**，提交外部 review。
++- WP12 自身范围（第 1 节五项）已提取并自检，2026-09-19 首版送审后按 WP12-R01/R02/R03 修订（v2），状态 **ReviewPending**，再送外部复审。
+ - **WP12 完成 ≠ F04-02/F04-03 完成**：场地招式资格/效果、真实地图通行流程与媒体结果需 WP24/WP59/WP15/WP77 闭合；Feature Matrix 按聚合规则分别显示。
+ - 后续包引用本文的地形/移动规则时，不得把地形标签结构或运动状态机当作未来框架的移动 API；发现与本文冲突的新证据时，先修订本文并通知受影响包。

@@ -1,0 +1,181 @@
+# WP07 规格：诊断、文件与 HTTP
+
+| 字段 | 内容 |
+| --- | --- |
+| 工作包 | WP07（诊断、文件与 HTTP） |
+| 关联功能 | F01-06（诊断与错误反馈，D01）、F01-07（文件与 HTTP 支持，D01） |
+| 分类 | Generic Kernel（基础 I/O 与诊断）；路径与函数名是参考侧取证记录，不是未来框架的文件/网络 API |
+| 参考基线 | `reference/pokemon-essentials/` @ commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`（WP01 固定） |
+| 输入 | 证据包 E03、E05、E08、E11（文件/资源/控制台）、E30（下载调用者）；HTTP 包装与实际调用者；调试入口 |
+| 前置依赖 | WP01（基线）、WP03（内容身份），均已 Reviewed |
+| 规格状态 | **ReviewPending（WP07 自身范围）**：2026-09-19 经批次复审（WP07-R01～R03）修订后再送外部 review |
+| 证据等级 | 全部为静态证据：已定位 / 静态确认 / 数据样本确认；**无运行确认** |
+
+## 1. 目的、范围与非目标
+
+**目的**：明确基础 I/O 的成功、失败与反馈——文件遍历/存在性/读写、HTTP 下载与提交、异常与错误的记录/提示/恢复分别在哪一层发生、以什么形式表现（异常、空结果、错误记录、用户提示）。后续包据此判断"某失败会如何呈现、能否被调用方区分"，而不是各自重新追踪 I/O 包装。
+
+**范围**（WP07 自身声明范围，extraction-plan 第 2.1 节 (a) 类）：
+
+1. WP07-A：文件访问层（遍历、存在性、读写、资源解析、保存目录）。
+2. WP07-B：HTTP 下载/提交（GET/POST 分层、失败归一、响应使用与文件落盘）。
+3. WP07-C：诊断与错误反馈（异常格式化、错误日志、调试日志、控制台、用户提示、调用前提）。
+4. WP07-D：失败层次与边界（各层失败形式对照与共用面）。
+5. F01-06、F01-07 中属于 WP07 部分的状态更新。
+
+**非目标**：
+
+- 不提取编译触发与编译失败副作用（WP04 主规格）、插件错误机制（WP05 主规格，共用诊断面引用）。
+- 不提取资源选择与播放（WP15）、神秘礼物等业务消费者（WP64）、编辑器行为（WP73）。
+- 不访问真实远端，不证明外部服务可用；不运行游戏或任何参考脚本；不修改 `reference/`。
+
+## 2. 概念与术语
+
+- **文件访问层**：目录遍历、存在性探测、读写包装与资源路径解析（含加密归档感知）。
+- **HTTP 包装**：下载（GET）与提交（POST）的薄封装及其失败归一。
+- **诊断面**：异常格式化、错误日志文件、调试日志文件、控制台输出与用户提示的集合。
+- **失败归一**：包装层把多种失败条件合并为同一返回值（nil/空字符串），调用方无法从中区分失败原因。
+- **调用前提**：诊断函数的存在不等于所有模式下的全局保证；其实际生效取决于调用它的业务入口与模式（调试/非调试）。
+- 影响域编号 Dxx 见 module-map；证据状态五档定义见总览第 7 节。
+
+## 3. WP07-A：文件访问层
+
+### 3.1 遍历与目录操作（`S/001_Technical/002_Files/001_FileTests.rb`，本轮核实）
+
+- `Dir.get`（按过滤列举并排序）、`Dir.all`（递归整树）、`Dir.all_dirs`（递归目录）、`Dir.create`（逐级建目录）、`Dir.delete_all`（删除目录全部内容）。
+- `safeGlob`：带重音路径兼容的 glob；`safeIsDirectory?`/`safeExists?` 为标记弃用的兼容包装（弃用警告机制归调试面）。
+
+### 3.2 存在性与读写（WP07-R02 修订：逐入口的捕获集合、分支与返回形态）
+
+| 入口 | 成功 | 失败形式（逐入口核对） | 分支差异 |
+| --- | --- | --- | --- |
+| `pbRgssExists?` | 返回是否存在（加密归档感知，经一字节探测） | 不适用（布尔） | 282–286 行 |
+| `pbGetFileChar` | 非归档：返回文件首字节；归档：返回宿主原始读取结果 | 捕获 ENOENT/EINVAL/EACCES/**EISDIR**/RGSSError/MKXPError → **nil** | 非归档读 1 字节；归档分支直接返回宿主读取结果（形态不同，315–333 行） |
+| `pbGetFileString` | 返回文件全部内容 | 捕获 ENOENT/EINVAL/EACCES/RGSSError/MKXPError → **nil**；**不捕获 EISDIR**——若为目录，异常不归一（可能向调用方传播） | 344–360 行；与 Char 的捕获集合不同，不能互套 |
+| `pbRgssOpen` | 打开文件 | 归一化路径后打开；失败行为未逐分支验证 | **非归档分支直接打开原输入**（292–300 行）；仅归档分支先 canonicalize（302 行） |
+| `pbTryString` | 文件可读且非空返回路径 | 否则 nil | 335–338 行 |
+
+**失败归一的范围限定**：读取包装层对"文件缺失"与"读取失败/权限/目录错误"在**被捕获的异常集合内**归一为 nil——但捕获集合按入口不同（EISDIR 只在 Char 被捕获），调用方不能把"返回 nil"一概当成"缺失"，也不能把未捕获异常当成 nil（读取返回 nil ≠ 文件缺失；如 move2anim 的 `|| []` 只捕 nil 返回，不证明文件缺失也回退，WP03 第 3.3 节同例）。
+
+### 3.3 资源路径解析（RTP 与扩展名回退）
+
+- `RTP.exists?` / `getImagePath` / `getAudioPath` / `getPath`：按扩展名候选查找（图像 png/gif；音频 wav/ogg/mp3/midi/mid/wma）；找不到时 `getPath` 返回原输入。
+- `pbResolveBitmap`（图像）/`pbResolveAudioSE`（音频）：找到返回真实路径，找不到返回 **nil**；`pbBitmapName` 找不到则返回原输入。
+- `RTP.eachPath` **始终产出本地根路径 `./`**（238–242 行，MKXP 兼容遗留；没有按 Game.rgssad 切换的分支——归档行为在其他入口，不能嫁接到 eachPath）。
+- 保存目录：`System.data_directory`（OS 相关：Windows `%APPDATA%`、Linux `$HOME/.local/share`、macOS `$HOME/Library/Application Support`）。
+
+### 3.4 写入面（本轮观察到的静态入口）
+
+- 序列化保存（编译产物 .dat、PluginScripts.rxdata、MapInfos、动画映射等，WP04/WP05 引用）。
+- 文件追加：`errorlog.txt`（异常日志，见 5.1）、`Data/debuglog.txt`（调试日志，仅 `$DEBUG && $INTERNAL`，见 5.2）。
+- HTTP 下载落盘（4.1）：响应体写入指定文件。
+
+## 4. WP07-B：HTTP 下载与提交（WP07-R01 修订：GET/POST × 基础/便利分层）
+
+### 4.1 分层行为表（`S/001_Technical/002_Files/003_HTTP_Utilities.rb`，本轮逐行阅读）
+
+| 层 | 前置过滤 | 宿主调用 | 响应形态 | 非 200 | 成功写入 | 写入异常 |
+| --- | --- | --- | --- | --- | --- | --- |
+| GET 基础 `pbDownloadData`（38–50 行） | **无 http 前缀检查**——https URL 也被传给宿主（宿主实际协议能力未验证） | HTTPLite.get（rescue 仅包住该调用） | **非 Hash 响应原样返回**（非无条件空字符串） | 返回 `""` | 有 filename 则写文件并返回 `""`；无则返回 body | **可能向调用方传播**（File.open/write 在 rescue 范围外） |
+| POST 基础 `pbPostData`（4–36 行） | **仅 http:// 前缀检查**（当前实现下 https 被挡下；不由此断言 GET 同样拒绝） | HTTPLite.post_body（rescue 仅包住该调用） | 同上 | 返回 `""` | 同上 | 同上（可能传播） |
+| 便利 `pbDownloadToString` / `pbPostToString`（53–60、69–76 行） | 同对应基础入口 | 调对应基础入口 | 返回数据 | 同基础 | 不适用 | 捕获调用范围中的普通异常 → `""` |
+| 便利 `pbDownloadToFile` / `pbPostToFile`（62–67、78–83 行） | 同对应基础入口 | 调对应基础入口 | 写文件 | 同基础 | **成功也返回 `""`**（不是"无返回值"） | 捕获调用范围中的普通异常（吞没） |
+
+限定：无重试循环（depth 参数未使用，不由此外推宿主内部策略）；外部服务可用性未验证；神秘礼物等业务消费者归 WP64。
+
+## 5. WP07-C：诊断与错误反馈
+
+### 5.1 异常与错误日志（`S/001_Technical/001_Debugging/003_Errors.rb`，本轮逐行阅读）
+
+- 异常类：`Reset`（重启信号）、`EventScriptError`（携带地图/事件定位的消息）。
+- `pbGetExceptionMessage`：Hangup → "脚本超时，游戏将重启"；ENOENT → "File X not found"；回溯中的脚本段映射名称。
+- `pbPrintException`：格式化（版本、`Essentials::ERROR_TEXT`、异常类、消息、10 行回溯（内部版 25 行））→ 追加写入 `errorlog.txt` → 打印完整消息（0.5 秒内按住 Ctrl 可复制）。**EventScriptError 是格式例外**：使用专用事件消息，省略普通异常类/回溯段。**日志写入未捕获失败**（53–57 行无捕获）：若写 errorlog 本身失败，后续打印/复制提示**不能保证发生**。与插件错误的 `pluginErrorMsg` 同一模式（WP05 引用同一诊断面）。
+- `pbCriticalCode`：关键段包装——`Reset`/`SystemExit` 原样抛出；其他异常打印；Hangup 额外抛 `Reset`（重启）。**原样传播仅限此类具体分支**（pbCriticalCode、Compiler.main 等；见 5.3）：插件脚本执行入口的 `rescue Exception` 捕获包含 Reset/SystemExit 在内的全部异常，进入插件诊断/退出路径（`005_PluginManager.rb:634–640`），不适用相同的原样重抛规则。
+
+### 5.2 调试日志与控制台（本轮核实）
+
+- `PBDebug`（`001_PBDebug.rb`）：`logonerr` 包装异常记录；`log`/`log_header`/`log_message`/`log_ai`/`log_score_change` 累积日志，仅 `$DEBUG && $INTERNAL` 时写入 `Data/debuglog.txt`（AI 调试带 `[AI]` 标记）。
+- `Console`（`002_DebugConsole.rb`）：调试模式输出窗口；`echo_h1/h2`（标题）、`echo_li`（进度）、`echo_error`/`echo_warn`（错误/警告）、`markup_style`（着色）；`Kernel#echo/echoln` 仅调试模式输出。
+- 三层用户反馈：`print`（消息框，玩家可见）、控制台 echo（调试输出，开发者可见）、errorlog.txt/debuglog.txt（文件，事后可查）——不同受众与持久性，不能混为一谈。
+
+### 5.3 调用前提（WP07-R03 修订：诊断函数能力 ≠ 全模式保证）
+
+| 模式/入口 | 异常路径 | 证据 |
+| --- | --- | --- |
+| 调试模式主流程 | `pbCriticalCode { mainFunctionDebug }` 包装：Reset/SystemExit 原样抛出；其他异常打印（5.1）；Hangup 转 Reset | `999_Main/999_Main.rb:16–21` |
+| 非调试主流程 | 直接调用 `mainFunctionDebug`；其 rescue 仅针对 Hangup：**打印异常（若非调试）+ 紧急保存后重抛**；普通异常按宿主未知行为处理，不能从 pbPrintException 的存在推出全模式日志保证 | `999_Main/999_Main.rb:19–20, 43–46` |
+| 显式业务调用 | 编译器异常分支（WP04）、插件脚本异常（WP05）等显式调用 pbPrintException/pluginErrorMsg | 各包主规格 |
+| 宿主未知行为 | 宿主对未捕获异常的显示 | **未验证，不猜测** |
+
+## 6. WP07-D：失败层次与边界
+
+| 层 | 失败形式 | 调用方可区分性 |
+| --- | --- | --- |
+| 文件读取包装 | nil（在被捕获的异常集合内归一；EISDIR 只在 Char 被捕获） | 捕获集合内不可区分原因；未捕获异常不归一 |
+| HTTP 包装 | `""` / nil（请求异常、非 200、成功空正文可同为 `""`；非 Hash 响应原样返回；基础写入异常可以传播，便利包装按其捕获范围处理） | 请求异常/非 200/成功空正文**不可区分**；仅基础写入异常与便利入口的捕获范围可区分；无重试 |
+| 编译/内容错误 | 异常 + `FileLineData` 位置报告（WP04 主规格） | 可定位文件/节/键/行 |
+| 插件错误 | 输出 + `Kernel.exit!`（WP05 主规格） | 进程终止，无恢复 |
+| 未捕获异常（调试） | `pbPrintException` → errorlog + 打印；Hangup → Reset 重启 | 进程级处理；日志写入失败则后续输出不保证 |
+| 未捕获异常（非调试） | Hangup 专门处理（打印+紧急保存）；其余按宿主未知行为 | **未验证** |
+| 调试日志 | 仅 debug+INTERNAL 写 debuglog.txt | 非用户反馈 |
+
+边界：编译触发与失败副作用归 WP04；插件错误归 WP05；资源选择/播放归 WP15；神秘礼物下载归 WP64；编辑器诊断归 WP73。**共享诊断函数或日志文件不意味着各层失败行为一致**——各层前提按本表分别成立。
+
+## 7. 默认行为与配置变体
+
+- **基线默认**：读取失败在捕获集合内归一 nil；HTTP 基础入口失败归一空结果、写入异常可传播；调试模式异常经 pbCriticalCode 处理；调试日志仅 debug+INTERNAL 启用。
+- **支持但未默认启用**：`Essentials::ERROR_TEXT`（供第三方追加的错误头内容，默认为空）；内部版 25 行回溯（`$INTERNAL`）。
+- **未验证组合**：HTTPS/代理/重试行为（无证据）；归档模式（Game.rgssad）下的读取分支（无材料）；外部服务可用性；非调试模式普通异常的宿主表现。
+- 参考快照行为、官方版本预期、未来目标分开标记；本包只记录第一类。
+
+## 8. 可复核性与静态场景
+
+### 8.1 复核方式
+
+| 事实 | 复核方式 |
+| --- | --- |
+| 文件遍历/读写/资源解析 | 阅读 `S/001_Technical/002_Files/001_FileTests.rb`（重点 282–360 行捕获集合与分支） |
+| HTTP 分层 | 阅读 `S/001_Technical/002_Files/003_HTTP_Utilities.rb`（GET/POST × 基础/便利） |
+| 异常与错误日志 | 阅读 `S/001_Technical/001_Debugging/003_Errors.rb` |
+| 调试日志 | 阅读 `S/001_Technical/001_Debugging/001_PBDebug.rb` |
+| 控制台输出 | 阅读 `S/001_Technical/001_Debugging/002_DebugConsole.rb` |
+| 调试/非调试主流程 | 阅读 `S/999_Main/999_Main.rb:16–21, 43–46` |
+| 保存目录 | `001_FileTests.rb:248–256`（`System.data_directory`） |
+
+### 8.2 静态推导场景（未运行，待运行验证）
+
+| 场景 | 输入 | 推导预期 |
+| --- | --- | --- |
+| GET 遇 https URL | https URL 调 GET | 传给宿主（无前缀检查；宿主协议能力未验证） |
+| POST 遇 https URL | https URL 调 POST | 被 http 前缀检查挡下（当前实现） |
+| 非 Hash 响应 | 下载返回非 Hash | 基础入口原样返回（非无条件 `""`） |
+| 200 后写文件报错 | 基础入口写文件失败 | 异常可能传播；ToFile 入口捕获 |
+| 非 200 | 状态 404 | 返回 `""`；有 filename 时不写文件 |
+| EISDIR 到两个读取入口 | 目标是目录 | pbGetFileChar 归一 nil；pbGetFileString 不归一（异常可能传播） |
+| 读取返回空值回退 | `load_data(...) || []` 形式 | 仅在返回 nil/false 时回退；文件缺失是否触发未验证（WP03 同例） |
+| 调试普通异常 | 调试模式脚本异常 | pbCriticalCode 打印并记录 errorlog；Hangup 转 Reset |
+| 非调试普通异常 | 非调试模式脚本异常 | 按宿主未知行为（无全模式日志保证） |
+| 非调试 Hangup | 非调试模式超时 | 打印异常 + 紧急保存后重抛 |
+| Reset/SystemExit（包装/编译入口） | 到达 pbCriticalCode、Compiler.main 等分支 | 原样传播（与编译器分支一致）；插件脚本执行入口则经插件诊断/退出路径（见 5.3 对照） |
+| 日志写入失败 | errorlog 不可写 | 后续打印/复制提示不能保证发生 |
+
+## 9. 证据与来源（traceability）
+
+- **本轮复核（2026-09-19）**：逐行阅读 `003_HTTP_Utilities.rb`（83 行）、`003_Errors.rb`（94 行）；阅读 `001_FileTests.rb` 关键段（1–120、238–360）；`001_PBDebug.rb` 前 60 行；`002_DebugConsole.rb` 前 70 行；`999_Main/999_Main.rb:1–46`；RTP/资源解析与保存目录段。
+- **继承同基线既有记录**：E03、E05、E08、E11（文件/资源/控制台抽查，本轮已扩展为分层清单）；E30（下载调用者，神秘礼物归 WP64）。
+- 全部静态证据；**无运行确认**；未访问任何远端。
+
+## 10. 未决问题
+
+1. HTTPS/代理/重试与响应码细分类行为（无证据；宿主协议能力未验证）。
+2. 归档模式（Game.rgssad）下各读取分支（无材料）。
+3. 写入失败（磁盘满/权限）在各写入面的表现（未运行）。
+4. `pbRgssOpen` 的失败分支全集。
+5. 非调试模式普通异常的宿主表现。
+6. 外部服务可用性与业务消费者的失败语义（归 WP64 等）。
+
+## 11. 状态与后续
+
+- WP07 自身范围（第 1 节五项）已提取并自检；2026-09-19 经批次复审后完成 WP07-R01（HTTP GET/POST × 基础/便利分层）、WP07-R02（文件读取逐入口捕获集合与分支）、WP07-R03（诊断调用前提与模式分层）三项修订，状态保持 **ReviewPending**，再送外部 review。
+- **WP07 完成 ≠ F01-06/F01-07 完成**：各业务失败语义需领域包闭合（编译 WP04、插件 WP05、资源 WP15、礼物 WP64）；Feature Matrix 按聚合规则分别显示。
+- 后续包引用本文的失败层次时，不得把包装函数名或路径约定当作未来框架的 I/O API；发现与本文冲突的新证据时，先修订本文并通知受影响包。
