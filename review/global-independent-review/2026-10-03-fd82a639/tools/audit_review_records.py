@@ -32,21 +32,38 @@ def reading_records(run_root):
     records = []
     logs = list((run_root / 'agents').glob('*/*/reading-log.tsv'))
     logs += list((run_root / 'agents').glob('*/*/comparison-reading-log.tsv'))
+    logs += list((run_root / 'agents').glob('*/*/peer-reading-log.tsv'))
     logs += [run_root / 'agents/D/reading-log.tsv', run_root / 'root/peer-reading-log.tsv',
              run_root / 'root/reading-supplement.tsv', run_root / 'root-reading-log.tsv']
     for log in sorted(set(path for path in logs if path.exists())):
         with log.open() as stream:
             for index, row in enumerate(csv.DictReader(stream, delimiter='\t'), 2):
-                repository = row.get('repository', row.get('origin', 'project' if log.name == 'root-reading-log.tsv' or log.parent.name == 'D' else ''))
-                path = row.get('relative_path', row.get('path', row.get('path_or_url', row.get('path_or_search', ''))))
-                mode = row.get('mode', row.get('reading_mode', row.get('method', '')))
+                def first(*keys, default=''):
+                    return next((row[key] for key in keys if row.get(key)), default)
+                repository = first('repository', 'origin', 'material', 'kind', 'source',
+                                   default='project' if log.name == 'root-reading-log.tsv' or log.parent.name == 'D' else '')
+                identity = first('commit', 'fixed_commit', 'fixed_identity')
+                if identity == REFERENCE:
+                    repository = 'reference'
+                elif repository == 'source':
+                    repository = 'reference'
+                path = first('relative_path', 'path', 'path_or_url', 'path_or_search',
+                             'path_or_message', 'path_from_run_or_repository')
+                mode = first('mode', 'reading_mode', 'method', 'read_extent', 'reading', 'extent')
                 if log.parent.name == 'D':
                     path = 'deliverables/final-specification-set/' + path
-                ranges = row.get('read_ranges', row.get('ranges_1_based', row.get('read_scope', row.get('ranges', row.get('range', row.get('lines_read', ''))))))
+                ranges = first('read_ranges', 'ranges_1_based', 'read_scope', 'ranges', 'range',
+                               'lines_read', 'lines', 'actual_ranges', 'range_or_ids', 'selection', 'range_or_selector')
+                if not ranges and row.get('start') and row.get('end'):
+                    ranges = row['start'] + '-' + row['end']
+                    mode = mode or 'explicit-bounded-static-read'
+                if row.get('actual_ranges') and not mode:
+                    mode = 'explicit-bounded-static-read'
                 if repository not in ('project', 'reference'):
                     continue
                 records.append(dict(repository=repository, path=path, mode=mode,
-                                    ranges=ranges, scope=row.get('scope', row.get('purpose', '')),
+                                    ranges=ranges, scope=first('scope', 'purpose', 'purpose_and_limit',
+                                                             'scope_and_limit', 'use_and_limit', 'note', 'limit'),
                                     log=str(log.relative_to(run_root)), log_line=index))
     return records
 
