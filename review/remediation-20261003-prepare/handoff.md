@@ -11,6 +11,8 @@
 - 固定参考：`/workspace/pokemon-essentials-reference-8c5911e`，实际 detached HEAD `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，工作树干净；准备后只读。
 - 提交自身的 SHA 从 Git 历史获取，不在其自身内容中伪造自哈希。payload 提交推送后的证据追加在同目录发布回执中，最终分支 tip 的独立远端核验在最终交接消息提供。
 
+准备内容 payload commit：`8af927ddcd8cfba62e36b41263f5fc6a94138aeb`，已成功 push 且远端 SHA 相同；远端 main 仍为 `e1e01bb18d824931e54f182dd61af5a9f908ba85`。详情见 [publication-receipt.json](publication-receipt.json)。最终分支还包含发布回执本身的后续提交，其实际 tip 以最后一次远端核验及最终消息为准。
+
 ## 可直接接收的记录
 
 - [preparation-report.md](preparation-report.md)：环境、指令、参考、上下文、计数及限制。

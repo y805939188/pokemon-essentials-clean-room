@@ -1,5 +1,30 @@
 # 阶段 A 实际命令记录
 
+## 发布与范围核验（已执行）
+
+工作目录均为 `/workspace/pokemon-essentials-clean-room`，login=false。E21 的 `git diff --cached --check` 检出 command-log.md 文件末尾多一个空行并停止；E22 去除该空行后重做检查通过，暂存差异为 8 个 A，全部位于准备目录，未暂存差异为空。没有修改历史文件。
+
+```bash
+git add -- review/remediation-20261003-prepare/
+git diff --cached --check
+git diff --cached --name-status
+git diff --cached --stat
+```
+
+E23/E24 实际提交、推送与独立远端读取：
+
+```bash
+git -c user.name=Codex -c user.email=codex@users.noreply.github.com commit -m 'docs: prepare remediation context for 20261003'
+git rev-parse HEAD
+git status --porcelain=v1 --untracked-files=all
+git push --set-upstream origin HEAD:refs/heads/remediation/20261003-prepare/prepare
+git ls-remote --heads origin refs/heads/remediation/20261003-prepare/prepare refs/heads/main
+```
+
+结果：payload `8af927ddcd8cfba62e36b41263f5fc6a94138aeb`；push 成功；远端准备分支 SHA 同值，远端 main 为 `e1e01bb18d824931e54f182dd61af5a9f908ba85`。命令级 Codex 公共 noreply 身份避免私人邮箱进入 commit 元数据，不改持久用户配置。未按远端提示创建 PR。
+
+E25 以 `git diff --name-status e1e01bb18d824931e54f182dd61af5a9f908ba85 8af927ddcd8cfba62e36b41263f5fc6a94138aeb` 再确认 8 项全为本目录新增；再次只读核对参考 HEAD 和 status，均保持。随后在同目录追加 publication-receipt.json 并更新本轮 manifest/交接说明。发布回执自身后续提交的最终 SHA 由最后 push 后 ls-remote 和最终交接提供，不在本文件预填将来结果。
+
 本记录列出本轮实际执行的关键 shell 命令与环境工具事实，不是仓库脚本执行记录或全局测试报告。所有 exec_command 均为 `login=false`。读操作使用本轮内联 Python 标准库脚本，不 import 或运行仓库/参考代码。原始输出未整份复制，以避免将系统账户、认证信息或历史材料中的私人路径带入公开记录。
 
 工作目录：E03/E06/E10 为 `/workspace`；E11 为 `/workspace/pokemon-essentials-reference-8c5911e`；其余下列 shell 块为 `/workspace/pokemon-essentials-clean-room`。前置环境枚举也在 `/workspace`。

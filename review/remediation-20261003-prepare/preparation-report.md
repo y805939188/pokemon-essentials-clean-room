@@ -4,6 +4,8 @@ RUN_ID：`20261003-prepare`。日期：2026-10-03（UTC）。阶段状态：`REA
 
 此状态只表示环境、固定参考与上下文准备完成，等待用户交付最终全局 review；**不表示审查通过，也不允许进入阶段 B**。本轮没有执行规格整改、全局审查、独立审批或任务派生。提交发布记录见 [handoff.md](handoff.md) 与 [run-manifest.json](run-manifest.json)。
 
+准备内容提交 `8af927ddcd8cfba62e36b41263f5fc6a94138aeb` 已推送并由独立 `ls-remote` 核实；当时远端 main 仍为开工基线。实际发布回执见 [publication-receipt.json](publication-receipt.json)。本回执自身追加提交的最终 SHA 由 Git 历史和最终交接消息给出，不伪造自引用身份。
+
 ## 1. 授权及实际基线
 
 - 主仓库：`https://github.com/y805939188/pokemon-essentials-clean-room`。
