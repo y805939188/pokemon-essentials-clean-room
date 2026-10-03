@@ -1,0 +1,123 @@
+# X-A-FORM-SHADOW-SUPPLEMENT：独立首判
+
+保存时间：2026-10-03 18:50:43 UTC。项目固定提交 `e1e01bb18d824931e54f182dd61af5a9f908ba85`；参考固定提交 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。以下均为静态阅读与明确前提下的算术推导，不是运行观察。只读中性简报后形成；自己的已发布主审可具名复用，未读对应 C/root 结论。新 WP 主审 0、新缺陷 0；RUN-A-027 与既有捕获伙伴交界只传播不重复计数。U01–U10、G01–G12、20AX 不变。
+
+## FS01 三种形态写入及学习拒绝
+
+判断：**CONFIRMED_STATIC_WITH_EXISTING_A027_PROPAGATION**（HIGH_STATIC）。
+
+合法、非蛋、未锁定形态个体；玩家与图鉴存在；数据及消息/刷新正常返回；不假设消息回调没有自己的可见读取。 学习取消使用无旧形态专招的四招 ROTOM 改为形态1；Shadow 拒绝使用相同基础对象的有效 Shadow 变体；直接入口与正常目录分开。
+
+普通提交先写形态、失效特性缓存，再执行提交处理、重算、图鉴登记；提示型在缓存失效后、提交处理前调用提示。学习返回未学会并不回滚形态，之后仍重算并登记。简化写入只有形态及重算，不失效特性缓存、不改招、不登记；中途读取可能重新填充缓存，不能保证返回时缓存仍为空。
+
+- ROTOM形态1且唯一招OVERHEAT，经低层普通或提示提交再次写1：目标已掌握使新增目标为空，随后原形态招仍被删除，最终招式列表为空；没有进入缺目标时的保底分支。
+- 相同个体在正常ROTOMCATALOG中选当前形态：无效返回、OVERHEAT保留；不是正常目录可以复现的删除链。
+- 四招且无任何Rotom形态专招，0→1并放弃OVERHEAT：形态1、原四招不变、重算和图鉴登记继续。有效Shadow的同一新增分支被教学门拒绝，形态仍1。
+
+规格处置：三入口及拒绝不回滚已由WP21原179-195/最终155-171准确区分；重复同形态删除沿用RUN-A-027，本次不新增或重复计数。
+
+参考证据（均为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`）：
+
+- `Data/Scripts/014_Pokemon/001_Pokemon.rb:147-184`
+- `Data/Scripts/014_Pokemon/001_Pokemon-related/001_FormHandlers.rb:221-264`
+- `Data/Scripts/013_Items/001_Item_Utilities.rb:582-627`
+- `Data/Scripts/013_Items/002_Item_Effects.rb:1232-1261`
+- `Data/Scripts/015_Trainers and player/005_Player_Pokedex.rb:195-218`
+
+## FS02 Mega/Primal离场对象集合及还原顺序
+
+判断：**CONFIRMED_STATIC_BY_ENTRY**（HIGH_STATIC）。
+
+各例采用合法未锁定的Mega个体或持对应宝珠的Primal个体；默认注册、无插件改写、前序正常返回；不使用普通流程中未经证明的失宝珠历史。 捕获采用合法可捕获目标与通过容量/投球门的成功分支；满队换出例提供盒位并选择有效成员。
+
+普通换下只调用一般离场处理并将战斗副本视为濒死，不统一解除持久Mega/Primal。真正濒死在一般离场后显式解除。捕获目标先解除两种、更新Shadow招式/首招、解除适用锁定，再一般离场并排队。满队被换出者先一般离场、清剧毒计数、解除两种、送盒，再删除/移动记录；取消选人尚未到这些写入。裸终局只对玩家侧参与队伍数组做一般离场后持物还原，不统一解除特殊形态，也不处理整个敌方队伍。世界包装另处理当前玩家队伍及存在时的伙伴队伍；设施正常返回先恢复等级，然后双方各自治疗、解除、按索引还原物品。
+
+- 持BLUEORB的KYOGRE形态1普通换下仍1；真正濒死则0。默认基线该物种有进入Primal处理器，无一般离场自动还原注册。
+- 裸正常终局仍保留的Mega成员可以继续为Mega；接着世界正常包装返回才解除当前玩家队伍中的该成员。
+- 设施解除读取的是该阶段当前物品，随后才恢复旧物品；不得以完整快照恢复或旧物品先恢复替代该次序。
+
+规格处置：WP22原及最终74-87的分入口表在本次集合与次序上成立；WP38换出持物的伙伴错位沿用已发布X-A-CAPTURE-PARTNER，不由本次再开新缺陷。
+
+参考证据（均为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`）：
+
+- `Data/Scripts/014_Pokemon/002_Pokemon_MegaEvolution.rb:1-83`
+- `Data/Scripts/014_Pokemon/001_Pokemon-related/001_FormHandlers.rb:164-176`
+- `Data/Scripts/011_Battle/007_Other battle code/004_Battle_Peers.rb:39-59`
+- `Data/Scripts/011_Battle/002_Battler/006_Battler_AbilityAndItem.rb:5-28`
+- `Data/Scripts/011_Battle/001_Battle/005_Battle_ActionSwitching.rb:219-225`
+- `Data/Scripts/011_Battle/002_Battler/003_Battler_ChangeSelf.rb:64-98`
+- `Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb:15-80;165-195`
+- `Data/Scripts/011_Battle/001_Battle/002_Battle_StartAndEnd.rb:479-511`
+- `Data/Scripts/012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb:306-329`
+- `Data/Scripts/018_Alternate battle modes/001_Battle Frontier/004_Challenge_Battles.rb:50-96`
+
+## FS03 重复Shadow建立、治疗、HP与复制
+
+判断：**CONFIRMED_STATIC**（HIGH_STATIC）。
+
+所有个体、暂存EV六项及常规字段有效；非蛋；复制与原对象分开引用。 有Shadow招式的重建对照明确为有效可选内容已存在的条件变体；默认缺这些招式时另列，不声称默认安装已启用。
+
+重复建立没有已Shadow早退；清旧暂存经验、创建新的暂存EV表、重置心量与步数/Hyper/招式记录，并从当时当前招式重新记录原招。完整治疗不清Shadow、量表或存储Hyper；HP赋0经基础清理后明确清Hyper。G0只屏蔽有效Hyper读取，不必清存储。普通复制另建IV/EV与招式等容器；Shadow扩展未另建暂存EV表，因此内容仍共享，Shadow招式记录列表另复制；重新把副本暂存EV引用置空只影响副本。
+
+- 已有暂存S100、攻击V1、G1、Hyper真的有效Shadow重新建立：S0、新V全0、G=M、步数0、Hyper假。
+- 条件化有SHADOWRUSH、当前只剩该招时重新建立会把该招当新的原招记录；不会复原第一次建立前已不在当前表中的招式。默认没有有效Shadow招式时记录为空，当前招式原样保留。
+- A和其克隆B初始共享暂存EV：B攻击项1→7，A读7；B再把暂存EV置空，A表仍在且攻击7；B另改Shadow招式记录列表不改变A列表。
+- HP正、G正、Hyper真：完整治疗后仍有效Hyper；HP写0则存储Hyper假；只将G降0再人工升回正值会重新暴露未清的旧Hyper。
+
+规格处置：WP23最终30、52-58、68-70及SH02/15/41已保留这些观察；参考共享行为不另算规格缺陷。
+
+参考证据（均为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`）：
+
+- `Data/Scripts/014_Pokemon/003_Pokemon_ShadowPokemon.rb:13-26;93-140;142-219`
+- `Data/Scripts/014_Pokemon/001_Pokemon.rb:246-305;1133-1150`
+
+## FS04 净化提交、跨级失败和三种后续拒绝
+
+判断：**CONFIRMED_STATIC_WITH_REACHABILITY_LIMITS**（HIGH_STATIC）。
+
+默认Medium RATTATA、非蛋、HP正、E1000/L10、G0、有效Shadow、全部EV0、有效六项暂存EV且攻击1；昵称原为Keep，允许命名。 净化室中心已合法放置，有至少1名普通外圈，前序资源/消息/窗口创建与显示操作正常；无自定义更新转发。遗迹石例已通过其选择门。
+
+资格后先增统计、清Shadow/Hyper、授缎带、恢复招式并记录首招、返还EV并清暂存EV；再计算80%经验并清暂存经验。相同等级直接写精确经验并重算。跨等级先进入等级工具，净化室Screen缺更新回调，在第一个能力窗口的更新处失败，早于确认键检查；此时等级下限经验已写，精确余数、学招、进化、昵称、存放与清中心未到。遗迹石Screen提供空更新，不在该处失败。
+
+- S100：请求80，E1080仍L10；净化与恢复完成后拒绝命名，昵称Keep保留，净化不回滚，净化室继续存放再清中心。
+- S416：请求332、目标1332/L11。净化室先写L11下限1331并重算、升级友好变化，首窗更新失败；统计/Shadow/Hyper/缎带/招式/首招/EV/清V清S已提交，E不是1332，中心仍引用对象。相同遗迹石例在前序及窗口正常前提下可完成到1332。
+- S100并双满：前述净化、E1080和可到达命名已完成；通用存放仅提示后返回，调用者仍清中心。没有保留源中心的容量失败回滚。
+- 两组合格并第一组正常完成存放/清中心后，在切换下一组询问选择No：第一组已提交保持，第二组保持待净化；与第一组命名No不同。
+- 遗迹石在选择成员时取消：没有调用净化；外围提示及选择结果变量不等同完全无状态变化。
+
+规格处置：WP23最终86-110与WP67-B原141-153/最终122-134，以及SH24/43/44、L16-20已记录这些分层。宿主窗口呈现与异常清理未运行，不声称所有视觉操作必达或必安全。
+
+参考证据（均为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`）：
+
+- `Data/Scripts/014_Pokemon/001_Pokemon-related/002_ShadowPokemon_Other.rb:17-58;106-160`
+- `Data/Scripts/013_Items/001_Item_Utilities.rb:132-221`
+- `Data/Scripts/016_UI/023_UI_PurifyChamber.rb:234-249;348-628;1072-1088;1110-1127;1287-1293`
+- `Data/Scripts/019_Utilities/002_Utilities_Pokemon.rb:4-30`
+- `Data/Scripts/010_Data/001_Hardcoded data/001_GrowthRate.rb:64-92`
+- `PBS/pokemon.txt:469-495`
+
+## FS05 暗影经验消息的正常调用者与直接辅助
+
+判断：**CONDITIONAL_HELPER_CLAIM_VALID_NORMAL_CALLER_SUPPRESSES**（HIGH_STATIC）。
+
+默认世代8；玩家自有RATTATA L10/E1000、有效Shadow、S0、无经验/努力修正物品、无Exp Charm/Exp All/Exp Share、无Pokérus、现有EV与暂存EV均0；对方野生RATTATA L10且只登记玩家该参与者，接收者可战斗。 普通击败例对方已濒死；捕获例合法投球成功、默认捕获经验开启、目标临时捕获标记真。直接辅助例明确手动开启消息，保持相同收益输入。心量取结算调用时的G，不把派出前G当结算G。
+
+正常分配给参与/分享者传入非Shadow时才显示单体经验消息；Exp All余者也关闭单体消息，可能另有一次整体消息。捕获成长调用同一分配入口，不绕过此门。单人辅助确实先在消息开启且增量正时显示消息，然后处理Shadow：H≤3增加暂存和统计，H4/5不增加；两者均不进普通经验条/升级/学招。
+
+- 由固定RATTATA BaseExp51、双方Lv10得正常单参与收益103。G1600/H2：正常击败或捕获均无单体获得消息，E1000/S103、统计+103、速度暂存EV+1；G2401/H4：无单体获得消息，E1000/S0、经验统计不变、速度EV进入普通EV而非暂存。
+- 对完全相同输入直接调用单人辅助并显式开启消息：H2和H4都先显示获得103的消息；H2再S+103/统计+103，H4不暂存/不增统计。仅调用经验辅助不会凭空执行独立EV分配。
+- Exp All只有未参与有效Shadow接收者时，仍可显示一次整体其他成员经验提示；不能把关闭单体消息误写为所有消息都无。
+
+规格处置：WP30原83/204和最终86/215准确描述正常调用抑制。WP67-A原177/329/364、最终155及测试K23/K58明确有消息开启前提，条件化辅助结果成立；不支持将其解读为正常暗影战斗会显示单体消息。建议同段补直接辅助入口标签和正常调用对照；目前不将有前提的句子判为无条件行为错误，不新增P2。
+
+参考证据（均为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`）：
+
+- `Data/Scripts/011_Battle/001_Battle/003_Battle_ExpAndMoveLearning.rb:5-89;92-184`
+- `Data/Scripts/014_Pokemon/003_Pokemon_ShadowPokemon.rb:13-20;93-102`
+- `Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb:165-174`
+- `Data/Scripts/002_BattleSettings.rb:99-117`
+- `PBS/pokemon.txt:469-495`
+
+## 限定
+
+本次不把旧批准状态当作当前判断，不补写实现或修改参考；复制共享、缺更新回调及双满清中心均按可见状态结果登记。源码中的接口名称仅用于审计定位，不作为未来框架设计。先保存的本文件与 JSON 在比较阶段不得追改；比较使用独立文件。
