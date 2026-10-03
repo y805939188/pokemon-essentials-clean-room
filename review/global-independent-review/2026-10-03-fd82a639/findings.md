@@ -5,8 +5,8 @@
 | 全局 ID | 当前级别 | 标题 | 当前处置 | 原始 ID |
 | --- | --- | --- | --- | --- |
 | WP80-INTAKE-R01 | P2 | 必要输入语法全角化 | CONFIRMED_REQUIRED_REVISION | RUN-C-001 |
-| WP80-INTAKE-R02 | P2 | 原输入批准与净化输出待审混淆 | OPEN_PENDING_FINAL_ADJUDICATION | ROOT/intake |
-| WP80-INTAKE-C01 | P3 | 作者报告分域和测试族统计错误 | OPEN_PENDING_FINAL_ADJUDICATION | ROOT/intake |
+| WP80-INTAKE-R02 | P2 | 原输入批准与净化输出待审混淆 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
+| WP80-INTAKE-C01 | P3 | 作者报告分域和测试族统计错误 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
 | WP80-B02-R01 | P3 | 来源结构与取证统计进入净化正文 | PARTIALLY_ADDRESSED_RESIDUAL_OPEN | RUN-A-007 |
 | WP80-B02-R02 | P3 | 批准身份和条款去向声明不准确 | PARTIALLY_ADDRESSED_RESIDUAL_OPEN | RUN-A-008 |
 | GIR-FD82-001 | P3 | 全集范围声明与导航仍停留在旧交付阶段 | CONFIRMED_REQUIRED_REVISION | RUN-A-005,RUN-D-001 |
@@ -54,11 +54,11 @@
 | GIR-FD82-A044 | P2 | 背包TR教学会加入重学记录，队伍入口不会 | CONFIRMED_REQUIRED_REVISION | RUN-A-044 |
 | GIR-FD82-A045 | P2 | 内层进化取消不属于非战斗取消不消耗的统一保证 | CONFIRMED_REQUIRED_REVISION | RUN-A-045 |
 | GIR-FD82-A046 | P2 | 主动HP回复族缺少实际回复量映射，SITRUS为比例回复 | CONFIRMED_REQUIRED_REVISION | RUN-A-046 |
-| GIR-FD82-A047 | P2 | 经验缩放合同缺少先整除5和基础份额为零的早退门 | OPEN_PENDING_ADJUDICATION | RUN-A-047 |
-| GIR-FD82-A048 | P2 | 空重学候选在初次绘制时失败，不能正常进入空列表取消 | OPEN_PENDING_ADJUDICATION | RUN-A-048 |
-| GIR-FD82-A049 | P3 | 战斗学招遗忘选择实际使用单个体摘要画面 | OPEN_PENDING_ADJUDICATION | RUN-A-049 |
-| GIR-FD82-A050 | P3 | 进化完成前可见新种白色剪影 | OPEN_PENDING_ADJUDICATION | RUN-A-050 |
-| GIR-FD82-A051 | P3 | 三成员捕获替换示例需显式声明队伍容量已满 | OPEN_PENDING_ADJUDICATION | RUN-A-051 |
+| GIR-FD82-A047 | P2 | 经验缩放合同缺少先整除5和基础份额为零的早退门 | CONFIRMED_REQUIRED_REVISION | RUN-A-047 |
+| GIR-FD82-A048 | P2 | 空重学候选在初次绘制时失败，不能正常进入空列表取消 | CONFIRMED_REQUIRED_REVISION | RUN-A-048 |
+| GIR-FD82-A049 | P3 | 战斗学招遗忘选择实际使用单个体摘要画面 | CONFIRMED_REQUIRED_REVISION | RUN-A-049 |
+| GIR-FD82-A050 | P3 | 进化完成前可见新种白色剪影 | CONFIRMED_REQUIRED_REVISION | RUN-A-050 |
+| GIR-FD82-A051 | P3 | 三成员捕获替换示例需显式声明队伍容量已满 | CONFIRMED_REQUIRED_REVISION | RUN-A-051 |
 | GIR-FD82-B001 | P2 | 特殊调用前置失败时，最近招式清除范围写错 | CONFIRMED_REQUIRED_REVISION | RUN-B-001 |
 | GIR-FD82-B002 | P2 | 无可战斗成员的队伍先失败于计数/业主校验，未到已声明消息 | CONFIRMED_REQUIRED_REVISION | RUN-B-002 |
 | GIR-FD82-B003 | P2 | 战斗条款字面键被截短，设置路径也被过度概括 | CONFIRMED_REQUIRED_REVISION | RUN-B-003 |
@@ -82,11 +82,11 @@
 | GIR-FD82-B022 | P2 | WP52-B/C 净化附表改变了效果身份、评分阶段及绑定 | CONFIRMED_REQUIRED_REVISION | RUN-B-022 |
 | GIR-FD82-B023 | P2 | Geomancy 评分缺少默认自身目标不会消费已登记目标偏好的边界 | CONFIRMED_REQUIRED_REVISION | RUN-B-023 |
 | GIR-FD82-B024 | P2 | 宝石评级附表把世代条件改成基础评级条件 | CONFIRMED_REQUIRED_REVISION | RUN-B-024,RUN-D-011 |
-| GIR-FD82-B025 | P2 | WP54净化稿把裁判来源改成最后出招方，灭亡歌路径可反转胜负 | OPEN_PENDING_ADJUDICATION | RUN-B-025 |
-| GIR-FD82-B026 | P2 | WP53未限定伙伴优先门，缩为一员不能保证捕虫战斗接管 | OPEN_PENDING_ADJUDICATION | RUN-B-026 |
-| GIR-FD82-B027 | P3 | WP54的非空列表提交条件与WP55空列表合同相互冲突 | OPEN_PENDING_ADJUDICATION | RUN-B-027 |
+| GIR-FD82-B025 | P2 | WP54净化稿把裁判来源改成最后出招方，灭亡歌路径可反转胜负 | CONFIRMED_REQUIRED_REVISION | RUN-B-025 |
+| GIR-FD82-B026 | P2 | WP53未限定伙伴优先门，缩为一员不能保证捕虫战斗接管 | CONFIRMED_REQUIRED_REVISION | RUN-B-026 |
+| GIR-FD82-B027 | P3 | WP54的非空列表提交条件与WP55空列表合同相互冲突 | CONFIRMED_REQUIRED_REVISION | RUN-B-027 |
 | GIR-FD82-C002 | P2 | 表达式开关“翻转后显示不变”缺少表达式独立于该开关的前提 | CONFIRMED_REQUIRED_REVISION | RUN-C-002 |
-| GIR-FD82-C003 | P2 | CE-M02 净化丢失数值和布尔子型，取消预期不再唯一 | CONFIRMED_REQUIRED_REVISION | RUN-C-003,RUN-D-022 |
+| GIR-FD82-C003 | P2 | CE-M02 净化丢失数值和布尔子型，取消预期不再唯一 | CONFIRMED_REQUIRED_REVISION | RUN-C-003,RUN-D-007,RUN-D-022 |
 | GIR-FD82-C004 | P2 | 遭遇步数率 0 在反写后重编译变回默认值的语义损失未登记 | CONFIRMED_REQUIRED_REVISION | RUN-C-004 |
 | GIR-FD82-C005 | P2 | 遭遇编辑/编译后的注册数据与当前地图快照未在生效合同中分层 | CONFIRMED_REQUIRED_REVISION | RUN-C-005 |
 | GIR-FD82-C007 | P2 | 120 项战斗效果白名单的具体合同仍留在历史交付附件 | CONFIRMED_REQUIRED_REVISION | RUN-C-007,RUN-D-016 |
@@ -181,7 +181,6 @@
 | GIR-FD82-C096 | P2 | 相同遭遇版本写入不会重装表或清步数 | OPEN_PENDING_ADJUDICATION | RUN-C-096 |
 | GIR-FD82-C097 | P2 | 逃生点只被当作既有输入，创建及洞窟边界未提取 | OPEN_PENDING_ADJUDICATION | RUN-C-097 |
 | GIR-FD82-D006 | P2 | 独立读者问题 RUN-D-006: test-oracle overgeneralization | OPEN_PENDING_ADJUDICATION | RUN-D-006 |
-| GIR-FD82-D007 | P2 | 独立读者问题 RUN-D-007: test precondition insufficient | OPEN_PENDING_ADJUDICATION | RUN-D-007 |
 | GIR-FD82-D012 | P2 | 独立读者问题 RUN-D-012: test-oracle arithmetic contradiction | NOT_REQUIRED_AS_REPORTED | RUN-D-012 |
 | GIR-FD82-D015 | P2 | 独立读者问题 RUN-D-015: fixed arithmetic contradicts initialization reachability | OPEN_PENDING_ADJUDICATION | RUN-D-015 |
 | GIR-FD82-D017 | P2 | 独立读者问题 RUN-D-017: missing deterministic target-order data | OPEN_PENDING_ADJUDICATION | RUN-D-017 |
@@ -192,6 +191,6 @@
 | GIR-FD82-D025 | P2 | 独立读者问题 RUN-D-025: contradictory variable ACTION transition | CONFIRMED_REQUIRED_REVISION | RUN-D-025 |
 | GIR-FD82-004 | P2 | 盒子成功交换后的暂持状态在同稿中相互矛盾 | OPEN_PENDING_SECOND_REVIEW | ROOT/intake |
 
-本检查点汇集 200 条原始发现，归并为 187 个全局候选（含初始项与总审独立项）。计数随剩余批次推进；不据此推算工作包或规则覆盖率。
+本检查点汇集 200 条原始发现，归并为 186 个全局候选（含初始项与总审独立项）。计数随剩余批次推进；不据此推算工作包或规则覆盖率。
 
 固定输入：项目 e1e01bb18d824931e54f182dd61af5a9f908ba85；参考 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b。来源定位均为静态证据，运行观察和已证 demo 事件链仍为 0。
