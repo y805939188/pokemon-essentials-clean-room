@@ -9,7 +9,7 @@
 | WP80-INTAKE-C01 | P3 | 作者报告分域和测试族统计错误 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
 | WP80-B02-R01 | P3 | 来源结构与取证统计进入净化正文 | PARTIALLY_ADDRESSED_RESIDUAL_OPEN | RUN-A-007 |
 | WP80-B02-R02 | P3 | 批准身份和条款去向声明不准确 | PARTIALLY_ADDRESSED_RESIDUAL_OPEN | RUN-A-008 |
-| GIR-FD82-001 | P3 | 全集范围声明与导航仍停留在旧交付阶段 | CONFIRMED_REQUIRED_REVISION | RUN-A-005,RUN-D-001 |
+| GIR-FD82-001 | P3 | 全集范围声明与导航仍停留在旧交付阶段 | CONFIRMED_REQUIRED_REVISION | RUN-A-005,RUN-C-132,RUN-D-001 |
 | GIR-FD82-002 | P2 | 旧不适用判定遗漏图片、计时器及地图覆盖层的可观察合同 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
 | GIR-FD82-A001 | P2 | 奇数引号合并耗尽输入时，KL10 错误预期去除包围标记 | CONFIRMED_REQUIRED_REVISION | RUN-A-001 |
 | GIR-FD82-A002 | P2 | PBS 新鲜度判定遗漏整数秒取整 | CONFIRMED_REQUIRED_REVISION | RUN-A-002 |
@@ -55,7 +55,7 @@
 | GIR-FD82-A045 | P2 | 内层进化取消不属于非战斗取消不消耗的统一保证 | CONFIRMED_REQUIRED_REVISION | RUN-A-045 |
 | GIR-FD82-A046 | P2 | 主动HP回复族缺少实际回复量映射，SITRUS为比例回复 | CONFIRMED_REQUIRED_REVISION | RUN-A-046 |
 | GIR-FD82-A047 | P2 | 经验缩放合同缺少先整除5和基础份额为零的早退门 | CONFIRMED_REQUIRED_REVISION | RUN-A-047 |
-| GIR-FD82-A048 | P2 | 空重学候选在初次绘制时失败，不能正常进入空列表取消 | CONFIRMED_REQUIRED_REVISION | RUN-A-048 |
+| GIR-FD82-A048 | P2 | 空重学候选在初次绘制时失败，不能正常进入空列表取消 | CONFIRMED_REQUIRED_REVISION | RUN-A-048,RUN-C-116 |
 | GIR-FD82-A049 | P3 | 战斗学招遗忘选择实际使用单个体摘要画面 | CONFIRMED_REQUIRED_REVISION | RUN-A-049 |
 | GIR-FD82-A050 | P3 | 进化完成前可见新种白色剪影 | CONFIRMED_REQUIRED_REVISION | RUN-A-050 |
 | GIR-FD82-A051 | P3 | 三成员捕获替换示例需显式声明队伍容量已满 | CONFIRMED_REQUIRED_REVISION | RUN-A-051 |
@@ -65,6 +65,8 @@
 | GIR-FD82-A055 | P2 | 图鉴搜索结束总复位数值序与无结果取消路径冲突 | CONFIRMED_REQUIRED_REVISION | RUN-A-055 |
 | GIR-FD82-A056 | P3 | 区域图鉴菜单误把用于完成标记的长度列为可见数字 | CONFIRMED_REQUIRED_REVISION | RUN-A-056 |
 | GIR-FD82-A057 | P2 | 管理界面 Receive 后的 Edit 可改写已领取的队伍个体 | CONFIRMED_REQUIRED_REVISION | RUN-A-057 |
+| GIR-FD82-A058 | P2 | 命名与载入预览的四帧布局、节拍和箱名分支未承接 | CONFIRMED_REQUIRED_REVISION | RUN-A-058 |
+| GIR-FD82-A059 | P2 | 战斗、胜利与捕获音频的选择和回退链缺少最终行为合同 | CONFIRMED_REQUIRED_REVISION | RUN-A-059 |
 | GIR-FD82-B001 | P2 | 特殊调用前置失败时，最近招式清除范围写错 | CONFIRMED_REQUIRED_REVISION | RUN-B-001 |
 | GIR-FD82-B002 | P2 | 无可战斗成员的队伍先失败于计数/业主校验，未到已声明消息 | CONFIRMED_REQUIRED_REVISION | RUN-B-002 |
 | GIR-FD82-B003 | P2 | 战斗条款字面键被截短，设置路径也被过度概括 | CONFIRMED_REQUIRED_REVISION | RUN-B-003 |
@@ -94,15 +96,16 @@
 | GIR-FD82-B028 | P2 | Arena 补位并未重置裁判周期，规范把未接通的复位入口当成实际行为 | CONFIRMED_REQUIRED_REVISION | RUN-B-028 |
 | GIR-FD82-B029 | P2 | 录像换人序列漏掉通过替补辅助入口到达的攻击阶段来源 | CONFIRMED_REQUIRED_REVISION | RUN-B-029 |
 | GIR-FD82-B030 | P2 | 录像初始条件没有交代设施准备阶段与地形、默认天气丢失的具体边界 | NOT_REQUIRED_AS_REPORTED | RUN-B-030 |
-| GIR-FD82-B031 | P2 | 目标取消返回层次不能一律写回招式菜单 | OPEN_PENDING_ADJUDICATION | RUN-B-031 |
-| GIR-FD82-B032 | P2 | Mega按钮资格写成必需持Mega石，丢失以已会指定招式取得Mega形态的实际路径；同时调试Ctrl只能绕过前三门之后的限制 | OPEN_PENDING_ADJUDICATION | RUN-B-032 |
-| GIR-FD82-B033 | P2 | NearAlly无存活相邻同伴时初始目标实际回退自身，不会选昏厥相邻者；两次候选枚举都已经排除昏厥者 | OPEN_PENDING_ADJUDICATION | RUN-B-033 |
-| GIR-FD82-B034 | P3 | WP67-A把调试替身出招辅助入口描述为随机合法值；直接入口在读取当前Battler不存在的单数招式访问时失败，WP76已明确此点 | OPEN_PENDING_ADJUDICATION | RUN-B-034 |
+| GIR-FD82-B031 | P2 | 目标取消返回层次不能一律写回招式菜单 | CONFIRMED_REQUIRED_REVISION | RUN-B-031 |
+| GIR-FD82-B032 | P2 | Mega按钮资格写成必需持Mega石，丢失以已会指定招式取得Mega形态的实际路径；同时调试Ctrl只能绕过前三门之后的限制 | CONFIRMED_REQUIRED_REVISION | RUN-B-032 |
+| GIR-FD82-B033 | P2 | NearAlly无存活相邻同伴时初始目标实际回退自身，不会选昏厥相邻者；两次候选枚举都已经排除昏厥者 | CONFIRMED_REQUIRED_REVISION | RUN-B-033 |
+| GIR-FD82-B034 | P3 | WP67-A把调试替身出招辅助入口描述为随机合法值；直接入口在读取当前Battler不存在的单数招式访问时失败，WP76已明确此点 | CONFIRMED_REQUIRED_REVISION | RUN-B-034 |
+| GIR-FD82-B035 | P2 | 商店失败回退只恢复总件数，不能概括为容器无净变化 | CONFIRMED_REQUIRED_REVISION | RUN-B-035 |
 | GIR-FD82-C002 | P2 | 表达式开关“翻转后显示不变”缺少表达式独立于该开关的前提 | CONFIRMED_REQUIRED_REVISION | RUN-C-002 |
-| GIR-FD82-C003 | P2 | CE-M02 净化丢失数值和布尔子型，取消预期不再唯一 | CONFIRMED_REQUIRED_REVISION | RUN-C-003,RUN-D-007,RUN-D-022 |
+| GIR-FD82-C003 | P2 | CE-M02 净化丢失数值和布尔子型，取消预期不再唯一 | CONFIRMED_REQUIRED_REVISION | RUN-C-003,RUN-D-007,RUN-D-021,RUN-D-022 |
 | GIR-FD82-C004 | P2 | 遭遇步数率 0 在反写后重编译变回默认值的语义损失未登记 | CONFIRMED_REQUIRED_REVISION | RUN-C-004 |
 | GIR-FD82-C005 | P2 | 遭遇编辑/编译后的注册数据与当前地图快照未在生效合同中分层 | CONFIRMED_REQUIRED_REVISION | RUN-C-005 |
-| GIR-FD82-C007 | P2 | 120 项战斗效果白名单的具体合同仍留在历史交付附件 | CONFIRMED_REQUIRED_REVISION | RUN-C-007,RUN-D-016 |
+| GIR-FD82-C007 | P2 | 120 项战斗效果白名单的具体合同仍留在历史交付附件 | CONFIRMED_REQUIRED_REVISION | RUN-C-007,RUN-C-090,RUN-D-016 |
 | GIR-FD82-C008 | P2 | 完整调试菜单的 Use PC 入口没有规格或测试承接 | CONFIRMED_REQUIRED_REVISION | RUN-C-008 |
 | GIR-FD82-C009 | P2 | 寄养与遗迹石选人取消仍覆盖固定事件变量 | CONFIRMED_REQUIRED_REVISION | RUN-C-009 |
 | GIR-FD82-C010 | P2 | 示例队伍缺少固定物种顺序与逐物种招式映射 | CONFIRMED_REQUIRED_REVISION | RUN-C-010 |
@@ -174,53 +177,67 @@
 | GIR-FD82-C076 | P2 | 玩家性别色与相反性别色被合写而无各自规则 | CONFIRMED_REQUIRED_REVISION | RUN-C-076 |
 | GIR-FD82-C077 | P2 | 世界角色动画只有入口概述而缺少独立播放合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-077 |
 | GIR-FD82-C078 | P2 | 震动力度0会在更新时失败而非产生零位移 | CONFIRMED_REQUIRED_REVISION | RUN-C-078 |
-| GIR-FD82-C079 | P2 | 等级修正的特性身份与参考登记不一致 | OPEN_PENDING_ADJUDICATION | RUN-C-079 |
-| GIR-FD82-C080 | P2 | 遭遇专用解析遗漏重复类型覆盖及数值接受边界 | OPEN_PENDING_ADJUDICATION | RUN-C-080 |
-| GIR-FD82-C081 | P2 | 迈步计数把回绕写成钳制 | OPEN_PENDING_ADJUDICATION | RUN-C-081 |
-| GIR-FD82-C082 | P2 | 普通遭遇机会的陆地表口径遗漏捕虫表 | OPEN_PENDING_ADJUDICATION | RUN-C-082 |
-| GIR-FD82-C083 | P2 | 队伍平衡等级只有名称，没有可计算的规则 | OPEN_PENDING_ADJUDICATION | RUN-C-083 |
-| GIR-FD82-C084 | P2 | 漫游公开链遗漏临时个体生成及其副作用 | OPEN_PENDING_ADJUDICATION | RUN-C-084 |
-| GIR-FD82-C085 | P2 | 漫游覆盖许可遗漏暂态下标存在门 | OPEN_PENDING_ADJUDICATION | RUN-C-085 |
-| GIR-FD82-C086 | P2 | 独立上浮入口被并入DIVE，丢失返回和音乐差异 | OPEN_PENDING_ADJUDICATION | RUN-C-086 |
-| GIR-FD82-C087 | P2 | 力量交互把strengthboulder标记缩短为boulder | OPEN_PENDING_ADJUDICATION | RUN-C-087 |
-| GIR-FD82-C088 | P2 | 旅行能力缺少落位方向与坐标保留规则 | OPEN_PENDING_ADJUDICATION | RUN-C-088 |
-| GIR-FD82-C089 | P2 | 通用场地招式演出未形成行为合同 | OPEN_PENDING_ADJUDICATION | RUN-C-089 |
-| GIR-FD82-C090 | P2 | 日夜色调引用24项表，却未交付任何具体表值 | OPEN_PENDING_ADJUDICATION | RUN-C-090 |
-| GIR-FD82-C091 | P2 | 星期/月/季节辅助遗漏候选集合与布尔结果 | OPEN_PENDING_ADJUDICATION | RUN-C-091 |
-| GIR-FD82-C092 | P2 | 雨类水花索引基准及显示周期未完整定义 | OPEN_PENDING_ADJUDICATION | RUN-C-092 |
-| GIR-FD82-C093 | P2 | 天气目录未交付速度/色调数据，Storm图形关系还被写错 | OPEN_PENDING_ADJUDICATION | RUN-C-093 |
-| GIR-FD82-C094 | P2 | 进入地图的立即天气设置未接回连接跨界的渐变标志 | OPEN_PENDING_ADJUDICATION | RUN-C-094 |
-| GIR-FD82-C095 | P2 | 攀瀑效果未给向上门与成功返回但不移动的结果 | OPEN_PENDING_ADJUDICATION | RUN-C-095 |
-| GIR-FD82-C096 | P2 | 相同遭遇版本写入不会重装表或清步数 | OPEN_PENDING_ADJUDICATION | RUN-C-096 |
-| GIR-FD82-C097 | P2 | 逃生点只被当作既有输入，创建及洞窟边界未提取 | OPEN_PENDING_ADJUDICATION | RUN-C-097 |
-| GIR-FD82-C098 | P2 | 鱼竿资格把当前格出向通行写成面向格通行 | OPEN_PENDING_ADJUDICATION | RUN-C-098 |
-| GIR-FD82-C099 | P2 | 收竿窗口未定义期限相等及同轮输入优先级 | OPEN_PENDING_ADJUDICATION | RUN-C-099 |
-| GIR-FD82-C100 | P2 | 覆盖物修正并不限于新机制植物 | OPEN_PENDING_ADJUDICATION | RUN-C-100 |
-| GIR-FD82-C101 | P2 | 浇水反馈被写成新旧文案各显示一次 | OPEN_PENDING_ADJUDICATION | RUN-C-101 |
-| GIR-FD82-C102 | P2 | 树果闪光门遗漏成熟瞬间与重植回退 | OPEN_PENDING_ADJUDICATION | RUN-C-102 |
-| GIR-FD82-C103 | P2 | 煤灰草擦除不受玩家持袋门限制 | OPEN_PENDING_ADJUDICATION | RUN-C-103 |
-| GIR-FD82-C104 | P2 | 强制路线玩家一步会发两次通用迈步通知 | OPEN_PENDING_ADJUDICATION | RUN-C-104 |
-| GIR-FD82-C105 | P2 | 低电量警告缺少抑制门与一次性锁存合同 | OPEN_PENDING_ADJUDICATION | RUN-C-105 |
-| GIR-FD82-C106 | P2 | 洞穴演出只列素材未决，缺静态行为合同 | OPEN_PENDING_ADJUDICATION | RUN-C-106 |
-| GIR-FD82-C107 | P2 | 电话普通注册在文本类型输入下先新增再失败 | OPEN_PENDING_ADJUDICATION | RUN-C-107 |
-| GIR-FD82-C108 | P2 | NPC电话的零公共事件ID会走错误的训练家对话路径 | OPEN_PENDING_ADJUDICATION | RUN-C-108 |
-| GIR-FD82-C109 | P2 | 未知区域参数被过度概括为严格抛错 | OPEN_PENDING_ADJUDICATION | RUN-C-109 |
-| GIR-FD82-C110 | P2 | 区域地图子格定位缺少可计算规则 | OPEN_PENDING_ADJUDICATION | RUN-C-110 |
-| GIR-FD82-C111 | P2 | 区域同格重复点的首条决定规则未提取 | OPEN_PENDING_ADJUDICATION | RUN-C-111 |
-| GIR-FD82-C112 | P2 | 电话随机占位符未给每通固定与槽位抽样口径 | OPEN_PENDING_ADJUDICATION | RUN-C-112 |
-| GIR-FD82-C113 | P2 | 点唱机跨图场景遗漏遭遇率旗标清空 | OPEN_PENDING_ADJUDICATION | RUN-C-113 |
-| GIR-FD82-C114 | P2 | 标题与控制帮助的静态时间线未完整交付 | OPEN_PENDING_ADJUDICATION | RUN-C-114 |
-| GIR-FD82-C115 | P2 | 画面尺寸选项缺倍率与全屏请求映射 | OPEN_PENDING_ADJUDICATION | RUN-C-115 |
+| GIR-FD82-C079 | P2 | 等级修正的特性身份与参考登记不一致 | CONFIRMED_REQUIRED_REVISION | RUN-C-079 |
+| GIR-FD82-C080 | P2 | 遭遇专用解析遗漏重复类型覆盖及数值接受边界 | CONFIRMED_REQUIRED_REVISION | RUN-C-080 |
+| GIR-FD82-C081 | P2 | 迈步计数把回绕写成钳制 | CONFIRMED_REQUIRED_REVISION | RUN-C-081 |
+| GIR-FD82-C082 | P2 | 普通遭遇机会的陆地表口径遗漏捕虫表 | CONFIRMED_REQUIRED_REVISION | RUN-C-082 |
+| GIR-FD82-C083 | P2 | 队伍平衡等级只有名称，没有可计算的规则 | CONFIRMED_REQUIRED_REVISION | RUN-C-083 |
+| GIR-FD82-C084 | P2 | 漫游公开链遗漏临时个体生成及其副作用 | CONFIRMED_REQUIRED_REVISION | RUN-C-084 |
+| GIR-FD82-C085 | P2 | 漫游覆盖许可遗漏暂态下标存在门 | CONFIRMED_REQUIRED_REVISION | RUN-C-085 |
+| GIR-FD82-C086 | P2 | 独立上浮入口被并入DIVE，丢失返回和音乐差异 | CONFIRMED_REQUIRED_REVISION | RUN-C-086 |
+| GIR-FD82-C087 | P2 | 力量交互把strengthboulder标记缩短为boulder | CONFIRMED_REQUIRED_REVISION | RUN-C-087 |
+| GIR-FD82-C088 | P2 | 旅行能力缺少落位方向与坐标保留规则 | CONFIRMED_REQUIRED_REVISION | RUN-C-088 |
+| GIR-FD82-C089 | P2 | 通用场地招式演出未形成行为合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-089 |
+| GIR-FD82-C091 | P2 | 星期/月/季节辅助遗漏候选集合与布尔结果 | CONFIRMED_REQUIRED_REVISION | RUN-C-091 |
+| GIR-FD82-C092 | P2 | 雨类水花索引基准及显示周期未完整定义 | CONFIRMED_REQUIRED_REVISION | RUN-C-092 |
+| GIR-FD82-C093 | P2 | 天气目录未交付速度/色调数据，Storm图形关系还被写错 | CONFIRMED_REQUIRED_REVISION | RUN-C-093 |
+| GIR-FD82-C094 | P2 | 进入地图的立即天气设置未接回连接跨界的渐变标志 | CONFIRMED_REQUIRED_REVISION | RUN-C-094 |
+| GIR-FD82-C095 | P2 | 攀瀑效果未给向上门与成功返回但不移动的结果 | CONFIRMED_REQUIRED_REVISION | RUN-C-095 |
+| GIR-FD82-C096 | P2 | 相同遭遇版本写入不会重装表或清步数 | CONFIRMED_REQUIRED_REVISION | RUN-C-096 |
+| GIR-FD82-C097 | P2 | 逃生点只被当作既有输入，创建及洞窟边界未提取 | CONFIRMED_REQUIRED_REVISION | RUN-C-097 |
+| GIR-FD82-C098 | P2 | 鱼竿资格把当前格出向通行写成面向格通行 | CONFIRMED_REQUIRED_REVISION | RUN-C-098 |
+| GIR-FD82-C099 | P2 | 收竿窗口未定义期限相等及同轮输入优先级 | CONFIRMED_REQUIRED_REVISION | RUN-C-099 |
+| GIR-FD82-C100 | P2 | 覆盖物修正并不限于新机制植物 | CONFIRMED_REQUIRED_REVISION | RUN-C-100 |
+| GIR-FD82-C101 | P2 | 浇水反馈被写成新旧文案各显示一次 | CONFIRMED_REQUIRED_REVISION | RUN-C-101 |
+| GIR-FD82-C102 | P2 | 树果闪光门遗漏成熟瞬间与重植回退 | CONFIRMED_REQUIRED_REVISION | RUN-C-102 |
+| GIR-FD82-C103 | P2 | 煤灰草擦除不受玩家持袋门限制 | CONFIRMED_REQUIRED_REVISION | RUN-C-103 |
+| GIR-FD82-C104 | P2 | 强制路线玩家一步会发两次通用迈步通知 | CONFIRMED_REQUIRED_REVISION | RUN-C-104 |
+| GIR-FD82-C105 | P2 | 低电量警告缺少抑制门与一次性锁存合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-105 |
+| GIR-FD82-C106 | P2 | 洞穴演出只列素材未决，缺静态行为合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-106 |
+| GIR-FD82-C107 | P2 | 电话普通注册在文本类型输入下先新增再失败 | CONFIRMED_REQUIRED_REVISION | RUN-C-107 |
+| GIR-FD82-C108 | P2 | NPC电话的零公共事件ID会走错误的训练家对话路径 | CONFIRMED_REQUIRED_REVISION | RUN-C-108 |
+| GIR-FD82-C109 | P2 | 未知区域参数被过度概括为严格抛错 | CONFIRMED_REQUIRED_REVISION | RUN-C-109 |
+| GIR-FD82-C110 | P2 | 区域地图子格定位缺少可计算规则 | CONFIRMED_REQUIRED_REVISION | RUN-C-110 |
+| GIR-FD82-C111 | P2 | 区域同格重复点的首条决定规则未提取 | CONFIRMED_REQUIRED_REVISION | RUN-C-111 |
+| GIR-FD82-C112 | P2 | 电话随机占位符未给每通固定与槽位抽样口径 | CONFIRMED_REQUIRED_REVISION | RUN-C-112 |
+| GIR-FD82-C113 | P2 | 点唱机跨图场景遗漏遭遇率旗标清空 | CONFIRMED_REQUIRED_REVISION | RUN-C-113 |
+| GIR-FD82-C114 | P2 | 标题与控制帮助的静态时间线未完整交付 | CONFIRMED_REQUIRED_REVISION | RUN-C-114 |
+| GIR-FD82-C115 | P2 | 画面尺寸选项缺倍率与全屏请求映射 | CONFIRMED_REQUIRED_REVISION | RUN-C-115 |
+| GIR-FD82-C117 | P2 | 背包排序取消恢复画面游标但不恢复保存索引 | CONFIRMED_REQUIRED_REVISION | RUN-C-117 |
+| GIR-FD82-C118 | P2 | UI图标动画与空值分叉未进入最终行为合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-118 |
+| GIR-FD82-C119 | P2 | 进化自然结束帧仍先接受BACK取消 | CONFIRMED_REQUIRED_REVISION | RUN-C-119 |
+| GIR-FD82-C120 | P2 | 只浏览盒子也可能归一并改写墙纸记录 | CONFIRMED_REQUIRED_REVISION | RUN-C-120 |
+| GIR-FD82-C121 | P2 | 图鉴美制显示遗漏信息页与搜索页的重量换算分叉 | CONFIRMED_REQUIRED_REVISION | RUN-C-121 |
+| GIR-FD82-C122 | P2 | 图鉴可列形态遗漏性别合并与首个合格性别规则 | CONFIRMED_REQUIRED_REVISION | RUN-C-122 |
+| GIR-FD82-C123 | P2 | 图鉴搜索缺可选标尺与参数画面的确定输入合同 | CONFIRMED_REQUIRED_REVISION | RUN-C-123 |
+| GIR-FD82-C124 | P2 | 摘要个性描述的并列IV决胜顺序未定义 | CONFIRMED_REQUIRED_REVISION | RUN-C-124 |
+| GIR-FD82-C125 | P2 | 换位目标选择经Box Link缩短队伍后仍用旧来源索引提交 | CONFIRMED_REQUIRED_REVISION | RUN-C-125 |
+| GIR-FD82-C126 | P2 | 零招式个体可显示空槽但进入招式选择会失败 | CONFIRMED_REQUIRED_REVISION | RUN-C-126 |
+| GIR-FD82-C127 | P2 | 随机手牌合同遗漏对局副本构建时的同身份槽位归并 | CONFIRMED_REQUIRED_REVISION | RUN-C-127 |
+| GIR-FD82-C128 | P3 | openhand 在玩家后手时有额外的空选择位置 | CONFIRMED_REQUIRED_REVISION | RUN-C-128 |
+| GIR-FD82-C129 | P2 | 默认4×4模式6/7的五步打乱不能抵消成完成态 | CONFIRMED_REQUIRED_REVISION | RUN-C-129,RUN-D-015 |
+| GIR-FD82-C130 | P3 | 拼图暂持红色与方向箭头缺少显示条件 | CONFIRMED_REQUIRED_REVISION | RUN-C-130 |
+| GIR-FD82-C131 | P2 | 表外拼图模式仍可由公共完成检查返回true | CONFIRMED_REQUIRED_REVISION | RUN-C-131 |
 | GIR-FD82-D012 | P2 | 独立读者问题 RUN-D-012: test-oracle arithmetic contradiction | NOT_REQUIRED_AS_REPORTED | RUN-D-012 |
-| GIR-FD82-D015 | P2 | 独立读者问题 RUN-D-015: fixed arithmetic contradicts initialization reachability | OPEN_PENDING_ADJUDICATION | RUN-D-015 |
 | GIR-FD82-D017 | P2 | 独立读者问题 RUN-D-017: missing deterministic target-order data | NOT_REQUIRED_AS_REPORTED | RUN-D-017 |
 | GIR-FD82-D018 | P2 | 独立读者问题 RUN-D-018: source-dependent automatic reposition predicate | CONFIRMED_REQUIRED_REVISION | RUN-D-018 |
-| GIR-FD82-D021 | P2 | 独立读者问题 RUN-D-021: quantitative party test fixtures lack decisive constraints | OPEN_PENDING_ADJUDICATION | RUN-D-021 |
 | GIR-FD82-D023 | P2 | 独立读者问题 RUN-D-023: display formula missing quantity multiplier | CONFIRMED_REQUIRED_REVISION | RUN-D-023 |
 | GIR-FD82-D024 | P2 | 独立读者问题 RUN-D-024: path resampling grid/count undefined or contradictory | CONFIRMED_REQUIRED_REVISION | RUN-D-024 |
 | GIR-FD82-D025 | P2 | 独立读者问题 RUN-D-025: contradictory variable ACTION transition | CONFIRMED_REQUIRED_REVISION | RUN-D-025 |
 | GIR-FD82-004 | P2 | 盒子成功交换后的暂持状态在同稿中相互矛盾 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
+| GIR-FD82-005 | P2 | 三席NearAlly初选可落在不相邻的存活同伴，类别文本却排除该位置 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
+| GIR-FD82-006 | P3 | 暂停与导航箭头缺少动画节拍和开始相位合同 | CONFIRMED_REQUIRED_REVISION | ROOT/intake |
 
-本检查点汇集 231 条原始发现，归并为 216 个全局候选（含初始项与总审独立项）。计数随剩余批次推进；不据此推算工作包或规则覆盖率。
+本检查点汇集 251 条原始发现，归并为 233 个全局候选（含初始项与总审独立项）。计数随剩余批次推进；不据此推算工作包或规则覆盖率。
 
 固定输入：项目 e1e01bb18d824931e54f182dd61af5a9f908ba85；参考 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b。来源定位均为静态证据，运行观察和已证 demo 事件链仍为 0。
