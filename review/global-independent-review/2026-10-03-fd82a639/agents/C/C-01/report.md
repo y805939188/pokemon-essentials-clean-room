@@ -158,6 +158,6 @@ U01–U10、G01–G12、原 20 项 AX 及已登记未验证组合均继续有效
 
 父任务已确认成功的 spawn 调用显式设置 gpt-6-astra / ultra，工具返回本 agent 名 /root/review_c；这是启动配置证据，未冒充独立运行时 introspection。子会话无法读取服务 speed；**Standard / Fast / Ultrafast 均未自行改变，speed＝UNVERIFIED**。
 
-只在 `review/global-independent-review/2026-10-03-fd82a639/agents/C/` 写审查输出；原规格、净化稿、附表、计划、审计、旧记录、reference 不修改。提交/推送按本轮人类明确授权执行，范围检查、远程 URL 与精确提交结果见 checkpoint.json；旧交接的禁推送句已由当前授权覆盖。
+只在 `review/global-independent-review/2026-10-03-fd82a639/agents/C/` 写审查输出；原规格、净化稿、附表、计划、审计、旧记录、reference 不修改。提交/推送按本轮人类明确授权执行；checkpoint.json 记录写入时状态和范围检查，最终本地/远程精确提交在批次回报中给出；旧交接的禁推送句已由当前授权覆盖。
 
 固定算术复核：高 32／底部行 24 的背面与正面偏移为 3／7；全透明高 32 为 15／19；寄养取消例 256−5＝251；公开 ID 12 复制到两个 16 位半区为 786,444。仅独立常数运算，未执行行为模型。
