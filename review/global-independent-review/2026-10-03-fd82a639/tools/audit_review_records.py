@@ -31,6 +31,7 @@ def git_paths(root, *args):
 def reading_records(run_root):
     records = []
     logs = list((run_root / 'agents').glob('*/*/reading-log.tsv'))
+    logs += list((run_root / 'agents').glob('*/*/comparison-reading-log.tsv'))
     logs += [run_root / 'agents/D/reading-log.tsv', run_root / 'root/peer-reading-log.tsv',
              run_root / 'root/reading-supplement.tsv', run_root / 'root-reading-log.tsv']
     for log in sorted(set(path for path in logs if path.exists())):
@@ -52,7 +53,7 @@ def reading_records(run_root):
 
 def ranges_for(record, count):
     mode = record['mode'].lower()
-    if any(word in mode for word in ('search', 'identity', 'discover', 'inventory', 'parse')):
+    if any(word in mode for word in ('search', 'identity', 'discover', 'inventory', 'parse', 'structure', 'count', 'mechanical')):
         return []
     value = record['ranges'].replace('–', '-').replace('—', '-').replace(',', ';')
     if value.strip().lower() in ('all', 'all lines', '1-eof') and 'full' in mode:
