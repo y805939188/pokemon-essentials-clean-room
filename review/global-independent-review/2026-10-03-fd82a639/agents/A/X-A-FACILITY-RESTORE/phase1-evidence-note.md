@@ -1,0 +1,5 @@
+# Evidence scope note
+
+Only the five neutral scenarios were reviewed. Reading-log “full” is per named file, not a claim that all related work packages were audited. Some initial path guesses failed; those yielded no semantic evidence and are excluded. A truncated combined document output was followed by narrower recovery reads. Current peer findings were not consulted before saving the independent judgment. Same-agent prior fixed-source reads are identified explicitly; no behavior was executed or simulated. Numeric HP/experience vectors are direct constant arithmetic supported by the named data, not a reference reimplementation.
+
+The neutral brief lives only in the summary worktree; all original/final/test claims were read from A’s fixed-base checkout. Commit identity is the audit key; no routine full-file hash inventory was generated. Additional comparison reads must be logged separately. No primary specification, central registry, previous A batch, reference file, or new framework code was changed.
