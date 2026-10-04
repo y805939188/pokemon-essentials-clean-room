@@ -1,5 +1,19 @@
 # 初始 Feature Matrix
 
+## 当前B04-G后继登记（实际整合待Ultra）
+
+接受基线 `6452c0e03025605222f3de9a272221e2b82eeda4` 为 B01/B02/B03/B05/B06 五批。B04完整候选 `50f9ca2506bf0de21c33c644569c9987f84b80a3`、作者交接 `5da06e2baf0879978a871c6952fab1105909b511`、第二轮独立报告 `c500ed089fd1192409c1c77a7a91e093c59a8a45` 为35贡献／23主责 PASS_SCOPED；13份正式文件原字节整合。本次实际新SHA及全部公共／依赖登记待同一 R-B04 Ultra，未接受 B04。规范必修229 OPEN／0 CLOSED。
+
+[逐ID完整控制／条款／静态／范围登记](../review/remediation/20261003-prepare/batches/B04/integration-stage-1/finding-registration.json)、[整合manifest](../review/remediation/20261003-prepare/batches/B04/integration-stage-1/integration-manifest.json)、[第二轮候选报告](../review/remediation/20261003-prepare/batches/B04/review-round-2/report.md)、[两P2历史返修](../review/remediation/20261003-prepare/batches/B04/integration-stage-1/historical-repair-registration.json)。13正式＝8净化／目录＋5具名授权原稿同步，旧原批准不迁移到新字节，候选内部旧待审标签由本层限定说明、不改其历史。
+
+ROOT002仅34具名静态场景（地点条10／灯光5／黑暗6／图片8／计时器5）限定后继；旧WP79 source-judgments NA/EXCLUDE原字节保留，未作实际事件／素材／文件全覆盖推断。C003仅本批C-04扩展，原根与全部八扩展及其他责任保持；C061/C062两P2返修归原根，不新增ID。
+
+114新增未执行静态设计＝111保留（108原字节，R13/R14/W01修订）＋R27/R28/W24三行；旧目录仅RS09/RS10/RS17、WR06/WR12、MG23/DT03/DT07获准改变，B03 A–G251行及其他旧行／重复ID次序与次数保持。当前三个目录全行339／92／428；报告大写ID口径339／92／425，差异是旧T06b/T25b/T34b，详见 [计数](../review/remediation/20261003-prepare/batches/B04/integration-stage-1/scope-counts.json)。报告1168项文档检查仅存证，未运行其verifier或参考程序。
+
+五批已接受主责52，具体原修订51满足／1缺具体消费／0证据不足，严格全贡献47／5；79已接受贡献记录／76触及ID保持原口径。差别A017、A034、C053、WP80-B02-R02保留，A024仍等B07；本批候选23主责及35条新候选记录不混入接受分母。
+
+B07四计划读＋原WP17消息＝5，B06四计划读＋原WP15音频＝5均重冻结。B04→B07必须串行，actual Ultra及父任务C接受后才以精确后继重冻结B07；B07后续WP28/WP30反向变更必须受影响B04复核。B06 WP24§5.4/PT41–63六逻辑请求与引子记忆字节不变，伙伴／雷达及其余贡献不获额外接受。未派发任务。 见 [依赖合同](../review/remediation/20261003-prepare/batches/B04/integration-stage-1/downstream-handshake.json)。全部U/G/AX、动态调用／插件／宿主／媒体／真实Demo未知保持。以下历史层按各自固定版本解释，原字节保留。
+
 ## 当前 B06-G 后继登记（实际整合待 Ultra）
 
 已接受上游为 B01/B02/B03/B05，固定 `1fd612d47dcda164de61ab2d25a1cb5e0fbde085`。B06完整十项候选 `4076a3fbbf6fe355b73f3fe2229d1f981fe735d2`、作者交接 `ee7461e90ad5e0943e39c56c22a080f761f4e1c0`、独立Ultra报告 `70babef632539c952aa988e7762d0c2aa19cfeb3`为本批10贡献／7主责 PASS_SCOPED；八份原／净化／目录字节原样整合，本次实际新SHA及公共登记待 R-B06 Ultra。规范必修229 OPEN／0 CLOSED。
