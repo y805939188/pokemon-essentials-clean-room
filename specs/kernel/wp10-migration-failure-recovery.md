@@ -111,7 +111,7 @@
 | v20_add_pokedex_records | essentials < 20 | 图鉴补 caught_counts/defeated_counts/seen_eggs；seen_forms 条目扩展为含异色信息的形式（已为该形式跳过） |
 | v20_add_new_default_options | essentials < 20 | 选项补 givenicknames/sendtoboxes 默认值（已存在跳过） |
 | v20_fix_default_weather_type | essentials < 20 | 天气类型为 0 时 → :None |
-| v20_add_stats | essentials < 20 | 存档无 stats 键时 → 补 GameStats：frame_count 换算为 play_time 秒数、play_sessions=1、time_last_saved |
+| v20_add_stats | essentials < 20 | 仅无 stats 键时补统计记录：frame_count 缺失/nil/false 回退 0，作浮点数除以迁移执行时宿主帧率，得到基础 play_time 秒数；play_sessions 为 1；time_last_saved 读取新统计的游戏时间。冷启动无锚点时两时间同为换算值；已有锚点时该读取还累加运行时长差并刷新锚点（§8.2）。stats 键已存在时整项跳过，即使其值为 nil，不在此处补建或读取其游戏时间 |
 | v20_convert_pokemon_markings | essentials < 20 | 各处宝可梦 markings 为整数时 → 数组形式（队伍/储存/伙伴/漫游/净化室/名人堂/游戏变量；已为数组跳过） |
 | v21_replace_phone_data | essentials < 21 | 全局无 phone 对象时 → 建 Phone 并转换旧联系人。**参考快照观察**：转换在传入的 global 对象内创建 phone，却调用 `Phone.add_silent`——该方法访问**运行中的 $PokemonGlobal**（`004_Item_Phone.rb:187–188`）；正常冷启动在 Game.set_up_system 中转换尚**早于** global_metadata（非启动读取值）的载入。无插件提前建立全局、旧联系人非空等条件下，该分支不能被写成无条件成功生成联系人；必须追踪实际对象和失败前提 |
 | v21_replace_flute_booleans | essentials < 21 | 黑/白笛布尔标记存在时 → 依 `FLUTES_CHANGE_WILD_ENCOUNTER_LEVELS` 设置转为等级/遭遇率变量（不存在跳过） |
@@ -199,6 +199,10 @@
 | 电话转换 | 旧联系人列表空 / 非空，且运行全局未建立或不同对象 | 空列表直接结束；非空时调用访问运行全局的 add_silent——冷启动下全局未载入，不能写成无条件成功（参考快照观察） |
 | 缺地图（调试） | 重新 setup 时 ENOENT 且 $DEBUG | 给选图入口；取消则退出；选择后设图与坐标 |
 | 缺地图（非调试） | 重新 setup 时 ENOENT 且非 $DEBUG | 抛"地图未找到，游戏无法继续"（与 events=nil 的"地图损坏"不同） |
+| 旧帧数补统计（冷启动换算） | 仅分析已到达 v20_add_stats 的单项分支，前序无异常、无 stats 键、无游戏时间锚点；执行时宿主帧率 F 为给定固定正数。独立旧帧数 N/F 为 120/40、120/60、121/60 | play_time 与 time_last_saved 各例同为 3.0 秒、2.0 秒、121/60 秒（约 2.0166667），play_sessions 为 1；保留小数，不假定默认帧率，不保证完整转换链成功 |
+| 旧帧数补统计（缺值与零） | 已到达同一单项分支，前序无异常、无 stats 键、无时间锚点，给定固定 F>0；旧 frame_count 独立为缺失、nil、false、数值 0 | 前三者回退 0，数值 0 本身有效；两时间均为 0.0 秒、会话数 1；不把零值误作缺统计键的判定 |
+| 旧帧数补统计（已有键） | 已到达同一转换，前序无异常；stats 键已存在，独立给有效统计对象/nil | 整项跳过，原值不变；不新建、不读取其游戏时间，nil 也不在此补建；不保证后续类型校验或其他转换成功 |
+| 旧帧数补统计（已有锚点） | 已到达单项分支，前序无异常、无 stats 键；120 帧与给定执行帧率 60 得基础 2.0 秒；已有时间锚点为运行时长 10 秒，读取最近保存时刻时运行时长给定 12.5 秒。独立对照同换算但锚点缺失 | 已有锚点时读取累加 2.5 秒，两时间均为 4.5 秒、锚点刷新为 12.5、会话数 1；缺锚点对照两时间均 2.0 秒。不能无条件断言非冷启动两时间仍为 N/F |
 
 ## 9. 证据与来源（traceability）
 

@@ -63,7 +63,7 @@
 | eggs_hatched | 次数 | 0 | 孵化完成累加 `016_UI/001_Non-interactive UI/003_UI_EggHatching.rb` | 保存值 | 静态确认 | WP35/WP67-B |
 | evolution_count | 次数 | 0 | 进化完成累加 `016_UI/001_Non-interactive UI/004_UI_Evolution.rb` | 保存值 | 静态确认 | WP31/WP67-B |
 | evolutions_cancelled | 次数 | 0 | 进化取消累加 同文件 | 保存值 | 静态确认 | WP31/WP67-B |
-| trade_count | 次数 | 0 | 交换完成累加 `016_UI/001_Non-interactive UI/005_UI_Trading.rb` | 保存值 | 静态确认 | WP26/WP67-B |
+| trade_count | 次数（进入交换入口次数） | 0 | 进入交换入口先加 1，再读取送出成员并验证目标物种；随后物种验证失败抛错也保留增量，不等同成功完成次数 `016_UI/001_Non-interactive UI/005_UI_Trading.rb:217–243` | 保存值 | 静态确认 | WP26/WP67-B |
 | moves_taught_by_item | 次数 | 0 | 机器教学累加 `019_Utilities/001_Utilities.rb` | 保存值 | 静态确认 | WP28/WP30 |
 | moves_taught_by_tutor | 次数 | 0 | 导师教学累加 同文件 | 保存值 | 静态确认 | WP30 |
 | moves_taught_by_reminder | 次数 | 0 | 回忆教学累加 `016_UI/022_UI_MoveRelearner.rb` | 保存值 | 静态确认 | WP30/WP66-A |
