@@ -77,7 +77,22 @@
 | mega_stone / mega_move / unmega_form / mega_message | Mega 相关字段 | WP22 |
 | pbs_file_suffix | 编译来源文件尾注 | WP04 |
 
-默认值（未写字段时，记录构造的填充）：types = [NORMAL]；基础能力每项 ≤0 或缺失按 1 填充；EV 每项 <0 或缺失按 0；base_exp = 100；growth_rate = Medium；gender_ratio = Female50Percent；catch_rate = 255；happiness = 70；egg_groups = [Undiscovered]；hatch_steps = 1；height = 1；weight = 1；color = Red；shape = Head；habitat = None；generation = 0；其余空数组/空值。
+默认值是**记录构造时未提供字段的填充**，不代表文本内容输入已通过编译校验。给定有效 id 与已登记六项主能力，下表逐项区分标量、空列表与空值；显式提供的字段仍按各自规则处理。
+
+| 字段 | 未提供时的值／填充规则 |
+| --- | --- |
+| species / form | species = 所给 id；form = 0 |
+| name / category / pokedex_entry | 原始文本分别为 `Unnamed` / `???` / `???`（展示本地化另归文本规格） |
+| form_name | 空值 |
+| pokedex_form | 记录自身 form；例如显式 form = 2 而省略本字段时为 2 |
+| types / base_stats / evs | [NORMAL]；基础能力每项 ≤0 或缺失填 1；EV 每项 <0 或缺失填 0 |
+| base_exp / growth_rate / gender_ratio | 100 / Medium / Female50Percent |
+| catch_rate / happiness / egg_groups / hatch_steps | 255 / 70 / [Undiscovered] / 1 |
+| height / weight / color / shape / habitat / generation | 1 / 1 / Red / Head / None / 0 |
+| moves / tutor_moves / egg_moves / abilities / hidden_abilities | 各为空列表 |
+| wild_item_common / wild_item_uncommon / wild_item_rare / offspring / evolutions / flags | 各为空列表 |
+| incense / mega_stone / mega_move | 各为空值 |
+| unmega_form / mega_message / pbs_file_suffix | 0 / 0 / 空字符串（不是空值） |
 
 派生读取：base_form = 若存在 DefaultForm_N 标记则取 N，否则记录自身形态号；single_gendered 由性别比例记录的「无女性概率」判定（WP19）；base_stat_total = 基础能力合计；标记查询不区分大小写。
 
@@ -165,11 +180,13 @@
   - 来源：方式 = 0（遇到）；若命运相遇开关当前为开则方式 = 4；地图 = 当前地图 id（无地图时 0）；来源文本 = 空；来源等级 = 创建等级；hatched_map = 0；timeReceived = 当前时间（写入时取整为整数秒）；孵化时间戳 = 空；fused = 空。
   - 生命：初始 1/1，随即因能力重算调整为满。
   - 能力：创建末尾重算一次。
-- 创建后形态检查：recheckForm 为真且当前形态为 0 时，调用「创建时形态」处理器（WP21）；若返回形态值，以 form= 写入（含 §3.4 的副作用链，图鉴登记会读取性别/普通异色），并仅当 withMoves 为真时重做一次招式初始化（等级可达学习表按新形态）；withMoves 为假时复检不产生招式重置。
+- 创建后形态检查：recheckForm 为真且当前形态为 0 时，调用「创建时形态」处理器（WP21）；若返回形态值，以提交型入口写入（返回 0 也提交，含 §3.4 的副作用链，图鉴登记会读取性别/普通异色），并仅当 withMoves 为真时重做一次招式初始化（等级可达学习表按新形态）；withMoves 为假时复检不产生招式重置。
 
 ### 4.2 随机与派生输入
 
-创建时只有两类随机来源：personalID（32 位）与六项个体值。其余属性（性别、异色、特性索引、特性）由 personalID（异色还叠加拥有者 id）按需派生、首次读取后缓存；**性格为例外：创建返回前已被能力重算求值并缓存**——普通创建返回后性格已确定，之后更改 personalID 不会重派该缓存。等级/能力为确定性换算（WP19）。
+**基础初始化**抽取 personalID（32 位）与六项个体值；**完整创建不保证只有这两类随机来源**：形态为 0 且复检开启时，创建处理器还可抽样，例如 UNOWN 从 0–27 取形态，PUMPKABOO/GOURGEIST 按 5%/15%/45%/35% 取 3/2/1/0。复检关闭则不调用该处理器；非零初始形态也不进入此创建复检。
+
+性别、异色、特性索引、特性由 personalID（异色还叠加拥有者 id）按需派生、首次读取后缓存；**性格为例外：创建返回前已被能力重算求值并缓存**——普通创建返回后性格已确定，之后更改 personalID 不会重派该缓存。处理器的额外形态抽样不据此重派性格；登记对性别/普通异色的缓存影响仍按 §4.1。等级/能力为确定性换算（WP19）。
 
 ### 4.3 生成上下文变体
 
@@ -277,7 +294,7 @@
 - 等级越界：创建/设置等级时按 WP19 报错；本规格不重复定义范围值。
 - 拥有者写入入口收到非 Owner 值：校验报错；拥有者构造器字段类型不符：报错。
 - species= 指向同基物种的形态标识：无效果（不能借此改形态）。
-- 形态处理器返回与当前相同的值：不写回、无副作用链。
+- **动态形态读取**的处理器返回与当前相同的值：不写回、无副作用链。**显式提交形态与创建复检提交**没有同值短路，仍执行提交副作用（WP21）。
 - 复制共享引用清单（§5.1）之外不得扩展声称；共享对象的后续互相影响未穷尽逐项验证。
 - cannot_store / cannot_release / cannot_trade：仅定位到调试写入与仓库/队伍 UI 读取；正常流程写入者未定位（可能由事件脚本/插件设置，属未决类，搜索未命中不等于不存在）。
 - 昵称展示的极端输入（超长字符串直接赋给写入入口）不被清除、按值保留——与入口截断行为不同源。
@@ -295,7 +312,7 @@
 
 ## 11. 示例场景与测试目录
 
-示例场景 24 条见 `../test-catalog/creature-rpg-wp18-20-24-25-26.md` 的 CI 系列（CI-01～CI-24），覆盖：新建默认字段集、创建返回时性格已缓存、形态复检与 withMoves 条件、复检登记读取（返回前缓存）、关闭复检保持未缓存、命运相遇开关、物种变更形态优先级、同基物种无效果、形态三入口差异、复制身份保持、复制共享引用、复制后独立演化、personalID 重掷不自动清缓存、外来判定两组、昵称清除、孵化来源、交换来源、外来赠送默认性别、拥有者语言三组对照（GR-009）、外来赠送保留来源、外来赠送新建来源。
+示例场景 28 条见 `../test-catalog/creature-rpg-wp18-20-24-25-26.md` 的 CI 系列（CI-01～CI-28），覆盖：新建默认字段集、创建返回时性格已缓存、形态复检与 withMoves 条件、复检登记读取（返回前缓存）、关闭复检保持未缓存、命运相遇开关、物种变更形态优先级、同基物种无效果、形态三入口差异、复制身份保持、复制共享引用、复制后独立演化、personalID 重掷不自动清缓存、外来判定两组、昵称清除、孵化来源、交换来源、外来赠送默认性别、拥有者语言三组对照（GR-009）、外来赠送保留来源、外来赠送新建来源、记录默认值全集、UNOWN额外抽样及关闭／非零形态复检对照。
 
 ## 12. 依赖
 
