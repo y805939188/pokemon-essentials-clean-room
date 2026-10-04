@@ -80,7 +80,10 @@
 | 解析（readMeta，406–467 行） | 行语法错误报错 | 无 meta.txt 目录被忽略；EXACT/OPTIONAL 缺版本被忽略（不报错） |
 | 注册（register，106–286 行） | 空 Name/Version/Link 报错（仅当**提供了**对应键）；依赖不满足报错；冲突报错；重名报错 | **未提供的键不校验**——缺 Essentials 仅执行阶段警告、缺 Link/Credits 不报错（缺键 ≠ 显式空值） |
 
-- **Scripts 的归一化（WP05-R02 修订）**：`readMeta:457–464` 先给 scripts 建立**默认空数组**，再递归收集目录下全部 .rb 并去重；`getPluginOrder:541` 只检查**解析后的 scripts 值**是否为假。因此：**作者省略 Scripts 行不会缺少该键**（默认数组兜底，目录有脚本即自动收集，无脚本则为空列表，均不触发 541 行错误）——"省略 Scripts 行"与"解析后 scripts 值为假"是两回事。空脚本列表的插件条目（目录无 .rb）与整个预编译产物为空也分别说明，不能混为一谈。
+- **Scripts 的归一化（WP05-R02 修订）**：`readMeta:457–464` 先给 scripts 建立**默认空数组**，再递归追加完整文件路径包含区分大小写子串 .rb 的自动候选，并按相同路径文本保留首次出现；`getPluginOrder:541` 只检查**解析后的 scripts 值**是否为假。因此：**作者省略 Scripts 行不会缺少该键**（默认数组兜底，目录有脚本即自动收集，无脚本则为空列表，均不触发 541 行错误）——"省略 Scripts 行"与"解析后 scripts 值为假"是两回事。空脚本列表的插件条目（无自动候选）与整个预编译产物为空也分别说明，不能混为一谈。
+
+- **自动候选的路径条件**：完整文件路径含小写子串 .rb 即入选，不要求扩展名恰为 .rb；old.rb.bak 与 Plugins/Marked.rb/readme.txt 入选，Plugins/Plain/readme.txt 与仅含 .RB 的路径不入选。显式 Scripts 路径不以此自动条件筛除（457–464 行）。
+- **同一插件内的顺序与去重**：显式 Scripts 路径按声明顺序先行；自动候选按递归收集顺序追加（每层路径排序，本层文件先于子目录递归文件，`001_FileTests.rb:1–35`），相同路径文本保留首次出现。显式 b.rb,a.rb 与自动 a.rb,b.rb,c.rb 合并得到 b.rb,a.rb,c.rb；路径文本不同的别名不据此承诺去重。该顺序不同于插件间依赖排序。
 
 - **依赖形式**：Requires（任意/最低版本）、Exact（精确版本）、Optional（存在则最低版本）、**OptionalExact（精确 + 存在性）——meta.txt 的 Requires 第三分量可表达**（`readMeta:423–432` 把第三分量解析为依赖类型，`register:188–241` 处理 `:optional_exact`）；源码注释所称"meta.txt 无法表达"与这条实际入口不一致，以实际入口为准。
 - **版本比较 `compare_versions`（343–365 行）**：逐字符位置比较（按 16 进制字符值，前导点补 0、末尾点去掉）：**不是分段数值比较**——`"1.10"` 与 `"1.9"` 的第三位 1 < 9，结果为 **1.10 < 1.9**（不是 SemVer 习惯的 1.10 > 1.9）。依赖最低版本判断以此为据，不能套用通常版本习惯。
@@ -89,6 +92,7 @@
 ### 5.2 依赖排序与循环
 
 - `validateDependencies`：递归检测依赖环，成环报错（终止）。
+- 最低版本不足时报告已装版本并终止；仅当该已装依赖登记了有效 Link 才追加其更新链接（`005_PluginManager.rb:168–185`）。缺 Link 是允许的，不因此补造链接；显式空 Link 的注册错误是另一个条件。
 - `sortLoadOrder`：按依赖关系交换排序（依赖先于使用方）；缺失非 Optional 依赖报错；Optional 依赖缺失可跳过。
 - `getPluginOrder`：读取全部插件目录的 meta，校验必需字段与重名，再验证依赖、排序。
 
@@ -102,7 +106,7 @@
 ### 6.2 阶段二：编译
 
 - `needCompiling?`（554–572 行）：调试模式 + 非发布包为前提；满足任一即编译——`$full_compile`、`Data/PluginScripts.rxdata` 缺失、按住 SHIFT/CTRL、任一脚本或 meta.txt 新于 PluginScripts.rxdata。
-- `compilePlugins`：按排序结果把各插件脚本压缩序列化写入 `Data/PluginScripts.rxdata`。
+- `compilePlugins`：先按依赖排序处理插件，再按各插件归一化后的脚本列表顺序压缩序列化写入 `Data/PluginScripts.rxdata`，不另按脚本名重排（576–592 行）。
 
 ### 6.3 阶段三：预编译产物消费
 
@@ -111,7 +115,7 @@
   2. 读取 PluginScripts.rxdata（**空产物与读取失败分别对待**：产物为空走"No plugins found"；读取失败按宿主读取行为，未验证）。
   3. 插件的 Essentials 兼容列表不含当前版本时**警告但照常加载**。
   4. 逐插件 `register`（依赖/冲突校验在此生效）。
-  5. 逐脚本以插件标记的文件名 eval 执行；**任一脚本异常 → 格式化错误（`pluginErrorMsg`）后终止进程**。
+  5. 按产物内脚本顺序逐脚本以插件标记的文件名 eval 执行；**任一脚本异常 → 格式化错误（`pluginErrorMsg`）后终止进程**（614–643 行）。编译与消费成功时，显式 b.rb,a.rb 的候选保持 b.rb 先于 a.rb；前脚本异常会阻止后续脚本。
 - 插件运行**早于**编译检查：插件可能先修改数据/规则，随后编译检查再处理（WP04 主规格，引用）。
 - 发布边界：注释建议发布时删除 Plugins 目录；但**删除源目录不等于禁用产物**——预编译产物在发布模式仍被消费（本条取代上一版"发布模式下插件整体不加载"的错误表述）。
 
@@ -157,9 +161,12 @@
 | 同键替换 | NamedEvent/HandlerHash/菜单同键再注册 | 后注册替换先注册（与 Event 的 `+` 去重不同） |
 | 空 ID 与处理器校验 | 无效处理器配 nil ID；有效处理器配 nil ID | 前者先抛 ArgumentError；后者被忽略 |
 | 字符串键注册查找 | HandlerHashSymbol 以字符串为键 | 注册与查找按原样/`.id` 归一化匹配（无仅符号校验）；触发时首参仍为该字符串 |
-| 省略 Scripts 且有脚本 | meta.txt 无 Scripts 行，目录含 .rb | readMeta 默认空数组兜底并自动收集，不触发 541 行错误 |
-| 省略 Scripts 且无脚本 | meta.txt 无 Scripts 行，目录无 .rb | 得到空脚本列表（插件条目为空），不触发 541 行错误；与整个预编译产物为空不同 |
-| 依赖版本不足 | A Requires B 2.0，已装 B 1.0 | 注册期报错并终止（附已装版本与更新链接） |
+| 省略 Scripts 且有脚本 | meta.txt 无 Scripts 行，有完整路径包含小写 .rb 的自动候选 | readMeta 默认空数组兜底并自动收集，不触发 541 行错误 |
+| 省略 Scripts 且无脚本 | meta.txt 无 Scripts 行，无自动候选 | 得到空脚本列表（插件条目为空），不触发 541 行错误；与整个预编译产物为空不同 |
+| 自动候选（完整路径子串） | 自动发现分别收到完整路径 Plugins/Plain/old.rb.bak、Plugins/Plain/readme.txt、Plugins/Plain/a.RB、Plugins/Marked.rb/readme.txt | 第一和第四条含小写 .rb，入选；第二、第三条不入选。不执行这些文件来证明路径入选 |
+| 显式顺序与产物消费 | 仅一个合法插件，显式 Scripts = b.rb,a.rb；自动候选顺序 a.rb,b.rb,c.rb；文件可读、内容有效，编译与消费均成功 | 合并去重后的候选及产物顺序为 b.rb,a.rb,c.rb，消费依同序；显式条目不因自动发现再次出现而重排或重复 |
+| 重复显式／省略 Scripts 对照 | 同上一顺序场景的自动候选；显式 b.rb,a.rb,b.rb / 省略 Scripts 作反向对照 | 前者仍为 b.rb,a.rb,c.rb；后者为 a.rb,b.rb,c.rb。去重按相同路径保留首次出现，不保证不同路径别名只执行一次 |
+| 依赖版本不足（有／无 Link） | A 声明 Requires B 2.0，B 1.0 已合法注册，其他调用成功；分别为 B 无 Link / B 有合法已登记 Link | 两者均报告已装版本并终止；无 Link 时无更新链接，有 Link 时追加该链接，不能把缺 Link 当作注册失败 |
 | 依赖环 | A 依赖 B、B 依赖 A | 循环检测报错并终止 |
 | Optional 缺失 | 声明 Optional 依赖且未安装 | 跳过该依赖，正常加载 |
 | optional_exact 表达 | Requires 第三分量为 optional_exact | 按精确版本 + 存在性校验（实际入口支持） |
