@@ -1,3 +1,17 @@
+# B03-C 当前接受与B06有界恢复交接
+
+本层接受 **B03 REGISTERED_PASS_SCOPED**：实际被审 `e24f2ac6f43642ea0e68bd9aa21fb2c313d6ebdf` / tree `d773aa6c96be4ca878350bd0a3ce6098ca71971b`，独立Ultra报告 `dea9d118d7ed3b7ddb57b1c4e7bd40db8dd06497`。27本批贡献（19主责）已串行登记准确actual/报告身份，canonical229必修仍OPEN、CLOSED0；此处不批准B06实际整合或关闭任何ID。
+
+当前统计公开展示使用 **B01/B02/B05既有26主责：严格全计划贡献已接受23、待3**（A017、WP80-B02-R02仍待B21，A024仍待B07/WP30）。另列具体原修订及实际局部验收 **25／1／0**，唯一具体后继缺口A024；二种口径相差A017和WP80-B02-R02，不将25称全贡献已完成。B03本次19主责为另一个局部接受集合，不加进上述26分母或推导全局关闭。
+
+[本次接受依据](batches/B03/acceptance-stage-1/README.md)、[双口径逐ID统计](batches/B03/acceptance-stage-1/completion-statistics-successor.json)、[B06可操作恢复合同](batches/B03/acceptance-stage-1/downstream-handshake.json)、[完整actual独立报告](batches/B03/integration-review-1/report.md)。B06旧七项候选PASS固定b1b09be.../报告296a260...，只作候选证据；恢复后三项A034/A059/C103仅改WP24原/净化具名条款和本批PT静态目录，并重新审完整十项。七项已审条款、25静态行与五个其它本地正式文件的字节保护见合同。
+
+调度保持 **串行，B06优先，B04等待**。B04→B06四读写接口、B06→B04一个WP24接口及共同A059没有并行安全批准；未派发任务。B04播放/恢复/位置/显示合同仍待，新增依赖这些未接受行为的声明须指出具体上游门。B07仍需B06-I；A034/B08、C103/B14、C120/B16及A059其余贡献不闭合。
+
+新作者请求gpt-6.1-sol／xhigh／Standard(default)，新复审Ultra／Standard(default)；请求值不证明实际配置，执行端未见可信回显，实际三项UNVERIFIED。历史Max/Ultra收据保留原样，未改配置、提速或降档。只做Git/JSON/文本接受核验；参考执行、行为向量、运行观察、已证真实Demo链均0。
+
+以下整个B03-G及更早交接原字节保留，包括其当时pending状态与历史统计。本层仅以新接受依据和审批字段取代当前阶段状态，不改旧判定/冻结哈希。
+
 ## B03-G 实际整合送审（待原 R-B03 Ultra）
 
 B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
