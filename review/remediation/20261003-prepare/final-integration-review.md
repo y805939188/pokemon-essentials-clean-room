@@ -10,7 +10,7 @@ B07以普通push／回读交付的本次精确接受后继为基线，64计划�
 
 B07之后WP28／WP30任何变化保留**独立受影响B04复核**：两基线身份／范围锚与C003完整根及八扩展绑定在合同；B07候选Ultra、实际整合Ultra与父C不能自动替代该反向核验。B06四final读者＋原WP15音频五份仍与B04被审actual对齐；WP24六请求／引子记忆和八B06正式输出不变，不扩大伙伴／雷达或完整BattleAudio批准。公共登记只由A-REG写；目录全文件锁，既有B06／其他所有者行必须保留。
 
-B04 ROOT002仅34具名静态场景后继、C003仅其本地扩展，两P2归原C061/C062。229全部OPEN、0关闭，所有其他贡献与最终全局门保留，旧NA/EXCLUDE及历史P2发现不改。B07作者请求gpt-6.1-sol Max，仅Max明确不支持时允许xhigh；复审Ultra，全部Standard。实际配置UNVERIFIED依方案A，无新确认门。未读认证／令牌／sessions、未改配置、未派发任务或执行参考／行为向量。以下B04-G及全部更早交接按各自固定版本全文保留。
+B04 ROOT002仅34具名静态场景后继、C003仅其本地扩展，两P2归原C061/C062。229全部OPEN、0关闭，所有其他贡献与最终全局门保留，旧NA/EXCLUDE及历史P2发现不改。B07作者请求gpt-6.1-sol／xhigh（极高）；复审Ultra，全部Standard。参数依用户2026-10-04 13:46消息Sentinel_5b594d4f55548191ac8b35172f6933c3，见 [参数后继](batches/B04/acceptance-stage-1/runtime-policy-successor.json)；B07正式内容基线仍为219cc3c182750155e9dbf2cb619f420b3922de27。实际配置UNVERIFIED依方案A，无新确认门。未读认证／令牌／sessions、未改配置、未派发任务或执行参考／行为向量。以下B04-G及全部更早交接按各自固定版本全文保留。
 
 # B04-G实际整合交接，等待同一R-B04 Ultra
 
