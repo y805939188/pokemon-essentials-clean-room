@@ -1,3 +1,19 @@
+# B06-C 当前串行接受与 B04 执行交接
+
+已接受 **B06 REGISTERED_PASS_SCOPED**：被审actual c67f400c000df4fd73ab1440e1487a3d534336aa／tree def2e2afbf344c3f73d2d330e282bad341af0f70，同一 R-B06 独立报告 98e418ef1d9f99db999e5c0ec25118eacfe0601c。十项本批贡献（七主责）仅在该精确actual和具名范围接受；报告记录2998文档断言通过，未运行其verifier。八正式、60未执行静态行、103原来源及全部历史字节保留，规范229仍OPEN，关闭0。
+
+五批B01/B02/B03/B05/B06主责canonical去重52：具体验收51满足／1待补／0证据不足；严格全部计划贡献47满足／5待补。两口径差异A017、WP80-B02-R02、A034、C053；具体未满足A024仍待B07/WP30。严格另保留A034/B08、C053/B04及两项B21门。79条已接受贡献记录对应76个触及ID，不能作79个完成canonical。见 [逐ID计数](batches/B06/acceptance-stage-1/completion-statistics-successor.json)。正式关闭仍0，不由局部PASS关闭共享根或扩大未知。
+
+A034/B08、A059/B04/B09/B17/B21、C103/B14、C120/B16继续；N001/N002均P3精确actual回归通过，历史发现与旧REQUEST_CHANGES保持，未关闭。WP79旧BattleAudio NA的当前管理后继：已覆盖WP24六入口逻辑请求及引子交付前记忆／PT41-63，媒体播放、音量/等待/恢复、胜利/捕获其它消费者与B04/B09/B17/B21贡献仍待；旧NA原文不改，不称全音频已验收。
+
+[接受manifest](batches/B06/acceptance-stage-1/acceptance-manifest.json)、[同一独立actual报告](batches/B06/integration-review-1/report.md)、[B04可执行合同](batches/B06/acceptance-stage-1/downstream-handshake.json)。B04使用本次普通push／回读的精确接受后继SHA，按74计划读／8正式写，必要原稿同步只准specs/overworld的WP15、WP16战前appendix、WP16世界绘制及specs/ui的WP17绘制附表、WP17消息五个准确路径／本批ID最低条款；当前接受未修改这些原稿。全部正文、原稿、附表／向量、公共提案一致，候选及实际复审仍需Ultra/Standard；公共路径由A-REG单写，作者不能改。
+
+B04→B07完整合同串行：四个B04写→B07读接口须在B04接受后重冻结；B07后续WP28／WP30变化须触发B04受影响复审，共同C003及八扩展保持。若同步原WP17消息稿，B07还须重冻结该条件性第五读取；原WP15音频稿同步也影响B06原稿读取，均须受影响核验。未派发。原B04预调查在继续作者thread 01a107a2-91a5-71c8-8b15-dc137dbde085自身/tmp/b04-20261003-prepare-1gE8nN/notes下b04-evidence.md和range-integrity.tsv；本环境未收到文件、未读取或核验内容身份，作者在新冻结上复读／重核后可复用，不能迁移旧批准。
+
+请求gpt-6.1-sol/xhigh，继承Standard(default)；实际模型／推理／速度UNVERIFIED，没有可信允许平台回显。未改配置、派生、运行参考或作者／复审程序；U01-U10、G01-G12、AX01-AX20、全部具名未知与部分失败前提继续。
+
+以下B06-G和全部更早中央交接按各自冻结身份原字节保留；当前接受依据仅为本新管理后继。
+
 # B06-G 实际整合交接，等待R-B06 Ultra
 
 已接受上游为 B01/B02/B03/B05，固定 `1fd612d47dcda164de61ab2d25a1cb5e0fbde085`。B06完整十项候选 `4076a3fbbf6fe355b73f3fe2229d1f981fe735d2`、作者交接 `ee7461e90ad5e0943e39c56c22a080f761f4e1c0`、独立Ultra报告 `70babef632539c952aa988e7762d0c2aa19cfeb3`为本批10贡献／7主责 PASS_SCOPED；八份原／净化／目录字节原样整合，本次实际新SHA及公共登记待 R-B06 Ultra。规范必修229 OPEN／0 CLOSED。
