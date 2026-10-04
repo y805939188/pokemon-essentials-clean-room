@@ -2,7 +2,7 @@
 
 本文件登记批次 4 各净化正文的静态推导场景。每条记录 **ID、输入／前提、推导预期**——全部为静态推导，**不是已执行测试**；素材、宿主输出与运行表现按 `../scope-statement.md` 保留。对应正文：`generic-kernel/wp05-events-extensions-plugins.md`（EP）、`wp06-time-random-steps-stats.md`（TM）、`wp07-diagnostics-files-http.md`（IO）、`wp07-deprecation-appendix.md`（DP）、`wp08-localization.md`（LZ）、`wp09-save-startup-continue.md`（SV）、`wp10-migration-failure-recovery.md`（MG）。
 
-## EP：通知、扩展与插件（EP01–EP17）
+## EP：通知、扩展与插件（EP01–EP21）
 
 | ID | 输入／前提 | 推导预期 |
 | --- | --- | --- |
@@ -12,8 +12,8 @@
 | EP04 | 身份处理器表：无效处理器配空身份；有效处理器配空身份 | 前者先抛参数错误（校验先于身份检查）；后者被忽略 |
 | EP05 | 符号处理器表以字符串为键登记并触发 | 注册与查找按原样/身份换算归一化匹配（无仅符号校验）；触发时首参仍为该字符串（类型不保证为符号） |
 | EP06 | meta.txt 无 Scripts 行，目录含脚本文件 | 默认空数组兜底并自动收集，不触发发现阶段防御错误 |
-| EP07 | meta.txt 无 Scripts 行，目录无脚本文件 | 得到空脚本列表（插件条目为空），不触发防御错误；与整个预编译产物为空是两种情形 |
-| EP08 | A 声明 Requires B 2.0，已装 B 1.0 | 注册期报错并终止进程（附已装版本与更新链接） |
+| EP07 | meta.txt 无 Scripts 行，目录无自动候选文件，其他元数据/依赖合法 | 得到空脚本列表，合法插件条目不触发防御错误；与整个预编译产物无插件条目是两种情形 |
+| EP08 | A 声明 Requires B 2.0，B 1.0 已合法注册，其他调用成功；分别为 B 无 Link / B 有合法已登记 Link | 两者均报告已装版本并终止；无 Link 时无更新链接，有 Link 时追加该链接，不能把缺 Link 当作注册失败 |
 | EP09 | A 依赖 B、B 依赖 A | 循环检测报错并终止进程 |
 | EP10 | 声明 Optional 依赖且未安装 | 跳过该依赖，正常加载 |
 | EP11 | Requires 第三分量为 optional_exact | 按精确版本＋存在性校验（实际入口支持；注释所称「无法表达」与实际入口不一致，以入口为准） |
@@ -23,6 +23,10 @@
 | EP15 | meta.txt 无 Essentials 键 | 执行阶段警告但照常加载 |
 | EP16 | 打包归档存在（发布模式）且预编译产物合法 | 仍读取/注册/执行预编译插件（产物消费无调试/归档提前返回；删除源目录不等于禁用产物） |
 | EP17 | 预编译产物为空 / 产物不可读 | 前者走「未发现插件」正常继续；后者按宿主读取行为（未验证） |
+| EP18 | 发现阶段防御边界的静态故障输入：解析后脚本列表缺失 / nil / false / 空列表；Name 与其他前提合法 | 前三者报缺 Scripts 错误；空列表不报该错误。正常 meta 解析已用空列表兜底，省略 Scripts 不自然产生前三种故障 |
+| EP19 | 自动发现分别收到完整路径 Plugins/Plain/old.rb.bak、Plugins/Plain/readme.txt、Plugins/Plain/a.RB、Plugins/Marked.rb/readme.txt | 第一和第四条含小写 .rb，入选；第二、第三条不入选。不执行这些文件来证明路径入选 |
+| EP20 | 仅一个合法插件，显式 Scripts = b.rb,a.rb；自动候选顺序 a.rb,b.rb,c.rb；文件可读、内容有效，编译与消费均成功 | 合并去重后的候选及产物顺序为 b.rb,a.rb,c.rb，消费依同序；显式条目不因自动发现再次出现而重排或重复 |
+| EP21 | 同 EP20 自动候选；显式 b.rb,a.rb,b.rb / 省略 Scripts 作反向对照 | 前者仍为 b.rb,a.rb,c.rb；后者为 a.rb,b.rb,c.rb。去重按相同路径保留首次出现，不保证不同路径别名只执行一次 |
 
 ## TM：时间、随机、计步与统计（TM01–TM12）
 
