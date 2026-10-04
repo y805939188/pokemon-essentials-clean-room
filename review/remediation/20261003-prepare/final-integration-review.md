@@ -1,3 +1,23 @@
+# B05-G 实际整合送审交接
+
+当前：B01/B02有界实际整合已接受；B05完整候选16项贡献PASS_SCOPED，十五正式文件原字节整合；本次公共登记/索引与实际新integration SHA待R-B05 Ultra；规范229必修OPEN、关闭0；B05下游BLOCKED。
+
+本次接受起点 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`绑定B02精确被审 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946`及Ultra报告 `361e4e69126559c266a08fdf093082dbbcd83f8d`。B05作者旧起点 `0a12de641542f9a59909d2a950c1de8df17ca09d`、v1 `7dc7dd5dfc986788fd6d9ce7b2bdaa6208837b4e`、完整v2 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`、直接后继独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`已全量保留。正常合并 `be9e78e32fd550d5210ab21db0a1868af685f6f5`的父为B02接受起点和B05报告；三项额外提交及完整66路径、双向正式读依赖和公共读边界在 [合并独立性](batches/B05/integration-stage-1/merge-independence.json)。没有冲突、版本取舍或正式规则重写。
+
+可审入口：[完整交接](batches/B05/integration-stage-1/README.md)、[正式/公共/依赖身份](batches/B05/integration-stage-1/integration-manifest.json)、[逐ID登记](batches/B05/integration-stage-1/finding-registration.json)、[限定计数](batches/B05/integration-stage-1/scope-counts.json)。有限两提交先冻结完整公共payload，再仅增加两份完整patch及diff-and-freeze.json；最终实际SHA由普通push回读交接，不以候选或报告SHA冒充，也不自引用。
+
+B05仅十主责/六协作本批候选通过；五原稿条款授权、正确原Mega/Shadow数据与h255/G0门、WP18 §8及缓存限定、原别名/P2/P3/全部有效裁决与扩展保留。A020/A024/A026仍有B07，A040仍有B07/B17，A044仍有B07/B16，C124/C126仍有B16；同一原ID最终关闭需所有贡献及最终Ultra。两个目录164/213行、+38新行，仅FM15/FM20/SH06旧行修改，PT/PS/AQ/BR整段和B01/B02正式输入保持。计数是文本清单，非运行/行为验收。
+
+中央规范ledger229行原字节保持；approval/trace旧26贡献行完整保留，仅追加16条B05待审贡献，共42贡献行，以finding+candidate区分，不能当作规范ID数。整个B02-C/B02-G/B01-C中央原文保留；旧manifest/hash/author/review/PRE0/计划均保留其固定身份。旧公共层当时PENDING/BLOCKED用当前接受段解释，不循环改旧hash。
+
+B03已交接B02接受冻结 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`及七写路径/全文件锁，本轮不替换其冻结或派生任务。B05公共后继audit/README会与B03旧读集合相交，属于待审新公共层，不能宣称B03所有输入在新SHA均不变；B03正式写文件未受B05影响。B05下游须本次实际Ultra及父任务另行冻结。
+
+本轮A-REG只做Git/JSON/文本/保护边界核验；候选独立报告及其定位勘误原字节归档，不重审参考行为。请求gpt-6.1-sol Max/Standard，独立复审要求Ultra/Standard；实际model/reasoning/speed UNVERIFIED，未fallback或改配置。参考固定只读，参考程序/游戏/编译/转换/生成/反序列化/模拟/求解、行为向量、运行观察、真实Demo执行均0；U01–U10/G01–G12/AX01–AX20与可选内容、素材/宿主/插件未知保持。
+
+---
+
+以下B02-C/B02-G/B01-C及旧交接全部保留原时点和原字节；当前B05待审与B02接受分别由本层及各自独立报告绑定。
+
 # B02-C 有限接受登记与 B03 冻结交接
 
 当前：B02 精确实际整合 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946` 已由 R-B02 Ultra 报告 `361e4e69126559c266a08fdf093082dbbcd83f8d` 给出 PASS_SCOPED，十二项本批贡献现已作后继接受登记，规范229项必修仍OPEN、关闭0。候选报告不是实际被审SHA；报告提交只是证据后继。

@@ -1,5 +1,15 @@
 # 当前后继勘误索引（B01-G）
 
+## B05-G 当前后继身份与定位索引（待实际整合核验）
+
+B02已在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作接受登记。B05当前完整候选／独立报告分别为 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`、`0da269077aa5a02d5cef08021171acf3719e1b69`；旧批准与旧输入身份保留，候选结论及本次公共层待审身份分开。五原稿同步仅在[父统筹既有授权](batches/B05/scope-amendment/approval.json)范围：WP18 §3.2/4.2/9（§8原句保留）、WP20 §5.1–5.3/7.5/9、WP19 §3.5、WP21 §3 C/D及4.1–4.2、WP23仅W06。原正确Mega/Shadow表与h255/G0旧限定不扩写，不把旧Reviewed/批准移给新字节。
+
+当前逐ID条款、静态测试、旧/新文件hash及B07/B16/B17剩余见 [B05登记](batches/B05/integration-stage-1/finding-registration.json)、[当前manifest](batches/B05/integration-stage-1/integration-manifest.json)。A022保留当前统一P2；A020/A026/A044扩展与C124/C126有效case按原完整对象绑定，无标题化收窄。
+
+独立冻结首判的S19相邻文件名及EOF范围另有 [既有证据定位勘误](batches/B05/review-round-1/evidence-locator-errata.md)：正确S19为 `Data/Scripts/019_Utilities/001_Utilities.rb:450–490`；Nature末尾173、Pokemon1227、Move77、Summary1400。正确有界定位在独立源日志；本次不改首判字节或候选判决，不提升全文/运行证据。旧author/review/dated manifest/current-hashes和历史批准材料不回填。
+
+### 以下B02/B01历史索引原文保留
+
 ## B02-G 当前后继索引（公共登记待实际整合核验）
 
 B01 已在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；下方 B01-G 当时待审表述及旧批准身份保留，当前 B02 独立候选和报告分别为 `46cd726c35e9d754a8e42b32986313ce3d4d1782`、`94b012ee12d457aa4b99103477a0d35f083b1182`。本次只登记当前后继，不反写旧 author/review/冻结表，也不把旧 Reviewed 或 GR-002批准迁移给候选新字节。

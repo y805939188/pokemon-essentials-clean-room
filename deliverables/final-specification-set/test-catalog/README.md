@@ -10,11 +10,11 @@
 | [generic-kernel-wp02-03-04.md](generic-kernel-wp02-03-04.md) | 规则配置档案＋内容身份/schema＋PBS 生命周期（批次 2） | KC01–KC06、KR01–KR13、KL01–KL32 | `generic-kernel/wp02-rule-configuration-and-data-variants.md`、`generic-kernel/wp03-content-identity-and-schema.md`、`generic-kernel/wp04-pbs-lifecycle.md` |
 | [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP15、MV01–MV41、EV01–EV31、FW01–FW07、IM01–IM12、MR01–MR09、DG01–DG24、RS01–RS20、WT01–WT25、FS01–FS15 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
 | [generic-kernel-wp05-06-07-08-09-10.md](generic-kernel-wp05-06-07-08-09-10.md) | 通知扩展插件/时间随机计步统计/诊断文件 HTTP/弃用告警/本地化/保存启动/迁移恢复（批次 4） | EP01–EP21、TM01–TM14、IO01–IO15、DP01–DP05、LZ01–LZ17、SV01–SV11、MG01–MG16 | `generic-kernel/` 下 WP05–WP10 八篇（WP01 为基线范围承接，无行为场景） |
-| [pokemon-rules-wp19-21-22-23-34.md](pokemon-rules-wp19-21-22-23-34.md) | 属性与能力/动态形态/Mega 与 Primal/Shadow 与净化/遗传（批次 5） | ST01–ST59、FM01–FM35、ME01–ME25、SH01–SH46、BR01–BR25 | `pokemon-rules/` 下 WP19、WP21、WP22（含附表）、WP23（含附表）、WP34 七篇 |
+| [pokemon-rules-wp19-21-22-23-34.md](pokemon-rules-wp19-21-22-23-34.md) | 属性与能力/动态形态/Mega 与 Primal/Shadow 与净化/遗传（批次 5） | ST01–ST67、FM01–FM43、ME01–ME26、SH01–SH52、BR01–BR25 | `pokemon-rules/` 下 WP19、WP21、WP22（含附表）、WP23（含附表）、WP34 七篇 |
 | [pokemon-rules-wp31-32-37-38.md](pokemon-rules-wp31-32-37-38.md) | 基础进化/情境交换战后事件/漫游与雷达/捕获与接收（批次 6） | BE01–BE35、CX01–CX38、RM01–RM32、CP01–CP20 | `pokemon-rules/` 下 WP31、WP32（含附表）、WP37、WP38 五篇 |
 | [pokemon-rules-wp43-44-46-48-50.md](pokemon-rules-wp43-44-46-48-50.md) | 类型命中伤害/状态与阶级/多击特殊伤害恢复/特性计算/持物触发消耗（批次 7） | TD01–TD21、SS01–SS40、MH01–MH38、AB01–AB23、HI01–HI33 | `pokemon-rules/` 下 WP43、WP44（含附表）、WP46（含附表）、WP48、WP50（含附表）八篇 |
 | [pokemon-rules-wp53-60-61-62-69-70.md](pokemon-rules-wp53-60-61-62-69-70.md) | Safari 与捕虫/树果/野外被动与回程/图鉴/Voltorb Flip/Lottery（批次 8） | SF01–SF34、BP01–BP17、FP01–FP31、PD01–PD25、VF01–VF18、LT01–LT16 | `pokemon-rules/` 下 WP53、WP60、WP61、WP62、WP69（含附表）、WP70 七篇 |
-| [creature-rpg-wp18-20-24-25-26.md](creature-rpg-wp18-20-24-25-26.md) | 生物身份物种与拥有者/HP 异常招式与持有/玩家训练家与伙伴/队伍与盒子/获得赠送与脚本交换（批次 9a） | CI01–CI24、HP01–HP34、PT01–PT28、PS01–PS28、AQ01–AQ35 | `creature-rpg/` 下 WP18、WP20、WP24、WP25、WP26 五篇 |
+| [creature-rpg-wp18-20-24-25-26.md](creature-rpg-wp18-20-24-25-26.md) | 生物身份物种与拥有者/HP 异常招式与持有/玩家训练家与伙伴/队伍与盒子/获得赠送与脚本交换（批次 9a） | CI01–CI28、HP01–HP45、PT01–PT28、PS01–PS28、AQ01–AQ35 | `creature-rpg/` 下 WP18、WP20、WP24、WP25、WP26 五篇 |
 | [creature-rpg-wp27-28-29-30-33.md](creature-rpg-wp27-28-29-30-33.md) | 背包与物品储存/主动道具与培养教学/买卖与 BP 商店/成长学习与友好/寄养会话与兼容性（批次 9b） | BG01–BG29、IU01–IU48、SH01–SH26、GR01–GR44、DC01–DC20 | `creature-rpg/` 下 WP27、WP28、WP29、WP30、WP33 五篇 |
 | [creature-rpg-wp35-36-57-64-68.md](creature-rpg-wp35-36-57-64-68.md) | 蛋与孵化/普通遭遇与修正/Factory 租借换队/邮件与神秘礼物/Triple Triad（批次 9c） | EG01–EG19、EN01–EN24、FC01–FC17、MG01–MG30、TT01–TT24 | `creature-rpg/` 下 WP35、WP36、WP57、WP64、WP68 五篇 |
 | [combat-requirements-wp39-40-41-42-45.md](combat-requirements-wp39-40-41-42-45.md) | 战斗上下文与参与者/命令服从与行动顺序/换人位置与逃跑/成长回合末与终局/天气场地阵营与位置效果（批次 10） | BC01–BC18、CM01–CM29、SW01–SW27、G01–G10/R01–R08/E01–E13＋E07b/E08b/E09b、W01–W07/T01–T04/F01–F03/S01–S07/H01–H04/P01–P05/C01 | `combat-requirements/` 下 WP39、WP40、WP41、WP42、WP45 五篇 |
@@ -37,3 +37,9 @@ B01 当前目录登记：两份相关目录分别 51、87 条，共 138 条；�
 ## B02-G 当前目录登记（待整合 Ultra）
 
 共享 WP05–10 目录当前 99 行：EP21、TM14、IO15、DP5、LZ17、SV11、MG16；相对已接受上游新增 12 个 ID，修订 12 条本批旧行，无删除。B01 EP01–EP21 与 DP 整段原字节保留；另一 B01 目录 51 行保持，两目录当前合计 150（历史 B01-G 合计 138）。WP07/08/10 原稿场景当前为 14/17/16，新增 2/3/4 条，共 9；这些是未执行静态场景数，不是行为覆盖或运行数。B01 实际核验已接受；B02 独立结论只绑定候选，本次索引新字节待 R-B02 整合核验。详见 [B02 当前计数](../../../review/remediation/20261003-prepare/batches/B02/integration-stage-1/scope-counts.json)。
+
+## B05-G 当前目录登记（待实际整合 Ultra）
+
+仅更新本批两个表项范围：CI28/HP45/PT28/PS28/AQ35，共164行；ST67/FM43/ME26/SH52/BR25，共213行。相对B02接受基线，两目录339→377行，新增38条；既有行只修订FM15/FM20/SH06，无删除。PT/PS/AQ和BR整个尾段原字节保留；B01/B02共享WP05–10目录仍99行、另一B01目录51行及EP/DP保留，旧索引登记段继续保留其原时点。
+
+上述为未执行静态文本目录计数。完整候选十五文件含五原稿批准同步，候选R-B05已给16项贡献PASS_SCOPED；本次索引及新实际integration SHA仍待Ultra。131份最终Markdown与17个静态目录文件数量不变，B07/B16/B17尚待其自身贡献。详见 [B05限定计数](../../../review/remediation/20261003-prepare/batches/B05/integration-stage-1/scope-counts.json)。

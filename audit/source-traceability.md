@@ -1,5 +1,15 @@
 # 来源追溯索引（WP80；2026-10-03 起）
 
+## 当前 B05-G 后继层（待实际整合 Ultra）
+
+B01 有界贡献已接受；B02 实际被审 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946`／Ultra 报告 `361e4e69126559c266a08fdf093082dbbcd83f8d`已在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作后继接受登记。B05 完整候选 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`／独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`为16项贡献 PASS_SCOPED，十五正式文件原字节接入；本次公共登记新字节及实际新 integration SHA仍待R-B05 Ultra，229必修均OPEN。
+
+当前原/净化/测试、旧输入与新候选身份分列：[B05 manifest](../review/remediation/20261003-prepare/batches/B05/integration-stage-1/integration-manifest.json)、[逐ID登记](../review/remediation/20261003-prepare/batches/B05/integration-stage-1/finding-registration.json)。五原稿仅承接[既有条款授权](../review/remediation/20261003-prepare/batches/B05/scope-amendment/approval.json)及完整候选审查；未将旧 Reviewed/批准或旧hash移给新字节。原正确Mega/Shadow附表、h255/G0门、WP18 §8原句及Nature缓存限定保留；B07/B16/B17仍按原责任待验收。
+
+独立报告的S19和文件末端定位以[冻结首判定位勘误](../review/remediation/20261003-prepare/batches/B05/review-round-1/evidence-locator-errata.md)与[源阅读日志](../review/remediation/20261003-prepare/batches/B05/review-round-1/source-reading-log.json)为准：S19包装器在 `Data/Scripts/019_Utilities/001_Utilities.rb:450–490`。原首判、旧来源索引及区间请求不改写。A-REG归档既有有界证据，不声称重审26源文件、运行参考或升级证据。
+
+### 以下B02/B01与历史审计正文原字节保留
+
 ## 当前整改后继层（20261003-prepare／B02-G，待 Ultra 整合核验）
 
 B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `8a1fdfb2b582df4cefb408b56eea144a2e53dcfe` 有界通过，并在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；该证据保留。B02 完整候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782` 的独立候选报告为 `94b012ee12d457aa4b99103477a0d35f083b1182`；13 份正式文件原字节整合。这里新增的公共导航、状态、身份与索引尚待 R-B02 对实际新整合 SHA 作 Ultra 核验，229 项规范必修仍 OPEN，B02 下游仍 BLOCKED。

@@ -1,5 +1,13 @@
 # 初始 Feature Matrix
 
+## 当前B05-G后继层（待实际整合Ultra）
+
+B01与B02有界实际整合已接受，B02接受基线 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`保持。B05完整候选 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`／独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`给出十个主责、六个协作贡献PASS_SCOPED；十五正式文件原字节整合。本次公共状态/身份/索引仍待R-B05核精确新实际SHA，229规范必修OPEN，关闭0，B05下游BLOCKED。
+
+本批WP18默认/创建入口、WP20列表与教学边界、WP19完整Nature/特征及局部EV、WP21形态时序、WP22 Mega数据和WP23 Shadow/香工具仅按受审限定登记。完整ID、Feature/别名、原/最终/静态测试及剩余责任见 [B05登记](../review/remediation/20261003-prepare/batches/B05/integration-stage-1/finding-registration.json)和 [身份](../review/remediation/20261003-prepare/batches/B05/integration-stage-1/integration-manifest.json)。A020/A024/A026的B07消费者，A040的B07/B17，A044的B07/B16，C124/C126的B16继续OPEN；未将可选内容当作默认启用或运行观察。原Feature行、历史计数和U/G/AX保留。B03读已交接B02冻结输入，不自动消费B05新公共层。
+
+### 下方原B02/B01与历史覆盖、Feature表原字节保留
+
 ## 当前 B02-G 后继层（待实际整合 Ultra）
 
 B01 有界实际整合已核验并在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；其原证据及下方 B01-G/旧批准时点层保留。B02 独立候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782`／报告 `94b012ee12d457aa4b99103477a0d35f083b1182` 为 PASS_SCOPED：8 项主责行为、3 项局部贡献、A017 八处导航建议；13 正式字节已原样整合。本次中央身份/索引/导航是待核验的新公共字节，不能借候选判决写成整合通过，229 必修仍 OPEN，B02 下游 BLOCKED。
