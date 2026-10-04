@@ -1,6 +1,6 @@
 # 全局独立二次审查报告
 
-审查执行：**REVIEW_COMPLETE**。规格结论：**REQUIRES_REVISION**。发布状态：**PUBLICATION_PARTIAL**。全部约定审查与最终产物QA已完成，最终summary尚未公开发布。
+审查执行：**REVIEW_COMPLETE**。规格结论：**REQUIRES_REVISION**。发布状态：**PUBLICATION_COMPLETE**。全部约定审查与最终产物QA已完成，最终summary已公开发布并核验远端提交。
 
 RUN_ID：2026-10-03-fd82a639。项目固定提交 `e1e01bb18d824931e54f182dd61af5a9f908ba85`；独立参考固定提交 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。所有结论针对这两个版本，不追随main。
 
@@ -42,4 +42,4 @@ RUN_ID：2026-10-03-fd82a639。项目固定提交 `e1e01bb18d824931e54f182dd61af
 
 [整改与复审计划](remediation-plan.md)及其229项索引给出后续文档修订边界，本轮不执行修订。[专项报告](wp78-wp79-wp80-review.md)、[八链比较](cross-module-review.md)、[D原报告](spec-only-reader-report.md)与[D统一处置](root/spec-only-reader-disposition.md)构成总报告依据。
 
-A/B/C各批报告的固定发布提交和summary cherry-pick映射见[publication-manifest.json](publication-manifest.json)。summary最后实际确认远端为`5de947dc9d3bc15d5dd1171f99861c993ce7f563`；之后最终汇总保存在本地summary分支。自动审批拒绝了对公开仓库的后续报告发布，明确要求确认本轮报告内容及公开目的地；账户所有权/权限核实未解除本次拦截。没有改用其它传输、代推或更改权限。待用户回应此前公开发布确认；不能把本地最终报告称为已交付GitHub。
+A/B/C各批报告的固定发布提交和summary cherry-pick映射见[publication-manifest.json](publication-manifest.json)。用户于2026-10-04明确确认公开推送后，普通push成功，远端summary独立核验为`bc5b834db58b9bb4e89fa365745162d57164205a`，包含全部最终审查内容与验证回执；main仍为被审基线。后继提交仅同步发布成功状态，当前报告的完整固定版本由其所在Git提交标识。此前自动审批拦截及其解除经过保存在[root/publication-approval-block.json](root/publication-approval-block.json)。
