@@ -1,3 +1,21 @@
+# B05-C 有限接受登记与 B06 冻结交接
+
+当前：B05精确实际整合 `cc085d618ce8b5ebda82c28a3a1ac9a09dda9a85` 已由R-B05 Ultra报告 `59b0451799cbfea41b12e2e1c3bb779420ed5ea9` 给出PASS_SCOPED，十六项本批实际贡献现作串行后继接受登记。规范229必修仍OPEN、关闭0；B07/B16/B17原欠项及最终Ultra门不变。
+
+独立报告十二份材料原样接入；十五正式文件、全部依赖、原/净化/静态目录、其余被审公共语义和历史资料原字节保持。本次仅更新approval-ledger末十六条B05的接受/贡献状态，并新增本接受段与交接材料。候选/被审实际SHA/报告身份分开；旧manifest/current-hashes/trace后继及当时PENDING文字保留原时点，不回填旧hash或重写被审正文。
+
+[完整Ultra报告](batches/B05/integration-review-1/report.md)、[本次接受与保留身份](batches/B05/acceptance-stage-1/acceptance-manifest.json)、[B06精确读写、前提与B03并行冲突](batches/B05/acceptance-stage-1/downstream-handshake.json)。B06仅由父任务按新冻结SHA派发，写集仍为WP24/WP25/WP27及两静态目录五文件；原specs、公共登记与冻结材料只读。B07仍缺B06，不能提前开放。
+
+B03已由父任务从 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e` 启动，保持其工作区/分支/冻结；本作业不替换或让它自动读取新B05。B06/B03写写交集0，B03写→B06读有共享engine-overworld目录一处，反向0；十个共同冻结读入目前blob相同。可在各自固定输入上隔离制作候选，集成和公共登记仍串行；将来B03合并若改变该读入或雷达/迈步资源/音频等共享前提，须重新冻结并按影响独立核验，不能由写集无交集推出无语义冲突。
+
+B05默认/创建、入口容量、25Nature/特征/局部EV、六族形态、Mega/Shadow及真实异常仅按独立报告限定接受；A020/A024/A026还有B07，A040有B07/B17，A044有B07/B16，C124/C126有B16。定位以既有S19/EOF勘误及修正后源日志/本轮复用回执为准，冻结首判原字节保留；不升级可选启用、运行或媒体证据。
+
+作者请求gpt-6.1-sol Max/Standard、独立复审要求Ultra/Standard；实际模型/推理/速度UNVERIFIED，未fallback、改配置或派生任务。固定参考只读，参考程序/行为向量/运行观察/真实Demo执行均0；U01–U10/G01–G12/AX01–AX20与具名未知保留。最终B05-C冻结SHA由普通push/远端回读交接，完成后停止，由父任务派B06。
+
+---
+
+以下整个B05-G/B02-C/B02-G/B01-C交接原字节保留；原当时待审状态不覆盖本层精确接受身份。
+
 # B05-G 实际整合送审交接
 
 当前：B01/B02有界实际整合已接受；B05完整候选16项贡献PASS_SCOPED，十五正式文件原字节整合；本次公共登记/索引与实际新integration SHA待R-B05 Ultra；规范229必修OPEN、关闭0；B05下游BLOCKED。
