@@ -1,5 +1,11 @@
 # 覆盖审查表（WP79 v7；2026-10-03）
 
+## 当前整改覆盖口径（20261003-prepare／B01-G）
+
+以下 WP79 v6/v7 覆盖结论、通过身份和计数保留其历史范围；当前最终全局 review 已完成且229项必修仍 OPEN，不以旧“无缺口”推断当前整改无欠项。B01只有七项主责及六项跨批正文贡献的有界候选通过，另有GIR-FD82-001登记建议；实际整合／新增公共登记待 Ultra 核验。WP08语言、WP19映射、WP36遭遇、WP73编辑器等欠项继续按原ID保留。
+
+本轮当前身份、贡献／剩余及门禁：[整合交接](../review/remediation/20261003-prepare/final-integration-review.md)、[后继追溯](../review/remediation/20261003-prepare/traceability-successor.tsv)。113 Feature／84包的归属计数不是当前行为无遗漏证明，运行观察与真实Demo链仍0；下游尚未开放。
+
 规格提取方。本表回答「哪些能力、来源、配置、入口和场景已被适当处理，哪些仍缺」。计数均从稳定 ID/字段生成；**字符串匹配统计（候选引用证据）、阅读统计、行为覆盖统计分别命名**；证据边界（U01＋G01–G12、③④＝0、来源异常 20 项 AX）全部保留。逐维可枚举明细见 `review/wp79-coverage-review-2026-10-03/revision-v6/`（source-judgments.json、ui-scenario-relations.json——**WP79 通过基线有效版本**）、`review/wp79-coverage-review-2026-10-03/revision-v5/`（feature-navigation-addendum.json）、`review/wp79-coverage-review-2026-10-03/revision-v4/`（config-details.json）、`review/wp79-coverage-review-2026-10-03/revision-v2/`（feature-details.json 沿用）。
 
 **总体结论**：113 Feature（＋1 补充范围 F05-04-supp-BT 单列）、84 个内容包（87 个计划行 − 3 个审查阶段）、E01–E34 来源包、33/33 顶层 PBS、312 个 .rb 源文件——**4 项确证遗漏已完成有界补提取**（训练家卡场景 WP79-R01、控制帮助场景 WP79-R03-1、弃用告警机制 WP79-R03-2、**战前过渡 WP79-R02 v5**——均已经 WP79 系列复审关闭）；其余缺口全部落入既有待证/不适用框架，无新增无归属缺口。v5 按复审 R02 收窄项完成战前过渡有界补提取：新增 WP16 附表（特殊过渡注册与优先选择、资源条件、默认选择、演出阶段、固定目标时长全表、正常返回边界）；BattleIntroAnim 判断由部分覆盖（具名缺证）转为已补提取，Transitions 判断由行为层转为已覆盖（选择/固定目标时长/完成条件引用新附表合同，逐像素绘制算法具名实现边界）；规格文件数由原基线 **112** 增至当前 **113**（新增 1 份附表，旧历史不改写）。**v6 定点校正（复审 R02 余项）**：附表 v2——§1/§9 调用侧按真实传值（类别为调用方输入、普通训练家链按单双打给 1/3、设施/回放仅传音乐采用默认类别 0 与空对手上下文、不从音乐或实际战斗类型反推）、§4.3 玩家/对手资源规则分开（装束回退只作用玩家且条形图/立绘两项独立、允许混合命中，不扩展至对手侧）、§5 中断守卫先于在途处置、异常重试补全条件（首次异常仅文件名非空才空名重试一次、文件名已空不重试、第二次不兜底、具名效果实例化在捕获范围外）、场景向量扩为 BT01–BT16；本表 §2.2 重复四行已删除（明细不受影响）。v4 已接受的 AI 评分、来源字段结构、UI 关系与配置校准全部保持。
@@ -10,7 +16,7 @@
 | --- | --- | --- |
 | Feature 总数与归属 | **113/113 全部被计划包认领**（无未认领、无重复 ID） | [feature-details.json](../review/wp79-coverage-review-2026-10-03/revision-v2/feature-details.json)（v2 沿用；逐 Feature：包、规格文件、状态、未验证子范围） |
 | 内容包↔规格文件 | **84 个内容包（87 个计划行 − WP78/79/80 三个审查阶段）与 84 个规格包 ID 一一对应**；无计划行缺规格、无规格缺计划行 | 同上 |
-| Feature 状态 | 107 Reviewed＋Inventoried、6 Reviewed＋Provisional（未验证子范围全部保留，无 ReviewPending、无 Drafted） | `planning/feature-matrix.md` 各行 |
+| 历史WP79 Feature 状态 | 原被审时点107 Reviewed＋Inventoried、6 Reviewed＋Provisional（未验证子范围全部保留，当时无 ReviewPending、无 Drafted；当前整改见上节） | `planning/feature-matrix.md` 各行 |
 | 多包承接 Feature（按实际分工分类，不统称 A/B/C 拆分） | **10 个**：F02-03（WP02 配置词典＋WP04 编译管线）、F06-08（WP22 Mega＋WP23 Shadow——并列变身机制族）、F08-05（WP20 持久字段＋WP50 持物效果）、F12-05（WP47-A 属性/调用＋WP47-B 控制/变更——同域两册）、F12-06（WP48 能力计算＋WP49 阶段触发）、F12-08（WP52-A/B/C——AI 评估三包系列）、F13-04（WP55 会话＋WP56 变体）、F16-03（WP66-A 队伍＋WP66-B 盒子/图鉴——储存两域）、F18-02（WP73-A 内容编辑器＋WP73-B 世界编辑器）、F18-07（WP01 基线＋WP77 demo 证据） | feature-details.json |
 | 新增补充范围（单列，不并入旧批准） | **4 个补充范围，均经 WP79 系列复审关闭**（Reviewed 限定静态范围；未验证子范围保留）：训练家卡场景（F16-02-supp-TC，recheck-v3 R01 关闭）、控制帮助场景（F16-02-supp-CH，recheck-v4 R03 关闭）、弃用告警机制（F01-06-supp-DP，同左）、战前过渡（F05-04-supp-BT，recheck-v6 R02 关闭——[feature-navigation-addendum.json](../review/wp79-coverage-review-2026-10-03/revision-v5/feature-navigation-addendum.json)，父行 F05-04） | feature-details.json supplement_rows_pending（3 行，v2 留史）＋feature-navigation-addendum.json（v5 增补 1 行） |
 | 矩阵引用 | 98 个规格链接＋1 个报告引用**全部解析存在** | 矩阵各行 |

@@ -1,6 +1,20 @@
 # 初始 Feature Matrix
 
-范围：18 个 major domains、113 个高层 feature groups。本表用于追踪后续行为提取；初始建立时没有任何条目完成详细规格（初始阶段说明；当前各条目状态以 Specification status 列为准，聚合规则见 [extraction-plan](extraction-plan.md) 第 2.1 节）。领域定义见 [module-map](module-map.md)；后续任务见 [extraction-plan](extraction-plan.md)。
+## 当前整改状态覆盖层（20261003-prepare／B01-G）
+
+既有Specification status列的历史Reviewed/Inventoried/Provisional及具名未知原样保留；这些历史状态不代替当前最终全局报告的229项开放必修。本轮 B01 候选有界 PASS_SCOPED，实际整合／公共登记待 Ultra 核验，尚不作为下游正式前提。
+
+| 本批相关Feature | 当前贡献与保留范围 |
+| --- | --- |
+| F01-01／F02-03 | 最终WP02提取目标语言/命中数残留贡献已获候选有界通过；原WP02/附表/WP08语言仍待B02，变体/组合未知保持。 |
+| F01-02／F02-01 | WP03固定身份与映射依赖贡献已获候选有界通过；WP19完整能力映射与WP28消费者仍待B05／B07。 |
+| F01-04 | 插件假值、路径、顺序、Link后缀的原/最终本批条款已获候选有界通过；U09运行/真实组合未知保持。 |
+| F02-02 | PBS新鲜度、分词、专用入口及写出交界已获候选有界通过；WP36/编辑器/领域侧完整同步仍待相应批次。 |
+| F18-07 | 当前全集作者交付及user-interface导航已做公共后继修正，七正文断链仍待B18／B21；本轮新入口待整合核验。 |
+
+当前身份与原ID→条款→测试→余项的精确关系见 [后继追溯](../review/remediation/20261003-prepare/traceability-successor.tsv) 和 [整合manifest](../review/remediation/20261003-prepare/integration-manifest.json)。其他Feature历史行没有提升，规范finding仍OPEN。
+
+范围：18 个 major domains、113 个高层 feature groups。本表用于追踪后续行为提取；初始建立时没有任何条目完成详细规格（初始阶段说明；原规格提取时点各条目状态以 Specification status 列为准，聚合规则见 [extraction-plan](extraction-plan.md) 第 2.1 节）。领域定义见 [module-map](module-map.md)；后续任务见 [extraction-plan](extraction-plan.md)。
 
 Reference locations 中的 **E01–E34** 对应 [repository-overview 的证据索引](../analysis/repository-overview.md#7-证据索引供四份文档共同使用)，其中列明可展开的源路径和实际检查深度。每行的 E 编号是来源指针，不是对该来源全部行为的完成声明。Notes 中 WP 指向后续负责提取的包，U 指向总览的未知点。
 
