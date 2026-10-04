@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | [engine-overworld-wp16.md](engine-overworld-wp16.md) | 世界绘制与视觉过渡＋战前过渡（批次 1，v2 修正后） | WR01–WR17、BT01–BT16 | `engine-overworld/wp16-world-rendering-and-visual-transitions.md`、`engine-overworld/wp16-pre-battle-transitions.md` |
 | [generic-kernel-wp02-03-04.md](generic-kernel-wp02-03-04.md) | 规则配置档案＋内容身份/schema＋PBS 生命周期（批次 2） | KC01–KC06、KR01–KR13、KL01–KL32 | `generic-kernel/wp02-rule-configuration-and-data-variants.md`、`generic-kernel/wp03-content-identity-and-schema.md`、`generic-kernel/wp04-pbs-lifecycle.md` |
-| [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP15、MV01–MV41、EV01–EV31、FW01–FW07、IM01–IM12、MR01–MR09、DG01–DG24、RS01–RS20、WT01–WT25、FS01–FS15 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
+| [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP27、MV01–MV77、EV01–EV39、FW01–FW07、IM01–IM41、MR01–MR17、DG01–DG43、RS01–RS20、WT01–WT25、FS01–FS15 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
 | [generic-kernel-wp05-06-07-08-09-10.md](generic-kernel-wp05-06-07-08-09-10.md) | 通知扩展插件/时间随机计步统计/诊断文件 HTTP/弃用告警/本地化/保存启动/迁移恢复（批次 4） | EP01–EP21、TM01–TM14、IO01–IO15、DP01–DP05、LZ01–LZ17、SV01–SV11、MG01–MG16 | `generic-kernel/` 下 WP05–WP10 八篇（WP01 为基线范围承接，无行为场景） |
 | [pokemon-rules-wp19-21-22-23-34.md](pokemon-rules-wp19-21-22-23-34.md) | 属性与能力/动态形态/Mega 与 Primal/Shadow 与净化/遗传（批次 5） | ST01–ST67、FM01–FM43、ME01–ME26、SH01–SH52、BR01–BR25 | `pokemon-rules/` 下 WP19、WP21、WP22（含附表）、WP23（含附表）、WP34 七篇 |
 | [pokemon-rules-wp31-32-37-38.md](pokemon-rules-wp31-32-37-38.md) | 基础进化/情境交换战后事件/漫游与雷达/捕获与接收（批次 6） | BE01–BE35、CX01–CX38、RM01–RM32、CP01–CP20 | `pokemon-rules/` 下 WP31、WP32（含附表）、WP37、WP38 五篇 |
@@ -43,3 +43,9 @@ B01 当前目录登记：两份相关目录分别 51、87 条，共 138 条；�
 仅更新本批两个表项范围：CI28/HP45/PT28/PS28/AQ35，共164行；ST67/FM43/ME26/SH52/BR25，共213行。相对B02接受基线，两目录339→377行，新增38条；既有行只修订FM15/FM20/SH06，无删除。PT/PS/AQ和BR整个尾段原字节保留；B01/B02共享WP05–10目录仍99行、另一B01目录51行及EP/DP保留，旧索引登记段继续保留其原时点。
 
 上述为未执行静态文本目录计数。完整候选十五文件含五原稿批准同步，候选R-B05已给16项贡献PASS_SCOPED；本次索引及新实际integration SHA仍待Ultra。131份最终Markdown与17个静态目录文件数量不变，B07/B16/B17尚待其自身贡献。详见 [B05限定计数](../../../review/remediation/20261003-prepare/batches/B05/integration-stage-1/scope-counts.json)。
+
+## B03-G 当前目录登记（实际整合待 Ultra）
+
+本批范围为MP27/MV77/EV39/FW7/IM41/MR17/DG43，共251条未执行静态向量；相对B02冻结原139条新增112，第二轮新增16，旧235行逐字保留。共享文件另有RS20/WT25/FS15共60条，整文件311条；不把251当整文件总数。H节起WP15/59/60尾部原字节保留，A–G仅本批具名行和表结构。
+
+候选第二轮27贡献局部通过；本次索引/实际新SHA仍待Ultra，B04/B14整文件锁和陈旧读取门继续有效。131份最终Markdown及17个静态目录文件不变；数字仅文本库存。见 [计数](../../../review/remediation/20261003-prepare/batches/B03/integration-stage-1/scope-counts.json)。

@@ -1,5 +1,15 @@
 # 覆盖审查表（WP79 v7；2026-10-03）
 
+## 当前 B03-G 后继层（实际整合待 Ultra）
+
+B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
+
+WP11连接/201/地点，WP12双端/载具/输入/多格/冰瀑，WP13两矩阵/门跟随，WP14退化/候选/密度/九图样与固定邻接数据只按本批有效范围登记；[逐ID条款与剩余](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/finding-registration.json)、[原/新审批身份](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/integration-manifest.json)。C003全部8扩展、C007其它字面域、root002显示/灯光/暗图及C051/B20、C067/B04、C094/C095/B14、INTAKE跨域剩余不由B03闭合。
+
+已接受B01/B02/B05主责26个唯一ID：25项本项全部已知必修与验收满足、A024仍缺B07/WP30、不能判断0；[逐项证据](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/accepted-primary-completion.json)。WP80-B02-R02/A017具体后继已实际验证，B21最终汇总不被算成新行为缺口。B03仍仅候选通过；统计不关闭ID，不推断其他203项状态。全部原Feature行、历史计数、U/G/AX与未知保留。
+
+### 下方B05/B02/B01历史覆盖与Feature原文保留
+
 ## 当前B05-G后继层（待实际整合Ultra）
 
 B01与B02有界实际整合已接受，B02接受基线 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`保持。B05完整候选 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`／独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`给出十个主责、六个协作贡献PASS_SCOPED；十五正式文件原字节整合。本次公共状态/身份/索引仍待R-B05核精确新实际SHA，229规范必修OPEN，关闭0，B05下游BLOCKED。

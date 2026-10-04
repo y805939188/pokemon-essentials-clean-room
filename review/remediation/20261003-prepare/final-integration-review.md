@@ -1,3 +1,25 @@
+## B03-G 实际整合送审（待原 R-B03 Ultra）
+
+B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
+
+两次普通无冲突merge保留全部八个来源提交及两轮报告：第二轮merge `c3cd659295cd985489a524253535d8d4e9f70965`，第一轮历史merge `9316092c62eac8673c28f9a1f05800b2bcf34de6`；13正式/43作者/27独立报告共83路径，旧B01/B02/B05来源和接受资料保留，未使用ours/theirs。57作者冻结读仅audit/README在基线 `ae230e76e9c041f39c28948321d0960804c02388`已有公共层身份漂移，及本轮公共新字节均须核验，见 [完整合并/影响](batches/B03/integration-stage-1/merge-and-dependency-impact.json)。
+
+[完整送审入口](batches/B03/integration-stage-1/README.md)、[正式/公共/依赖身份](batches/B03/integration-stage-1/integration-manifest.json)、[逐ID待审登记](batches/B03/integration-stage-1/finding-registration.json)、[计数](batches/B03/integration-stage-1/scope-counts.json)。十三正式字节与候选相等；公共10路径/新管理11路径先作payload，后仅增加两份完整patch与diff-and-freeze.json；最终实际SHA由普通push/readback提供，不自引用未来SHA。
+
+原finding-ledger229OPEN原字节保持。approval/trace旧42贡献行不变，追加B0327候选通过/实际PENDING贡献，共69行；贡献行不是canonical ID数。六原稿新审批仅覆盖批准具名条款，新旧批准/文件身份分列，全部历史原文和正确受保护边界保持。
+
+B01/B02/B05主责26个唯一ID逐项只读分类：25本项全部已知必修和验收满足、1个A024缺B07/WP30、证据不足0。WP80-B02-R02和A017具体导航/去向已实际接受，规划B21仍只保留整体审计/最终门。准确ID、SHA、限定和未完职责见 [详细JSON](batches/B03/integration-stage-1/accepted-primary-completion.json)与 [26行表](batches/B03/integration-stage-1/accepted-primary-completion.tsv)。其他203ID不在此统计内，B03不提前计实际通过；未关闭任何ID。
+
+A034（雷达启动vs候选钩子及载具/步后）、A059（选曲vs播放/Intro/载具BGM）、C103（首Soot层擦除vs玩家/持袋/上限实际增量）固定接口和完整B06读写版本在 [接口调查](batches/B03/integration-stage-1/downstream-interface-investigation.json)。B06已从 `ae230e76e9c041f39c28948321d0960804c02388`冻结读取的共享engine目录现在已改变，旧B05-C handshake不回填；待实际B03 Ultra及父任务批准新冻结才能消费。
+
+B04/B06写写0但B04写→B06读4、反向1，共同A059语义；B04/B14/B03共用整文件锁继续有效。只能作有界并行调查，未派发/解锁。审查须包含五个交叉文件、陈旧输入、音频/伙伴状态消费者及实际合并后的公共状态，不能从写写0推断安全。
+
+模型/推理/速度实际配置UNVERIFIED；作者请求gpt-6.1-sol Max/Standard(default)，复审Ultra/Standard，未有Max不支持证据、未fallback/改配置/派生。固定参考Git只读，参考/作者/复审程序和251行为向量执行0，运行观察/真实Demo链0，U/G/AX与具名未知保留。
+
+---
+
+以下整个B05-C/B05-G/B02/B01交接原字节保留，旧时点状态不覆盖本层。
+
 # B05-C 有限接受登记与 B06 冻结交接
 
 当前：B05精确实际整合 `cc085d618ce8b5ebda82c28a3a1ac9a09dda9a85` 已由R-B05 Ultra报告 `59b0451799cbfea41b12e2e1c3bb779420ed5ea9` 给出PASS_SCOPED，十六项本批实际贡献现作串行后继接受登记。规范229必修仍OPEN、关闭0；B07/B16/B17原欠项及最终Ultra门不变。
