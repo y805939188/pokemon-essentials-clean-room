@@ -1,3 +1,21 @@
+# B06-G 实际整合交接，等待R-B06 Ultra
+
+已接受上游为 B01/B02/B03/B05，固定 `1fd612d47dcda164de61ab2d25a1cb5e0fbde085`。B06完整十项候选 `4076a3fbbf6fe355b73f3fe2229d1f981fe735d2`、作者交接 `ee7461e90ad5e0943e39c56c22a080f761f4e1c0`、独立Ultra报告 `70babef632539c952aa988e7762d0c2aa19cfeb3`为本批10贡献／7主责 PASS_SCOPED；八份原／净化／目录字节原样整合，本次实际新SHA及公共登记待 R-B06 Ultra。规范必修229 OPEN／0 CLOSED。
+
+三次普通无冲突merge：`c564f5575364a395dfd5ef6a4c1bcad2a890cc60`父[接受上游,完整候选报告]；`3835d0ac24596bfdac5654e28dde5be8eba253b6`加入R1不可变报告11文件；`7be085aa10663d79bfab2108432ffbfe07efe040`加入R2不可变报告14文件。正式8文件全部等于被审4076a3...；53作者文件及42独立报告共95证据文件原字节保持，incoming总103路径。全量差分、版本身份和冻结门见 [manifest](batches/B06/integration-stage-1/integration-manifest.json)、[来源／合并记录](batches/B06/integration-stage-1/merge-and-dependency-impact.json)。
+
+公共登记由A-REG单写：旧69审批／追溯行按原字节保留，只追加10条B06候选PASS／actual待审贡献，合计79；规范229ID全部OPEN，关闭0。候选报告不是actual报告；本最终实际新SHA由普通push／回读给出，须同一R-B06用完整上游→actual和候选→actual差分核验8正式、3原稿同步、全部公共层／目录／依赖及原七项N001/N002／60行回归。旧6594文档检查是报告记录，未运行其verifier；本登记不重裁行为。
+
+[逐ID登记](batches/B06/integration-stage-1/finding-registration.json)、[历史返修](batches/B06/integration-stage-1/historical-repair-registration.json)、[计数](batches/B06/integration-stage-1/scope-counts.json)、[B04准确合同及B04/B07关系](batches/B06/integration-stage-1/downstream-handshake.json)、[完整候选Ultra报告](batches/B06/review-full-round-1/report.md)。A034/B08、A059/B04/B09/B17/B21、C103/B14、C120/B16与原合格前提继续；原报告和审批不迁移到新字节。
+
+B04仍待本次实际Ultra及串行接受后重冻结才写；74计划读／8正式写，原specs只读，C071/C072/C073已完成只读预调查为父任务通知（thread01a107a2-91a5-71c8-8b15-dc137dbde085），没有收到固定材料路径／SHA，不能冒称已核字节或用作候选批准。B04/B07在本次接受后仅名义上均满足批次上游，仍有4＋2跨读写及共同C003，完整合同串行，建议B04后B07并核反向输入影响；未派发或拆任务。
+
+B01/B02/B05既有26主责统计仍严格23已接受／3待贡献，具体原修订25／1／0，差别A017／WP80-B02-R02待B21，A024待B07；B03另19已接受主责和B06候选7主责不混入26分母或推canonical关闭。
+
+请求gpt-6.1-sol/xhigh/Standard(default)，实际模型／推理／速度UNVERIFIED；复审要求Ultra/Standard，历史Max收据保留，未改配置／降档／加速／派生。参考只读，程序／行为向量／运行观察／已证Demo链均0，全部U/G/AX及具名未知保持。
+
+以下B03-C及全部更早交接原字节保留。本层仅后继登记当前B06状态，不覆写旧冻结和结论。
+
 # B03-C 当前接受与B06有界恢复交接
 
 本层接受 **B03 REGISTERED_PASS_SCOPED**：实际被审 `e24f2ac6f43642ea0e68bd9aa21fb2c313d6ebdf` / tree `d773aa6c96be4ca878350bd0a3ce6098ca71971b`，独立Ultra报告 `dea9d118d7ed3b7ddb57b1c4e7bd40db8dd06497`。27本批贡献（19主责）已串行登记准确actual/报告身份，canonical229必修仍OPEN、CLOSED0；此处不批准B06实际整合或关闭任何ID。

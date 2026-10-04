@@ -1,5 +1,13 @@
 # 范围与未验证声明（WP80 净化规格集；2026-10-03）
 
+## 当前 B06-G 状态（实际整合待 Ultra）
+
+已接受上游为 B01/B02/B03/B05，固定 `1fd612d47dcda164de61ab2d25a1cb5e0fbde085`。B06完整十项候选 `4076a3fbbf6fe355b73f3fe2229d1f981fe735d2`、作者交接 `ee7461e90ad5e0943e39c56c22a080f761f4e1c0`、独立Ultra报告 `70babef632539c952aa988e7762d0c2aa19cfeb3`为本批10贡献／7主责 PASS_SCOPED；八份原／净化／目录字节原样整合，本次实际新SHA及公共登记待 R-B06 Ultra。规范必修229 OPEN／0 CLOSED。
+
+当前入口：[整合交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[B06具体登记](../../review/remediation/20261003-prepare/batches/B06/integration-stage-1/finding-registration.json)、[候选复审](../../review/remediation/20261003-prepare/batches/B06/review-full-round-1/report.md)、[下游合同](../../review/remediation/20261003-prepare/batches/B06/integration-stage-1/downstream-handshake.json)。A034/B08、A059/B04/B09/B17/B21、C103/B14、C120/B16继续OPEN；候选PASS与旧批准均不代替本次实际受影响复审。参考程序／运行观察／已证Demo链／行为向量执行均0。
+
+以下既有正文和旧公共状态按其冻结版本保留；当前状态以本层及中央后继为准。
+
 本声明约束整个 `deliverables/final-specification-set/` 的解释方式。**使用本集前必读。**
 
 ## 1. 覆盖范围

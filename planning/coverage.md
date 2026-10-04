@@ -1,5 +1,17 @@
 # 覆盖审查表（WP79 v7；2026-10-03）
 
+## 当前 B06-G 后继登记（实际整合待 Ultra）
+
+已接受上游为 B01/B02/B03/B05，固定 `1fd612d47dcda164de61ab2d25a1cb5e0fbde085`。B06完整十项候选 `4076a3fbbf6fe355b73f3fe2229d1f981fe735d2`、作者交接 `ee7461e90ad5e0943e39c56c22a080f761f4e1c0`、独立Ultra报告 `70babef632539c952aa988e7762d0c2aa19cfeb3`为本批10贡献／7主责 PASS_SCOPED；八份原／净化／目录字节原样整合，本次实际新SHA及公共登记待 R-B06 Ultra。规范必修229 OPEN／0 CLOSED。
+
+[逐ID条款／静态证据／剩余责任](../review/remediation/20261003-prepare/batches/B06/integration-stage-1/finding-registration.json)、[实际整合manifest](../review/remediation/20261003-prepare/batches/B06/integration-stage-1/integration-manifest.json)、[完整候选独立报告](../review/remediation/20261003-prepare/batches/B06/review-full-round-1/report.md)。三份原WP24/25/27只在具名获准条款同步，旧原稿批准不迁移到本新字节；原七项及N001/N002在完整候选重新核，历史两轮报告按固定字节保留，见 [返修历史登记](../review/remediation/20261003-prepare/batches/B06/integration-stage-1/historical-repair-registration.json)。
+
+A034仅B06伙伴／雷达两阶段贡献，B08未完；A059仅WP24分入口逻辑选曲及引子交付前记忆，B04/B09/B17/B21仍待，WP79旧NA须在actual接受后登记具体覆盖，不能称全BattleAudio已验收；C103只本批资源／实际统计／首煤灰层接口，B14/WP61待；C120只WP25读时写背景，B16/WP66-B待。现有正确外观／通知／治疗／回调部分失败边界与U/G/AX具名未知不扩大。
+
+本批60行未执行静态证据＝原七项25＋新增三项35；两个目录当前220／169行，新增56／2行，旧PS11/AQ04是仅两条获准旧行修订，CI/HP及IU/SH/GR/DC字节保持。计数详见 [范围计数](../review/remediation/20261003-prepare/batches/B06/integration-stage-1/scope-counts.json)。B01/B02/B05旧26主责的严格23／3及具体25／1／0口径保持 [原C阶段统计](../review/remediation/20261003-prepare/batches/B03/acceptance-stage-1/completion-statistics-successor.json)，不因B06候选通过改变或推全局关闭。
+
+B04及B07仍等B06实际复审／接受，新读写合同及B04/B07四正向／两反向接口和共同C003见 [下游合同](../review/remediation/20261003-prepare/batches/B06/integration-stage-1/downstream-handshake.json)；未派发、未解锁、未知关系串行。以下更早公共层按原版本／原时点解释，原字节保留。
+
 ## 当前 B03-G 后继层（实际整合待 Ultra）
 
 B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
