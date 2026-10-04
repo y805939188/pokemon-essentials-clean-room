@@ -1,5 +1,30 @@
 # 来源追溯索引（WP80；2026-10-03 起）
 
+## 当前整改后继层（20261003-prepare／B02-G，待 Ultra 整合核验）
+
+B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `8a1fdfb2b582df4cefb408b56eea144a2e53dcfe` 有界通过，并在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；该证据保留。B02 完整候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782` 的独立候选报告为 `94b012ee12d457aa4b99103477a0d35f083b1182`；13 份正式文件原字节整合。这里新增的公共导航、状态、身份与索引尚待 R-B02 对实际新整合 SHA 作 Ultra 核验，229 项规范必修仍 OPEN，B02 下游仍 BLOCKED。
+
+本次当前条款/哈希/原批准身份分列见 [B02 当前 manifest](../review/remediation/20261003-prepare/batches/B02/integration-stage-1/integration-manifest.json)，逐 ID 贡献与剩余见 [B02 登记](../review/remediation/20261003-prepare/batches/B02/integration-stage-1/finding-registration.json)。原 WP02/设置附表/WP08 的 A006、WP06 trade_count、WP07 删除根目录、WP10 数值迁移只承接候选获准的六原文件条款；旧批准不移给新字节。WP65/B16、C003 其余扩展与 WR12/B04、WP36/B08 继续开放。
+
+### A017 八处当前有效导航（路径后继；不升级证据等级）
+
+下表是具名八处的当前导航，取代历史行的错误目录；原引用行范围与行为/阅读限定保持。每个正确目标已在固定参考 Git 中核 blob/SHA-256/字节/行范围，错误完整目标均不存在。完整原行与仅替换路径后的行、正确目标身份在 [导航后继记录](../review/remediation/20261003-prepare/batches/B02/integration-stage-1/a017-navigation-successor.json)；不声称八个来源全文重新审读、运行或 A017 关闭。
+
+| 定位 | 原 e1 行 / 0a 接受时点行 | 当前完整参考路径 | 原行范围（保留） |
+| --- | --- | --- | --- |
+| PATH01 | 216 / 229 | `Data/Scripts/012_Overworld/002_Battle triggering/004_Overworld_EncounterModifiers.rb` | 67 |
+| PATH02 | 229 / 242 | `Data/Scripts/003_Game processing/002_Scene_Map.rb` | 240–250 |
+| PATH03 | 268 / 281 | `Data/Scripts/007_Objects and windows/010_DrawText.rb` | 44/50/56/62/68 |
+| PATH04 | 668 / 681 | `Data/Scripts/012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb` | 383–449 |
+| PATH05 | 828 / 841 | `Data/Scripts/018_Alternate battle modes/001_Battle Frontier/005_UI_BattleSwap.rb` | 1–158, 160–247 |
+| PATH06 | 1070 / 1083 | `Data/Scripts/004_Game classes/001_Switches and Variables/001_Game_Temp.rb` | 28 |
+| PATH07 | 1111 / 1124 | `Data/Scripts/004_Game classes/001_Switches and Variables/001_Game_Temp.rb` | 17,35,42,44 |
+| PATH08 | 1163 / 1176 | `Data/Scripts/004_Game classes/001_Switches and Variables/001_Game_Temp.rb` | 18,64 |
+
+### 历史 B01-G 与原审计正文（0a 接受时点原字节保留）
+
+下方原 T- 表、旧 hash、批准身份、历史错误目录及 B01-G 当时待审措辞保留作历史证据；这些具名八处使用上方当前后继导航。B01 当前接受结论与 B02 待审状态按本层及中央交接分开读取。
+
 ## 当前整改索引（20261003-prepare／B01-G）
 
 原最终全局报告 233 项中 229 项必修仍 OPEN；B01 候选由 R-B01 作有界 PASS_SCOPED，候选／审查记录已经整合，本次公共登记待 Ultra 整合核验。下方既有 T- 表的“批准输入”“当前身份”及场景范围保留原登记时点；**本轮当前身份与新增条款以 [当前整合 manifest](../review/remediation/20261003-prepare/integration-manifest.json) 和 [逐 ID 后继追溯](../review/remediation/20261003-prepare/traceability-successor.tsv) 为准**。历史批准仅绑定其被审字节，不批准新字节。

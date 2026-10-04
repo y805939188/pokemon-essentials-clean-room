@@ -1,3 +1,19 @@
+# B02-G 实际整合交接（待 R-B02 Ultra）
+
+状态：候选 PASS_SCOPED／13 正式文件原字节已整合／本次公共登记与八导航新字节待整合核验／229 项必修 OPEN／B02 下游 BLOCKED。
+
+接受起点 `0a12de641542f9a59909d2a950c1de8df17ca09d`，完整候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782`，独立候选报告 `94b012ee12d457aa4b99103477a0d35f083b1182`；报告直接后继候选，候选 v1 父从已接受起点派生。本次只快进整合完整作者/报告，未消费 B05未审内容、无冲突或 ours/theirs覆盖。候选判决范围是8主责行为/3局部贡献/A017八导航建议；当前应用的公共层另待 R-B02 对冻结的实际 integration SHA 核验。
+
+仓库内可审入口：[B02-G完整交接](batches/B02/integration-stage-1/README.md)、[正式/公共/依赖身份](batches/B02/integration-stage-1/integration-manifest.json)、[逐ID登记](batches/B02/integration-stage-1/finding-registration.json)、[A017八导航原/后继对照](batches/B02/integration-stage-1/a017-navigation-successor.json)、[限定计数](batches/B02/integration-stage-1/scope-counts.json)。两份完整差异及精确payload身份以新增 diff-and-freeze.json 与 patch交接，最后 Git inclusion SHA 由最终发布回读给出，提交内不构造自引用哈希。
+
+B01 接受段原文、中央规范ledger229行、原B01 manifest/计数/模型/PRE0/全部审查材料保留；approval/trace仅追加B02贡献行，以 finding+candidate 区分批贡献，不用重复贡献行计 canonical finding。A006原/附表/最终同步由本批独立候选覆盖；B01在旧源身份上的批准不替代本批新源身份。A015/B16、C003全部有效扩展/B21及WR12/B04、C081/WP36/B08继续开放；A017实际公共修正仍待B02-I和B21。原范围、严重度/别名、全部贡献/最终Ultra关闭门禁不变，B03/B06/B16等未开放或启动。
+
+本轮自身验证仅为Git/文本/JSON/路径身份与保护边界检查，不代替独立Ultra。请求gpt-6.1-sol Max/Standard，review要求Ultra/Standard；实际三项UNVERIFIED，无降级/改配置。参考只读，参考程序/游戏/编译/转换/生成/反序列化/模拟/求解、运行观察、真实Demo、静态向量执行全部0；U01–U10/G01–G12/AX01–AX20及素材/宿主/插件未知保持。
+
+---
+
+以下 B01-C 接受与 B01-G 旧交接原文完整保留；其精确身份及历史时点不由本批覆盖。
+
 # B01-C 有限接受登记与下游交接
 
 当前状态：**B01 实际整合 PASS_SCOPED／14 项本批贡献已登记／229 项必修规范 finding 仍 OPEN／下游由父任务按固定计划指派**。此段只承接独立结论与接受记录；不增加正式行为或公共语义，不代替最终全局签收。

@@ -1,5 +1,20 @@
 # 当前后继勘误索引（B01-G）
 
+## B02-G 当前后继索引（公共登记待实际整合核验）
+
+B01 已在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；下方 B01-G 当时待审表述及旧批准身份保留，当前 B02 独立候选和报告分别为 `46cd726c35e9d754a8e42b32986313ce3d4d1782`、`94b012ee12d457aa4b99103477a0d35f083b1182`。本次只登记当前后继，不反写旧 author/review/冻结表，也不把旧 Reviewed 或 GR-002批准迁移给候选新字节。
+
+| 原规范 ID | 当前后继与原身份界限 |
+| --- | --- |
+| GIR-FD82-A006/A011/A012/A013/A016 | 按明确六原路径授权，当前原/最终条款以 B02 候选字节和新 manifest 绑定；旧输入与批准仍在原固定提交，不用旧 hash 声称新条款获批。 |
+| GIR-FD82-A017 | audit 当前层应用八个正确路径后继，原行范围、限定和原历史错误行保留；正确路径存在不提升全文行为或运行证据，actual integration/B21 核验仍待完成。 |
+| GIR-FD82-A018 | LZ08–11 显式节头为当前候选受审前提；原 GR-002正确静态场景与旧批准保留，完整编译往返未运行。 |
+| GIR-FD82-A015/C003/C081 | 仅 B02 局部贡献登记；WP65、WR12/全部扩展与 WP36原/最终冲突仍按原责任和 P2 保留。 |
+
+完整映射：[B02 登记](batches/B02/integration-stage-1/finding-registration.json)、[当前身份](batches/B02/integration-stage-1/integration-manifest.json)、[八路径后继](batches/B02/integration-stage-1/a017-navigation-successor.json)。历史 dated manifest/current-hashes 与作者、独立报告材料均不回填改写。
+
+### 以下 B01-G 旧索引原文保留
+
 状态：独立候选已 PASS_SCOPED，整合与此新索引待 Ultra 核验；finding仍OPEN。历史报告、批准、处置表原件保留其对象与时点，本页提供当前使用的替代关系。
 
 | 原规范 ID | 旧记录当前使用的更正 | 已接受后继依据及保留范围 |

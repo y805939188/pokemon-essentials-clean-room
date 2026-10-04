@@ -9,7 +9,7 @@
 | [engine-overworld-wp16.md](engine-overworld-wp16.md) | 世界绘制与视觉过渡＋战前过渡（批次 1，v2 修正后） | WR01–WR17、BT01–BT16 | `engine-overworld/wp16-world-rendering-and-visual-transitions.md`、`engine-overworld/wp16-pre-battle-transitions.md` |
 | [generic-kernel-wp02-03-04.md](generic-kernel-wp02-03-04.md) | 规则配置档案＋内容身份/schema＋PBS 生命周期（批次 2） | KC01–KC06、KR01–KR13、KL01–KL32 | `generic-kernel/wp02-rule-configuration-and-data-variants.md`、`generic-kernel/wp03-content-identity-and-schema.md`、`generic-kernel/wp04-pbs-lifecycle.md` |
 | [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP15、MV01–MV41、EV01–EV31、FW01–FW07、IM01–IM12、MR01–MR09、DG01–DG24、RS01–RS20、WT01–WT25、FS01–FS15 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
-| [generic-kernel-wp05-06-07-08-09-10.md](generic-kernel-wp05-06-07-08-09-10.md) | 通知扩展插件/时间随机计步统计/诊断文件 HTTP/弃用告警/本地化/保存启动/迁移恢复（批次 4） | EP01–EP21、TM01–TM12、IO01–IO12、DP01–DP05、LZ01–LZ14、SV01–SV11、MG01–MG12 | `generic-kernel/` 下 WP05–WP10 八篇（WP01 为基线范围承接，无行为场景） |
+| [generic-kernel-wp05-06-07-08-09-10.md](generic-kernel-wp05-06-07-08-09-10.md) | 通知扩展插件/时间随机计步统计/诊断文件 HTTP/弃用告警/本地化/保存启动/迁移恢复（批次 4） | EP01–EP21、TM01–TM14、IO01–IO15、DP01–DP05、LZ01–LZ17、SV01–SV11、MG01–MG16 | `generic-kernel/` 下 WP05–WP10 八篇（WP01 为基线范围承接，无行为场景） |
 | [pokemon-rules-wp19-21-22-23-34.md](pokemon-rules-wp19-21-22-23-34.md) | 属性与能力/动态形态/Mega 与 Primal/Shadow 与净化/遗传（批次 5） | ST01–ST59、FM01–FM35、ME01–ME25、SH01–SH46、BR01–BR25 | `pokemon-rules/` 下 WP19、WP21、WP22（含附表）、WP23（含附表）、WP34 七篇 |
 | [pokemon-rules-wp31-32-37-38.md](pokemon-rules-wp31-32-37-38.md) | 基础进化/情境交换战后事件/漫游与雷达/捕获与接收（批次 6） | BE01–BE35、CX01–CX38、RM01–RM32、CP01–CP20 | `pokemon-rules/` 下 WP31、WP32（含附表）、WP37、WP38 五篇 |
 | [pokemon-rules-wp43-44-46-48-50.md](pokemon-rules-wp43-44-46-48-50.md) | 类型命中伤害/状态与阶级/多击特殊伤害恢复/特性计算/持物触发消耗（批次 7） | TD01–TD21、SS01–SS40、MH01–MH38、AB01–AB23、HI01–HI33 | `pokemon-rules/` 下 WP43、WP44（含附表）、WP46（含附表）、WP48、WP50（含附表）八篇 |
@@ -30,4 +30,10 @@
 - 预期列为静态推导：实现方据此设计可执行测试时，环境前提（素材存在性、宿主行为）须单独验证。
 - 目录条目与正文同步维护；新增/修订条目需在对应批次检查记录中登记。
 
+## 历史 B01-G 目录登记（93d 时点原文保留）
+
 B01 当前目录登记：两份相关目录分别 51、87 条，共 138 条；相对 PRE0 新增 20 个 ID，仅原 KL10／EP07／EP08 行有修订。共享 WP05–10 目录的非 EP 行保持原字节。候选的本批相关条款／向量已获有界 PASS_SCOPED，本次索引新字节待整合核验；条目均未运行，其他批次条目不因这次计数登记获批。见 [整合交接](../../../review/remediation/20261003-prepare/final-integration-review.md)。
+
+## B02-G 当前目录登记（待整合 Ultra）
+
+共享 WP05–10 目录当前 99 行：EP21、TM14、IO15、DP5、LZ17、SV11、MG16；相对已接受上游新增 12 个 ID，修订 12 条本批旧行，无删除。B01 EP01–EP21 与 DP 整段原字节保留；另一 B01 目录 51 行保持，两目录当前合计 150（历史 B01-G 合计 138）。WP07/08/10 原稿场景当前为 14/17/16，新增 2/3/4 条，共 9；这些是未执行静态场景数，不是行为覆盖或运行数。B01 实际核验已接受；B02 独立结论只绑定候选，本次索引新字节待 R-B02 整合核验。详见 [B02 当前计数](../../../review/remediation/20261003-prepare/batches/B02/integration-stage-1/scope-counts.json)。

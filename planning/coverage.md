@@ -1,5 +1,13 @@
 # 覆盖审查表（WP79 v7；2026-10-03）
 
+## 当前 B02-G 后继层（待实际整合 Ultra）
+
+B01 有界实际整合已核验并在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；其原证据及下方 B01-G/旧批准时点层保留。B02 独立候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782`／报告 `94b012ee12d457aa4b99103477a0d35f083b1182` 为 PASS_SCOPED：8 项主责行为、3 项局部贡献、A017 八处导航建议；13 正式字节已原样整合。本次中央身份/索引/导航是待核验的新公共字节，不能借候选判决写成整合通过，229 必修仍 OPEN，B02 下游 BLOCKED。
+
+WP06 两树果计数/交换进入计数、缓存与普通步回绕；WP07 根目录删除；WP08 作者导出/节识别/显式非地图节；WP09 空值守卫/读档三门；WP10 给定帧率浮点迁移，仅登记本批已审贡献。对应原 ID、Feature、原/最终/测试与原批准/当前身份见 [B02 逐 ID 登记](../review/remediation/20261003-prepare/batches/B02/integration-stage-1/finding-registration.json)和 [当前 manifest](../review/remediation/20261003-prepare/batches/B02/integration-stage-1/integration-manifest.json)。A015 的 WP65/B16、C003 的 WR12/B04及全部八条扩展、C081 的 WP36/B08仍待各贡献；WP19/B05等其他未审内容未消费。其他 Feature 行、WP79 历史计数、U/G/AX、运行/真实 Demo 0均保留。
+
+### 下方历史 B01-G 与原覆盖/Feature 表（原字节保留）
+
 ## 当前整改覆盖口径（20261003-prepare／B01-G）
 
 以下 WP79 v6/v7 覆盖结论、通过身份和计数保留其历史范围；当前最终全局 review 已完成且229项必修仍 OPEN，不以旧“无缺口”推断当前整改无欠项。B01只有七项主责及六项跨批正文贡献的有界候选通过，另有GIR-FD82-001登记建议；实际整合／新增公共登记待 Ultra 核验。WP08语言、WP19映射、WP36遭遇、WP73编辑器等欠项继续按原ID保留。

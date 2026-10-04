@@ -26,9 +26,9 @@
 
 ## 当前整改状态
 
-批次 1–15 的全集作者交付已完成；[最终全局独立 review](https://github.com/y805939188/pokemon-essentials-clean-room/blob/93e10babe0b9c9ef8b3f5277754541b447beeeb4/review/global-independent-review/2026-10-03-fd82a639/final-report.md) 已完成，233 个规范 finding 中 229 项必修仍全部 OPEN。B01 完整候选有界 PASS_SCOPED，并已整合候选与独立审查记录；本次公共登记仍待 Ultra 整合核验，下游尚未开放。其他批次的缺失／矛盾与具名未知不因本次登记消失。
+批次 1–15 的全集作者交付与最终全局独立 review 已完成；233 个规范 finding 中 229 项必修仍全部 OPEN。B01 实际整合已获有界 PASS_SCOPED 并在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受，证据保留。B02 完整候选 `46cd726c35e9d754a8e42b32986313ce3d4d1782` 由独立报告 `94b012ee12d457aa4b99103477a0d35f083b1182` 给出 PASS_SCOPED，13 份正式字节已整合；本次 B02 公共登记／八处导航／索引仍待 R-B02 Ultra 实际整合核验，B03/B06/B16/B18/B21 等下游未开放。B05 未审作者内容未消费；跨批欠项及具名未知继续有效。
 
-当前入口：[整合交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[当前输入身份](../../review/remediation/20261003-prepare/integration-manifest.json)、[B01 独立候选报告](../../review/remediation/20261003-prepare/batches/B01/review-round-1/report.md)、[后继勘误](../../review/remediation/20261003-prepare/historical-errata.md)。
+当前入口：[整合交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[B02 当前输入身份](../../review/remediation/20261003-prepare/batches/B02/integration-stage-1/integration-manifest.json)、[B02 独立候选报告](../../review/remediation/20261003-prepare/batches/B02/review-round-1/report.md)、[历史 B01 输入身份](../../review/remediation/20261003-prepare/integration-manifest.json)、[后继勘误](../../review/remediation/20261003-prepare/historical-errata.md)。
 
 ## 原作者交付记录（批次 1–15；历史时点）
 
