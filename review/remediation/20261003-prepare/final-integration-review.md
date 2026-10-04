@@ -1,3 +1,19 @@
+# B02-C 有限接受登记与 B03 冻结交接
+
+当前：B02 精确实际整合 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946` 已由 R-B02 Ultra 报告 `361e4e69126559c266a08fdf093082dbbcd83f8d` 给出 PASS_SCOPED，十二项本批贡献现已作后继接受登记，规范229项必修仍OPEN、关闭0。候选报告不是实际被审SHA；报告提交只是证据后继。
+
+独立报告十一份材料原样接入，十三正式文件、其余被审公共正文/导航/索引/身份与历史材料原字节保留。本次仅更新 approval-ledger 的十二条B02实际接受字段并新增本接受段/交接材料，不改被审行为或公共语义，不回填旧 manifest/hash、作者或报告。
+
+[完整Ultra报告](batches/B02/integration-review-1/report.md)、[本次接受与保留身份](batches/B02/acceptance-stage-1/acceptance-manifest.json)、[B03精确读写/锁/消费前提](batches/B02/acceptance-stage-1/downstream-handshake.json)。B03仅在父任务按该冻结SHA派发后消费；其七个原写路径不扩大，共享WP11/15/59/60目录与B04/B14整文件串行锁继续有效。B06/B16/B18/B21仍须其他依赖和本批审查。
+
+A015的B16/WP65、A017的B21整体审计、C003全部有效原/八扩展及WR12/B04、C081的B08/WP36冲突继续OPEN；原前提、别名、严重度、U/G/AX和素材/宿主/插件未知不变。普通计步早分流、缺失/空事件集合守卫与游戏时间/缓存的不同前提按独立报告保留；不得把WP36旧“饱和”作为获准规则。
+
+作者请求Max/Standard，独立复审请求Ultra/Standard；实际模型/推理/速度UNVERIFIED，未改配置或派生任务。参考只读、参考程序/静态向量/运行观察/真实Demo执行均0。最终B02-C冻结SHA由普通push与远端回读单独交接；后续B05新整合仍须自己的实际Ultra。
+
+---
+
+以下B02-G/B01-C及旧交接全部保留原时点和原字节；当前接受以本层及绑定的独立报告为准。
+
 # B02-G 实际整合交接（待 R-B02 Ultra）
 
 状态：候选 PASS_SCOPED／13 正式文件原字节已整合／本次公共登记与八导航新字节待整合核验／229 项必修 OPEN／B02 下游 BLOCKED。
