@@ -47,6 +47,10 @@
 | 4 纯 NORMAL 外圈、NORMAL 中心、G15 | 连续三步 G=8/1/0 | 每步 F=7；第三步提示准备好，不自动净化或换招 |
 | M4000、G4000，Hyper 阈值 1000 | 1001/4000=25.025% | 0..3999 的含端点成功集合；非 25% |
 | 默认 G2400/2401 | H3/H4 | 经验暂存与友好变化门两侧；EV 高阶段仍普通写入 |
+| 存储 HARDY、M4000/G2500/H4/h80、JOYSCENT 工具倍率 1、无友好修正 | G2410/H4/h80 | 起始 H4 拦友好，后减 90，不跨阶段；计算用性格覆盖不用于减量 |
+| 同上只改存储性格 LONELY | G2370/H3/h80 | 后减 130 跨到 H3，本次友好仍不追补 |
+| 有效可选香、非蛋存活 Shadow、G0/h255、有效 Hyper 假、其它门通过 | 共同工具失败；野外不消费；战斗资格拒绝 | h 是友好度，H=0；不是 H5/G0 门。默认顶层无这些物品，不代表已启用 |
+| 同上 h254、默认友好软上限关闭、无友好修正 | 工具成功、h255/G0；正常野外消费一份 | 友好余量可使 G0 的香生效，不等于净化 |
 | 默认 RATTATA Medium，L10/E1000、G0、S416、V 有效，净化室资格与前序呈现正常 | ⌊416×4/5⌋=332；目标 1332 且 1331≤1332<1728 | 等级工具先写 L11 下限 1331；首个窗口缺更新方法失败，未精确写 1332，未学招/进化/昵称/存放/清中心；已写状态见主稿跨级失败表 |
 | 同上 S0/改用遗迹石画面的两对照 | S0 同等级保持 E1000；遗迹石跨级且后续呈现正常可写 E1332 | S0 不进变化窗口；遗迹石提供空更新回调；不共享净化室缺方法点 |
 | 替换原始查询 空/空、空/false、false/false | 通过、拒绝、通过该门 | 未设 Shadow 标志的新普通与已净化个体不能一律布尔归一后比较；不保证其他操作步骤成功 |
@@ -77,7 +81,7 @@ EV 恢复按登记主能力次序 HP、攻击、防御、特攻、特防、速�
 | MEOWTH | 3500 | SHADOWRUSH／SHADOWHOLD |
 | GOLDUCK | 6500 | SHADOWRAVE／SHADOWMIST |
 | PRIMEAPE | 6000 | SHADOWRUSH／SHADOWSTORM |
-| GROWLITHE | 4000 | SHADOWRUSH／SHADOWWAVE |
+| GROWLITHE | 4000 | SHADOWBLITZ／SHADOWWAVE |
 | POLIWRATH | 7500 | SHADOWSTORM／SHADOWRUSH／SHADOWSKY |
 | WEEPINBELL | 4000 | SHADOWRAVE／SHADOWHOLD |
 | RAPIDASH | 6000 | SHADOWRAVE／SHADOWDOWN／SHADOWSKY |
@@ -191,7 +195,7 @@ EV 恢复按登记主能力次序 HP、攻击、防御、特攻、特防、速�
 | DUSKULL | 2200 | SHADOWWAVE／SHADOWHOLD |
 | TROPIUS | 7000 | SHADOWRUSH |
 | ABSOL | 7000 | SHADOWRUSH |
-| SNORUNT | 2500 | SHADOWBLITZ／SHADOWSHED |
+| SNORUNT | 2500 | SHADOWWAVE／SHADOWSHED |
 | SPHEAL | 1500 | SHADOWWAVE／SHADOWMIST |
 | SALAMENCE | 9000 | SHADOWRUSH／SHADOWHOLD |
 | METAGROSS | 15000 | SHADOWRUSH |

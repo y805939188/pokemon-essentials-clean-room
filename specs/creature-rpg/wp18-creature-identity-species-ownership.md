@@ -78,7 +78,22 @@
 | `mega_stone`/`mega_move`/`unmega_form`/`mega_message` | Mega 相关字段 | WP22 |
 | `pbs_file_suffix` | 编译来源文件尾注 | WP04 |
 
-默认值（未写字段时，记录构造的填充）：`types=[:NORMAL]`；基础能力每项 ≤0 或缺失按 1 填充；EV 每项 <0 或缺失按 0；`base_exp=100`；`growth_rate=:Medium`；`gender_ratio=:Female50Percent`；`catch_rate=255`；`happiness=70`；`egg_groups=[:Undiscovered]`；`hatch_steps=1`；`height=1`、`weight=1`；`color=:Red`、`shape=:Head`、`habitat=:None`；`generation=0`；其余空数组/空值。
+默认值是**记录构造时未提供字段的填充**，不代表文本内容输入已通过编译校验。给定有效 id 与已登记六项主能力，下表逐项区分标量、空列表与空值；显式提供的字段仍按各自规则处理。
+
+| 字段 | 未提供时的值／填充规则 |
+| --- | --- |
+| species / form | species = 所给 id；form = 0 |
+| name / category / pokedex_entry | 原始文本分别为 `Unnamed` / `???` / `???`（展示本地化另归文本规格） |
+| form_name | 空值 |
+| pokedex_form | 记录自身 form；例如显式 form = 2 而省略本字段时为 2 |
+| types / base_stats / evs | [NORMAL]；基础能力每项 ≤0 或缺失填 1；EV 每项 <0 或缺失填 0 |
+| base_exp / growth_rate / gender_ratio | 100 / Medium / Female50Percent |
+| catch_rate / happiness / egg_groups / hatch_steps | 255 / 70 / [Undiscovered] / 1 |
+| height / weight / color / shape / habitat / generation | 1 / 1 / Red / Head / None / 0 |
+| moves / tutor_moves / egg_moves / abilities / hidden_abilities | 各为空列表 |
+| wild_item_common / wild_item_uncommon / wild_item_rare / offspring / evolutions / flags | 各为空列表 |
+| incense / mega_stone / mega_move | 各为空值 |
+| unmega_form / mega_message / pbs_file_suffix | 0 / 0 / 空字符串（不是空值） |
 
 派生读取：`base_form` = 若存在 `DefaultForm_N` 标记则取 N，否则记录自身形态号；`single_gendered?` 由性别比例记录的"无女性概率"判定（WP19）；`base_stat_total` = 基础能力合计；`has_flag?` 不区分大小写。
 
@@ -165,7 +180,9 @@
 
 ### 4.2 随机与派生输入（详见 WP19）
 
-创建时只有两类随机来源：`personalID`（32 位）与六项个体值。其余属性（性别、异色、特性索引、特性）由 `personalID`（异色还叠加拥有者 id）**按需派生**、首次读取后缓存；**Nature 为例外：创建返回前已被能力重算求值并缓存**——普通创建（含禁用形态复检、或处理器无额外副作用的情形）返回后 `hasNature?` 已为真，之后更改 `personalID` 不会重派该缓存。等级/能力为确定性换算（WP19 §3.2–3.5）。
+**基础初始化**抽取 personalID（32 位）与六项个体值；**完整创建不保证只有这两类随机来源**：形态为 0 且复检开启时，创建处理器还可抽样，例如 UNOWN 从 0–27 取形态，PUMPKABOO/GOURGEIST 按 5%/15%/45%/35% 取 3/2/1/0。复检关闭则不调用该处理器；非零初始形态也不进入此创建复检。
+
+性别、异色、特性索引、特性由 personalID（异色还叠加拥有者 id）按需派生、首次读取后缓存；**Nature 为例外：创建返回前已被能力重算求值并缓存**——普通创建（含禁用形态复检、或处理器无额外副作用的情形）返回后 `hasNature?` 已为真，之后更改 personalID 不会重派该缓存。处理器的额外形态抽样不据此重派性格；登记对性别/普通异色的缓存影响仍按 §4.1。等级/能力为确定性换算（WP19 §3.2–3.5）。
 
 ### 4.3 生成上下文变体（调用者核对）
 
@@ -273,6 +290,8 @@
 | 昵称询问选项 | 命名提示可跳过 | WP02 索引（系统选项） |
 | 最大昵称长度 10 | 入口截断/输入上限 | 本包常量 |
 | 蛋等级 | 装蛋工具创建等级 | WP35/WP02 |
+
+同值边界按入口区分：§8 的“处理器返回与当前相同的值”仅指**动态形态读取**，此时不写回、无副作用链；显式提交及创建复检的同值提交仍执行处理器、重算和条件图鉴登记（WP21）。外层选择拒绝同形态不能替代裸提交的规则。
 
 未验证组合：命运相遇开关在非创建路径（孵化/交换/礼物）不改变方式编号（写入者明确覆盖各自方式）；事件脚本驱动的写入（U01 缺失 demo）未核对。
 
