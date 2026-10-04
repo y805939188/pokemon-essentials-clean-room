@@ -1,5 +1,17 @@
 # 当前后继勘误索引（B01-G）
 
+## B03-G 原批准与当前候选身份分列（实际整合待核验）
+
+B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
+
+六原稿扩围的真实批准与十三正式路径见 [scope-amendment](batches/B03/author-v2/scope-amendment.json)，新字节绑定完整候选/第二轮报告及 [manifest](batches/B03/integration-stage-1/integration-manifest.json)。旧原稿历史审批、取证尾部及当时“待Ultra”文字不回填；第二轮候选PASS另记，不借旧Reviewed授予实际新整合审批。原天气20、正确骑行OR/取消方向、ASCII/s:、314/28分类、三路线准确前缀及B01首次奇数写回失败/五行保持。
+
+第一轮 `4706be652a4d9e70656d1e2db1cbc0be9a9194c6` 的REQUEST_CHANGES和三P2原对象保留；第二轮修复检查全部PASS_SCOPED。R-B03-001/002为两个独立新根提案，R-B03-003为C053组合、根数增量0；只新增 [提案清单](batches/B03/integration-stage-1/review-observation-registration.json)，不改变原229规范ledger或其关闭状态。root00234场景及C003/C007/INTAKE有效原扩展身份不收窄。
+
+[A034/A059/C103与B04/B06调查](batches/B03/integration-stage-1/downstream-interface-investigation.json)只准备固定接口，实际Ultra前不解锁。已接受26主责 [统计](batches/B03/integration-stage-1/accepted-primary-completion.json)区分真实剩余与最终全局门；历史报告/作者/冻结manifest/hash原字节不改。
+
+### 以下B05/B02/B01勘误历史原文保留
+
 ## B05-G 当前后继身份与定位索引（待实际整合核验）
 
 B02已在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作接受登记。B05当前完整候选／独立报告分别为 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`、`0da269077aa5a02d5cef08021171acf3719e1b69`；旧批准与旧输入身份保留，候选结论及本次公共层待审身份分开。五原稿同步仅在[父统筹既有授权](batches/B05/scope-amendment/approval.json)范围：WP18 §3.2/4.2/9（§8原句保留）、WP20 §5.1–5.3/7.5/9、WP19 §3.5、WP21 §3 C/D及4.1–4.2、WP23仅W06。原正确Mega/Shadow表与h255/G0旧限定不扩写，不把旧Reviewed/批准移给新字节。

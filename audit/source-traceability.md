@@ -1,5 +1,17 @@
 # 来源追溯索引（WP80；2026-10-03 起）
 
+## 当前 B03-G 后继层（实际整合待 Ultra）
+
+B01/B02/B05实际贡献已按各自精确Ultra报告接受，最新接受基线 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`／交接 `105a21a0bcba174d4c22a0e67231ed4f38c97693`／第二轮报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`为27贡献、19主责PASS_SCOPED，十三正式字节原样整合；本次实际新integration SHA及公共登记仍待R-B03 Ultra。229规范必修均OPEN，关闭0，B03下游BLOCKED。
+
+原/净化/静态目录与旧批准身份分列见 [B03 manifest](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/integration-manifest.json)、[逐ID登记](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/finding-registration.json)。六份原稿具名条款仅按 [已批准扩围](../review/remediation/20261003-prepare/batches/B03/author-v2/scope-amendment.json)及新完整候选复审承接；原历史批准/未知尾部原字节保留，旧Reviewed不转授给新字节。第一轮报告仍为REQUEST_CHANGES，第二轮只对新候选判定；三P2修订中两个新根提案另列、C053组合不增根，见 [观察登记](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/review-observation-registration.json)。
+
+B03作者57读取仅audit与README相对本接受基线发生公共身份变化，完整差异与两次无冲突普通merge见 [合并/依赖记录](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/merge-and-dependency-impact.json)。B05已接受的旧目录与其它原/最终/数据/审批保持。A034/A059/C103接口及B04/B06五个交叉读写关系详见 [冻结调查](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/downstream-interface-investigation.json)，调查不解锁或派发。
+
+已接受三个批次主责26个唯一ID逐项统计：25项已满足本项全部已知必修和验收、1项A024缺B07/WP30消费者、证据不足0；详见 [统计依据](../review/remediation/20261003-prepare/batches/B03/integration-stage-1/accepted-primary-completion.json)。这是有界管理统计，B03候选不计实际通过；全部229ID仍OPEN，U/G/AX与运行/Demo/向量执行0不变。
+
+### 以下B05/B02/B01历史来源索引原文保留
+
 ## 当前 B05-G 后继层（待实际整合 Ultra）
 
 B01 有界贡献已接受；B02 实际被审 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946`／Ultra 报告 `361e4e69126559c266a08fdf093082dbbcd83f8d`已在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作后继接受登记。B05 完整候选 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`／独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`为16项贡献 PASS_SCOPED，十五正式文件原字节接入；本次公共登记新字节及实际新 integration SHA仍待R-B05 Ultra，229必修均OPEN。

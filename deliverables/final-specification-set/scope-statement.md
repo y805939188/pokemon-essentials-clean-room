@@ -7,7 +7,7 @@
 - 本集已完成批次 1–15 的全集作者交付，对应 WP01–WP79 的 113 份静态输入（含 4 份补提取附表）。旧 WP78/WP79 的局部通过与关闭记录仅绑定各自固定被审版本；它们不代替后续最终全局审查或当前整改验收。
 - 历史行为覆盖统计（WP79 v6 原被审版本）：312 个参考脚本路径中 **291 已覆盖＋4 补提取＋17 不适用（具名理由）**；33 个顶层数据文件按机制/样本/启用分层在案；113 个 Feature 全部被 84 个内容包认领。
 - 当前正文为**批次 1–15 的全集作者交付**。最终全局独立审查已经完成，原报告 233 项中 229 项要求修订；这 229 项当前全部 OPEN，全集整改验收尚未完成。
-- B01与B02实际整合已由独立Ultra有界核验，B02在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作后继接受登记；B05候选16项贡献PASS_SCOPED的十五正式字节已整合，本次B05公共登记/索引及实际新整合仍待R-B05 Ultra。规范229项必修仍OPEN，关闭0；候选结论不作全集、运行或跨批验收结论。
+- B01/B02/B05有界实际整合已接受，最新基线 `ae230e76e9c041f39c28948321d0960804c02388`；B03候选27贡献/19主责PASS_SCOPED及十三正式字节已整合，本次公共层/索引/实际新SHA仍待R-B03 Ultra。规范229必修仍OPEN、关闭0；候选局部结论不作全集、运行或跨批验收。
 
 ## 2. 未验证保留项（全部继续有效，不因净化升级）
 
@@ -41,4 +41,4 @@
 - **本集不声明完整游戏运行能力已验证**：素材、demo 事件链、运行观察、宿主输出与插件组合均按第 2 节保留。后续实现方的运行验证应以上述保留项为独立验证目标。
 - WP80 全集作者交付与最终全局独立 review 已完成；当前处于 229 项必修整改的候选／整合复审阶段。B01 有界候选通过不等于全部贡献完成，最终整改关闭仍须各贡献验收及最终独立 Ultra。
 
-当前整改身份、逐ID欠项与门禁见 [B05-G与已接受B02/B01交接](../../review/remediation/20261003-prepare/final-integration-review.md)及 [B05当前登记](../../review/remediation/20261003-prepare/batches/B05/integration-stage-1/finding-registration.json)；原全局审查见 [固定报告](https://github.com/y805939188/pokemon-essentials-clean-room/blob/93e10babe0b9c9ef8b3f5277754541b447beeeb4/review/global-independent-review/2026-10-03-fd82a639/final-report.md)。U01–U10、G01–G12、AX01–AX20与既有具名未知均继续有效，运行观察／真实Demo链仍为0。
+当前整改身份、逐ID欠项和门禁见 [B03-G交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[B03登记](../../review/remediation/20261003-prepare/batches/B03/integration-stage-1/finding-registration.json)与 [已接受主责逐ID统计](../../review/remediation/20261003-prepare/batches/B03/integration-stage-1/accepted-primary-completion.json)；原全局报告固定为 [93e10ba](https://github.com/y805939188/pokemon-essentials-clean-room/blob/93e10babe0b9c9ef8b3f5277754541b447beeeb4/review/global-independent-review/2026-10-03-fd82a639/final-report.md)。U01–U10/G01–G12/AX01–AX20与具名未知继续有效，运行观察/真实Demo链仍0。

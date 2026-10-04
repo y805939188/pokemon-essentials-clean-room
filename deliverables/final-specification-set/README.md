@@ -26,9 +26,9 @@
 
 ## 当前整改状态
 
-批次 1–15 的全集作者交付与最终全局独立 review 已完成；233个规范finding中229项必修仍全部OPEN。B01已接受；B02精确实际整合 `1b1e169faf273e89ad6b7f5e46fd7b60d87d3946`由Ultra报告 `361e4e69126559c266a08fdf093082dbbcd83f8d`有界通过，并在 `9576f00e7d3aeb96f7ca8c42caccfba8f808505e`作后继接受登记。B05完整候选 `1914cd379bcb7c8b6feb13dc3e872b7ded27d9a4`由独立报告 `0da269077aa5a02d5cef08021171acf3719e1b69`给出16项贡献PASS_SCOPED；十五正式文件已原字节整合，本次B05公共登记、索引与实际新integration SHA待R-B05 Ultra。B05下游仍BLOCKED，跨批欠项与具名未知保留。B03沿用已交接的B02冻结输入，本作业不派发任务。
+批次 1–15 的全集作者交付与最终全局独立review已完成；233个规范finding中229项必修仍全部OPEN。B01/B02/B05的有界实际整合已接受，最新冻结 `ae230e76e9c041f39c28948321d0960804c02388`。B03完整候选 `3c5728a47142c57abfdf3d55033768bc44a1f627`由第二轮独立报告 `a69d6e057723cc8f8aec8cac0f868da4e456d0eb`给出27贡献/19主责PASS_SCOPED，十三正式文件原字节整合；本次实际新SHA、公共登记和索引待R-B03 Ultra，B03下游仍BLOCKED。跨批欠项和具名未知保留。
 
-当前入口：[整合交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[B05当前身份](../../review/remediation/20261003-prepare/batches/B05/integration-stage-1/integration-manifest.json)、[B05独立候选报告](../../review/remediation/20261003-prepare/batches/B05/review-round-1/report.md)、[B02接受与B03交接](../../review/remediation/20261003-prepare/batches/B02/acceptance-stage-1/README.md)、[历史B01身份](../../review/remediation/20261003-prepare/integration-manifest.json)、[后继勘误](../../review/remediation/20261003-prepare/historical-errata.md)。
+当前入口：[整合交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[B03当前身份](../../review/remediation/20261003-prepare/batches/B03/integration-stage-1/integration-manifest.json)、[B03第二轮候选报告](../../review/remediation/20261003-prepare/batches/B03/review-round-2/report.md)、[B01/B02/B05主责逐ID统计](../../review/remediation/20261003-prepare/batches/B03/integration-stage-1/accepted-primary-completion.json)、[已接受B05与B06旧冻结](../../review/remediation/20261003-prepare/batches/B05/acceptance-stage-1/README.md)、[后继勘误](../../review/remediation/20261003-prepare/historical-errata.md)。
 
 ## 原作者交付记录（批次 1–15；历史时点）
 
