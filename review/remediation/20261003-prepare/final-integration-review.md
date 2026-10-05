@@ -1,3 +1,29 @@
+# B08-G实际整合交接，等待三个分别Ultra复审
+
+已接受前驱 `759eee80ce7856570fde2de12d5dcf98ce7e6017`；完整候选 `0f35a393d9de467cd5f7e695b6072687bb582186`。完整R-B08 `239a29c466d6efc1a5a240f57ad53b55c91f9e42`、独立受影响R-B07 `7fd9271bc77b534e0eba5b47c77034e2453dd560`及有界受影响R-B04 `ceb6c07340c8f4f2b7c508df36b2a2ef98f12711`均为候选 PASS_SCOPED，范围分别按固定报告。B08为17项本地贡献／9项主责；12正式＝8净化正文／目录＋4具名授权原稿，均按候选原字节整合。B08接受贡献0，规范ID未关闭。
+
+三次普通无冲突merge固定于integration-manifest。108来源路径＝12正式＋45作者证据＋51审查证据（完整R-B08十三、受影响R-B07二十二、有界受影响R-B04十六），均保持固定源字节。A-REG单写10公共路径，旧133审批／追溯行原字节保留，追加17候选行。正式文件不改写；无ours/theirs、rebase、force、main推送。
+
+既有B01–B07七批接受口径保持：133已接受贡献记录／118触及ID／87主责；具体原修订87满足／0缺具体消费／0证据不足，严格全贡献79／8待办。B08仅追加17候选记录，当前公共150记录；不把9候选主责或15新增静态设计加入已接受分母，A034/B08候选PASS不升级严格统计。
+
+最终actual须完整R-B08、分别受影响R-B07五读者、分别有界受影响R-B04两组调用三个Ultra/Standard报告同时绑定同一精确SHA并各自PASS_SCOPED，随后父任务C。候选PASS不能替代actual；B09及其他下游未解锁、未派发。
+
+[manifest](batches/B08/integration-stage-1/integration-manifest.json)、[17项完整原稿／接受／根／案例／扩展控制](batches/B08/integration-stage-1/finding-registration.json)、[授权与计量后继](batches/B08/integration-stage-1/scope-and-observation-registration.json)、[依赖与合并](batches/B08/integration-stage-1/merge-and-dependency-impact.json)、[B09精确读写／语义门](batches/B08/integration-stage-1/downstream-handshake.json)、[全计数](batches/B08/integration-stage-1/scope-counts.json)。
+
+R-B08报告较早未识别另需B04门、R-B07较早其他审查待办及R-B04父任务待办，均按各自时点原字节保留。当前层由239a／7fd9／ceb6三固定收据满足候选门；不追改旧报告，不把候选影响判断变为actual批准。
+
+四原稿v2补丁SHA256为05b75bcafcb1fd9359e9a35e935e8b7cbb7dd038a0f3349a1172d1fe3ba88f25；完整hunks及before/after结果身份已核对。历史先准备再授权／应用及跨容器锁仅AUTHOR_SELF_REPORT_ONLY，最终Git树不追认历史顺序。WP34原稿／净化正文整篇只读、原字节保持；旧原稿批准和正确既有条款不改写。
+
+R-B08-N01为非阻断计量后继：固定前驱→候选全量差分353诊断＝344 trailing-space＋9 new-blank-line-at-EOF，均为存档diff/patch上下文。作者344为trailing-space子集；R-B07的344定位口径按原报告保留。此数不概括新增报告／集成管理后的actual全库；12正式diff --check通过。原始补丁／报告不清理、不改写，不新增规范问题。
+
+B09保留B013/CP20伙伴捕获与持物还原、WP39漫游临时／持续生成消费者；B12保留WP53大会完整预算／伙伴规则；B19保留编辑器／缓存／编译快照；B20保留WP77平衡等级消费；B14/B15/B21保留下游重冻结／集成／全局门。B16的A048空重学UI、C003 A23/A31/A33及D023 BP显示同步等既有责任保持；ROOT003/C003/C007及各扩展仍按全控制和其他所有者范围，不反向关闭。
+
+完整实际复审须读无过滤前驱→actual及候选→actual差异，含12正式、96作者／审查原样材料、10公共、10管理及3末尾冻结证据。两个保存patch止于payload以避免自引用，不能替代完整actual差异。精确最终SHA由普通push和远端回读外部交付。B06 WP24仅§5.4/PT41–63六逻辑请求及引子记忆，旧批准不扩为伙伴／雷达／完整BattleAudio；WP34两正文整篇及B04十三正式原字节保持。
+
+U01–U10/G01–G12/AX01–AX20及完整具名未知保留：八个杯赛名单、pokemon_metrics样本、备份/gen、二进制、实际地图事件、媒体／字体／宿主／配置／容量、插件与动态调用、deprecated别名、EventScene／动态阴影及真实Demo未穷尽。容量1024/2048和宿主缺图仅条件前提。参考／作者／审者程序及行为向量执行0、运行观察0、已证Demo链0。
+
+请求gpt-6.1-sol/xhigh/Standard，三实际复审要求Ultra/Standard；实际配置UNVERIFIED，Plan A已接受，不新增认证门。按用户指令暂关闭额度检查；无认证、令牌、会话或配置探测。 本轮仅Git／文本／JSON身份及有限登记，没有新增行为裁决或任务派发。以下B07-C及更早交接全文原字节保留。
+
 # B07-C串行接受与B08准确启动合同
 
 B07已登记 **REGISTERED_PASS_SCOPED**：被审actual `adca83d63d18c94429cdb52aef9eaf7b8aa00189`／tree `392c60655eff833399e796e081b18ae344cdaa82`，R-B07完整实际报告 `d218aed120ed8ea1c88e1ec4752e5f7dcaaac226` 与独立受影响R-B04实际报告 `e16df847d1a38ea075c96133fa6decad4bbcdb89` 均PASS_SCOPED同一actual。本批19贡献／12主责、14正式（8净化／目录＋6必要原稿）及限定公共／B08准备合同通过；R-B04仅保留WP15–17受影响接口与35／23历史范围，不扩为B07全批或他域批准。两报告完整读取并按各自精确Git对象保留，报告程序不执行。
