@@ -1,0 +1,47 @@
+--- a/specs/combat/wp39-battle-context-and-participants.md
++++ b/specs/combat/wp39-battle-context-and-participants.md
+@@ -69,7 +69,7 @@
+ ### 3.2 训练家战斗（含对视合并）
+ 
+ 包装 `TrainerBattle.start(*args)`：
+-1. **对视合并探测**（仅当无待战训练家、地图解释器运行中、且可双打）：取当前事件的解释器自身；列出玩家触发的敌方（[2] 优先级）训练家事件，排除自身与 A 开关已开的；**恰有 1 个**其它触发事件时，先按输入生成训练家——若为**单一训练家且其队伍 ≤ 队伍上限**，把它记入 `$game_temp.waiting_trainer = [训练家, 事件 id]` 并**立即返回假**（本次事件不发起战斗；由第二个事件触发时合并）。
++1. **对视合并探测**（仅当无待战训练家、地图解释器运行中、且可双打）：取当前事件的解释器自身；列出事件接触触发类型 2 的训练家事件（不是显示层或渲染优先级；还须满足训练家标记、距离／可达、非跳跃、非覆盖触发等候选门），排除自身与 A 开关已开的；**恰有 1 个**其它触发事件时，先按输入生成训练家——若为**单一训练家且其队伍 ≤ 队伍上限**，把它记入 `$game_temp.waiting_trainer = [训练家, 事件 id]` 并**立即返回假**（本次事件不发起战斗；由第二个事件触发时合并）。
+ 2. 若已有待战训练家：将**已保存的训练家对象**追加至本次输入，执行核心；本次数据参数按需装载，待战对象直接复用且不再次触发装载钩子。若结果为 1（胜）→ 把待战训练家事件的 **A 开关置真**；清空待战登记。否则直接执行核心。
+ 3. **返回值为真仅当结果＝1**（胜），负/逃/平均为假。
+ 
+@@ -144,7 +144,7 @@
+ 
+ 1. **硬性拒绝**：训练家战斗且任一侧尺寸 >2，同时双方都多于 1 名训练家 → 报错"Can't have battles larger than 2v2 where both sides have multiple trainers"（理由：多训练家时远位参战者无法互相接近）。
+ 2. **野生侧自动同步**：参与者校验按队统计**可战斗野生计数**；若它与野生侧尺寸不一致，双侧原相等则**双侧同改**为该计数，否则只改野生侧。此处区别于 §3.1 核心起初按输入对手个数设置默认尺寸的时点。
+-3. **每训练家必需席位**：按业主映射统计该侧每位训练家"应占"席位；某训练家无任何席位 → 报错（玩家侧/对方侧各自具名）；必需 1 个而无 1 个可战斗成员 → 报错"…has no able Pokémon"。
++3. **每训练家必需席位与首个失败**：先比较需占位的业主范围与实际建立的可战斗计数范围，再逐业主比较席位需求。计数只在遇到可战斗成员时建立；缺失计数不自动规范化为 0。已有 NPC 对象的非空全濒死队伍可通过构造的非空门，但默认 1v1 中需求范围为 1、计数范围为空，先报 invalid-owner 错误，不到“has no able Pokémon”分支。若某个较早队伍段没有可战斗成员、较后段有，范围中间可为空值；范围长度门通过后，对空计数的数量比较可先失败，不能统一宣称消息分支可达。实际存在的计数项若无席位则有该侧具名错误；可比较的计数不足而必需席位为 1 时，才到“has no able Pokémon”分支。普通生成数据、已有对象与人为不完整段分别看待；不声称默认 PBS 一定提供异常队伍。训练家核心此前已触发开战记录并清创建期规则，失败不承诺回滚。
+ 4. **缩减循环**：某训练家可战斗数不足以填其必需席位 → 训练家战斗将**两侧中较大者 −1**（相等时两侧一起 −1）后重试；**野生战斗只改玩家侧**（野生侧固定）。缩到 0 → 报错"Couldn't lower either side's size any further, battle isn't possible"。具名场景：①两侧各一名训练家、原 2v2、玩家仅 1 只可战斗而对方至少 2 只 → 降到 **1v1**；②两只可战斗野生、玩家仅 1 只且无伙伴（原 2v2）→ **1v2**（野生侧固定、仅玩家侧降）。
+ 5. 该算法**只删减席位、不新增**；不会把不足成员补位成额外个体。
+ 
+@@ -183,6 +183,8 @@
+   - **回读刷新**：`pbUpdate` 从个体重算/回读（能力、等级、HP；fullChange 时含属性/特性）。
+   - HP/持有物等主规则引用已审 WP20/WP19，不由本包重定义。
+ 
++未来攻击来源已离场但后备仍可战斗时，到期处理会先清当前存活成员指向来源保存席位的交叉关系，再读取来源个体的计算数据；这也可能解除现占位者建立的拘束，虽没有正式换入。来源仍在场时不发生这一次离场来源清理。具体黑色目光对照见 WP42 §5.1 延迟攻击及 R10，不要求未来实现采用临时对象构造。
++
+ ### 6.2 逐出与清除写入点
+ 
+ - **濒死**（`pbFaint`）：中止重复、播放消息、对方存活侧登记图鉴击败、效果清零、状态清零、按战内等级差改亲密（`faintbad/faint`，WP30 交界）、离场钩子（含形态还原与 Mega/Primal 还原）、清选择、记录"本回合有倒地"、清直接伤害计数（玩家拥有时才清）、触发他人"倒地时"特性、检查原始天气终结。**不删除席位**；替补与后续由 WP41/42 处理。
+@@ -201,7 +203,7 @@
+ - 写入接口：字符串逐个 `add_battle_rule`，**取值规则**（terrain/weather/environment/environ/backdrop/battleback/base/outcome/outcomevar）与其值成对；`setBattleRule` 逐参扫描配对；悬挂取值规则 → 报错"Argument {X} expected a variable after it but didn't have one."；未知规则名 → 报错"Battle rule \"{X}\" does not exist."。
+ - 键目录（全表）：size（接受 single/1v1/1v2/2v1/1v3/3v1/double/2v2/2v3/3v2/triple/3v3）；canLose（canlose/cannotlose）；canRun（canrun/cannotrun）；roamerFlees；canSwitch（canswitch/cannotswitch）；noexp（→expGain=false）；nomoney（→moneyGain=false）；disablepokeballs；forcecatchintoparty；switchstyle/setstyle；anims/noanims；terrain（值经 BattleTerrain 校验，未知→nil）；weather（BattleWeather 校验）；environment/environ（Environment 校验）；backdrop/battleback；base；outcome/outcomevar；nopartner。
+ - **创建时应用**（`prepare_battle`）：size→设尺寸；canLose/canRun/canSwitch；roamerFlees→战斗内 `alwaysflee`；expGain/moneyGain；disablePokeBalls；`forceCatchIntoParty`→发送盒子=2（总是入队），否则按配置读系统设置；switchStyle→规则优先，否则读系统"对战风格"；showAnims 同理；terrain/weather/environment/backdrop/base 见 §7.3；随后**清空创建期字典**（核心中一次，跳过路径中一次）。
+-- **战斗内规则字典**（`Battle#rules`）：`alwaysflee` 由创建期写入；**条款类键**（selfko/draw/modifiedselfdestruct/suddendeath/sleep/modifiedsleep/freeze/evasion/skillswap/sonicboom/ohko/selfdestruct/perishsong/souldew 等）由**设施规则对象在创建前直接写 `battle.rules`**（WP54–WP58 前向；`add_battle_rule` 不接受这些名字）——本包只登记键名与消费点（平局改写、自爆禁制、回合末骤死、状态/条款招式拒绝）。
++- **战斗内规则字典**（`Battle#rules`）：`alwaysflee` 由创建期写入；**条款类键**使用完整兼容字面：selfkoclause、drawclause、modifiedselfdestructclause、suddendeath、sleepclause、modifiedsleepclause、freezeclause、evasionclause、skillswapclause、sonicboomclause、ohkoclause、selfdestructclause、perishsongclause、souldewclause（完整行为表见 WP54）。其中 drawclause、modifiedselfdestructclause、suddendeath 已有消费者，但固定设施设置文件没有对应设置包装；其余所列键有该文件的设置包装直接写入战斗内规则（WP54–WP58 前向；`add_battle_rule` 不接受这些名字）。sleep=true 不启用 sleepclause；skillswapclause 真时技能交换的目标门仍适用，不能被 WP47-B 的局部效果表取消——本包只登记键名与消费点（平局改写、自爆禁制、回合末骤死、状态/条款招式拒绝）。
+ 
+ ### 7.2 钩子时间线（创建期）
+ 
+@@ -302,7 +304,7 @@
+ | 跳过·无成员 | 可战斗 0 | 消息按阵营；结果 1（训练家为 0）；步计数重置 |
+ | 跳过·DEBUG | DEBUG+Ctrl | 不建战斗对象、不触发 `on_start_battle` |
+ | 伙伴·对手单个 | 对手 1、有伙伴、无尺寸规则 | 伙伴不参与 |
+-| 伙伴·对手 2 个 | 对手 2 | 伙伴参与；默认写 double |
++| 伙伴·对手 2 个 | 对手 2、已登记有效伙伴、noPartner 未开、无显式尺寸规则 | 伙伴参与；默认写 double；仅改为无伙伴或 noPartner 真则不参与，对手数量不创造伙伴 |
+ | 尺寸缩减·训练家 | 两侧各一名训练家、原 2v2、玩家仅 1 只可战斗、对方至少 2 只 | 两侧一起降到 **1v1** |
+ | 尺寸缩减·野生 | 两只可战斗野生、玩家仅 1 只、无伙伴（原 2v2） | 野生侧固定、玩家侧降 → **1v2** |
+ | 尺寸拒绝 | 双方多训练家且某侧 >2 | 立即报错 |
