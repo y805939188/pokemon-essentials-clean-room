@@ -1,3 +1,21 @@
+# B08-C串行接受与B09／B14准确启动合同
+
+B08已登记 **REGISTERED_PASS_SCOPED**：被审actual `49c21538e72b7a5873972cd00fcae1ee390cce64`／tree `6312cddce2e2a43841bde5ec19d0bb480c284314`。完整R-B08 `6a060abf891021e942cb08a86495c840393d3f9f`、独立受影响R-B07 `ca3df824fe4379b7bf8e783a885f5cb0be038ba4`及有界受影响R-B04 `ae709a3d28d453669980069e1b178797d2ae5736`分别PASS_SCOPED同一actual。父授权C接受17本地贡献／9主责，12正式（8最终／目录＋4精确原稿）全部原字节；R07保留B07的19／12与五读者，R04仅两调用组，不扩为完整B04或其它责任。
+
+B01–B08八批已串行接受：150贡献记录／128触及ID／96唯一主责。具体最低修订96满足／0待具体消费／0证据不足；严格全贡献89满足／7待办。229规范ID全部OPEN、CLOSED0；全局与其他责任未关闭。
+
+150不是触及ID：B08新增17贡献中7已被前批触及，新增触及10，118→128。原9主责无重叠，87→96。具体最低修订87→96（96/0/0）；严格79→89（9新增主责＋既有A034的B08贡献完成），仍7待办：A017/B21、A040/B17、A046/B11/B12、A047/B09、A049/B09、A050/B17、WP80-B02-R02/B21。逐ID证据与全部接受收据独立核对，未将贡献总和当去重数。
+
+[接受manifest](batches/B08/acceptance-stage-1/acceptance-manifest.json)、[八批逐ID统计](batches/B08/acceptance-stage-1/completion-statistics-successor.json)、[当前下游交接](batches/B08/acceptance-stage-1/downstream-handshake.json)、[B09完整可执行合同](batches/B08/acceptance-stage-1/B09-downstream-contract.json)、[B14合同与串行写门](batches/B08/acceptance-stage-1/B14-downstream-contract.json)、[准备状态／冲突／三槽建议](batches/B08/acceptance-stage-1/readiness-and-conflicts.json)。三报告原样：[R08](batches/B08/integration-review-1/report.md)、[R07](batches/B08/affected-B07-integration-review-1/report.md)、[R04](batches/B08/affected-B04-integration-review-1/README.md)。
+
+本C仅改变B08末17审批行九个当前接受字段和本中央前缀，新增8份接受／合同材料。旧133审批行、追溯后继、全部正式、G和作者／候选／实际报告、原统计／配置／原根都保留冻结字节；历史pending按原时点保留，由本层解释。三实际报告材料70件普通无冲突合入；不执行历史验证器。
+
+B09前置B06/B07/B08、62读／7写／20贡献／13主责；B14前置B03/B04/B08、72读／6写／24贡献／19主责。两批前置满足，正式作者按B09→B14串行：虽写写交集空，B09写WP39/40被B14读，B14写WP59、树果／黑屏与共享engine目录被B09读，另共享003原根；固定表无直接依赖边不证明语义独立。B14可先只读准备，后须在B09-C准确后继重冻结全部输入并审变化语义。父任务自行调度最多3槽，本C不派发任务。
+
+所有目录整文件锁、B04/B07/B08变化反向读者、caller/data/configuration条件和受影响candidate／actual分别复审门见各合同。B09的共享pokemon-wp31目录须保留BE/CX/RM旧正确行；B14的engine-wp11/15目录须保留B04条款及所有其他owner行。B08四原稿权限不继承，必要原稿同步先具名ID／路径／条款／before／prepared patch并取得精确有界授权。参考身份仅Git元数据导航，不是源全文读证；源程序与行为向量执行0、运行观察／Demo链0，U/G/AX及所有具名未知保持。历史顺序／跨容器锁仍AUTHOR_SELF_REPORT_ONLY。
+
+具体消费者残余仍归B09伙伴捕获／持物与漫游消费、B12大会预算／伙伴、B19缓存／编译、B20 WP77数学、B16专业UI、B14/B15/B21重冻结／汇总／全局及全部共根扩展。实际配置仍UNVERIFIED、Plan A已接受；作者请求gpt-6.1-sol/xhigh，复审Ultra，全Standard，额度检查按用户暂停，不作认证／配置／额度探测。精确接受作者基线由本次普通push及ref/FETCH_HEAD回读外部交付，不使用actual、report或浮动branch替代。以下B08-G及早期交接全文保留。
+
 # B08-G实际整合交接，等待三个分别Ultra复审
 
 已接受前驱 `759eee80ce7856570fde2de12d5dcf98ce7e6017`；完整候选 `0f35a393d9de467cd5f7e695b6072687bb582186`。完整R-B08 `239a29c466d6efc1a5a240f57ad53b55c91f9e42`、独立受影响R-B07 `7fd9271bc77b534e0eba5b47c77034e2453dd560`及有界受影响R-B04 `ceb6c07340c8f4f2b7c508df36b2a2ef98f12711`均为候选 PASS_SCOPED，范围分别按固定报告。B08为17项本地贡献／9项主责；12正式＝8净化正文／目录＋4具名授权原稿，均按候选原字节整合。B08接受贡献0，规范ID未关闭。
