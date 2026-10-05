@@ -1,5 +1,19 @@
 # 当前后继勘误索引（B01-G）
 
+## B09-G六原稿及WP20有界后继（五实际Ultra待审）
+
+已接受前驱 `407536adb682a04161d3e9c82f153a62b1becd97`；完整候选 `18873059e56314fcd48f6081d5a65a79301a52f6`。完整 R09 及独立受影响 B04/B05/B07/B08 的五份精确候选回执均为 PASS_SCOPED。B09为20贡献／13主责，14正式文件＝8净化正文／目录＋6具名授权原稿；全部保留候选字节。当前仅登记 INTEGRATED_PENDING_ACTUAL，B09接受贡献0。
+
+五原稿scope-proposal-1共30条授权和WP20 scope-amendment-2两路径各两条§6.4均按精确结果整合；授权只是范围门。旧正确原稿与历史批准不改写；历史准备／授权／应用时序及跨容器锁仅AUTHOR_SELF_REPORT_ONLY。24新增目录ID、43关联目录设计、18补充设计均未执行；两个目录10旧行修订、其他owner整节及旧ID顺序／次数保持。
+
+[五原稿授权](batches/B09/candidate-1/original-scope-approval.json)、[WP20范围授权](batches/B09/scope-amendment-2/approval.json)、[WP20精确应用](batches/B09/scope-amendment-2/application.json)、[范围／观察](batches/B09/integration-stage-1/scope-and-observation-registration.json)。candidate-1未应用提案、较早待审文字和旧审批均按历史原文保留。
+
+保留报告文字差异B09-G-O01：R09的B013判断／表格与其内嵌固定验收及独立受影响报告的A/B终局持物文字不一致；原报告不改写、不据此新裁决行为。实际完整R09须显式逐层核对并说明，不能靠相同blob或PASS标签推定解决。
+
+B01–B08已接受口径保持150贡献记录／128触及ID／96唯一主责；具体最低96满足／0待消费／0证据不足，严格全贡献89满足／7待办。公共登记追加20候选行为170行，不增加已接受分母。规范229 OPEN／0 CLOSED，未新增canonical根因或AX。
+
+须完整R09及分别受影响B04/B05/B07/B08五个Ultra/Standard实际报告均绑定同一最终actual SHA并各自PASS_SCOPED，再由父任务C接受。B14正式仍等待B09-C，之后全72读／6写须重冻结并核调用、条件及共享根；未派发任务。
+
 ## B08-G四原稿与净化候选后继（三实际Ultra待审）
 
 已接受前驱 `759eee80ce7856570fde2de12d5dcf98ce7e6017`；完整候选 `0f35a393d9de467cd5f7e695b6072687bb582186`。完整R-B08 `239a29c466d6efc1a5a240f57ad53b55c91f9e42`、独立受影响R-B07 `7fd9271bc77b534e0eba5b47c77034e2453dd560`及有界受影响R-B04 `ceb6c07340c8f4f2b7c508df36b2a2ef98f12711`均为候选 PASS_SCOPED，范围分别按固定报告。B08为17项本地贡献／9项主责；12正式＝8净化正文／目录＋4具名授权原稿，均按候选原字节整合。B08接受贡献0，规范ID未关闭。

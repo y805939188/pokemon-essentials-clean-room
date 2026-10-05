@@ -1,3 +1,25 @@
+# B09-G实际整合交接，等待五份分别Ultra复审
+
+已接受前驱 `407536adb682a04161d3e9c82f153a62b1becd97`；完整候选 `18873059e56314fcd48f6081d5a65a79301a52f6`。完整 R09 及独立受影响 B04/B05/B07/B08 的五份精确候选回执均为 PASS_SCOPED。B09为20贡献／13主责，14正式文件＝8净化正文／目录＋6具名授权原稿；全部保留候选字节。当前仅登记 INTEGRATED_PENDING_ACTUAL，B09接受贡献0。
+
+[集成manifest](batches/B09/integration-stage-1/integration-manifest.json)、[完整当前控制](batches/B09/integration-stage-1/finding-registration.json)、[授权／报告观察](batches/B09/integration-stage-1/scope-and-observation-registration.json)、[当前70读者及受影响门](batches/B09/integration-stage-1/current-readers.json)、[下游评估](batches/B09/integration-stage-1/downstream-dependency-assessment.json)、[精确目录计数](batches/B09/integration-stage-1/scope-counts.json)。
+
+175来源＝14正式＋73作者材料＋88独立报告（R09 12／B04 27／B05 13／B07 19／B08 17），六次原生无冲突集成全部保持固定字节。A-REG仅写必要10公共路径和本批integration-stage-1；旧150审批／追溯行原字节保留。旧报告的其他复审pending文字按原时点存档，当前五精确回执满足候选标签门，实际门未通过。
+
+B01–B08已接受口径保持150贡献记录／128触及ID／96唯一主责；具体最低96满足／0待消费／0证据不足，严格全贡献89满足／7待办。公共登记追加20候选行为170行，不增加已接受分母。规范229 OPEN／0 CLOSED，未新增canonical根因或AX。
+
+五原稿scope-proposal-1共30条授权和WP20 scope-amendment-2两路径各两条§6.4均按精确结果整合；授权只是范围门。旧正确原稿与历史批准不改写；历史准备／授权／应用时序及跨容器锁仅AUTHOR_SELF_REPORT_ONLY。24新增目录ID、43关联目录设计、18补充设计均未执行；两个目录10旧行修订、其他owner整节及旧ID顺序／次数保持。
+
+须完整R09及分别受影响B04/B05/B07/B08五个Ultra/Standard实际报告均绑定同一最终actual SHA并各自PASS_SCOPED，再由父任务C接受。B14正式仍等待B09-C，之后全72读／6写须重冻结并核调用、条件及共享根；未派发任务。
+
+保留报告文字差异B09-G-O01：R09的B013判断／表格与其内嵌固定验收及独立受影响报告的A/B终局持物文字不一致；原报告不改写、不据此新裁决行为。实际完整R09须显式逐层核对并说明，不能靠相同blob或PASS标签推定解决。
+
+完整前驱→actual及候选→actual范围包括14正式、161作者／报告原样材料、10公共、11阶段管理和3末尾冻结证据。两个完整变化路径／前后身份清单及无过滤Git差异哈希止于payload以避免自引用；最终三新增的单亲封包范围及完整actual哈希／路径须按交付SHA自行Git重构。历史报告使用commit/path/blob/SHA256引用，不递归重复嵌入。
+
+U01–U10/G01–G12/AX01–20及全部具名未读／媒体／二进制／宿主配置容量／杯赛样本／插件动态路径／地图事件／Demo／备份gen边界保留。参考、编译、转换、生成、反序列化、作者／历史审者程序及行为向量执行0，运行观察0，已证Demo链0。请求gpt-6.1-sol/xhigh/Standard；实际复审Ultra/Standard；实际配置UNVERIFIED按Plan A，无配置、认证或额度探测。
+
+其余WP45/46/47/48/50/52、设施、专业UI、架构／编译／平衡／全局owner职责与已有扩展保留；本登记未新行为裁决、未接受B09贡献、未关闭规范。以下B08-C与更早交接全文保持原字节。
+
 # B08-C串行接受与B09／B14准确启动合同
 
 B08已登记 **REGISTERED_PASS_SCOPED**：被审actual `49c21538e72b7a5873972cd00fcae1ee390cce64`／tree `6312cddce2e2a43841bde5ec19d0bb480c284314`。完整R-B08 `6a060abf891021e942cb08a86495c840393d3f9f`、独立受影响R-B07 `ca3df824fe4379b7bf8e783a885f5cb0be038ba4`及有界受影响R-B04 `ae709a3d28d453669980069e1b178797d2ae5736`分别PASS_SCOPED同一actual。父授权C接受17本地贡献／9主责，12正式（8最终／目录＋4精确原稿）全部原字节；R07保留B07的19／12与五读者，R04仅两调用组，不扩为完整B04或其它责任。
