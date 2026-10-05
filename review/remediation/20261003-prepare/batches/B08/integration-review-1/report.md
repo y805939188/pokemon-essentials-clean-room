@@ -1,0 +1,63 @@
+# Independent full R-B08 actual review
+
+**PASS_SCOPED** for `49c21538e72b7a5873972cd00fcae1ee390cce64` (tree `6312cddce2e2a43841bde5ec19d0bb480c284314`), against accepted predecessor `759eee80ce7856570fde2de12d5dcf98ce7e6017` and candidate `0f35a393d9de467cd5f7e695b6072687bb582186`. No required correction or new blocking finding. This is the full R-B08 actual review: all 17 local contributions/9 primary IDs, eight final outputs, four scope-authorized originals and every new evidence/public/dependency change.
+
+## Independent behavioral disposition
+
+The revised clauses remove the original B08 defects while preserving the correct prior inputs and caller distinctions. Fresh source/data reading supports the reasoning below; exact byte preservation is an additional regression check, not the semantic basis for this verdict. Complete per-ID reasoning, minimal controls, actual row identities and residual owners are in [contribution-review.json](contribution-review.json). All complete fixed global objects and approved acceptance objects were read, including current qualifications, effective cases/second-review conditions, root adjudications and every extension. They match the accepted B07 downstream contract and are bound in [fixed-control-bindings.json](fixed-control-bindings.json).
+
+| ID | Original priority | B08 role | Actual independent result |
+| --- | --- | --- | --- |
+| GIR-FD82-003 | P 2 | Partial; primary B21 | Architecture neutrality and valid protocol identities: PASS_SCOPED |
+| GIR-FD82-A034 | P 2 | Partial; primary B06 | Partner Radar startup versus subsequent cancellation: PASS_SCOPED |
+| GIR-FD82-A052 | P 3 | Primary | Breeding compatibility precedes Ditto exceptions: PASS_SCOPED |
+| GIR-FD82-A053 | P 2 | Primary | Hatching core writes versus later dynamic form/media effects: PASS_SCOPED |
+| GIR-FD82-B026 | P 2 | Partial; primary B12 | Contest partner double battle versus single override: PASS_SCOPED |
+| GIR-FD82-C003 | P 2 | Partial; primary B21 | Executable-premise completeness in encounter designs: PASS_SCOPED |
+| GIR-FD82-C004 | P 2 | Partial; primary B19 | Registry/PBS round trip versus encounter snapshot: PASS_SCOPED |
+| GIR-FD82-C005 | P 2 | Partial; primary B19 | Editor save/cancel/compile versus installed map data: PASS_SCOPED |
+| GIR-FD82-C007 | P 2 | Partial; primary B21 | Dedicated default roaming graph and conditional coverage: PASS_SCOPED |
+| GIR-FD82-C079 | P 2 | Primary | Exact level ability identities: PASS_SCOPED |
+| GIR-FD82-C080 | P 2 | Primary | Header integer conversion versus strict slots and partial registration: PASS_SCOPED |
+| GIR-FD82-C081 | P 2 | Primary | 31-bit wrap and notification ordering: PASS_SCOPED |
+| GIR-FD82-C082 | P 2 | Primary | Movement opportunity includes contest; Radar land query does not: PASS_SCOPED |
+| GIR-FD82-C083 | P 2 | Partial; primary B20 | Full-party population deviation, clamps and rounding: PASS_SCOPED |
+| GIR-FD82-C084 | P 2 | Primary | Temporary and persistent generation, side effects and notification inputs: PASS_SCOPED |
+| GIR-FD82-C085 | P 2 | Primary | Pending selection and transient association are both required: PASS_SCOPED |
+| GIR-FD82-C096 | P 2 | Primary | Validate type before same-value early return: PASS_SCOPED |
+
+Core judgments include prior Shadow/Undiscovered gates versus Ditto and direct breeding tools; hatch core commits versus later dynamic-form/media effects; header integer-prefix parsing versus strict slot validation and previous-section partial registration; registry/PBS round trip versus installed encounter snapshot; wrap and handler ordering; opportunity/type/selection/allow/wrapper stages; precise ability identities; contest partner priority; full-party population deviation, clamp and rounding order; temporary/persistent roaming generation, incoming notification arguments and the two required presence gates; and Radar startup versus later partner cancellation. Positive and neighboring negative/reverse controls were independently reread in this actual round. Mathematics is a manual contract derivation; no behavior vector, random process or arithmetic simulator was executed.
+
+Both WP34 bodies remain byte-identical to the predecessor. Four original changes match the exact prepared patch `05b75bcafcb1fd9359e9a35e935e8b7cbb7dd038a0f3349a1172d1fe3ba88f25`; before/after identities and reverse applicability were independently checked without applying a mutation. Permission authorized scope only. Historical preparation/authorization/application order and cross-container leases remain AUTHOR_SELF_REPORT_ONLY. Correct old direct-tool, query/enum fallback, encounter-priority, generation, handled-hook, failure and cleanup inputs were preserved.
+
+## Complete actual diff and integration evidence
+
+The unfiltered predecessor→actual diff has 131 paths:12 modified content outputs,45 added frozen author files,51 added immutable candidate-review files,10 modified public paths and 13 added integration-management files. Candidate→actual has 74 paths:51 reports,10 public and 13 integration files. All 12 outputs match the exact candidate; all 45 author files and 51 report files match their fixed sources. All 25 stage 1 files also match the frozen WIP. The full eight final outputs and four original differences were inspected, together with the unique new public/evidence/dependency text. Repeated immutable report and saved-patch contents were checked against fixed sources rather than represented as freshly reread behavioral evidence. Exact unfiltered differences and full inventories/hashes are included in [input-and-diff-identities.json](input-and-diff-identities.json).
+
+The four catalogs retain all old IDs in order/multiplicity, with 14 other-owner whole sections preserved byte-for-byte. Only DC-08, EG-13, EN-01, EN-15 and EN-16 have changed old row text; BR25 changes its former EOF newline boundary only. Totals 649→664 reflect 15 static designs: EG-20, EN-25–32, BR26 and RM33–37. They were not executed. Original/formal clauses remain synchronized for the authorized scope. B04’s 13 accepted outputs and B06’s complete WP24 are unchanged.
+
+Native merge parents/trees, incoming byte unions and the final single-parent payload freeze were independently verified. Actual is payload `e91c974c5a05a55da8d6cb228afe5b30174fb02c` plus exactly three final freeze additions. Both saved payload diffs match complete reconstructed Git output; complete final-actual diffs additionally include those freeze files. The files avoid circular self-SHA claims; this report binds the fixed actual externally. Historical conflict-free commands, initial remote/worktree state and locks remain integrator self-reports; final Git objects and current identities are verifiable.
+
+All 7,092 newly constructed precomparison document assertions pass. After recording [independent-first-judgment.md](independent-first-judgment.md),183 further independent identity/text assertions compare the integrator’s self-check files; all pass. [integrator-comparison.json](integrator-comparison.json) distinguishes those checks from the integrator’s own 1,837/1,665 reported checks and historical execution claims. No author/reviewer historical program was run. Differing original diff receipt hashes resolve exactly as full-index zero-context diffs; the complete candidate receipt uses full-index three-context formatting. The comparison found no defect.
+
+## Public registration and dependency gates
+
+The two successor registries preserve all prior 133 rows as exact raw prefixes and append 17 candidate-PASS / actual-pending / canonical-OPEN records. Public rows 150 are not 150 accepted contributions. The seven accepted batches remain 133 accepted records /118 distinct touched IDs /87 primary IDs, concrete minimum 87 satisfied/0 missing/0 insufficient and strict 79 satisfied/8 pending. B08 accepted contributions remain 0 at this actual. No root delta, canonical closure or global gate PASS is asserted. Only three catalog navigation counts change; older public prose/history is preserved. All new relative links resolve. A-REG remains sole public writer; this reviewer does not edit any registry.
+
+The new B04 gate correctly requires separate bounded review of hatch dynamic-form/media/messages and contest partner single/double wrapper callers. It strengthens the historical narrower R 08 statement without rewriting that report. Roaming 48/52 notification/combat differences do not introduce an additional level-sensitive BGM selector. B06 acceptance is bounded to its six audio situations and cannot be used as full partner/Radar behavior approval.
+
+The separately fetched actual handoffs report PASS_SCOPED at affected R-B07 `ca3df824fe4379b7bf8e783a885f5cb0be038ba4` and bounded R-B04 `ae709a3d28d453669980069e1b178797d2ae5736`, both with sole parent and reviewed actual `49c21538e72b7a5873972cd00fcae1ee390cce64`. They were inspected after this reviewer’s own judgment. R 07 covers preservation of all 19 accepted B07 contributions/12 primary and five changed reverse readers; R 04 covers its two caller groups only. Neither substitutes for full R-B08. Three same-actual reports still lead to parent C, which this reviewer does not perform. Frozen actual documents that say PENDING accurately describe their preparation phase and are not changed by review-branch reports.
+
+B09 retains the exact 62 planned reads,7 formal writes,20 complete contribution controls/13 primary and B06/B07/B08 dependencies. The current 79 B08 input versions, all forward/reverse/shared-file constraints and all fixed semantic/physical/shared-premise rows for B09/B14/B15/B19/B20/B21 are preserved. Readers must refreeze on an accepted C successor; whole-file locks and stale-reader serialization remain. Path intersection is not semantic independence. B09 broader B013 partner capture/list/held-item duties, B12 WP53/B026, B19 C004/C005 editor/metrics, B20 WP77/C083 and B21/global/root obligations remain with their owners. No downstream task, original-write permission or parallel writer is authorized here. See [dependency-and-reverse-impact.json](dependency-and-reverse-impact.json).
+
+## Findings and evidence limits
+
+No new required issue: issue IDs/severity/evidence/criteria are therefore empty in [findings.json](findings.json). Existing INFO R-B08-N 01 remains candidate-scoped:353 diagnostics =344 trailing whitespace +9 new EOF blanks. The actual complete predecessor→actual difference has 6,356 =6,340+16; candidate→actual has 6,003 =5,996+7. They are all confined to preserved saved .diff/.patch evidence. All 12 current content outputs pass `git diff --check`; historical evidence was not “cleaned”. Public text expressly bounds the 353 denominator and satisfies the informational acceptance criterion.
+
+This actual review freshly read 46 events across 37 reference files, covering 2,923 unique existing line positions (2,925 requested; one request’s final two positions were beyond EOF) at exact reference `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`. The independent read-only reference checkout remained unchanged. This is bounded source/data text evidence, not complete reference-file coverage. [source-reading-log.json](source-reading-log.json) records exact ranges and inherited source identities/limits; previous candidate reads and inherited scripts_extract.rb text-only reading are labelled prior evidence, not new actual reads.
+
+Every U01–U10/G01–G12/AX01–AX20 and named unread/unverified condition is retained: binary data and Scripts.rxdata; Game/DLL/host/mkxp configuration; actual images/audio/fonts/soundfont/assets and capacity; backup/generated directories; actual maps/events; eight cup lists and pokemon_metrics.txt; dynamic calls/plugins/deprecated aliases/EventScene/dynamic shadows; conditional media failures and capacity 1024/2048 fixtures; and actual Demo reachability. No inherited limitation is silently promoted to proven coverage.
+
+Reference game/compiler/converter/generator/deserializer and simulator executions are 0; behavior vectors executed 0; runtime observations 0; proven Demo chains 0. Requested gpt-6.1-sol / Ultra / Standard(default) remains effective-server UNVERIFIED under user-approved Plan A; no certification/authentication/quota probes or budget reset. Quota monitoring is temporarily disabled by the current user instruction, with authorization to continue. No subagents were spawned.
+
+No environment blocker remains: the transient executor disconnect recovered and the isolated checkpoint was preserved. Parent C is the remaining acceptance gate after the three independent actual reports. This PASS_SCOPED does not itself perform integration acceptance, canonical closure, main push or downstream dispatch.
