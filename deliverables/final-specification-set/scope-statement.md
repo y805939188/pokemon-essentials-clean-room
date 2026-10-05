@@ -1,5 +1,17 @@
 # 范围与未验证声明（WP80 净化规格集；2026-10-03）
 
+## 当前B07-G状态（两实际Ultra待审）
+
+当前管理前驱 `259a1c158f317c5e32830e04838a76aa82f4d20a`；B07正式内容基线 `219cc3c182750155e9dbf2cb619f420b3922de27`；完整候选 `a22df6b1d9465b68e45558c57bc69c61939baeaf`。R-B07 `19e2d5f9de40a9220059a62f785ac0bbc13b2154` 为19贡献／12主责候选 PASS_SCOPED，独立受影响 R-B04 `3e88d42b8d9313e1adbbc8944e54faa1b45e71a0` 仅反向接口候选 PASS_SCOPED。14正式文件＝8净化正文／目录＋6精确原稿同步，原字节整合；实际新SHA的两份分别 Ultra 复审均待办，随后父任务C接受。规范必修229 OPEN／0 CLOSED，B07尚未接受。
+
+[当前交接](../../review/remediation/20261003-prepare/final-integration-review.md)、[逐ID登记](../../review/remediation/20261003-prepare/batches/B07/integration-stage-1/finding-registration.json)、[授权／顺序限制](../../review/remediation/20261003-prepare/batches/B07/integration-stage-1/scope-and-authorization-registration.json)、[B08合同](../../review/remediation/20261003-prepare/batches/B07/integration-stage-1/downstream-handshake.json)。两实际复审须各自绑定同一最终冻结actual SHA，完整管理前驱→actual及候选→actual无过滤差分；R-B07查完整19／12，独立R-B04查受影响WP15–17反向接口及35／23历史范围。双PASS后才父任务C接受／以精确接受后继重冻结B08；B08当前未解锁、未派发。
+
+六批B01–B06已接受口径保持：114已接受贡献记录／105触及ID，75主责，具体原修订74满足／1缺具体消费／0证据不足，严格全贡献71／4。A024的B07消费者虽候选PASS，尚不升级接受统计；A017/B21、A034/B08、WP80-B02-R02/B21继续待办。当前公共133记录＝114原接受＋19候选，与28新增静态设计分母不同。
+
+六份原稿路径、完整hunks及before/after/patch哈希可核验；作者“先备差异再写入”仅自述，最终Git树不能追认该历史顺序，不补造前置证据。原稿旧批准按旧字节保留，正确既有条款不反改。
+
+B16的A048空重学UI、C003 A23/A31/A33前提、D023 BP显示同步及B09的B013伙伴接收／还原与CP20责任继续待办；既有B04专业业务条款未因此获新批准。U01–U10/G01–G12/AX01–AX20、动态调用／插件／宿主／媒体字体／容量／真实Demo等具名未知保留。 参考程序／行为向量执行、运行观察、真实Demo链均0。B08为79计划读／8计划写／17贡献／9主责，前置B03/B05/B07；B07改变其3个计划读者（WP28、WP30、creature-rpg-wp27目录）。B08未来写入反向影响B07的5个计划读者，必须检查接口、受影响复审与整文件目录锁；WP34正文只读。安全并行探查仅为固定输入的有界只读候选，未判定写入独立性、未派发或并行写入。 当前请求xhigh，复审要求Ultra，全部Standard；实际配置UNVERIFIED，历史配置收据按时点保留。以下旧层原文保留。
+
 ## 当前B04-G状态（实际整合待Ultra）
 
 接受基线 `6452c0e03025605222f3de9a272221e2b82eeda4` 为 B01/B02/B03/B05/B06 五批。B04完整候选 `50f9ca2506bf0de21c33c644569c9987f84b80a3`、作者交接 `5da06e2baf0879978a871c6952fab1105909b511`、第二轮独立报告 `c500ed089fd1192409c1c77a7a91e093c59a8a45` 为35贡献／23主责 PASS_SCOPED；13份正式文件原字节整合。本次实际新SHA及全部公共／依赖登记待同一 R-B04 Ultra，未接受 B04。规范必修229 OPEN／0 CLOSED。

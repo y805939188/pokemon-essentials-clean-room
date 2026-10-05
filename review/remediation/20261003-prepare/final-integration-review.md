@@ -1,3 +1,25 @@
+# B07-G实际整合交接，等待分别R-B07与独立R-B04 Ultra
+
+当前管理前驱 `259a1c158f317c5e32830e04838a76aa82f4d20a`；B07正式内容基线 `219cc3c182750155e9dbf2cb619f420b3922de27`；完整候选 `a22df6b1d9465b68e45558c57bc69c61939baeaf`。R-B07 `19e2d5f9de40a9220059a62f785ac0bbc13b2154` 为19贡献／12主责候选 PASS_SCOPED，独立受影响 R-B04 `3e88d42b8d9313e1adbbc8944e54faa1b45e71a0` 仅反向接口候选 PASS_SCOPED。14正式文件＝8净化正文／目录＋6精确原稿同步，原字节整合；实际新SHA的两份分别 Ultra 复审均待办，随后父任务C接受。规范必修229 OPEN／0 CLOSED，B07尚未接受。
+
+两次普通无冲突merge：`2ec1f30940495c785f45de0a0b72c87ecb9116ad`父[259a管理更正,19e2 R-B07报告]；`a0d2cec8af3a46e0e5a377966f4ee492ac9cd90e`父[前一merge,3e88独立受影响B04报告]。57来源路径＝14正式＋11作者证据＋32独立报告（R-B07十二、R-B04二十）。正式字节完全等于a22df候选，作者／两报告历史原字节保留；没有正式重写、ours/theirs、rebase、force。259a的xhigh更正及固定来源保留，正式内容基线仍219cc，未回滚Max。
+
+A-REG单写公共10路径，旧114审批／追溯行原字节保留，追加19候选行，公共133记录。六批B01–B06已接受口径保持：114已接受贡献记录／105触及ID，75主责，具体原修订74满足／1缺具体消费／0证据不足，严格全贡献71／4。A024的B07消费者虽候选PASS，尚不升级接受统计；A017/B21、A034/B08、WP80-B02-R02/B21继续待办。当前公共133记录＝114原接受＋19候选，与28新增静态设计分母不同。
+
+两实际复审须各自绑定同一最终冻结actual SHA，完整管理前驱→actual及候选→actual无过滤差分；R-B07查完整19／12，独立R-B04查受影响WP15–17反向接口及35／23历史范围。双PASS后才父任务C接受／以精确接受后继重冻结B08；B08当前未解锁、未派发。
+
+完整实际复审包括14正式（8净化／目录＋6授权原稿）、10公共后继、10管理登记及3末尾冻结证据、19／12全原根／案例／扩展控制、28静态设计与8旧前提修订、全部历史报告／接受字节、xhigh更正、B06 WP24§5.4/PT41–63六逻辑请求与引子记忆，以及B04反向接口和B08读写锁。不能以候选报告／作者文档检查替代actual。本文是Git／文本身份及限定公共登记，无新增行为裁决。
+
+[manifest](batches/B07/integration-stage-1/integration-manifest.json)、[逐ID完整控制及两报告定位](batches/B07/integration-stage-1/finding-registration.json)、[授权／范围](batches/B07/integration-stage-1/scope-and-authorization-registration.json)、[计数](batches/B07/integration-stage-1/scope-counts.json)、[B08合同／并行有界探查](batches/B07/integration-stage-1/downstream-handshake.json)。六份原稿路径、完整hunks及before/after/patch哈希可核验；作者“先备差异再写入”仅自述，最终Git树不能追认该历史顺序，不补造前置证据。原稿旧批准按旧字节保留，正确既有条款不反改。
+
+B16的A048空重学UI、C003 A23/A31/A33前提、D023 BP显示同步及B09的B013伙伴接收／还原与CP20责任继续待办；既有B04专业业务条款未因此获新批准。U01–U10/G01–G12/AX01–AX20、动态调用／插件／宿主／媒体字体／容量／真实Demo等具名未知保留。
+
+B08为79计划读／8计划写／17贡献／9主责，前置B03/B05/B07；B07改变其3个计划读者（WP28、WP30、creature-rpg-wp27目录）。B08未来写入反向影响B07的5个计划读者，必须检查接口、受影响复审与整文件目录锁；WP34正文只读。安全并行探查仅为固定输入的有界只读候选，未判定写入独立性、未派发或并行写入。 未派发任何新任务。B06 WP24字节不变，伙伴／雷达／完整BattleAudio未获新批准。BG/DC和RM/CP整节、BE13及其他正确条款／历史接受范围均保持；旧B04 NA/EXCLUDE判断不反写。U/G/AX及具名未知保持。
+
+新增28静态与8旧前提修订，各自无执行。R-B0714项文档／11项报告核验、受影响R-B04初285／后496及340项报告核验、作者15项检查仅保存，不运行其程序。配置请求gpt-6.1-sol/xhigh/Standard，复审要求Ultra/Standard，实际模型／推理／速度UNVERIFIED；Plan A已接受、无新增确认门。未读认证／令牌／sessions、未改配置／提速／降档／派生。参考只读，不运行游戏／Ruby／编译／转换／生成／反序列化／媒体／模拟／求解／行为向量；运行观察与真实Demo链0。
+
+最终actual SHA由普通push／回读外部交付；末提交仅两份全量patch和diff-and-freeze.json，防自引用。以下B04-C／xhigh更正及更早交接全文原字节保留，按各自时点解释。
+
 # B04-C串行接受与B07启动合同
 
 B04已登记 **REGISTERED_PASS_SCOPED**：精确actual `9e2dadfa650e2111b77f9eae1f834cc00b8805d5`／tree `f642c902b9b256c4cc7e54dcbe7500a29aed0119`，同一R-B04实际Ultra报告 `acda1abc811cc07ea83c6a0930872e9a8cea174e`。本批35贡献／23主责、13正式、两P2（C061/C062）返修通过，新增必修缺陷0；报告2596文档检查仅存证，未运行其verifier。被审正式文件及作者／报告／冻结历史原字节保留。本管理后继只变当前35行的九个接受字段与本中央前缀，并新增五份管理记录。
