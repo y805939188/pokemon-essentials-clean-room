@@ -1,3 +1,19 @@
+# B09-C 有界接受与下游交接
+
+完整R09及独立受影响B04/B05/B07/B08五份实际 PASS_SCOPED 均绑定 dc64807c2d726171827017ec636c6a73efd8e4b5；追加澄清只改报告前提，原 PASS 保持。接受范围为B09本批20贡献／13主责及各报告的限定受影响接口，不作全局关闭。
+
+B01–B09 已接受：170贡献记录／142触及ID／109唯一主责；具体最低109满足／0待消费／0证据不足；严格全贡献100满足／9待办。规范229 OPEN／0 CLOSED。
+
+[接受manifest](batches/B09/acceptance-stage-1/acceptance-manifest.json)、[按ID重算统计](batches/B09/acceptance-stage-1/completion-statistics-successor.json)、[两项报告更正后继](batches/B09/acceptance-stage-1/report-corrections-successor.json)、[B14完整契约](batches/B09/acceptance-stage-1/B14-downstream-contract.json)、[B10完整契约](batches/B09/acceptance-stage-1/B10-downstream-contract.json)、[就绪与冲突](batches/B09/acceptance-stage-1/readiness-and-conflicts.json)、[下游串行握手](batches/B09/acceptance-stage-1/downstream-handshake.json)。
+
+B09-G-O01限定参与伙伴捕获结果：盒中A=Y、留队B=空，仅一次终局还原遍历。NearAlly正常夹具：user0存活，近ally2倒下且无后备，远ally4存活；选择/USE注册4，布局与生命状态保持且进入正常目标解析时拒绝远4、无近侧合格替代；不声称最终招式效果、PP或消息。两项均为报告文字更正，历史原样保留。
+
+B14全72读／6写已按本接受后继重新冻结；2a496b76e9b18efde71a273fcf33245927e68020只读preflight仅为准备证据。B10全53读／8写也已冻结。原计划就绪候选只有B14、B10；4条相互读写关系及共享003使正式修订按B14→B10串行。可并行B10有界只读准备，保留第三槽用于独立复审；本次派发0。B14接受后必须再次重冻结B10全部输入，B10以后WP46变化须检验并分别复审已接受B14消费者。
+
+14正式文件与先前175来源/全部作者及候选报告/全部G冻结材料字节保持；本次原生整合114报告/澄清文件，仅更新B09当前审批九个字段和此交接前缀，另新增本批C材料。前150审批行及全部170追溯行保持。以下旧G及此前文本按历史时点保留，当前接受/更正/下游条件以本C后继为准。精确C SHA由普通push及独立远端ref/FETCH_HEAD回读外部交付，不自嵌。
+
+作者请求gpt-6.1-sol/xhigh/继承Standard；复审Ultra/Standard。实际模型、推理和速度UNVERIFIED，沿用已接受Plan A，不作配置/认证/额度探测。保留U01–U10、G01–G12、AX01–20及全部具名未读/动态/媒体/宿主/容量/地图事件/Demo边界。参考游戏、编译、转换、生成、反序列化、作者/历史审者程序、行为向量执行0；运行观察0、已证Demo链0。原稿授权不从B09六原稿转移。
+
 # B09-G实际整合交接，等待五份分别Ultra复审
 
 已接受前驱 `407536adb682a04161d3e9c82f153a62b1becd97`；完整候选 `18873059e56314fcd48f6081d5a65a79301a52f6`。完整 R09 及独立受影响 B04/B05/B07/B08 的五份精确候选回执均为 PASS_SCOPED。B09为20贡献／13主责，14正式文件＝8净化正文／目录＋6具名授权原稿；全部保留候选字节。当前仅登记 INTEGRATED_PENDING_ACTUAL，B09接受贡献0。
