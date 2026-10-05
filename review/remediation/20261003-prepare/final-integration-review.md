@@ -1,3 +1,23 @@
+# B07-C串行接受与B08准确启动合同
+
+B07已登记 **REGISTERED_PASS_SCOPED**：被审actual `adca83d63d18c94429cdb52aef9eaf7b8aa00189`／tree `392c60655eff833399e796e081b18ae344cdaa82`，R-B07完整实际报告 `d218aed120ed8ea1c88e1ec4752e5f7dcaaac226` 与独立受影响R-B04实际报告 `e16df847d1a38ea075c96133fa6decad4bbcdb89` 均PASS_SCOPED同一actual。本批19贡献／12主责、14正式（8净化／目录＋6必要原稿）及限定公共／B08准备合同通过；R-B04仅保留WP15–17受影响接口与35／23历史范围，不扩为B07全批或他域批准。两报告完整读取并按各自精确Git对象保留，报告程序不执行。
+
+本C管理后继仅修改19批准行的九个当前接受字段和本中央前缀，新增五份管理记录。先前114批准行、traceability、14正式、所有作者／候选／实际报告／G冻结及配置xhigh后继字节原样；先前actual待审文字按冻结时点保留，由本层当前接受状态限定解释。
+
+B01–B07七批具名范围已串行接受。133贡献记录去重为118触及ID，87主责ID；具体最低修订87满足／0缺消费／0证据不足，严格全贡献79满足／8待办。A024的WP30实际消费补齐；八严格待项A017/B21、A034/B08、A040/B17、A046/B11/B12、A047/B09、A049/B09、A050/B17、WP80-B02-R02/B21。规范229全部OPEN、CLOSED0；跨域其他责任与全部未证限制保持。
+
+计数：87主责＝75＋12；具体87＝旧74＋12新主责＋A024消费补齐1；严格79＝旧71＋7新主责全贡献＋A024补齐1。133贡献＝114＋19；118触及＝105＋19−6共享（A020/A024/A026/A040/A044/C003）。28新增未执行静态设计／8旧前提修订另计，不是贡献／主责／运行次数。此计数依据原最低条款与实际局部收据，不把79或87写成canonical关闭。
+
+[接受manifest](batches/B07/acceptance-stage-1/acceptance-manifest.json)、[七批逐ID／逐贡献计数](batches/B07/acceptance-stage-1/completion-statistics-successor.json)、[B08完整可执行合同](batches/B07/acceptance-stage-1/downstream-handshake.json)、[R-B07实际报告](batches/B07/integration-review-1/report.md)、[独立受影响R-B04实际报告](batches/B07/affected-B04-integration-review-1/report.md)。精确接受后继SHA由普通push／ref与FETCH_HEAD回读外部交付，B08不能用actual、report或浮动分支代替该作者基线。
+
+B08前置B03/B05/B07满足；79计划读、8正式写、17贡献／9主责与全部ID／原资格／roots／extensions完整冻结。WP33/35/36/37四正文和四目录可写，**WP34正文只读**；四潜在原稿仍只读，必要同步须先具名ID／路径／条款／可审diff并有父任务有界授权，B07六原稿权限不继承。三改变输入是WP28、WP30和creature-rpg-wp27目录，按旧219、B07actual与本接受后继三层身份重绑定，不携带旧批准到新字节。
+
+B08未来改变的五个反向B07读者：WP36正文及四目录creature-rpg-wp27、creature-rpg-wp35、pokemon-rules-wp19、pokemon-rules-wp31。每份整文件锁、保留他域正确条款／次序／重复次数，记录before/after精确差分及受影响正文／调用／原根控制；改变后必须重冻结消费者，并取得独立受影响R-B07候选与actual Ultra复核，不能由R-B08或旧PASS自动替代。若进一步影响WP28/WP30或B04 WP15–17前提，另保留受影响B04核验门。完整返回字段和串行接受门在合同。
+
+跨域B09/B11/B12/B14–21责任保持：A044/A048/D023专业UI待B16，B013伙伴接收／还原与CP20待B09，C003完整根与全部八扩展及全部其他贡献不关闭。B06 WP24六逻辑请求／引子记忆、B04十三正式原字节，伙伴／雷达／完整BattleAudio未获新批准。原稿“先备差异再写入”仍仅作者声明，不从最终树、哈希或报告补造历史顺序证据。
+
+下一作者请求gpt-6.1-sol/xhigh，review仍Ultra，全部Standard(default)；259a显式xhigh更正及来源字节保持，历史Max按时点保留。实际配置UNVERIFIED依方案A，无新确认／认证门。U01–10/G01–12/AX01–20及媒体字体／容量／宿主／动态／插件／真实Demo具名未知保持。没有派发任务／并行写，参考及行为向量／作者审者程序执行、运行观察、真实Demo链均0。以下B07-G及更早管理交接全文按原时点保留。
+
 # B07-G实际整合交接，等待分别R-B07与独立R-B04 Ultra
 
 当前管理前驱 `259a1c158f317c5e32830e04838a76aa82f4d20a`；B07正式内容基线 `219cc3c182750155e9dbf2cb619f420b3922de27`；完整候选 `a22df6b1d9465b68e45558c57bc69c61939baeaf`。R-B07 `19e2d5f9de40a9220059a62f785ac0bbc13b2154` 为19贡献／12主责候选 PASS_SCOPED，独立受影响 R-B04 `3e88d42b8d9313e1adbbc8944e54faa1b45e71a0` 仅反向接口候选 PASS_SCOPED。14正式文件＝8净化正文／目录＋6精确原稿同步，原字节整合；实际新SHA的两份分别 Ultra 复审均待办，随后父任务C接受。规范必修229 OPEN／0 CLOSED，B07尚未接受。
