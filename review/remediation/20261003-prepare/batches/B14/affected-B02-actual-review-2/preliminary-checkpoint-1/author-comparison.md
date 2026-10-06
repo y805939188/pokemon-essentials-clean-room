@@ -1,0 +1,11 @@
+# Author comparison after provisional judgment
+
+Exact reviewed ACT is d48197f365c39925f795c1d325988c0d74e59979. The immutable first judgment and receipt remain unchanged. Its disclosed pre-judgment candidate-label exposure prevents a pristine independent-first certificate; this comparison does not repair that history.
+
+All eight copied C3 report bodies and their author-comparison bodies were read after the provisional receipt. Current B14-G README, gate metadata, complete unique integration relationship prose through the exact reuse map, scope/observation/errata meanings, and the principal author-stage/C1/C2/C3 response narratives were then inspected. The full copied audit/report comparison remains explicitly uncertified; retained maps and unresolved contexts are recorded without a blanket harmless label.
+
+Author assertions about216 copies/public10/G34,140 hashes,72 identities,222 locators,194 public records,24 pending contributions and505+4 catalog rows were independently reproduced as document facts. Those checks do not certify semantic quality. Current separate tint/battle-time, FLY normal/throwing, berry common timestamp and splash reset rules agree with fresh fixed-source and current clause/test reading. Correct neighbor clauses, old owner segments and report-only qualifications remain preserved; no author/model/chronology/backend certificate is imported.
+
+The writer's seven-final correction and document-specific location completion have exact current bindings. Frozen older six-final labels, candidate overlays, pending actual identity fields and candidate report assertions retain their original history roles. All candidate report commits bind C3, not ACT. The external ACT identifies the whole author payload; this report's own commit is separately assigned after publication.
+
+No supported current author-payload defect has been established in the B02 boundary. The final result remains REQUEST_CHANGES because this review cannot certify the strict sequence and complete unfiltered audit reading. These are review-only deficiencies; correct formal behavior is not changed to repair them. All actual gates and AREG-C remain independent and outstanding; no dispatch follows.
