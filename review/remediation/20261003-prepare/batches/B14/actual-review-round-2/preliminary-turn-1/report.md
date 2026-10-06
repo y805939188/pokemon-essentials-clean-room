@@ -1,0 +1,37 @@
+# FULL exact-ACT actual review — not discharged
+
+**REQUEST_CHANGES** for FULL / R-B14 on `d48197f365c39925f795c1d325988c0d74e59979`. **ACT quality remains undetermined because this review is incomplete.** The blocker concerns review procedure and semantic coverage, not a demonstrated author-payload or gameplay defect. No edit to correct formal behavior is requested.
+
+The immutable first judgment was saved before any current deferred writer/candidate/report argument was opened, but it explicitly recorded remaining mandatory primary work. Complete primary-before-claims inspection and semantic reading of both entire streams, all12 formal paths and all affected owner/audit contracts were not achieved. `findings.json` records local R-B14-ACTUAL-R2-001. This report does not retrospectively certify that sequence.
+
+## Identities and scope
+
+- Reviewed ACT/author payload freeze: `d48197f365c39925f795c1d325988c0d74e59979`; tree `be4b5ef8960c0e9cfb9eb9ec0e1aded3a35a88df`; sole accepted parent `1e6b11a47370f1c7c4659a32443fc1afda597bac`.
+- Candidate only: C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`, tree `8e61ef74ad27f8ce0925fbb487ca9cf14f05fe3c`; C2 `af39efbf32549be964cb083bd49bed6d1d5c0d2a`.
+- Fixed source/reference: `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`, tree `7589c800b61ba13a13040ed0d686979b80a84fd0`.
+- Qualified original: `93e10babe0b9c9ef8b3f5277754541b447beeeb4`; PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed`. Hyphen PLAN and execution slash directories remain distinct. Scope proposal/authorization supply permission only.
+- Previous report publication: `fac9bffcba206b1fc9c41548e041869c8150dfba`, reviewed the same ACT. This report commit remains unset for external mechanical publication. Report/candidate/source/ACT roles are never conflated.
+
+PASS_SCOPED would require this named role's complete exact-ACT inspection, the prescribed independent-first sequence, all24 qualified contributions, current formal/public/integration/owner relationships, protected repairs and complete deferred comparison, with no unresolved scoped blocker. It would not accept B14 or discharge another gate. REQUEST_CHANGES means a supported scoped defect or a mandatory review completion/procedure blocker remains; the latter applies here.
+
+## Inspection support and limits
+
+All48 assigned complete main ORIGINAL/PLAN objects were actually read through exact-value/container reuse, including current qualifications, effective constraints, root/extension decisions and aliases. Underlying peer/root evidence files remain incomplete. Four full local final bodies and all117 local WT/FS/BP/FP rows were read. Fresh full accepted WP39/WP40 were read. Other formal paths, source/caller/configuration branches, affected owner controls and audit meanings remain incomplete; precise ranges/truncations/supplements and all in-scope path/hunk groups are in `reading-log.json`. No missing evidence availability is invented.
+
+Both entire unfiltered streams were acquired: predecessor→ACT96,116,311 bytes, SHA256 `1f88e677993c91905b72b747b187f6e94a52881178b08716fe6791bd6cbab444`,260 paths/321 hunks; C3→ACT95,127,902 bytes, SHA256 `5d639c30c53bb37035d2d133b715da5cc5c706afd13d278c8a7ad718368da5d9`,199 paths/200 hunks. Complete corrected inventories were inspected before segmentation. Reproduction flags/endpoints and exact inventories are retained. Raw full bodies are not duplicated because historical private provenance cannot be republished. Acquisition, parse/count and hashes never prove semantic reading.
+
+Independent identity checks found216 exact copies:12 formal (five original/seven final),49 evidence and155 files from the eight supplied exact C3 report commits. The remaining10 public edits/34 new G records complete the exact260 declared paths. No extra existing path or deletion was found; predecessor objects outside the explicit22 modified existing paths retain exact identities, including old B09-G and historical reports. Both TSVs keep their170 accepted row prefixes/schema/column order, append exactly24 current canonical contribution records (19 primary/five shared), and total194 pending/accepted records. All72 declared reader bindings and140 hash entries match. Historical original-review inputs correctly retain external bindings. Complete locator/current relationship semantics remain unfinished.
+
+All505 C2 catalog rows preserve bytes/terminators/order/multiplicity. Four WT41–44 rows give361 engine+148 Pokémon=509; the complete second catalog is C2-identical. Equality supports preservation only. All24 current qualified contribution dispositions are explicitly NOT_DISCHARGED in `contribution-dispositions.json`; none is omitted, automatically transferred from candidate PASS or labeled NOT_AFFECTED.
+
+The bounded source/current-clause observations support FLY callback prefix/error/tail order, common berry timestamp order, splash reset255/early return and the tint/new-battle separation. Positive/reverse lawful unexecuted designs and exact bindings are in `static-designs.json`. Non-Cave indoor/shading true/hour20 gives neutral map tint and new-battle time2; outdoor only changes tint eligibility; non-Cave shading false retains new default0; metadata Cave forces2 even with valid Grass override;17/12 gives1/0 with shading true for either outdoor flag. WP59§3.6 and accepted WP39§7.3 are preserved. No pixel, asset or capture-probability result follows.
+
+`prior-observation-dispositions.json` distinguishes these supported narrow repairs from complete FULL acceptance. The previous exact R1 report is a procedural report deficiency, not an ACT defect. Its all-reading/actual-gate requirement is not fully resolved. C3 EVID001/002/003 remain report-only historical qualifications. Fishing15-versus16 and accepted B09 boxed-item/NearAlly corrections retain their qualified meanings, old bytes, separate B033 and outcome limits; full fresh source caller checks remain incomplete.
+
+## Exact handoff
+
+Requested configuration: gpt-6.1-sol / Ultra / service_tier default, documented Standard. Effective configuration **UNVERIFIED** under approved Plan A; no backend certificate or configuration/auth/quota probe. No alternate profile, children, other sessions/messages/processworkers or task dispatch.
+
+Seven classifications, U01–U10/G01–G12/AX01–AX20 and every named unread binary/serialized/map/event/media/resource/host/plugin/configuration/sample/backup/gen limit remain. No unconditional67-berry full-data obligation is inferred. Runtime observations0, proven Demo0, behavior vectors executed0; no real screen/audio/assets/capacity/backend validation. Only new Git/document/hash/JSON/diff bookkeeping ran. No reference Ruby/game/compiler/converter/generator/serialized-game-data deserializer/behavior simulator or historical author/reviewer/verifier program was executed. No framework/API/engine adapter or source translation was created.
+
+Accepted statistics remain9/21,170 records,142 touched IDs,109 primary IDs; minimum109 satisfied; strict100 satisfied+9 pending;229 OPEN/0 CLOSED. B14 remains unaccepted24/19. All eight exact actual gates remain independently mandatory at this same ACT; AREG-C alone may accept after all PASS. B10 stays blocked, then refreezes53 reads/eight writes and its contract; later WP46 reverse obligations remain. No acceptance or Git stage/commit/push/fetch/switch/ref write is made. Coordinator may mechanically publish this **non-passing incomplete actual-only report**, without describing it as PASS or acceptance.
