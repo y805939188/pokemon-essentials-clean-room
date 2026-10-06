@@ -1,0 +1,13 @@
+# Author comparison after independent first judgment
+
+Exact ACT d48197f365c39925f795c1d325988c0d74e59979; this comparison began only after the immutable first judgment receipt (SHA256 fedc5c70b9dade50d1c774de1106b665624189a0f6591563c1e4fbfb1eef6772).
+
+C3 application/fix response was read in full. Its tint versus new-battle prerequisites agree with this review's fresh source derivation and WT41–44 reading. The claimed retained FLY, berry timestamp and splash fixes agree with the examined normal/reverse paths. The source preserves WP59§3.6 and accepted WP39§7.3; no canonical root/extension/closure follows. These comparisons do not inherit candidate approval.
+
+C3 application manifest/static-checks and G conflict/validation were read through limited unique-value projections plus literal ranges; complete object structure and some middle output remain uncompleted. The reading log identifies that limitation. Counts12/49/155, registry170+24=194 and catalogs505+4=509 were independently reproduced with Git/hash/document bookkeeping. Writer booleans,607 navigation self-checks and admission descriptions are claims, not behavioral or quality evidence. Whole current hash table140 and142 complete heading line identities match after correcting this reviewer's historical-binding and line-terminator assumptions; these are identity checks only.
+
+The complete G handoff was read. Its null self-ACT fields and future labels describe the pre-freeze payload; external coordinator ACT supplies the current exact identity. It keeps all eight actual gates pending and acceptance false. Its author xhigh request is historical author configuration, distinct from this review's requested ultra. Both effective configurations remain UNVERIFIED; no backend certificate is invented.
+
+The complete FULL C3 findings payload was read at report commit678b43327f5eb9769a165b4f9d099d4e36089a17, with exact ACT copy verified. Its three HISTORICAL_REPORT_ONLY_QUALIFICATION entries agree with freshly inspected calendar membership, enter0/connected20 and06:30 brightness138/noon255. No correct formal behavior is changed to accommodate historical wording. Accepted B09 boxedA=Y/liveBempty/one restoration and liveuser0/faintednear2/liveau4 selection/registration then qualified rejection retain their own fixed predecessor correction binding. B033 stays separate.
+
+No complete audit-payload comparison is claimed. Current verdict REQUEST_CHANGES records the unmet mandatory reading requirement, not an ACT behavioral defect or request to change correct formal content. Candidate reports establish historical inputs only; none is this actual PASS. All eight exact-ACT gates and AREG-C remain mandatory, B10 remains blocked, and later WP46 reverse obligations persist.
