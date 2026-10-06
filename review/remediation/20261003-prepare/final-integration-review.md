@@ -421,3 +421,15 @@ GIR-FD82-001七份小游戏正文的审计断链不在B01-G写路径内，原字
 完整diff取 `git diff 8f3a811855fc43b5fe5eb7809931b4e1749200de <frozen-integration-SHA>`；相对候选新增取 `git diff c7e30a1197083e86315d735fcfde5e31574d935a <frozen-integration-SHA>`。独立publication receipt及两份完整patch在执行workspace交接，并随最终冻结SHA提供。
 
 实际模型/推理/速度UNVERIFIED；明确作者Max/Standard、核验Ultra/Standard，未降级或改配置。U01–U10/G01–G12/AX01–AX20和素材/宿主/真实插件等既有未知保持；运行观察、真实Demo链、参考执行、向量执行均0。main不合入、不force、不关闭finding、不开放或启动B02/B05。完成ordinary push并独立核远端后停止待整合核验。
+
+## B14-G 当前后继（八实际门禁待审）
+
+B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主责／5本地共享），B14接受0；公共记录194＝170接受＋24待实际。接受统计保持9/21批、170记录、142 touched、109 unique primary；specific minimum 109 satisfied／0 missing／0 insufficient；strict 100 satisfied＋9 pending；229 OPEN／0 CLOSED。
+
+精确候选 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`（tree `8e61ef74ad27f8ce0925fbb487ca9cf14f05fe3c`）；接受前驱 `1e6b11a47370f1c7c4659a32443fc1afda597bac`。八份独立候选回执仅绑定C3：FULL/B02/B03/B04/B06/B07/B08/B09；不转移为实际PASS或接受。完整R-B14及七个分别受影响B02/B03/B04/B06/B07/B08/B09实际Ultra门禁均待同一外部ACT身份，随后AREG-C；相同blob／旧PASS不免除门禁。
+
+当前本地导航WT01–44、FS01–18、BP01–20、FP01–35；两整目录361 engine＋148 pokemon＝509条未执行静态行，505条C2旧行字节／次序／次数保留，第二目录与C2相同。非本地条款、行、审批和源异常保留；必要ASCII身份不净化为其它字符。
+
+见 [整合交接](batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](batches/B14/integration-stage-1/current-readers.json)、[八实际请求](batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
+
+B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。

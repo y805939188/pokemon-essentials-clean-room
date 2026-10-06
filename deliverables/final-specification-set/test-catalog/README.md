@@ -8,12 +8,12 @@
 | --- | --- | --- | --- |
 | [engine-overworld-wp16.md](engine-overworld-wp16.md) | 世界绘制与视觉过渡＋战前过渡（批次 1，v2 修正后） | WR01–WR17、BT01–BT17；B04-W01–B04-W24、XC-L01–L10/B01–B05/D01–D06/P01–P08/T01–T05 | `engine-overworld/wp16-world-rendering-and-visual-transitions.md`、`engine-overworld/wp16-pre-battle-transitions.md` |
 | [generic-kernel-wp02-03-04.md](generic-kernel-wp02-03-04.md) | 规则配置档案＋内容身份/schema＋PBS 生命周期（批次 2） | KC01–KC06、KR01–KR13、KL01–KL32 | `generic-kernel/wp02-rule-configuration-and-data-variants.md`、`generic-kernel/wp03-content-identity-and-schema.md`、`generic-kernel/wp04-pbs-lifecycle.md` |
-| [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP27、MV01–MV77、EV01–EV39、FW01–FW07、IM01–IM41、MR01–MR17、DG01–DG43、RS01–RS20、WT01–WT25、FS01–FS15；B04-R01–B04-R28 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
+| [engine-overworld-wp11-15-59-60.md](engine-overworld-wp11-15-59-60.md) | 地图拓扑/地形运动/事件与跟随（含两矩阵）/随机地牢/资源与音频/时间天气场地/钓鱼（批次 3） | MP01–MP27、MV01–MV77、EV01–EV39、FW01–FW07、IM01–IM41、MR01–MR17、DG01–DG43、RS01–RS20、WT01–WT44、FS01–FS18；B04-R01–B04-R28 | `engine-overworld/` 下 WP11–WP15、WP59、WP60 九篇 |
 | [generic-kernel-wp05-06-07-08-09-10.md](generic-kernel-wp05-06-07-08-09-10.md) | 通知扩展插件/时间随机计步统计/诊断文件 HTTP/弃用告警/本地化/保存启动/迁移恢复（批次 4） | EP01–EP21、TM01–TM14、IO01–IO15、DP01–DP05、LZ01–LZ17、SV01–SV11、MG01–MG16 | `generic-kernel/` 下 WP05–WP10 八篇（WP01 为基线范围承接，无行为场景） |
 | [pokemon-rules-wp19-21-22-23-34.md](pokemon-rules-wp19-21-22-23-34.md) | 属性与能力/动态形态/Mega 与 Primal/Shadow 与净化/遗传（批次 5） | ST01–ST67、FM01–FM43、ME01–ME26、SH01–SH52、BR01–BR26 | `pokemon-rules/` 下 WP19、WP21、WP22（含附表）、WP23（含附表）、WP34 七篇 |
 | [pokemon-rules-wp31-32-37-38.md](pokemon-rules-wp31-32-37-38.md) | 基础进化/情境交换战后事件/漫游与雷达/捕获与接收（批次 6） | BE01–BE37、CX01–CX42、RM01–RM37、CP01–CP24 | `pokemon-rules/` 下 WP31、WP32（含附表）、WP37、WP38 五篇 |
 | [pokemon-rules-wp43-44-46-48-50.md](pokemon-rules-wp43-44-46-48-50.md) | 类型命中伤害/状态与阶级/多击特殊伤害恢复/特性计算/持物触发消耗（批次 7） | TD01–TD21、SS01–SS40、MH01–MH38、AB01–AB23、HI01–HI33 | `pokemon-rules/` 下 WP43、WP44（含附表）、WP46（含附表）、WP48、WP50（含附表）八篇 |
-| [pokemon-rules-wp53-60-61-62-69-70.md](pokemon-rules-wp53-60-61-62-69-70.md) | Safari 与捕虫/树果/野外被动与回程/图鉴/Voltorb Flip/Lottery（批次 8） | SF01–SF34、BP01–BP17、FP01–FP31、PD01–PD25、VF01–VF18、LT01–LT16 | `pokemon-rules/` 下 WP53、WP60、WP61、WP62、WP69（含附表）、WP70 七篇 |
+| [pokemon-rules-wp53-60-61-62-69-70.md](pokemon-rules-wp53-60-61-62-69-70.md) | Safari 与捕虫/树果/野外被动与回程/图鉴/Voltorb Flip/Lottery（批次 8） | SF01–SF34、BP01–BP20、FP01–FP35、PD01–PD25、VF01–VF18、LT01–LT16 | `pokemon-rules/` 下 WP53、WP60、WP61、WP62、WP69（含附表）、WP70 七篇 |
 | [creature-rpg-wp18-20-24-25-26.md](creature-rpg-wp18-20-24-25-26.md) | 生物身份物种与拥有者/HP 异常招式与持有/玩家训练家与伙伴/队伍与盒子/获得赠送与脚本交换（批次 9a） | CI01–CI28、HP01–HP45、PT01–PT69、PS01–PS42、AQ01–AQ36 | `creature-rpg/` 下 WP18、WP20、WP24、WP25、WP26 五篇 |
 | [creature-rpg-wp27-28-29-30-33.md](creature-rpg-wp27-28-29-30-33.md) | 背包与物品储存/主动道具与培养教学/买卖与 BP 商店/成长学习与友好/寄养会话与兼容性（批次 9b） | BG01–BG31、IU01–IU59、SH01–SH28、GR01–GR53、DC01–DC20 | `creature-rpg/` 下 WP27、WP28、WP29、WP30、WP33 五篇 |
 | [creature-rpg-wp35-36-57-64-68.md](creature-rpg-wp35-36-57-64-68.md) | 蛋与孵化/普通遭遇与修正/Factory 租借换队/邮件与神秘礼物/Triple Triad（批次 9c） | EG01–EG20、EN01–EN32、FC01–FC17、MG01–MG30、TT01–TT24 | `creature-rpg/` 下 WP35、WP36、WP57、WP64、WP68 五篇 |
@@ -69,3 +69,15 @@ B06两目录当前CI28/HP45/PT69/PS42/AQ36＝220行，BG31/IU48/SH26/GR44/DC20�
 ## B09-G目录后继（五实际Ultra待审）
 
 战斗目录139→159，捕获共享目录136→140；新增24静态ID，10旧行更正，43关联目录设计／18补充设计未执行。旧ID顺序／次数及其他owner保护区保持；与20贡献／13主责分别计数。[精确计数](../../../review/remediation/20261003-prepare/batches/B09/integration-stage-1/scope-counts.json)、[完整控制](../../../review/remediation/20261003-prepare/batches/B09/integration-stage-1/finding-registration.json)。须完整R09及分别受影响B04/B05/B07/B08五个Ultra/Standard实际报告均绑定同一最终actual SHA并各自PASS_SCOPED，再由父任务C接受。B14正式仍等待B09-C，之后全72读／6写须重冻结并核调用、条件及共享根；未派发任务。
+
+## B14-G 当前后继（八实际门禁待审）
+
+B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主责／5本地共享），B14接受0；公共记录194＝170接受＋24待实际。接受统计保持9/21批、170记录、142 touched、109 unique primary；specific minimum 109 satisfied／0 missing／0 insufficient；strict 100 satisfied＋9 pending；229 OPEN／0 CLOSED。
+
+精确候选 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`（tree `8e61ef74ad27f8ce0925fbb487ca9cf14f05fe3c`）；接受前驱 `1e6b11a47370f1c7c4659a32443fc1afda597bac`。八份独立候选回执仅绑定C3：FULL/B02/B03/B04/B06/B07/B08/B09；不转移为实际PASS或接受。完整R-B14及七个分别受影响B02/B03/B04/B06/B07/B08/B09实际Ultra门禁均待同一外部ACT身份，随后AREG-C；相同blob／旧PASS不免除门禁。
+
+当前本地导航WT01–44、FS01–18、BP01–20、FP01–35；两整目录361 engine＋148 pokemon＝509条未执行静态行，505条C2旧行字节／次序／次数保留，第二目录与C2相同。非本地条款、行、审批和源异常保留；必要ASCII身份不净化为其它字符。
+
+见 [整合交接](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/current-readers.json)、[八实际请求](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
+
+B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。

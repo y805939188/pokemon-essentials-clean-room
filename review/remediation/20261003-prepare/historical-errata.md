@@ -103,3 +103,17 @@ B01 已在 `0a12de641542f9a59909d2a950c1de8df17ca09d` 接受；下方 B01-G 当�
 | GIR-FD82-A001／A002／A004／A009 | 原WP04／05已获最小范围同步并形成被审新候选；旧头部Reviewed/GR-001只绑定旧被审字节。 | 新candidate c7e30a的八份正式输入与本轮独立报告分别固定；当前整合输入身份见 [integration-manifest.json](integration-manifest.json)。 |
 
 旧author和author-v2的“待审／未整合”文字均是冻结时点记录；当前候选已通过而实际整合仍待核验，以本目录当前ledger/manifest为准。未把候选审核结论移给本次新公共入口。
+
+## B14-G 有界后继勘误／限定（实际待审）
+
+B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主责／5本地共享），B14接受0；公共记录194＝170接受＋24待实际。接受统计保持9/21批、170记录、142 touched、109 unique primary；specific minimum 109 satisfied／0 missing／0 insufficient；strict 100 satisfied＋9 pending；229 OPEN／0 CLOSED。
+
+Fishing原16场景／旧15目录的差别：旧 `review/wp80-delivery-2026-10-03/batch-03/clause-disposition.md` 131–133的15/15等价声明保留原文；有效开始事件绕过移动／锁定／演出行为已在旧正文，但少独立场景，C3 FS16恢复。FS17–18另为新增对照，当前18行。
+
+接受B09后继 `report-corrections-successor.json` 的完整fixture优先：实际伙伴参与／满队／正常receive下只有一次终局物品恢复遍历，boxed A=Y，live B empty，没有之后移位玩家再遍历。NearAlly正常命令须live user0／fainted near2无reserve／live far4，初选与登记4后，仅在布局／存活不变且正常执行到目标解析时拒绝4；不判最终效果、PP或消息，self0/B033残余另保留。
+
+先前观察身份保持：B14-AFFECTED-B03-001 P2为B14 FLY成功前提遗漏；R-B14-1-001 P3为保留common berry timestamp顺序；B14-B04-R1-01 P2为保留splash句；B14-AFFECTED-B09-001 P3为保留tint／battle-time交叉引用。全部链接C3独立处置；不新增canonical根／已批准extension。
+
+精确FULL C3报告 `678b43327f5eb9769a165b4f9d099d4e36089a17` 的 R-B14-C3-EVID-001/002/003 为 **HISTORICAL_REPORT_ONLY_QUALIFICATION**：calendar candidate matching而非cache；enter-weather duration0然后connected20而非intensity/rebuild；06:30 brightness138而noon255。C2报告 `18716a3e3e9200a98bedc1375d9e71cdae59adfa` 保留自身输入、原字节及verdict；不为报告措辞修改正确formal行为。
+
+逐项immutable original/current evidence的blob／SHA256／bytes在 [观察与勘误绑定](batches/B14/integration-stage-1/scope-and-observation-registration.json)。所有实际门禁和AREG-C仍待执行；本记录不接受或关闭。

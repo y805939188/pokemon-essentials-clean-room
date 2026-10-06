@@ -1494,3 +1494,44 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 - **身份定位规则**：被审身份（复审批准对象）以各闭合/通过报告的固定版本表与独立复审冻结输入为准；当前登记身份以 manifest §1 当前行为准；历史身份链见 manifest §3。**不得以 manifest §1 的当前行替代历史被审身份**；索引正文应直接给出被审身份的完整哈希或可直接定位它的批准基线/冻结输入。
 - 批准输入身份变化（修订/回填）时更新「批准输入」并保留被审身份；本索引自身随批次登记入中央清单。
 - 净化正文与索引不一致时以批次检查记录为准先登记问题，不静默改写。
+
+## B14-G 当前后继（八实际门禁待审）
+
+B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主责／5本地共享），B14接受0；公共记录194＝170接受＋24待实际。接受统计保持9/21批、170记录、142 touched、109 unique primary；specific minimum 109 satisfied／0 missing／0 insufficient；strict 100 satisfied＋9 pending；229 OPEN／0 CLOSED。
+
+精确候选 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`（tree `8e61ef74ad27f8ce0925fbb487ca9cf14f05fe3c`）；接受前驱 `1e6b11a47370f1c7c4659a32443fc1afda597bac`。八份独立候选回执仅绑定C3：FULL/B02/B03/B04/B06/B07/B08/B09；不转移为实际PASS或接受。完整R-B14及七个分别受影响B02/B03/B04/B06/B07/B08/B09实际Ultra门禁均待同一外部ACT身份，随后AREG-C；相同blob／旧PASS不免除门禁。
+
+当前本地导航WT01–44、FS01–18、BP01–20、FP01–35；两整目录361 engine＋148 pokemon＝509条未执行静态行，505条C2旧行字节／次序／次数保留，第二目录与C2相同。非本地条款、行、审批和源异常保留；必要ASCII身份不净化为其它字符。
+
+见 [整合交接](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/current-readers.json)、[八实际请求](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
+
+B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。
+
+### B14-G 逐贡献当前追溯（本批待实际）
+
+| 原canonical ID（本批独立贡献） | 当前静态行（未执行） | 完整当前控制／条款／来源身份 |
+| --- | --- | --- |
+| GIR-FD82-002 | WT28, WT36, WT39, WT40 | [B14/GIR-FD82-002](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-002)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-003 | WT14, WT15, WT17, WT18, WT20, WT23, WT25, WT26, WT27, FP01, FP02, BP18, BP19, WT41, WT42, WT43, WT44 | [B14/GIR-FD82-003](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-003)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C003 | WT03, WT07, FS14, FS16, FP05, FP06, FP12, FP14, FP35, WT28, WT39, WT40, BP18, WT41, WT42, WT43, WT44 | [B14/GIR-FD82-C003](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C003)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C007 | WT03, WT37, BP05, BP06, BP07, BP18, WT41, WT42, WT43, WT44 | [B14/GIR-FD82-C007](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C007)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C086 | WT26 | [B14/GIR-FD82-C086](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C086)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C087 | WT27 | [B14/GIR-FD82-C087](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C087)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C088 | WT28, WT39, WT40 | [B14/GIR-FD82-C088](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C088)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C089 | WT29 | [B14/GIR-FD82-C089](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C089)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C091 | WT30 | [B14/GIR-FD82-C091](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C091)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C092 | WT31 | [B14/GIR-FD82-C092](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C092)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C093 | WT32 | [B14/GIR-FD82-C093](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C093)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C094 | WT07, WT09 | [B14/GIR-FD82-C094](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C094)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C095 | WT33 | [B14/GIR-FD82-C095](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C095)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C097 | WT34, FP15, FP16 | [B14/GIR-FD82-C097](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C097)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C098 | FS02, FS03, FS17 | [B14/GIR-FD82-C098](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C098)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C099 | FS06, FS18 | [B14/GIR-FD82-C099](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C099)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C100 | BP18 | [B14/GIR-FD82-C100](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C100)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C101 | BP19 | [B14/GIR-FD82-C101](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C101)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C102 | BP20 | [B14/GIR-FD82-C102](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C102)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C103 | FP02, FP32 | [B14/GIR-FD82-C103](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C103)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C104 | FP01, FP02, FP33 | [B14/GIR-FD82-C104](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C104)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C105 | FP34 | [B14/GIR-FD82-C105](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C105)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| GIR-FD82-C106 | WT35, FP15 | [B14/GIR-FD82-C106](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C106)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+| WP80-INTAKE-R01 | WT38 | [B14/WP80-INTAKE-R01](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/WP80-INTAKE-R01)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |

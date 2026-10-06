@@ -250,3 +250,27 @@ Classification 使用一个主要类别；必要的跨域分类记入 Notes。�
 4. 所有 UI/Engine 条目的运行可用性目前未经确认。demo 可达性、插件组合、网络有效性等缺口应独立保留，不能用高静态置信度掩盖。
 5. 最终覆盖审查另检查尚未识别的能力、未关联源文件、未消费配置、孤立入口与例外；本表不是“没有列出就不存在”的白名单。
 6. Feature 状态按承接它的工作包/子范围聚合表达，同一条目可同时持有不同范围的不同状态（约定见 [extraction-plan](extraction-plan.md) 第 2.1 节）；一个工作包完成其声明范围，不等于该 Feature 的全部范围完成。
+
+## B14-G 当前后继（八实际门禁待审）
+
+B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主责／5本地共享），B14接受0；公共记录194＝170接受＋24待实际。接受统计保持9/21批、170记录、142 touched、109 unique primary；specific minimum 109 satisfied／0 missing／0 insufficient；strict 100 satisfied＋9 pending；229 OPEN／0 CLOSED。
+
+精确候选 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`（tree `8e61ef74ad27f8ce0925fbb487ca9cf14f05fe3c`）；接受前驱 `1e6b11a47370f1c7c4659a32443fc1afda597bac`。八份独立候选回执仅绑定C3：FULL/B02/B03/B04/B06/B07/B08/B09；不转移为实际PASS或接受。完整R-B14及七个分别受影响B02/B03/B04/B06/B07/B08/B09实际Ultra门禁均待同一外部ACT身份，随后AREG-C；相同blob／旧PASS不免除门禁。
+
+当前本地导航WT01–44、FS01–18、BP01–20、FP01–35；两整目录361 engine＋148 pokemon＝509条未执行静态行，505条C2旧行字节／次序／次数保留，第二目录与C2相同。非本地条款、行、审批和源异常保留；必要ASCII身份不净化为其它字符。
+
+见 [整合交接](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/current-readers.json)、[八实际请求](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
+
+B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。
+
+### B14-G F14 当前范围后继（不改历史审批）
+
+| 既有Feature ID | 当前本地静态导航 | 当前状态 |
+| --- | --- | --- |
+| F14-01 | WT01–44 | INTEGRATED_PENDING_ACTUAL；时间／天气与消费者，既有七分类和限制保留 |
+| F14-02 | WT14–44 | INTEGRATED_PENDING_ACTUAL；场地许可／确认／效果与旅行，保留各入口前提 |
+| F14-03 | BP01–20 | INTEGRATED_PENDING_ACTUAL；机制／样本范围，未新增完整67树果内容承诺 |
+| F14-04 | FS01–18 | INTEGRATED_PENDING_ACTUAL；钓鱼资格／输入与遭遇交接 |
+| F14-05 | FP01–35 | INTEGRATED_PENDING_ACTUAL；普通／强制步进、日期和回程条件 |
+
+24贡献均待完整R-B14及七分别受影响实际门禁＋AREG-C；表中导航不构成逐行行为／运行覆盖。
