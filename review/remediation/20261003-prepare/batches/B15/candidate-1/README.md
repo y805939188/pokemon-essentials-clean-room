@@ -1,14 +1,14 @@
-# B15 作者候选入口
+# B15 完整有界作者候选入口
 
-16 本地贡献、10 主责；六正式路径已修订，未获独立批准，canonical OPEN 与正式接受数量不变。基线 `0cfe99094b76f8d75fded0d638694677855a5f0c`；派发管理资料 `4cb51a33402ec6559a396226239afe308a4b8849`。
+16 本地贡献、10 主责；六个净化正式路径及三份原 spec 均已完成有界修订。三原稿按父批准完整补丁精确应用，before/after身份全部匹配；范围批准不代表质量通过。基线仍为 `0cfe99094b76f8d75fded0d638694677855a5f0c`，原六路径草案 `529fa2de97a01ad27b9d36a87b079a76a45a7c95` 只作历史，当前完整候选 SHA 由后继 `../author-draft-1/publication-receipt-after-sync.json` 绑定。
 
-- `report.md` / `finding-revisions.json`：每 finding 的修订、准确前后身份、控制对象绑定、合法前提/静态最小反例及邻近反向、来源和限制。
-- `formal-identities.json`：六正式文件前后 blob/SHA-256/字节；完整候选 SHA 外部绑定在后继 `../author-draft-1/publication-receipt.json`。
-- `catalog-protection.json`：18目录、2,995旧行、2,907其他 owner 原行保护；只修改旧 P29/MG-29，本地新增43行，旧序与重复保持。
-- `affected-interface-assessment.json` / `independent-review-request.md`：九组冻结导航的有界作者检查及独立 candidate/actual 派发条件；作者未签发 PASS 或 NOT_AFFECTED。
-- `public-registration-suggestions.json`：唯一 A-REG 的串行登记建议，未修改公共台账/index/导航/全局状态。
-- `source-limits.json` 与 `../author-draft-1/input-verification.json` / `reading-log.json` / `configuration.json`：输入69身份、整16原finding/PLAN绑定、新受影响静态阅读和未证配置/来源限制。
+- `report.md` / `finding-revisions.json`：逐 finding 控制绑定、修订、正反静态设计、合法前提、source范围、最终及原稿身份、限制。
+- `formal-identities.json`：六净化路径加三原稿 before/after blob/SHA-256/字节。原稿精确范围批准与实际应用详见 `../author-draft-1/original-sync-application.json`。
+- `catalog-protection.json`：18最终目录、2,995旧行、2,907其它owner行保护；只修订旧P29/MG-29、本地新增43静态设计。原稿的旧设计行顺序/重复、仅P29/M29修订在 application receipt 中验证。
+- `affected-interface-assessment.json` / `independent-review-request.md`：九组冻结导航、精确 clause/caller/data/condition、R-B15 与必要 affected candidate/actual Ultra角色和建议写入目录；均无作者 PASS/NOT_AFFECTED。
+- `public-registration-suggestions.json`：唯一A-REG串行登记建议，原稿同步已完成；作者未写公共台账/index/导航/覆盖/全局状态。
+- `source-limits.json` / `../author-draft-1/input-verification.json` / `reading-log.json` / `configuration.json`：69冻结输入身份、16原finding/PLAN整对象绑定、新受影响静态阅读、配置requested/admission/effective及未证范围。
 
-当前阻塞：原 spec 暂只读合同要求父 A-REG 先登记具体范围再应用。精确三路径补丁及 finding/path/clause/before/after身份见 `../author-draft-1/original-sync-proposal.json` 与 `original-sync.patch`，补丁内容冻结于 `ce4562831689c8c567f15f1d797f7d424e8276d4`（管理提案，非 FIX_BASE）。收到准确 amendment 后按 before 身份应用、核对 proposed_after 并新冻候选，再进行必要独立 review。A056 与 C122 的其它批次贡献不在本次范围，B16 负责其局部交界。
+批准的 frozen proposal/patch 原字节保存于 author-draft-1，其当时未批准/未应用字段仅为历史。当前 application receipt 与新 publication receipt 明确应用状态；补丁来源发布 `70a28cfc56ee17b8dc4d815515e96640d80c6321`，proposal blob `4f9c627cc4b5f8e377aae1034ebc34985ae59b5e`，patch blob `3560c08a8c1899db54986cc687939c25cffa68de`。
 
-参考固定只读；新例子均 NOT_EXECUTED。作者 metadata 检查只验证保存的文字/身份/范围，运行观察、静态向量执行、demo已证全0。
+当前作者写入阻塞已解除。剩余是独立Ultra完整candidate与必要bounded affected gate，sole A-REG整合后新actual FULL/affected gate及 scoped接受；本批未增加正式接受、未关闭canonical。B16其余A056/C122贡献不在本次范围。参考固定只读，所有静态设计NOT_EXECUTED，运行/向量/demo已证全0；U01–U10/G01–G12/AX01–AX20及具名未证项保留。
