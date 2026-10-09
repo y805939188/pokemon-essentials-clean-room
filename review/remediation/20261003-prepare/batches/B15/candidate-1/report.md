@@ -1,5 +1,7 @@
 # B15 逐 finding 作者修订
 
+当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33两行精确提案尚未应用，待父单独范围批准。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
+
 正式输入 `0cfe99094b76f8d75fded0d638694677855a5f0c`；派发管理包 `4cb51a33402ec6559a396226239afe308a4b8849`。16 本地贡献／10 主责；所有项目均为作者候选，非独立批准。三份原 spec 已按父批准的完整精确补丁应用，before/after 核验见 ../author-draft-1/original-sync-application.json；六正式文件字节保持旧草案，现为完整有界可复审作者候选。
 
 | Finding | 本地修订与静态正反设计 | 位置/测试 |
@@ -19,6 +21,6 @@
 | GIR-FD82-C111 | 内容顺序首同格记录决定；隐藏/缺字段不补后项，图标与USE同治疗查询；CTRL只豁免访问。 首条开关51关且后条完整→三查询空；首条可见缺治疗→名称A但治疗空；反向交换/补完整首条生效。 | wp63-pokegear-map-music-and-phone.md §3.2,§3.4；P37,P38 |
 | GIR-FD82-C112 | 每通TP/TE各一次；队伍成员等概率；首非空Land/Cave/Water表前至多四槽均匀，不权重/不去重，第五不参加；缺表/记录空回退明确。 四槽权重97/1/1/1电话每槽1/4；A/A/B/C→A1/2；多段重复固定；Land空到Cave、再Water、皆空或无记录TE空；普通遭遇合同不改。 | wp63-pokegear-map-music-and-phone.md §5.3,§4.6；P41,P42,PL15,PL16,PL17 |
 | GIR-FD82-C113 | 拆命令后/新图设置后旗标；全局覆盖独立保持，音乐请求与实际宿主输出边界明确。 无覆盖March后false/true，新图false/false；Custom A对照跨图保A但旗标仍清；无事件插件再写前提。 | wp63-pokegear-map-music-and-phone.md §6,§7,测试P29；P29,P44,P30 |
-| GIR-FD82-C122 | 结构门之后形态0同图两性折叠雄档、其它具名形态首合格性别、完整标签/排序/首轮写回，显示全部只豁免已见。 RATTATA1两见雄一行/仅雌雌一行/showall雄；形态0同图仅雌也雄；多形态标签按结构未见项而非结果数；无名/重定向仍排。 | wp62-pokedex-records-regions-and-content.md §6.1；PD31,PD32,PD33,PD34,PD15,B31,B38 |
+| GIR-FD82-C122 | 正确§6.1保持；R-B15-C1-001定点补PD32/33原始/本地化nil前提与空串反向。PD32/33合法RATTATA基础FormName省略使原始/本地化标签均nil；显式空文本且本地化仍空串对照：异图两项空标签、同图结构多形态一雄档空标签；nil异图Male/Female、nil同图结构多形态One Form，去结构多形态清空。结构门/排序/首轮写回保留。 W32/W33两行精确提案待父批准，不签新SHA独立PASS。 | WP62 §6.1；PD31–34/W31–34、既有B31/B38 |
 
 完整来源范围、前后身份、控制绑定、验收动作与限制见 finding-revisions.json。C003/P29 与 C113 共用一处修订但保留两个贡献记录；C007 的67树果数据条件性范围未升级。A056 的 WP66-B 交界由 B16 后继贡献解决。

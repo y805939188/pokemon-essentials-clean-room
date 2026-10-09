@@ -1,4 +1,6 @@
-# B15 完整有界作者候选入口
+# B15 有界作者候选与 C1-001 增量修订入口
+
+当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33两行精确提案尚未应用，待父单独范围批准。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
 
 16 本地贡献、10 主责；六个净化正式路径及三份原 spec 均已完成有界修订。三原稿按父批准完整补丁精确应用，before/after身份全部匹配；范围批准不代表质量通过。基线仍为 `0cfe99094b76f8d75fded0d638694677855a5f0c`，原六路径草案 `529fa2de97a01ad27b9d36a87b079a76a45a7c95` 只作历史，当前完整候选 SHA 由后继 `../author-draft-1/publication-receipt-after-sync.json` 绑定。
 
@@ -11,4 +13,4 @@
 
 批准的 frozen proposal/patch 原字节保存于 author-draft-1，其当时未批准/未应用字段仅为历史。当前 application receipt 与新 publication receipt 明确应用状态；补丁来源发布 `70a28cfc56ee17b8dc4d815515e96640d80c6321`，proposal blob `4f9c627cc4b5f8e377aae1034ebc34985ae59b5e`，patch blob `3560c08a8c1899db54986cc687939c25cffa68de`。
 
-当前作者写入阻塞已解除。剩余是独立Ultra完整candidate与必要bounded affected gate，sole A-REG整合后新actual FULL/affected gate及 scoped接受；本批未增加正式接受、未关闭canonical。B16其余A056/C122贡献不在本次范围。参考固定只读，所有静态设计NOT_EXECUTED，运行/向量/demo已证全0；U01–U10/G01–G12/AX01–AX20及具名未证项保留。
+当前新增W32/W33原稿修订须父批准精确两行提案；随后由同一FULL reviewer增量复核C1-001及新diff回归，不从头重复全量。旧affected结论须独立核对新diff后才绑定新SHA；剩余是必要bounded affected gate，sole A-REG整合后新actual FULL/affected gate及 scoped接受；本批未增加正式接受、未关闭canonical。B16其余A056/C122贡献不在本次范围。参考固定只读，所有静态设计NOT_EXECUTED，运行/向量/demo已证全0；U01–U10/G01–G12/AX01–AX20及具名未证项保留。
