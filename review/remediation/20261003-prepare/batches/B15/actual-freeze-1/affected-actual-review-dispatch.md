@@ -24,4 +24,3 @@ ACT的 review/remediation/20261003-prepare/batches/B15/integration-stage-1/actua
 实际public新增16贡献、accepted207 raw prefix与nonlocal义务；旧B11-C advance的67current read+2immutable、direct接口保护必须独立核定。新真实B11语义影响才报精确补门，否则记录本次condition/接口无影响依据，不能自动增加11th整域owner gate。C122 nil/空串修复仅你九owner接口影响范围判断，FULL C122质量由另一role，不触发B16提前完成。B12/B16仍hold，不关闭canonical或代FULL10主责验收。
 
 九角色有限完成即一次或普通有序commit/push/readback返回各actual verdict、精确ACT/reportSHA和阻塞。允许从已固定source/candidate/owner证据有界reuse，不全量重审旧owner，不等其他FULL才发布自己的报告。
-

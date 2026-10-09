@@ -24,4 +24,3 @@ ACT的 review/remediation/20261003-prepare/batches/B15/integration-stage-1/actua
 C122核合法RATTATA FormName省略原始/本地化nil才生成Male/Female/OneForm，邻近显式空串保留空标签且条目/性别次序/结构门不变；C109核最终实际选定查询ID才Unknown ID，无定位0未登记/定位99请求-1两失败，与0缺失当前合法1、当前99缺失显式合法不同1两成功反向，玩家图标/定位门保持。这些仍静态设计未执行。正确正文、other14 local贡献、43原新增静态设计不添新ID、旧2995目录行/2907其他owner行的精确保护使用已冻结细节，而不以G声明代独立判定。三original全修复精确scope授权是范围许可，不等于质量PASS。
 
 登记16条仅pending、accepted_contributors按当前B11-C重算，各nonlocal批次/primary/global义务保留；旧B11等207 accepted和canonical未回退。FULL finite16/10合格即可PASS_SCOPED，九owner actual由另一原reviewer负责，不等待或替签。若真实新B11接口影响列精确必要门，否则独立记录有界当前advance无影响依据。缺任何FULL必修则REQUEST_CHANGES，不能因未来第三轮global review放宽。
-
