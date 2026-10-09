@@ -39,7 +39,7 @@ C＝当前持物（写穿持久个体），I＝可更新还原记录，R＝回�
 | CHOICESCARF 速度 | ×1.5；讲究锁另在命令规格，不以倍率代替选择门 |
 | IRONBALL／MACHOBRACE／POWERANKLET／POWERBAND／POWERBELT／POWERBRACER／POWERLENS／POWERWEIGHT 速度 | ÷2 |
 | QUICKPOWDER 速度 | 原 DITTO 且未变身 ×2 |
-| FLOATSTONE 重量 | 整除 2、至少 1；输入已含临时重量与能力结果 |
+| FLOATSTONE 重量 | 整除 2、至少 1；输入已含临时重量与能力结果，单位保持 0.1kg。按普通物品有效性门参与；模式破坏者只跳能力层，不跳此物品层；完整结果供 WP38 沉重球消费 |
 | WIDELENS 用户命中 | 命中倍率 ×1.1 |
 | ZOOMLENS 用户命中 | T 选择不是 UseMove/Shift，或已经行动时 ×1.2；None 也满足前者，不用纯速度比代替 |
 | BRIGHTPOWDER／LAXINCENSE 目标命中 | 修改 U 命中倍率 ×0.9，不修改闪避阶级 |
@@ -88,6 +88,8 @@ StatusCure：ASPEARBERRY 冻、CHERIBERRY 麻痹、CHESTOBERRY 真睡、PECHABER
 MENTALHERB 不受食果门：迷恋、挑衅、安可、折磨、定身、治疗封锁至少一项有效才真；分别清，安可计数和招式身份都清，定身只清计数、没有在此清 DisableMove 辅助身份。不治地狱突刺或任意临时效果。WHITEHERB 对七阶级所有负值直接归 0、标本轮升阶真；无负值假；不逐项中央升阶、无反向/单纯等转换，正阶级不改。用后通用消费，两者都不是树果，不触发颊囊。
 
 LEPPABERRY 用**持久个体招式列表**收 PP 有损且总 PP>0 的槽，非 forced 仅有空 PP 槽可触发；forced 可在无空槽时选首个部分损 PP 槽。都先空槽的首个，不按最低百分比或随机。非 forced 还查食果。请求 10，RIPEN 20，持久 PP 钳到上限，然后**直接把同下标战斗槽 PP 写成持久新值，不检查身份相同或变身**；与《HP、状态、招式与持物》通常专门同步入口不同，必须单列例外。当前真实招式不同也可能收到数值，不能由通用 PP 归属推断这次不回读；两赋值先后不原子。返回真才通用消费。
+
+主动背包/战斗主动使用的 HP 请求量、资格与库存消费沿 WP28 的主动 HP 表；此处是持物触发，不用 WP51 的 AI 估量替代真实请求。SITRUS 在最大 HP101/105 时请求 25/26；主动使用 HP1 分别至 26/27、库存各减 1，持物在有效且可治可食的半血门内则用自己的消费记录 C/I/R/P/Belch，不扣背包库存。主动缺血 HP80/101 仍请求 25 并按上限只增 21；普通持物相同 HP80 则因高于半血拒触发。RIPEN、CHEEKPOUCH、UNNERVE 和 forced 各按持物条款保留，不能反推为主动道具的统一门。补充静态设计见 HI34；真返回后的顺序仍为果回复 → 合格颊囊回复 → 普通消费及允许的共生，直接消费入口仍按各条例外。
 
 ## 5. 每击、招式后段与换人
 
@@ -157,6 +159,8 @@ OnBeingHitPositiveBerry 族只有 ENIGMA／KEE／MARANGA，强制传入身份可
 ## 8. 示例场景与测试目录
 
 静态场景（普通数值例沿《战斗类型、命中与伤害计算》共同前提 L50、P60、攻防 100、非会心、中性、无本系/其它修正、最大随机，基准 28；只改变所列项。固定输入/手工状态推导，独立常数算术，不运行参考）见测试目录 [`../test-catalog/pokemon-rules-wp43-44-46-48-50.md`](../test-catalog/pokemon-rules-wp43-44-46-48-50.md) 的 HI01–HI33（CHOICEBAND 中间值、WIDELENS×BRIGHTPOWDER 阈值、FLOATSTONE、QUICKCLAW 不重抽、ORAN 半血门两组、SITRUS×RIPEN、FIGY 世代 8 与 forced 满 HP、MICLE 标记、STARF 先抽后拒、MENTALHERB 定身保留、WHITEHERB 直接归零、LEPPA 持久/战斗槽例外、OCCA 紧张感不免、宝石多击、ROCKYHELMET 允许倒下、WEAKNESSPOLICY 部分成功、REDCARD 扎根、EJECTPACK 负值已消费、EJECTBUTTON 不查拘束、SHELLBELL 跨半清除、LIFEORB 替身门、地形种子浮空、LEFTOVERS 最低 1、LUCKYEGG/POWER 物、魔法空间成长物、退出包消费写回、BLACKSLUDGE 两分支、THROATSPRAY 变化声音、ORAN 51 边界、SITRUS 50、五混乱果世代 6/8 四门、ORAN 紧张感门）。
+
+本轮追加 HI34–HI36 分别核对主动/持物实际量与消费分工、FLOATSTONE 与能力门分离、196 配对身份重数；原 HI01–HI33 及其它 WP 的测试行保持。
 
 ## 9. 依赖、证据与状态
 
