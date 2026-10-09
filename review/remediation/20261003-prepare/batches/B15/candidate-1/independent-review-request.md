@@ -1,8 +1,8 @@
 # B15 独立 Ultra 派发请求与 C1-001 增量复核
 
-当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33两行精确提案尚未应用，待父单独范围批准。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
+当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33已获父精确两行范围批准并应用，before/after全字段匹配；当前为完整四行作者修复待同FULL增量复核。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
 
-同一R-B15 FULL reviewer已完成16项；原稿两行批准/精确应用并新冻SHA后，仅增量核对R-B15-C1-001四行、合法nil/空串正反前提及未改15项的新diff回归，再决定新版本绑定，不重新全量审查。另派affected reviewer按原冻结进行，其旧结论只有新diff核验后可绑定新SHA，作者不代签。
+同一R-B15 FULL reviewer已完成16项；原稿两行已批准/精确应用；新冻SHA后，仅增量核对R-B15-C1-001四行、合法nil/空串正反前提及未改15项的新diff回归，再决定新版本绑定，不重新全量审查。另派affected reviewer按原冻结进行，其旧结论只有新diff核验后可绑定新SHA，作者不代签。
 
 本文件由作者准备，**不是 reviewer receipt**。请父统筹另派独立 `gpt-6.1-sol / ultra / default(Standard)`；作者不派子任务、不承担自身独立复审。配置按批准 Plan A 记录 requested/admission/effective，缺可信后端回显只记 UNVERIFIED；明确不支持或降级须报告，不作 CLI/native 替代、不做额度/回参探测。
 
@@ -30,3 +30,5 @@ U01–U10/G01–G12/AX01–AX20 与 source-limits.json 全部保留；参考/游
 - 唯一公共写角色仍为 `A-REG`。作者本轮只写批准九路径和 author-draft-1/candidate-1 证据；未写 index/导航/全局台账。
 
 本作者有限结束条件：批准三原稿精确应用及身份核验、完整逐ID/静态正反设计/owner保护/有界接口/派发包、新候选完整SHA、完整未过滤diff、普通push、独立远端ref/FETCH_HEAD/tree/全部变更字节读回全部交付。结束不以作者自签PASS代替独立质量门；剩余review/整合/实际接受由父统筹续派。
+
+C1-001当前应用见 `../author-draft-1/label-nil-original-sync-application.json`；旧FULL候选→新候选九路径/精确四行及未变15贡献/正确正文证据见 `C1-001-delta-and-protection.json`，完整未过滤增量与正式基线diff由新publication receipt绑定。父已取消此前3任务上限，作者仍不派重复任务。

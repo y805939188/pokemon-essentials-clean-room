@@ -1,8 +1,8 @@
 # B15 有界作者候选与 C1-001 增量修订入口
 
-当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33两行精确提案尚未应用，待父单独范围批准。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
+当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33已获父精确两行范围批准并应用，before/after全字段匹配；当前为完整四行作者修复待同FULL增量复核。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
 
-16 本地贡献、10 主责；六个净化正式路径及三份原 spec 均已完成有界修订。三原稿按父批准完整补丁精确应用，before/after身份全部匹配；范围批准不代表质量通过。基线仍为 `0cfe99094b76f8d75fded0d638694677855a5f0c`，原六路径草案 `529fa2de97a01ad27b9d36a87b079a76a45a7c95` 只作历史，当前完整候选 SHA 由后继 `../author-draft-1/publication-receipt-after-sync.json` 绑定。
+16 本地贡献、10 主责；六个净化正式路径及三份原 spec 均已完成有界修订。三原稿按父批准完整补丁精确应用，before/after身份全部匹配；范围批准不代表质量通过。基线仍为 `0cfe99094b76f8d75fded0d638694677855a5f0c`，原六路径草案 `529fa2de97a01ad27b9d36a87b079a76a45a7c95` 只作历史，当前完整候选 SHA 由后继 `../author-draft-1/publication-receipt-C1-001.json` 绑定。
 
 - `report.md` / `finding-revisions.json`：逐 finding 控制绑定、修订、正反静态设计、合法前提、source范围、最终及原稿身份、限制。
 - `formal-identities.json`：六净化路径加三原稿 before/after blob/SHA-256/字节。原稿精确范围批准与实际应用详见 `../author-draft-1/original-sync-application.json`。
@@ -13,4 +13,6 @@
 
 批准的 frozen proposal/patch 原字节保存于 author-draft-1，其当时未批准/未应用字段仅为历史。当前 application receipt 与新 publication receipt 明确应用状态；补丁来源发布 `70a28cfc56ee17b8dc4d815515e96640d80c6321`，proposal blob `4f9c627cc4b5f8e377aae1034ebc34985ae59b5e`，patch blob `3560c08a8c1899db54986cc687939c25cffa68de`。
 
-当前新增W32/W33原稿修订须父批准精确两行提案；随后由同一FULL reviewer增量复核C1-001及新diff回归，不从头重复全量。旧affected结论须独立核对新diff后才绑定新SHA；剩余是必要bounded affected gate，sole A-REG整合后新actual FULL/affected gate及 scoped接受；本批未增加正式接受、未关闭canonical。B16其余A056/C122贡献不在本次范围。参考固定只读，所有静态设计NOT_EXECUTED，运行/向量/demo已证全0；U01–U10/G01–G12/AX01–AX20及具名未证项保留。
+当前W32/W33精确两行批准/应用已完成；由同一FULL reviewer增量复核C1-001及新diff回归，不从头重复全量。旧affected结论须独立核对新diff后才绑定新SHA；剩余是必要bounded affected gate，sole A-REG整合后新actual FULL/affected gate及 scoped接受；本批未增加正式接受、未关闭canonical。B16其余A056/C122贡献不在本次范围。参考固定只读，所有静态设计NOT_EXECUTED，运行/向量/demo已证全0；U01–U10/G01–G12/AX01–AX20及具名未证项保留。
+
+C1-001当前应用见 `../author-draft-1/label-nil-original-sync-application.json`；旧FULL候选→新候选九路径/精确四行及未变15贡献/正确正文证据见 `C1-001-delta-and-protection.json`，完整未过滤增量与正式基线diff由新publication receipt绑定。父已取消此前3任务上限，作者仍不派重复任务。
