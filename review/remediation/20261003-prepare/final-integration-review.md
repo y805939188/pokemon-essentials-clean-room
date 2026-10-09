@@ -1,3 +1,13 @@
+## B10-G 当前后继：实际复审待办
+
+冻结候选 `3c6365a4ce35c3ef08e6ba53fd81a426ffd026aa` 已获独立 full、B04/B08/B09/B05 的 PASS_SCOPED，B14 独立 NOT_AFFECTED。各报告完整 SHA 与 reviewed SHA 分开，见 [候选门收据](batches/B10/integration-stage-1/candidate-gate-receipts.json)。所有结论只绑定这个候选，不批准实际整合。
+
+本次串行 G 整合保留 13 正式文件（8 最终＋5具名授权原稿）的候选字节，复制 24 独立报告文件原字节，追加7限定候选贡献（2主责/5共享）。两个公共TSV旧194记录逐字保持，物理登记201，接受仍194。实际提交 SHA 从普通发布后的外部 ref/FETCH_HEAD 交付，不递归回填自身。
+
+当前仅 INTEGRATED_PENDING_ACTUAL。正式接受仍B01–B09及B14，10/21；194贡献/156触及ID/128主责；specific minima128，strict119/9；canonical229 OPEN/0 CLOSED。B10接受0，不把候选PASS、主责minimum或G登记计为正式接受/最终关闭。见 [完整限定登记](batches/B10/integration-stage-1/finding-registration.json)、[实际复审派发](batches/B10/integration-stage-1/actual-review-request.json)。
+
+须全量实际R-B10以及分别有界B04/B08/B09/B05、B14实际影响判断绑定同一精确actual SHA；B14候选NOT_AFFECTED不抹除actual比较门。实际完整未过滤前驱→actual和candidate→actual差异均须核对；原稿/公共登记/依赖/目录及source limits保留。全部required actual gates后才AREG-C，再重冻结B11输入；B10/B15正式写仍串行。U01–U10/G01–G12/AX01–AX20及具名未知保留，运行观察/行为向量执行/已证Demo均0；无main合入或force push。以下原有状态为保持原字节的历史后缀。
+
 # B14-C 当前正式接受与下游交接
 
 完整 R-B14 与独立 B02/B03/B04/B06/B07/B08/B09 八份实际 PASS_SCOPED 均绑定 `d48197f365c39925f795c1d325988c0d74e59979`。本登记接受 B14 的24条既有贡献／19主责任，保留具名资格、扩展、反向对照及限制；不新增行为判定，不改正式规格和测试。
