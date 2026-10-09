@@ -50,7 +50,7 @@ WP41定义仅换入／组合／UI／登记／执行分层；WP40定义原行动�
 | TrapTargetInBattleLowerTargetDefSpDef1EachTurn | 变化前门拒已有Octolock或幽灵（更多类型规则）；伤害类前门不拒，主要效果直接把Octolock指向U，不共用其它拘束的全部本地守卫。回合末防−1→特防−1无来源中央下降，WP42时点，不重复用招式多项镜甲预检 |
 | TrapUserAndTargetInBattle | U/T皆活、非替身、T非规则豁免幽灵、双方局部trappedInBattle皆假；只给T.JawLock写U席，但查询双方由正指向与被指向关系都受束缚。局部查询不包括所有场上捕获能力，不能改成完整可逃资格 |
 | TrapAllBattlersInBattleForOneTurn | 全场妖精锁已有正拒，否则2；尾部−1，换出／逃跑消费依WP41，幽灵等早门仍可优先，不保证任意入口都锁死 |
-| CurseTargetOrLowerUserSpd1RaiseUserAtkDef1 | 绕替身；U幽灵时世代≥8随机近对手、旧代近对手，T已诅咒失败；先设T诅咒真，再扣U总HP整除2（不登记普通受伤标志）、检查恢复物品；残余WP42。U非幽灵时至少能降速或升攻／防一项才准，主要效果按速度−1→攻击＋1→防御＋1，各自资格／部分成功，不扣HP |
+| CurseTargetOrLowerUserSpd1RaiseUserAtkDef1 | 绕替身；默认CURSE原始目标User，U当前有幽灵类型时本次动态目标类别为世代≥8的RandomNearFoe、旧代NearFoe；先按WP47-A§5构造，再按本次动态类别查重定向资格，T指最终目标，T已诅咒失败；先设T诅咒真，再扣U总HP整除2（不登记普通受伤标志）、检查恢复物品；残余WP42。U非幽灵时至少能降速或升攻／防一项才准，主要效果按速度−1→攻击＋1→防御＋1，各自资格／部分成功，不扣HP |
 | UserMakeSubstitute | 可抢夺；已有替身拒，代价max(总HP整除4,1)，U.hp必须严格大于代价；**初始化阶段先扣代价且不登记受伤，再恢复物品**，到主要效果才清束缚计数／招式、设替身耐久。此处未清旧束缚来源指向，不把本地清两字段扩大成三字段；早后段失败不造代价回滚 |
 
 ### 3.2 下一位、延后、触发准备

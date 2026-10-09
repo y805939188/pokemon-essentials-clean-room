@@ -42,7 +42,7 @@ A 为能力身份/有效性和消费者分层，B 为速度/重量/优先级，C
 | 速度 SLOWSTART | 慢启动计数 >0 时 ÷2；计数建立/递减归阶段触发规格 |
 | 速度 SURGESURFER | 当前电场时 ×2，不加接地门 |
 | 速度 UNBURDEN | 轻装标记真且当前无物品时 ×2；仅无物品不足，重新持物可令本条件失败 |
-| 重量 HEAVYMETAL／LIGHTMETAL | 前者 ×2；后者整除 2 且最少 1。先用个体重量（无个体默认 500）加临时重量变化并夹到至少 1，再能力，再物品，最终至少 1；单位沿数据重量，不引入新单位换算 |
+| 重量 HEAVYMETAL／LIGHTMETAL | 前者 ×2；后者整除 2 且最少 1。先用个体重量（无个体默认 500）加临时重量变化并夹到至少 1，再能力，再物品，最终至少 1；单位为 0.1kg，全管道保持该单位；无个体默认 500 即 50kg，不把 kg 数值直接交给阈值消费者 |
 | 优先级 GALEWINGS | 原始招式类型为飞行且（世代 ≤6 或满 HP）时＋1；这里不借后续实际类型转换重判 |
 | 优先级 PRANKSTER | 变化招＋1，同时写恶作剧之心标记真；反复计算不是纯读取，清标记由别处负责 |
 | 优先级 TRIAGE | 治疗标记招＋3 |
@@ -50,6 +50,8 @@ A 为能力身份/有效性和消费者分层，B 为速度/重量/优先级，C
 | 档内 STALL | 输出 −1，无抽取 |
 
 速度基底先按速度阶级整数计算，再乘能力/物品/顺风/湿地/麻痹/徽章倍率，最后四舍五入且最少 1；濒死查询直接 1，绕能力。顺风 ×2、湿地 ÷2，麻痹当前世代 ÷2（旧世代 ÷4），玩家内部徽章门满足时 ×1.1。完整排序、同速随机、戏法空间、物品档覆盖见命令规格；局部重算更新速度和招式优先级，不重抽 QUICKDRAW 等档内项。UseMove 或 Shift 才参与初始档内计算，Shift 无普通招式优先级加成。档效果实际采用时的 QUICKDRAW 消息归阶段触发规格，不能把输出＋1 写成一定先于更高优先级行动。
+
+当前有效重量供捕获规格 WP38 的沉重球消费；该球不重新取物种原重。基底 1180（118kg）、临时变化 0、有效 LIGHTMETAL、无重量道具且模式破坏者假时，结果 590（59kg）；压制该特性后是 1180。FLOATSTONE 按 WP50 的有效性门继续处理能力层的输出，模式破坏者不取消物品层。沉重球新档率 45、非异兽、满 HP100/100、无状态/调试且暴击关时，前两重量分别给率 25、x8 与率 45、x15；捕获随机判定和其它门仍沿 WP38。静态对照见测试目录 AB24 与 HI35。
 
 ## 4. 本次类型、命中与会心
 
@@ -193,14 +195,14 @@ DAZZLING／QUEENLYMAJESTY：B 与 U 对立、U 已保存优先级 >0、目标集
 
 ## 9. 有界登记覆盖（27 族，148 展开身份）
 
-文本集合：27 族，133 直接登记＋11 复制语句，复制展开后 148 个（族，能力）身份；CertainSwitching 为空，其余 26 族有登记。复制行首项是来源，其余才为新增身份。具体量值与分支必须连同前文合同阅读，不以有名字替代行为。
+文本集合：27 族，133 直接登记＋11 复制语句，复制展开后 148 个（族，能力）身份；CertainSwitching 为空，其余 26 族有登记。复制行首项是来源，其余才为新增身份。11 是复制语句数，展开新增 15 个本族身份，133 + 15 = 148；148 计（族，能力）配对，跨族同能力不合并，不以本次重数证明每项行为已执行。静态核对见测试目录 AB25。具体量值与分支必须连同前文合同阅读，不以有名字替代行为。
 
 | 族 | 审计身份（add/copy 方向） | 合同 |
 | --- | --- | --- |
 | SpeedCalc（8） | CHLOROPHYLL、QUICKFEET、SANDRUSH、SLOWSTART、SLUSHRUSH、SURGESURFER、SWIFTSWIM、UNBURDEN | §3 |
 | WeightCalc（2） | HEAVYMETAL、LIGHTMETAL | §3 |
 | StatusCheckNonIgnorable（1） | COMATOSE | §6 |
-| StatusImmunity（8） | FLOWERVEIL；IMMUNITY→PASTELVEIL；INSOMNIA→SWEETVEIL、VITALSPIRIT；LEAFGUARD；LIMBER；MAGMAARMOR；WATERVEIL→WATERBUBBLE | §6 |
+| StatusImmunity（11） | FLOWERVEIL；IMMUNITY→PASTELVEIL；INSOMNIA→SWEETVEIL、VITALSPIRIT；LEAFGUARD；LIMBER；MAGMAARMOR；WATERVEIL→WATERBUBBLE | §6 |
 | StatusImmunityNonIgnorable（2） | COMATOSE、SHIELDSDOWN | §6 |
 | StatusImmunityFromAlly（3） | FLOWERVEIL、PASTELVEIL、SWEETVEIL | §6 |
 | StatLossImmunity（6） | BIGPECKS；CLEARBODY→WHITESMOKE；FLOWERVEIL；HYPERCUTTER；KEENEYE | §6 |
@@ -214,9 +216,9 @@ DAZZLING／QUEENLYMAJESTY：B 与 U 对立、U 已保存优先级 >0、目标集
 | AccuracyCalcFromUser（6） | COMPOUNDEYES、HUSTLE、KEENEYE、NOGUARD、UNAWARE、VICTORYSTAR | §4.2 |
 | AccuracyCalcFromAlly（1） | VICTORYSTAR | §4.2 |
 | AccuracyCalcFromTarget（8） | LIGHTNINGROD、NOGUARD、SANDVEIL、SNOWCLOAK、STORMDRAIN、TANGLEDFEET、UNAWARE、WONDERSKIN | §4.2 |
-| DamageCalcFromUser（41） | AERILATE→GALVANIZE、NORMALIZE、PIXILATE、REFRIGERATE；ANALYTIC、BLAZE、DEFEATIST、DRAGONSMAW、FLAREBOOST、FLASHFIRE、FLOWERGIFT、GORILLATACTICS、GUTS；HUGEPOWER→PUREPOWER；HUSTLE、IRONFIST、MEGALAUNCHER；MINUS→PLUS；NEUROFORCE、OVERGROW、PUNKROCK、RECKLESS、RIVALRY、SANDFORCE、SHEERFORCE、SLOWSTART、SNIPER、SOLARPOWER、STAKEOUT、STEELWORKER、STEELYSPIRIT、STRONGJAW、SWARM、TECHNICIAN、TINTEDLENS、TORRENT、TOUGHCLAWS、TOXICBOOST、TRANSISTOR、WATERBUBBLE | §5.1 |
+| DamageCalcFromUser（43） | AERILATE→GALVANIZE、NORMALIZE、PIXILATE、REFRIGERATE；ANALYTIC、BLAZE、DEFEATIST、DRAGONSMAW、FLAREBOOST、FLASHFIRE、FLOWERGIFT、GORILLATACTICS、GUTS；HUGEPOWER→PUREPOWER；HUSTLE、IRONFIST、MEGALAUNCHER；MINUS→PLUS；NEUROFORCE、OVERGROW、PUNKROCK、RECKLESS、RIVALRY、SANDFORCE、SHEERFORCE、SLOWSTART、SNIPER、SOLARPOWER、STAKEOUT、STEELWORKER、STEELYSPIRIT、STRONGJAW、SWARM、TECHNICIAN、TINTEDLENS、TORRENT、TOUGHCLAWS、TOXICBOOST、TRANSISTOR、WATERBUBBLE | §5.1 |
 | DamageCalcFromAlly（4） | BATTERY、FLOWERGIFT、POWERSPOT、STEELYSPIRIT | §5.2 |
-| DamageCalcFromTarget（15） | DRYSKIN；FILTER→SOLIDROCK；FLOWERGIFT、FLUFFY、FURCOAT、GRASSPELT、HEATPROOF、ICESCALES、MARVELSCALE、MULTISCALE、PUNKROCK、THICKFAT、WATERBUBBLE | §5.2 |
+| DamageCalcFromTarget（14） | DRYSKIN；FILTER→SOLIDROCK；FLOWERGIFT、FLUFFY、FURCOAT、GRASSPELT、HEATPROOF、ICESCALES、MARVELSCALE、MULTISCALE、PUNKROCK、THICKFAT、WATERBUBBLE | §5.2 |
 | DamageCalcFromTargetNonIgnorable（2） | PRISMARMOR、SHADOWSHIELD | §5.2 |
 | DamageCalcFromTargetAlly（2） | FLOWERGIFT、FRIENDGUARD | §5.2 |
 | CriticalCalcFromUser（2） | MERCILESS、SUPERLUCK | §4.3 |
