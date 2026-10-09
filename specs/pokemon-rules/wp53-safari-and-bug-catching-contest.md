@@ -172,8 +172,9 @@
 
 ### 6.1 覆盖门与开战交接（`002_BugContest.rb:350–404`）
 
-- **公开覆盖门**：`on_calling_wild_battle`——handled 空 且 捕虫进行中（`pbInBugContest?`）才接管；注册序在漫游、Safari 之后（§8.1）。
-- **直接入口（`pbBugContestBattle`，审计名；实参=个体，或物种标识＋等级）按序**：①**先触发 `:on_start_battle`**（队伍战前记录——WP42 引用，与 Safari 入口不同）；②物种标识 → `pbGenerateWildPokemon` 生成（触发 `on_wild_pokemon_created` 修饰——含 Safari/捕虫 IV 重摇，§8.1）；③**战斗对象按普通 Battle 子类构造（`BugContestBattle`，审计名；场景、玩家队伍、对方=[个体]、训练师=[玩家]）**（internalBattle 为真、图鉴登记照常）、玩家侧起始下标 0、**以会话当前预算初始化战斗预算**（方向：会话 → 战斗——N01 修订；返回后才回写，§6.5）；④**强制单打规则**（`setBattleRule`，审计名；写入单打规则——双打判定另有"队伍仅 1 成员"事实兜底，WP36 引用）；⑤`prepare_battle`；⑥战斗动画包装中：核心编号取自 `pbStartBattle`（**走普通 Battle 的完整回合流程与终局**，WP39–WP42 引用）→ **`after_battle`（审计名；实参=核心编号与可治疗标记）**（败/平治疗队伍、触发 `:on_end_battle`、玩家人物复位，WP42 引用）→ **核心编号 ∈ {2, 5}（败/平）→ 恢复音乐＋`pbBugContestStartOver`**（治疗＋判奖转移，§5.4）。
+- **公开覆盖门**：公开野生包装只有单一敌候选且允许覆盖才派发 `on_calling_wild_battle`；随后——handled 空 且 捕虫进行中（`pbInBugContest?`）才接管；注册序在漫游、Safari 之后（§8.1）。
+- **上游单候选前提与伙伴对照**：步进双遭遇先查 force-single、Safari 拒绝，再查已登记伙伴真门，最后才查可战成员 ≤1 的假门（WP36 既有优先序）。因此大会缩队为一员只在无伙伴且无更早真门时阻止双遭遇，不能保证接管。有效大会、选员存活、Sport 预算 20、保留 K、普通 Natural Park 草地 BugContest 表与触发/允许门通过、非 Safari、force-single 假、无雷达/漫游替换、无残留 single/noPartner 规则、正常返回前未到期：有可参战伙伴取得两个敌候选，公开包装不派发大会覆盖，进入普通 2v2/玩家+伙伴；大会预算仍 20、K 不经大会存储覆写、无大会 Ball 菜单或预算传入/回写。正常击败时普通伙伴善后治疗两队，双敌方包装不发单敌方野生结束通知。取消伙伴得到单候选并接管；保留伙伴但 force-single 真也可接管（仍需允许覆盖且无更早接管）。Demo 是否实际编排此组合保持 U01。
+- **直接入口（`pbBugContestBattle`，审计名；实参=个体，或物种标识＋等级）按序**：①**先触发 `:on_start_battle`**（队伍战前记录——WP42 引用，与 Safari 入口不同）；②物种标识 → `pbGenerateWildPokemon` 生成（触发 `on_wild_pokemon_created` 修饰——含 Safari/捕虫 IV 重摇，§8.1）；③**战斗对象按普通 Battle 子类构造（`BugContestBattle`，审计名；场景、玩家队伍、对方=[个体]、训练师=[玩家]）**（internalBattle 为真、图鉴登记照常）、玩家侧起始下标 0、**以会话当前预算初始化战斗预算**（方向：会话 → 战斗——N01 修订；返回后才回写，§6.5）；④**强制单打规则**（`setBattleRule`，审计名；写入单打规则——上游单候选与伙伴优先按本节前提、WP36 引用；不能用缩队一员保证接管）；⑤`prepare_battle`；⑥战斗动画包装中：核心编号取自 `pbStartBattle`（**走普通 Battle 的完整回合流程与终局**，WP39–WP42 引用）→ **`after_battle`（审计名；实参=核心编号与可治疗标记）**（败/平治疗队伍、触发 `:on_end_battle`、玩家人物复位，WP42 引用）→ **核心编号 ∈ {2, 5}（败/平）→ 恢复音乐＋`pbBugContestStartOver`**（治疗＋判奖转移，§5.4）。
 - **跳过项**：不检查 `skip_battle?`（无跳战分支——`battle_rules` 同样不经核心清理，§4.1 同边界）。
 
 ### 6.2 命令界面与 Sport Ball（`002_BugContestBattle.rb:32–56`；`006_Battle_ActionUseItem.rb:26–44`）

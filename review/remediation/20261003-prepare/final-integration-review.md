@@ -1,3 +1,15 @@
+## B12 G整合：待精确实际复审（2026-10-09）
+
+正式接受前驱 `1d06c45cc0a744fca181ac80ee573cc9ebb9b862`（B15-C），管理前驱 `9ad5539f38544fef6037356018015fe418021514`，冻结候选 `8ddba850af71f24e7bd77a80b7605c456c31dc7a`。独立FULL9贡献/6主责通过；B07/B08/B09/B10/B11 PASS_SCOPED，B02/B03/B04/B14/B15准确独立NOT_AFFECTED，同一candidate、0阻塞。十一正式输出加五精确获准原稿，共16 payload与candidate原字节相同；proposal4只有§3→§4管理标签纠正，批准patch身份未改变。27作者材料、45独立复审文件精确复制，不执行保存的历史脚本。
+
+只新增九pending actual贡献（6主责/3共享），公共232物理行；正式仍13/21、223accepted、175触及ID、143主责最低。B15/B11全部accepted namespace/成果与旧223公共原行保留；共享两catalog只增本B12十五行，全部387旧行字节/顺序/重数保留。canonical仍229OPEN/0CLOSED。候选与actual同字节不自动实际通过，更不C。
+
+两份candidate diff原档只有Git index哈希缩写8/7位差别，其余内容精确等价full-index原始差异；各自原sha/bytes保留。本轮actual将明确full-index的latest accepted predecessor→actual、candidate→actual全部路径差异，避免环境缩写差异；不是新增审计门。原两个Ultra reviewer分别做mandatory FULL9/6与十owner实际裁决后才唯一C。
+
+B16私有准备已由父确认b48e919cce08058bcd29453232d4eb55aa9e9563（40文件、formal0），本G不导入、不重做，不提前释放B16完整作者。B13/B16完整作者或fresh refreeze仍等B12-C。静态设计未执行、runtime/Demo0。精确ACT普通提交发布读回后外部给出；下述历史接受/G状态按原字节后缀保持。
+
+---
+
 ## B15正式接受（AREG-C，2026-10-09）
 
 冻结候选 `6cd88996e5d48bffb1e85fd4bdaa87bed2d0a1d4`，实际整合 `fd44556f877a400337eb893757d91f1adfa856ba`。FULL独立16贡献/10主责actual PASS_SCOPED；B03/B04/B08/B14 actual PASS_SCOPED，B02/B06/B07/B09/B10独立actual NOT_AFFECTED；全部同ACT、0阻塞。正式接受B15十六项局部贡献（10主责最低/6共享），现13/21批次、223接受贡献、175触及ID、143主责最低验收；严格全计划主责133满足/10待齐，全部229控制口径133满足/96待齐。canonical仍229 OPEN、0 CLOSED，最终global门未执行。
