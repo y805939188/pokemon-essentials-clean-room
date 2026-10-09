@@ -1,3 +1,13 @@
+## B15 G整合：等待精确实际复审（2026-10-09）
+
+最新正式接受前驱 `6811b313b18bb1b4ed59ca3218b3fbf4a9f1f411`（B11-C）；候选原FIX_BASE `0cfe99094b76f8d75fded0d638694677855a5f0c`，本次冻结候选 `6cd88996e5d48bffb1e85fd4bdaa87bed2d0a1d4`。FULL16/主责10 PASS_SCOPED，九个独立candidate影响角色：B03/B04/B08/B14 PASS_SCOPED；B02/B06/B07/B09/B10精确支持NOT_AFFECTED。两项P2仅C122 nil/空串及C109实际选定区域查询，批准原稿补丁定点应用；69份候选复审文件按发布原字节保留，B02后继manifest仅新增publication回执身份。
+
+九份正式输出与候选完全相同；B11正式文件、review/C成果、公共既有207原行和统计保持。B15的67项当前读取输入从FIX_BASE至B11-C未变，另2项固定原始review输入按原提交保留，双方读取/写入/控制无直接交集；这是G元数据保护结论，实际review须独立确认caller/data/condition。新增16条贡献只是pending actual，公共223物理行；正式接受仍12/21、207贡献，229 OPEN、0 CLOSED。须独立FULL actual加九owner准确actual裁决后才C；候选同字节不自动转实际通过。B12/B16依原合同仍等待B15-C后冻结。
+
+actual SHA普通提交发布并读回后外部冻结；此处不回填自身SHA。`batches/B15/integration-stage-1/`绑定原始控制、精确scope批准、candidate结果、B11保护和实际派发要求。以下历史接受记录按完整原字节后缀保留。
+
+---
+
 ## B11正式接受（AREG-C，2026-10-09）
 
 冻结候选 `4fa6b5fcf726e8723ba1aa31b2f22a7f53390c52`；实际整合 `ccf0c49394995e779262375726f7002680d938bf`。FULL/B07/B09独立actual PASS_SCOPED，B10独立actual NOT_AFFECTED，同一ACT且0阻塞。正式接受六项B11局部贡献（3主责最低验收/3共享），现12/21批次、207接受贡献、162触及ID、133主责最低验收；严格全计划贡献主责124满足、9待齐，全229控制口径124满足、105待齐。canonical仍229OPEN/0CLOSED，未执行最终全局Ultra关闭。
