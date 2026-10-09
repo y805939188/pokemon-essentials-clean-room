@@ -12,9 +12,77 @@
 
 ### 2.1 基本/多项族（WP44 §5、§7；验收 G01/G02/G03/G06）
 
-`RaiseUserAttack1`、`RaiseUserAttack2`、`RaiseUserAttack3`、`RaiseUserDefense1`、`RaiseUserDefense2`、`RaiseUserDefense3`、`RaiseUserSpAtk1`、`RaiseUserSpAtk2`、`RaiseUserSpAtk3`、`RaiseUserSpDef1`、`RaiseUserSpDef2`、`RaiseUserSpDef3`、`RaiseUserSpeed1`、`RaiseUserSpeed2`、`RaiseUserSpeed3`、`RaiseUserAccuracy1`、`RaiseUserAccuracy2`、`RaiseUserAccuracy3`、`RaiseUserEvasion1`、`RaiseUserEvasion2`、`RaiseUserEvasion3`、`RaiseUserAtkDef1`、`RaiseUserAtkDefAcc1`、`RaiseUserAtkSpAtk1`、`RaiseUserAtkSpd1`、`RaiseUserAtk1Spd2`、`RaiseUserAtkAcc1`、`RaiseUserDefSpDef1`、`RaiseUserSpAtkSpDef1`、`RaiseUserSpAtkSpDefSpd1`、`RaiseUserMainStats1`、`LowerUserAttack1`、`LowerUserAttack2`、`LowerUserDefense1`、`LowerUserDefense2`、`LowerUserSpAtk1`、`LowerUserSpAtk2`、`LowerUserSpDef1`、`LowerUserSpDef2`、`LowerUserSpeed1`、`LowerUserSpeed2`、`LowerUserAtkDef1`、`LowerUserDefSpDef1`、`LowerUserDefSpDefSpd1`、`LowerTargetAttack1`、`LowerTargetAttack2`、`LowerTargetAttack3`、`LowerTargetDefense1`、`LowerTargetDefense2`、`LowerTargetDefense3`、`LowerTargetSpAtk1`、`LowerTargetSpAtk2`、`LowerTargetSpAtk3`、`LowerTargetSpDef1`、`LowerTargetSpDef2`、`LowerTargetSpDef3`、`LowerTargetSpeed1`、`LowerTargetSpeed2`、`LowerTargetSpeed3`、`LowerTargetAccuracy1`、`LowerTargetAccuracy2`、`LowerTargetAccuracy3`、`LowerTargetEvasion1`、`LowerTargetEvasion2`、`LowerTargetEvasion3`
+普通参数共 **65 项**，下表把审计身份、对象和请求序列分别列出。箭头表示实际请求先后，不能按身份的拼写顺序推断；请求量不是保证变化量。每项均接主稿 §5 的查询、提交、夹限、反馈及部分成功规则。两项普通多目标下降参数在 §2.4，未并入本表。
 
-（以上 68 项为普通参数行：使用者/目标的单项或多项 ±1/±2/±3，行为提要分别为「使用者：该项＋n／−n」或「目标：该项＋n／−n」，按主稿 §5 查询/提交/夹限/部分成功规则执行。）
+| 审计身份 | 对象 | 按顺序请求的阶级变化 |
+| --- | --- | --- |
+| `RaiseUserAttack1` | 使用者 | 攻击＋1 |
+| `RaiseUserAttack2` | 使用者 | 攻击＋2 |
+| `RaiseUserAttack3` | 使用者 | 攻击＋3 |
+| `RaiseUserDefense1` | 使用者 | 防御＋1 |
+| `RaiseUserDefense2` | 使用者 | 防御＋2 |
+| `RaiseUserDefense3` | 使用者 | 防御＋3 |
+| `RaiseUserSpAtk1` | 使用者 | 特攻＋1 |
+| `RaiseUserSpAtk2` | 使用者 | 特攻＋2 |
+| `RaiseUserSpAtk3` | 使用者 | 特攻＋3 |
+| `RaiseUserSpDef1` | 使用者 | 特防＋1 |
+| `RaiseUserSpDef2` | 使用者 | 特防＋2 |
+| `RaiseUserSpDef3` | 使用者 | 特防＋3 |
+| `RaiseUserSpeed1` | 使用者 | 速度＋1 |
+| `RaiseUserSpeed2` | 使用者 | 速度＋2 |
+| `RaiseUserSpeed3` | 使用者 | 速度＋3 |
+| `RaiseUserAccuracy1` | 使用者 | 命中＋1 |
+| `RaiseUserAccuracy2` | 使用者 | 命中＋2 |
+| `RaiseUserAccuracy3` | 使用者 | 命中＋3 |
+| `RaiseUserEvasion1` | 使用者 | 闪避＋1 |
+| `RaiseUserEvasion2` | 使用者 | 闪避＋2 |
+| `RaiseUserEvasion3` | 使用者 | 闪避＋3 |
+| `RaiseUserAtkDef1` | 使用者 | 攻击＋1 → 防御＋1 |
+| `RaiseUserAtkDefAcc1` | 使用者 | 攻击＋1 → 防御＋1 → 命中＋1 |
+| `RaiseUserAtkSpAtk1` | 使用者 | 攻击＋1 → 特攻＋1 |
+| `RaiseUserAtkSpd1` | 使用者 | 攻击＋1 → 速度＋1 |
+| `RaiseUserAtk1Spd2` | 使用者 | 速度＋2 → 攻击＋1 |
+| `RaiseUserAtkAcc1` | 使用者 | 攻击＋1 → 命中＋1 |
+| `RaiseUserDefSpDef1` | 使用者 | 防御＋1 → 特防＋1 |
+| `RaiseUserSpAtkSpDef1` | 使用者 | 特攻＋1 → 特防＋1 |
+| `RaiseUserSpAtkSpDefSpd1` | 使用者 | 特攻＋1 → 特防＋1 → 速度＋1 |
+| `RaiseUserMainStats1` | 使用者 | 攻击＋1 → 防御＋1 → 特攻＋1 → 特防＋1 → 速度＋1 |
+| `LowerUserAttack1` | 使用者 | 攻击−1 |
+| `LowerUserAttack2` | 使用者 | 攻击−2 |
+| `LowerUserDefense1` | 使用者 | 防御−1 |
+| `LowerUserDefense2` | 使用者 | 防御−2 |
+| `LowerUserSpAtk1` | 使用者 | 特攻−1 |
+| `LowerUserSpAtk2` | 使用者 | 特攻−2 |
+| `LowerUserSpDef1` | 使用者 | 特防−1 |
+| `LowerUserSpDef2` | 使用者 | 特防−2 |
+| `LowerUserSpeed1` | 使用者 | 速度−1 |
+| `LowerUserSpeed2` | 使用者 | 速度−2 |
+| `LowerUserAtkDef1` | 使用者 | 攻击−1 → 防御−1 |
+| `LowerUserDefSpDef1` | 使用者 | 防御−1 → 特防−1 |
+| `LowerUserDefSpDefSpd1` | 使用者 | 速度−1 → 防御−1 → 特防−1 |
+| `LowerTargetAttack1` | 目标 | 攻击−1 |
+| `LowerTargetAttack2` | 目标 | 攻击−2 |
+| `LowerTargetAttack3` | 目标 | 攻击−3 |
+| `LowerTargetDefense1` | 目标 | 防御−1 |
+| `LowerTargetDefense2` | 目标 | 防御−2 |
+| `LowerTargetDefense3` | 目标 | 防御−3 |
+| `LowerTargetSpAtk1` | 目标 | 特攻−1 |
+| `LowerTargetSpAtk2` | 目标 | 特攻−2 |
+| `LowerTargetSpAtk3` | 目标 | 特攻−3 |
+| `LowerTargetSpDef1` | 目标 | 特防−1 |
+| `LowerTargetSpDef2` | 目标 | 特防−2 |
+| `LowerTargetSpDef3` | 目标 | 特防−3 |
+| `LowerTargetSpeed1` | 目标 | 速度−1 |
+| `LowerTargetSpeed2` | 目标 | 速度−2 |
+| `LowerTargetSpeed3` | 目标 | 速度−3 |
+| `LowerTargetAccuracy1` | 目标 | 命中−1 |
+| `LowerTargetAccuracy2` | 目标 | 命中−2 |
+| `LowerTargetAccuracy3` | 目标 | 命中−3 |
+| `LowerTargetEvasion1` | 目标 | 闪避−1 |
+| `LowerTargetEvasion2` | 目标 | 闪避−2 |
+| `LowerTargetEvasion3` | 目标 | 闪避−3 |
+
+自身多项上升先判断至少一项可升，再依序查询和提交各项；单项受限不回滚已成功项目。自身下降在实际伤害后的附效阶段进入，若对侧已无存活成员则整组略过。目标单项下降分别沿变化招目标检查或伤害附效的资格与替身门。实际升降提示按中央规则给出，不能把数据描述顺序当作提示顺序。
 
 ### 2.2 具名复合/直接重写族（WP44 §7）
 
@@ -81,7 +149,7 @@
 | `UserTargetSwapBaseSpeed` | 战斗原能力值交换，非阶级 | 同上 |
 | `UserTargetAverageBaseAtkSpAtk` | 战斗原能力值平均，非阶级 | 同上 |
 | `UserTargetAverageBaseDefSpDef` | 战斗原能力值平均，非阶级 | 同上 |
-| `UserTargetAverageHP` | 双方 HP 平均与增减，非阶级 | 《多次攻击、特殊伤害与恢复》（本轮仅定位） |
+| `UserTargetAverageHP` | 双方 HP 均分与各自上限，非阶级 | [《多次攻击、特殊伤害与恢复》§6.4](wp46-damage-multihit-and-healing.md#64-hp-均分)；接收合同与覆盖表 §1.7 |
 | `StartUserSideDoubleSpeed` | 顺风建立 | 场域规格主规则；本包查询或数值交界 |
 | `StartSwapAllBattlersBaseDefensiveStats` | 奇妙空间建立 | 场域规格主规则；本包查询或数值交界 |
 
