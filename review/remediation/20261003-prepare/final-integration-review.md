@@ -1,3 +1,15 @@
+## B15正式接受（AREG-C，2026-10-09）
+
+冻结候选 `6cd88996e5d48bffb1e85fd4bdaa87bed2d0a1d4`，实际整合 `fd44556f877a400337eb893757d91f1adfa856ba`。FULL独立16贡献/10主责actual PASS_SCOPED；B03/B04/B08/B14 actual PASS_SCOPED，B02/B06/B07/B09/B10独立actual NOT_AFFECTED；全部同ACT、0阻塞。正式接受B15十六项局部贡献（10主责最低/6共享），现13/21批次、223接受贡献、175触及ID、143主责最低验收；严格全计划主责133满足/10待齐，全部229控制口径133满足/96待齐。canonical仍229 OPEN、0 CLOSED，最终global门未执行。
+
+九正式文件保持reviewed ACT原字节；67份actual复审发布材料保持原身份，B02 semantic/published manifest的receipt-only元数据差别准确绑定。B11全接受成果、旧207公共原行、旧133主责最低依据和历史保留。本次C消费独立实际证据登记，无新质量裁决或行为执行；runtime/静态向量/Demo执行仍0。
+
+B12的B09/B10/B11依赖和原B15串行门已齐；B16的B02/B04/B06/B07/B15依赖已齐。双方正式WW为0，但B12写入五份B16读取、B16写入两份B12读取，且共享qualified GIR-FD82-003，因此不可盲派两个完整正式作者。先冻结本C为基线的B12完整作者和B16只读准备/未来作者合同，按原批次次序B12先完成；B16完整正式作者须在B12-C后定点重冻结受影响输入。用户取消数值并发上限，仅真实无冲突部分并行，唯一公共G/C串行。
+
+详见 `batches/B15/acceptance-stage-1/`。以下G/pending旧段落按历史原字节保留，由本C状态替代。
+
+---
+
 ## B15 G整合：等待精确实际复审（2026-10-09）
 
 最新正式接受前驱 `6811b313b18bb1b4ed59ca3218b3fbf4a9f1f411`（B11-C）；候选原FIX_BASE `0cfe99094b76f8d75fded0d638694677855a5f0c`，本次冻结候选 `6cd88996e5d48bffb1e85fd4bdaa87bed2d0a1d4`。FULL16/主责10 PASS_SCOPED，九个独立candidate影响角色：B03/B04/B08/B14 PASS_SCOPED；B02/B06/B07/B09/B10精确支持NOT_AFFECTED。两项P2仅C122 nil/空串及C109实际选定区域查询，批准原稿补丁定点应用；69份候选复审文件按发布原字节保留，B02后继manifest仅新增publication回执身份。
