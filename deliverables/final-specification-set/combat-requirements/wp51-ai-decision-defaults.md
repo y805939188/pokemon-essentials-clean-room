@@ -6,7 +6,7 @@
 
 ## 1. HP 道具估量
 
-「真/假」为 REBALANCED_HEALING_ITEM_AMOUNTS；当前真。只有已通过真实道具资格才入偏好候选。999 是估计表常量，不是实际 HP 上限。
+「真/假」为 REBALANCED_HEALING_ITEM_AMOUNTS；当前真。只有已通过真实道具资格才入偏好候选。999 是估计表常量，不是实际 HP 上限。完整列表的资格扫描、未提供所选招式索引及整阶段异常边界见主稿 §4；未列入本表的合法物品也先查资格。
 
 | 物品 | 真 | 假 |
 | --- | ---: | ---: |
@@ -25,7 +25,7 @@
 | ENERGYPOWDER | 60 | 50 |
 | ENERGYROOT | 120 | 200 |
 
-RAGECANDYBAR 只有 RAGE_CANDY_BAR_CURES_STATUS_PROBLEMS 假时加入 HP 表 20，真时进全异常表。SITRUSBERRY 表值 1；后续分支比较 SITURUSBERRY 的拼写未命中它，所以不按理想四分之一补写。
+RAGECANDYBAR 只有 RAGE_CANDY_BAR_CURES_STATUS_PROBLEMS 假时加入 HP 表 20，真时进全异常表。SITRUSBERRY 表值 1；后续分支比较 SITURUSBERRY 的拼写未命中它，所以不按理想四分之一补写。实际主动请求量由 [WP28 §5.1](../creature-rpg/wp28-item-use-and-training.md) 的完整回复量表给出：总 HP101/105、当前 HP1 时 SITRUSBERRY 请求25/26，实际 HP26/27；AI 估量仍1，持有触发另由 WP50 负责。
 
 ## 2. 治疗/复活类别
 

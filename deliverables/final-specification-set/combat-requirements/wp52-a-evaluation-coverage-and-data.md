@@ -206,7 +206,7 @@ GeneralMoveAgainstTargetScore：shiny_target、priority_move_against_faster_targ
 
 GeneralMoveScore：shadow_moves、thawing_move_when_frozen、any_foe_can_Magic_Coat_or_Bounce_move、any_battler_can_Snatch_move、good_move_for_choice_item、damaging_move_and_either_side_no_reserves、dance_move_against_dancer。
 
-### 3.2 AbilityRanking 23 项（主稿 §6）
+### 3.2 AbilityRanking 25 项（主稿 §6）
 
 add：BLAZE、CUTECHARM、FRIENDGUARD、GALEWINGS、HUGEPOWER、IRONFIST、LIQUIDVOICE、MEGALAUNCHER、OVERGROW、PRANKSTER、PUNKROCK、RECKLESS、ROCKHEAD、RUNAWAY、SANDFORCE、SKILLLINK、STEELWORKER、SWARM、TORRENT、TRIAGE。
 
@@ -255,6 +255,6 @@ copy：RIVALRY←CUTECHARM；HEALER、SYMBOISIS、TELEPATHY←FRIENDGUARD；PURE
 
 ## 6. 重复登记定点
 
-MoveAttributes:220/238 的 MoveEffectScore PowerHigherWithConsecutiveUse、:1175/1190 的 MoveEffectAgainstTargetScore RemoveProtections，及 SwitchingActing:104/109 的 MoveEffectAgainstTargetScore LowerTargetAtkSpAtk1SwitchOutUser。前两组交 B、后一组交 C，后续须按真实覆盖顺序核行为，不把两次加法并用；本附表不宣称已完成这些规则。
+三组「族＋身份」保持：MoveEffectScore / PowerHigherWithConsecutiveUse；MoveEffectAgainstTargetScore / RemoveProtections；MoveEffectAgainstTargetScore / LowerTargetAtkSpAtk1SwitchOutUser。前两组由 B 附表给最终行为，后一组由 C 附表给最终行为。连续切割效果分读取回声侧计数、基数仍读取连续切割；解除保护缺源复制不覆盖原目标 +7；撤退射击跨族缺源复制不覆盖原降阶目标分。每组只用其最终有效行为，不叠加两份出现；无该族登记时保持共用默认。源定位与登记先后证明集中于审计，身份和评分阶段仍须保真。
 
 附表没有无名未归属注册；真实效果没有专用 AI 登记时只能适用通用默认，不能因此称其不存在。WP52-B/C 完成后须回查跨族共用数据与通用消费；全局覆盖出口 WP79 保留。

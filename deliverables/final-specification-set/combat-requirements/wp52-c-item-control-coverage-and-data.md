@@ -63,7 +63,7 @@ MoveBasePower：RemoveTargetItem；ThrowUserItemAtTarget。
 
 ### 2.5 ChangeMoveEffect 效果组（24 出现；主稿 §4）
 
-MoveEffectScore：RedirectAllMovesToUser；CurseTargetOrLowerUserSpd1RaiseUserAtkDef1；PowerUpAllyMove；BounceBackProblemCausingStatusMoves；StealAndUseBeneficialStatusMove。
+MoveEffectScore：RedirectAllMovesToUser；CurseTargetOrLowerUserSpd1RaiseUserAtkDef1；BounceBackProblemCausingStatusMoves；StealAndUseBeneficialStatusMove。
 
 MoveEffectAgainstTargetScore：RedirectAllMovesToTarget；CurseTargetOrLowerUserSpd1RaiseUserAtkDef1；EffectDependsOnEnvironment；TargetNextFireMoveDamagesTarget；PowerUpAllyMove；UseMoveTargetIsAboutToUse；ReplaceMoveThisBattleWithTargetLastMoveUsed。
 
@@ -77,11 +77,11 @@ MoveFailureAgainstTargetCheck：CurseTargetOrLowerUserSpd1RaiseUserAtkDef1；Tar
 
 MoveFailureCheck：FleeFromBattle（§5.1）；SwitchOutUserStatusMove（§5.1）；SwitchOutUserPassOnEffects（§5.1）；TrapAllBattlersInBattleForOneTurn（§5.2）；UsedAfterUserTakesPhysicalDamage（§5.2）；DisableTargetMovesKnownByUser（§5.3）。
 
-MoveEffectScore：FleeFromBattle（§5.1）；SwitchOutUserStatusMove（§5.1）；SwitchOutUserDamagingMove（§5.1）；SwitchOutUserPassOnEffects（§5.1）；TrapAllBattlersInBattleForOneTurn（§5.2）；UsedAfterUserTakesPhysicalDamage（§5.2）；UsedAfterAllyRoundWithDoublePower（§5.2）；StartSlowerBattlersActFirst（§5.3）；DisableTargetMovesKnownByUser（§5.3）。
+MoveEffectScore：FleeFromBattle（§5.1）；SwitchOutUserStatusMove（§5.1）；SwitchOutUserDamagingMove（§5.1）；SwitchOutUserPassOnEffects（§5.1）；TrapAllBattlersInBattleForOneTurn（§5.2）；UsedAfterUserTakesPhysicalDamage（§5.2）；UsedAfterAllyRoundWithDoublePower（§5.2）；StartSlowerBattlersActFirst（§5.3）。
 
 MoveFailureAgainstTargetCheck：LowerTargetAtkSpAtk1SwitchOutUser（§5.1）；SwitchOutTargetStatusMove（§5.1）；TrapTargetInBattle（§5.2）；TrapTargetInBattleMainEffect←TrapTargetInBattle（§5.2）；TrapTargetInBattleLowerTargetDefSpDef1EachTurn（§5.2）；TargetUsesItsLastUsedMoveAgain（§5.3）；LowerPPOfTargetLastMoveBy4（§5.3）；DisableTargetLastMoveUsed（§5.3）；DisableTargetUsingSameMoveConsecutively（§5.3）；DisableTargetUsingDifferentMove（§5.3）；DisableTargetStatusMoves（§5.3）；DisableTargetHealingMoves（§5.3）。
 
-MoveEffectAgainstTargetScore：LowerTargetAtkSpAtk1SwitchOutUser（§5.1，先登记降阶评分）；LowerTargetAtkSpAtk1SwitchOutUser←SwitchOutUserDamagingMove（copy 源仅登记在整体分族，不生效，先登记值保留——§1 第 3 条）；SwitchOutTargetStatusMove（§5.1）；SwitchOutTargetDamagingMove（§5.1）；BindTarget（§5.2）；BindTargetDoublePowerIfTargetUnderwater←BindTarget（§5.2）；TrapTargetInBattle（§5.2）；TrapTargetInBattleMainEffect←TrapTargetInBattle（§5.2）；TrapTargetInBattleLowerTargetDefSpDef1EachTurn（§5.2）；TrapUserAndTargetInBattle（§5.2）；TargetActsNext（§5.3）；TargetActsLast（§5.3）；TargetUsesItsLastUsedMoveAgain（§5.3）；LowerPPOfTargetLastMoveBy3（§5.3）；LowerPPOfTargetLastMoveBy4（§5.3）；DisableTargetLastMoveUsed（§5.3）；DisableTargetUsingSameMoveConsecutively（§5.3）；DisableTargetUsingDifferentMove（§5.3）；DisableTargetStatusMoves（§5.3）；DisableTargetHealingMoves（§5.3）；DisableTargetSoundMoves（§5.3）。
+MoveEffectAgainstTargetScore：LowerTargetAtkSpAtk1SwitchOutUser（§5.1，先登记降阶评分）；LowerTargetAtkSpAtk1SwitchOutUser←SwitchOutUserDamagingMove（copy 源仅登记在整体分族，不生效，先登记值保留——§1 第 3 条）；SwitchOutTargetStatusMove（§5.1）；SwitchOutTargetDamagingMove（§5.1）；BindTarget（§5.2）；BindTargetDoublePowerIfTargetUnderwater←BindTarget（§5.2）；TrapTargetInBattle（§5.2）；TrapTargetInBattleMainEffect←TrapTargetInBattle（§5.2）；TrapTargetInBattleLowerTargetDefSpDef1EachTurn（§5.2）；TrapUserAndTargetInBattle（§5.2）；TargetActsNext（§5.3）；TargetActsLast（§5.3）；TargetUsesItsLastUsedMoveAgain（§5.3）；LowerPPOfTargetLastMoveBy3（§5.3）；LowerPPOfTargetLastMoveBy4（§5.3）；DisableTargetLastMoveUsed（§5.3）；DisableTargetUsingSameMoveConsecutively（§5.3）；DisableTargetUsingDifferentMove（§5.3）；DisableTargetStatusMoves（§5.3）；DisableTargetHealingMoves（§5.3）；DisableTargetSoundMoves（§5.3）；DisableTargetMovesKnownByUser（§5.3，普通 User 目标数0不消费此目标分）。
 
 MoveBasePower：BindTargetDoublePowerIfTargetUnderwater（§5.2）。
 
@@ -113,7 +113,7 @@ MoveBasePower：BindTargetDoublePowerIfTargetUnderwater（§5.2）。
 
 ## 4. 两条件组精确映射
 
-类型增幅组：中等技能下需持有者另有对应该类型的可用伤害招才保留基础 5，否则 0。宝石组：基础值 ≤5 先 ＋2，再过同类型有招门，通常得 8 或 6，无对应招为 0。匹配条件本身只检查物品身份，不执行处理器。两组共 57 个条件身份（39＋18），与 §2.1 直接键不重叠。
+类型增幅组：中等技能下需持有者另有对应该类型的可用伤害招才保留基础 5，否则 0。宝石组：基础评级6，机制世代（MECHANICS_GENERATION）≤5 先 ＋2，再过同类型有招门，通常得 8 或 6，无对应招为 0。匹配条件本身只检查物品身份，不执行处理器。两组共 57 个条件身份（39＋18），与 §2.1 直接键不重叠。
 
 | 条件组 | 物品 | 对应类型 |
 | --- | --- | --- |
