@@ -1,3 +1,11 @@
+## B10 正式接受（AREG-C，2026-10-09）
+
+候选 `3c6365a4ce35c3ef08e6ba53fd81a426ffd026aa`，实际整合 `ff68272b385254b0aa90a7fc23b22b3f8b4126c1`。六个角色均绑定该 ACT：FULL/B04/B08/B09/B05 PASS_SCOPED；B14 独立实际影响 NOT_AFFECTED。正式接受 B10 的7项贡献（2项主责最低验收、5项共享本地贡献），接受批次11/21、贡献201、触及161项、已接受主责130项。全部计划贡献均接受的主责121项，9项仍有依赖；完整229项控制口径121满足、108待齐。229 OPEN、0 CLOSED，最终全局门未执行。
+
+详见 `batches/B10/acceptance-stage-1/`。B01–B09/B14既有194条记录与最低验收依据保留；本次仅消费版本匹配的独立报告并登记，不声称新执行行为测试或全局复审。B11/B15必须从本次正式接受提交重新冻结输入，随后可按不冲突范围并行。以下整合/旧接受段落为不可变历史，不覆盖本段当前状态。
+
+---
+
 ## B10-G 当前后继：实际复审待办
 
 冻结候选 `3c6365a4ce35c3ef08e6ba53fd81a426ffd026aa` 已获独立 full、B04/B08/B09/B05 的 PASS_SCOPED，B14 独立 NOT_AFFECTED。各报告完整 SHA 与 reviewed SHA 分开，见 [候选门收据](batches/B10/integration-stage-1/candidate-gate-receipts.json)。所有结论只绑定这个候选，不批准实际整合。
