@@ -23,6 +23,8 @@
 
 `configuration.json` 单列requested/admission/effective：请求gpt-6.1-sol/xhigh/default Standard，可信后端回显缺失记UNVERIFIED，按用户批准Plan A；无CLI/native模型替代、额度或配置探测、派生子任务。作者不能充任独立review。
 
-全部限制保留于 `source-limits.json`：U01–U10/G01–G12/AX01–AX20、具名未读/二进制/素材/媒体/字体/宿主配置容量/插件动态调用/实际地图事件/Demo/样本/备份gen及条件67树果等均未升级；参考、编译、转换、生成、反序列化、历史作者/审者程序、行为向量执行、运行观察、真实Demo均0。只执行新Git/JSON/文本/hash账务检查。`git diff --check` 与身份/计数/旧行保护通过，均是作者静态自检，非独立行为测试或质量接受。
+全部限制保留于 `source-limits.json`：U01–U10/G01–G12/AX01–AX20、具名未读/二进制/素材/媒体/字体/宿主配置容量/插件动态调用/实际地图事件/Demo/样本/备份gen及条件67树果等均未升级；参考、编译、转换、生成、反序列化、历史作者/审者程序、行为向量执行、运行观察、真实Demo均0。只执行新Git/JSON/文本/hash账务检查。正式7路径的 `git diff --check` 与身份/计数/旧行保护通过，均是作者静态自检，非独立行为测试或质量接受。
 
 唯一当前实质阻塞：父A-REG登记 `original-sync-proposal.json` 精确两处GIR-FD82-B019原稿范围；依据派发合同 `potential_original_sync_contract` 的“coordinating public writer records batch-specific amendment before apply”。无需新用户阶段批准。登记后作者应用本已给出的完整patch、核after身份、生成candidate-1，冻结普通推送并远端独立读回，父再安排新上下文gpt-6.1-sol/Ultra/default独立review。当前草案不得派作已就绪候选，也不计B11已接受。
+
+完整patch档案保留统一diff的原始上下文空行（单个空格）；全包默认whitespace检查会对这些数据行报告trailing-whitespace。该提示如实保留，不能删除空格破坏完整patch、也不冒称全包默认检查通过；正式规格/测试路径的默认检查为0错误。后继全diff原字节同样保留。
