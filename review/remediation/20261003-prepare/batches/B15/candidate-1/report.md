@@ -1,5 +1,7 @@
 # B15 逐 finding 作者修订
 
+当前追加B03唯一P2 R-B15-AFF-B03-001/C109：净化P33已补最终查询ID及两失败/两成功反向，正确净化§3.1/§8保持；原WP63 §8一条C109泛称及P33精确提案尚未应用待父批准。nil四行已获批应用并冻结180a，最终合并候选另冻；旧FULL/affected结论不直接转移。
+
 当前增量状态：独立FULL报告e08998ab5d208f7607a4750ab57beb6a4b985bf6已审cc08a9150131b7e9fae8424fb0ede890169dd64f，15项局部PASS、唯一P2 R-B15-C1-001/C122。PD32/PD33已补nil/空串前提与反向；原稿W32/W33已获父精确两行范围批准并应用，before/after全字段匹配；当前为完整四行作者修复待同FULL增量复核。此前完整候选/发布与三原稿应用作为准确版本历史保留，不冒称当前修订已全PASS。
 
 正式输入 `0cfe99094b76f8d75fded0d638694677855a5f0c`；派发管理包 `4cb51a33402ec6559a396226239afe308a4b8849`。16 本地贡献／10 主责；所有项目均为作者候选，非独立批准。三份原 spec 已按父批准的完整精确补丁应用，before/after 核验见 ../author-draft-1/original-sync-application.json；六正式文件字节保持旧草案，现为完整有界可复审作者候选。
@@ -26,3 +28,5 @@
 完整来源范围、前后身份、控制绑定、验收动作与限制见 finding-revisions.json。C003/P29 与 C113 共用一处修订但保留两个贡献记录；C007 的67树果数据条件性范围未升级。A056 的 WP66-B 交界由 B16 后继贡献解决。
 
 C1-001当前应用见 `../author-draft-1/label-nil-original-sync-application.json`；旧FULL候选→新候选九路径/精确四行及未变15贡献/正确正文证据见 `C1-001-delta-and-protection.json`，完整未过滤增量与正式基线diff由新publication receipt绑定。父已取消此前3任务上限，作者仍不派重复任务。
+
+B03精确原稿范围提案见 `../author-draft-1/P33-original-sync-proposal.json`，其minimum_revision要求原§8泛称同此限定；不借用W32/W33批准。最终由原FULL及affected reviewer增量核验同一新SHA，未变14贡献另给准确组合delta证明。
