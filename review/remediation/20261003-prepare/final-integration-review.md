@@ -1,3 +1,9 @@
+# B17 G：整合，等待 exact ACT 独立门与 C
+
+候选 `19095065e39481e408b40a2ca01e5a4660a320c9` / tree `d9ca0072aaaa6773983bcd09bbb7d1886ab1fb0f` 已有独立 FULL12/7 PASS_SCOPED及15 owner候选判定（6必要PASS、9 supported NOT_AFFECTED，0 blockers）。本 G 按候选字节整合5正式+2获准原稿，并保留15作者证据；旧报告/流按不可变身份引用。新增12贡献（7 primary、5 shared）仅pending，物理276行不等于276接受。正式进度仍16/21、264 accepted、191 touched、174 primary最低验收、严格168/174；229必修OPEN、0最终CLOSED。
+
+冻结 ACT 外部绑定后，原两位Ultra分别给FULL12/7和15 owner整合后判定。B18未审切片不纳入，本批C尚未执行。
+
 # B16 正式局部接受 — C
 
 B16 在冻结 ACT `29b21fe188cce4e76f5a2f566f9144f1c3f53239` / tree `e05903a329f4a18370a17858f4653cbb1273b49e` 正式接受24贡献（20 primary、4 shared）。独立 FULL `191e669c72282e0c11217df2e7f80ed5c377dbd7` 24/20 PASS_SCOPED；独立 affected `a0d44870c40a1c9d252ec34426091ebd89bcdbbb` 全14 owner：9 PASS_SCOPED、5 NOT_AFFECTED；均0 blockers。候选与整合复审、实际版本及原稿scope3/4引用均在 `review/remediation/20261003-prepare/batches/B16/acceptance-stage-1`。本登记复用独立证据，未代替独立复审。

@@ -1,0 +1,7 @@
+# B17 unique G, exact candidate, pending actual and C
+
+Formal accepted input C is `f66366b2bbe5c3e1cdd39459f80be672173e7f94`; reviewed NEW is `19095065e39481e408b40a2ca01e5a4660a320c9` / tree `d9ca0072aaaa6773983bcd09bbb7d1886ab1fb0f`, published as `c52d727da6ab7ae3f519f0040a26eb2f305527cf`. Independent FULL `12a4025900eb4c5bc3663224c326335ed5e23681` passed12/7; independent affected `14c8f20480902cd54fe3f6c90a36b3317b0427ff` has6 necessary PASS_SCOPED and9 NOT_AFFECTED_SUPPORTED across15 owners,0 blockers. Published independent evidence is reused with exact immutable identities, not reexecuted or relabelled.
+
+G copies the exact5 formal/2 granted original payloads and15 current linked author evidence files. Old reviewer/control/history/diff bodies are referenced and not duplicated. All264 accepted records,16/21 batches,191 touched IDs,174 primary minima,strict168/174 and B16 results stay accepted; new12 are pending only. Canonical229 remainOPEN,0CLOSED. B18 unreviewed slice is excluded; full B18 still awaits B17 C.
+
+The exact G commit/tree becomes immutable ACT and is externally frozen in the next management packet. Original two gpt-6.1-sol Ultra reviewers then independently assess FULL12/7 and all15 affected owners against both complete unfiltered C→ACT and NEW→ACT streams, published once. Candidate PASS and registrar bookkeeping cannot replace these actual gates. No C, main merge, reference write, runtime/source/old-program execution or task creation is included.
