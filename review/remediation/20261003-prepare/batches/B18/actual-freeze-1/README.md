@@ -1,0 +1,9 @@
+# B18 immutable ACT and original two-reviewer actual dispatch
+
+Unique G ACT `c211767166b18799122c1e39b9f08afce6b0c92b` / tree `1a4ccfe161a3d998a9bb8fdc0ff6f77c0402f4af` from reviewed NEW `ee552e1cde86ed1b9bf378bda40952b4c3e7bec3` and formally accepted C `b6d5a06ab86839e7a5743095153c1d4cf340d966`. Candidate FULL8/5 and all17 affected gates passed scoped decisions,0 blockers. This later management packet never mutates ACT. Parent resumes original FULL Ultra via full-actual-dispatch.md and original affected Ultra via affected-actual-dispatch.md; registrar creates0 tasks.
+
+Two complete unfiltered C→ACT and NEW→ACT streams are stored once each; diff-manifest.json binds exact endpoints/path/blob/hash/size/inventory. Reuse published old controls/reviewers/streams immutably, never recursively copy evidence bodies.13 formal+2 authorized originals and15 current linked author2 files match NEW. Old ten author1 artifacts remain external version-bound references; assess their explicit path-absence delta without discarding qualified obligations. All276 accepted/public raw prefixes and804 catalog protection remain; new8pending,284physical. B19 unreviewed body/original/evidence excluded; bounded prior scope metadata administrative only.
+
+Prior frozen interface-map field was null; accepted-interface-map-successor.json fixes this navigation by exact original PLAN/current C/ACT routes and existing independent17-owner inventory. No old packet rewriting, repeated author preparation or new quality gate. FULL8/5 and all17 actual owner independent supported judgments remain required before scoped C.
+
+Progress17/21,276 accepted,196 touched IDs,181 primary minima,strict177/181;229OPEN/0CLOSED. ACT publication readback covers all45 G changes. public-registration-actual-binding.json resolves G self-SHA placeholders externally without ACT mutation or acceptance. No actual quality signature, C, source/game execution, behavior test or task creation by registrar.
