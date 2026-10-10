@@ -1,3 +1,9 @@
+# B17 正式局部接受 — C
+
+B17 在冻结 ACT `5501314ecead8aa072868794a95dc026a5f0a3f5` / tree `3544bee337c12d1be688f9664956ee7c4fcafeb5` 正式接受12贡献（7 primary、5 shared）。独立 FULL `6d5fb7f267b65f2aba01837ce0f87488b0723220` 12/7 PASS_SCOPED_ACTUAL；独立 affected `59e1d7773c68cbc7d2ddb0b1558ecf6aaa80ffba` 全15 owner：6 PASS_SCOPED、9 NOT_AFFECTED_SUPPORTED；均0 blockers。候选与实际版本、独立复审、完整控制及原稿精确范围在 `review/remediation/20261003-prepare/batches/B17/acceptance-stage-1` 关联。本登记复用已发布独立证据，未代替独立复审。
+
+正式接受17/21，276贡献，196触及ID，181 primary／specific minimum；严格全贡献177/181，原229全贡献177/229。229必修仍OPEN、0最终CLOSED。旧264接受记录原文保留；新12仅局部接受。B18完整作者将复用已完成8/5准备及5项主责正文slice；B19按双向reader限制释放安全正文范围，完整批次待B18实际catalog确定后再冻结。
+
 # B17 G：整合，等待 exact ACT 独立门与 C
 
 候选 `19095065e39481e408b40a2ca01e5a4660a320c9` / tree `d9ca0072aaaa6773983bcd09bbb7d1886ab1fb0f` 已有独立 FULL12/7 PASS_SCOPED及15 owner候选判定（6必要PASS、9 supported NOT_AFFECTED，0 blockers）。本 G 按候选字节整合5正式+2获准原稿，并保留15作者证据；旧报告/流按不可变身份引用。新增12贡献（7 primary、5 shared）仅pending，物理276行不等于276接受。正式进度仍16/21、264 accepted、191 touched、174 primary最低验收、严格168/174；229必修OPEN、0最终CLOSED。
