@@ -1,0 +1,9 @@
+# B17 immutable ACT and original two-reviewer actual dispatch
+
+ACT `5501314ecead8aa072868794a95dc026a5f0a3f5` / tree `3544bee337c12d1be688f9664956ee7c4fcafeb5` is the unique G of reviewed NEW `19095065e39481e408b40a2ca01e5a4660a320c9` from accepted B16 C `f66366b2bbe5c3e1cdd39459f80be672173e7f94`. NEW candidate FULL12/7 and all15 owner decisions passed their scoped gates with0 blockers. This later management packet does not mutate ACT.
+
+Parent resumes the original FULL Ultra with `full-actual-dispatch.md`, and original affected Ultra with `affected-actual-dispatch.md`. JSON entrances cover all12/7 complete qualified controls and all15 current owners. Candidate6 necessary PASS/9 supported unaffected decisions are reusable evidence, not actual verdicts. Both complete unfiltered C→ACT and NEW→ACT streams are published once here; exact path/blob/SHA256/size/inventory in `diff-manifest.json` is the reusable source. No copied historical diff or reviewer proof bodies.
+
+Frozen7 payloads and15 author files match NEW;264 old accepted contributions/raw rows and B16 results remain preserved. Physical276 records include12 new pending only. Progress remains16/21,264 accepted,191 touched IDs,174 primary minima,strict168/174;229 required OPEN,0CLOSED. B18 unreviewed slice is excluded and full B18 still awaits B17 C. Registrar bookkeeping is not independent actual review; no tasks or C were created.
+
+`ACT-publication-readback.json` records ordinary remote publication and all37 changed files. `public-registration-actual-binding.json` externally resolves G self-SHA placeholders without changing ACT. Ending condition is both original independent zero-blocker exact ACT gates, then sole registrar scoped C. Preserve complete original quality, nonlocal and final global gates without all-history/recursive auditing.
