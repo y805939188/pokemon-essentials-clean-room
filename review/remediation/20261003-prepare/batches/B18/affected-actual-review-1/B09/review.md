@@ -1,0 +1,19 @@
+# B09 exact ACT affected 独立结论
+
+**NOT_AFFECTED；必要实际接口：否；阻塞0。** 最小范围：常规战斗参与者/捕获/命令/回合接口保护；无新必要行为重审。
+
+reviewedACT `c211767166b18799122c1e39b9f08afce6b0c92b` / tree `1a4ccfe161a3d998a9bb8fdc0ff6f77c0402f4af`；前驱接受C `b6d5a06ab86839e7a5743095153c1d4cf340d966`；候选NEW `ee552e1cde86ed1b9bf378bda40952b4c3e7bec3`；管理包 `79bb7d18b8016b2ddad750a44132b89fb81bb5db`不是被审目标。本报告由原B18 affected独立角色出具；B09是被核接口owner，不冒签其原角色或FULL/C。
+
+实际变化与入口：Duel/TT独立小游戏的导航空位没有引入普通战斗目标或动作执行caller；共享UI BT段完整相同。
+
+本次独立判断：WP38–42、CP/BC/CM及D018条款的真实数据/条件保持；NearAlly的文本、初选、确认执行域没有从TT查看空位置继承保证。
+
+邻近反向/原控制边界：改变战斗目标、伙伴接收还原或动作计划/执行caller会触发门。
+
+旧回归与接受保护：20条旧贡献及全部计划非共享输出保持，相关共享case整字节不变。 完整20条接受ID和精确actual/reportSHA由共享接口证明绑定，所有当前非共享输出保持C、全部计划输出等于NEW。公共旧接受前缀和共享catalog保护覆盖该owner，完整原控制焦点为GIR-FD82-003, GIR-FD82-005, GIR-FD82-A047, GIR-FD82-A049, GIR-FD82-A059, GIR-FD82-B001, GIR-FD82-B002, GIR-FD82-B003, GIR-FD82-B005, GIR-FD82-B006, GIR-FD82-B007, GIR-FD82-B008, GIR-FD82-B009, GIR-FD82-B011, GIR-FD82-B012, GIR-FD82-B013, GIR-FD82-B014, GIR-FD82-B015, GIR-FD82-B025, GIR-FD82-D018；其余已接受完整控制也按不可变196对象绑定保留。
+
+准确复用：本角色候选报告 `0b7e0a59f71f31afd3b762ac897cf20c4fe32a9e` 中 `review/remediation/20261003-prepare/batches/B18/affected-candidate-review-1/B09/review.md`及verdict按完整身份在机器报告列出。ACT整合字节对应同一候选语义，但本次另裁决完整C→ACT/NEW→ACT、公共pending、原稿许可、当前导航及历史证据缺席。原计划额外改变的原稿读取交点：无；真实helper/证据消费仍按上述因果判断。successor导航的formal入口不能替代此真实集合或自行取消门。
+
+[本owner当前接口/接受保护](../shared/owner-interface-protection.json#/owners/8) · [共享独立语义处置](../shared/semantic-review.md) · [45项身份/保护核验](../shared/verification-results.json) · [92路径完整差异处置](../shared/delta-dispositions.json) · [完整控制绑定](../shared/control-bindings.json) · [282直接证据身份](../shared/evidence-bindings.json) · [机器结论](verdict.json)。两完整流只引用管理包immutable commit/path/blob/hash，未复制流正文或历史整包。
+
+本角色最小实际接口门结论不关闭canonical、不代签FULL ACT或C。新增B18八贡献仍由登记者等待两实际门后执行唯一限定C，B19 full仍等待其C与实际catalog refreeze。U01–U10/G01–G12/AX01–AX20、条件树果67及全部具名未读/插件/宿主/媒体/样例/非本地/Demo限制保留。参考、游戏、Ruby、历史程序及行为向量执行均0；runtime observations与proven Demo chains均0。静态正例/反向/数学推理均NOT_EXECUTED，不作实测。 配置由父工具承接ultra/default/Standard Plan A；effective UNVERIFIED，无CLI/子agent/配置审计或新增任务。
