@@ -2,6 +2,8 @@
 
 本文件登记批次 9c 各净化正文的静态推导场景与数值向量。每条记录 **ID、输入／前提、推导预期**——全部为静态推导与独立算术，**不是已执行测试**；素材、宿主输出与运行表现按 `../scope-statement.md` 保留。对应正文：`creature-rpg/wp35-eggs-and-hatching.md`（EG）、`wp36-wild-encounters-and-modifiers.md`（EN）、`wp57-factory-rentals-and-swaps.md`（FC）、`wp64-mail-and-mystery-gift.md`（MG）、`wp68-triple-triad.md`（TT）。
 
+B18 本地后继：WP68–WP70 修订前原输入已有 2026-09-30／2026-10-03 六活动九输入的具名限定静态批准，仅限被审旧字节及登记路径重映射；本轮净化输出、原稿行为修订和新增／修订场景仍待独立复核，全部未执行。批准链、旧案例保留、逐项控制和来源界限见 [B18 后继追溯](../../../review/remediation/20261003-prepare/batches/B18/author-draft-2/traceability.json)。该后继不改变其他工作包的批准或案例语义。
+
 ## EG：蛋状态与孵化（EG-01～EG-20）
 
 | ID | 输入／前提 | 推导预期 |
@@ -124,7 +126,7 @@
 | MG-31 | 合法主文件G：ID7、非蛋PICHU P、获得地Mystery Gift，在线空表；已加载玩家队伍有位、无图鉴提示、资源输入正常、无插件；同会话Receive成功→Edit选Faraway place→命名空文确认停止→关闭重进 | Receive入队同一P、玩家队列变[7]、管理仍共享P；Edit返回空、不替换条目/不写主文件，但队伍P获得地已Faraway place；重进重读文件不恢复P |
 | MG-32 | MG-31邻近对照：未Receive，G与玩家成员无共享；Edit选Faraway place后命名取消；另在Receive后未选新短语即取消 | 前者只改会话内G的P、玩家队伍不变、主文件不变；后者不产生本次获得地新写入；Create取消别名副作用MG-30保留 |
 
-## TT：Triple Triad（TT-01～TT-24）
+## TT：Triple Triad（TT-01～TT-26）
 
 | ID | 输入／前提 | 推导预期 |
 | --- | --- | --- |
@@ -152,3 +154,5 @@
 | TT-22 | 金钱已满，确认卖单价 115 的一张 | 钱仍满但删 1 张，提示报价 115 |
 | TT-23 | 两交易规则 direct 后 noprize | 最终无通常输赢转移；奖牌胜局覆盖仍适用 |
 | TT-24 | elements 且类型目录只有伪类型 | 棋盘第一格拒绝重试不能保证终止，尚未进入选牌 |
+| TT-25 | A/B 不同合法身份，正常数据／场景／资源／宿主、合法对手组、默认 3×3，elements 关闭；空仓依次 A999→A1→移除 A998→B3，分别手选／randomhand | 永久 [A1,A1,B3] 保持；按永久槽顺序重填空副本为 [A2,B3]，手选 A×2/B×3，首抽 A=1/2，不能按永久三槽算 2/3。邻近正常构造 A999→A1→B3 的永久及副本均 [A999,A1,B3]，满槽不归并，首抽 A=2/3；不推完整五抽分布 |
+| TT-26 | 正常合法对局、openhand 开、玩家后手；对手首张已合法提交／删除，玩家 5／对手 4；ACTION→UP→DOWN→BACK | 初始高亮零基 0→零基 4 无牌高亮→0→玩家选牌；牌数／棋盘保持，不提交不存在的牌。邻近玩家先手且仍 5／5 时位置 4 是真实第 5 张；openhand 关闭时 ACTION 不进入查看 |

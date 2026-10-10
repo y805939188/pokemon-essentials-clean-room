@@ -2,6 +2,8 @@
 
 本文件登记批次 8 各净化正文的静态推导场景与数值向量。每条记录 **ID、输入／前提、推导预期**——全部为静态推导与独立算术，**不是已执行测试**；素材、宿主输出与运行表现按 `../scope-statement.md` 保留。对应正文：`pokemon-rules/wp53-safari-and-bug-catching-contest.md`（SF）、`wp60-berry-plants.md`（BP）、`wp61-field-passive-effects-and-blackout.md`（FP）、`wp62-pokedex-records-regions-and-content.md`（PD）、`wp69-voltorb-flip.md`（VF）、`wp70-lottery.md`（LT）。
 
+B18 本地后继：WP68–WP70 修订前原输入已有 2026-09-30／2026-10-03 六活动九输入的具名限定静态批准，仅限被审旧字节及登记路径重映射；本轮净化输出、原稿行为修订和新增／修订场景仍待独立复核，全部未执行。批准链、旧案例保留、逐项控制和来源界限见 [B18 后继追溯](../../../review/remediation/20261003-prepare/batches/B18/author-draft-2/traceability.json)。该后继不改变其他工作包的批准或案例语义。
+
 ## SF：Safari 与捕虫大会（SF01–SF34）
 
 | ID | 输入／前提 | 推导预期 |
