@@ -1,3 +1,9 @@
+# B19 正式局部接受 — C
+
+B19在冻结ACT `a022325260df386cb8d8033314c8464be6edc2e7` / tree `8d82cd04b4925b874a16167e3779666b18adda87` 正式接受24贡献（19 primary、5 shared）。独立FULL actual `9dfbf89aba953a872a2680ff22946464a89d9861` 全24/19 PASS_SCOPED；独立affected actual `7182229ccefe2ab8ecf08a0fe0c541d08c351b19` 全B01–B18的18份有依据PASS_SCOPED，均0阻塞。完整限定控制、四轮精确许可与独立判定关联 `review/remediation/20261003-prepare/batches/B19/acceptance-stage-1`。登记者不替代独立复审；七规格载荷等ACT。
+
+正式接受19/21、308贡献、216触及ID、205 primary/specific minima；严格全贡献201/205，原229全贡献201/229。229必修仍OPEN、0最终CLOSED。旧284接受原字节与回执对象保留，新24仅局部接受，不提前关闭非局部依赖。完整B20 19/15从本C重新冻结；此前六项切片未启动且无产物，不作复用。B21完整执行仍等B20 C。本阶段不合main、不创建任务。
+
 # B18 正式局部接受 — C
 
 B18 在冻结 ACT `c211767166b18799122c1e39b9f08afce6b0c92b` / tree `1a4ccfe161a3d998a9bb8fdc0ff6f77c0402f4af` 正式接受8贡献（5 primary、3 shared）。独立 FULL `fd0a6d7556839ab1daa8ca6c64a12ead833de13f` 全8/5 PASS_SCOPED_ACTUAL；独立 affected `d5d72a1a782257ad7989e294f23ed099d5fd2b13` 全17 owner，7有界PASS／10支持NOT_AFFECTED，均0阻塞。精确版本、整个限定控制、复审与许可引用关联于 `review/remediation/20261003-prepare/batches/B18/acceptance-stage-1`；登记者未替代独立复审。
