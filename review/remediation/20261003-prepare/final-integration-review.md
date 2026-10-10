@@ -1,3 +1,9 @@
+# B18 正式局部接受 — C
+
+B18 在冻结 ACT `c211767166b18799122c1e39b9f08afce6b0c92b` / tree `1a4ccfe161a3d998a9bb8fdc0ff6f77c0402f4af` 正式接受8贡献（5 primary、3 shared）。独立 FULL `fd0a6d7556839ab1daa8ca6c64a12ead833de13f` 全8/5 PASS_SCOPED_ACTUAL；独立 affected `d5d72a1a782257ad7989e294f23ed099d5fd2b13` 全17 owner，7有界PASS／10支持NOT_AFFECTED，均0阻塞。精确版本、整个限定控制、复审与许可引用关联于 `review/remediation/20261003-prepare/batches/B18/acceptance-stage-1`；登记者未替代独立复审。
+
+正式接受18/21、284贡献、202触及ID、186 primary／specific minima；严格全贡献182/186，原229全贡献182/229。229必修仍OPEN、0最终CLOSED。旧276接受原文与回执对象保留；新8仅局部接受。下一步以本C和三实际目录释放完整B19 24/19，复用已完成WP73B slice，不重复正文。B20全批次仍等B19接受，有界安全切片需单独明确；B21等所有依赖。
+
 # B18 G：已整合，等待 exact ACT 两独立门与 C
 
 候选 `ee552e1cde86ed1b9bf378bda40952b4c3e7bec3` / tree `2ccc051bc820307b6b0cbe3ebc9ec6e355f71458` 已有独立 FULL8/5 PASS_SCOPED和全17 owner候选判定（7必要PASS、10有据NOT_AFFECTED，0 blockers）。本G按NEW原字节整合13正式＋2精确授权原稿及15当前追溯所需author2文件；十旧slice证据、旧报告、控制和完整差异流按不可变身份引用，不递归复制。
