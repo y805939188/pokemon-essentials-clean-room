@@ -1,3 +1,11 @@
+## B13 正式接受 C（2026-10-10）
+
+按既有授权，精确actual `d81562bfe0e79ca4df3233ada38fa09e800bdafc` / tree `ae6ca9bd055f6feca3657db7bd511b2be682d897` 已有独立FULL `d984a0f59c8843aa8391fde0a797101c1b421412` 全8贡献/5主责/11输出PASS，以及affected `92307bb570c8dc1548ed4b30c0b89948183108e0` 十一owner门（4 PASS_SCOPED／7 NOT_AFFECTED），0 blockers。唯一登记者引用精确独立质量证据登记本批C，不改11输出、原稿、G或冻结报告。
+
+B13正式接受C：15/21；240已接受局部贡献，183触及ID，154已接受主责及specific最低。strict primary 148满足/6pending；229required口径148满足/81pending。新增8＝5主责+3共享。canonical229 OPEN/0 CLOSED，global gate未过。
+
+原232公共接受记录和全部前驱成果保持；只将B13八条pending转正式接受。B16完整作者将在本次最新C发布读回后，按四处真实变更和当前接受接口精确冻结释放；旧准备及refresh直接复用，旧21原稿proposal仍未获准，需当前before和合并每文件patch范围许可。其余批次按原依赖与实际冲突推进，未执行全局复审或提前canonical关闭。
+
 ## B13 G 整合：actual 独立门待审（2026-10-10）
 
 候选 `db9e6ed1997efe5bf94dac952aad44fd3b9ebd21` / tree `d7e8953fb0f3eff949c3dbee1f9361b0b8f71804` 已取得独立 FULL8/5/11 PASS（`a8c819a28588fd0d52f344189fd9348a1252350c`）及11 owner candidate处置（`2570ca6dc893cc6bfb1320ef9f2513b5618f6a26`：B09/B10/B11/B12 PASS_SCOPED，其余7 NOT_AFFECTED）。本次唯一登记者按候选精确字节整合7净稿及scope1/2批准的4原稿，复制作者与独立证据，不执行独立质量复审。
