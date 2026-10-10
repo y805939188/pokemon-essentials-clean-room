@@ -1,0 +1,11 @@
+# B16 immutable ACT and original two-reviewer dispatch
+
+ACT is `29b21fe188cce4e76f5a2f566f9144f1c3f53239`; tree is `e05903a329f4a18370a17858f4653cbb1273b49e`. It is the unique ordinary-published G integration of candidate NEW `356b46b320884e57e71a1cab8413e13594524a7d` from formally accepted C `27185563f307e16d2612fa86e83b2c9bd772c79e`, after FULL24/20 and all14 affected candidate gates passed. This later management packet does not change ACT.
+
+The11 final/original payloads match NEW exactly;240 old accepted public records are preserved as raw prefixes and24 new records remain pending. Accepted progress is15/21,240 contributions; required canonical state is229 OPEN and0 CLOSED. Registrar metadata/copy checks are not independent actual quality review. B16 C has not happened; B17/B18 remain private preparation only.
+
+Parent can resume the original FULL Ultra reviewer with `full-actual-dispatch.md` and the original affected Ultra reviewer with `affected-actual-dispatch.md`. Machine entrances are24/20 in `full-actual-dispatch.json` and14 complete owner entries in `affected-owner-entrypoints.json`. Both review exact ACT, both complete unfiltered streams, accepted dependencies/catalog/original scopes/public integration, and accurately reuse immutable unchanged evidence. The user-requested independent model is gpt-6.1-sol ultra default Standard, Plan A admission; no model metadata audit or new task is introduced by this packet.
+
+`diff-manifest.json` binds the complete C→ACT and NEW→ACT raw Git streams. `frozen-output-identities.json` binds all11 payloads. `ACT-publication-readback.json` records remote ref/FETCH_HEAD/tree and all187 G changed files. `public-registration-actual-binding.json` externally binds the G self-SHA placeholders without mutating frozen ACT or accepting any contribution. `accepted-result-preservation.json` and the validation record are bookkeeping evidence.
+
+Ending condition: both original independent reviewers publish zero-blocker exact ACT reports with full assigned coverage and separate owner dispositions. Only then may the sole registrar perform scoped C and target downstream refreeze. Canonical final closure still requires nonlocal obligations and the final global gate.
