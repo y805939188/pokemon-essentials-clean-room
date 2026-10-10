@@ -1,3 +1,9 @@
+## B13 G 整合：actual 独立门待审（2026-10-10）
+
+候选 `db9e6ed1997efe5bf94dac952aad44fd3b9ebd21` / tree `d7e8953fb0f3eff949c3dbee1f9361b0b8f71804` 已取得独立 FULL8/5/11 PASS（`a8c819a28588fd0d52f344189fd9348a1252350c`）及11 owner candidate处置（`2570ca6dc893cc6bfb1320ef9f2513b5618f6a26`：B09/B10/B11/B12 PASS_SCOPED，其余7 NOT_AFFECTED）。本次唯一登记者按候选精确字节整合7净稿及scope1/2批准的4原稿，复制作者与独立证据，不执行独立质量复审。
+
+正式接受仍14/21，232已接受贡献保持；公共物理记录240＝232旧接受＋8新B13 pending（5主责／3协作）。canonical229 OPEN／0 CLOSED，B030增量0。actual冻结SHA由后继actual-freeze-1绑定；candidate通过与字节相同均不代actual FULL8/5及11owner独立门。本次不登记C，不释放B16。全部旧正文和接受材料在下方原样保留。
+
 ## B12正式接受 C（2026-10-10）
 
 用户已明确确认本轮满足独立复审与整合验收的批次可正式接受、提交整改分支并继续后续；不合并main，不提前关闭仍有依赖的问题。冻结candidate `8ddba850af71f24e7bd77a80b7605c456c31dc7a`，实际ACT `a46d6c457ff0a01181f22a80af25419370f86149` / tree `1d1c3ea7b217463b88146c7640ae4a6821c25c54`，独立FULL报告 `75900f825c94732107232fa5f69dffba1cfbd648` 全9贡献/6主责actual最低PASS_SCOPED，affected报告 `721261b68e3f2589e3af9d658dddb9458fce33d5` 十owner实际门齐全：B07/B08/B09/B10/B11 PASS_SCOPED，B02/B03/B04/B14/B15 独立支持NOT_AFFECTED，0 blockers。引用原独立质量证据，登记者没有替代作者/复审或重新运行旧程序。C不改11final/5获准original和冻结报告内容。
