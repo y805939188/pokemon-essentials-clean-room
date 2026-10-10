@@ -1,3 +1,9 @@
+# B16 正式局部接受 — C
+
+B16 在冻结 ACT `29b21fe188cce4e76f5a2f566f9144f1c3f53239` / tree `e05903a329f4a18370a17858f4653cbb1273b49e` 正式接受24贡献（20 primary、4 shared）。独立 FULL `191e669c72282e0c11217df2e7f80ed5c377dbd7` 24/20 PASS_SCOPED；独立 affected `a0d44870c40a1c9d252ec34426091ebd89bcdbbb` 全14 owner：9 PASS_SCOPED、5 NOT_AFFECTED；均0 blockers。候选与整合复审、实际版本及原稿scope3/4引用均在 `review/remediation/20261003-prepare/batches/B16/acceptance-stage-1`。本登记复用独立证据，未代替独立复审。
+
+正式接受16/21，264贡献，191触及ID，174 primary／specific minimum；严格全贡献168/174，原229全贡献168/229。229必修仍OPEN、0最终CLOSED。旧240接受记录原文保留；新24仅局部接受。B17/B18按最新C整文件catalog锁与双向reader顺序释放，不从未接受的未来结果推定输入。
+
 ## B16 G 整合：精确 actual 独立门待审（2026-10-10）
 
 同一NEW `356b46b320884e57e71a1cab8413e13594524a7d` / tree `344b606d8368eb09dc9313e09fdda1fa227e6f39` 已有独立FULL `da58ab3e8ce5e508b2ed55928c6f334cb64a2445` 24/24贡献、20/20primary PASS_SCOPED，及affected `3d34dd073381e430001ee1b03d10e559fc576c8e` 十四owner（9 PASS_SCOPED、5 NOT_AFFECTED），0 blockers。唯一登记者只按精确候选字节整合6净稿及scope3/4获准5原稿，复制113作者/候选及完整独立候选证据；没有重做其质量判断或运行保存程序。
