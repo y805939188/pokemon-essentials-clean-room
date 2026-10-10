@@ -1,0 +1,3 @@
+# B16 原稿精确请求后继 2
+
+替代103efd73ee390777c31b4d5fc78a95a9ffdc9c20中的请求1，尚无原稿写入。五份完整merged patch与proposed-after重新冻结，current-before完整实物复用请求1、身份仍固定B13-C。仅进一步更正C123上下界非对称边界，不能把旧准备错误当许可或质量结论。请唯一登记者按本后继scope-request.json确认精确范围。
