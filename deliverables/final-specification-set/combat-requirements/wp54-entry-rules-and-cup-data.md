@@ -95,7 +95,7 @@
 | sleepclause | 本包有对应布尔真设置 | 战斗条款模块，主稿 §6 逐条阶段 |
 | freezeclause | 本包有对应布尔真设置 | 同上 |
 | evasionclause | 本包有对应布尔真设置 | 同上 |
-| ohkoclause | 本包有对应布尔真设置 | 同上（WP54-N01 继承别名影响已独立确认，WP46 已按授权同步） |
+| ohkoclause | 本包有对应布尔真设置 | 同上；实际目标资格与独立 AI 预测的差异见主稿 §6.1 |
 | perishsongclause | 本包有对应布尔真设置 | 同上 |
 | selfkoclause | 本包有对应布尔真设置 | 同上 |
 | selfdestructclause | 本包有对应布尔真设置 | 同上 |
@@ -106,4 +106,4 @@
 | modifiedselfdestructclause | 本五文件无对应设置包装；作者其它入口可设 | 同上 |
 | suddendeath | 本五文件无对应设置包装；作者其它入口可设 | 同上 |
 
-WP54-N01 的冰族继承别名影响已独立确认，WP46 已按授权同步（差异见主稿 §6.1）；真实约束/调整/反馈及数值对照见主稿。设施会话/回放/生成器未完成。
+冰一击必杀的固定默认加载后资格见主稿 §6.1：ohkoclause 假时不因目标冰类型本身拒绝，真时拒绝；非冰使用者专用命中 −10 和 AI 拒冰预测各自保留。上述 14 个键是精确输入身份：缩略 sleep 不替代 sleepclause；drawclause、modifiedselfdestructclause、suddendeath 的消费者存在不证明本包有同名设置包装或默认杯已开启。真实约束/调整/反馈及数值对照见主稿。
