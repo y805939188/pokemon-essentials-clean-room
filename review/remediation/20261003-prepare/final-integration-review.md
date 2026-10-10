@@ -1,3 +1,9 @@
+## B16 G 整合：精确 actual 独立门待审（2026-10-10）
+
+同一NEW `356b46b320884e57e71a1cab8413e13594524a7d` / tree `344b606d8368eb09dc9313e09fdda1fa227e6f39` 已有独立FULL `da58ab3e8ce5e508b2ed55928c6f334cb64a2445` 24/24贡献、20/20primary PASS_SCOPED，及affected `3d34dd073381e430001ee1b03d10e559fc576c8e` 十四owner（9 PASS_SCOPED、5 NOT_AFFECTED），0 blockers。唯一登记者只按精确候选字节整合6净稿及scope3/4获准5原稿，复制113作者/候选及完整独立候选证据；没有重做其质量判断或运行保存程序。
+
+正式接受仍15/21，240旧接受贡献原文保持；新24（20primary、4shared）仅pending，公共物理记录264。canonical229OPEN/0CLOSED，B16未C，B17/B18正式作者未释放。精确ACT将在后继actual-freeze-1固定；FULL24/20及14owner必须独立核ACT和两条完整未过滤C→ACT、NEW→ACT差异。candidate通过与相同字节不能替代actual/C。全部旧正文原样保留如下。
+
 ## B13 正式接受 C（2026-10-10）
 
 按既有授权，精确actual `d81562bfe0e79ca4df3233ada38fa09e800bdafc` / tree `ae6ca9bd055f6feca3657db7bd511b2be682d897` 已有独立FULL `d984a0f59c8843aa8391fde0a797101c1b421412` 全8贡献/5主责/11输出PASS，以及affected `92307bb570c8dc1548ed4b30c0b89948183108e0` 十一owner门（4 PASS_SCOPED／7 NOT_AFFECTED），0 blockers。唯一登记者引用精确独立质量证据登记本批C，不改11输出、原稿、G或冻结报告。
