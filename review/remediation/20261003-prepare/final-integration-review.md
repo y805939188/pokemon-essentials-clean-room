@@ -1,3 +1,15 @@
+## B12正式接受 C（2026-10-10）
+
+用户已明确确认本轮满足独立复审与整合验收的批次可正式接受、提交整改分支并继续后续；不合并main，不提前关闭仍有依赖的问题。冻结candidate `8ddba850af71f24e7bd77a80b7605c456c31dc7a`，实际ACT `a46d6c457ff0a01181f22a80af25419370f86149` / tree `1d1c3ea7b217463b88146c7640ae4a6821c25c54`，独立FULL报告 `75900f825c94732107232fa5f69dffba1cfbd648` 全9贡献/6主责actual最低PASS_SCOPED，affected报告 `721261b68e3f2589e3af9d658dddb9458fce33d5` 十owner实际门齐全：B07/B08/B09/B10/B11 PASS_SCOPED，B02/B03/B04/B14/B15 独立支持NOT_AFFECTED，0 blockers。引用原独立质量证据，登记者没有替代作者/复审或重新运行旧程序。C不改11final/5获准original和冻结报告内容。
+
+正式14/21；232已接受局部贡献、180触及ID、149已接受主责及specific最低；strict primary141满足/8pending，229required口径141满足/88pending。新9接受分6primary/3shared；不是9个canonical关闭。canonical229OPEN/0CLOSED，global gate仍未过。B01–B11、B14、B15原223公共raw行、成果、接受材料及最低依据原样保留。
+
+当前管理勘误 B12-ACT-META-001：历史派发/请求“766”应为A334+B270+C167=771（含WP51十五项共786）；实际附表/元组/正文正确，无质量阻塞。此处追加说明，不回写历史ACT、报告、正式产物或参考。
+
+B13/B16完整作者的原依赖现在可进入有界真实冲突/输入冻结判断，尚未由本C直接派发。B16已发布私有准备b48e919cce08058bcd29453232d4eb55aa9e9563可复用不变部分，仅刷新B12-C真实输入/接口变化；其original提案没有scope amendment，不自动应用。父创建/续接作者，root0任务；唯一G/C串行。静态设计未执行、runtime/行为向量/Demo证明0。下述历史G及接受body按原字节后缀保存，由本C状态明确继承更新。
+
+---
+
 ## B12 G整合：待精确实际复审（2026-10-09）
 
 正式接受前驱 `1d06c45cc0a744fca181ac80ee573cc9ebb9b862`（B15-C），管理前驱 `9ad5539f38544fef6037356018015fe418021514`，冻结候选 `8ddba850af71f24e7bd77a80b7605c456c31dc7a`。独立FULL9贡献/6主责通过；B07/B08/B09/B10/B11 PASS_SCOPED，B02/B03/B04/B14/B15准确独立NOT_AFFECTED，同一candidate、0阻塞。十一正式输出加五精确获准原稿，共16 payload与candidate原字节相同；proposal4只有§3→§4管理标签纠正，批准patch身份未改变。27作者材料、45独立复审文件精确复制，不执行保存的历史脚本。
