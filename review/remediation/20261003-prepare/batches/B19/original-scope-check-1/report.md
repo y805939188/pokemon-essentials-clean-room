@@ -1,0 +1,11 @@
+# B19 exact original scope check
+
+Application scope is WITHHELD for immutable proposal `3831fbdea92bc7c0ee1b649ac5066b5d3c08f381`. One concrete location mismatch must be corrected before author applies original bytes. This is scope bookkeeping, not independent quality review.
+
+Proposal `/clause_changes/2` declares **§6.1 保存**, but its exact before and merged patch target original `specs/demo/wp73-b-world-editors.md` at C line66, under **§3.3 连接数据生成与保存**. The complete connection-save/cancel paragraph is replaced with encounter-save text. The real §6.1 encounter-save paragraph at C line92 is unchanged. Exact before/patch/after identities and all6 hunks reconstruct successfully; byte consistency does not cure the wrong clause target.
+
+Finite repair: restore exact C line66, apply intended encounter-save text to exact C line92, and regenerate the single merged patch/full-after/clause map/hash/blob/size in an ordinary new immutable publication on an independent B19 author branch. Retain the other qualified changes and four local same-ID scenario refinements M12/M13/M19/M20; no new review/history-consumption gate is created. Registrar then rechecks and issues precise permission. No original application is authorized by this receipt; registrar applied none. No user decision required.
+
+Author slice `5f41be236b797a1f828cb6147f79d0e14464095a` / tree `948cdb13f420c36085965d9f941983ee787e7953` is confined, relative to fixed dispatch `466cc2b33d91de749ff844dd01bedb9fc8afb799`, to **one allowed formal WP73-B file and11 private evidence files**. There are no other payload/catalog/public/original/reference edits; original remains C blob `a5f472d3ba1b4c472b089975d8b0a38e79e7d9f1`. All25 management files are unchanged. Parentage is dispatch→proposal→slice. The author advanced the management branch to slice; immutable dispatch remains `466cc2b33d91de749ff844dd01bedb9fc8afb799`. This check publishes only new metadata on a separate branch from that fixed dispatch. No reset/force/delete or history repair.
+
+B18 full author continues. B19 full24/19 hold and independent candidate/affected then separate exact ACT gates remain. Completed body need not be reauthored for this private original proposal correction. Accepted progress stays17/21,276 contributions;229OPEN/0CLOSED. Runtime observations/executed behavior vectors/tasks created by registrar all0.
