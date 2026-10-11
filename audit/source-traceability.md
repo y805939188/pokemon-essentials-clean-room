@@ -1556,3 +1556,8 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | GIR-FD82-C105 | FP34 | [B14/GIR-FD82-C105](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C105)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
 | GIR-FD82-C106 | WT35, FP15 | [B14/GIR-FD82-C106](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C106)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
 | WP80-INTAKE-R01 | WT38 | [B14/WP80-INTAKE-R01](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/WP80-INTAKE-R01)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+
+
+## B21 NEW2 WP75 精确当前后继
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。

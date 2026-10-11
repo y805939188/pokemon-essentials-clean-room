@@ -14,3 +14,8 @@ U01–U10、G01–G12、AX01–AX20、未读备份/样本/素材、宿主、真�
 ## B21当前静态读取与复用边界
 
 固定参考8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b / tree7589c800b61ba13a13040ed0d686979b80a84fd0。432文件只核Git blob/bytes/SHA256与来源导航，312脚本/2根工具/33顶层PBS分开；这不是432次全篇语义重读。96输入身份全核，变化依赖以当前C消费者及已接受owner限定重关联，无变化有效证明不重作整库阅读。临时bare Git对象仅用于身份，不检出/改写参考、不执行任何参考或历史程序；新Python工具仅解析Git/UTF-8 JSON/TSV文本身份并写作者规格材料，不解释/反序列化参考二进制或运行行为向量。全部旧U/G/AX、未读样本/备份/素材/宿主/插件/动态调用范围继承；作者检查不能替代独立复审。
+
+
+## B21 NEW2 有界输入复用
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。

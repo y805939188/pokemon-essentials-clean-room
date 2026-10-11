@@ -1,29 +1,13 @@
-# B21 作者候选与独立审查入口
+# B21 当前作者候选 NEW2
 
-本目录是 A-REG 的独立作者成果。NEW 尚待独立 R-B21 FULL 及受影响核验；作者没有签发复审、接受、actual、关闭或 FINAL verdict。固定 NEW 的提交/树/父提交和全部22输出身份由下一层 `freeze-1/frozen-NEW.json` 外部绑定；完整 C→NEW 差异仅在 `freeze-1/complete-C-to-NEW.diff` 发布一次。冻结包随后新增记录不能被误当成新的实质 NEW。
+本次完整作者返修在独立分支 `codex/cloud-dot-B21-author-fix-1-20261011`，基于固定作者提案 `a740b86cb6b721c61e23fbcea5e365180fc4523e`，正式对比仍为 B20 C `e9c140dc33de1cb0662521318b051174909e4509` / tree `5baa01c8a604400b73f560bb06fa5d770089502a`；原派发 `eb1885265fcde2a52767077de3193862036c3a71` / tree `c85948f536d7444bfe83d3c323ea6a48ba15d143` 不变。
 
-正式基线 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。作者分支 `codex/cloud-dot-B21-full-author-1-20261011` 直接以 C 为父，不以派发包为正式正文基线。
+[当前返修入口](candidate-fix-2/README.md)包含九单元逐条修订映射、一次精确许可应用及真正变化依赖。全部14贡献/9主责、47完整批准根/扩展保持；原22正式输出加精确许可3个现有路径，共25输出（21现有＋4新后继），不是扩大其余正文写权。NEW2提交/tree/全输出身份由后置freeze-2/frozen-NEW2.json固定，完整C→NEW2差异仅在freeze-2/complete-C-to-NEW2.diff发布一次，FULL/affected再审入口也在该层。
 
-## 实质后继与使用顺序
+[14项完整追溯](traceability.json)、[47项控制映射](obligation-map.json)、[54交界](../../../wp78-junction-successor.tsv)、[八链](eight-chains.json)、[432来源](../../../wp79-source-successor.json)、[35配置](../../../wp79-config-successor.tsv)及[17 UI](../../../wp79-ui-successor.tsv)分别保留固定来源资格与必要身份。仅更新新WP75 §8.6的实际内容身份及相关交界/链/来源导航。B03 WP13和旧案例不修改，新增MR18–MR22仅静态场景、未执行；B20新字节不可借旧PASS免审，B14/B19原有转换/治疗/提取/编译边界仍只读。
 
-1. 当前最终 README/范围、审计、覆盖/Feature 入口统一为全集作者交付、B21 候选待审；111正文、17测试族＋1索引、根2，共131 Markdown。七域11/11/15/27/23/17/7；其它84/87/113/113计数各自保留单位。
-2. [54交界](../../../wp78-junction-successor.tsv) 与 [八链](eight-chains.json) 给当前前提、次序、局部失败和邻近反向对照。具名owner接受记录固定引用；交换物品、BoxLink、取消、等级/物品快照、成长/Shadow、编译缓存、Arena与目标几何等资格没有放宽。
-3. [432来源后继](../../../wp79-source-successor.json)、[35配置](../../../wp79-config-successor.tsv) 和 [17 UI资格](../../../wp79-ui-successor.tsv) 分开导航身份、机制、样本内容与实际启用证据。修正旧NA对图片/计时/灯光/路牌、暂停箭头、训练家预览和选曲的排除；八源码路径仍只作静态定位，未扩大来源语义覆盖。
-4. [14项追溯](traceability.json) 和 [全部根/扩展逐项映射](obligation-map.json) 绑定完整原对象、整项批准控制、已接受贡献、当前具名消费者、案例和本批输出。C003各类型/输入/前提，C007白名单/色调/兼容输入/资源/电话，C029必要内容身份和全角输入分类均逐项承接；树果67全表仍是条件建议。
-5. [九原输入批准后继](nine-input-approval-successor.json) 保留旧限定批准、快照和当前字节身份；原2同字节/7各+41路径重映射不转授给后来新输出。[历史载体勘误](historical-carrier-errata.json) 和中央历史勘误仅追加，不改历史快照或旧批准。
-6. [接受记录保护](accepted-result-preservation.json) 固定全部327接受贡献及20依赖身份。公共TSV原327行原字节保留，追加14行均是作者建议；229 OPEN/0 CLOSED、215严格控制/220主责最低、14待B21/9主责分别登记。任何覆盖计数不能替代实际复审或关闭。
+旧NEW `5c3e19831e1e29450247fa6061f3c2feac2f893e`（tree98062bf1205669936426ae870913e578528b740c）、旧发布 `fa5e1d876c9082797d6eb71f1590f3d8d9a19b0a`（treede3dae76d08f1d08e54f78fe95a185211a63d14a）保留；原唯一完整差异固定在该发布的freeze-1/complete-C-to-NEW.diff，SHA256 `7cb43d6e3b3ab252029396234dd5de631ff37b85171270be40f0a239d39dcb8a`。原FULL `03b821815477bd1f6834d22b2764f897f19fea0d` 和affected `7db07543137cc11ef76b725e0a3c8975796bc7b0`、固定a740提案及其修前“未许可/未应用”记录留史；当前许可来自 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`，精确范围许可不是质量PASS。
 
-## 验证边界
+原96输入（94新C＋2不可变来源）、20已接受依赖、全部327贡献回执固定复用；215严格控制/220主责最低/14待B21/9主责及229 OPEN/0 CLOSED各自登记，覆盖投影不等于最终关闭。[旧接受保护](accepted-result-preservation.json)、[九原输入限定批准](nine-input-approval-successor.json)、[历史载体勘误](historical-carrier-errata.json)保持。初版input-verification、formal-output-content-identities、author-integrity-checks以及candidate-fix-1各记录属于其固定旧提交，当前输出与检查以candidate-fix-2及freeze-2为准。
 
-[输入验证](input-verification.json) 核96输入（94新C＋2不可变来源）和全14原/批准对象哈希；[完整性记录](author-integrity-checks.json) 核22输出边界、四新后继行数/唯一性、229状态、旧327行/旧历史保护及新链接。检查是 Git/UTF-8 JSON/TSV 文本与身份核对，没有运行参考游戏、Ruby、编译、转换、反序列化、行为向量或旧执行脚本。[新静态案例](static-cases.json) 仅是规格场景，执行0，运行观察0、已证真实Demo事件链0。所有U/G/AX与未读样本/素材/宿主/插件/配置/动态调用限制保留。
-
-## 父任务派发入口
-
-冻结完成后使用 `freeze-1/review-FULL.md` 和 `freeze-1/review-affected.md`，均只引用固定SHA/路径/哈希，不复制整个证据包。原独立 R-B21 可恢复未来精确 actual；由父任务管理独立审查与唯一登记员，不由作者自签或创建新的登记任务。请求配置按用户协议接纳：作者 gpt-6.1-sol / xhigh / default / Standard，复审 gpt-6.1-sol / ultra / default / Standard；不做额度/模型审计，不用CLI替代模型任务。
-
-后续门为 FULL候选→唯一登记员整合→精确actual受影响复审→B21 C→FINAL-1→证据支持的逐项关闭/最终SHA冻结→FINAL-2。原候选与actual两遍独立审查均保留；21批/341贡献/229严格控制只可作将来投影。本轮不启动 main merge、仓库整理、本地同步或第三轮review。
-
-
-## 当前同轮返修后继
-
-FULL与affected已合并处理；八授权修复单元候选完成，R-B21-006精确三路径许可提案尚未应用。见 [candidate-fix-1](candidate-fix-1/README.md)。上文freeze-1属于原发布fa5e1d876c9082797d6eb71f1590f3d8d9a19b0a的固定旧NEW证据，本薄返修分支用该固定提交引用，不递归物化旧完整差异。当前尚未冻结完整NEW′，所有新字节仍待许可/独立复审，canonical仍229 OPEN/0 CLOSED。
+父任务安排原独立R-B21 FULL及affected，参数按协议接纳；作者未创建独立复审或签发verdict。之后仍有唯一登记员整合、精确actual独立复审、B21 C、原FINAL-1、证据支持逐项关闭/最终SHA和FINAL-2。本任务不启动main merge、整理、本地同步或第三轮review。没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。

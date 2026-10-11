@@ -102,3 +102,8 @@ B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主�
 见 [整合交接](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/current-readers.json)、[八实际请求](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
 
 B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。
+
+
+## B21 NEW2 静态目录后继
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。
