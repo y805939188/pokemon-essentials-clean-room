@@ -1,3 +1,24 @@
+## B21 完整候选交接；actual与FINAL门待独立执行
+
+本层是 B21 作者候选后继（2026-10-11），等待独立 R-B21；不是复审接受或关闭登记。正式输入 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。B01–B20 全部已接受，共327条贡献、228触及ID、220项主责最低修订、215/229项控制的全部分配贡献已接受；另14项贡献/9项主责由B21候选承接。229 OPEN/0 CLOSED保持。
+
+全集作者交付为批次1–15、111正文、17测试族＋1索引、根README/范围2，共131 Markdown。七域正文为generic-kernel11、creature-rpg15、pokemon-rules27、combat-requirements23、engine-overworld11、user-interface17、demo-dx7。84内容包、87计划行、113原输入、113 Feature、432来源导航、35配置＋17 UI资格、54交界/8链各自计数，不能相互替代或推导完整通过。B10–B19历史本地限定摘要实际138；旧158标签及完整旧数组保留，采用B20接受后继勘误。
+
+原输入限定批准、当前字节、当前已接受贡献、B21候选及后续actual复审分别登记；旧ReviewPending/待审和历史数字按原时点保留，下方旧层不表示本轮当前状态。九原输入曾获限定静态批准（2同字节、7仅各+41字节路径重映射）；当前修改字节依照各owner真实候选/actual回执，旧批准不转授给新输出。
+
+U01–U10/G01–G12/AX01–AX20及未读样本、八杯赛名单/pokemon_metrics、备份、二进制、真实地图事件、素材/音频/字体、宿主/配置/容量、插件/动态调用和工具运行限制全部继承。参考/游戏/Ruby/编译/转换/生成/反序列化/行为向量/历史执行脚本执行0，运行观察0、已证真实Demo链0。兼容ASCII/内容身份和实际异常结果保持；源对象/类/方法/槽位组织不作为后续架构要求。
+
+下一门依次为独立B21完整候选→唯一登记员整合→原独立R-B21精确actual受影响核验→B21 C→原FINAL-1→有证据的唯一登记员关闭与冻结最终SHA→FINAL-2核最终登记字节。投影21批/341贡献/229严格控制不能提前关闭；后来第三轮review、main merge/整理/本地同步不在本批执行。
+
+
+当前逐14项控制/条款/案例见 [B21追溯](batches/B21/author-draft-1/traceability.json)、[八链](batches/B21/author-draft-1/eight-chains.json)、[54交界](wp78-junction-successor.tsv)、[432来源导航](wp79-source-successor.json)、[配置35](wp79-config-successor.tsv)、[UI17](wp79-ui-successor.tsv)。固定输入/输出身份与完整差异的唯一发布位置将在 [B21冻结入口](batches/B21/author-draft-1/README.md) 记录；后续引用固定SHA/路径/哈希，不能递归复制整包。
+
+FULL须覆盖全部14贡献/9主责的整个原/批准控制、54交界/8链、432导航/52资格、公共登记及历史勘误；affected须核既有全部20依赖的具名条件/调用者接口及327贡献保护。作者自检没有复审verdict。实际ACT未创建，不把候选签名移到未来整合新字节。
+
+---
+
+### 以下为截至B20 C保留的历史层（身份与批准不转授）
+
 # B19 正式局部接受 — C
 
 B19在冻结ACT `a022325260df386cb8d8033314c8464be6edc2e7` / tree `8d82cd04b4925b874a16167e3779666b18adda87` 正式接受24贡献（19 primary、5 shared）。独立FULL actual `9dfbf89aba953a872a2680ff22946464a89d9861` 全24/19 PASS_SCOPED；独立affected actual `7182229ccefe2ab8ecf08a0fe0c541d08c351b19` 全B01–B18的18份有依据PASS_SCOPED，均0阻塞。完整限定控制、四轮精确许可与独立判定关联 `review/remediation/20261003-prepare/batches/B19/acceptance-stage-1`。登记者不替代独立复审；七规格载荷等ACT。
@@ -603,3 +624,12 @@ Formal baseline remains B19 C `de1a1c28a4255ff1cfd59fb6fb96f9be2d6ece1f`. Fixed 
 ## B20 formal C: scoped contributions accepted at exact ACT
 
 B20 is formally accepted after independent FULL19/15 `3fef0d8982b01f26fe52c0345a9f4d82419c63dd` and all19 bounded affected `5ffa6d5c72c089e5439ec4b0cf457f7dcf089cb8` passed at ACT `6babcf657aef559dbf101aeb093a1beb730ab507` / tree `7f511347be10a55ed1341f4132e198ac6bdedede`, each with zero blockers. All19 B20 records (15 primary/4 shared) are accepted; prior308 records remain byte-exact. Progress20/21,327 accepted contributions,228 touched IDs,220 specific primary minima,strict215/220 primary and215/229 complete assigned controls. Fourteen canonical controls still require B21;229 OPEN/0 CLOSED. Historical B10-B19 local-qualified summary label158 is clarified to actual138 in the new receipt only; old complete arrays and reports are unchanged. B21 full14/9 may now be frozen at the externally published newC, with all20 dependencies and original global closure obligations. No canonical final closure, source/runtime execution, new task or main merge is performed here. Evidence: `review/remediation/20261003-prepare/batches/B20/acceptance-stage-1`.
+
+
+## B21 NEW2 同轮返修与门禁
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。
+
+## B21 unique G: both exact NEW2 candidate gates passed; actual and C pending
+
+Formal accepted baseline remains B20 C `e9c140dc33de1cb0662521318b051174909e4509` (20/21,327 accepted). NEW2 `e58486178e746273fb6fab55df00722807f1dc44` / tree `1dbe28a733bfde428129ed662d7e0d66243978c4` has independent FULL14/9 `f361d565c9e8de5467e59df6e0ed7994822d9fce` and all B01–B20 affected `53a14af81c1c139da047c51450a84aa7bee9b225` PASS with zero remaining blockers. Sole registrar G registers14 pending contributions (9primary/5shared), retaining the old327 raw rows and accepted objects. A separate integration commit copies22 exact NEW2 outputs; three public management paths are registered here and externally bound to the frozen ACT. B20 new WP75 bytes and B03/B14/B19 interfaces require exact actual review by both original independent Ultra roles. This G does not sign actual, B21 C,229 canonical closures,FINAL-1/FINAL-2 or main merge. Complete evidence and current precedence: `review/remediation/20261003-prepare/batches/B21/integration-stage-1`.
