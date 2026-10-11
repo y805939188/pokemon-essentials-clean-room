@@ -1,6 +1,6 @@
 """Read-only working-byte and identity checks; output only in the new report root."""
 from pathlib import Path
-import csv,json,hashlib,subprocess,datetime
+import csv,json,hashlib,subprocess,datetime,sys
 OUT=Path(__file__).resolve().parent
 REPO=OUT.parents[2]
 def git(*a,cwd=REPO):return subprocess.check_output(['git',*a],cwd=cwd).decode().strip()
@@ -38,6 +38,7 @@ tracked=git('diff','--name-only','86b4d7e1d8645e75af91a215240f8786a5bb4ca8')
 illegal=[p for p in tracked.splitlines() if not p.startswith(str(OUT.relative_to(REPO))+'/')]
 if illegal:fail.append({'group':'outside_report_tracked_diff','paths':illegal})
 state={'checked_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'kind':'FINAL_PROTECTED_INPUT_READ_ONLY_CHECK','groups':groups,'reference432':{'count':len(refrows),'working_bytes_match':not any(x.get('group')=='reference432' for x in fail),'HEAD':git('rev-parse','HEAD',cwd=reference),'tree':git('rev-parse','HEAD^{tree}',cwd=reference),'dirty':git('status','--porcelain=v1',cwd=reference)},'old62':{'count':len(legacy),'all_exact_bytes_preserved':all(x['match'] for x in legacy),'records':legacy},'local':{'branch':git('rev-parse','--abbrev-ref','HEAD'),'HEAD':git('rev-parse','HEAD'),'tree':git('rev-parse','HEAD^{tree}'),'main':git('rev-parse','main'),'status':git('status','--porcelain=v1'),'outside_report_tracked_diff':illegal},'mismatches':fail,'behavior_execution':'NONE; file/Git/hash checks only'}
-(OUT/'protected-input-check.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n')
+if '--stdout-only' not in sys.argv:
+ (OUT/'protected-input-check.json').write_text(json.dumps(state,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({'groups':groups,'reference432':len(refrows),'legacy62_preserved':all(x['match'] for x in legacy),'mismatch_count':len(fail)},ensure_ascii=False))
 if fail:raise SystemExit(1)

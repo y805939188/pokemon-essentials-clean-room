@@ -84,3 +84,12 @@ flowchart LR
 ```
 
 此图只表示未来建议批次的文档依赖，未创建或启动update任务。
+
+
+## 实际发布与完整移交
+
+本轮成果已发布：报告快照f5174841d7ec4e8c4a6565392bd22daffa22ed99/tree 275c99dae845c23ced0c43639dc6b28f01d27f0f、完整提示词与manifest包2ec469ed6aaae3b4a85286d6e45c9473575b05ba/tree e6f06bfa5d10895688b7c7d27e69417b44674802；对应200/203 Git文件原文与3/4 HTTP核心原文均实际读回匹配。独立ref为refs/heads/codex/review-third-20261012-86b4d7e-a731，main仍D未合并。上文“冻结时尚未发布”为生成历史时点，以本节实际回执为当前状态。
+
+完整可复制中文提示词：[本地文件](cloud-third-update-handoff-prompt.md)／[固定云端全文](https://raw.githubusercontent.com/y805939188/pokemon-essentials-clean-room/2ec469ed6aaae3b4a85286d6e45c9473575b05ba/review/global-independent-review/third-2026-10-12-86b4d7e-manual-a731/cloud-third-update-handoff-prompt.md)（213613bytes，SHA256 7cef6fa8f19f83e650e9d82031d7ac9ebf37da8bad572209d1aaaddaf1590eb5）。[最终manifest](cloud-third-update-handoff-manifest.json)包含全部ID/处置、229/341/依赖/完整artifact导航和真实发布；其自身最终SHA由外部最后readback给出。[发布回执](delivery-receipt.md)、[实际HTTP/Git完整读回记录](publication-handoff-receipt.json)与[结束回执](review-completion-receipt.json)可核验。
+
+这两份接手文件已准备供用户之后交dot；当前review不触发后续云端任务。最终本地HEAD/tree与旧62-only dirty状态在最后实际检查中交付，不用生成时快照隐去后续提交。
