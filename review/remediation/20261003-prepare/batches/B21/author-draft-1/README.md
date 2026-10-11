@@ -22,3 +22,8 @@
 冻结完成后使用 `freeze-1/review-FULL.md` 和 `freeze-1/review-affected.md`，均只引用固定SHA/路径/哈希，不复制整个证据包。原独立 R-B21 可恢复未来精确 actual；由父任务管理独立审查与唯一登记员，不由作者自签或创建新的登记任务。请求配置按用户协议接纳：作者 gpt-6.1-sol / xhigh / default / Standard，复审 gpt-6.1-sol / ultra / default / Standard；不做额度/模型审计，不用CLI替代模型任务。
 
 后续门为 FULL候选→唯一登记员整合→精确actual受影响复审→B21 C→FINAL-1→证据支持的逐项关闭/最终SHA冻结→FINAL-2。原候选与actual两遍独立审查均保留；21批/341贡献/229严格控制只可作将来投影。本轮不启动 main merge、仓库整理、本地同步或第三轮review。
+
+
+## 当前同轮返修后继
+
+FULL与affected已合并处理；八授权修复单元候选完成，R-B21-006精确三路径许可提案尚未应用。见 [candidate-fix-1](candidate-fix-1/README.md)。上文freeze-1属于原发布fa5e1d876c9082797d6eb71f1590f3d8d9a19b0a的固定旧NEW证据，本薄返修分支用该固定提交引用，不递归物化旧完整差异。当前尚未冻结完整NEW′，所有新字节仍待许可/独立复审，canonical仍229 OPEN/0 CLOSED。
