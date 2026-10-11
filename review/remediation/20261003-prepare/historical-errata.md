@@ -117,3 +117,36 @@ Fishing原16场景／旧15目录的差别：旧 `review/wp80-delivery-2026-10-03
 精确FULL C3报告 `678b43327f5eb9769a165b4f9d099d4e36089a17` 的 R-B14-C3-EVID-001/002/003 为 **HISTORICAL_REPORT_ONLY_QUALIFICATION**：calendar candidate matching而非cache；enter-weather duration0然后connected20而非intensity/rebuild；06:30 brightness138而noon255。C2报告 `18716a3e3e9200a98bedc1375d9e71cdae59adfa` 保留自身输入、原字节及verdict；不为报告措辞修改正确formal行为。
 
 逐项immutable original/current evidence的blob／SHA256／bytes在 [观察与勘误绑定](batches/B14/integration-stage-1/scope-and-observation-registration.json)。所有实际门禁和AREG-C仍待执行；本记录不接受或关闭。
+
+
+## B21后继勘误（2026-10-11；待独立审查）
+
+本层是 B21 作者候选后继（2026-10-11），等待独立 R-B21；不是复审接受或关闭登记。正式输入 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。B01–B20 全部已接受，共327条贡献、228触及ID、220项主责最低修订、215/229项控制的全部分配贡献已接受；另14项贡献/9项主责由B21候选承接。229 OPEN/0 CLOSED保持。
+
+全集作者交付为批次1–15、111正文、17测试族＋1索引、根README/范围2，共131 Markdown。七域正文为generic-kernel11、creature-rpg15、pokemon-rules27、combat-requirements23、engine-overworld11、user-interface17、demo-dx7。84内容包、87计划行、113原输入、113 Feature、432来源导航、35配置＋17 UI资格、54交界/8链各自计数，不能相互替代或推导完整通过。B10–B19历史本地限定摘要实际138；旧158标签及完整旧数组保留，采用B20接受后继勘误。
+
+原输入限定批准、当前字节、当前已接受贡献、B21候选及后续actual复审分别登记；旧ReviewPending/待审和历史数字按原时点保留，下方旧层不表示本轮当前状态。九原输入曾获限定静态批准（2同字节、7仅各+41字节路径重映射）；当前修改字节依照各owner真实候选/actual回执，旧批准不转授给新输出。
+
+U01–U10/G01–G12/AX01–AX20及未读样本、八杯赛名单/pokemon_metrics、备份、二进制、真实地图事件、素材/音频/字体、宿主/配置/容量、插件/动态调用和工具运行限制全部继承。参考/游戏/Ruby/编译/转换/生成/反序列化/行为向量/历史执行脚本执行0，运行观察0、已证真实Demo链0。兼容ASCII/内容身份和实际异常结果保持；源对象/类/方法/槽位组织不作为后续架构要求。
+
+下一门依次为独立B21完整候选→唯一登记员整合→原独立R-B21精确actual受影响核验→B21 C→原FINAL-1→有证据的唯一登记员关闭与冻结最终SHA→FINAL-2核最终登记字节。投影21批/341贡献/229严格控制不能提前关闭；后来第三轮review、main merge/整理/本地同步不在本批执行。
+
+以下为旧记录的当前使用更正，旧原件和历史快照不改写：
+
+| 原ID/旧载体 | 当前后继含义及确定复核 |
+| --- | --- |
+| GIR-FD82-001：README/scope、ui目录及七正文审计路径 | 当前两文一致为全集交付/B21待审；目录user-interface；七正文../../../audit到根audit，Voltorb布局正确路径不反改。B18/B01既有接受按精确回执保留。 |
+| GIR-FD82-002：WP79 source-judgments v6 rows33/43/44/192 | 后继改用WP11/WP13/WP16/WP59具名消费者及34静态场景；原NA不是持续图片/计时/灯光/地点条合同的排除证据。 |
+| GIR-FD82-006：旧BitmapSprite原语NA | 暂停/导航节拍及初显/更新相位已有WP17/WP66消费者；不排除该可见合同，不要求精灵类结构。 |
+| GIR-FD82-A017：旧009_Scenes/002_Scene_Map.rb路径 | 当前正确003_Game processing/002_Scene_Map.rb:243–246；八路径后继保留原行范围/行为，导航存在不增加运行证据。 |
+| GIR-FD82-A058/A059：旧Trainer_Sprites/BattleAudio整体NA | 正常命名/继续预览及分入口选曲由当前具名消费者承接；资源匹配/普通播放不能代替这些合同。FromType固定脚本普通消费者未定位限制保持。 |
+| WP80-B02-R02：batch-02/revision-v2/clause-disposition.md:14 | 16开关使用点只索引原WP02主文§4.3和设置附表§7/§7.4；T-WP02-02为审计导航，不宣称全部复制迁移。 |
+| WP80-B02-R02：同旧处置表:81 | 41/139/0源统计在原设置附表§7.2经audit T-WP02-02；净化WP02§3不是其去向。WP04原GR-001身份分列保留。 |
+| WP80-INTAKE-C01：wp80-completion-report.md:8–9/24 | engine-overworld11、pokemon-rules27、测试族17；七域111、测试18(17族+1索引)、根2＝131；第170轮只代表旧时点，第171轮不同不独立报错。 |
+| WP80-INTAKE-R02：九输入及当前audit/完成报告/旧checks/处置的待审声明 | 旧2026-09-30九输入限定静态批准及10-03保留批准存在；2原字节相同、7仅各+41路径重映射。逐文件旧/当前身份见nine-input-approval-successor.json；新输出依真实owner当前回执，B21候选待审。 |
+| GIR-FD82-C003：旧Fishing 15/15及其它按条数等价自检 | 有效开始公共事件原行为仍在正文，FS16为旧目录漏迁场景；各取消类别、midi、转换、运动/地牢、WR/EN/WT/FP、A23/A31/A33、拼图前提由完整接受owner控制承接，不用行数相等证明语义。 |
+| GIR-FD82-C007：旧只指review的120效果/无值色调表 | 当前允许集内WP72§13给120行为参数，WP59给完整四通道数据/缓存钟，其余有效扩展按各owner已接受合同；67树果全表仍仅条件建议。 |
+| GIR-FD82-C029/INTAKE-R01：被泛称/全角化的兼容输入 | 当前保留GIRATINA/GRISEOUSORB/DistortionWorld及强制形态门；ASCII s:/Move:/OppMove:/Common:/item:/hiddenitem:/括号/Weather=按具名有效扩展，候选415/154/18不是缺陷数。 |
+| B20接受勘误：历史qualified_contract_retention/158…字段 | 实际完整数组138＝7+6+9+8+24+16+24+12+8+24；旧158标签及全数组/308旧回执保留，327当前回执无损。新摘要使用138，非新增canonical根。 |
+
+逐位置完整旧载体清单见 [historical-carrier-errata.json](batches/B21/author-draft-1/historical-carrier-errata.json)。新勘误是作者后继，独立R-B21尚未裁决。
