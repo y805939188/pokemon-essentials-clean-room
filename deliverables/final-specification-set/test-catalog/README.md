@@ -1,3 +1,24 @@
+## B21 当前静态案例与复审入口
+
+本层是 B21 作者候选后继（2026-10-11），等待独立 R-B21；不是复审接受或关闭登记。正式输入 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。B01–B20 全部已接受，共327条贡献、228触及ID、220项主责最低修订、215/229项控制的全部分配贡献已接受；另14项贡献/9项主责由B21候选承接。229 OPEN/0 CLOSED保持。
+
+全集作者交付为批次1–15、111正文、17测试族＋1索引、根README/范围2，共131 Markdown。七域正文为generic-kernel11、creature-rpg15、pokemon-rules27、combat-requirements23、engine-overworld11、user-interface17、demo-dx7。84内容包、87计划行、113原输入、113 Feature、432来源导航、35配置＋17 UI资格、54交界/8链各自计数，不能相互替代或推导完整通过。B10–B19历史本地限定摘要实际138；旧158标签及完整旧数组保留，采用B20接受后继勘误。
+
+原输入限定批准、当前字节、当前已接受贡献、B21候选及后续actual复审分别登记；旧ReviewPending/待审和历史数字按原时点保留，下方旧层不表示本轮当前状态。九原输入曾获限定静态批准（2同字节、7仅各+41字节路径重映射）；当前修改字节依照各owner真实候选/actual回执，旧批准不转授给新输出。
+
+U01–U10/G01–G12/AX01–AX20及未读样本、八杯赛名单/pokemon_metrics、备份、二进制、真实地图事件、素材/音频/字体、宿主/配置/容量、插件/动态调用和工具运行限制全部继承。参考/游戏/Ruby/编译/转换/生成/反序列化/行为向量/历史执行脚本执行0，运行观察0、已证真实Demo链0。兼容ASCII/内容身份和实际异常结果保持；源对象/类/方法/槽位组织不作为后续架构要求。
+
+下一门依次为独立B21完整候选→唯一登记员整合→原独立R-B21精确actual受影响核验→B21 C→原FINAL-1→有证据的唯一登记员关闭与冻结最终SHA→FINAL-2核最终登记字节。投影21批/341贡献/229严格控制不能提前关闭；后来第三轮review、main merge/整理/本地同步不在本批执行。
+
+
+当前逐14项控制/条款/案例见 [B21追溯](../../../review/remediation/20261003-prepare/batches/B21/author-draft-1/traceability.json)、[八链](../../../review/remediation/20261003-prepare/batches/B21/author-draft-1/eight-chains.json)、[54交界](../../../review/remediation/20261003-prepare/wp78-junction-successor.tsv)、[432来源导航](../../../review/remediation/20261003-prepare/wp79-source-successor.json)、[配置35](../../../review/remediation/20261003-prepare/wp79-config-successor.tsv)、[UI17](../../../review/remediation/20261003-prepare/wp79-ui-successor.tsv)。固定输入/输出身份与完整差异的唯一发布位置将在 [B21冻结入口](../../../review/remediation/20261003-prepare/batches/B21/author-draft-1/README.md) 记录；后续引用固定SHA/路径/哈希，不能递归复制整包。
+
+[B21静态场景](../../../review/remediation/20261003-prepare/batches/B21/author-draft-1/static-cases.json)为导航、前提与数学合同的作者规格设计，未执行。已有目录ID/顺序/正文全部保留；C003各根/扩展通过精确接受贡献追溯，不以目录条数相等作为语义等价证据。
+
+---
+
+### 以下为截至B20 C保留的历史层（身份与批准不转授）
+
 # 静态测试目录索引（WP80 净化规格集）
 
 本目录按「分类/包」组织静态推导场景条目。每条记录：**ID、输入／前提、推导预期**——全部为静态推导，**不是已执行测试**；素材、宿主输出与运行表现按 `../scope-statement.md` 保留。
@@ -81,3 +102,8 @@ B14-G 状态 **INTEGRATED_PENDING_ACTUAL**，仅登记24条本批贡献（19主�
 见 [整合交接](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/README.md)、[逐ID控制与当前条款／行](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json)、[当前读取身份](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/current-readers.json)、[八实际请求](../../../review/remediation/20261003-prepare/batches/B14/integration-stage-1/gate-requests.json)。原REPORT `93e10babe0b9c9ef8b3f5277754541b447beeeb4` 与PLAN `41fffb540c6483f5296ea0d33b789b75180d27ed` 固定；PLAN连字符目录与execution斜杠目录分别保留。
 
 B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结；后续WP46按影响保留B14反向候选／实际门禁。七分类、U01–U10／G01–G12／AX01–20及所有具名未读／serialized/binary/map/event/media/host/plugin/config/sample/backup/gen限制保持；runtime observations 0／provenDemo 0／behavior vectors executed 0。完整67树果内容兼容未扩充。请求配置gpt-6.1-sol／xhigh／default Standard，backend effective UNVERIFIED，Plan A；不据任务请求推造参数或backend证书。
+
+
+## B21 NEW2 静态目录后继
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。

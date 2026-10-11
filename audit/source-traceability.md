@@ -1,3 +1,24 @@
+## B21 当前追溯与历史批准后继
+
+本层是 B21 作者候选后继（2026-10-11），等待独立 R-B21；不是复审接受或关闭登记。正式输入 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。B01–B20 全部已接受，共327条贡献、228触及ID、220项主责最低修订、215/229项控制的全部分配贡献已接受；另14项贡献/9项主责由B21候选承接。229 OPEN/0 CLOSED保持。
+
+全集作者交付为批次1–15、111正文、17测试族＋1索引、根README/范围2，共131 Markdown。七域正文为generic-kernel11、creature-rpg15、pokemon-rules27、combat-requirements23、engine-overworld11、user-interface17、demo-dx7。84内容包、87计划行、113原输入、113 Feature、432来源导航、35配置＋17 UI资格、54交界/8链各自计数，不能相互替代或推导完整通过。B10–B19历史本地限定摘要实际138；旧158标签及完整旧数组保留，采用B20接受后继勘误。
+
+原输入限定批准、当前字节、当前已接受贡献、B21候选及后续actual复审分别登记；旧ReviewPending/待审和历史数字按原时点保留，下方旧层不表示本轮当前状态。九原输入曾获限定静态批准（2同字节、7仅各+41字节路径重映射）；当前修改字节依照各owner真实候选/actual回执，旧批准不转授给新输出。
+
+U01–U10/G01–G12/AX01–AX20及未读样本、八杯赛名单/pokemon_metrics、备份、二进制、真实地图事件、素材/音频/字体、宿主/配置/容量、插件/动态调用和工具运行限制全部继承。参考/游戏/Ruby/编译/转换/生成/反序列化/行为向量/历史执行脚本执行0，运行观察0、已证真实Demo链0。兼容ASCII/内容身份和实际异常结果保持；源对象/类/方法/槽位组织不作为后续架构要求。
+
+下一门依次为独立B21完整候选→唯一登记员整合→原独立R-B21精确actual受影响核验→B21 C→原FINAL-1→有证据的唯一登记员关闭与冻结最终SHA→FINAL-2核最终登记字节。投影21批/341贡献/229严格控制不能提前关闭；后来第三轮review、main merge/整理/本地同步不在本批执行。
+
+
+当前逐14项控制/条款/案例见 [B21追溯](../review/remediation/20261003-prepare/batches/B21/author-draft-1/traceability.json)、[八链](../review/remediation/20261003-prepare/batches/B21/author-draft-1/eight-chains.json)、[54交界](../review/remediation/20261003-prepare/wp78-junction-successor.tsv)、[432来源导航](../review/remediation/20261003-prepare/wp79-source-successor.json)、[配置35](../review/remediation/20261003-prepare/wp79-config-successor.tsv)、[UI17](../review/remediation/20261003-prepare/wp79-ui-successor.tsv)。固定输入/输出身份与完整差异的唯一发布位置将在 [B21冻结入口](../review/remediation/20261003-prepare/batches/B21/author-draft-1/README.md) 记录；后续引用固定SHA/路径/哈希，不能递归复制整包。
+
+九输入旧批准逐文件身份及当前C原/最终身份见 [九输入后继](../review/remediation/20261003-prepare/batches/B21/author-draft-1/nine-input-approval-successor.json)。旧T-WP68/69/70条目的B-v1待审说法只保留历史文字，当前解释为旧原输入限定批准已存在；当前正文修改依照真实owner回执，B21追溯候选未获批准。A017八路径后继保留行范围/行为，清游戏时间锚点正确导航为`Data/Scripts/003_Game processing/002_Scene_Map.rb:243–246`。
+
+---
+
+### 以下为截至B20 C保留的历史层（身份与批准不转授）
+
 # 来源追溯索引（WP80；2026-10-03 起）
 
 ## 当前B09-G登记（五实际Ultra待审）
@@ -1535,3 +1556,8 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | GIR-FD82-C105 | FP34 | [B14/GIR-FD82-C105](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C105)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
 | GIR-FD82-C106 | WT35, FP15 | [B14/GIR-FD82-C106](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/GIR-FD82-C106)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
 | WP80-INTAKE-R01 | WT38 | [B14/WP80-INTAKE-R01](../review/remediation/20261003-prepare/batches/B14/integration-stage-1/finding-registration.json#dispositions/WP80-INTAKE-R01)；exact C3 `c06db6cd964188b3c693a9b7820e3a8aaffe0b04`，八实际门禁待审 |
+
+
+## B21 NEW2 WP75 精确当前后继
+
+精确许可 `aa57e293bf3a0a77fa42f1f42777df88cbd2fbe8`（tree `d1333b17eb6987d51dac40988d7d0e744b2ed677`）仅应用两WP75 §8.6各一段及最终engine目录MR18–MR22。原96输入/20依赖复用固定身份，真正变化依赖见 `review/remediation/20261003-prepare/batches/B21/author-draft-1/candidate-fix-2/dependency-refresh.json`；NEW2/tree/全部25输出由 `review/remediation/20261003-prepare/batches/B21/author-draft-1/freeze-2/frozen-NEW2.json` 外部冻结。许可不是质量PASS，B20新字节须独立复审，B03 WP13/旧MR01–MR17只读，B14/B19转换/治疗/提取/编译接口限定保留。新5行与既有案例均未执行；没有运行参考游戏、Ruby、编译器、转换器、反序列化器、行为向量或旧执行脚本。旧回执不改，327已接受、14待B21，canonical229 OPEN/0 CLOSED；实际整合/接受/关闭/FINAL仍由父任务协调。
