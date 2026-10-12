@@ -26,3 +26,15 @@ WP09承接依赖：U01候选的 prior/new 精确身份已列在登记提案。U0
 作者范围无技术阻塞。待办为父任务另派独立review、唯一整合登记和实际整合字节的独立复审；未来产品/资源决策未阻塞事实补全。模型回显UNVERIFIED保留。
 
 最终作者commit/tree和远端读回证据在提交推送后的外部最终交付响应中精确绑定，本报告不嵌入包含自身字节的循环哈希。提交仅选择派发七份候选与七份作者附属路径，不force、不配置凭据、不改main。完整changed paths见该最终交付响应及其commit的diff。
+
+## attempt-01 定点返修
+
+依据固定独立复审 commit `da17ba34961c6ba878f57c973eecd4824c9cdfbf` / tree `4026267d9fe0fe00e980e7ec18805b30e184f916` 的 report.md 与 findings.json，原候选 `1de2c0260a4287061b435fd7e4e0a19a315bd4ed` 的唯一必修阻塞是 GR3-U01-IR1-001（父项 GR3-M01-004）。其余5项的原独立裁决保持原提交/范围，不由作者转签新版PASS。
+
+本次仅改测试目录 KR15（34行）与 KL36（76行）的输入前提：KR15明确相同已登记有效训练家类型、相同姓名、相同版本及无更早失败；KL36明示继承这些条件。两行预期结果未改，第一条已登记状态不自动回滚仍保留。不同类型T_A/T_B、同姓名N/版本0形成不同三元键而均可登记的邻近反例仅记在自检，不新增案例。
+
+六份其他候选镜像、目录全部其他175条案例、其他5项自检记录、13历史qualified控制、模型回执及追溯提案均保持原字节/对象。总177条、其中新增27条静态案例均未改变计数。正文三元身份、Default覆盖、B候选/语言显示与普通道具/原KL15合同不变。正式131文件与固定参考只读，独立旧报告不改。
+
+同步更新完整candidate.patch、candidate-identities.json、author-self-check.json，以及registration-proposal.json中的manifest/patch身份与返修绑定。完整补丁在临时D副本apply --check及实际apply后，七文件均逐字节匹配新版候选。本次changed paths共6个：候选测试目录generic-kernel-wp02-03-04.md，以及作者报告、自检、候选身份、完整补丁、登记提案。
+
+返修仍为CANDIDATE、全部NOT_EXECUTED；作者不签独立PASS、接受或关闭。待同独立reviewer对两行及必要关联定点复核，之后仍须独立实际整合复审。新版精确commit/tree及正常推送后的远端读回在外部最终交付响应绑定，避免报告自身循环哈希。
