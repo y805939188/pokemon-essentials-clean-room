@@ -15,3 +15,5 @@
 正式差异仅8条allowlist；新增26条 DERIVED_VECTOR / NOT_EXECUTED，不运行宿主/参考/行为模型。完整Demo/地图/资源及插件覆盖未证，非法范围未穷尽；不重启全球review。独立reviewer入口：tasks/R4-U02/reviewer.md（固定任务包08a57fb），父任务另派审者，作者未调度review。
 
 真实任务角色 R4-U02-author；platform thread `01a130c3-eed0-73b0-9128-90bd04e3b00d`；源父thread `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2`。模型请求 sol/xhigh/default/Fast=false，实际回显 UNVERIFIED；无额度审计。
+
+SF04局部复审修订：固定报告 `be0be4c4c8fb1040b21ec9d3bee6ee270e537457` / 发布后继 `81f9f156273396efec32526c39a08e4f51b2c66c` 的 R4-U02-CV1-001 已按后继可通行can_surf水域前提修订，陆地反向对照引用原SF06。revision-sf04.json / validation-sf04.json 为本次有界证据；新冻结候选见后继 candidate-publication-v2.json。原validation-result.json与candidate-publication.json仅绑定v1历史候选，不作为新字节签名。其余25向量与7个正式文件原字节保持，M03-001/003原限定独立PASS不转签为新实际接受；本次仍待独立局部复审，全部NOT_EXECUTED_THIS_UPDATE。
