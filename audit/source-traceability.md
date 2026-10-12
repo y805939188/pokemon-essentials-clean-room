@@ -1615,3 +1615,20 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | GR3-M08-001 | WP47-A §3.1.1及数据、WP46 §2.1.1及覆盖、WP50 §5.1.1及相关覆盖；U04-NG01–04/MH01–03/HI01–03。 | MoveEffects_MoveAttributes、普通逐击/伤害入口、ItemEffects与消费写回。H160/h81首击基底80/目标正损失提交，JABO20至61→ORAN10至71并消费，续击空当前身份访问先失败，早于get/默认1/第二击HP写；h101不自耗可正常续击，单击无再访问。C/I/R/P/Belch与前缀按具名条件保留，不保证必然进程崩溃。AI只读当前ORAN资格WP52-A/B，不推广真实链或误归WP52-C。 |
 
 完整原前提/验收/未知与实际条款见 [U04来源后继](../review/remediation-third-20261012-prepare/U04/actual-integration/source-successor.json)。[共享公共有限增量](../review/remediation-third-20261012-prepare/U04/actual-integration/shared-public-delta.json)须独立绑定五个新身份；[WP28待批准后继](../review/remediation-third-20261012-prepare/U04/actual-integration/wp28-pending-successor.json)仅记录由批准daaa输入形成的新actual观察，旧U03签名不转移。旧229/341 qualified范围不重审。
+
+
+## 第三轮 U05 当前实际来源承接（待独立实际复审）
+
+仅本批五项与已接受U04的必要UI消费者投影；七正式文件逐字等于已独立PASS的最终72831候选；精确来源/条款见本批actual-integration/source-successor.json。旧229关闭与341逐贡献qualified范围不变；本段为唯一整合员当前有限承接；新actual及公共新身份待独立实际复审，不移转历史PASS。
+
+| 第三轮ID | 条款与设计 | 限定来源及状态 |
+| --- | --- | --- |
+| GR3-M10-001 | wp66-a-party-and-summary-ui.md §4.4/4.4.1；wp66-b-storage-and-pokedex-ui.md §4.2；U05-MV01/U05-MV02/U05-MV03 | 固定R必要来源、完整canonical前提/反例/unknown见U05/findings.json；最终候选独立PASS；当前actual待独立复审/正式接受/最终关闭，NOT_EXECUTED。 |
+| GR3-M10-002 | wp66-c-bag-item-storage-and-shop-ui.md §5/5.1/7；U05-QN01/U05-QN02/U05-QN03/U05-QN04 | 固定R必要来源、完整canonical前提/反例/unknown见U05/findings.json；最终候选独立PASS；当前actual待独立复审/正式接受/最终关闭，NOT_EXECUTED。 |
+| GR3-M10-003 | wp67-a-battle-interaction-and-presentation.md §9.1；U05-TX01/U05-TX02/U05-TX03/U05-TX04 | 固定R必要来源、完整canonical前提/反例/unknown见U05/findings.json；最终候选独立PASS；当前actual待独立复审/正式接受/最终关闭，NOT_EXECUTED。 |
+| GR3-M10-004 | wp67-a-battle-interaction-and-presentation.md §10；BT-K40/U05-AR01/U05-AR02 | 固定R必要来源、完整canonical前提/反例/unknown见U05/findings.json；最终候选独立PASS；当前actual待独立复审/正式接受/最终关闭，NOT_EXECUTED。 |
+| GR3-M11-001 | wp62-pokedex-records-regions-and-content.md §5.3/5.3.1；wp66-b-storage-and-pokedex-ui.md §7.1；U05-HAB01/U05-HAB02/U05-HAB03/U05-HAB04 | 固定R必要来源、完整canonical前提/反例/unknown见U05/findings.json；最终候选独立PASS；当前actual待独立复审/正式接受/最终关闭，NOT_EXECUTED。 |
+
+已接受U04必要消费者：WP67-A §3.4/3.5/5.3.1/9.2及U05-RF01–03/NG01承接WP28/40/42残留退款2/1/1、容量失败前缀与WP47-A/46/50自然之恩局部异常；不新增finding、不承诺UI恢复/退出/媒体。
+
+精确来源与原前提/未知见 [U05来源后继](../review/remediation-third-20261012-prepare/U05/actual-integration/source-successor.json)。既有pending段只描述生成时点；当前23/23必修实际字节、6/6主题payload已冻结待审，正式接受仍18/23与5/6，U05未接受，最终CLOSED0/U07未完成。新公共whole-file身份须独立有限影响核验，不能转用已接受U01/U02/U03/U04/U06旧快照签名。
