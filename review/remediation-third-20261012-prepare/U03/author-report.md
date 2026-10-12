@@ -16,7 +16,7 @@ GR3-M05-001、GR3-M05-002、GR3-M06-001 的 attempt-01 独立 PASS 保留在固�
 
 8份候选仍是完整上下文镜像，manifest只更新受影响两文件的new身份及全patch身份。candidate.patch 仍是全部8正式路径对固定H/D的完整差异；只在临时副本核验，未apply正式目录。作者本次 delta 仅7个允许路径，registration/model receipt 未改，旧独立报告、正式131、公共登记、main及reference只读。临时patch／字节与有界保全结果见 author-self-check.json；作者写范围无阻塞。
 
-返修内容提交的精确commit/tree在一次内容提交后由本报告绑定，最终报告载体身份在最终交接回显，不递归自嵌SHA。
+返修内容 commit `809f0405a60565d669b97e1a7107f17f4e5d22df` / tree `e097f104ecd9b06468a63719134192a3529280a7`；随后提交只补本报告的此身份绑定，候选、manifest、patch、自检及提案字节不变。最终报告载体身份在最终交接回显，不递归自嵌SHA。
 
 同reviewer复核后仍需唯一整合员提交实际字节并独立实际复审；WP28候选字节未变，仍须U03真正整合独立接受后以精确actual commit/blob交U04，U05消费冻结结果。U08不启动，M02-003不重开。
 
