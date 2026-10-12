@@ -303,3 +303,19 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | --- | --- | --- |
 | F18-04 / GR3-M12-001 | [正式 WP75 §13.3／§16-8](../deliverables/final-specification-set/demo-dx/wp75-project-conversion-and-authoring-tools.md) 与 CV-M30：固定 R 根目录 knownpoint.bmp／selpoint.bmp 各246字节、8×8，页面相对引用可定位；Graphics 默认区域底图仍缺。精确来源见 [U06 来源后继](../review/remediation-third-20261012-prepare/U06/actual-integration/source-successor.json)。 | 候选独立PASS；实际整合待独立复审／接受／关闭。文件身份和头部不证明浏览器、像素呈现、完整工具或 Demo 运行。 |
 | F18-05 / GR3-M12-002 | [正式 WP76 §6.4／§7.4–7.4a](../deliverables/final-specification-set/demo-dx/wp76-facility-content-generation-and-simulation.md) 与 GN-M14／GN-M20：正常成功结算把原待结算 n 场并入 C，C′=C+n、h′=0；70+12=82、238+12=250，80／250 门保持更早分支和给定评分前提。精确来源同上。 | 候选独立PASS；实际整合待独立复审／接受／关闭。保留评级变体、非事务失败与检查点恢复未知；生成器累计不等于游戏会话胜场或工厂交换计数；全部静态向量未执行。 |
+
+
+## 第三轮 U01 当前实际整合状态（待独立实际复审）
+
+U01 六项候选已取得第二次独立有限 PASS；七个正式目标文件按该冻结候选写入。前文全部历史状态及 U06 状态段保持原字节。下表只是新增当前来源与待复审状态，不是正式接受或 CLOSED；新增公共文件字节需独立实际复审，不能借用候选或 U06 旧 actual 签名。行为案例仍 NOT_EXECUTED。
+
+| 现有 Feature / 本轮 ID | 正式实际承接 | 当前状态／范围 |
+| --- | --- | --- |
+| F02-05 / GR3-M01-001 | [WP08 §6.3／§6.3.1](../deliverables/final-specification-set/generic-kernel/wp08-localization.md)，LZ18–22：作者行过滤／修剪、转义、空译表达与截断失败。 | actual待独立复审／接受／关闭；真实往返、宿主及全量语料影响未知。 |
+| F02-05 / GR3-M01-002 | [WP08 §6.2.1](../deliverables/final-specification-set/generic-kernel/wp08-localization.md)，LZ23–25：稀疏桶合并、逐地图与较早非空对照，确认删除在前。 | actual待独立复审／接受／关闭；真实默认桶、MapInfos/地图与运行未知。 |
+| F02-01／F02-02 / GR3-M01-003 | [WP03](../deliverables/final-specification-set/generic-kernel/wp03-content-identity-and-schema.md)／[WP04](../deliverables/final-specification-set/generic-kernel/wp04-pbs-lifecycle.md)，KL33–35：井号处理在schema前，q只保预处理值，CSV引号不保护。 | actual待独立复审／接受／关闭；旧有效分词/重复/专用入口资格保持。 |
+| F01-02／F02-02 / GR3-M01-004 | WP03 §5.2／WP04；KR14–16／KL36：两个Default后项覆盖，同类型/姓名/版本联系人仍拒；B候选与显示分层。 | actual待独立复审／接受／关闭；新版KR15/KL36完整三元前提绑定作者d0，不重开历史电话三入口。 |
+| F01-03 / GR3-M02-001 | [WP05 §3.3](../deliverables/final-specification-set/generic-kernel/wp05-events-extensions-plugins.md)，EP22–27：通知首/中/末失败、剩余未到达与普通步部分状态。 | actual待独立复审／接受／关闭；实际回调/外层诊断、动态订阅与宿主未证。 |
+| F03-01 / GR3-M02-002 | [WP09 §3.1.1](../deliverables/final-specification-set/generic-kernel/wp09-save-startup-continue.md)，SV12–17：同身份10/20保存/加载/约束/撤销。 | actual待独立复审／接受／关闭；[WP09交接门](../review/remediation-third-20261012-prepare/U01/actual-integration/wp09-pending-handover.json)关闭，U02尚不放行。 |
+
+六项精确来源与前提见 [U01 来源后继](../review/remediation-third-20261012-prepare/U01/actual-integration/source-successor.json)。本次追加对 U06 公共文件整体 hash 的影响见 [U06 公共增量记录](../review/remediation-third-20261012-prepare/U01/actual-integration/u06-public-delta.json)；U06 正式及复审输入包仍按其原固定身份读取，新公共字节须另作必要定点独立核验。
