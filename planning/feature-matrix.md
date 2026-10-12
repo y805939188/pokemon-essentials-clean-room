@@ -333,3 +333,17 @@ U03四项候选取得attempt02独立有限PASS后，八正式文件按该冻结�
 | F09-01／F09-02 / GR3-M06-001 | [WP30 §5.2](../deliverables/final-specification-set/creature-rpg/wp30-growth-learning-and-friendship.md)，WP28经验道具引用及U03-EX01–05。 | actual待独立复审/接受/关闭；先差量提示后提交，同级增减与战斗分配静默门不同。 |
 
 精确来源见 [U03来源后继](../review/remediation-third-20261012-prepare/U03/actual-integration/source-successor.json)。WP28批准交接/U04门禁仍关闭；U01的WP09/U02门禁和U06精确原actual接受记录不被此追加改变。当前已接受仍2/23及1/6主题批，最终CLOSED0；各段pending描述其冻结生成时点，最新后继状态见registration台账。新公共文件与台账整体hash不能继承旧签名，必要有限独立影响核验见shared-public-delta记录。
+
+
+## 第三轮 U02 当前实际状态（待独立实际复审）
+
+U02 四项候选取得 attempt-02 独立静态 PASS，八个世界正式文件按完整候选字节写入，并有限承接 WP09/内核测试提案。本段仅追加，前文历史及各批生成时点状态保持；当前接受回执/门禁以 registration 后继为准。新 actual/公共/共享内核字节未取得实际独立 PASS，U02 未接受/未关闭；全部案例 NOT_EXECUTED。
+
+| Feature / 本轮 ID | 当前实际承接 | 限定 |
+| --- | --- | --- |
+| F05-03 / GR3-M03-001 | WP16 §3.1.1与203，GR3-CAM01–18：镜头计时/钳边/整数与浮点居中及商店包装。 | 共用商店与背包卖出分支不同；素材/画面未证。 |
+| F04-01／F04-06 / GR3-M03-002 | WP11 §3.1.1、WP14 §3.1.1，GR3-DQ01–09：临时查询可生成且有随机/暂存副作用；驻留复用是反例。 | 空起点不保证正推进或固定宿主零消费；默认地牢/可达性未知，兼容政策待后续决定。 |
+| F04-04 / GR3-M03-003 | WP13事件 §4.3与WP12 §4.3末段，GR3-CS01–13：早先系统过场跳过与末端输入消费者。 | 严格文本/上下文/空数组门保留，不声明独占输入。 |
+| F03-03／F04-04 / GR3-M03-004 | WP11 §6.1–6.2／WP13 §3.3及WP09有界投影，GR3-MR01–13、U02-SV-WORLD01–02。 | 默认清记录与条件异图through分层；保存多登记/通知失败/缺图守卫仍按原前提。新 WP09 字节不能借 U01 旧整文件签名。 |
+
+精确映射见 [U02 来源后继](../review/remediation-third-20261012-prepare/U02/actual-integration/source-successor.json)。本次共16/23必修实际字节已整合、4/6主题payload冻结；正式接受仍12/23与3/6主题批（U01/U03/U06），最终CLOSED0，U07未完成。U04独立候选复审输入保持固定，U05尚未放行。新5个公共文件身份与两共享内核身份须在 [实际复审包](../review/remediation-third-20261012-prepare/U02/actual-integration/actual-review-input.json)所绑定的真实 actual 上有限核验。

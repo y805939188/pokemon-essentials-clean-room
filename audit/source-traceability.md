@@ -1589,3 +1589,17 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | GR3-M06-001 | WP30 §5.2／WP28经验道具引用；U03-EX01–05：钳制后差量、先提示再写经验、同级增减/同值早退、上升友好与下降无友好。 | 固定R Item_Utilities经验设置。与战斗分配零份额静默门分层；场景/提示正常、合法普通非蛋非Shadow等前提保留；实际消息/异常会话/资源/运行未知。 |
 
 [WP28待批准交接](../review/remediation-third-20261012-prepare/U03/actual-integration/wp28-pending-handover.json)只记录观察字节，U04尚未放行；现有WP09/U02门也保持原冻结状态。必要共同文件影响见 [U01/U06 公共增量](../review/remediation-third-20261012-prepare/U03/actual-integration/shared-public-delta.json)。
+
+
+## 第三轮 U02 当前实际来源承接（待独立实际复审）
+
+本节仅承接四项世界候选在 attempt-02 独立 PASS 后的实际条款与必要 WP09/内核测试投影。前文全部历史、U01/U03/U06 的来源及资格保留原字节；其 pending 描述生成时点，当前精确接受回执见第三轮 registration。新增公共字节与 WP09/内核新身份等待新的独立实际复审，不能借用旧签名。行为与静态案例全部 NOT_EXECUTED，U02 尚未正式接受或关闭。
+
+| 第三轮 ID | 实际合同／静态设计 | 固定 R 来源及边界 |
+| --- | --- | --- |
+| GR3-M03-001 | WP16 §3.1.1、WP13命令矩阵203；GR3-CAM01–18：速度/双轴/钳边、包装、分轴整数与浮点居中、商店消费者。 | Game_Map、MapMetadata、RubyUtilities、Game_Player、PokeMart。整数0夹具终点384/384且各0.6秒；浮点0.0为320/320且各0.5秒。共用画面仅买入/无全局背包卖出发右/左5格任务；背包卖出不发该任务，独立演出等待仍保留。真实画面/素材未证。 |
+| GR3-M03-002 | WP11 §3.1.1、WP14 §3.1.1；GR3-DQ01–09：未驻留临时建立/生成、重复查询、随机/暂存、驻留反例及阶段失败。 | MapFactory、Game_Map、RandomDungeons。清待播/重播与后续抽样推进分开；空起点失败后方向/装饰阶段未到，固定宿主空抽样不保证正推进或零消费。默认地图与可达性 MISSING_MATERIAL，未来兼容 USER_DECISION。 |
+| GR3-M03-003 | WP13事件 §4.3、WP12 §4.3末段；GR3-CS01–13：严格 Cut Scene/108/408、空数组存在门、写A→结束→重启、系统与末端消费者。 | Game_System、Messages、Interpreter、Scene_Map。早先系统门与末端快捷门分别保留，不承诺独占输入或必执行A页；真实事件页与默认可达性未证。 |
+| GR3-M03-004 | WP11 §4/§6.1–6.2、WP13事件 §3.3；GR3-MR01–13；WP09 §3.2/§4.1及 U02-SV-WORLD01–02。 | Overworld_Metadata、StartGame、Overworld、MapFactory。两正常读档清记录→图更新→辅助；实例与记录分层，同ID重建离开通知；异图真穿透是条件辅助，不能当默认旧记录恢复。异常保已提交前缀，无事务回滚；真实存档/事件未证。 |
+
+完整来源、原前提/验收/未知见 [U02 来源后继](../review/remediation-third-20261012-prepare/U02/actual-integration/source-successor.json)。[公共有限增量](../review/remediation-third-20261012-prepare/U02/actual-integration/shared-public-delta.json)和[内核共享增量](../review/remediation-third-20261012-prepare/U02/actual-integration/shared-kernel-delta.json)须对当前新身份明确独立判定；旧229与341 qualified scope不重审、不转签。
