@@ -293,3 +293,13 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | F14-05 | FP01–35 | INTEGRATED_PENDING_ACTUAL；普通／强制步进、日期和回程条件 |
 
 24贡献均待完整R-B14及七分别受影响实际门禁＋AREG-C；表中导航不构成逐行行为／运行覆盖。
+
+
+## 第三轮 U06 实际整合状态（2026-10-12，待独立实际复审）
+
+本节是第三轮当前字节的有限承接，以上历史 Reviewed／PASS_SCOPED 状态保持原范围。U06 两个候选取得独立静态 PASS 后，由唯一整合员写入下列正式路径；实际整合复审、正式接受与最终关闭尚未完成。候选签名不直接转为实际字节签名，行为案例仍 NOT_EXECUTED。
+
+| 现有 Feature / 本轮 ID | 实际承接与来源 | 当前阶段及限制 |
+| --- | --- | --- |
+| F18-04 / GR3-M12-001 | [正式 WP75 §13.3／§16-8](../deliverables/final-specification-set/demo-dx/wp75-project-conversion-and-authoring-tools.md) 与 CV-M30：固定 R 根目录 knownpoint.bmp／selpoint.bmp 各246字节、8×8，页面相对引用可定位；Graphics 默认区域底图仍缺。精确来源见 [U06 来源后继](../review/remediation-third-20261012-prepare/U06/actual-integration/source-successor.json)。 | 候选独立PASS；实际整合待独立复审／接受／关闭。文件身份和头部不证明浏览器、像素呈现、完整工具或 Demo 运行。 |
+| F18-05 / GR3-M12-002 | [正式 WP76 §6.4／§7.4–7.4a](../deliverables/final-specification-set/demo-dx/wp76-facility-content-generation-and-simulation.md) 与 GN-M14／GN-M20：正常成功结算把原待结算 n 场并入 C，C′=C+n、h′=0；70+12=82、238+12=250，80／250 门保持更早分支和给定评分前提。精确来源同上。 | 候选独立PASS；实际整合待独立复审／接受／关闭。保留评级变体、非事务失败与检查点恢复未知；生成器累计不等于游戏会话胜场或工厂交换计数；全部静态向量未执行。 |

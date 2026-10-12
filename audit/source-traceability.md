@@ -1481,7 +1481,7 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 | 参考与已读 | 转换器主域文件全文与编译驱动/文件名更新/散文件往返/区域地图文本路径定点（具体文件与行号清单见批准输入 §18 证据节）；审计名（仅定位）：import_new_maps、convert_to_trainer_event、convert_to_item_event、fix_event_name、update_door_event、likely_passage?、add_passage_list、check_counters、SCRIPT_REPLACEMENTS、replace_scripts、replace_old_battle_scripts、fix_event_use、compile_trainer_events、FilenameUpdater.rename_files、Scripts.dump/from_folder、townmapgen.html、extendtext、$PokemonBag.pbQuantity→$bag.quantity、$game_variables[N]→pbGet(N)、$player.party[pbGet(N)]→pbGetPokemon(N)、pbItemBall→pbReceiveItem、TrainerBattle、s:tsOff?("A")、SellItem、item:/hiddenitem:、Battle:/Type:/CommonEvent:/EndSpeech:/Backdrop: |
 | 证据层级 | 已定位/静态确认/字面集合清点；无运行确认（治疗循环单命令可持续插入、转换非平稳跳过等静态推导未运行处如实保留） |
 | 场景/向量 | 测试目录 CV 系列（CV-M01–M30，共 30 条） |
-| 具名未验证 | demo 素材缺口下地图类转换与更名均不可运行（未运行确认）；区域地图生成素材缺失但文本逻辑不依赖文件写；外围工具 extendtext 效果未验证；编译诊断输出细节（WP04 边界） |
+| 具名未验证 | demo缺地图数据与Graphics底图，地图类转换/更名原限制保持；knownpoint.bmp及selpoint.bmp为固定R根目录可读246字节8×8 BMP（身份/头部），默认区域底图仍缺失，浏览器/宿主/完整工具运行和Demo仍未证；外围工具extendtext效果未验证；编译诊断输出细节（WP04边界） |
 
 ### T-WP76-01 《设施内容生成与模拟》
 
