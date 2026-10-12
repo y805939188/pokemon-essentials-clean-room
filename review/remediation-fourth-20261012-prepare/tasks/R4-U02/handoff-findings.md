@@ -739,4 +739,3 @@ HIGH_STATIC_WITH_STATED_PRECONDITIONS
   "formal_revision_applied": false
 }
 ```
-

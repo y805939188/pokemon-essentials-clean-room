@@ -1219,4 +1219,3 @@ HIGH for scoped static algorithm
   "formal_revision_applied": false
 }
 ```
-

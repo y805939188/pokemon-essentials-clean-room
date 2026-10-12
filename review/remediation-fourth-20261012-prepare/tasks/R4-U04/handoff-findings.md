@@ -598,4 +598,3 @@ false
   "formal_revision_applied": false
 }
 ```
-
