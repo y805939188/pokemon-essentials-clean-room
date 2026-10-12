@@ -48,7 +48,7 @@
 |[evidence/junction-navigation.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/417e99d4eab78c512b6b002db2a67eadefbee7e7/review/global-independent-review/fourth-2026-10-12-1f36475-c92e/evidence/junction-navigation.json)|128008|`71902eebabfcdccd20523ecd3ec0876d45ae1fa12167712ab1fd460eb9f9f57e`|`f8b49224f49a0aede45c50d975bcb031f396bbe9`|
 |[evidence/legacy-projection-links.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/417e99d4eab78c512b6b002db2a67eadefbee7e7/review/global-independent-review/fourth-2026-10-12-1f36475-c92e/evidence/legacy-projection-links.json)|26115|`59042cd4ccb1cba6fa2ffb0056a4ebf5cc7ad12935b7b4f1ddd5e28119dbb098`|`27d2303158d067818c47990a1da38fdece22311a`|
 
-完整332份已冻结报告产物的逐文件身份由后继manifest列出；不递归复制旧全部历史。正式B的131身份和参考R的432 tracked身份分别在固定清单内，来源/字节与语义正确性不能混为一谈。
+完整333份已冻结报告产物的逐文件身份由后继manifest列出；不递归复制旧全部历史。正式B的131身份和参考R的432 tracked身份分别在固定清单内，来源/字节与语义正确性不能混为一谈。
 
 资源范围：R是独立嵌套Git仓库，432 tracked字节匹配；两个根BMP实际存在、均8×8/24位/246字节，属于R，非额外资源包。312脚本、73 PBS、18翻译、8字体、SoundFont及若干Windows二进制可读；没有Graphics/Audio、地图/事件/System/Tilesets/CommonEvents、动画数据库/映射和完整Demo。仅两份.DS_Store属本地额外元数据，不应搬入云端；无完整资源包叠加。R/LICENSE身份在参考清单中，原许可和分发范围保持，不把代码或资源整包提交到整改分支。文件存在、头部可解析、完整可用、运行成功四层分别记录。
 
