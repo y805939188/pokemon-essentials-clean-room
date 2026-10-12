@@ -319,3 +319,17 @@ U01 六项候选已取得第二次独立有限 PASS；七个正式目标文件�
 | F03-01 / GR3-M02-002 | [WP09 §3.1.1](../deliverables/final-specification-set/generic-kernel/wp09-save-startup-continue.md)，SV12–17：同身份10/20保存/加载/约束/撤销。 | actual待独立复审／接受／关闭；[WP09交接门](../review/remediation-third-20261012-prepare/U01/actual-integration/wp09-pending-handover.json)关闭，U02尚不放行。 |
 
 六项精确来源与前提见 [U01 来源后继](../review/remediation-third-20261012-prepare/U01/actual-integration/source-successor.json)。本次追加对 U06 公共文件整体 hash 的影响见 [U06 公共增量记录](../review/remediation-third-20261012-prepare/U01/actual-integration/u06-public-delta.json)；U06 正式及复审输入包仍按其原固定身份读取，新公共字节须另作必要定点独立核验。
+
+
+## 第三轮 U03 当前实际整合状态（待独立实际复审）
+
+U03四项候选取得attempt02独立有限PASS后，八正式文件按该冻结候选写入。前文历史限定、U01及U06完整文字保持原字节；此新增段不签实际复审、正式接受或CLOSED。全体案例NOT_EXECUTED，文件/像素数学身份检查不能冒运行结果。
+
+| 现有Feature / 本轮ID | 正式实际承接 | 当前范围与门禁 |
+| --- | --- | --- |
+| F06-07 / GR3-M04-001 | [WP21 §3.2-R03](../deliverables/final-specification-set/pokemon-rules/wp21-dynamic-forms-and-display.md)，U03-SP01–10：编号/形状/颜色/2×2共享采样/重叠。 | actual待独立复审/接受/关闭；逐帧仅分帧PNG保证，原生内部覆盖与显示未知，资源/越界/默认艺术未证。 |
+| F06-01 / GR3-M05-001 | [WP18 §7.4](../deliverables/final-specification-set/creature-rpg/wp18-creature-identity-species-ownership.md)及WP24责任导航，U03-SZ与全部分段边界。 | actual待独立复审/接受/关闭；可得毫米辅助无普通静态caller，不当默认展示/钓鱼流程，未来产品范围待定。 |
+| F08-03 / GR3-M05-002 | [WP28 §3.3-R01](../deliverables/final-specification-set/creature-rpg/wp28-item-use-and-training.md)，U03-IF01–11：候选窗口/平局/三路响应/统计与不拾取。 | actual待独立复审/接受/关闭；默认非消耗与别名内容分层，方向/资源/宿主/失败前缀前提保留。 |
+| F09-01／F09-02 / GR3-M06-001 | [WP30 §5.2](../deliverables/final-specification-set/creature-rpg/wp30-growth-learning-and-friendship.md)，WP28经验道具引用及U03-EX01–05。 | actual待独立复审/接受/关闭；先差量提示后提交，同级增减与战斗分配静默门不同。 |
+
+精确来源见 [U03来源后继](../review/remediation-third-20261012-prepare/U03/actual-integration/source-successor.json)。WP28批准交接/U04门禁仍关闭；U01的WP09/U02门禁和U06精确原actual接受记录不被此追加改变。当前已接受仍2/23及1/6主题批，最终CLOSED0；各段pending描述其冻结生成时点，最新后继状态见registration台账。新公共文件与台账整体hash不能继承旧签名，必要有限独立影响核验见shared-public-delta记录。
