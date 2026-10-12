@@ -1632,3 +1632,11 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 已接受U04必要消费者：WP67-A §3.4/3.5/5.3.1/9.2及U05-RF01–03/NG01承接WP28/40/42残留退款2/1/1、容量失败前缀与WP47-A/46/50自然之恩局部异常；不新增finding、不承诺UI恢复/退出/媒体。
 
 精确来源与原前提/未知见 [U05来源后继](../review/remediation-third-20261012-prepare/U05/actual-integration/source-successor.json)。既有pending段只描述生成时点；当前23/23必修实际字节、6/6主题payload已冻结待审，正式接受仍18/23与5/6，U05未接受，最终CLOSED0/U07未完成。新公共whole-file身份须独立有限影响核验，不能转用已接受U01/U02/U03/U04/U06旧快照签名。
+
+## 第三轮 U07 当前有限整合候选（2026-10-12）
+
+本节是当前第三轮阶段入口；上文保留各固定生成时点。六主题批的真实整合字节已分别获独立 PASS 并正式接受：23/23 必修、6/6 主题批；本轮最终 CLOSED 为 0，U07 实际整合独立验收待审。U07 是现有 23 项的整合与依赖关闭报告，不增加修复批次或必修分母，也不以复审次数计算完成率。
+
+当前 [整合报告](../review/remediation-third-20261012-prepare/U07/actual-integration/integration-report.md)、[逐项完整标准](../review/remediation-third-20261012-prepare/U07/actual-integration/required23-matrix.json)、[正式字节身份](../review/remediation-third-20261012-prepare/U07/actual-integration/formal131-current.json)、[批准登记](../review/remediation-third-20261012-prepare/registration/approval-ledger.json)、[追溯后继](../review/remediation-third-20261012-prepare/registration/traceability-successor.json)、[交界后继](../review/remediation-third-20261012-prepare/registration/junction-successor.json)和[六批实际独立报告目录](../review/remediation-third-20261012-prepare/U07/actual-integration/report-catalog.json)构成同一候选。固定 actual commit/tree 由 [独立验收输入](../review/remediation-third-20261012-prepare/U07/actual-integration/actual-review-input.json) 外部绑定，不把旧整文件签名转移到新索引字节。
+
+旧 229 CLOSED 与 341 exact tuple 均按原 qualified scope 保留；原始报告的 PENDING 表示各自生成时点。GR3-M09-001 可选暂缓、U08 未启动，GR3-M02-003 不需修订且不重开。参考只读固定 R；行为、参考、工具编译/转换、反序列化、真实 Demo、宿主交互与渲染执行均为 0 / NOT_EXECUTED，缺失资源及未知不得改成通过。

@@ -21,3 +21,11 @@ R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` / tree `7589c800b61ba13a13040ed0d68
 作者/登记 gpt-6.1-sol/xhigh，独立review gpt-6.1-sol/ultra，全部default。显式请求接纳有效，回显缺失UNVERIFIED，不审额度。候选、自检、独立候选复审、真实整合、独立实际整合复审、正式接受、依赖满足、最终关闭分层；当前23必修接受0/关闭0、6主题接受0、整合报告0，不用复审次数替完成率。
 
 当前无需用户决定事项即可派发。未来bug兼容策略、尺寸产品范围/默认视觉、资源补交/扩大审查/运行及可选导航仅保留待未来决定，均不阻塞参考事实修订。缺素材/宿主/实际Demo与全内容未审限界继续保留，文件检查不能冒运行PASS。技术取消先核任务/commit去重再重试；真正用户停止与权限拒绝遵守。不得配置新凭据、force、覆盖或删除不明资料。最终管理commit及远端读回身份由外部最终回执给出，避免自嵌SHA循环提交。
+
+## 第三轮 U07 当前有限整合候选（2026-10-12）
+
+本节是当前第三轮阶段入口；上文保留各固定生成时点。六主题批的真实整合字节已分别获独立 PASS 并正式接受：23/23 必修、6/6 主题批；本轮最终 CLOSED 为 0，U07 实际整合独立验收待审。U07 是现有 23 项的整合与依赖关闭报告，不增加修复批次或必修分母，也不以复审次数计算完成率。
+
+当前 [整合报告](U07/actual-integration/integration-report.md)、[逐项完整标准](U07/actual-integration/required23-matrix.json)、[正式字节身份](U07/actual-integration/formal131-current.json)、[批准登记](registration/approval-ledger.json)、[追溯后继](registration/traceability-successor.json)、[交界后继](registration/junction-successor.json)和[六批实际独立报告目录](U07/actual-integration/report-catalog.json)构成同一候选。固定 actual commit/tree 由 [独立验收输入](U07/actual-integration/actual-review-input.json) 外部绑定，不把旧整文件签名转移到新索引字节。
+
+旧 229 CLOSED 与 341 exact tuple 均按原 qualified scope 保留；原始报告的 PENDING 表示各自生成时点。GR3-M09-001 可选暂缓、U08 未启动，GR3-M02-003 不需修订且不重开。参考只读固定 R；行为、参考、工具编译/转换、反序列化、真实 Demo、宿主交互与渲染执行均为 0 / NOT_EXECUTED，缺失资源及未知不得改成通过。

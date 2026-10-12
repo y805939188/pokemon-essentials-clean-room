@@ -14,3 +14,11 @@
 已审最终实际 commit：`167296dbe9e2384627b0ed696e87aeb01f211252`，tree：`33598d8a2a3acdd093cc4fe23f48eea8666100f3`。本交付分支增加导航及完整原报告，未改正式规格、原稿、公共关闭登记或旧证据字节；新增导航本身不冒充已获 FINAL-2 签署的规格。
 
 参考只读 HEAD：`8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。已知本地参考不是完整资源包，缺 Audio、Graphics、Plugins、Game.ini、Game.rxproj 和地图资源。此前运行观察、真实 Demo 链及行为案例执行均为 0；静态、未知、未读与资源／宿主限定继续有效。旧规格 README、规划和批次文件中的历史数字与 PENDING 文字保留，当前状态由本交付入口和固定独立报告解释。
+
+## 第三轮 U07 当前有限整合候选（2026-10-12）
+
+本节是当前第三轮阶段入口；上文保留各固定生成时点。六主题批的真实整合字节已分别获独立 PASS 并正式接受：23/23 必修、6/6 主题批；本轮最终 CLOSED 为 0，U07 实际整合独立验收待审。U07 是现有 23 项的整合与依赖关闭报告，不增加修复批次或必修分母，也不以复审次数计算完成率。
+
+当前 [整合报告](review/remediation-third-20261012-prepare/U07/actual-integration/integration-report.md)、[逐项完整标准](review/remediation-third-20261012-prepare/U07/actual-integration/required23-matrix.json)、[正式字节身份](review/remediation-third-20261012-prepare/U07/actual-integration/formal131-current.json)、[批准登记](review/remediation-third-20261012-prepare/registration/approval-ledger.json)、[追溯后继](review/remediation-third-20261012-prepare/registration/traceability-successor.json)、[交界后继](review/remediation-third-20261012-prepare/registration/junction-successor.json)和[六批实际独立报告目录](review/remediation-third-20261012-prepare/U07/actual-integration/report-catalog.json)构成同一候选。固定 actual commit/tree 由 [独立验收输入](review/remediation-third-20261012-prepare/U07/actual-integration/actual-review-input.json) 外部绑定，不把旧整文件签名转移到新索引字节。
+
+旧 229 CLOSED 与 341 exact tuple 均按原 qualified scope 保留；原始报告的 PENDING 表示各自生成时点。GR3-M09-001 可选暂缓、U08 未启动，GR3-M02-003 不需修订且不重开。参考只读固定 R；行为、参考、工具编译/转换、反序列化、真实 Demo、宿主交互与渲染执行均为 0 / NOT_EXECUTED，缺失资源及未知不得改成通过。
