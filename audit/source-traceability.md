@@ -1603,3 +1603,15 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 | GR3-M03-004 | WP11 §4/§6.1–6.2、WP13事件 §3.3；GR3-MR01–13；WP09 §3.2/§4.1及 U02-SV-WORLD01–02。 | Overworld_Metadata、StartGame、Overworld、MapFactory。两正常读档清记录→图更新→辅助；实例与记录分层，同ID重建离开通知；异图真穿透是条件辅助，不能当默认旧记录恢复。异常保已提交前缀，无事务回滚；真实存档/事件未证。 |
 
 完整来源、原前提/验收/未知见 [U02 来源后继](../review/remediation-third-20261012-prepare/U02/actual-integration/source-successor.json)。[公共有限增量](../review/remediation-third-20261012-prepare/U02/actual-integration/shared-public-delta.json)和[内核共享增量](../review/remediation-third-20261012-prepare/U02/actual-integration/shared-kernel-delta.json)须对当前新身份明确独立判定；旧229与341 qualified scope不重审、不转签。
+
+
+## 第三轮 U04 当前实际来源承接（待独立实际复审）
+
+本节仅追加两个战斗消费 finding 的实际条款/固定来源。前文全部历史、已接受U01/U03/U06及已冻结U02公共来源保留原字节；既有pending段描述生成时点，当前状态由registration及各精确actual包限定。候选已独立静态PASS，actual/新公共/WP28身份须新的有限独立复审，U04未接受/未关闭；所有案例NOT_EXECUTED。
+
+| 第三轮ID | 实际正式合同／静态设计 | 固定R来源与保留边界 |
+| --- | --- | --- |
+| GR3-M07-001 | WP28 §3.5.1、WP40 §4.2.1、WP42 §6.0；U04-RF01–06：资格失败退款后消费身份残留、同轮终局/下一命令/正式失能/容量。 | Battle_ActionUseItem、CommandPhase、StartAndEnd、Battler_ChangeSelf与普通Potion/毒伤/裁判接点。POTION2→两登记0→首治满→次资格失败退1保身份→正常同轮终局再退2；下一命令或正式失能直接清为1。容量和使用者存活/无中间清理/正常终局前提分别绑定，资格通过空效果不退款仍保原B008；未来缺陷兼容由用户后续决定，外层演出/恢复未知。 |
+| GR3-M08-001 | WP47-A §3.1.1及数据、WP46 §2.1.1及覆盖、WP50 §5.1.1及相关覆盖；U04-NG01–04/MH01–03/HI01–03。 | MoveEffects_MoveAttributes、普通逐击/伤害入口、ItemEffects与消费写回。H160/h81首击基底80/目标正损失提交，JABO20至61→ORAN10至71并消费，续击空当前身份访问先失败，早于get/默认1/第二击HP写；h101不自耗可正常续击，单击无再访问。C/I/R/P/Belch与前缀按具名条件保留，不保证必然进程崩溃。AI只读当前ORAN资格WP52-A/B，不推广真实链或误归WP52-C。 |
+
+完整原前提/验收/未知与实际条款见 [U04来源后继](../review/remediation-third-20261012-prepare/U04/actual-integration/source-successor.json)。[共享公共有限增量](../review/remediation-third-20261012-prepare/U04/actual-integration/shared-public-delta.json)须独立绑定五个新身份；[WP28待批准后继](../review/remediation-third-20261012-prepare/U04/actual-integration/wp28-pending-successor.json)仅记录由批准daaa输入形成的新actual观察，旧U03签名不转移。旧229/341 qualified范围不重审。

@@ -347,3 +347,15 @@ U02 四项候选取得 attempt-02 独立静态 PASS，八个世界正式文件�
 | F03-03／F04-04 / GR3-M03-004 | WP11 §6.1–6.2／WP13 §3.3及WP09有界投影，GR3-MR01–13、U02-SV-WORLD01–02。 | 默认清记录与条件异图through分层；保存多登记/通知失败/缺图守卫仍按原前提。新 WP09 字节不能借 U01 旧整文件签名。 |
 
 精确映射见 [U02 来源后继](../review/remediation-third-20261012-prepare/U02/actual-integration/source-successor.json)。本次共16/23必修实际字节已整合、4/6主题payload冻结；正式接受仍12/23与3/6主题批（U01/U03/U06），最终CLOSED0，U07未完成。U04独立候选复审输入保持固定，U05尚未放行。新5个公共文件身份与两共享内核身份须在 [实际复审包](../review/remediation-third-20261012-prepare/U02/actual-integration/actual-review-input.json)所绑定的真实 actual 上有限核验。
+
+
+## 第三轮 U04 当前实际状态（待独立实际复审）
+
+U04两项候选及12完整文件获独立有限PASS后按该字节整合；WP28继承批准U03的daaa输入，仅有界补战斗消费交界。前文所有历史及U02来源/阶段保持字节，U02复审目标仍固定其90d actual/22d包。本段不预签actual、接受或CLOSED；全体案例NOT_EXECUTED。
+
+| Feature / 本轮ID | 当前实际承接 | 限定 |
+| --- | --- | --- |
+| F08-03／F11-03／F11-07 / GR3-M07-001 | WP28/WP40/WP42与U04-RF01–06：资格失败退款保消费身份，同轮正常终局可再退，下一命令/正式失能/容量反例。 | 保原资格通过空效果不退；正常终局和存活/无清选择/容量前提明确；UI只提案给U05，未改WP67-A或放行。 |
+| F12-04／F12-05／F08-05 / GR3-M08-001 | WP46/WP47-A/WP50与相关附表及U04-NG/MH/HI设计：反应→自耗→续击实时基底访问。 | 主例71/160空物首次失败，h101和单击反例；已提交前缀不回滚，外层/宿主未知；当前AI与真实每击链分层。 |
+
+完整来源见 [U04来源后继](../review/remediation-third-20261012-prepare/U04/actual-integration/source-successor.json)。18/23必修实际字节已整合、5/6主题payload冻结；正式接受仍12/23及3/6（U01/U03/U06），U02/U04实际复审待定，最终CLOSED0，U07未完成。U05必须在U04真实actual独立PASS及正式接受后方可批准派发，当前仍false。新公共whole-file身份和WP28后继要新有限独立判定；旧固定签名不覆盖后继。
