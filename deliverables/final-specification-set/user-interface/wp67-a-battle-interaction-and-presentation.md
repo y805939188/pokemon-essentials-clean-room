@@ -248,10 +248,37 @@
 
 ### 9.4 招式/公共动画的查找、等待与缺失路径
 
-- **查找链**：招式动画表精确命中——对方侧优先 OppMove 版本（不翻转播放），无则共用版本；未命中 → 按招式类型/分类查**类型默认表**（六格：单目标物理/特殊、自身变化、多目标物理/特殊、非自身变化；回退链：本格 → 单目标格 → 自身变化格）；再无 → Tackle 的动画；**全部失败返回空——静默不播放**（无回退消息）。
+- **查找链**：招式动画表精确命中——对方侧优先 OppMove 版本（不翻转播放），无则共用版本；精确命中编号叠加连击序号。未命中 → 按招式类型／登记原始类别／目标记录查 §9.4.1 的默认身份；每个默认身份须先已登记，再查同侧映射（对方仍先 OppMove 再共用）。按本格 → 条件对应单目标格 → 自身变化格 → TACKLE 顺序，首个映射命中即停；默认候选使用自身映射编号，**不叠加原招式连击序号**。全部失败返回空——静默不播放（无回退消息）。
 - **播放**：动画开关为假 → 领域侧包装直接跳过（§3.5 注）；无动画 ID 或**动画数据库缺失**（动画数据库文件不存在 → 加载为空）→ 直接返回。播放时隐藏全部影子、按用户/目标实际位置做焦点变换（单点/用户/目标/两点连线），播放器按 **20 帧/秒**推进、到达末帧结束（可循环者循环），**动画核心阻塞至完成**并恢复精灵位置；用户/目标图版可用双方实际立绘（pattern −1/−2）。公共动画按「Common:名字」首个匹配播放一次。
 - **球爆开公共动画**：**非阻塞**——播放器入队、随场景帧更新推进（爆出粒子在后续消息期间继续）。
 - **失败边界**：动画数据缺失/招式无映射/数据库文件缺失都静默无动画（流程不等）；资源（图形/音频）存在性未验证（U01 类保留）；不转录逐帧坐标/轨迹/作者格式（WP74 前向）。
+
+### 9.4.1 类型默认动画身份数据
+
+下表是固定参考的行为数据，单元格为招式登记身份，空表示本格无默认身份；它不是实际动画槽号或媒体存在证明。六列依次标号0…5。先以招式登记的原始类别选择0物理／1特殊／2变化；目标数>1或影响敌侧区域时向后移三格，变化且目标数>0时再向后移三格（两门独立）。世代按属性重新判断物理／特殊的战斗规则不改这里的原始类别。只有所得格号≥3时才另试减三后的对应格；再试列2，最后已登记的TACKLE。类型不在表内则直接进入TACKLE回退；空格／身份未登记／没有映射均继续下一候选。这里不把缺映射与动画数据库／媒体缺失合并。
+
+| 类型 | 0 单目标物理 | 1 单目标特殊 | 2 自身变化 | 3 多目标物理 | 4 多目标特殊 | 5 非自身变化 |
+| --- | --- | --- | --- | --- | --- | --- |
+| NORMAL | TACKLE | SONICBOOM | DEFENSECURL | EXPLOSION | SWIFT | TAILWHIP |
+| FIGHTING | MACHPUNCH | AURASPHERE | DETECT | 空 | 空 | 空 |
+| FLYING | WINGATTACK | GUST | ROOST | 空 | AIRCUTTER | FEATHERDANCE |
+| POISON | POISONSTING | SLUDGE | ACIDARMOR | 空 | ACID | POISONPOWDER |
+| GROUND | SANDTOMB | MUDSLAP | 空 | EARTHQUAKE | EARTHPOWER | MUDSPORT |
+| ROCK | ROCKTHROW | POWERGEM | ROCKPOLISH | ROCKSLIDE | 空 | SANDSTORM |
+| BUG | TWINEEDLE | BUGBUZZ | QUIVERDANCE | 空 | STRUGGLEBUG | STRINGSHOT |
+| GHOST | LICK | SHADOWBALL | GRUDGE | 空 | 空 | CONFUSERAY |
+| STEEL | IRONHEAD | MIRRORSHOT | IRONDEFENSE | 空 | 空 | METALSOUND |
+| FIRE | FIREPUNCH | EMBER | SUNNYDAY | 空 | INCINERATE | WILLOWISP |
+| WATER | CRABHAMMER | WATERGUN | AQUARING | 空 | SURF | WATERSPORT |
+| GRASS | VINEWHIP | MEGADRAIN | COTTONGUARD | RAZORLEAF | 空 | SPORE |
+| ELECTRIC | THUNDERPUNCH | THUNDERSHOCK | CHARGE | 空 | DISCHARGE | THUNDERWAVE |
+| PSYCHIC | ZENHEADBUTT | CONFUSION | CALMMIND | 空 | SYNCHRONOISE | MIRACLEEYE |
+| ICE | ICEPUNCH | ICEBEAM | MIST | 空 | POWDERSNOW | HAIL |
+| DRAGON | DRAGONCLAW | DRAGONRAGE | DRAGONDANCE | 空 | TWISTER | 空 |
+| DARK | PURSUIT | DARKPULSE | HONECLAWS | 空 | SNARL | EMBARGO |
+| FAIRY | TACKLE | FAIRYWIND | MOONLIGHT | 空 | SWIFT | SWEETKISS |
+
+条件样本：合法 FLAMETHROWER（FIRE／原始特殊／NearOther单目标）、动画开启、双方映射有效、精确映射缺失、hitNum=0；EMBER→有效槽10、SUNNYDAY→20、TACKLE→30。选10；独立删EMBER映射选20；再删SUNNYDAY选30；全删为空。对方EMBER的OppMove→11与共用→10同时存在则选11，对方项缺失才选10。槽10/11/20/30仅为静态夹具编号，未加载二进制动画库或播放；R4-AN01–06均NOT_EXECUTED。WP74命名编译与WP03产物身份仍各按原合同。
 
 ## 10. 特殊模式 UI 覆写与调试对照
 
