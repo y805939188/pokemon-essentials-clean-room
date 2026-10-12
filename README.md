@@ -1,3 +1,13 @@
+# 当前交付：第四轮整改与云端整理完成
+
+**17/17必修有限CLOSED，必修OPEN0；最终独立复审与关闭字节核验均已接受。GitHub已合并main并安全清理至仅main，所有退休分支和审查证据可恢复。**
+
+从[当前交付入口](CURRENT-DELIVERY.md)或[第四轮资料导航](delivery/2026-10-12-fourth/README.md)开始。查看[安全清理及归档结果](delivery/2026-10-12-fourth/cleanup-report.md)和[本地同步与第五轮所需输入](delivery/2026-10-12-fourth/sync-and-next-review-inputs.json)。历史隔离执行4条，本update新增执行0，宿主/Demo仍未验证。Mac同步待父任务处理，第五轮未启动。
+
+以下保留原README历史正文；其中旧交付阶段与旧review提示词按原生成时点理解，当前状态以上述入口为准。
+
+---
+
 # Pokémon Essentials 净室行为规格
 
 本项目整理 Pokémon Essentials 的完整功能、游戏规则、状态变化与使用流程，为以后从零开发独立的现代 TypeScript 游戏框架提供行为依据。交付物是规格、数据条件和测试设计，不是 Ruby 代码翻译，也不是框架实现。参考实现的类、方法、文件组织和 RPG Maker 架构不约束未来设计。

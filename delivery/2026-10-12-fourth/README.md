@@ -11,4 +11,4 @@
 
 原第四review真实隔离执行4条（M01×1/M02×2/M12评级×1），本次update新增参考/模型/宿主/Demo行为执行0。字体/输入/像素/动画/网络/真实存档/完整地图资源/宿主/Demo仍未验证，运行标准PASS只指边界合规。旧300重叠能力、131责任及229/341不能作为全功能或运行完备证明；旧optional/U08暂缓和NO_REQUIRED不重开，未来兼容政策未代选。
 
-main使用可追溯普通合并、精确广告SHA守卫和atomic推送；归档先行且从origin核对恢复路径后才退役分支。最终完整main/commit/tree由不可变 `delivery/fourth-round-clean-20261012` 和外部交付回执绑定，不递归自嵌SHA。
+main使用可追溯普通合并、精确广告SHA守卫和atomic推送；归档先行且从origin核对恢复路径后才退役分支。最终完整main/commit/tree由不可变 `delivery/fourth-round-clean-final-20261012` 和外部交付回执绑定，不递归自嵌SHA。
