@@ -4,7 +4,7 @@
 
 管理冻结 `d0371f693f4a0dc713ee5cc6e43a20ff465269a8` / tree `0e217b059c1350b6c4ca93b29ad86fae75b48a54`；独立分支 `codex/gr3-u03-author-20261012`。固定H、正式D与参考R精确commit/tree见 candidate-identities.json，参考已自行取得并实际核验，不假设准备环境路径存在。请求gpt-6.1-sol/xhigh/default已接纳，执行配置回显UNVERIFIED；未查模型／额度，未开模型CLI、隐藏任务或子作者。根AGENTS已读，当前管理版及本环境未见适用 .agents/skills。
 
-作者内容commit/tree将在一次提交后写入本报告的外部绑定段；最终携带报告的提交身份在最终交接回显。此区分避免报告尝试自包含自身Git SHA，后续不作递归身份证明。
+作者内容 commit `2da3ca07c9dcc4cb3a78f8d0983b6d4e7fc98b82` / tree `ab815ce87369f9c1ab193cb4fd2981cf62ee44e5`。下一提交仅补本报告的此身份绑定，8份候选与其manifest／patch／自检字节不变；最终携带报告的提交身份在最终交接回显。此区分避免报告自包含自身Git SHA，不作递归身份证明。
 
 | Finding | 作者候选条款 | 已交付事实／静态设计 | 作者自检／未决 |
 | --- | --- | --- | --- |
@@ -40,3 +40,5 @@ candidate-identities.json 列每文件base/new blob、SHA256、bytes；candidate
 - `review/remediation-third-20261012-prepare/U03/traceability-proposal.json`
 - `review/remediation-third-20261012-prepare/U03/registration-proposal.json`
 - `review/remediation-third-20261012-prepare/U03/model-request-receipt.json`
+
+身份支持：candidate-identities.json SHA256 `40e8d89a69b1b284d49e9d068b32bb2b074d232a7b449bdd00504f4ead515913`；candidate.patch SHA256 `590cec97110959e74d24ad9f72a2349ce5a5b251149a1e8edb33abaacf1ac1c0`。原静态案例行共625条原样保留（220＋214＋191）；patch实际应用仅在临时副本。整体文档空白检查排除字面unified patch的必要空白context前缀，patch内容另以git apply --check --whitespace=error核验，8产物匹配。
