@@ -1,0 +1,11 @@
+# 实际整合身份与写域窄核
+
+结论：PASS_ACTUAL_IDENTITY_AND_WRITE_SCOPE_ONLY。actual 5dd6789b22e03b85bb81ae73b9c65a1fab585186 / tree e563ea5f34ba8e0315eee46934deb566ed98a924、父1edccd2ca702a8d416a4b07ddaf10990a01fa993及task后继d305ba47f31ecfde747b763682e87f32abe54888身份一致。本结论仅为身份/写域/receipt核验，不取代根actual语义判断，不把登记员自评当独立PASS。
+
+131正式文件按完整bytes独立核实：12 U03精确等于候选d7875398；12 U01/U02精确等于固定接受回执所指各自accepted actual；107精确等于B1f364。全131 actual/task后继/工作树完整bytes一致。U01原4文件和U02原8文件在父与本次actual均保持，原接受签名不转授新U03消费者。
+
+parent→actual恰66路径：12 U03正式、51原冻结作者/独立v1/v2证据、3有限registration。全部51副本完整bytes与精确原commit一致，task后继正式无变化；13当前消费者完整bytes/SHA256/blob匹配handoff，不在此作消费者语义PASS。
+
+原作者execution与v1/v2原执行证据完整bytes保留；原4隔离回执及异常资格仅引用原对象，不重新计算。新增参考/模型/宿主/Demo执行0，NOT_EXECUTED_THIS_UPDATE，不重签旧23/229/341。
+
+8项原ACCEPTED_SCOPED保持，U03尚未接受、effective CLOSED仍0、U06依赖仍阻塞。真实thread 01a130e1-9768-7067-99d9-c5b20c2bb015，请求sol/ultra/default/Fast=false，实际echo UNVERIFIED。仅写本json/md，未改author/正式/参考/公共账，未提交推送、登记或关闭。无身份范围阻断。必要分区manifest、精确接受receipt和分组实际读取账见JSON。

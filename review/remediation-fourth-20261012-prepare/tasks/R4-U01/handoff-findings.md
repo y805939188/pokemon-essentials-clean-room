@@ -1,0 +1,1221 @@
+# R4-U01 完整冻结finding任务正文
+
+### GR4-M01-001 · P2 · REQUIRED — 翻译同域重复键与重复节的逐项合并规则缺失
+
+领域 M01；分类 数据或资源契约缺口；独立审者 thread `01a12fc9-8425-7c80-b000-3fcaa86b76f1`；辅助证据目录 `modules/M01/`。当前状态CONFIRMED，只授权事实修订，没有应用任何正式修改。
+
+**源依据**
+
+- `Data/Scripts/001_Technical/003_Intl_Messages.rb` · 437–466,481–489：节内后键替换，归一键碰撞，节间同位置合并；并非整节替换。（固定R；blob `f6c27e5d6efacfa696cfcad018007e9ff1c0a072`）
+- `Data/Scripts/001_Technical/003_Intl_Messages.rb` · 376–384：所有输入累计到同一消息集合。（固定R；blob `f6c27e5d6efacfa696cfcad018007e9ff1c0a072`）
+- `Data/Scripts/021_Compiler/001_Compiler.rb` · 154–181：按文件顺序逐节送入导入；重复节头未拒绝。（固定R；blob `1dd5f374734935f15502f973e07d2a603a1477dd`）
+- `Data/Scripts/001_Technical/002_Files/001_FileTests.rb` · 6–14：完整导入的文件枚举结果排序；单文件向量不依赖跨文件排序。（固定R；blob `d753bdae844e8ab44c858718fdc1bc175216ddd6`）
+- `Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb` · 1457–1475：作者编译菜单实际调用完整导入。（固定R；blob `6dd0c35a31040174efadefa2ba24a1c85a2499f9`）
+
+**现规格依据**
+
+- `deliverables/final-specification-set/generic-kernel/wp08-localization.md` · §3.2,§6.3;30,98–105：已列归一/形态，没有同域冲突解决规则。（固定B；blob `ef337ff445c701874e9728af118e33fcea33b99b`）
+- `deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md` · LZ17,LZ21：显式无合并冲突前提，没有对照向量。（固定B；blob `3c7daba49da60cca2f6051839e408fc0426978a5`）
+- `deliverables/final-specification-set/generic-kernel/wp08-localization.md` · 52：语言game覆盖core是查找优先级，不能代证同域导入冲突处理。（固定B；blob `ef337ff445c701874e9728af118e33fcea33b99b`）
+
+**参考实际行为**
+
+同一合法文本域内的重复规范键取最后译文；后续同域同形态节逐项合入已积累域，覆盖同键但保留先前独有键。按索引节同样只覆盖后节实际提供的索引，不删除稀疏遗漏位置。
+
+**现规格的说法**
+
+WP08描述键归一、数组/哈希判别、节号、失败及运行层game/core优先；未规定同域重复输入的覆盖与保留结果。LZ17/21用无冲突前提规避该分支。
+
+**差异/缺口**
+
+独立实现可合理选择重复拒绝、先值优先或整节替换；三者都不符合固定参考的合并结果。
+
+**必要前提**
+
+- 单一普通可读翻译文件，非地图24号域；所有内容非空、非注释且段落形态合法。
+- 同域多节按文本出现顺序；不更换被测入口，不假定默认语料本身含重复。
+
+**最小反例**
+
+```json
+{
+  "input": "一个24号哈希节按顺序含K→First、K→Last。",
+  "reference_result": "成功，K仅取Last。",
+  "distinguishes": "重复拒绝/首值优先均不同。"
+}
+```
+
+**正常对照**
+
+不同键K→First、L→Other均保留；同域后节K→Last、M→New合入后，K=Last、L=Other、M=New。
+
+**失败/边界对照**
+
+A双空格B与A单空格B先规范成同一键后取后值；数组先入再以非数字哈希键向同域合入的探针抛TypeError，前节内存数据保留，不能把所有混合形态都说成安全合并。按索引0/2先入、后节仅0时，2保留。
+
+**独立实现影响**
+
+拆分翻译文件、重复修订或空白规范碰撞时，最终消息集合和运行查找可能不同；这是有效导入数据合同而非风格要求。
+
+**已完成的反证**
+
+```json
+{
+  "primary_review": {
+    "artifact": "negative-search.json#N01",
+    "scope": "全部131正式Markdown（含scope、正文、附表、测试）",
+    "terms": [
+      "重复",
+      "同键",
+      "合并",
+      "覆盖",
+      "冲突",
+      "duplicate",
+      "collision",
+      "merge",
+      "翻译",
+      "译文",
+      "本地化",
+      "SCRIPT_TEXTS",
+      "compile_text",
+      "Translation",
+      "文本域"
+    ],
+    "reviewed_contexts": [
+      "deliverables/final-specification-set/generic-kernel/wp08-localization.md §3.2/§5.1/§6.2–6.4",
+      "deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md LZ01–LZ25",
+      "deliverables/final-specification-set/demo-dx/wp75-project-conversion-and-authoring-tools.md:20",
+      "deliverables/final-specification-set/user-interface/wp17-messages-windows-input.md:13"
+    ],
+    "result": "未找到同域导入的重复键/节合并规则；命中是game/core查找、导出目录覆盖或地图文件分组，语义不同。"
+  },
+  "primary_relative_paths_base": "modules/M01",
+  "independent_counterevidence": {
+    "search_ids": [
+      "M01-merge",
+      "M01-definition",
+      "CA-shared-alias-supplement"
+    ],
+    "words": [
+      "重复键|重复节|同域|同键|文本.{0,18}(合并|冲突)|翻译.{0,25}(合并|冲突|覆盖)|译文|localiz|compile_text|stringToKey",
+      "过渡坐标|冲浪基点|冲浪.{0,8}清|动态形态查询|资源消费.{0,15}形态|形态.{0,15}副作用|计时.{0,10}变量|变量.{0,10}计时|PP.{0,20}(补给|补充|活体|存活)|翻译.{0,10}(重复|合并)|文本域.{0,10}(覆盖|冲突)"
+    ],
+    "scope": {
+      "baseline": "1f36475d22120a0d1175967d5b17d71fe8311d88",
+      "root": "deliverables/final-specification-set/",
+      "files": 131,
+      "includes": "正文、共享条款、数据附表及静态测试目录；并非131篇逐篇重新验收"
+    },
+    "source_countersearch": [
+      {
+        "id": "M01-definition",
+        "pattern": "def (compile_text|compile_text_from_file|pbEachSection|_INTL|_ISPRINTF|_MAPINTL|_MAPISPRINTF)|compile_text\\(",
+        "files": 312
+      }
+    ],
+    "contexts_read_and_assessed": [
+      "WP08 §3.2/§5.1/§6.3，LZ17/LZ21",
+      "WP03 §5.2同键注册、WP05 §3.1处理器同键替换均有各自入口范围，不是翻译编译",
+      "WP17 §3.1为显示预处理"
+    ],
+    "conclusion": "未找到同域翻译逐项覆盖/保留合同。game/core查找顺序、PBS重复注册及导出删除均不能代替导入冲突规则。",
+    "artifact": "negative-evidence.json"
+  },
+  "counter_relative_paths_base": "modules/CA"
+}
+```
+
+**下一轮最小修订**
+
+WP08作者导入补节内规范键后值覆盖、同形态重复节按键/索引合并及早节独有项保留；明确混合形态不保证兼容。补最小正常与冲突向量，不要求新框架采用原容器结构。
+
+**验收标准**
+
+```json
+[
+  {
+    "kind": "static_required",
+    "criterion": "正文与LZ补同键、规范碰撞、重复同域节独有键保留及稀疏索引保留的准确结果。"
+  },
+  {
+    "kind": "static_required",
+    "criterion": "分开同域编译合并与game/core运行查找优先；保留完整入口先截断副作用及Map形态门。"
+  },
+  {
+    "kind": "execution_optional",
+    "criterion": "若执行，记录独立同文件夹具和所用参考入口；不得把本次隔离执行升级为宿主/完整导入通过。"
+  }
+]
+```
+
+**受影响正式文件**
+
+- deliverables/final-specification-set/generic-kernel/wp08-localization.md
+- deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md
+
+**共享合同**
+
+- WP08 §3.2 文本身份
+- WP08 §6.3 作者导入
+- WP04末段消息产物交界（无需复制重复规则）
+
+**依赖**
+
+- 文本预处理与消息查找
+- 作者翻译工具；实际文件系统/宿主不在执行证明内
+
+**能力范围引用**
+
+- GR4-CAP-M01-015
+
+**关联新问题**
+
+无。
+
+**根因身份**
+
+GR4-M01-TRANSLATION-SAME-DOMAIN-MERGE
+
+**旧GR3/229/341关系**
+
+```json
+{
+  "relationship": "new",
+  "third_round_ids": [],
+  "second_round_id": null,
+  "note": "不重开GR3-M01-001–004；第三轮为行过滤、稀疏导出、PBS井号、电话默认身份，本项不同根因。",
+  "independent_scope_assessment": {
+    "relation": "adjacent_import_header_contract",
+    "ids": [
+      "GIR-FD82-A013"
+    ],
+    "assessment": "已读绑定qualified_scope和B WP08/LZ17。A013解决节名非零前缀/零例外；本项固定合法头24后比较同域内容归并，属相邻阶段，不是旧项重开或同一反例。"
+  }
+}
+```
+
+**证据级别**
+
+- SOURCE_STATIC
+- SPEC_STATIC
+- EXECUTED_REFERENCE
+
+**执行状态**
+
+Original selected functions executed with minimal ancillary stubs on Ruby 2.6.10; NOT_EXECUTED_HOST_OR_DEMO; full compile/export not executed.
+
+**置信限定**
+
+high within stated inputs and fixed baseline
+
+**未知**
+
+- 实际全部语料中的碰撞数量、完整菜单/二进制保存、所有混合域形态组合未执行。
+- 未证明默认语料含重复；所有混合形态及完整宿主作者流程未运行。
+
+**排除的主张**
+
+- 不声称导入过程应拒绝重复或应被修复。
+- 不声称默认18份语料当前存在这些重复。
+- 不以本项重开第三轮行过滤问题。
+
+**用户政策边界**
+
+记录固定参考事实无需新增决策；未来是否兼容异常可另决，不修改参考。
+
+**独立反证与最终裁决**
+
+```json
+{
+  "decision": "CONFIRMED_AFTER_INDEPENDENT_CHALLENGE",
+  "root_adjudicator": "parent /root; 01a12fc2-e8c0-7e43-a721-ccfe659d75c8",
+  "independent_counterreview": {
+    "task": "CA",
+    "thread_id": "01a1301e-5efe-77a2-9450-fc09ff6830c1",
+    "path": "modules/CA/verdicts.json",
+    "pointer": "/records/0",
+    "decision": "CONFIRM",
+    "reason": "原R在节内规范化键后写入、在后节只覆盖实际有值项；B只规定形态/身份和运行回退，未决定冲突结果。单键与双节反例共同使缺口有确定可观测差异。",
+    "required_refinements": [],
+    "execution_evidence_assessment": {
+      "ca_rerun": false,
+      "receipt": "../M01/validation/reference-probe.rb + reference-probe-result.json",
+      "kind": "REUSED_ISOLATED_REFERENCE_EVIDENCE",
+      "version": "Ruby 2.6.10p210",
+      "assessment": "加载原分节器和单文件导入器，未替换合并核心。常量辅助替身不影响数值节头24；nil/empty替身虽不等于原函数全部类型语义，但本组全为有效字符串，结果一致。未跨500行刷新门，未跑完整菜单、输出截断或跨文件导入。",
+      "host_or_demo": "NOT_EXECUTED / bundled Ruby 3.1 host UNVERIFIED",
+      "new_execution_claim": false
+    },
+    "historical_relation_assessment": {
+      "relation": "adjacent_import_header_contract",
+      "ids": [
+        "GIR-FD82-A013"
+      ],
+      "assessment": "已读绑定qualified_scope和B WP08/LZ17。A013解决节名非零前缀/零例外；本项固定合法头24后比较同域内容归并，属相邻阶段，不是旧项重开或同一反例。"
+    }
+  },
+  "root_judgment": "已阅读完整事实、前提、反证和范围；采纳具名精确化，保持仅事实规格修订，不重开旧CLOSED或冒运行证明。",
+  "severity_change": null,
+  "formal_revision_applied": false
+}
+```
+
+### GR4-M01-002 · P3 · REQUIRED — 普通本地化占位参数并非完全字面插入
+
+领域 M01；分类 事实错误；独立审者 thread `01a12fc9-8425-7c80-b000-3fcaa86b76f1`；辅助证据目录 `modules/M01/`。当前状态CONFIRMED，只授权事实修订，没有应用任何正式修改。
+
+**源依据**
+
+- `Data/Scripts/001_Technical/003_Intl_Messages.rb` · 774–823：普通与地图占位使用替换字符串，格式化入口以格式计算结果插入。（固定R；blob `f6c27e5d6efacfa696cfcad018007e9ff1c0a072`）
+- `Data/Scripts/007_Objects and windows/002_MessageConfig.rb` · 790–814：备用定义有条件，不覆盖正常已定义本地化入口。（固定R；blob `47813fd34df588b24a5cc84f9928d9a55f4bcfc6`）
+
+**现规格依据**
+
+- `deliverables/final-specification-set/generic-kernel/wp08-localization.md` · §5.3;67 / §8;142：字面替换概括缺少反斜线参数例外。（固定B；blob `ef337ff445c701874e9728af118e33fcea33b99b`）
+- `deliverables/final-specification-set/user-interface/wp17-messages-windows-input.md` · 13–30：显示控制符属于后续窗口层，未解决本地化插入阶段。（固定B；blob `81b14a0b09327bc030e5d9ef9f907089bd68cb82`）
+
+**参考实际行为**
+
+普通脚本和地图占位入口会解释参数中的替换特殊组合：两个真实字符反斜线和&恢复被匹配的占位文本；反斜线和数字1在本例中变为空。字符串格式化入口对照保留反斜线和&。
+
+**现规格的说法**
+
+WP08 §5.3将普通占位概括为字面替换，未限定参数字符串中反斜线的解释。
+
+**差异/缺口**
+
+依完全字面插入实现，输入参数反斜线&将输出该两字符；固定参考却保留原占位标记，返回文本不同。
+
+**必要前提**
+
+- 正常本地化主入口已定义，未被插件覆写。
+- 当前语言两层无命中，故取原文X{1}Y；本例在进入任何消息窗口之前观察返回字符串。
+- 参数为U+005C与U+0026两个字符，或U+005C与U+0031两个字符；不是字符U+0001。
+
+**最小反例**
+
+```json
+{
+  "input": "原文X{1}Y，参数为两个真实字符U+005C/U+0026。",
+  "reference_result": "X{1}Y",
+  "literal_result": "X后接U+005C/U+0026再接Y"
+}
+```
+
+**正常对照**
+
+普通参数Q返回XQY；格式化字符串入口原文X{1:s}Y、同反斜线&参数返回包含这两个字符的X\&Y。
+
+**失败/边界对照**
+
+普通参数U+005C/U+0031返回XY；地图5的普通入口和脚本普通入口对反斜线&均返回X{1}Y。没有异常，不涉及WP17之后的暂停控制符转换。
+
+**独立实现影响**
+
+含反斜线的作者参数或动态名称的返回文本可能改变；影响范围有限，但“字面”合同会指导出不同字符串结果。
+
+**已完成的反证**
+
+```json
+{
+  "primary_review": {
+    "artifact": "negative-search.json#N02",
+    "scope": "全部131正式Markdown",
+    "terms": [
+      "字面替换",
+      "占位",
+      "后向引用",
+      "反向引用",
+      "backreference",
+      "替换表达式",
+      "replacement",
+      "INTL",
+      "参数"
+    ],
+    "reviewed_contexts": [
+      "deliverables/final-specification-set/generic-kernel/wp08-localization.md §5.3/§8",
+      "deliverables/final-specification-set/user-interface/wp17-messages-windows-input.md:13–30",
+      "deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md LZ04"
+    ],
+    "result": "未找到参数反斜线的本地化阶段例外；WP17的反斜线1是显示控制层，不能解释本次返回前已消失的参数。"
+  },
+  "primary_relative_paths_base": "modules/M01",
+  "independent_counterevidence": {
+    "search_ids": [
+      "M01-placeholder",
+      "M01-definition"
+    ],
+    "words": [
+      "字面替换|后向引用|反向引用|backreference|replacement|占位|反斜线|_INTL|_MAPINTL"
+    ],
+    "scope": {
+      "baseline": "1f36475d22120a0d1175967d5b17d71fe8311d88",
+      "root": "deliverables/final-specification-set/",
+      "files": 131,
+      "includes": "正文、共享条款、数据附表及静态测试目录；并非131篇逐篇重新验收"
+    },
+    "source_countersearch": [
+      {
+        "id": "M01-definition",
+        "pattern": "def (compile_text|compile_text_from_file|pbEachSection|_INTL|_ISPRINTF|_MAPINTL|_MAPISPRINTF)|compile_text\\(",
+        "files": 312
+      }
+    ],
+    "contexts_read_and_assessed": [
+      "WP08 §5.3/§8；LZ04",
+      "WP17 §3.1 U+005C显示控制阶段"
+    ],
+    "conclusion": "“字面替换”无参数反斜线例外；WP17的显示控制不能反证发生在返回文本之前的替换。",
+    "artifact": "negative-evidence.json"
+  },
+  "counter_relative_paths_base": "modules/CA"
+}
+```
+
+**下一轮最小修订**
+
+将“字面替换”限定为常规参数，不承诺任意参数逐字保留；用字符码明确两项参考边界和格式化入口对照，保留未来兼容选择。无需规定未来语言的替换API。
+
+**验收标准**
+
+```json
+[
+  {
+    "kind": "static_required",
+    "criterion": "正文给出X{1}Y加反斜线&返回X{1}Y、加反斜线1返回XY，以及Q正常对照。"
+  },
+  {
+    "kind": "static_required",
+    "criterion": "图区普通占位同样适用，格式化字符串对照保留反斜线&；明确观察在消息窗口前，勿混同U+0001。"
+  },
+  {
+    "kind": "execution_optional",
+    "criterion": "任何重跑使用准确输入字符并记录参考入口、解释器版本及宿主未执行界限。"
+  }
+]
+```
+
+**受影响正式文件**
+
+- deliverables/final-specification-set/generic-kernel/wp08-localization.md
+- deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md
+
+**共享合同**
+
+- WP08 §5.3 占位参数
+- WP17消息输入（仅依赖引用）
+
+**依赖**
+
+- 文本预处理与消息查找
+- 作者翻译工具；实际文件系统/宿主不在执行证明内
+
+**能力范围引用**
+
+- GR4-CAP-M01-016
+
+**关联新问题**
+
+无。
+
+**根因身份**
+
+GR4-M01-PLACEHOLDER-REPLACEMENT-ESCAPES
+
+**旧GR3/229/341关系**
+
+```json
+{
+  "relationship": "new",
+  "third_round_ids": [],
+  "second_round_id": null,
+  "note": "不重开GR3-M01-001–004；第三轮为行过滤、稀疏导出、PBS井号、电话默认身份，本项不同根因。",
+  "independent_scope_assessment": {
+    "relation": "new_bounded_scope",
+    "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+  }
+}
+```
+
+**证据级别**
+
+- SOURCE_STATIC
+- SPEC_STATIC
+- EXECUTED_REFERENCE
+
+**执行状态**
+
+Original selected functions executed with minimal ancillary stubs on Ruby 2.6.10; NOT_EXECUTED_HOST_OR_DEMO; full compile/export not executed.
+
+**置信限定**
+
+high within stated inputs and fixed baseline
+
+**未知**
+
+- 所有反斜线组合、占位嵌套和游戏UI实际效果未穷尽。
+- Ruby2.6隔离结果不是随附3.1宿主执行。
+- Ruby3.1随附宿主未实测；更多反斜线组合和窗口最终呈现未审。
+
+**排除的主张**
+
+- 不将参数字符称为已发生的安全漏洞。
+- 不推断用户实际游戏文本出现该输入。
+- 不要求未来保留异常；必修只针对参考事实表述。
+
+**用户政策边界**
+
+记录固定参考事实无需新增决策；未来是否兼容异常可另决，不修改参考。
+
+**独立反证与最终裁决**
+
+```json
+{
+  "decision": "CONFIRMED_AFTER_INDEPENDENT_CHALLENGE",
+  "root_adjudicator": "parent /root; 01a12fc2-e8c0-7e43-a721-ccfe659d75c8",
+  "independent_counterreview": {
+    "task": "CA",
+    "thread_id": "01a1301e-5efe-77a2-9450-fc09ff6830c1",
+    "path": "modules/CA/verdicts.json",
+    "pointer": "/records/1",
+    "decision": "CONFIRM",
+    "reason": "这是有限的返回文本合同不准确，P3恰当。源码使用会解释替换参数的路径，而格式化入口的对照路径不同；不是本地化模块不存在，也不是安全漏洞。未来选择字面插入仍须另列兼容政策。",
+    "required_refinements": [],
+    "execution_evidence_assessment": {
+      "ca_rerun": false,
+      "receipt": "../M01/validation/reference-probe.rb + reference-probe-result.json",
+      "kind": "REUSED_ISOLATED_REFERENCE_EVIDENCE",
+      "version": "Ruby 2.6.10p210",
+      "assessment": "字符由码点构造避免字面转义混淆；查找两层缺失回原文的源链已读。普通/格式化入口均保留原函数；备用定义有条件，不覆盖已存在主入口。支持所列返回字符串，不支持游戏显示或所有转义组合。",
+      "host_or_demo": "NOT_EXECUTED / bundled Ruby 3.1 host UNVERIFIED",
+      "new_execution_claim": false
+    },
+    "historical_relation_assessment": {
+      "relation": "new_bounded_scope",
+      "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+    }
+  },
+  "root_judgment": "已阅读完整事实、前提、反证和范围；采纳具名精确化，保持仅事实规格修订，不重开旧CLOSED或冒运行证明。",
+  "severity_change": null,
+  "formal_revision_applied": false
+}
+```
+
+### GR4-M02-001 · P2 · REQUIRED — 游戏变量墙钟计时能力及查询清零/天数边界未进入正式规格
+
+领域 M02；分类 缺能力；独立审者 thread `01a12fc9-af72-7672-b6bf-1c6e0d86f1e3`；辅助证据目录 `modules/M02/`。当前状态CONFIRMED，只授权事实修订，没有应用任何正式修改。
+
+**源依据**
+
+- `Data/Scripts/019_Utilities/001_Utilities.rb` · 157-191 / pbTimeEvent,pbTimeEventDays,pbTimeEventValid：设置与查询均可由脚本调用；未到期返回false且清变量；天数入口与通常日历倒计时不同（固定R；blob `39df7ce43a848625a8596e6bf52692024140af7c`）
+- `Data/Scripts/004_Game classes/001_Switches and Variables/003_Game_Variables.rb` · 12-24：变量槽默认0且仅<=5000写入（固定R；blob `20528bd0cd146fe271dc741c1b522a277015e5ff`）
+- `Data/Scripts/002_Save data/004_Game_SaveValues.rb` · 42-47：游戏变量整体持久化（固定R；blob `30d41c45ed3b37aeb2e8d8d368ba750c741006c8`）
+- `Data/Scripts/004_Game classes/007_Game_Event.rb` · 88-126：私有事件时间/冷却不写游戏变量槽，不等价（固定R；blob `aca6d0992927e1d6ce37f08c2cb75e73ebcb7374`）
+- `Data/Scripts/003_Game processing/003_Interpreter.rb` · 373-382：设置事件时间写事件私有记录并置自开关（固定R；blob `21666002e7f4038dd3763b632538becaae5f8d7d`）
+
+**现规格依据**
+
+- `deliverables/final-specification-set/generic-kernel/wp06-time-random-steps-stats.md` · §3.1-3.3 L25-50：本轮核对的合同定位（固定B；blob `f293da252a3c344ca6b9c6059bc6e56cd51a5b48`）
+- `deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md` · TM01-14 L37-54：本轮核对的合同定位（固定B；blob `3c7daba49da60cca2f6051839e408fc0426978a5`）
+- `deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md` · §3.1 L26-31：事件页/私有冷却近邻（固定B；blob `6c8046fb3691e6208b588c9090fb85dc7ea4ead4`）
+- `deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md` · 命令124 L44；计时统一说明L138：游戏累计时间定时器近邻（固定B；blob `bfff8453529890f2ea6e7d00ed9b7e1033da0130`）
+- `deliverables/final-specification-set/engine-overworld/wp59-world-time-weather-field-moves.md` · L26,95：墙钟消费者枚举未含本变量计时合同（固定B；blob `a2bda5c3e0d5b967d8ef050bc36b4cac8ed8c420`）
+
+**参考实际行为**
+
+对合法游戏变量槽，秒数设置记录当前墙钟和非负持续时间并刷新地图。查询只有经过时间严格大于正持续时间才为真且保留记录；未到期、恰到期或非正期限返回假并把变量清成0、刷新地图。天数设置按参考日内余数与epoch计算期限，不能替换成通常的次日零点语义。 一般天数输入在d<0时先取0；若设置时Unix墙钟秒为t，保存持续量D=(t mod 86400)+86400×max(d,0)−t。该量不是下一午夜相对时长。
+
+**现规格的说法**
+
+WP06仅列时钟类别及部分消费者；WP13的事件私有冷却/命令计时器、WP59墙钟引用不提供上述游戏变量设置/查询合同。TM目录没有其正常、等阈值、提前查询清零、天数异常对照。
+
+**差异/缺口**
+
+缺少一个可直接调用的持久变量计时能力，并遗漏会销毁尚未到期记录的状态变化。
+
+**必要前提**
+
+- 固定R无覆写，游戏变量对象存在、槽1可写
+- 秒数例受控墙钟1000、持续100、地图refresh正常
+- 各子例独立；无读取前改变槽值；不是实际Demo事件
+- 刷新替身仅计调用；若解释真实地图刷新，假定刷新正常返回且不回写该变量。探针中的刷新次数只指替身调用，不是事件页已执行次数。
+
+**最小反例**
+
+```json
+{
+  "input": "时间1000设置槽1持续100；时间1050查询一次；1101再查询",
+  "reference": "首次false并清0；第二次仍false，原计时已消失",
+  "spec": "仅凭正式集合无法确定该状态变化"
+}
+```
+
+**正常对照**
+
+独立设置1000/100，首次查询1101：true、原记录保留；设置时刷新一次，成功查询不再刷新。
+
+**失败/边界对照**
+
+独立查询1099或1100：false、变量0、设置及查询共两次刷新。持续0/-5均最终false。天数例epoch=1728000100、days=1，存储期限=-1727913600，查询false并清0。
+
+**独立实现影响**
+
+实现方可能遗漏入口，或把查询写成无副作用的>=到期判定、把天数入口修成日历语义，从而改变作者事件的等待与重置行为。
+
+**已完成的反证**
+
+```json
+{
+  "primary_review": {
+    "record": "evidence/negative-search.json",
+    "search_ids": [
+      "timers_identity",
+      "timers_alias"
+    ],
+    "scope": "全131正式文件",
+    "result": "精确/概念同义词0；别名33行12文件，命中为形态时间戳/电话/消息等待/树果/事件私有冷却，不含变量计时清0规则。另读WP13命令124与WP59 L26/95近邻。",
+    "source_countercheck": "全Data/Scripts搜pbTimeEvent族仅三个定义；未找到覆写/固定调用；不推成能力不存在。"
+  },
+  "primary_relative_paths_base": "modules/M02",
+  "independent_counterevidence": {
+    "search_ids": [
+      "M02-timer",
+      "M02-callers-overrides",
+      "CA-shared-alias-supplement"
+    ],
+    "words": [
+      "pbTimeEvent|墙钟|计时.{0,15}(清零|变量)|变量.{0,15}(计时|时间戳|倒计时)|提前查询|到期|过期|cooldown|expired",
+      "过渡坐标|冲浪基点|冲浪.{0,8}清|动态形态查询|资源消费.{0,15}形态|形态.{0,15}副作用|计时.{0,10}变量|变量.{0,10}计时|PP.{0,20}(补给|补充|活体|存活)|翻译.{0,10}(重复|合并)|文本域.{0,10}(覆盖|冲突)"
+    ],
+    "scope": {
+      "baseline": "1f36475d22120a0d1175967d5b17d71fe8311d88",
+      "root": "deliverables/final-specification-set/",
+      "files": 131,
+      "includes": "正文、共享条款、数据附表及静态测试目录；并非131篇逐篇重新验收"
+    },
+    "source_countersearch": [
+      {
+        "id": "M02-callers-overrides",
+        "pattern": "pbTimeEvent|AntiRandom|pbPostData|pbPostToString|pbPostToFile|def pbGetTimeNow|def rand\\b|def self.rand\\b",
+        "files": 312
+      }
+    ],
+    "contexts_read_and_assessed": [
+      "WP06 §3及TM01–14",
+      "WP09持久变量条目；WP13事件私有冷却及124累计游戏时间",
+      "WP59墙钟消费者；WP53比赛计时及24小时查询"
+    ],
+    "conclusion": "这些共享合同证明时间/存储存在，但没有槽位计时查询销毁未到期记录的规则；未定位pbTimeEvent族默认调用或覆写，只保留可调用脚本工具能力。",
+    "artifact": "negative-evidence.json"
+  },
+  "counter_relative_paths_base": "modules/CA"
+}
+```
+
+**下一轮最小修订**
+
+在WP06增加架构中立的游戏变量墙钟计时合同和源事实异常，说明两设置入口、查询副作用、变量持久化、无默认调用证据；在目录增加独立正常/边界/失败向量。源异常是否未来修正另列政策。
+
+**验收标准**
+
+```json
+{
+  "static": [
+    "无需读源码可确定1000/100的1099、1100、1101三个独立结果",
+    "提前查询再迟查询明确均false及状态0",
+    "天数具体数值和非正期限不伪称标准日历倒计时",
+    "与WP13事件私有冷却及累计游戏时间计时器分开，附WP09变量持久化依赖",
+    "给出一般天数公式D=(t mod 86400)+86400×max(d,0)−t、默认/负期限和严格大于门；保持无默认caller证据的限定。"
+  ],
+  "runtime": "本次隔离执行有回执；修订可静态验收，不要求游戏宿主/真实事件或真实存档执行。"
+}
+```
+
+**受影响正式文件**
+
+- deliverables/final-specification-set/generic-kernel/wp06-time-random-steps-stats.md
+- deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md
+
+**共享合同**
+
+- WP09游戏变量持久化
+- WP13事件脚本输入
+- WP59墙钟
+
+**依赖**
+
+- 游戏变量
+- 墙钟
+- 地图刷新请求
+
+**能力范围引用**
+
+- GR4-CAP-M02-021
+
+**关联新问题**
+
+无。
+
+**根因身份**
+
+M02-unextracted-variable-clock-timers
+
+**旧GR3/229/341关系**
+
+```json
+{
+  "relation": "new",
+  "GR3": [],
+  "second_round": null,
+  "note": "未猜测第二轮ID；不是GR3两已关闭问题的重开。",
+  "independent_scope_assessment": {
+    "relation": "new_bounded_scope",
+    "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+  }
+}
+```
+
+**证据级别**
+
+- SOURCE_STATIC
+- SPEC_STATIC
+- EXECUTED_REFERENCE
+
+**执行状态**
+
+原始函数在Ruby2.6隔离替身环境执行；非EXECUTED_HOST_OR_DEMO；evidence/probe-result-v2.json
+
+**置信限定**
+
+HIGH within stated scope
+
+**未知**
+
+- 真实事件/插件使用方式
+- 宿主游戏运行
+- 畸形数组与所有编号边界
+- 畸形槽值、所有变量编号、真实事件使用、完整宿主刷新/存取未证。
+
+**排除的主张**
+
+- 不认为功能有默认Demo调用
+- 不修改参考
+- 不要求未来重现天数错误或查询销毁策略
+
+**用户政策边界**
+
+本轮只需记录参考事实；未来是否修正源异常/保留兼容性留后续用户政策决定，不要求复刻代码。
+
+**独立反证与最终裁决**
+
+```json
+{
+  "decision": "CONFIRMED_AFTER_INDEPENDENT_CHALLENGE",
+  "root_adjudicator": "parent /root; 01a12fc2-e8c0-7e43-a721-ccfe659d75c8",
+  "independent_counterreview": {
+    "task": "CA",
+    "thread_id": "01a1301e-5efe-77a2-9450-fc09ff6830c1",
+    "path": "modules/CA/verdicts.json",
+    "pointer": "/records/2",
+    "decision": "CONFIRM_WITH_REFINEMENT",
+    "reason": "源端可调用能力真实存在：源定义公开于脚本环境，解释器具脚本执行入口。缺默认caller不能抹除能力。提前查询销毁状态、严格大于门和非正期限行为没有正式承接；ROOT一般数学与R一致，应补入而不只留异常数字。",
+    "required_refinements": [
+      "明确一般天数公式D=(t mod 86400)+86400×max(d,0)−t，t为设置时墙钟Unix秒；不可替换成下一午夜。",
+      "把refresh回执称为替身调用次数；实际刷新无异常/无回写为向量前提。",
+      "保留无默认调用证据和未来兼容政策待定。"
+    ],
+    "execution_evidence_assessment": {
+      "ca_rerun": false,
+      "receipt": "../M02/evidence/probe.rb + probe-v1.rb + probe-result-v2.json",
+      "kind": "REUSED_ISOLATED_REFERENCE_EVIDENCE",
+      "version": "Ruby 2.6.10p210",
+      "assessment": "原变量类与三个原函数被加载；时钟替身提供固定输入，地图替身只计refresh次数，未运行事件页刷新，因此仅支持无刷新回写的有界状态和调用次数。变量持久化来自SaveValues静态证据，未运行存档。",
+      "host_or_demo": "NOT_EXECUTED / bundled Ruby 3.1 host UNVERIFIED",
+      "new_execution_claim": false
+    },
+    "historical_relation_assessment": {
+      "relation": "new_bounded_scope",
+      "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+    }
+  },
+  "root_judgment": "已阅读完整事实、前提、反证和范围；采纳具名精确化，保持仅事实规格修订，不重开旧CLOSED或冒运行证明。",
+  "severity_change": null,
+  "formal_revision_applied": false
+}
+```
+
+### GR4-M02-002 · P3 · REQUIRED — POST请求前表单构造失败与便利包装吞没缺少输入边界
+
+领域 M02；分类 实现信息不足；独立审者 thread `01a12fc9-af72-7672-b6bf-1c6e0d86f1e3`；辅助证据目录 `modules/M02/`。当前状态CONFIRMED，只授权事实修订，没有应用任何正式修改。
+
+**源依据**
+
+- `Data/Scripts/001_Technical/002_Files/003_HTTP_Utilities.rb` · 4-35：键值字符串构造早于宿主调用；仅宿主调用有局部rescue（固定R；blob `70282ef270195b43797e7fd50f0405168e66f56b`）
+- `Data/Scripts/001_Technical/002_Files/003_HTTP_Utilities.rb` · 69-83：便利POST捕获整个基础调用的普通异常（固定R；blob `70282ef270195b43797e7fd50f0405168e66f56b`）
+
+**现规格依据**
+
+- `deliverables/final-specification-set/generic-kernel/wp07-diagnostics-files-http.md` · §4.1 L58-65；§6 L95-96：本轮核对的合同定位（固定B；blob `0c86892e62805b19731090eb1dc9bd6a7e4058d8`）
+- `deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md` · IO01-05 L60-64：本轮核对的合同定位（固定B；blob `3c7daba49da60cca2f6051839e408fc0426978a5`）
+- `deliverables/final-specification-set/creature-rpg/wp64-mail-and-mystery-gift.md` · §5 L80-82：GET下载解码边界不能覆盖POST请求前构造（固定B；blob `5443a594e4151a268297465206185002fac3d420`）
+
+**参考实际行为**
+
+在已验证Ruby2.6语义下，普通字符串散列表键在原地处理前已冻结，基础POST抛FrozenError且宿主调用0次。使用符号键可隔离该问题：安全ASCII值正常构造并调用宿主；值含空格则编码数值转换抛ArgumentError，仍为0次宿主调用。便利到字符串入口捕获并返回空字符串。HTTPS在上述构造前被前缀门挡下。 源静态事实是构造阶段位于宿主调用的局部捕获之外；FrozenError/ArgumentError等精确异常和返回值只按Ruby2.6隔离回执确认，随附3.1宿主仍未执行。
+
+**现规格的说法**
+
+已有GET/POST×基础/便利表描述协议过滤、响应状态与写文件错误，但没有表单构造过程及其可接受输入/请求前失败。普通异常捕获位置的泛述不能唯一推出哪些正常键值不会发起请求。
+
+**差异/缺口**
+
+部分POST输入失败在网络之前发生，基础异常与便利空串/未发送未被对应到具体前提。
+
+**必要前提**
+
+- 固定原始HTTP文件在Ruby2.6.10p210加载，无网络方法覆写之外的改变
+- http://example.invalid/，HTTPLite假方法仅记录参数并返回200/OK
+- 字符串键或符号键的普通表单输入；无文件目标
+
+**最小反例**
+
+```json
+{
+  "input": "http地址，符号键k，值a b；基础POST/便利到字符串分别调用",
+  "reference": "基础ArgumentError、HTTP调用0；便利空字符串、HTTP调用0",
+  "normal_control": "符号键k，值a_b.-9：正文k=a_b.-9，HTTP调用1，返回OK"
+}
+```
+
+**正常对照**
+
+符号键与安全ASCII值触达假宿主，Content-Length为8；真实服务器可达性未测。
+
+**失败/边界对照**
+
+字符串键k即使安全值也FrozenError；空格值在符号键对照中ArgumentError；两种便利输入均空串。https地址即使含空格也直接空串，不走构造或网络。
+
+**独立实现影响**
+
+未来实现可能默认所有普通表单都成功发送，或将请求前本地错误当作宿主网络失败，丢失可复查的参考兼容事实与错误传播差别。 影响限定于已定位的工具输入边界；没有默认业务caller证据，不推断所有默认游戏POST均不可用。
+
+**已完成的反证**
+
+```json
+{
+  "primary_review": {
+    "record": "evidence/negative-search.json",
+    "search_ids": [
+      "post_identity",
+      "post_alias"
+    ],
+    "scope": "全131正式文件",
+    "result": "API/媒体类型/表单键词0；宽HTTP/POST搜索63行26文件，POST实质合同只有WP07和IO02，另有IMPOSTER/NO_SIGNPOSTS及引用等假命中。WP64为GET下载/解码，不是POST输入构造。已读这些实质上下文。",
+    "source_countercheck": "全脚本pbPost族仅定义及便利转发；未找到覆写或核心默认POST业务。HTTPLite实现不在可读脚本，但失败发生于调用前，不依赖真实网络。"
+  },
+  "primary_relative_paths_base": "modules/M02",
+  "independent_counterevidence": {
+    "search_ids": [
+      "M02-post",
+      "M02-callers-overrides",
+      "CA-boundary-supplement"
+    ],
+    "words": [
+      "\\bPOST\\b|pbPost|post_body|表单|FrozenError|冻结.{0,12}键|form-urlencoded|HTTP"
+    ],
+    "scope": {
+      "baseline": "1f36475d22120a0d1175967d5b17d71fe8311d88",
+      "root": "deliverables/final-specification-set/",
+      "files": 131,
+      "includes": "正文、共享条款、数据附表及静态测试目录；并非131篇逐篇重新验收"
+    },
+    "source_countersearch": [
+      {
+        "id": "M02-callers-overrides",
+        "pattern": "pbTimeEvent|AntiRandom|pbPostData|pbPostToString|pbPostToFile|def pbGetTimeNow|def rand\\b|def self.rand\\b",
+        "files": 312
+      },
+      {
+        "id": "CA-boundary-supplement",
+        "pattern": "def nil_or_empty\\?|def refresh\\b|def getFacingCoords|def pbGetSeason|on_leave_tile|def gsub!?|def to_s|def sprintf",
+        "files": 312
+      }
+    ],
+    "contexts_read_and_assessed": [
+      "WP07 §4.1/§6/§7；IO01–05",
+      "WP64下载是GET/解码；WP10诊断传播引用不提供POST输入构造"
+    ],
+    "conclusion": "基础宿主调用局部捕获和便利全调用捕获已承接，但没有请求前表单构造及具体输入边界。不得重复报一个“便利捕获不存在”的问题。",
+    "artifact": "negative-evidence.json"
+  },
+  "counter_relative_paths_base": "modules/CA"
+}
+```
+
+**下一轮最小修订**
+
+WP07增列请求前构造阶段、普通输入反例、基础传播与便利空串的差别；明确证据仅Ruby2.6隔离执行且准确游戏宿主未证；不把源码缺陷自动转为未来必须复刻的政策。
+
+**验收标准**
+
+```json
+{
+  "static": [
+    "明确安全对照、字符串键冻结、符号键空格三类输入及宿主调用次数",
+    "便利包装的空串不能证明已发出HTTP请求",
+    "保留HTTPS提前拒绝和GET既有合同",
+    "清楚区分SOURCE_STATIC、隔离EXECUTED_REFERENCE和未执行游戏宿主"
+  ],
+  "runtime": "不要求联网；可用只记录调用的假宿主复核隔离向量。不得用Ruby2.6回执声称目标宿主实测。"
+}
+```
+
+**受影响正式文件**
+
+- deliverables/final-specification-set/generic-kernel/wp07-diagnostics-files-http.md
+- deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md
+
+**共享合同**
+
+- HTTP基础/便利错误传播
+- 诊断边界
+
+**依赖**
+
+- 运行时字符串/键语义
+- 表单构造
+- 宿主HTTP入口
+
+**能力范围引用**
+
+- GR4-CAP-M02-014
+
+**关联新问题**
+
+无。
+
+**根因身份**
+
+M02-post-pretransport-construction
+
+**旧GR3/229/341关系**
+
+```json
+{
+  "relation": "new",
+  "GR3": [],
+  "second_round": null,
+  "note": "未猜测第二轮ID；不是GR3两已关闭问题的重开。",
+  "independent_scope_assessment": {
+    "relation": "new_bounded_scope",
+    "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+  }
+}
+```
+
+**证据级别**
+
+- SOURCE_STATIC
+- SPEC_STATIC
+- EXECUTED_REFERENCE
+
+**执行状态**
+
+两次隔离运行；evidence/probe-result.json与probe-result-v2.json；无网络/写盘POST/真实宿主
+
+**置信限定**
+
+HIGH for Ruby2.6 isolated result; target host UNVERIFIED
+
+**未知**
+
+- 目标游戏宿主运行时的实测
+- 非ASCII全部编码路径
+- 调用方是否采用被冻结的字符串键
+- 没有默认POST消费者样本
+- 随附3.1宿主结果UNVERIFIED；原生HTTP实现、实际服务器、非ASCII、实际POST调用数据形态未证。
+
+**排除的主张**
+
+- 不声称真实线上POST全部不可用
+- 不声称GET受相同问题影响
+- 不要求新实现保留该缺陷
+
+**用户政策边界**
+
+本轮只需记录参考事实；未来是否修正源异常/保留兼容性留后续用户政策决定，不要求复刻代码。
+
+**独立反证与最终裁决**
+
+```json
+{
+  "decision": "CONFIRMED_AFTER_INDEPENDENT_CHALLENGE",
+  "root_adjudicator": "parent /root; 01a12fc2-e8c0-7e43-a721-ccfe659d75c8",
+  "independent_counterreview": {
+    "task": "CA",
+    "thread_id": "01a1301e-5efe-77a2-9450-fc09ff6830c1",
+    "path": "modules/CA/verdicts.json",
+    "pointer": "/records/3",
+    "decision": "CONFIRM_WITH_REFINEMENT",
+    "reason": "确认有界输入/失败阶段应补，但降为P3：当前强证是无默认业务caller的工具路径和Ruby2.6隔离结果，不能据此宣称默认宿主POST普遍不可用。现有通用异常分层部分正确；整改应补输入边界并限定版本，而不是重写全部HTTP合同。",
+    "required_refinements": [
+      "severity由P2收窄为P3。",
+      "把请求前构造阶段的SOURCE_STATIC与Ruby2.6精确FrozenError/ArgumentError回执分列；随附3.1运行保持未证。",
+      "不把前置构造异常混入已捕获的宿主请求异常；不把空串当已发送证明；不强制未来采用可变字符串或复刻缺陷。"
+    ],
+    "execution_evidence_assessment": {
+      "ca_rerun": false,
+      "receipt": "../M02/evidence/probe.rb + probe-v1.rb + probe-result-v2.json",
+      "kind": "REUSED_ISOLATED_REFERENCE_EVIDENCE",
+      "version": "Ruby 2.6.10p210",
+      "assessment": "HTTPLite替身只在构造之后收参数，不能造成零调用的前置失败；原表单构造/便利捕获未改写。精确异常类型仅按回执归Ruby2.6，不提升为随附3.1宿主实测；源码独立支持构造在局部捕获之前。",
+      "host_or_demo": "NOT_EXECUTED / bundled Ruby 3.1 host UNVERIFIED",
+      "new_execution_claim": false
+    },
+    "historical_relation_assessment": {
+      "relation": "new_bounded_scope",
+      "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+    }
+  },
+  "root_judgment": "已阅读完整事实、前提、反证和范围；采纳具名精确化，保持仅事实规格修订，不重开旧CLOSED或冒运行证明。",
+  "severity_change": {
+    "from": "P2",
+    "to": "P3",
+    "reason": "确认有界输入/失败阶段应补，但降为P3：当前强证是无默认业务caller的工具路径和Ruby2.6隔离结果，不能据此宣称默认宿主POST普遍不可用。现有通用异常分层部分正确；整改应补输入边界并限定版本，而不是重写全部HTTP合同。"
+  },
+  "formal_revision_applied": false
+}
+```
+
+### GR4-M02-003 · P3 · REQUIRED — 有状态的偏向未出现值随机选择能力缺少正式合同
+
+领域 M02；分类 缺能力；独立审者 thread `01a12fc9-af72-7672-b6bf-1c6e0d86f1e3`；辅助证据目录 `modules/M02/`。当前状态CONFIRMED，只授权事实修订，没有应用任何正式修改。
+
+**源依据**
+
+- `Data/Scripts/019_Utilities/001_Utilities.rb` · 73-98 / AntiRandom#initialize,#get：公开可调用的有状态整数选择；旧值1/7门与剩余值轮转（固定R；blob `39df7ce43a848625a8596e6bf52692024140af7c`）
+
+**现规格依据**
+
+- `deliverables/final-specification-set/generic-kernel/wp06-time-random-steps-stats.md` · §5.1-5.3 L81-107：本轮核对的合同定位（固定B；blob `f293da252a3c344ca6b9c6059bc6e56cd51a5b48`）
+- `deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md` · TM05-07 L45-47：本轮核对的合同定位（固定B；blob `3c7daba49da60cca2f6051839e408fc0426978a5`）
+
+**参考实际行为**
+
+正整数规模n建立0至n−1的候选轮次，优先选择本轮尚未出现值。已经出现的值非空时，有1/7分支从这些值再次选择；否则从本轮尚未出现者均匀选择并记为出现。全部出现后，下次选择开始新轮，首抽不走重复门。
+
+**现规格的说法**
+
+WP06只有普通随机、抽样/乱序、显式种子、战斗随机记录；全正式集中的无放回/重复抽样/洗牌均是其他领域规则，没有上述带跨次记忆的1/7重复门。
+
+**差异/缺口**
+
+遗漏一个可由作者或插件直接调用的随机能力；核心未有消费者不构成不存在的证据。
+
+**必要前提**
+
+- 正整数n=2
+- 未覆写原始选择能力
+- 首抽选择0；第二次重复门命中且旧集合仅0
+- 仅静态推导，无实际随机运行
+
+**最小反例**
+
+```json
+{
+  "input": "正整数n=2；首次返回0后，已见仅0、未见仅1。",
+  "reference_conditional_probabilities": {
+    "next_0": "1/7",
+    "next_1": "6/7"
+  },
+  "without_replacement_next_0": "0",
+  "independent_uniform_next_0": "1/2",
+  "reason": "0,0单条允许序列只排除无放回，不能排除独立均匀随机；差异由条件分布说明。",
+  "evidence_level": "DERIVED_VECTOR",
+  "execution_status": "NOT_EXECUTED"
+}
+```
+
+**正常对照**
+
+重复门未命中且仍有未出现值时选择未出现者；n=1每轮只可能返回0。
+
+**失败/边界对照**
+
+一轮全部候选出现后，下次以新轮开始；不承诺每n次请求必遍历全集，因为中间可以重复。零/负规模未作为本项验收事实。
+
+**独立实现影响**
+
+仅依据正式规格会丢失作者可使用的防连续偏置能力，或以洗牌/普通均匀抽样替代而改变跨次输出分布。
+
+**已完成的反证**
+
+```json
+{
+  "primary_review": {
+    "record": "evidence/negative-search.json",
+    "search_ids": [
+      "anti_identity",
+      "anti_alias"
+    ],
+    "scope": "全131正式文件",
+    "result": "精确/概念名称0；1/7/七分之一/重复抽样/无放回/洗牌等38行20文件已读，命中为宫殿权重、漫游1/32、遗传无放回、小游戏洗牌、设施重抽，均无此轮次和1/7重复机制。",
+    "source_countercheck": "全Data/Scripts搜索AntiRandom仅类定义，无默认消费者或覆写；能力定义仍可直接调用。"
+  },
+  "primary_relative_paths_base": "modules/M02",
+  "independent_counterevidence": {
+    "search_ids": [
+      "M02-random",
+      "M02-callers-overrides"
+    ],
+    "words": [
+      "AntiRandom|防重复|未出现|七分之一|1/7|1／7|随机.{0,12}(轮次|状态|偏向)|无放回|洗牌|重复抽样"
+    ],
+    "scope": {
+      "baseline": "1f36475d22120a0d1175967d5b17d71fe8311d88",
+      "root": "deliverables/final-specification-set/",
+      "files": 131,
+      "includes": "正文、共享条款、数据附表及静态测试目录；并非131篇逐篇重新验收"
+    },
+    "source_countersearch": [
+      {
+        "id": "M02-callers-overrides",
+        "pattern": "pbTimeEvent|AntiRandom|pbPostData|pbPostToString|pbPostToFile|def pbGetTimeNow|def rand\\b|def self.rand\\b",
+        "files": 312
+      }
+    ],
+    "contexts_read_and_assessed": [
+      "WP06 §5.1–5.3与TM05–07",
+      "WP34无放回继承、拼图/雷板洗牌、设施重复采样、战斗记录/平局洗牌的实质命中均为其它规则"
+    ],
+    "conclusion": "全131未找到有跨次记忆的1/7重复门。源码只有定义、无默认静态消费者/覆写；可实例化并调用get，不能称默认全局随机服务。",
+    "artifact": "negative-evidence.json"
+  },
+  "counter_relative_paths_base": "modules/CA"
+}
+```
+
+**下一轮最小修订**
+
+在WP06以输入整数范围、跨次状态、重复概率、轮次重置和具体向量补一个有界能力条目，注明默认调用未定位；不提出类/容器/API结构。
+
+**验收标准**
+
+```json
+{
+  "static": [
+    "n=2首0后可以再次0且保留未出现1",
+    "重复门不命中选择未出现者",
+    "耗尽后重开一轮、n=1边界",
+    "不把它误写为无放回、每n次全覆盖或默认系统统一使用",
+    "用首抽0后P(0)=1/7、P(1)=6/7与无放回0、均匀1/2作条件概率对照；不把一条重复序列当统计证明。"
+  ],
+  "runtime": "静态验收即可；不要求统计性随机测试或安装动态插件。"
+}
+```
+
+**受影响正式文件**
+
+- deliverables/final-specification-set/generic-kernel/wp06-time-random-steps-stats.md
+- deliverables/final-specification-set/test-catalog/generic-kernel-wp05-06-07-08-09-10.md
+
+**共享合同**
+
+- 普通随机输入
+- 动态作者/插件可调用能力
+
+**依赖**
+
+- 普通整数随机
+
+**能力范围引用**
+
+- GR4-CAP-M02-022
+
+**关联新问题**
+
+无。
+
+**根因身份**
+
+M02-unextracted-stateful-random-selection
+
+**旧GR3/229/341关系**
+
+```json
+{
+  "relation": "new",
+  "GR3": [],
+  "second_round": null,
+  "note": "未猜测第二轮ID；不是GR3两已关闭问题的重开。",
+  "independent_scope_assessment": {
+    "relation": "new_bounded_scope",
+    "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+  }
+}
+```
+
+**证据级别**
+
+- SOURCE_STATIC
+- SPEC_STATIC
+- DERIVED_VECTOR
+
+**执行状态**
+
+NOT_EXECUTED
+
+**置信限定**
+
+HIGH for scoped static algorithm
+
+**未知**
+
+- 实际业务采用情况
+- 任意规模/非法输入与宿主分布统计
+- 非法规模、真实作者/插件使用、原生随机实现与跨语言序列未证。
+
+**排除的主张**
+
+- 不声称默认游戏已用此能力
+- 不要求未来采用参考类组织
+- 不证明跨语言随机序列一致
+
+**用户政策边界**
+
+本轮只需记录参考事实；未来是否修正源异常/保留兼容性留后续用户政策决定，不要求复刻代码。
+
+**独立反证与最终裁决**
+
+```json
+{
+  "decision": "CONFIRMED_AFTER_INDEPENDENT_CHALLENGE",
+  "root_adjudicator": "parent /root; 01a12fc2-e8c0-7e43-a721-ccfe659d75c8",
+  "independent_counterreview": {
+    "task": "CA",
+    "thread_id": "01a1301e-5efe-77a2-9450-fc09ff6830c1",
+    "path": "modules/CA/verdicts.json",
+    "pointer": "/records/4",
+    "decision": "CONFIRM_WITH_REFINEMENT",
+    "reason": "原R中轮次记忆、重复分支与重置构成确实独立的可调用能力，B普通随机/洗牌标题并未承接它；P3合理。确认遗漏，但拒绝用一个允许重复的序列证明与无记忆均匀抽样不同。",
+    "required_refinements": [
+      "用上列条件概率对照替换不足以区分均匀随机的单序列断言；这是静态数学推导，不是统计测试。",
+      "保留正整数n范围、无默认消费者、无跨语言随机序列一致性承诺。"
+    ],
+    "execution_evidence_assessment": {
+      "ca_rerun": false,
+      "receipt": "../M02/execution.json",
+      "kind": "SOURCE_STATIC / SPEC_STATIC / DERIVED_VECTOR",
+      "assessment": "原模块记录的Python清点/JSON/路径校验仅为TOOL_VALIDATION，不支持行为运行通过；CA未执行该脚本或参考函数。",
+      "host_or_demo": "NOT_EXECUTED"
+    },
+    "historical_relation_assessment": {
+      "relation": "new_bounded_scope",
+      "assessment": "本项在固定B/R独立成立；未把原模块历史PASS当证据，未重开旧关闭项，未扩审229。"
+    }
+  },
+  "root_judgment": "已阅读完整事实、前提、反证和范围；采纳具名精确化，保持仅事实规格修订，不重开旧CLOSED或冒运行证明。",
+  "severity_change": null,
+  "formal_revision_applied": false
+}
+```
