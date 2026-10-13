@@ -52,6 +52,8 @@ for path in [BODY, TESTS]:
     new[path] = (HERE / 'formal' / path).read_bytes()
     patch += ''.join(difflib.unified_diff(old[path].decode().splitlines(True),
                      new[path].decode().splitlines(True), fromfile='a/' + path, tofile='b/' + path, n=3))
+# Git accepts empty context lines without a space-only prefix.
+patch = ''.join('\n' if line == ' \n' else line for line in patch.splitlines(True))
 assert patch.encode() == (HERE / 'formal-diff.patch').read_bytes(), 'patch/mirror mismatch'
 with tempfile.TemporaryDirectory(prefix='r5-u05-replay-') as scratch:
     dest = Path(scratch)
