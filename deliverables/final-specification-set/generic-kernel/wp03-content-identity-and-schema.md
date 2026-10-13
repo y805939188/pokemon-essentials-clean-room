@@ -39,7 +39,7 @@
 - 两类查询对同类实例直接返回该实例，**不能据此推出该实例已登记**。
 - 双身份「两键一条目」以注册时无键冲突为前提；冲突边界未逐类验证。
 - 相等判定：与符号/字符串按符号身份比较，与整数按整数序号比较，与同类实例按身份比较。
-- 反向读取（按 schema 取字段值用于写出）时，false 与空数组归一化为 nil。
+- 未被内容类覆写的反向读取（按 schema 取字段值用于写出）把 false 与空数组归一化为缺值；具名覆写另按自己的输出规则。非重要道具的 Consumable=false 必须写出，见《PBS 生命周期》§5.5.1。
 
 ### 3.2 按类例外（默认规则被覆写的实际契约）
 
@@ -51,7 +51,7 @@
 | Metadata | 无参严格查询直接返回全局 0 号记录 |
 | PlayerMetadata | 严格查询先按编号查找，**未知编号回退 1 号记录**（默认编号也为 1） |
 | TerrainTag | 宽容查询对空输入与未知键均**回退 None 地形** |
-| DungeonTileset | 宽容查询对未知键**回退首条图块配置** |
+| DungeonTileset | 合法整数键未知时，**仅在登记集合非空时回退首条图块配置**；空集合查询失败，不创建默认图块集或返回图块 0 |
 | DungeonParameters | 宽容查询先按（区域, 版本）合成符号、回退基础区域；仍缺时**新建默认参数实例返回（不登记）** |
 | SpeciesMetrics | 形态指标查询对缺失指标可能**创建并登记**记录：基础指标缺失先登记基础默认，形态指标缺失再以基础值克隆登记。**查询有副作用**；物种本身未定义则抛错 |
 | Species（形态） | 形态查询以「物种_形态号」合成符号查找，形态缺失回退基础物种符号，仍缺返回空值；空输入直接返回空值 |
@@ -90,6 +90,25 @@
 
 条目构造时对缺失字段赋类级默认值，例如：物种未命名显示名 → "Unnamed"、类型 → [:NORMAL]、捕获率 → 255、亲密度 → 70；道具卖价 → 买价的一半、BP 价 → 1；招式类型 → :NONE、命中 → 100、PP → 5；地图元数据标志 → 空表。默认值是**当前快照的类级声明**，不是 Pokémon 通用规则；完整字段语义归领域规格。
 
+#### 4.3.1 作者字段的有限省略默认与名称回退
+
+下表在合法新身份、其它字段/依赖及条目终检正常的前提下，描述省略属性后的原始记录值。原始名称、描述与最终本地化结果是两个观察点。
+
+| 内容与省略字段 | 原始结果 | 消费边界 |
+| --- | --- | --- |
+| TownMap：Name、Filename、Point、Flags | ???、缺值、空点列表、空标记列表 | 区域名再本地化；没有 Filename 不保证地图素材可显示 |
+| Ability：Name、Description、Flags | Unnamed、???、空标记列表 | 名称与描述各经对应文本域；显式 Review/Text 覆盖默认 |
+| Ribbon：Name、Description、IconPosition、Flags | Unnamed、???、0、空标记列表 | 图标位置 0 是数据默认；显式 3 保留；缎带显示顺序仍按持有列表 |
+| Move：Category、Power、Target、FunctionCode | Status、0、None、文本 None | 类别与威力须先通过《PBS 生命周期》§4.5 的交叉校验；既有 Type NONE、命中 100、PP 5 默认保持 |
+| TrainerType：Gender、Name | 未知/混合 2、Unnamed | 类型名再本地化；基础资金与技能档仍按领域合同 |
+| Metadata：StartMoney | 3000；显式 0 保持 0 | 正常玩家创建读取此值；仍须有全局 0、合法 Home 与玩家 1 |
+
+StorageCreator 先查本字段的译文/原文，结果缺失或为空字符串才回退到脚本文本 Bill 的翻译；没有相应语言命中时才得到字面 Bill，有命中时得到该译文。此消费者回退不改变通用空译是有效命中的规则；PC 是否显示创建者名仍有“已见过创建者”门。
+
+道具 PortionName 与 PortionNamePlural 的原字段分别缺席时，回退对应的普通单数名与复数名。存在非空份名 Portion 且其语言键命中空译时，返回空字符串，不回普通名 Review。显式空的 PBS `s` 属性没有首个 CSV 值，得到缺值；它与已存储的空字符串、非空份名的空译命中不同，`q` 空文本亦走另一条路径。
+
+地图元数据 Name 缺失或为空时，在条目登记前读取基本地图信息中同 ID 的名字；该信息条目缺席则此处失败。显式非空 Name=Review 绕过此读取，只能证明该默认名分支未失败，不能证明地图几何或资源可用。Pocket、Price、FieldUse、BattleUse 四项道具默认及 Flags 统一由[GR5-M05-006（R5-U03 道具主责）](https://github.com/y805939188/pokemon-essentials-clean-room/blob/22fba7786b0090a1955ce6211315b0036cddfbcd/review/remediation-fifth-20261013-prepare/contracts/R5-U03/author-entry.md)规定；本节仅投影主责引用，不复制默认全集。该主责贡献尚待按冻结合同实际接入，本引用不声明 B5 已完成承接。
+
 ### 4.4 查询副作用
 
 SpeciesMetrics 的指标查询可能创建并登记新记录（§3.2），因此「查询后注册表内容」与「查询前」可能不同；DungeonParameters 的缺失查询返回未登记的默认实例，不改变注册表。设计测试时不能把查询都当作只读。
@@ -115,6 +134,21 @@ SpeciesMetrics 的指标查询可能创建并登记新记录（§3.2），因此
 | `*` 前缀 | 列表（如 `*e`、`*s`、`*m`） |
 | `^` | 可重复属性（同一属性多行累加，如 Evolution） |
 | 复合 | 固定长度元组（如六项能力 `vvvvvv`、坐标 `vuu`） |
+
+#### 5.1.1 单行布尔与内联枚举词汇
+
+以下是活跃 PBS 字段经行预处理与分词后的接受域；省略属性跳过该字段转换并采用它自己的默认，不能把省略、出现空值及非法词混同。
+
+| 字段种类 | 接受文本 | 结果或拒绝边界 |
+| --- | --- | --- |
+| 小写 `b` 布尔 | 真：1、true、yes、y；假：0、false、no、n；ASCII 字母任意大小写 | 空值、off 等其它文本拒绝；不是非空就为真或非法就为假 |
+| TrainerType Gender | 男：Male/male/M/m/0；女：Female/female/F/f/1；未知：Unknown/unknown/Other/other/Mixed/mixed/X/x/2 | 精确别名分别映射 0/1/2；MALE、UNKNOWN 等未列长词拒绝 |
+| Trainer 成员 Gender | 仅上述男、女两组 | Unknown、Mixed、2 不在成员接受域 |
+| Item FieldUse | OnPokemon、Direct、TM、HM、TR | 精确大小写；依次为使用家族 1–5；显式数字串 0 拒绝，省略才采用无使用的语义 0 |
+| Item BattleUse | OnPokemon、OnMove、OnBattler、OnFoe、Direct | 精确大小写；依次为使用家族 1–5；显式数字串 0 拒绝，省略才为语义 0 |
+| Move Category | Physical、Special、Status | 精确文本；数字串 0/1/2 不按列表位置接受 |
+
+内联列表按文本等值、内联映射按精确键求值；不统一折叠大小写，也不把数字文本自动当作下标。非重要道具 Consumable=N 登记为假，off 与显式空值在布尔转换拒绝；重要道具的有效消费谓词和数量显示仍归道具合同。浮点 `f` 的单行接受集合及物种尺寸整数化见《PBS 生命周期》§4.2.1。
 
 ### 5.2 编译期身份与引用校验（按入口分别表述）
 
@@ -143,6 +177,21 @@ SpeciesMetrics 的指标查询可能创建并登记新记录（§3.2），因此
 
 **已撤回的说法**：「枚举在写出时可自动补写新常量」缺乏证据——写出路径是值到文本的转换，对枚举只查找已有名称或返回值/错误，不创建新常量。
 
+### 5.3 作者六列能力输入与具名产出
+
+BaseStats、Trainer IV、Trainer EV 的 PBS 数值列从左至右绑定为 **HP、攻击、防御、速度、特攻、特防**；反写恢复相同列序。它是作者文本列序，独立于能力目录的登记次序、公式展示向量、Mega 表、个性与觉醒力量各自已声明的次序，不规定内部存储排列。
+
+BaseStats 显式文本要求六项正整数，不按训练家尾缺规则补首值。训练家 IV/EV 显式属性要求首项非负整数，后五项可缺；缺项重复首值，显式 0 保留。归名后核 IV 单项 ≤31、EV 单项 ≤252 且合计 ≤510。Species EVs 使用“能力身份、正数”的具名产出对，反写仍是具名对；速度 1 不表示六列输入。
+
+| 独立作者输入 | 归名结果 |
+| --- | --- |
+| BaseStats=1,2,3,4,5,6 或 Trainer IV=1,2,3,4,5,6 | HP1、攻2、防3、速4、特攻5、特防6 |
+| Trainer IV=1,2 | HP1、攻2，其余四项1 |
+| Trainer IV=1,0 | HP1、攻0，其余四项1 |
+| Trainer IV/EV 整字段省略；合法 L20 成员正常装载且无钩子覆盖 | IV 每项10、EV 每项30；显式全0则为0 |
+
+编辑器 IV/EV 子页 BACK 补缺项 0 是另一入口；未打开仍未指定、打开后返回显式六项0以及父层 No/Yes 保存门各自保持，不能用 PBS 补首值覆盖编辑返回语义。
+
 ## 6. 固定规则与作者数据的区分
 
 | 维度 | 固定规则数据 | 作者数据 |
@@ -156,6 +205,61 @@ SpeciesMetrics 的指标查询可能创建并登记新记录（§3.2），因此
 维度澄清：Type、Move、Item 是**作者数据**（经 PBS 编译），同时也充当其他内容的枚举引用源；「是枚举引用源」不等于「是固定规则」。判断「某行为由什么决定」时，含行为的固定规则（成长公式、进化判定）与纯枚举目录必须分别对待。
 
 **Nature 的固定身份前提**：参考快照的性格目录有 25 个身份，派生性格按个人标识对 25 取余后选取目录顺序中的身份；该顺序与每个身份的能力修正属于固定规则，不能由作者 PBS 自由重排或只保留显示名。例如顺序 1 的 LONELY 为攻击 +10、防御 −10；顺序 2 的 BRAVE 为攻击 +10、速度 −10（顺序从 0 开始）。完整 25 身份顺序、20 项双能力修正与 5 项中性映射，以及能力取整、薄荷等消费者合同由 WP19 负责；本档案登记该必需依赖，不以通用 schema 的身份校验替代这些领域规则。
+
+### 6.1 物种描述字段的固定身份目录
+
+Shape、Color、Habitat 采用下列精确身份。表内位置为固定定义次序；显示标签在展示时本地化。体型图标位置只登记参考资源输入关联，不要求未来采用相同图集布局。未知身份在作者枚举转换时拒绝。
+
+#### 体型（14 项）
+
+| 位置 | 身份 | 原始显示标签 | 参考图标位置 |
+| --- | --- | --- | --- |
+| 0 | Head | Head | 0 |
+| 1 | Serpentine | Serpentine | 1 |
+| 2 | Finned | Finned | 2 |
+| 3 | HeadArms | Head and arms | 3 |
+| 4 | HeadBase | Head and base | 4 |
+| 5 | BipedalTail | Bipedal with tail | 5 |
+| 6 | HeadLegs | Head and legs | 6 |
+| 7 | Quadruped | Quadruped | 7 |
+| 8 | Winged | Winged | 8 |
+| 9 | Multiped | Multiped | 9 |
+| 10 | MultiBody | Multi Body | 10 |
+| 11 | Bipedal | Bipedal | 11 |
+| 12 | MultiWinged | Multi Winged | 12 |
+| 13 | Insectoid | Insectoid | 13 |
+
+#### 体色（10 项）
+
+| 位置 | 身份 | 原始显示标签 |
+| --- | --- | --- |
+| 0 | Red | Red |
+| 1 | Blue | Blue |
+| 2 | Yellow | Yellow |
+| 3 | Green | Green |
+| 4 | Black | Black |
+| 5 | Brown | Brown |
+| 6 | Purple | Purple |
+| 7 | Gray | Gray |
+| 8 | White | White |
+| 9 | Pink | Pink |
+
+#### 栖息地（10 项）
+
+| 位置 | 身份 | 原始显示标签 |
+| --- | --- | --- |
+| 0 | None | None |
+| 1 | Grassland | Grassland |
+| 2 | Forest | Forest |
+| 3 | WatersEdge | Water's Edge |
+| 4 | Sea | Sea |
+| 5 | Cave | Cave |
+| 6 | Mountain | Mountain |
+| 7 | RoughTerrain | Rough Terrain |
+| 8 | Urban | Urban |
+| 9 | Rare | Rare |
+
+正常基础记录省略三字段仍采用 Head/Red/None。HeadArms、Gray、WatersEdge 是合法作者身份；三个未知词各在对应枚举处拒绝。图鉴体型/体色搜索消费本目录次序；Area 页仍消费地图、遭遇与占位掩码，不从 Habitat 字段推导物种出现地图。
 
 ## 7. 字段责任目录（字段组粒度）
 
