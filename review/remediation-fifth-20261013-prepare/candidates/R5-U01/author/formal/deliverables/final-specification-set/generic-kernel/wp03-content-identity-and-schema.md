@@ -107,7 +107,7 @@ StorageCreator 先查本字段的译文/原文，结果缺失或为空字符串�
 
 道具 PortionName 与 PortionNamePlural 的原字段分别缺席时，回退对应的普通单数名与复数名。存在非空份名 Portion 且其语言键命中空译时，返回空字符串，不回普通名 Review。显式空的 PBS `s` 属性没有首个 CSV 值，得到缺值；它与已存储的空字符串、非空份名的空译命中不同，`q` 空文本亦走另一条路径。
 
-地图元数据 Name 缺失或为空时，在条目登记前读取基本地图信息中同 ID 的名字；该信息条目缺席则此处失败。显式非空 Name=Review 绕过此读取，只能证明该默认名分支未失败，不能证明地图几何或资源可用。Pocket、Price、FieldUse、BattleUse 四项道具默认及 Flags 按道具主责合同，不另扩成全部私有字段默认目录。
+地图元数据 Name 缺失或为空时，在条目登记前读取基本地图信息中同 ID 的名字；该信息条目缺席则此处失败。显式非空 Name=Review 绕过此读取，只能证明该默认名分支未失败，不能证明地图几何或资源可用。Pocket、Price、FieldUse、BattleUse 四项道具默认及 Flags 统一由[GR5-M05-006（R5-U03 道具主责）](https://github.com/y805939188/pokemon-essentials-clean-room/blob/22fba7786b0090a1955ce6211315b0036cddfbcd/review/remediation-fifth-20261013-prepare/contracts/R5-U03/author-entry.md)规定；本节仅投影主责引用，不复制默认全集。该主责贡献尚待按冻结合同实际接入，本引用不声明 B5 已完成承接。
 
 ### 4.4 查询副作用
 
