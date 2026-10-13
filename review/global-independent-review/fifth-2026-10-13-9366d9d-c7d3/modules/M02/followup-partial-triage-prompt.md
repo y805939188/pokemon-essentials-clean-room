@@ -1,0 +1,4 @@
+继续同一M02审查，限定6个已审源规则的最终处置收口，见followup-partial-triage-input.json；不是全量重读、不是重开旧5发现。固定R/B5、只写modules/M02、净室规则保持。请求gpt-6-astra/ultra/service_tier=default，禁Fast；实际参数UNVERIFIED。不得创建agent/安装/执行参考/提交推送/改正式。
+母任务root-M02/canonical-findings.json已经独立反证并确认001–005（其中两P2三P3），复用完整有界结论。仅6条：迁移包残留/浅复制、电话笛子迁移、派生统计、普通随机作者输入、小整数索引I/O和通用工具。它们当前partial/unresolved不等于未读，但每一子范围仍须明确最终去向，不能以“不默认调用”推出不用规格，也不能因为源有方法就要求照搬API。
+请复用已读来源及合同，仅补必要精准caller/合同反证。分别给已有承接与具体理由、内部组织/被主业务充分抽象而不需独立规则、具名运行/兼容政策边界，或者确会导致独立实现关键可观察差异的新候选。新候选从GR5-M02-006开始，完整用户schema，等待母任务非原提出者反证。宽泛“以后可选”不能替代对有界源事实的处置；事实已准但是否复现老辅助的政策可以unresolved_policy，而不伪造事实矛盾。
+交付followup-partial-dispositions.json，每个6记录及子范围有源/现行合同/语义理由/状态/最终finding或无必修理由；append report，必要追加新findings（保留原5对象），followup-partial-progress.json boolean complete。不要重审历史行政回执或所有源码。完成有限6条后结束，不因依赖其它模块主文全审未结束而无端等候；具体对应由父整合。

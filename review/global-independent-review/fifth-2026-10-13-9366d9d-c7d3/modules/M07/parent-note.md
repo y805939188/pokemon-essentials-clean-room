@@ -1,0 +1,1 @@
+补充语料核对（主会话C00已读全文用于归属，未替你签源语义）：B5 review/remediation/20261003-prepare/batches/B09/candidate-2/static-cases.json 有43 catalog_cases与18 supplemental_designs及B013 amendment_crosschecks。请把你的战斗上下文/服从/PP/替补/Shift/终局/Perish/自动换位范围的补充前提接入双向映射，不能只统计目录ID。它是已接受B09候选18873059的有界证据导航，B5当前正文才是本轮判定对象；旧PASS不转签。与M06的捕获接收/经验、M10的音频/选择UI分工投影。

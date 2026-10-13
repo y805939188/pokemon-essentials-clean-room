@@ -1,0 +1,1 @@
+C00有效补充：B21已接受候选e58486178e746273fb6fab55df00722807f1dc44:review/remediation/20261003-prepare/batches/B21/author-draft-1/static-cases.json 中CASE-DISPATCH的无步进表仍有效主动OldRod与SOURCE-PATH；八链同目录eight-chains.json中CHAIN-2/6/8是旧限定语义导航，需要当前合同实际核对而不是继承PASS。主会话读其语义字段，未代签本轮源。AX20树果水分等见review/wp78-consistency-review-2026-10-03/revision-v3/anomaly-register.json。

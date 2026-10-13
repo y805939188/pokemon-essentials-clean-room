@@ -1,0 +1,1 @@
+有效补充语料：B5 review/remediation/20261003-prepare/batches/B09/candidate-2/static-cases.json 的捕获/成长部分，尤其18 supplemental_designs中的EXP-INTEGER-STAGES、HEAVYBALL-ITEM-VALIDITY、CAPTURE-TEMPORARY-REMOVAL、CAPTURE-MIDDLE-WORLD及B013 amendment_crosschecks（合法Shadow/Snag前提与有/无伙伴），主会话已全文读用于分类，仍请按你的实际R/B5语义范围闭合/投影，不能旧PASS代签。

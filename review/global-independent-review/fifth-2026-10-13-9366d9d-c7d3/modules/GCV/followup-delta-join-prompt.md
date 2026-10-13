@@ -1,0 +1,7 @@
+继续同一GCV范围核对任务，只写modules/GCV。固定B5/R与gpt-6-astra/ultra/default禁Fast原约束保持，实际回显UNVERIFIED。不要重做已完成正文审查或行政身份核验。母会话已完整接收前报告，现做一次有限增量连接：
+1. 你列出的10份current_attachment_classification_candidates均已被M09或M12B全文语义读完。依据其现行引用/表中事实及各primary具体反查，逐份给当前补充/限定历史事实/被替代导航处置建议和准确承接路径；不能只是对目录名归历史。辅助旧表与当前正文冲突时指出当前receiver并保留源事实。原始C00分类由母会话改，你不可写共享corpus。
+2. 13个测试正文段缺inverse边不是未读，补推荐段落→向量/源范围的显式映射在自己目录。M12越界275–299已被root纠至295（根catalog真实EOF295），定点验证，不重读整模块。
+3. 你第一次输入窗口后各primary已新增/完成。M10的RPG_Sprite103行已在原任务完成，新增候选012/013独立C10进行中；M08十四原稿差异正在原任务完成；M05仍最后逆向映射；RES读完整SF2/托管IL/extendtext；BIN正在完整审Game.exe可读内嵌脚本/所有长短着色器/字符串候选。读取各真实progress，不把在审记缺材料。先处理独立可做的分类与映射，之后对这些已变化ledger做一次精确增量join，保留旧输入hash到新输入hash差异，不重跑不变正文。
+4. 在自己目录产出可由root接收的normalized source-to-spec/spec-to-source/file-and-range/semantic-record maps建议：全部432R、131formal、113原稿和有效补充实际review范围、外域partial不能独立签full，明确actual semantic disposition而非物理range覆盖。至少记录每一个模块能力行如何归属规范根ID/投影，稳定源身份+行为作用域相同才能合并；不同root不得同文件自动合并。记录能力/映射条数和unique能力是否可确定，不宣称1356就是唯一feature。主汇总/全局文件仍由root唯一写。
+5. C00的3份formal元数据185条、32实际补充字段和全部路径分类已完成，只有fresh domain/reg/jxn joins；root M12 25单位和219逆条款、root-M11 scope projection正本需接入。亲审canonical已在counterevidence/root-Mxx，部分仍后续新增，覆盖读完与finding处置分开。
+6. 完成当前有限增量核对即报告，不安排无限重审。若上述primary完成时点仍未到，可保留精确pending join并给一次必要后续输入清单，不伪称全局完整。再次发现可读未审语义须准确枚举交父安排，不升级为源功能finding。输出report/resolution或gapregister/reading/normalized/progress（boolean complete表本任务有限工作），不要覆盖他人或共享文件，不提交推送。

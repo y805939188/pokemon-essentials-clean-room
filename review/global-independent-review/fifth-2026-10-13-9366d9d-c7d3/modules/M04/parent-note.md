@@ -1,0 +1,1 @@
+C00发现有效的固定历史补充：B21已接受候选e58486178e746273fb6fab55df00722807f1dc44:review/remediation/20261003-prepare/batches/B21/author-draft-1/static-cases.json 的FORM-P/FORM-N，GIRATINA宝珠/旗标/强制形态入口分层。主会话已读内容用于归属，不替你源/B5验证。全部旧AX参考异常的M04相关AX09/AX19见B5 review/wp78-consistency-review-2026-10-03/revision-v3/anomaly-register.json；保持事实与未来兼容选择分开。

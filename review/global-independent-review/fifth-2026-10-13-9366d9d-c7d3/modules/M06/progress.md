@@ -1,0 +1,15 @@
+# M06 progress
+
+complete: false. Static only, no reference/model execution. Actual model parameters: UNVERIFIED.
+
+Parent note read. GrowthRate 1–188 compared to formal WP30 §§3/8/9/10: the six curves, lookup-before-formula, invalid-input asymmetry, clamped addition and table-external formulas are explicitly covered. Pokemon 1–1065 inspected (M06 relevant getters, mutations, moves, happiness and evolution gateway); formal WP30 full 1–282 read. Remaining caller/test/original/supplemental comparison is pending. No candidate finding has completed negative-evidence closure.
+
+Next: Pokemon 1065–1227, battle growth, item growth/learning, relearner, configuration and actual consumers. Other assigned domains remain not_reviewed.
+
+Checkpoint 2: battle growth 1–271 and relearner 1–199 fully compared; Pokemon source completed 1–1227 (only M06 consumers claimed). Full original WP30 1–351 compared with formal/tests; no unique correct fact lost identified. B09 EXP-INTEGER-STAGES/FORGET-CANCEL read and consistent. Growth interfaces and shared identities now recorded in JSON; some cross-contract/data/caller closure remains. Next: close those and proceed full Evolution registry/UI. complete remains false.
+
+Checkpoint 3: All main source bodies in assigned domains have now been semantically read and compared with all ten formal WP30–38 body/context documents. This is NOT completion: dependencies/config/data lists, remaining originals and BR/DC/EG/EN/CP vectors, cross-contract mapping and counterevidence remain. Known oddities (TradeSpecies, empty reminder, full peer, caught-only roamer reset, double generation, full-party receipt) already appear in current contracts. Two low-level custom-input edges are being checked for existing coverage, not promoted to required findings. complete=false.
+
+Checkpoint 4: All assigned formal bodies/context, full original differences and every assigned test vector reviewed. Full default encounter/map metadata and all evolution/offspring/incense/form-inheritance/ball/hatch-ability lists compared. Direct shared M04/M05/M07 source interfaces recorded, including inert bootstrap49-line read to establish script loading order (no Ruby evaluation or reference execution). All B09 M06 constraints compared. One unresolved candidate: unqualified genderless-pair refusal in WP33 vs default DITTO+MAGNEMITE exception; same-paragraph positive branch/DC08 are explicitly retained as counterevidence. Completing detailed artifact maps and final small caller slices; complete remains false until checks finish.
+
+Final checkpoint: complete=true. All assigned available static semantic ranges, ten current bodies/context, corresponding originals,300 vectors and effective M06 supplements mapped. Artifact JSON/path/line-bound checks passed after correcting two audit-record anchors. One P2 candidate GR5-M06-001 remains unresolved pending independent counterevidence; no final required revision signed. All actual reference/model/game/compile/test execution NOT_EXECUTED; only inert read-only parsing and artifact validation. No further readable assigned M06 semantic range remains pending.
