@@ -1,4 +1,4 @@
-# R5-U06 作者候选交接
+# R5-U06 作者候选交接 v2（有限返修）
 
 18项必修的候选已撰写，作者静态核对为 AUTHOR_STATIC_ADDRESSED；这不是独立候选PASS、正式接受或CLOSED。复审由父任务安排不同真实任务，本文不启动审者、不登记公共台账。
 
@@ -38,3 +38,9 @@ R5-U02、U03、U04、U05所需贡献均WAIT；候选不等待上游，但实际�
 | GR5-M11-003 | AUTHOR_STATIC_ADDRESSED | finding-responses.json#GR5-M11-003 | WAIT复审 / WAIT依赖整合 |
 | GR5-M11-004 | AUTHOR_STATIC_ADDRESSED | finding-responses.json#GR5-M11-004 | WAIT复审 / WAIT依赖整合 |
 | GR5-M11-005 | AUTHOR_STATIC_ADDRESSED | finding-responses.json#GR5-M11-005 | WAIT复审 / WAIT依赖整合 |
+
+## 有限返修 v2
+
+独立round-01报告绑定`1ed7f3c07773fdeae946da7c04ef7fc93d5a90ef` / tree `374c53054eea8eeadd66f8c0e6b10fda6a425b6a`，原候选16项PASS/2项FAIL、145标准142PASS/3FAIL。本作者独立重读两处固定源并核普通浮点算术，只修`GR5-M10-003/C03`及`GR5-M10-011/C01/C04`：D/E允许T不存在为null；[4,2]的采样.475改.48、.725保持。具体差异/全载荷身份/未变16项、41个编辑、103个向量、22个目标及303旧行证明在`revision-v2.json`。旧review签名仅归原固定候选限定scope，不自动签v2或actual；v2三标准为AUTHOR_STATIC_REVISED_WAIT_ORIGINAL_REVIEWER，本作者没有自签PASS。
+
+v1的`publication-evidence.json`作为历史证据身份保留；v2候选commit/tree与远端完整修改载荷读回由后继`publication-evidence-v2.json`及父任务绑定。实际依赖/接受/关闭门保持WAIT；新增行为执行0，模型UNVERIFIED。
