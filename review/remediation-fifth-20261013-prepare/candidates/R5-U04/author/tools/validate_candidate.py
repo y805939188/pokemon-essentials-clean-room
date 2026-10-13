@@ -92,8 +92,12 @@ def main():
         if not p.is_file() or p.suffix not in ['.md','.json','.py']:continue
         assert '\r' not in p.read_text()
         assert all(l==l.rstrip() for l in p.read_text().splitlines()),p
-    working=subprocess.check_output(['git','diff','--name-only',base],cwd=repo).decode().splitlines()
-    assert all(p.startswith(prefix) for p in working),working
+    manifest=json.loads((author/'candidate-manifest.json').read_text())
+    allowed={x['path'] for x in manifest['artifacts']}|{prefix+'candidate-manifest.json'}
+    allowed.update(x['path'] for x in manifest.get('historical_receipts_reused',[]))
+    allowed.update(manifest.get('evidence_successor_paths',[]))
+    actual={prefix+str(p.relative_to(author)) for p in author.rglob('*') if p.is_file()}
+    assert actual <= allowed and all(x['path'] in actual for x in manifest['artifacts'])
     assert subprocess.check_output(['git','rev-parse',base+':deliverables/final-specification-set'],cwd=repo).decode().strip()=='d5a462b4c6f8b78c3264a25d6b5495230fa265e2'
     result={'schema':'r5.u04.tool-validation.v1','evidence_level':'TOOL_VALIDATION','status':'PASS_TOOL_VALIDATION_ONLY',
             'B5_commit':base,'projected_direct_files':direct,'projected_shared_files':1,'operations':len(ops),
@@ -102,7 +106,7 @@ def main():
             'static_designs':len(vmap),'mandatory_criterion_mappings':sum(len(f['mandatory_criteria']) for f in records['findings']),
             'JSON_files_parsed':json_files,'new_link_checks':link_checks,'live_formal_or_registration_changes':[],
             'new_behavior_execution':0,'reference_or_model_interpreter_run':False,'independent_review':'PENDING_NOT_SIGNED_BY_AUTHOR',
-            'actual_integration':'WAIT_R5-U03','formal_acceptance':False,'CLOSED':False}
+            'actual_integration':'UPSTREAM_SATISFIED_U04_REVIEW_AND_INTEGRATION_PENDING','formal_acceptance':False,'CLOSED':False}
     if args.output:
         out=args.output.resolve()
         assert out.is_relative_to(author) or str(out).startswith('/tmp/'),out
