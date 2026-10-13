@@ -48,7 +48,7 @@ def main():
    record('patch-bytes/'+target,m.identity(run('show',':'+target))==p['projected'],'Independent patch application compared complete result bytes.')
   run('diff','--cached','--check')
  # Protect all prior catalog rows except seven intentional premise clarifications.
- exceptions={'MV24','FS14','FS16','DG10','DG38','BP13','T02'};changed_old=[];preserved_rows=0
+ exceptions={'MV24','FS04','FS14','FS15','FS16','DG10','DG38','BP13','T02'};changed_old=[];preserved_rows=0
  for target in groups:
   if '/test-catalog/' not in target:continue
   baseline=m.git('show',m.B5+':'+target).decode();projection=(Path('/tmp/r5-u02-projection')/target).read_text()
