@@ -201,12 +201,14 @@
 
 ## 4. 本包效果身份与主合同
 
-共 55 项，均有主稿具体行为。身份 → 主合同位置（源文件与行号见追溯条目）：
+共 59 项（原有 55 项＋四种原能力值操作），均有主稿具体行为。身份 → 主合同位置（源文件与行号见追溯条目）：
 
 DoesNothingCongratulations、DoesNothingFailsIfNoAlly、DoesNothingUnusableInGravity（主稿 §4）；SetUserTypesBasedOnEnvironment、SetUserTypesToResistLastAttack、SetUserTypesToTargetTypes、SetUserTypesToUserMoveType、SetTargetTypesToPsychic、SetTargetTypesToWater、AddGhostTypeToTarget、AddGrassTypeToTarget、UserLosesFireType（主稿 §2）；EnsureNextCriticalHit、UserEnduresFaintingThisTurn、ProtectUser、ProtectUserBanefulBunker、ProtectUserFromDamagingMovesKingsShield、ProtectUserFromDamagingMovesObstruct、ProtectUserFromTargetingMovesSpikyShield、RemoveProtections、RemoveProtectionsBypassSubstitute、HoopaRemoveProtectionsBypassSubstituteLowerUserDef1、EnsureNextMoveAlwaysHits、StartNegateTargetEvasionStatStageAndGhostImmunity、StartNegateTargetEvasionStatStageAndDarkImmunity、IgnoreTargetDefSpDefEvaStatStages（主稿 §4）；TypeIsUserFirstType、TypeDependsOnUserIVs、TypeAndPowerDependOnUserBerry、TypeDependsOnUserPlate、TypeDependsOnUserMemory、TypeDependsOnUserDrive、TypeDependsOnUserMorpekoFormRaiseUserSpeed1、TypeAndPowerDependOnWeather、TypeAndPowerDependOnTerrain、TargetMovesBecomeElectric（主稿 §3）；RedirectAllMovesToUser、RedirectAllMovesToTarget、CannotBeRedirected、EffectDependsOnEnvironment、HitsAllFoesAndPowersUpInPsychicTerrain、TargetNextFireMoveDamagesTarget、PowerUpAllyMove（主稿 §5/§3/§4）；UseLastMoveUsed、UseLastMoveUsedByTarget、UseMoveTargetIsAboutToUse、UseMoveDependingOnEnvironment、UseRandomMove、UseRandomMoveFromUserParty、UseRandomUserMoveIfAsleep（主稿 §6）；BounceBackProblemCausingStatusMoves、StealAndUseBeneficialStatusMove（主稿 §5）；ReplaceMoveThisBattleWithTargetLastMoveUsed、ReplaceMoveWithTargetLastMoveUsed（主稿 §6）；HigherPriorityInGrassyTerrain（主稿 §3）。
+
+UserSwapBaseAtkDef、UserTargetSwapBaseSpeed、UserTargetAverageBaseAtkSpAtk、UserTargetAverageBaseDefSpDef——主稿 §2.1：四种原能力值操作，默认对应 POWERTRICK/SPEEDSWAP/POWERSPLIT/GUARDSPLIT；它们的阶级/持久字段边界、奇妙空间、刷新与接力按该唯一接收合同。
 
 ## 5. 已有/域外责任
 
 StartPreventCriticalHitsAgainstUserSide、StartWeakenElectricMoves、StartWeakenFireMoves、StartWeakenPhysicalDamageAgainstUserSide、StartWeakenSpecialDamageAgainstUserSide、StartWeakenDamageAgainstUserSideIfHail、RemoveScreens、ProtectUserSideFromDamagingMovesIfUserFirstTurn、ProtectUserSideFromStatusMoves、ProtectUserSideFromPriorityMoves、ProtectUserSideFromMultiTargetDamagingMoves、NormalMovesBecomeElectric——WP45（场域、侧保护及生命周期）已有唯一主合同；本包只引用已审建立/期限，不重复另造新门。
 
-WP46 附表的 139 项伤害/恢复身份不再次算本包主合同；两文件中交错/誓约/蓄力/反击等已由 WP46 逐项给参数，相关本次目标与类型查询仅交叉引用。BattlerOther 内已审状态 31 项与阶级 114 项仍 WP44；类型变更 9 项在本包，能力/浮空/变身的招式操作归 WP47-B，完整持久形态/Shadow 仍 WP22/23。SwitchingActing 仅青草优先级本包主合同，号令/提前延后/轮唱等由 WP47-B；物品目录归 WP47-B，完整被动物品处理器 WP50。没有将全局未归属审查 WP79 提前判完成。
+WP46 附表的原 139 项及另接收 HP 均分/Shadow HP 的 3 项伤害/恢复身份不再次算本包主合同；两文件中交错/誓约/蓄力/反击等已由 WP46 逐项给参数，相关本次目标与类型查询仅交叉引用。BattlerOther 内已审状态 31 项与阶级 114 项仍 WP44；类型变更 9 项在本包，能力/浮空/变身的招式操作归 WP47-B，完整持久形态/Shadow 仍 WP22/23。SwitchingActing 仅青草优先级本包主合同，号令/提前延后/轮唱等由 WP47-B；物品目录归 WP47-B，完整被动物品处理器 WP50。没有将全局未归属审查 WP79 提前判完成。

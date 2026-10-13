@@ -145,7 +145,7 @@
 | --- | --- | --- |
 | `LowerTargetEvasion1RemoveSideEffects` | 降闪避与清理独立，清理可使招式在不能降时仍可行 | 阶级部分归本包；清理范围与期限归场域规格（除雾对照 G05/G06） |
 | `StartUserSideImmunityToStatStageLowering` | 侧保护建立 | 场域规格主规则；本包查询或数值交界 |
-| `UserSwapBaseAtkDef` | 战斗原能力值交换，非阶级 | 招式变更规格；本包读取输入引用《战斗类型、命中与伤害计算》（本轮仅定位，不声称验收整招） |
+| `UserSwapBaseAtkDef` | 战斗原能力值交换，非阶级 | [招式属性/目标/调用 §2.1](../combat-requirements/wp47-a-move-attributes-targeting-and-calling.md#21-四种原能力值操作) 为原值实际接收；本表仍是域外归属，阶级数量不变 |
 | `UserTargetSwapBaseSpeed` | 战斗原能力值交换，非阶级 | 同上 |
 | `UserTargetAverageBaseAtkSpAtk` | 战斗原能力值平均，非阶级 | 同上 |
 | `UserTargetAverageBaseDefSpDef` | 战斗原能力值平均，非阶级 | 同上 |
