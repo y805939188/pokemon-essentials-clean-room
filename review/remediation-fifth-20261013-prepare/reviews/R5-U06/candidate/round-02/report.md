@@ -42,4 +42,4 @@
 
 逐条签署与复用依据见 [criterion-results.json](criterion-results.json)，取证见 [source-reading-log.json](source-reading-log.json)，必要回归见 [regression-results.json](regression-results.json)，独立重放/算术和普通推送读回回执见 [independent-validation.json](independent-validation.json)，完整范围/文件身份见 [review-manifest.json](review-manifest.json)。[原round-01冻结签名](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1ed7f3c07773fdeae946da7c04ef7fc93d5a90ef/review/remediation-fifth-20261013-prepare/reviews/R5-U06/candidate/round-01/report.md)保持；本轮最终commit/tree由交接绑定，避免自哈希递归。
 
-发布通道：shell Git推送返回认证不可用，改用已连接GitHub的Git-data接口创建独立分支并做非强制提交/更新。该通道保留普通快进发布语义；不强推、不移动main。完整载荷仍逐份远端读回核对。
+发布通道：首轮shell Git推送认证不可用，备用Git-data接口请求未返回完成回执，未计为成功发布。原环境安全续接后已普通git push现有成果，六份载荷完整远端读回核同；不强推、不移动main。原未发布成果的Git身份保留，未重做审查。
