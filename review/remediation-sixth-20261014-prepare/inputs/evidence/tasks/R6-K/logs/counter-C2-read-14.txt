@@ -1,0 +1,71 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/006_Battler_AbilityAndItem.rb RANGE 233-302 TOTAL 476
+233	  def pbConsumeItem(recoverable = true, symbiosis = true, belch = true)
+234	    PBDebug.log("[Item consumed] #{pbThis} consumed its held #{itemName}")
+235	    if recoverable
+236	      setRecycleItem(@item_id)
+237	      @effects[PBEffects::PickupItem] = @item_id
+238	      @effects[PBEffects::PickupUse]  = @battle.nextPickupUse
+239	    end
+240	    setBelched if belch && self.item.is_berry?
+241	    pbRemoveItem
+242	    pbSymbiosis if symbiosis
+243	  end
+244	
+245	  def pbSymbiosis
+246	    return if fainted?
+247	    return if self.item
+248	    @battle.pbPriority(true).each do |b|
+249	      next if b.opposes?(self)
+250	      next if !b.hasActiveAbility?(:SYMBIOSIS)
+251	      next if !b.item || b.unlosableItem?(b.item)
+252	      next if unlosableItem?(b.item)
+253	      @battle.pbShowAbilitySplash(b)
+254	      if Battle::Scene::USE_ABILITY_SPLASH
+255	        @battle.pbDisplay(_INTL("{1} shared its {2} with {3}!",
+256	                                b.pbThis, b.itemName, pbThis(true)))
+257	      else
+258	        @battle.pbDisplay(_INTL("{1}'s {2} let it share its {3} with {4}!",
+259	                                b.pbThis, b.abilityName, b.itemName, pbThis(true)))
+260	      end
+261	      self.item = b.item
+262	      b.item = nil
+263	      b.effects[PBEffects::Unburden] = true if b.hasActiveAbility?(:UNBURDEN)
+264	      @battle.pbHideAbilitySplash(b)
+265	      pbHeldItemTriggerCheck
+266	      break
+267	    end
+268	  end
+269	
+270	  # item_to_use is an item ID or GameData::Item object. own_item is whether the
+271	  # item is held by self. fling is for Fling only.
+272	  def pbHeldItemTriggered(item_to_use, own_item = true, fling = false)
+273	    # Cheek Pouch
+274	    if hasActiveAbility?(:CHEEKPOUCH) && GameData::Item.get(item_to_use).is_berry? && canHeal?
+275	      @battle.pbShowAbilitySplash(self)
+276	      pbRecoverHP(@totalhp / 3)
+277	      if Battle::Scene::USE_ABILITY_SPLASH
+278	        @battle.pbDisplay(_INTL("{1}'s HP was restored.", pbThis))
+279	      else
+280	        @battle.pbDisplay(_INTL("{1}'s {2} restored its HP.", pbThis, abilityName))
+281	      end
+282	      @battle.pbHideAbilitySplash(self)
+283	    end
+284	    pbConsumeItem if own_item
+285	    pbSymbiosis if !own_item && !fling   # Bug Bite/Pluck users trigger Symbiosis
+286	  end
+287	
+288	  #=============================================================================
+289	  # Held item trigger checks
+290	  #=============================================================================
+291	  # NOTE: A Pokémon using Bug Bite/Pluck, and a Pokémon having an item thrown at
+292	  #       it via Fling, will gain the effect of the item even if the Pokémon is
+293	  #       affected by item-negating effects.
+294	  # item_to_use is an item ID for Stuff Cheeks, Teatime, Bug Bite/Pluck and
+295	  # Fling, and nil otherwise.
+296	  # fling is for Fling only.
+297	  def pbHeldItemTriggerCheck(item_to_use = nil, fling = false)
+298	    return if fainted?
+299	    return if !item_to_use && !itemActive?
+300	    pbItemHPHealCheck(item_to_use, fling)
+301	    pbItemStatusCureCheck(item_to_use, fling)
+302	    pbItemEndOfMoveCheck(item_to_use, fling)

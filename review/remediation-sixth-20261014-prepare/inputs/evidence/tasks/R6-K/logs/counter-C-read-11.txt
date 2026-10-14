@@ -1,0 +1,121 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/005_AI/010_AIBattler.rb RANGE 1-120 TOTAL 595
+1	#===============================================================================
+2	#
+3	#===============================================================================
+4	class Battle::AI::AIBattler
+5	  attr_reader :index, :side, :party_index
+6	  attr_reader :battler
+7	
+8	  def initialize(ai, index)
+9	    @ai = ai
+10	    @index = index
+11	    @side = (@ai.battle.opposes?(@index)) ? 1 : 0
+12	    refresh_battler
+13	  end
+14	
+15	  def refresh_battler
+16	    old_party_index = @party_index
+17	    @battler = @ai.battle.battlers[@index]
+18	    @party_index = battler.pokemonIndex
+19	  end
+20	
+21	  def pokemon;     return battler.pokemon;     end
+22	  def level;       return battler.level;       end
+23	  def hp;          return battler.hp;          end
+24	  def totalhp;     return battler.totalhp;     end
+25	  def fainted?;    return battler.fainted?;    end
+26	  def status;      return battler.status;      end
+27	  def statusCount; return battler.statusCount; end
+28	  def gender;      return battler.gender;      end
+29	  def turnCount;   return battler.turnCount;   end
+30	  def effects;     return battler.effects;     end
+31	  def stages;      return battler.stages;      end
+32	  def statStageAtMax?(stat); return battler.statStageAtMax?(stat); end
+33	  def statStageAtMin?(stat); return battler.statStageAtMin?(stat); end
+34	  def moves;       return battler.moves;       end
+35	
+36	  def wild?
+37	    return @ai.battle.wildBattle? && opposes?
+38	  end
+39	
+40	  def name
+41	    return sprintf("%s (%d)", battler.name, @index)
+42	  end
+43	
+44	  def opposes?(other = nil)
+45	    return @side == 1 if other.nil?
+46	    return other.side != @side
+47	  end
+48	
+49	  def idxOwnSide;      return battler.idxOwnSide;      end
+50	  def pbOwnSide;       return battler.pbOwnSide;       end
+51	  def idxOpposingSide; return battler.idxOpposingSide; end
+52	  def pbOpposingSide;  return battler.pbOpposingSide;  end
+53	
+54	  #-----------------------------------------------------------------------------
+55	
+56	  # Returns how much damage this battler will take at the end of this round.
+57	  def rough_end_of_round_damage
+58	    ret = 0
+59	    # Weather
+60	    weather = battler.effectiveWeather
+61	    if @ai.battle.field.weatherDuration == 1
+62	      weather = @ai.battle.field.defaultWeather
+63	      weather = :None if @ai.battle.allBattlers.any? { |b| b.hasActiveAbility?([:CLOUDNINE, :AIRLOCK]) }
+64	      weather = :None if [:Sun, :Rain, :HarshSun, :HeavyRain].include?(weather) && has_active_item?(:UTILITYUMBRELLA)
+65	    end
+66	    case weather
+67	    when :Sandstorm
+68	      ret += [self.totalhp / 16, 1].max if battler.takesSandstormDamage?
+69	    when :Hail
+70	      ret += [self.totalhp / 16, 1].max if battler.takesHailDamage?
+71	    when :ShadowSky
+72	      ret += [self.totalhp / 16, 1].max if battler.takesShadowSkyDamage?
+73	    end
+74	    case ability_id
+75	    when :DRYSKIN
+76	      ret += [self.totalhp / 8, 1].max if [:Sun, :HarshSun].include?(weather) && battler.takesIndirectDamage?
+77	      ret -= [self.totalhp / 8, 1].max if [:Rain, :HeavyRain].include?(weather) && battler.canHeal?
+78	    when :ICEBODY
+79	      ret -= [self.totalhp / 16, 1].max if weather == :Hail && battler.canHeal?
+80	    when :RAINDISH
+81	      ret -= [self.totalhp / 16, 1].max if [:Rain, :HeavyRain].include?(weather) && battler.canHeal?
+82	    when :SOLARPOWER
+83	      ret += [self.totalhp / 8, 1].max if [:Sun, :HarshSun].include?(weather) && battler.takesIndirectDamage?
+84	    end
+85	    # Future Sight/Doom Desire
+86	    # NOTE: Not worth estimating the damage from this.
+87	    # Wish
+88	    if @ai.battle.positions[@index].effects[PBEffects::Wish] == 1 && battler.canHeal?
+89	      ret -= @ai.battle.positions[@index].effects[PBEffects::WishAmount]
+90	    end
+91	    # Sea of Fire
+92	    if @ai.battle.sides[@side].effects[PBEffects::SeaOfFire] > 1 &&
+93	       battler.takesIndirectDamage? && !has_type?(:FIRE)
+94	      ret += [self.totalhp / 8, 1].max
+95	    end
+96	    # Grassy Terrain (healing)
+97	    if @ai.battle.field.terrain == :Grassy && battler.affectedByTerrain? && battler.canHeal?
+98	      ret -= [self.totalhp / 16, 1].max
+99	    end
+100	    # Leftovers/Black Sludge
+101	    if has_active_item?(:BLACKSLUDGE)
+102	      if has_type?(:POISON)
+103	        ret -= [self.totalhp / 16, 1].max if battler.canHeal?
+104	      else
+105	        ret += [self.totalhp / 8, 1].max if battler.takesIndirectDamage?
+106	      end
+107	    elsif has_active_item?(:LEFTOVERS)
+108	      ret -= [self.totalhp / 16, 1].max if battler.canHeal?
+109	    end
+110	    # Aqua Ring
+111	    if self.effects[PBEffects::AquaRing] && battler.canHeal?
+112	      amt = self.totalhp / 16
+113	      amt = (amt * 1.3).floor if has_active_item?(:BIGROOT)
+114	      ret -= [amt, 1].max
+115	    end
+116	    # Ingrain
+117	    if self.effects[PBEffects::Ingrain] && battler.canHeal?
+118	      amt = self.totalhp / 16
+119	      amt = (amt * 1.3).floor if has_active_item?(:BIGROOT)
+120	      ret -= [amt, 1].max

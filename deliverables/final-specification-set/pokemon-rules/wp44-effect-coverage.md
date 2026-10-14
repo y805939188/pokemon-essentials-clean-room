@@ -109,7 +109,7 @@
 | 源效果标识（审计） | 行为提要 | 主规则/验收 |
 | --- | --- | --- |
 | `RaiseUserDefense1CurlUpUser` | 蜷缩并升防：防御＋1；通用效果先设蜷缩标记，再执行该阶段的自身上升 | K01；G01/G06 |
-| `RaiseUserSpDef1PowerUpElectricMove` | 充电并升特防：先把充电计数设 2，再请求特防＋1；电招威力消费引用《战斗类型、命中与伤害计算》 | K02；G01/G14 |
+| `RaiseUserSpDef1PowerUpElectricMove` | 充电并升特防：先把充电计数设 2，再请求特防＋1；电招威力消费引用《战斗类型、命中与伤害计算》；行动末恰 1 清 0（2 保留）与完整尾递减见主稿 §4 | K02；G01/G14、SS43–SS47 |
 | `RaiseUserSpeed2LowerUserWeight` | 身体轻量化：速度＋2；先比较「当前重量查询结果＋已存重量变化」是否大于 1，是则已存重量变化再减 1000 参考重量单位并反馈，然后进入自身升速 | K03；G01/G06 |
 | `RaiseUserEvasion2MinimizeUser` | 变小并升闪避：先设置变小标记，再请求闪避＋2；踩踏计算引用《战斗类型、命中与伤害计算》 | K04；G01/G03 |
 | `RaiseUserCriticalHitRate2` | 聚气：聚气记录直接设 2，属于会心输入，不是七阶级中某项＋2 | K05；G14 |
@@ -161,6 +161,8 @@
 | --- | --- |
 | `SleepTarget`、`SleepTargetIfUserDarkrai`、`SleepTargetChangeUserMeloettaForm`、`SleepTargetNextTurn`、`PoisonTarget`、`PoisonTargetLowerTargetSpeed1`、`BadPoisonTarget`、`ParalyzeTarget`、`ParalyzeTargetIfNotTypeImmune`、`ParalyzeTargetAlwaysHitsInRainHitsTargetInSky`、`ParalyzeFlinchTarget`、`BurnTarget`、`BurnTargetIfTargetStatsRaisedThisTurn`、`BurnFlinchTarget`、`FreezeTarget`、`FreezeTargetSuperEffectiveAgainstWater`、`FreezeTargetAlwaysHitsInHail`、`FreezeFlinchTarget`、`ParalyzeBurnOrFreezeTarget`、`GiveUserStatusToTarget`、`CureUserBurnPoisonParalysis`、`CureUserPartyStatus`、`CureTargetBurn`、`FlinchTarget`、`FlinchTargetFailsIfUserNotAsleep`、`FlinchTargetFailsIfNotUserFirstTurn`、`FlinchTargetDoublePowerIfTargetInSky`、`ConfuseTarget`、`ConfuseTargetAlwaysHitsInRainHitsTargetInSky`、`AttractTarget` | WP44 §3–6（状态/附带入口） |
 | `StartUserSideImmunityToInflictedStatus` | 场域规格侧保护建立/期限；WP44 免疫查询 |
+
+其中三种异常/畏缩牙类见主稿 §6：异常资格先于其内部抽取，畏缩另抽后再提交；外层附效门独立，验收 SS48–SS52。精神转移见主稿 §3.2/§6：通用资格不带专用睡眠/冰冻条款门，保留其它守卫及目标提交→用户治疗顺序，验收 SS53–SS59。
 
 余下标识已定位，**不因与状态同文件而算作本包完成**：`SetUserTypesBasedOnEnvironment`、`SetUserTypesToResistLastAttack`、`SetUserTypesToTargetTypes`、`SetUserTypesToUserMoveType`、`SetTargetTypesToPsychic`、`SetTargetTypesToWater`、`AddGhostTypeToTarget`、`AddGrassTypeToTarget`、`UserLosesFireType`、`SetTargetAbilityToSimple`、`SetTargetAbilityToInsomnia`、`SetUserAbilityToTargetAbility`、`SetTargetAbilityToUserAbility`、`UserTargetSwapAbilities`、`NegateTargetAbility`、`NegateTargetAbilityIfTargetActed`、`IgnoreTargetAbility`、`StartUserAirborne`、`StartTargetAirborneAndAlwaysHitByMoves`、`HitsTargetInSky`、`HitsTargetInSkyGroundsTarget`、`TransformUserIntoTarget`（以上 21 项：类型/特性/浮空/变身完整族，归招式变更规格；WP43/44 只引用实际输入/守卫）；`StartGravity`（重力，归场域规格；WP43/44 有效查询消费）。
 

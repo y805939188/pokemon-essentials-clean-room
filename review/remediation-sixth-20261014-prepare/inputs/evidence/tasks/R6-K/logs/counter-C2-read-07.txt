@@ -1,0 +1,84 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb RANGE 136-218 TOTAL 762
+136	  def pbUseMoveSimple(moveID, target = -1, idxMove = -1, specialUsage = true)
+137	    choice = []
+138	    choice[0] = :UseMove   # "Use move"
+139	    choice[1] = idxMove    # Index of move to be used in user's moveset
+140	    if idxMove >= 0
+141	      choice[2] = @moves[idxMove]
+142	    else
+143	      choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(moveID))
+144	      choice[2].pp = -1
+145	    end
+146	    choice[3] = target     # Target (-1 means no target yet)
+147	    PBDebug.log("[Use move] #{pbThis} used the called/simple move #{choice[2].name}")
+148	    pbUseMove(choice, specialUsage)
+149	  end
+150	
+151	  #=============================================================================
+152	  # Master "use move" method
+153	  #=============================================================================
+154	  def pbUseMove(choice, specialUsage = false)
+155	    # NOTE: This is intentionally determined before a multi-turn attack can
+156	    #       set specialUsage to true.
+157	    skipAccuracyCheck = (specialUsage && choice[2] != @battle.struggle)
+158	    # Start using the move
+159	    pbBeginTurn(choice)
+160	    # Force the use of certain moves if they're already being used
+161	    if !@battle.futureSight
+162	      if usingMultiTurnAttack?
+163	        choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@currentMove))
+164	        specialUsage = true
+165	      elsif @effects[PBEffects::Encore] > 0 && choice[1] >= 0 &&
+166	            @battle.pbCanShowCommands?(@index)
+167	        idxEncoredMove = pbEncoredMoveIndex
+168	        if idxEncoredMove >= 0 && choice[1] != idxEncoredMove &&
+169	           @battle.pbCanChooseMove?(@index, idxEncoredMove, false)   # Change move if battler was Encored mid-round
+170	          choice[1] = idxEncoredMove
+171	          choice[2] = @moves[idxEncoredMove]
+172	          choice[3] = -1   # No target chosen
+173	        end
+174	      end
+175	    end
+176	    # Labels the move being used as "move"
+177	    move = choice[2]
+178	    return if !move   # if move was not chosen somehow
+179	    # Try to use the move (inc. disobedience)
+180	    @lastMoveFailed = false
+181	    if !pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)
+182	      @lastMoveUsed     = nil
+183	      @lastMoveUsedType = nil
+184	      if !specialUsage
+185	        @lastRegularMoveUsed   = nil
+186	        @lastRegularMoveTarget = -1
+187	      end
+188	      @battle.pbGainExp   # In case self is KO'd due to confusion
+189	      pbCancelMoves
+190	      pbEndTurn(choice)
+191	      return
+192	    end
+193	    move = choice[2]   # In case disobedience changed the move to be used
+194	    return if !move   # if move was not chosen somehow
+195	    # Subtract PP
+196	    if !specialUsage && !pbReducePP(move)
+197	      @battle.pbDisplay(_INTL("{1} used {2}!", pbThis, move.name))
+198	      @battle.pbDisplay(_INTL("But there was no PP left for the move!"))
+199	      @lastMoveUsed          = nil
+200	      @lastMoveUsedType      = nil
+201	      @lastRegularMoveUsed   = nil
+202	      @lastRegularMoveTarget = -1
+203	      @lastMoveFailed        = true
+204	      pbCancelMoves
+205	      pbEndTurn(choice)
+206	      return
+207	    end
+208	    # Stance Change
+209	    if isSpecies?(:AEGISLASH) && self.ability == :STANCECHANGE
+210	      if move.damagingMove?
+211	        pbChangeForm(1, _INTL("{1} changed to Blade Forme!", pbThis))
+212	      elsif move.id == :KINGSSHIELD
+213	        pbChangeForm(0, _INTL("{1} changed to Shield Forme!", pbThis))
+214	      end
+215	    end
+216	    # Calculate the move's type during this usage
+217	    move.calcType = move.pbCalcType(self)
+218	    # Start effect of Mold Breaker

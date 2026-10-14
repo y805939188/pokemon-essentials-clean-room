@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""Build finite R6 delegation inputs from fixed objects; no specification edits."""
+import collections
+import datetime
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+REPO = ROOT.parents[1]
+CACHE = Path('/workspace/r6-input-cache')
+REPORT = 'review/global-independent-review/sixth-2026-10-14-8ea169f-46ae'
+MAIN = '8ea169fbd0f33f378b5d732fd6bea59e854e04a6'
+FINAL = '76038a81fbb376ab318159e24268bd369cdec2ba'
+CORE = '5210b009db5191f307301115845e31475cd798ef'
+REFERENCE = Path('/workspace/pokemon-essentials-reference-r6')
+EXPECTED = {
+    MAIN: '6ab3429170d2762607fbc2237014c3a160449fa1',
+    CORE: '04b494cc46b645c27b2ab19b1cbf6a8086b0f6a9',
+    '2a6c0640392251758ee67820a78aceb24af57e38': '8dac9c2de693fb33c3e0d81c94752f77aeda1930',
+    'dacbefd9912846593d5b5e0dfaf191fff3cc7e15': 'b6b04ef2ffc6f8225f80833b5c77527cb3fba99b',
+    FINAL: '2a2c6eaef414a7e56b9f72a8ea9babcdbf84e016',
+}
+
+
+def git(*args, cwd=REPO):
+    return subprocess.check_output(['git', *args], cwd=cwd)
+
+
+def write(name, value):
+    p = ROOT / name
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+
+
+def identity(data):
+    return {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest(),
+            'git_blob': hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()}
+
+
+def check_bytes(data, row):
+    actual = identity(data)
+    for key in actual:
+        assert actual[key] == row[key], (row['path'], key, actual[key], row[key])
+    return actual
+
+
+def tree_entries(commit, prefix='', cwd=REPO):
+    result = {}
+    args = ['ls-tree', '-rz', commit]
+    if prefix:
+        args.extend(['--', prefix])
+    for line in git(*args, cwd=cwd).split(b'\0'):
+        if not line:
+            continue
+        meta, path = line.split(b'\t', 1)
+        mode, kind, blob = meta.decode().split()
+        result[path.decode()] = {'mode': mode, 'git_type': kind, 'git_blob': blob}
+    return result
+
+
+def traverse(value, pointer=''):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            yield from traverse(child, pointer + '/' + key.replace('~', '~0').replace('/', '~1'))
+    elif isinstance(value, list):
+        for i, child in enumerate(value):
+            yield from traverse(child, pointer + '/' + str(i))
+    else:
+        yield pointer, value
+
+
+def main():
+    if (ROOT / 'ledger.json').exists():
+        assert '--resume-initial-preparation' in sys.argv, 'Explicit recovery required; preserve existing state.'
+        previous = json.loads((ROOT / 'ledger.json').read_text())
+        assert previous['totals'] == {'candidate_pass':0,'integrated_pass':0,'accepted':0,'closed':0,'open':56}
+        for file in (ROOT / 'candidates').glob('*/mirror/deliverables/final-specification-set/**/*.md'):
+            logical_path = str(file).split('/mirror/', 1)[1]
+            assert file.read_bytes() == git('cat-file','blob',MAIN+':'+logical_path), 'A candidate has changed; do not reinitialize.'
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for commit, tree in EXPECTED.items():
+        assert git('rev-parse', commit + '^{tree}').decode().strip() == tree
+    assert git('rev-parse', MAIN + ':deliverables/final-specification-set').decode().strip() == '1046fbb657882e84b3dfc6d017943a9edf7782e5'
+    assert git('rev-parse', FINAL + ':' + REPORT).decode().strip() == 'b31e09cbd78d04a10b8464f2d641d455c205b5b4'
+    r_commit = '8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b'
+    assert git('rev-parse', r_commit + '^{tree}', cwd=REFERENCE).decode().strip() == '7589c800b61ba13a13040ed0d686979b80a84fd0'
+    payloads = {}
+    for name in ['cloud-sixth-update-handoff-prompt.md', 'cloud-sixth-update-handoff-manifest.json', 'publication/final-delivery-binding.json']:
+        data = git('cat-file', 'blob', FINAL + ':' + REPORT + '/' + name)
+        assert data == (CACHE / name).read_bytes()
+        payloads[name] = identity(data)
+    m = json.loads((CACHE / 'cloud-sixth-update-handoff-manifest.json').read_text())
+    binding = json.loads((CACHE / 'publication/final-delivery-binding.json').read_text())
+    assert (binding['fixed_main'], binding['fixed_workspace_tree'], binding['fixed_formal_tree']) == (MAIN, EXPECTED[MAIN], '1046fbb657882e84b3dfc6d017943a9edf7782e5')
+    assert binding['counts']['required'] == 56
+    records = {row['id']: row for row in m['normative_records']}
+    required = {key: row for key, row in records.items() if row['identity_and_verdict']['classification'] == 'required'}
+    assert len(records) == 65 and len(required) == 56
+    assert collections.Counter(row['identity_and_verdict']['severity'] for row in required.values()) == {'P2': 39, 'P3': 17}
+    batches = m['batch_contracts']['batches']
+    owner = {key: b['id'] for b in batches for key in b['required_ids']}
+    assert owner == m['batch_contracts']['unique_primary_batch']
+    assert sum(len(b['required_ids']) for b in batches) == 56
+    assert len(batches) == 14 and len(m['manual_entry_prompts']) == 28
+    assert len(m['file_conflict_graph']['edges']) == 24
+    assert len(m['file_conflict_graph']['file_receivers']) == 54
+    assert len(m['dependency_graph']['edges']) == 110
+    assert m['dependency_graph']['author_blocking_interbatch_edges'] == []
+    for b in batches:
+        assert b['scope_contracts'] == [records[key] for key in b['required_ids']]
+
+    formal_tree = tree_entries(MAIN, 'deliverables/final-specification-set')
+    assert len(formal_tree) == 131
+    formal_checks = []
+    for row in m['formal_materials']:
+        entry = formal_tree[row['path']]
+        assert entry['git_blob'] == row['git_blob'] and entry['mode'] == row['mode']
+        data = git('cat-file', 'blob', MAIN + ':' + row['path'])
+        check_bytes(data, row)
+        assert (REPO / row['path']).read_bytes() == data
+        formal_checks.append({'path': row['path'], **identity(data), **entry})
+    source_tree = tree_entries(r_commit, cwd=REFERENCE)
+    assert len(source_tree) == 432
+    for row in m['source_materials']:
+        entry = source_tree[row['path']]
+        assert entry['git_blob'] == row['git_blob'] and entry['mode'] == row['mode']
+
+    report_checks = []
+    for key in ['report_core_full_remote_payload_identities', 'report_publication_full_remote_payload_identities']:
+        rows = m[key]
+        commit = rows[0]['commit']
+        entries = tree_entries(commit, REPORT)
+        assert len(entries) == len(rows)
+        for row in rows:
+            entry = entries[row['path']]
+            assert entry['git_blob'] == row['git_blob'] and entry['mode'] == row['mode']
+        report_checks.append({'key': key, 'commit': commit, 'rows': len(rows), 'mode_blob_path_tree_join': True,
+                              'content_SHA256_reread': False, 'semantic_reading': False})
+    final_tree = tree_entries(FINAL, REPORT)
+    for row in binding['selected_payload_identities'] + binding['manual_author_reviewer_prompt_identities'] + binding['full_handoff_package_remote_readback']['entries']:
+        entry = final_tree[row['path']]
+        assert entry['git_blob'] == row['git_blob'] and entry['mode'] == row['mode']
+    evidence = {}
+    for key, row in m['evidence_binding_index'].items():
+        data = git('cat-file', 'blob', CORE + ':' + REPORT + '/' + row['path'])
+        check_bytes(data, row)
+        target = ROOT / 'inputs' / 'evidence' / row['path']
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        evidence[key] = {**row, 'local_path': str(target.relative_to(ROOT)), 'byte_identity_verified': True,
+                         'new_semantic_review': False}
+
+    tasks = []
+    for b in batches:
+        write('contracts/' + b['id'] + '.json', b)
+        for path in b['candidate_formal_paths']:
+            target = ROOT / 'candidates' / b['id'] / 'mirror' / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(git('cat-file', 'blob', MAIN + ':' + path))
+        for role in ['A', 'R']:
+            logical_id = b['id'] + '-' + role
+            row = next(x for x in m['manual_entry_prompts'] if x['logical_id'] == logical_id)
+            original = git('cat-file', 'blob', FINAL + ':' + row['git_full_path'])
+            check_bytes(original, row)
+            candidate = ROOT / 'candidates' / b['id']
+            allowed = [str(candidate / 'mirror' / p) for p in b['candidate_formal_paths']] + [str(candidate / 'evidence') + '/'] if role == 'A' else [str(ROOT / 'reviews' / logical_id) + '/']
+            header = f'''# 云端实际入口 {logical_id}\n\n后继用户已批准第六轮整改；以下完整原合同中的“尚未启动”是历史记录。实际启动和配置由 root 新登记，不修改历史原件。\n实际仓库：{REPO}\n整改分支：codex/remediation-sixth-20261014-8ea169f-cloud\n唯一整合者：/root（source_thread_id 01a10d94-84b9-759e-aa1d-edb0d9b6d0e2）；没有声称不可见平台 UUID。\nR 只读对象库：{REFERENCE}，没有检出工作树；以固定 commit 的 Git blob 读取，不把 no-checkout 的 D 状态当参考源变更。\n完整本批合同：{ROOT / 'contracts' / (b['id'] + '.json')}\n已核原证据缓存：{ROOT / 'inputs/evidence'}；输入身份索引：{ROOT / 'inputs/frozen-inputs.json'}\n\n唯一写入 allowlist：\n''' + ''.join('- ' + p + '\n' for p in allowed) + f'''\n作者镜像初始仅为固定 main 原字节，状态 BASELINE_ONLY，尚无修订／PASS。作者不得写实际 formal、公共台账、其它候选或旧证据；审者不得编辑候选或正式文件。实际 cwd 与 argv/UTC/stdout/stderr/exit/platform identity 必须登记。每次读取保持完整范围覆盖，读头／搜索／hash 不算语义全文。按完整原合同逐 ID 完成七组，不新实施引擎，不缩减战斗，不擅纳 optional/policy。\n\n要求模型 gpt-6.1-sol、effort {'xhigh' if role == 'A' else 'ultra'}、tier default、speed default，禁 priority/Fast。必须有有效配置回显；没有就 UNVERIFIED 并报告准确障碍，不以请求冒称实际。本环境 CLI 能力探针在模型前失败，不能继承它为本任务已启动。父线程需要创建符合要求的云端任务；不得自行改安全配置、安装服务或变更认证。\n'''
+            if role == 'R':
+                header += '\n当前仅准备审查入口。必须等待 root 绑定具体候选及其完整载荷 hash 后审查。审者非本批作者；候选 PASS 后仍需非作者复审实际整合版本。原候选审核不能覆盖后续接合或编辑。\n'
+            header += '\n以下是固定最终发布入口的完整原始 UTF-8 字节正文：\n\n'
+            prompt = header.encode() + original
+            p = ROOT / 'prompts' / (logical_id + '.md')
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(prompt)
+            tasks.append({'logical_id': logical_id, 'batch': b['id'], 'role': 'author' if role == 'A' else 'independent_reviewer',
+                          'state': 'NOT_STARTED_CONFIGURATION_BLOCKED' if role == 'A' else 'NOT_STARTED_WAIT_CANDIDATE_AND_CONFIGURATION',
+                          'required_ids': b['required_ids'], 'prompt': str(p.relative_to(ROOT)),
+                          'prompt_identity': identity(prompt), 'original_entry': row,
+                          'read_set': {'contract': 'contracts/' + b['id'] + '.json', 'formal_full_text': b['candidate_formal_paths'],
+                                       'reference_full_context': b['read_only_reference_paths'], 'exact_evidence_and_regression': 'complete embedded seven-group contracts plus inputs/evidence/index.json'},
+                          'write_allowlist': allowed, 'requested_model': 'gpt-6.1-sol',
+                          'requested_effort': 'xhigh' if role == 'A' else 'ultra', 'requested_tier': 'default', 'requested_speed': 'default',
+                          'effective_configuration': 'UNVERIFIED', 'platform_task_id': None, 'pid': None,
+                          'launch_count': 0, 'candidate_identity': None, 'integrated_identity': None})
+    write('inputs/evidence/index.json', evidence)
+    write('inputs/frozen-inputs.json', {
+        'fixed_commits_trees': EXPECTED, 'final_report_tree': 'b31e09cbd78d04a10b8464f2d641d455c205b5b4',
+        'reference_commit': r_commit, 'reference_tree': '7589c800b61ba13a13040ed0d686979b80a84fd0',
+        'reference_object_database': str(REFERENCE), 'reference_worktree_checked_out': False,
+        'formal_tree': '1046fbb657882e84b3dfc6d017943a9edf7782e5',
+        'source_materials': [{k: row[k] for k in ['path','commit','tree','bytes','sha256','git_blob','mode','type']} for row in m['source_materials']],
+        'formal_materials': formal_checks, 'handoff_payloads': payloads})
+    for key in ['dependency_graph','file_conflict_graph','classification_counts','state_semantics','policy_records','limit_records','optional_records','no_required_revision_records','optional_facets','aliases_tombstones_and_accepted_negative_hypotheses','execution_phases','historical_qualification','accepted_facts']:
+        write('inputs/' + key.replace('_', '-') + '.json', m[key])
+    write('task-register.json', {'schema':'r6.cloud.task-register.v1','recorded_at':now,'integrator':'/root',
+          'source_thread_id':'01a10d94-84b9-759e-aa1d-edb0d9b6d0e2','actual_author_reviewer_launch_count':0,
+          'capacity_available_from_collaboration_tool':7,'tier_default_selectable_in_collaboration_tool':False,
+          'tasks':tasks})
+    write('ledger.json', {'schema':'r6.cloud.remediation-ledger.v1','recorded_at':now,'authorization_received':True,
+          'administrative_preparation_started':True,'formal_remediation_started':False,'phase':'CONFIGURATION_BLOCKED',
+          'fixed_main':MAIN,'sole_formal_writer':'/root','required_count':56,'optional_count':8,
+          'no_required_revision_count':1,'optional_float_facet_count':1,'policy_count':7,'limit_count':14,
+          'events': [{'type':'INPUT_OBJECTS_VERIFIED','at':now},{'type':'DEFAULT_RUNTIME_CAPABILITY_BLOCKED','at':now}],
+          'required':[{'id':key,'severity':row['identity_and_verdict']['severity'],'primary_batch':owner[key],
+                       'candidate_directory':'candidates/'+owner[key]+'/mirror','candidate_state':'BASELINE_ONLY',
+                       'candidate_pass':None,'integrated_pass':None,'formal_acceptance':None,'closed':False,
+                       'integration_receivers':row['dependencies_and_receivers'],'state':'OPEN_NOT_UPDATED'} for key,row in required.items()],
+          'totals':{'candidate_pass':0,'integrated_pass':0,'accepted':0,'closed':0,'open':56},
+          'blocking_capability':'Required default tier/speed author and independent reviewer runtime unavailable; see verification/runtime-capability.json',
+          'next_event':'PARENT_LAUNCH_VERIFIED_AUTHOR_TASKS_FROM_TASK_REGISTER'})
+
+    # Every UTF-8 byte belongs to one contiguous structural segment. This is
+    # machine coverage, explicitly distinct from full semantic reading credit.
+    raw=(CACHE/'cloud-sixth-update-handoff-prompt.md').read_bytes()
+    lines=raw.splitlines(keepends=True)
+    starts=[i for i,line in enumerate(lines) if line.startswith(b'#')]
+    assert starts[0]==0
+    starts.append(len(lines))
+    offset=0;segments=[]
+    for first,last in zip(starts,starts[1:]):
+        data=b''.join(lines[first:last]);end=offset+len(data)
+        segments.append({'heading':lines[first].decode().strip(),'start_line':first+1,'end_line':last,
+                         'byte_start':offset,'byte_end_exclusive':end,'sha256':hashlib.sha256(data).hexdigest(),
+                         'structural_read':'COMPLETE_BYTES_PARSED','semantic_read':'PENDING_ASSIGNED_ENTRY_READ' if re.match(rb'### (?:GR6|R6|UI-ST)',lines[first]) else 'NOT_CREDITED_BY_PARSER'})
+        offset=end
+    assert offset==len(raw)
+    prompt_records=[]
+    for first,last in zip(starts,starts[1:]):
+        if re.match(rb'### (?:GR6|R6|UI-ST).+ (?:required|optional|no_required_revision) ',lines[first]):
+            section=b''.join(lines[first:last]).decode()
+            payload=re.search(r'```json\n(.*?)\n```',section,re.S)
+            if payload:
+                value=json.loads(payload.group(1))
+                # Prompt embeds the complete seven groups; manifest additionally
+                # embeds the original proposals. Compare exactly that structure.
+                expected={k:v for k,v in records[value['id']].items() if k!='original_full_proposal'}
+                assert value==expected
+                prompt_records.append(value['id'])
+    assert len(prompt_records)==65 and set(prompt_records)==set(records)
+    leaves=list(traverse(m))
+    digest=hashlib.sha256(json.dumps(leaves,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+    write('verification/reading-coverage.json', {'schema':'r6.cloud.reading-coverage.v1','prompt_identity':identity(raw),
+          'prompt_lines':len(lines),'contiguous_byte_coverage':True,'segments':segments,
+          'all_manifest_JSON_fields_traversed':True,'manifest_scalar_leaves':len(leaves),'manifest_leaf_sequence_sha256':digest,
+          'all_65_full_prompt_seven_group_records_match_manifest':True,'all_65_original_proposals_present_in_manifest':True,
+          'all_56_batch_contracts_match_normative_records':True,
+          'semantic_full_read_of_all_65_records_by_new_authors_or_reviewers':False,
+          'semantic_reading_remaining':'28 registered entries require actual complete new reads, fixed source/formal contexts and independent adjudication; no head/search/parse promoted to semantic full-read',
+          'root_semantic_read_scope':['complete general execution contract','complete fixed input and history qualifications',
+                                     'policy7','limit14','execution phases and INC-R6-001','classification and task boundaries'],
+          'original_report_reading_not_inherited_as_new_PASS':True})
+    write('verification/handoff-verification.json', {'recorded_at':now,'fixed_commits_trees':EXPECTED,
+          'fixed_formal_tree':'1046fbb657882e84b3dfc6d017943a9edf7782e5','final_report_tree':'b31e09cbd78d04a10b8464f2d641d455c205b5b4',
+          'remote_raw_full_bytes_match_local_Git_objects':payloads,'formal131_full_byte_identity_verified':True,
+          'source432_mode_path_blob_tree_verified':True,'source432_SHA256_full_reread':False,
+          'report_registries':report_checks,'original_evidence_verified_count':len(evidence),
+          'manual_entries_verified_count':28,'candidates':'fixed main bytes only; no semantic changes',
+          'no_new_reference_execution':True,'no_new_semantic_PASS':True})
+    print(json.dumps({'prepared_root':str(ROOT),'required':56,'batches':14,'entries':28,'evidence':len(evidence),
+                      'candidate_baseline_files':sum(len(b['candidate_formal_paths']) for b in batches),
+                      'manifest_leaves':len(leaves),'semantic_reading_incomplete':True,'actual_tasks_started':0},ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    main()
