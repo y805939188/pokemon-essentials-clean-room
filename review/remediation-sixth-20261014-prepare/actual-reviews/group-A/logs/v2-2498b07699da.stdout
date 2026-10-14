@@ -1,0 +1,111 @@
+INPUT source Data/Scripts/012_Overworld/005_Overworld_Fishing.rb TOTAL_LINES 110 READ 1-110
+1: #===============================================================================
+2: # Fishing
+3: #===============================================================================
+4: def pbFishingBegin
+5:   $PokemonGlobal.fishing = true
+6:   if !pbCommonEvent(Settings::FISHING_BEGIN_COMMON_EVENT)
+7:     $game_player.set_movement_type(($PokemonGlobal.surfing) ? :surf_fishing : :fishing)
+8:     $game_player.lock_pattern = true
+9:     4.times do |pattern|
+10:       $game_player.pattern = 3 - pattern
+11:       pbWait(0.05)
+12:     end
+13:   end
+14: end
+15: 
+16: def pbFishingEnd
+17:   if !pbCommonEvent(Settings::FISHING_END_COMMON_EVENT)
+18:     4.times do |pattern|
+19:       $game_player.pattern = pattern
+20:       pbWait(0.05)
+21:     end
+22:   end
+23:   yield if block_given?
+24:   $game_player.set_movement_type(($PokemonGlobal.surfing) ? :surfing_stopped : :walking_stopped)
+25:   $game_player.lock_pattern = false
+26:   $game_player.straighten
+27:   $PokemonGlobal.fishing = false
+28: end
+29: 
+30: def pbFishing(hasEncounter, rodType = 1)
+31:   $stats.fishing_count += 1
+32:   speedup = ($player.first_pokemon && [:STICKYHOLD, :SUCTIONCUPS].include?($player.first_pokemon.ability_id))
+33:   biteChance = 20 + (25 * rodType)   # 45, 70, 95
+34:   biteChance *= 1.5 if speedup   # 67.5, 100, 100
+35:   hookChance = 100
+36:   pbFishingBegin
+37:   msgWindow = pbCreateMessageWindow
+38:   ret = false
+39:   loop do
+40:     time = rand(5..10)
+41:     time = [time, rand(5..10)].min if speedup
+42:     message = ""
+43:     time.times { message += ".   " }
+44:     if pbWaitMessage(msgWindow, time)
+45:       pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("Not even a nibble...")) }
+46:       break
+47:     end
+48:     if hasEncounter && rand(100) < biteChance
+49:       $scene.spriteset.addUserAnimation(Settings::EXCLAMATION_ANIMATION_ID, $game_player.x, $game_player.y, true, 3)
+50:       duration = rand(5..10) / 10.0   # 0.5-1 seconds
+51:       if !pbWaitForInput(msgWindow, message + "\n" + _INTL("Oh! A bite!"), duration)
+52:         pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("The Pokémon got away...")) }
+53:         break
+54:       end
+55:       if Settings::FISHING_AUTO_HOOK || rand(100) < hookChance
+56:         pbFishingEnd do
+57:           pbMessageDisplay(msgWindow, _INTL("Landed a Pokémon!")) if !Settings::FISHING_AUTO_HOOK
+58:         end
+59:         ret = true
+60:         break
+61:       end
+62: #      biteChance += 15
+63: #      hookChance += 15
+64:     else
+65:       pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("Not even a nibble...")) }
+66:       break
+67:     end
+68:   end
+69:   pbDisposeMessageWindow(msgWindow)
+70:   return ret
+71: end
+72: 
+73: # Show waiting dots before a Pokémon bites
+74: def pbWaitMessage(msgWindow, time)
+75:   message = ""
+76:   (time + 1).times do |i|
+77:     message += ".   " if i > 0
+78:     pbMessageDisplay(msgWindow, message, false)
+79:     pbWait(0.4) do |delta_t|
+80:       return true if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+81:     end
+82:   end
+83:   return false
+84: end
+85: 
+86: # A Pokémon is biting, reflex test to reel it in
+87: def pbWaitForInput(msgWindow, message, duration)
+88:   pbMessageDisplay(msgWindow, message, false)
+89:   twitch_frame_duration = 0.2   # 0.2 seconds
+90:   timer_start = System.uptime
+91:   loop do
+92:     Graphics.update
+93:     Input.update
+94:     pbUpdateSceneMap
+95:     # Twitch cycle: 1,0,1,0,0,0,0,0
+96:     twitch_frame = ((System.uptime - timer_start) / twitch_frame_duration).to_i % 8
+97:     case twitch_frame
+98:     when 0, 2
+99:       $game_player.pattern = 1
+100:     else
+101:       $game_player.pattern = 0
+102:     end
+103:     if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+104:       $game_player.pattern = 0
+105:       return true
+106:     end
+107:     break if !Settings::FISHING_AUTO_HOOK && System.uptime - timer_start > duration
+108:   end
+109:   return false
+110: end

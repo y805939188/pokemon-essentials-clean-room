@@ -1,0 +1,241 @@
+INPUT source Data/Scripts/003_Game processing/003_Interpreter.rb TOTAL_LINES 454 READ 1-240
+1: #===============================================================================
+2: # ** Interpreter
+3: #-------------------------------------------------------------------------------
+4: #  This interpreter runs event commands. This class is used within the
+5: #  Game_System class and the Game_Event class.
+6: #===============================================================================
+7: class Interpreter
+8:   # Object Initialization
+9:   #     depth : nest depth
+10:   #     main  : main flag
+11:   def initialize(depth = 0, main = false)
+12:     @depth = depth
+13:     @main  = main
+14:     if depth > 100
+15:       print("Common event call has exceeded maximum limit.")
+16:       exit
+17:     end
+18:     clear
+19:   end
+20: 
+21:   def inspect
+22:     str = super.chop
+23:     str << sprintf(" @event_id: %d>", @event_id)
+24:     return str
+25:   end
+26: 
+27:   def clear
+28:     @map_id             = 0       # map ID when starting up
+29:     @event_id           = 0
+30:     @message_waiting    = false   # waiting for message to end
+31:     @move_route_waiting = false   # waiting for move completion
+32:     @wait_count         = 0
+33:     @wait_start         = nil
+34:     @child_interpreter  = nil
+35:     @branch             = {}
+36:     @buttonInput        = false
+37:     @hidden_choices     = []
+38:     @renamed_choices    = []
+39:     end_follower_overrides
+40:   end
+41: 
+42:   # Event Setup
+43:   #     list     : list of event commands
+44:   #     event_id : event ID
+45:   def setup(list, event_id, map_id = nil)
+46:     clear
+47:     @map_id = map_id || $game_map.map_id
+48:     @event_id = event_id
+49:     @list = list
+50:     @index = 0
+51:     @branch.clear
+52:   end
+53: 
+54:   def setup_starting_event
+55:     $game_map.refresh if $game_map.need_refresh
+56:     # Set up common event if one wants to start
+57:     if $game_temp.common_event_id > 0
+58:       setup($data_common_events[$game_temp.common_event_id].list, 0)
+59:       $game_temp.common_event_id = 0
+60:       return
+61:     end
+62:     # Check all map events for one that wants to start, and set it up
+63:     $game_map.events.each_value do |event|
+64:       next if !event.starting
+65:       if event.trigger < 3   # Isn't autorun or parallel processing
+66:         event.lock
+67:         event.clear_starting
+68:       end
+69:       setup(event.list, event.id, event.map.map_id)
+70:       return
+71:     end
+72:     # Check all common events for one that is autorun, and set it up
+73:     $data_common_events.compact.each do |common_event|
+74:       next if common_event.trigger != 1 || !$game_switches[common_event.switch_id]
+75:       setup(common_event.list, 0)
+76:       return
+77:     end
+78:   end
+79: 
+80:   def running?
+81:     return !@list.nil?
+82:   end
+83: 
+84:   def update
+85:     @loop_count = 0
+86:     loop do
+87:       @loop_count += 1
+88:       if @loop_count > 100   # Call Graphics.update for freeze prevention
+89:         Graphics.update
+90:         @loop_count = 0
+91:       end
+92:       # If this interpreter's map isn't the current map or connected to it,
+93:       # forget this interpreter's event ID
+94:       if $game_map.map_id != @map_id && !$map_factory.areConnected?($game_map.map_id, @map_id)
+95:         @event_id = 0
+96:       end
+97:       # Update child interpreter if one exists
+98:       if @child_interpreter
+99:         @child_interpreter.update
+100:         @child_interpreter = nil if !@child_interpreter.running?
+101:         return if @child_interpreter
+102:       end
+103:       # Do nothing if a message is being shown
+104:       return if @message_waiting
+105:       # Do nothing if any event or the player is in the middle of a move route
+106:       if @move_route_waiting
+107:         return if $game_player.move_route_forcing
+108:         $game_map.events.each_value do |event|
+109:           return if event.move_route_forcing
+110:         end
+111:         $game_temp.followers.each_follower do |event, follower|
+112:           return if event.move_route_forcing
+113:         end
+114:         @move_route_waiting = false
+115:       end
+116:       # Do nothing if the player is jumping out of surfing
+117:       return if $game_temp.ending_surf
+118:       # Do nothing while waiting
+119:       if @wait_count > 0
+120:         return if System.uptime - @wait_start < @wait_count
+121:         @wait_count = 0
+122:         @wait_start = nil
+123:       end
+124:       # Do nothing if the pause menu is going to open
+125:       return if $game_temp.menu_calling
+126:       # If there are no commands in the list, try to find something that wants to run
+127:       if @list.nil?
+128:         setup_starting_event if @main
+129:         return if @list.nil?   # Couldn't find anything that wants to run
+130:       end
+131:       # Execute the next command
+132:       return if execute_command == false
+133:       # Move to the next @index
+134:       @index += 1
+135:     end
+136:   end
+137: 
+138:   def execute_script(script)
+139:     begin
+140:       result = eval(script)
+141:       return result
+142:     rescue Exception
+143:       e = $!
+144:       raise if e.is_a?(SystemExit) || e.class.to_s == "Reset"
+145:       event = get_self
+146:       # Gather text for error message
+147:       message = pbGetExceptionMessage(e)
+148:       backtrace_text = ""
+149:       if e.is_a?(SyntaxError)
+150:         script.each_line do |line|
+151:           line.gsub!(/\s+$/, "")
+152:           if line[/^\s*\(/]
+153:             message += "\r\n***Line '#{line}' shouldn't begin with '('. Try putting the '('\r\n"
+154:             message += "at the end of the previous line instead, or using 'extendtext.exe'."
+155:           end
+156:         end
+157:       else
+158:         backtrace_text += "\r\n"
+159:         backtrace_text += "Backtrace:"
+160:         e.backtrace[0, 10].each { |i| backtrace_text += "\r\n#{i}" }
+161:         backtrace_text.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+162:         backtrace_text += "\r\n"
+163:       end
+164:       # Assemble error message
+165:       err = "Script error in Interpreter\r\n"
+166:       if $game_map
+167:         map_name = (pbGetBasicMapNameFromId($game_map.map_id) rescue nil) || "???"
+168:         if event
+169:           err = "Script error in event #{event.id} (coords #{event.x},#{event.y}), map #{$game_map.map_id} (#{map_name})\r\n"
+170:         else
+171:           err = "Script error in Common Event, map #{$game_map.map_id} (#{map_name})\r\n"
+172:         end
+173:       end
+174:       err += "Exception: #{e.class}\r\n"
+175:       err += "Message: #{message}\r\n\r\n"
+176:       err += "***Full script:\r\n#{script}"   # \r\n"
+177:       err += backtrace_text
+178:       # Raise error
+179:       raise EventScriptError.new(err)
+180:     end
+181:   end
+182: 
+183:   def get_character(parameter = 0)
+184:     case parameter
+185:     when -1   # player
+186:       return $game_player
+187:     when 0    # this event
+188:       events = $game_map.events
+189:       return (events) ? events[@event_id] : nil
+190:     else      # specific event
+191:       events = $game_map.events
+192:       return (events) ? events[parameter] : nil
+193:     end
+194:   end
+195: 
+196:   def get_player
+197:     return get_character(-1)
+198:   end
+199: 
+200:   def get_self
+201:     return get_character(0)
+202:   end
+203: 
+204:   def get_event(parameter)
+205:     return get_character(parameter)
+206:   end
+207: 
+208:   # Freezes all events on the map (for use at the beginning of common events)
+209:   def pbGlobalLock
+210:     $game_map.events.each_value { |event| event.minilock }
+211:   end
+212: 
+213:   # Unfreezes all events on the map (for use at the end of common events)
+214:   def pbGlobalUnlock
+215:     $game_map.events.each_value { |event| event.unlock }
+216:   end
+217: 
+218:   # Gets the next index in the interpreter, ignoring certain commands between messages
+219:   def pbNextIndex(index)
+220:     return -1 if !@list || @list.length == 0
+221:     i = index + 1
+222:     loop do
+223:       return i if i >= @list.length - 1
+224:       case @list[i].code
+225:       when 118, 108, 408   # Label, Comment
+226:         i += 1
+227:       when 413             # Repeat Above
+228:         i = pbRepeatAbove(i)
+229:       when 113             # Break Loop
+230:         i = pbBreakLoop(i)
+231:       when 119             # Jump to Label
+232:         newI = pbJumpToLabel(i, @list[i].parameters[0])
+233:         i = (newI > i) ? newI : i + 1
+234:       else
+235:         return i
+236:       end
+237:     end
+238:   end
+239: 
+240:   def pbRepeatAbove(index)

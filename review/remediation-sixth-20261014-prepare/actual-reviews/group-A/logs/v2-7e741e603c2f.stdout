@@ -1,0 +1,106 @@
+INPUT source Data/Scripts/012_Overworld/007_Overworld_DayCare.rb TOTAL_LINES 564 READ 1-105
+1: #===============================================================================
+2: # NOTE: In Gen 7+, the Day Care is replaced by the Pokémon Nursery, which works
+3: #       in much the same way except deposited Pokémon no longer gain Exp because
+4: #       of the player walking around and, in Gen 8+, deposited Pokémon are able
+5: #       to learn egg moves from each other if they are the same species. In
+6: #       Essentials, this code can be used for both facilities, and these
+7: #       mechanics differences are set by some Settings.
+8: # NOTE: The Day Care has a different price than the Pokémon Nursery. For the Day
+9: #       Care, you are charged when you withdraw a deposited Pokémon and you pay
+10: #       an amount based on how many levels it gained. For the Nursery, you pay
+11: #       $500 up-front when you deposit a Pokémon. This difference will appear in
+12: #       the Day Care Lady's event, not in these scripts.
+13: #===============================================================================
+14: class DayCare
+15:   #=============================================================================
+16:   # Code that generates an egg based on two given Pokémon.
+17:   #=============================================================================
+18:   module EggGenerator
+19:     module_function
+20: 
+21:     def generate(mother, father)
+22:       # Determine which Pokémon is the mother and which is the father
+23:       # Ensure mother is female, if the pair contains a female
+24:       # Ensure father is male, if the pair contains a male
+25:       # Ensure father is genderless, if the pair is a genderless with Ditto
+26:       if mother.male? || father.female? || mother.genderless?
+27:         mother, father = father, mother
+28:       end
+29:       mother_data = [mother, mother.species_data.egg_groups.include?(:Ditto)]
+30:       father_data = [father, father.species_data.egg_groups.include?(:Ditto)]
+31:       # Determine which parent the egg's species is based from
+32:       species_parent = (mother_data[1]) ? father : mother
+33:       # Determine the egg's species
+34:       baby_species = determine_egg_species(species_parent.species, mother, father)
+35:       mother_data.push(mother.species_data.breeding_can_produce?(baby_species))
+36:       father_data.push(father.species_data.breeding_can_produce?(baby_species))
+37:       # Generate egg
+38:       egg = generate_basic_egg(baby_species)
+39:       # Inherit properties from parent(s)
+40:       inherit_form(egg, species_parent, mother_data, father_data)
+41:       inherit_nature(egg, mother, father)
+42:       inherit_ability(egg, mother_data, father_data)
+43:       inherit_moves(egg, mother_data, father_data)
+44:       inherit_IVs(egg, mother, father)
+45:       inherit_poke_ball(egg, mother_data, father_data)
+46:       # Calculate other properties of the egg
+47:       set_shininess(egg, mother, father)   # Masuda method and Shiny Charm
+48:       set_pokerus(egg)
+49:       # Recalculate egg's stats
+50:       egg.calc_stats
+51:       return egg
+52:     end
+53: 
+54:     def determine_egg_species(parent_species, mother, father)
+55:       ret = GameData::Species.get(parent_species).get_baby_species(true, mother.item_id, father.item_id)
+56:       # Check for alternate offspring (i.e. Nidoran M/F, Volbeat/Illumise, Manaphy/Phione)
+57:       offspring = GameData::Species.get(ret).offspring
+58:       ret = offspring.sample if offspring.length > 0
+59:       return ret
+60:     end
+61: 
+62:     def generate_basic_egg(species)
+63:       egg = Pokemon.new(species, Settings::EGG_LEVEL)
+64:       egg.name           = _INTL("Egg")
+65:       egg.steps_to_hatch = egg.species_data.hatch_steps
+66:       egg.obtain_text    = _INTL("Day-Care Couple")
+67:       egg.happiness      = 120
+68:       egg.form           = 0 if species == :SINISTEA
+69:       # Set regional form
+70:       new_form = MultipleForms.call("getFormOnEggCreation", egg)
+71:       egg.form = new_form if new_form
+72:       return egg
+73:     end
+74: 
+75:     def inherit_form(egg, species_parent, mother, father)
+76:       # mother = [mother, mother_ditto, mother_in_family]
+77:       # father = [father, father_ditto, father_in_family]
+78:       # Inherit form from the parent that determined the egg's species
+79:       if species_parent.species_data.has_flag?("InheritFormFromMother")
+80:         egg.form = species_parent.form
+81:       end
+82:       # Inherit form from a parent holding an Ever Stone
+83:       [mother, father].each do |parent|
+84:         next if !parent[2]   # Parent isn't a related species to the egg
+85:         next if !parent[0].species_data.has_flag?("InheritFormWithEverStone")
+86:         next if !parent[0].hasItem?(:EVERSTONE)
+87:         egg.form = parent[0].form
+88:         break
+89:       end
+90:     end
+91: 
+92:     def get_moves_to_inherit(egg, mother, father)
+93:       # mother = [mother, mother_ditto, mother_in_family]
+94:       # father = [father, father_ditto, father_in_family]
+95:       move_father = (father[1]) ? mother[0] : father[0]
+96:       move_mother = (father[1]) ? father[0] : mother[0]
+97:       moves = []
+98:       # Get level-up moves known by both parents
+99:       egg.getMoveList.each do |move|
+100:         next if move[0] <= egg.level   # Could already know this move by default
+101:         next if !mother[0].hasMove?(move[1]) || !father[0].hasMove?(move[1])
+102:         moves.push(move[1])
+103:       end
+104:       # Inherit Machine moves from father (or non-Ditto genderless parent)
+105:       if Settings::BREEDING_CAN_INHERIT_MACHINE_MOVES && !move_father.female?

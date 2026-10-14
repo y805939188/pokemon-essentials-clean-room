@@ -1,0 +1,87 @@
+INPUT source Data/Scripts/021_Compiler/001_Compiler.rb TOTAL_LINES 1117 READ 660-745
+660:         when "y"   # Enumerable or integer
+661:           field = csvfield!(rec)
+662:           subrecord.push(csvEnumFieldOrInt!(field, schema[2 + i - start], "", FileLineData.linereport))
+663:         when "Y"   # Optional enumerable or integer
+664:           field = csvfield!(rec)
+665:           if nil_or_empty?(field)
+666:             subrecord.push(nil)
+667:           elsif field[/^\-?\d+$/]
+668:             subrecord.push(field.to_i)
+669:           else
+670:             subrecord.push(checkEnumFieldOrNil(field, schema[2 + i - start]))
+671:           end
+672:         end
+673:       end
+674:       if !subrecord.empty?
+675:         if subarrays
+676:           record.push(subrecord)
+677:         else
+678:           record.concat(subrecord)
+679:         end
+680:       end
+681:       break if repeat && nil_or_empty?(rec)
+682:       break unless repeat
+683:     end
+684:     return (!repeat && schema_length == 1) ? record[0] : record
+685:   end
+686: 
+687:   #=============================================================================
+688:   # Convert a string to values using a schema
+689:   #=============================================================================
+690:   def get_csv_record(rec, schema)
+691:     ret = []
+692:     repeat = false
+693:     start = 0
+694:     schema_length = schema[1].length
+695:     case schema[1][0, 1]   # First character in schema
+696:     when "*"
+697:       repeat = true
+698:       start = 1
+699:     when "^"
+700:       start = 1
+701:       schema_length -= 1
+702:     end
+703:     subarrays = repeat && schema[1].length - start > 1   # Whether ret is an array of arrays
+704:     # Split the string on commas into an array of values to apply the schema to
+705:     values = split_csv_line(rec)
+706:     # Apply the schema to each value in the line
+707:     idx = -1   # Index of value to look at in values
+708:     loop do
+709:       record = []
+710:       (start...schema[1].length).each do |i|
+711:         idx += 1
+712:         sche = schema[1][i, 1]
+713:         if sche[/[A-Z]/]   # Upper case = optional
+714:           if nil_or_empty?(values[idx])
+715:             record.push(nil)
+716:             next
+717:           end
+718:         end
+719:         if sche.downcase == "q"   # Unformatted text
+720:           record.push(rec)
+721:           idx = values.length
+722:           break
+723:         else
+724:           record.push(cast_csv_value(values[idx], sche, schema[2 + i - start]))
+725:         end
+726:       end
+727:       if !record.empty?
+728:         if subarrays
+729:           ret.push(record)
+730:         else
+731:           ret.concat(record)
+732:         end
+733:       end
+734:       break if !repeat || idx >= values.length - 1
+735:     end
+736:     return (!repeat && schema_length == 1) ? ret[0] : ret
+737:   end
+738: 
+739:   #=============================================================================
+740:   # Write values to a file using a schema
+741:   #=============================================================================
+742:   def pbWriteCsvRecord(record, file, schema)
+743:     rec = (record.is_a?(Array)) ? record.flatten : [record]
+744:     start = (["*", "^"].include?(schema[1][0, 1])) ? 1 : 0
+745:     index = -1

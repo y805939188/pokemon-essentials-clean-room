@@ -1,0 +1,251 @@
+INPUT source Data/Scripts/001_Technical/003_Intl_Messages.rb TOTAL_LINES 823 READ 1-250
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: module Translator
+5:   module_function
+6: 
+7:   def gather_script_and_event_texts
+8:     Graphics.update
+9:     begin
+10:       t = System.uptime
+11:       texts = []
+12:       # Get script texts from Scripts.rxdata
+13:       $RGSS_SCRIPTS.each do |script|
+14:         if System.uptime - t >= 5
+15:           t += 5
+16:           Graphics.update
+17:         end
+18:         scr = Zlib::Inflate.inflate(script[2])
+19:         find_translatable_text_from_RGSS_script(texts, scr)
+20:       end
+21:       # If Scripts.rxdata only has 1 section, scripts have been extracted. Get
+22:       # script texts from .rb files in Data/Scripts
+23:       if $RGSS_SCRIPTS.length == 1
+24:         Dir.all("Data/Scripts").each do |script_file|
+25:           if System.uptime - t >= 5
+26:             t += 5
+27:             Graphics.update
+28:           end
+29:           File.open(script_file, "rb") do |f|
+30:             find_translatable_text_from_RGSS_script(texts, f.read)
+31:           end
+32:         end
+33:       end
+34:       # Get script texts from plugin script files
+35:       if FileTest.exist?("Data/PluginScripts.rxdata")
+36:         plugin_scripts = load_data("Data/PluginScripts.rxdata")
+37:         plugin_scripts.each do |plugin|
+38:           plugin[2].each do |script|
+39:             if System.uptime - t >= 5
+40:               t += 5
+41:               Graphics.update
+42:             end
+43:             scr = Zlib::Inflate.inflate(script[1]).force_encoding(Encoding::UTF_8)
+44:             find_translatable_text_from_RGSS_script(texts, scr)
+45:           end
+46:         end
+47:       end
+48:       MessageTypes.addMessagesAsHash(MessageTypes::SCRIPT_TEXTS, texts)
+49:       # Find all text in common events and add them to messages
+50:       commonevents = load_data("Data/CommonEvents.rxdata")
+51:       items = []
+52:       choices = []
+53:       commonevents.compact.each do |event|
+54:         if System.uptime - t >= 5
+55:           t += 5
+56:           Graphics.update
+57:         end
+58:         begin
+59:           neednewline = false
+60:           lastitem = ""
+61:           event.list.size.times do |j|
+62:             list = event.list[j]
+63:             if neednewline && list.code != 401   # Continuation of 101 Show Text
+64:               if lastitem != ""
+65:                 lastitem.gsub!(/([^\.\!\?])\s\s+/) { |m| $1 + " " }
+66:                 items.push(lastitem)
+67:                 lastitem = ""
+68:               end
+69:               neednewline = false
+70:             end
+71:             if list.code == 101   # Show Text
+72:               lastitem += list.parameters[0].to_s
+73:               neednewline = true
+74:             elsif list.code == 102   # Show Choices
+75:               list.parameters[0].length.times do |k|
+76:                 choices.push(list.parameters[0][k])
+77:               end
+78:               neednewline = false
+79:             elsif list.code == 401   # Continuation of 101 Show Text
+80:               lastitem += " " if lastitem != ""
+81:               lastitem += list.parameters[0].to_s
+82:               neednewline = true
+83:             elsif list.code == 355 || list.code == 655   # Script or script continuation line
+84:               find_translatable_text_from_event_script(items, list.parameters[0])
+85:             elsif list.code == 111 && list.parameters[0] == 12   # Conditional Branch
+86:               find_translatable_text_from_event_script(items, list.parameters[1])
+87:             elsif list.code == 209   # Set Move Route
+88:               route = list.parameters[1]
+89:               route.list.size.times do |k|
+90:                 if route.list[k].code == PBMoveRoute::SCRIPT
+91:                   find_translatable_text_from_event_script(items, route.list[k].parameters[0])
+92:                 end
+93:               end
+94:             end
+95:           end
+96:           if neednewline && lastitem != ""
+97:             items.push(lastitem)
+98:             lastitem = ""
+99:           end
+100:         end
+101:       end
+102:       if System.uptime - t >= 5
+103:         t += 5
+104:         Graphics.update
+105:       end
+106:       items |= []
+107:       choices |= []
+108:       items.concat(choices)
+109:       MessageTypes.setMapMessagesAsHash(0, items)
+110:       # Find all text in map events and add them to messages
+111:       mapinfos = pbLoadMapInfos
+112:       mapinfos.each_key do |id|
+113:         if System.uptime - t >= 5
+114:           t += 5
+115:           Graphics.update
+116:         end
+117:         filename = sprintf("Data/Map%03d.rxdata", id)
+118:         next if !pbRgssExists?(filename)
+119:         map = load_data(filename)
+120:         items = []
+121:         choices = []
+122:         map.events.each_value do |event|
+123:           if System.uptime - t >= 5
+124:             t += 5
+125:             Graphics.update
+126:           end
+127:           begin
+128:             event.pages.size.times do |i|
+129:               neednewline = false
+130:               lastitem = ""
+131:               event.pages[i].list.size.times do |j|
+132:                 list = event.pages[i].list[j]
+133:                 if neednewline && list.code != 401   # Continuation of 101 Show Text
+134:                   if lastitem != ""
+135:                     lastitem.gsub!(/([^\.\!\?])\s\s+/) { |m| $1 + " " }
+136:                     items.push(lastitem)
+137:                     lastitem = ""
+138:                   end
+139:                   neednewline = false
+140:                 end
+141:                 if list.code == 101   # Show Text
+142:                   lastitem += list.parameters[0].to_s
+143:                   neednewline = true
+144:                 elsif list.code == 102   # Show Choices
+145:                   list.parameters[0].length.times do |k|
+146:                     choices.push(list.parameters[0][k])
+147:                   end
+148:                   neednewline = false
+149:                 elsif list.code == 401   # Continuation of 101 Show Text
+150:                   lastitem += " " if lastitem != ""
+151:                   lastitem += list.parameters[0].to_s
+152:                   neednewline = true
+153:                 elsif list.code == 355 || list.code == 655   # Script or script continuation line
+154:                   find_translatable_text_from_event_script(items, list.parameters[0])
+155:                 elsif list.code == 111 && list.parameters[0] == 12   # Conditional Branch
+156:                   find_translatable_text_from_event_script(items, list.parameters[1])
+157:                 elsif list.code == 209   # Set Move Route
+158:                   route = list.parameters[1]
+159:                   route.list.size.times do |k|
+160:                     if route.list[k].code == PBMoveRoute::SCRIPT
+161:                       find_translatable_text_from_event_script(items, route.list[k].parameters[0])
+162:                     end
+163:                   end
+164:                 end
+165:               end
+166:               if neednewline && lastitem != ""
+167:                 items.push(lastitem)
+168:                 lastitem = ""
+169:               end
+170:             end
+171:           end
+172:         end
+173:         if System.uptime - t >= 5
+174:           t += 5
+175:           Graphics.update
+176:         end
+177:         items |= []
+178:         choices |= []
+179:         items.concat(choices)
+180:         MessageTypes.setMapMessagesAsHash(id, items) if items.length > 0
+181:         if System.uptime - t >= 5
+182:           t += 5
+183:           Graphics.update
+184:         end
+185:       end
+186:     rescue Hangup
+187:     end
+188:     Graphics.update
+189:   end
+190: 
+191:   def find_translatable_text_from_RGSS_script(items, script)
+192:     script.force_encoding(Encoding::UTF_8)
+193:     script.scan(/(?:_INTL|_ISPRINTF)\s*\(\s*\"((?:[^\\\"]*\\\"?)*[^\"]*)\"/) do |s|
+194:       string = s[0]
+195:       string.gsub!(/\\r/, "\r")
+196:       string.gsub!(/\\n/, "\n")
+197:       string.gsub!(/\\1/, "\1")
+198:       string.gsub!(/\\\"/, "\"")
+199:       string.gsub!(/\\\\/, "\\")
+200:       items.push(string)
+201:     end
+202:   end
+203: 
+204:   def find_translatable_text_from_event_script(items, script)
+205:     script.force_encoding(Encoding::UTF_8)
+206:     script.scan(/(?:_I)\s*\(\s*\"((?:[^\\\"]*\\\"?)*[^\"]*)\"/) do |s|
+207:       string = s[0]
+208:       string.gsub!(/\\\"/, "\"")
+209:       string.gsub!(/\\\\/, "\\")
+210:       items.push(string)
+211:     end
+212:   end
+213: 
+214:   def normalize_value(value)
+215:     if value[/[\r\n\t\x01]|^[\[\]]/]
+216:       ret = value.dup
+217:       ret.gsub!(/\r/, "<<r>>")
+218:       ret.gsub!(/\n/, "<<n>>")
+219:       ret.gsub!(/\t/, "<<t>>")
+220:       ret.gsub!(/\[/, "<<[>>")
+221:       ret.gsub!(/\]/, "<<]>>")
+222:       ret.gsub!(/\x01/, "<<1>>")
+223:       return ret
+224:     end
+225:     return value
+226:   end
+227: 
+228:   def denormalize_value(value)
+229:     if value[/<<[rnt1\[\]]>>/]
+230:       ret = value.dup
+231:       ret.gsub!(/<<1>>/, "\1")
+232:       ret.gsub!(/<<r>>/, "\r")
+233:       ret.gsub!(/<<n>>/, "\n")
+234:       ret.gsub!(/<<\[>>/, "[")
+235:       ret.gsub!(/<<\]>>/, "]")
+236:       ret.gsub!(/<<t>>/, "\t")
+237:       return ret
+238:     end
+239:     return value
+240:   end
+241: 
+242:   #-----------------------------------------------------------------------------
+243: 
+244:   def extract_text(language_name = "default", core_text = false, separate_map_files = false)
+245:     dir_name = sprintf("Text_%s_%s", language_name, (core_text) ? "core" : "game")
+246:     msg_window = pbCreateMessageWindow
+247:     # Get text for extraction
+248:     orig_messages = Translation.new(language_name)
+249:     if core_text
+250:       language_messages = orig_messages.core_messages

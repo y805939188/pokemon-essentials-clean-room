@@ -1,0 +1,68 @@
+INPUT file review/remediation-sixth-20261014-prepare/actual-reviews/group-A/payload-audit/original-finite-evidence/U03-fishing-random-boundaries.rb TOTAL_LINES 67 READ 1-67
+1: # Audit-only isolated control-flow probe. No native game host, media, saves,
+2: # maps, service, network, or production implementation is invoked.
+3: require "json"
+4: module Settings
+5:   FISHING_BEGIN_COMMON_EVENT = -1
+6:   FISHING_END_COMMON_EVENT = -1
+7:   EXCLAMATION_ANIMATION_ID = 3
+8:   FISHING_AUTO_HOOK = false
+9: end
+10: class ProbePlayer
+11:   attr_accessor :lock_pattern, :pattern
+12:   attr_reader :movement
+13:   def set_movement_type(value); @movement = value; end
+14:   def straighten; end
+15:   def x; 0; end
+16:   def y; 0; end
+17: end
+18: class ProbeScene
+19:   def spriteset; self; end
+20:   def addUserAnimation(*args); end
+21: end
+22: def pbCommonEvent(_id); false; end
+23: def pbWait(_seconds); end
+24: def pbCreateMessageWindow; {}; end
+25: def pbDisposeMessageWindow(_window); end
+26: def pbMessageDisplay(*args); end
+27: def _INTL(value); value; end
+28: def rand(domain)
+29:   $probe_draws << domain.to_s
+30:   value = $probe_values.shift
+31:   raise "unexpected random draw" if value.nil?
+32:   value
+33: end
+34: source = File.expand_path("../../../../../reference/pokemon-essentials/Data/Scripts/012_Overworld/005_Overworld_Fishing.rb", __dir__)
+35: load source
+36: # The wait/input host is replaced with explicit return values; this validates
+37: # only the source coordinator's draw guards, not timing, input or animation.
+38: def pbWaitMessage(_window, _time); $probe_cancel; end
+39: def pbWaitForInput(*args); $probe_hook_input; end
+40: cases = [
+41:   ["no_encounter", false, false, true, false, false, [5]],
+42:   ["wait_cancel", true, true, true, false, false, [5]],
+43:   ["bite_miss", true, false, true, false, false, [5, 99]],
+44:   ["hook_timeout", true, false, false, false, false, [5, 0, 5]],
+45:   ["normal_success", true, false, true, false, false, [5, 0, 5, 0]],
+46:   ["auto_success", true, false, true, true, false, [5, 0, 5]],
+47:   ["accelerated_no_encounter", false, false, true, false, true, [8, 5]]
+48: ]
+49: results = cases.map do |name, encounter, cancel, hook_input, auto, speedup, values|
+50:   Settings.send(:remove_const, :FISHING_AUTO_HOOK)
+51:   Settings.const_set(:FISHING_AUTO_HOOK, auto)
+52:   $stats = Struct.new(:fishing_count).new(0)
+53:   $PokemonGlobal = Struct.new(:fishing, :surfing).new(false, false)
+54:   $game_player = ProbePlayer.new
+55:   $player = Struct.new(:first_pokemon).new(speedup ? Struct.new(:ability_id).new(:STICKYHOLD) : nil)
+56:   $scene = ProbeScene.new
+57:   $probe_draws = []
+58:   $probe_values = values.dup
+59:   $probe_cancel = cancel
+60:   $probe_hook_input = hook_input
+61:   result = pbFishing(encounter, 1)
+62:   raise "unconsumed expected draws" unless $probe_values.empty?
+63:   {case: name, result: result, random_domains: $probe_draws, fishing_count: $stats.fishing_count,
+64:    fishing: $PokemonGlobal.fishing, pattern_locked: $game_player.lock_pattern, movement: $game_player.movement,
+65:    evidence: "TOOL_VALIDATION_ISOLATED_SOURCE_CONTROL_FLOW", host_execution: false}
+66: end
+67: puts JSON.pretty_generate(results)
