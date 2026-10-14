@@ -163,7 +163,7 @@ core自己SHA不写回core正文；后继可绑定core自身，后继自己的co
 
 ### 有限批次、并发与唯一整合
 
-按**本次实际裁决项和真实文件/依赖**生成有限批次，不能预先照搬第五轮七批或人为限制独立并发数量。每个必修ID恰有一个主负责batch；共享同步/消费者接收任务具名但不得重复成为不同mandatory。提供 `batch-assignment.json`、`dependency-graph.json`、`file-conflict-graph.json`，以及每批独立author入口与非作者reviewer入口（逻辑ID、冻结输入、真实可用CLI/Desktop启动方法、所请求GPT-6.1 sol/ultra/default普速、日志/状态路径）。
+按**本次实际裁决项和真实文件/依赖**生成有限批次，不能预先照搬第五轮七批或人为限制独立并发数量。每个必修ID恰有一个主负责batch；共享同步/消费者接收任务具名但不得重复成为不同mandatory。提供 `batch-assignment.json`、`dependency-graph.json`、`file-conflict-graph.json`，以及每批独立author入口与非作者reviewer入口（逻辑ID、冻结输入、真实可用CLI/Desktop启动方法；未来云端修订/更新author请求 `gpt-6.1-sol / xhigh`，独立reviewer请求 `gpt-6.1-sol / ultra`，二者均default普速、禁Fast；日志/状态路径）。
 
 每批合同列逐ID、精确读集/写集、必要原证据、原反例、验收、回归、依赖、条件门与候选目录。直接或传递依赖未满足不关闭；第一波给全部真的可独立开工的批次及数量，不按“无用户上限”假装资源无限。共享正式文件、公共台账或公共索引不得并行多写，即使不同段落也先证明独立条件；可由各批分别写候选mirror/patch，由唯一整合者接收、机械搬运/整合后再做独立实际review。主会话/R6-I独占公共台账、去重与最终注册；作者与审者分离。
 
