@@ -15,3 +15,5 @@
 参考源固定为只读R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。规格不翻译Ruby架构，也不实现新引擎。静态接受保留资源、宿主、运行与配置的未知；本轮新参考行为、宿主、Demo、真实存档或录像执行均为0。8项可选、1个浮点facet、7项政策和14项限制独立保留。
 
 历史入口：[第二轮](delivery/2026-10-11/README.md)、[第三轮](delivery/2026-10-12/README.md)、[第四轮](delivery/2026-10-12-fourth/README.md)、[第五轮合并与保全](review/remediation-fifth-20261013-prepare/integration/final-publication-plan/merge-cleanup-plan.md)。旧阶段文字按固定生成时点理解；历史README全文仍在Git历史中。第七轮尚未启动。
+
+GitHub已普通合并main并安全退休33个工作分支别名，保留7个分支；36个第六轮归档与原175个tag保留。查看[安全整理实际结果](delivery/2026-10-14-sixth/cleanup-report.md)及其逐分支固定证据。最终入口tag：`delivery/sixth-round-closed-final-20261014`。
