@@ -11,25 +11,50 @@ Ptree=g('rev-parse',P+'^{tree}').decode().strip()
 Pdir=g('rev-parse',P+':'+str(ROOT.relative_to(REPO))).decode().strip()
 readback=get('publication/core-A-retry01/readback.json')
 assert readback['commit']==core['core_commit'] and readback['all_full_bytes_match']
+publication_readback=get('publication/report-P/readback.json')
+assert publication_readback['commit']==P and publication_readback['all_full_bytes_match']
 records=get('findings/normative-records.json');batches=get('handoff/batch-assignment.json')
 fixed=get('control/fixed-inputs.json');coverage=get('coverage/final-coverage.json')
 evidence=get('findings/evidence-binding-index.json')
+for item in evidence.values():
+ item['commit']=core['core_commit'];item['report_directory_tree']=core['core_report_directory_tree']
+ item['recovery']='git show '+core['core_commit']+':'+str(ROOT.relative_to(REPO))+'/'+item['path']
 aliases=get('findings/aliases-and-tombstones.json');policies=get('findings/policy-records.json');limits=get('findings/limit-records.json')
 assert len(records)==65 and policies['count']==7 and limits['count']==14
 source=get('coverage/reference-payloads-current.json');formal=get('coverage/formal-payloads-current.json')
+report_inventory={x['path']:x for x in get('inventory/report-payloads-pre-core.json')['entries']}
+def typed_report_entries(entries):
+ result=[]
+ for x in entries:
+  x=dict(x);prior=report_inventory.get(x['path'],{})
+  x['type']=prior.get('type','compressed_data' if x['path'].endswith('.gz') else 'utf8_audit_payload')
+  x['purpose']=prior.get('purpose','post-core publication/evidence/control payload; no new gameplay semantic input')
+  x['semantic_reading_scope']=prior.get('reading_scope','full administrative structure/type/identity or understood audit tool/record; exact command reading scope and source evidence remain separately pinned')
+  x['evidence_level']='complete byte readback TOOL_VALIDATION; semantic levels from owning record, not implied by transport'
+  result.append(x)
+ return result
 supplements=get('tasks/R6-H/subtasks/supplement-inventory/effective-supplement116.json')
 blobmap={x['path']:x for x in get('inventory/workspace-tracked.json')}
 for x in supplements:
  if x['path'] in blobmap:
   x['git_blob']=blobmap[x['path']]['git_blob'];x['workspace_tree']=fixed['workspace_tree']
+  x['mode']=blobmap[x['path']]['mode'];x['type']='utf8_markdown';x['repository']=str(REPO)
  x['purpose_and_reading_scope']=x.get('inspection',x.get('use'))
+history_admin=get('tasks/R6-H/payload-identity-and-reading-registry.json')
+for item in history_admin:
+ ref=item['ref'];path=item['path'];raw=g('ls-tree',ref,'--',path).decode().strip()
+ mode,kind,blob=raw.split('\t')[0].split();assert kind=='blob' and blob==item['git_blob']
+ item.update({'commit':ref,'workspace_tree':g('rev-parse',ref+'^{tree}').decode().strip(),
+              'mode':mode,'type':'utf8_json' if path.endswith('.json') else 'utf8_markdown',
+              'repository':str(REPO),'purpose':item['usage'],'reading_scope':'full text lines1–'+str(item['fulltext_lines_read'])+' with current qualification/type purpose; no game PASS'})
 manifest={
  'schema':'pokemon-clean-room.r6-update-handoff.v1','created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),
  'fixed_project_inputs':fixed,'r6_core':core,'r6_report_publication':{'commit':P,'workspace_tree':Ptree,'report_directory_tree':Pdir,'report_root':str(ROOT.relative_to(REPO))},
  'handoff_self_binding':'external final publication receipt and final chat bind this file and prompt; no recursive self-hash',
  'source_materials':source,'formal_materials':formal,'effective_supplement_materials':supplements,
- 'fixed_history_and_admin_payload_registry':get('tasks/R6-H/payload-identity-and-reading-registry.json'),
- 'report_core_full_remote_payload_identities':readback['entries'],
+ 'fixed_history_and_admin_payload_registry':history_admin,
+ 'report_core_full_remote_payload_identities':typed_report_entries(readback['entries']),
+ 'report_publication_full_remote_payload_identities':typed_report_entries(publication_readback['entries']),
  'reading_and_bidirectional_coverage':coverage,'matrix_catalog':get('coverage/matrix-catalog.json'),
  'full_structure_block_ledger':{'path':'coverage/global-reverse-block-index.json','commit':core['core_commit'],'finite_blocks':20379,'complete_range_and_identity_counter':'tasks/R6-K/global-coverage-counter/report.md'},
  'normative_records':records,'classification_counts':get('findings/adjudication-counts.json'),
@@ -57,6 +82,8 @@ put('cloud-sixth-update-handoff-manifest.json',manifest)
 draft=ROOT/'tasks/R6-O/handoff-contract-draft/preamble.md'
 assert draft.is_file(),'independent Chinese contract draft must be received'
 intro=draft.read_text()
+intro=intro.replace('不得运行未知项目脚本、原EXE／DLL／IL／loader、完整游戏、真实旧存档、外部服务或生产网络；',
+ '不得盲跑未知项目或下载脚本。原EXE／DLL／IL／loader或完整游戏只有在材料/宿主身份明确、对象和依赖已懂、绑定副本及安全隔离范围可控且在已授权范围内时才可运行，并与静态证据分期；条件不足登记精确限制。不得触及真实用户存档、生产账户或未授权外部服务／网络；')
 binding=['# 第六轮云端有限整改完整中文启动合同','',
  '本文件是供用户另行手动启动的新任务合同。当前独立review与交接准备已完成，云端update尚未启动。请把本文件全文提交给后续任务；不可只复制ID表、链接或未展开模板。',
  '', '## 实际冻结与发布绑定','',
@@ -108,5 +135,35 @@ body+=['', '## 完整依赖/冲突/唯一接收','', '```json',json.dumps({'firs
 put('handoff/generation-check.json',{'records':len(records),'required':56,'optional':8,'no_required':1,'policy':7,'limits':14,
  'core':core['core_commit'],'publication':P,'unique_primary_assignments':len(batches['unique_primary_batch']),
  'first_wave':14,'prompt_contains_all_65_expanded_records':True,'update_started':False})
+entrydir=ROOT/'handoff/entries';entrydir.mkdir(exist_ok=True)
+for b in batches['batches']:
+ for role in ('author','reviewer'):
+  entry=b[role]['logical_id'];effort=b[role]['effort']
+  wording='只产本批隔离candidate mirror与证据，禁止直接写正式文件、公共台账和别批候选。' if role=='author' else '必须与candidate作者独立；先等待精确candidate路径/bytes/SHA/blob及作者读集/变更/验收记录，未收到时WAIT_DEPENDENCY，不能预写PASS。仅写独立审查目录。'
+  text=['# '+entry+' 完整手动委派合同','', '该入口未启动。只有人手动提交此文件后才登记自己的真实活动。',
+        '', '模型请求：gpt-6.1-sol / '+effort+' / default tier及普速，禁Fast；无实际回显则UNVERIFIED。',
+        '',wording,'', '\n'.join(binding), '', '## 本批确定合同（含原证据、反例、验收、同步和实际路径）','',
+        '```json',json.dumps(b,ensure_ascii=False,indent=2),'```','',
+        '## 精确共同证据对象恢复','', '```json',json.dumps(evidence,ensure_ascii=False,indent=2),'```','',
+        'source与旧报告保持只读，不实现框架，不改main/tag/force/delete/环境释放。candidate PASS与整合后PASS/正式接受/CLOSED分开；与本批交接相关的完整路径及每ID七组实际内容必须新读。',
+        '', '实际update工作根、candidate版本及日志由新任务root首次核定并保存；未来路径变量不能冒充已存在的身份。UPDATE_NOT_STARTED。','']
+  (entrydir/(entry+'.md')).write_text('\n'.join(text))
+manifest['manual_entry_prompts']=[]
+for b in batches['batches']:
+ for role in ('author','reviewer'):
+  lid=b[role]['logical_id'];p=entrydir/(lid+'.md');data=p.read_bytes()
+  manifest['manual_entry_prompts'].append({'logical_id':lid,'path':str(p.relative_to(ROOT)),
+      'git_full_path':str(p.relative_to(REPO)),'state':'NOT_STARTED','bytes':len(data),
+      'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest(),
+      'mode':'100644','type':'utf8_markdown','purpose':'complete finite manual author or independent reviewer contract',
+      'reading_scope':'complete fixed identities/general Chinese contract/own exact batch and full normative records/evidence',
+      'commit_tree_binding':'external final publication receipt pins actual handoff commit and report tree; no fabricated future identity'})
+prompt=ROOT/'cloud-sixth-update-handoff-prompt.md';data=prompt.read_bytes()
+manifest['complete_chinese_prompt_payload']={'path':str(prompt.relative_to(ROOT)),'git_full_path':str(prompt.relative_to(REPO)),
+      'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'git_blob':hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest(),
+      'mode':'100644','type':'utf8_markdown','purpose':'complete manual sixth update startup contract with all65 expanded records',
+      'reading_scope':'complete generated contract and independent final counter; source/static/host levels remain distinct',
+      'commit_tree_binding':'external final receipt pins handoff commit/tree; manifest self explicitly excluded'}
+put('cloud-sixth-update-handoff-manifest.json',manifest)
 print(json.dumps({'prompt_bytes':(ROOT/'cloud-sixth-update-handoff-prompt.md').stat().st_size,
                  'manifest_bytes':(ROOT/'cloud-sixth-update-handoff-manifest.json').stat().st_size,'core':core['core_commit'],'publication':P,'update_started':False}))
