@@ -85,7 +85,9 @@ P 威力、A 攻击、D 防御、F 最终。附表完整列共享复制身份/�
 
 StatusCure：ASPEARBERRY 冻、CHERIBERRY 麻痹、CHESTOBERRY 真睡、PECHABERRY 真毒、RAWSTBERRY 灼伤；非 forced 还须可食果，匹配才治疗并真。PERSIMBERRY 混乱计数非 0 才清混乱；LUMBERRY 真实异常或混乱非 0 才同时治状态/混乱，COMATOSE 仅视为睡不当真实异常。治疗函数已写状态与计数不因后续提示失败回滚。
 
-MENTALHERB 不受食果门：迷恋、挑衅、安可、折磨、定身、治疗封锁至少一项有效才真；分别清，安可计数和招式身份都清，定身只清计数、没有在此清 DisableMove 辅助身份。不治地狱突刺或任意临时效果。WHITEHERB 对七阶级所有负值直接归 0、标本轮升阶真；无负值假；不逐项中央升阶、无反向/单纯等转换，正阶级不改。用后通用消费，两者都不是树果，不触发颊囊。
+MENTALHERB 不受食果门：迷恋、挑衅、安可、折磨、定身、治疗封锁至少一项有效才真；分别清，安可计数和招式身份都清，定身只清计数、没有在此清 DisableMove 禁用招式身份。不治地狱突刺或任意临时效果。WHITEHERB 对七阶级所有负值直接归 0、标本轮升阶真；无负值假；不逐项中央升阶、无反向/单纯等转换，正阶级不改。用后通用消费，两者都不是树果，不触发颊囊。
+
+定身残留身份由 WP40 §4.1 的普通选择/非特殊执行前门消费：身份匹配就拒绝，不要求计数正。默认 DISABLE 成功写计数5及最近普通招式身份后，有效精神香草把计数清0并消费，已完成的治疗和消费不因后来的招式拒绝退回。同一成员继续存活在场、无重新初始化/变身/后续定身覆盖等改写时，本轮及后续正常回合末的定身递减因计数0被跳过，不到清身份的自然结束回调。无香草时正计数实际递减到0才清身份；正常换入初始化及实际变身也可清掉该身份，不能推成永久禁用。其它招式只按各自资格判定，特殊使用仅绕该定身门，不保证整个执行成功或必选挣扎。HI10及HI10a–HI10f分开本地结果、下一菜单拒绝和先合法登记后的同轮执行拒绝。
 
 LEPPABERRY 用**持久个体招式列表**收 PP 有损且总 PP>0 的槽，非 forced 仅有空 PP 槽可触发；forced 可在无空槽时选首个部分损 PP 槽。都先空槽的首个，不按最低百分比或随机。非 forced 还查食果。请求 10，RIPEN 20，持久 PP 钳到上限，然后**直接把同下标战斗槽 PP 写成持久新值，不检查身份相同或变身**；与《HP、状态、招式与持物》通常专门同步入口不同，必须单列例外。当前真实招式不同也可能收到数值，不能由通用 PP 归属推断这次不回读；两赋值先后不原子。返回真才通用消费。
 
@@ -168,7 +170,7 @@ OnBeingHitPositiveBerry 族只有 ENIGMA／KEE／MARANGA，强制传入身份可
 
 ## 8. 示例场景与测试目录
 
-静态场景（普通数值例沿《战斗类型、命中与伤害计算》共同前提 L50、P60、攻防 100、非会心、中性、无本系/其它修正、最大随机，基准 28；只改变所列项。固定输入/手工状态推导，独立常数算术，不运行参考）见测试目录 [`../test-catalog/pokemon-rules-wp43-44-46-48-50.md`](../test-catalog/pokemon-rules-wp43-44-46-48-50.md) 的 HI01–HI33（CHOICEBAND 中间值、WIDELENS×BRIGHTPOWDER 阈值、FLOATSTONE、QUICKCLAW 不重抽、ORAN 半血门两组、SITRUS×RIPEN、FIGY 世代 8 与 forced 满 HP、MICLE 标记、STARF 先抽后拒、MENTALHERB 定身保留、WHITEHERB 直接归零、LEPPA 持久/战斗槽例外、OCCA 紧张感不免、宝石多击、ROCKYHELMET 允许倒下、WEAKNESSPOLICY 部分成功、REDCARD 扎根、EJECTPACK 负值已消费、EJECTBUTTON 不查拘束、SHELLBELL 跨半清除、LIFEORB 替身门、地形种子浮空、LEFTOVERS 最低 1、LUCKYEGG/POWER 物、魔法空间成长物、退出包消费写回、BLACKSLUDGE 两分支、THROATSPRAY 变化声音、ORAN 51 边界、SITRUS 50、五混乱果世代 6/8 四门、ORAN 紧张感门）。
+静态场景（普通数值例沿《战斗类型、命中与伤害计算》共同前提 L50、P60、攻防 100、非会心、中性、无本系/其它修正、最大随机，基准 28；只改变所列项。固定输入/手工状态推导，独立常数算术，不运行参考）见测试目录 [`../test-catalog/pokemon-rules-wp43-44-46-48-50.md`](../test-catalog/pokemon-rules-wp43-44-46-48-50.md) 的 HI01–HI33（CHOICEBAND 中间值、WIDELENS×BRIGHTPOWDER 阈值、FLOATSTONE、QUICKCLAW 不重抽、ORAN 半血门两组、SITRUS×RIPEN、FIGY 世代 8 与 forced 满 HP、MICLE 标记、STARF 先抽后拒、MENTALHERB 定身保留与 HI10a–HI10f 后继许可/期限/重置对照、WHITEHERB 直接归零、LEPPA 持久/战斗槽例外、OCCA 紧张感不免、宝石多击、ROCKYHELMET 允许倒下、WEAKNESSPOLICY 部分成功、REDCARD 扎根、EJECTPACK 负值已消费、EJECTBUTTON 不查拘束、SHELLBELL 跨半清除、LIFEORB 替身门、地形种子浮空、LEFTOVERS 最低 1、LUCKYEGG/POWER 物、魔法空间成长物、退出包消费写回、BLACKSLUDGE 两分支、THROATSPRAY 变化声音、ORAN 51 边界、SITRUS 50、五混乱果世代 6/8 四门、ORAN 紧张感门）。
 
 本轮追加 HI34–HI36 分别核对主动/持物实际量与消费分工、FLOATSTONE 与能力门分离、196 配对身份重数；原 HI01–HI33 及其它 WP 的测试行保持。
 
