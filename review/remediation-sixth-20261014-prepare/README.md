@@ -1,6 +1,6 @@
 # 第六轮云端整改接续入口
 
-用户已批准执行整改。父线程已确认 U01–U14 的独立 saved-cloud 作者身份，本台账登记14个 ADMITTED；实际运行、有效配置回显和候选完成仍待证。U04独立审者已由父线程确认身份并登记admitted，其余独立审者尚未创建。本整合环境已实读恢复可执行，详见[环境回执](admissions/20261014-parent-u01-u09/environment-readback.json)、[父线程身份来源](admissions/20261014-parent-u01-u09/parent-report.json)及[接收队列](reception-queue.json)。当前56 OPEN、候选 PASS 0、实际整合 PASS 0、接受 0、CLOSED 0，U04固定候选已提交并取得Git对象，仅完成载荷身份和允许写集核验，独立复审待回执；其337静态检查／11推导向量／26远端回读为作者报告，不等于独立PASS。没有正式文件修订，本地79份镜像仍为固定main原字节。
+用户已批准执行整改。父线程已确认 U01–U14 的独立 saved-cloud 作者身份，本台账登记14个 ADMITTED；实际运行、有效配置回显和候选完成仍待证。U04／U08独立审者已由父线程确认身份并登记admitted，其余独立审者尚未创建。本整合环境已实读恢复可执行，详见[环境回执](admissions/20261014-parent-u01-u09/environment-readback.json)、[父线程身份来源](admissions/20261014-parent-u01-u09/parent-report.json)及[接收队列](reception-queue.json)。当前56 OPEN、候选 PASS 0、实际整合 PASS 0、接受 0、CLOSED 0，U04／U08共8项固定作者候选已提交并取得Git对象，仅完成载荷身份和允许写集核验，独立复审待回执。U04的337静态检查／11推导向量／26远端回读为作者报告，不等于独立PASS。U01重复disconnect由父线程检查和请求原任务保全，结果仍待证，不标失败或丢失。没有正式文件修订，本地79份镜像仍为固定main原字节。
 
 云端执行根 `/workspace/pokemon-essentials-clean-room`，分支 `codex/remediation-sixth-20261014-8ea169f-cloud`。唯一正式接收和公共台账写者为此任务的 `/root`；父线程 ID `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2` 是已知来源身份，没有冒称不可见平台 UUID。未操作 Mac、main、交付 tag、旧分支或环境释放。
 
