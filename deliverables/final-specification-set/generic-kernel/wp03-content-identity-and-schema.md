@@ -97,17 +97,37 @@
 | 内容与省略字段 | 原始结果 | 消费边界 |
 | --- | --- | --- |
 | TownMap：Name、Filename、Point、Flags | ???、缺值、空点列表、空标记列表 | 区域名再本地化；没有 Filename 不保证地图素材可显示 |
+| Type：Name、IconPosition、IsSpecialType、IsPseudoType | Unnamed、0、false、false | 名称再经 TYPE_NAMES 查找；图标位置与旧配置的物理／特殊分类分别消费原始值，伪类型标记不自动等同攻击无效 |
 | Ability：Name、Description、Flags | Unnamed、???、空标记列表 | 名称与描述各经对应文本域；显式 Review/Text 覆盖默认 |
 | Ribbon：Name、Description、IconPosition、Flags | Unnamed、???、0、空标记列表 | 图标位置 0 是数据默认；显式 3 保留；缎带显示顺序仍按持有列表 |
-| Move：Category、Power、Target、FunctionCode | Status、0、None、文本 None | 类别与威力须先通过《PBS 生命周期》§4.5 的交叉校验；既有 Type NONE、命中 100、PP 5 默认保持 |
+| Move：Name、Description、Priority、EffectChance、Flags；Category、Power、Target、FunctionCode | Unnamed、???、0、0、空标记列表；Status、0、None、文本 None | 名称／描述各经对应文本域；类别与威力须先通过《PBS 生命周期》§4.5 的交叉校验；既有 Type NONE、命中 100、PP 5 默认保持 |
+| Item：NamePlural（单数 Name 已显式给 Review） | Unnamed | 复数原名独立默认，不从 Review 自动生成；普通复数名再经 ITEM_NAME_PLURALS 查找。份名缺席按下文回对应普通名称 |
 | TrainerType：Gender、Name | 未知/混合 2、Unnamed | 类型名再本地化；基础资金与技能档仍按领域合同 |
 | Metadata：StartMoney | 3000；显式 0 保持 0 | 正常玩家创建读取此值；仍须有全局 0、合法 Home 与玩家 1 |
+
+上表只规定属性省略，不统一解释显式空属性。特性 Flags 出现但没有 CSV 值时的登记与后续查询结果见《PBS 生命周期》§4.2 的具名相邻例；其省略为空列表的默认不变。
 
 StorageCreator 先查本字段的译文/原文，结果缺失或为空字符串才回退到脚本文本 Bill 的翻译；没有相应语言命中时才得到字面 Bill，有命中时得到该译文。此消费者回退不改变通用空译是有效命中的规则；PC 是否显示创建者名仍有“已见过创建者”门。
 
 道具 PortionName 与 PortionNamePlural 的原字段分别缺席时，回退对应的普通单数名与复数名。存在非空份名 Portion 且其语言键命中空译时，返回空字符串，不回普通名 Review。显式空的 PBS `s` 属性没有首个 CSV 值，得到缺值；它与已存储的空字符串、非空份名的空译命中不同，`q` 空文本亦走另一条路径。
 
 地图元数据 Name 缺失或为空时，在条目登记前读取基本地图信息中同 ID 的名字；该信息条目缺席则此处失败。显式非空 Name=Review 绕过此读取，只能证明该默认名分支未失败，不能证明地图几何或资源可用。Pocket、Price、FieldUse、BattleUse 四项道具默认及 Flags 统一由[GR5-M05-006（R5-U03 道具主责）](https://github.com/y805939188/pokemon-essentials-clean-room/blob/22fba7786b0090a1955ce6211315b0036cddfbcd/review/remediation-fifth-20261013-prepare/contracts/R5-U03/author-entry.md)规定；本节仅投影主责引用，不复制默认全集。该主责贡献尚待按冻结合同实际接入，本引用不声明 B5 已完成承接。
+
+#### 4.3.2 显式指标记录的缺字段默认
+
+合法物种的指标作者节已经存在且成功转换／登记时，缺字段结果如下：
+
+| 省略字段 | 该记录自身的默认 |
+| --- | --- |
+| BackSprite | (0,0) |
+| FrontSprite | (0,0) |
+| FrontSpriteAltitude | 0 |
+| ShadowX | 0 |
+| ShadowSize | 2 |
+
+基础节与非零形态节都按这组自身默认，不按物种形态字段继承，也不逐字段复制基础指标。查询命中已有形态指标时保留该记录；仅整条指标身份缺席时才执行 §3.2 的基础默认／形态克隆登记。来源后缀仍由 PBS 来源或查询创建入口决定。
+
+例如基础背面坐标为 (5,6)，其它前提正常、无后续编辑或覆写：形态1的作者指标节仅给 ShadowSize=2，随后查询背面为 (0,0)；完全没有该形态指标记录后首次查询才复制 (5,6)；显式给形态背面 (7,8) 则保留 (7,8)。登记／查询结果不等于档案、PBS 保存或已有布局刷新；相应编辑与输出边界见 [WP73-B §7.5](../demo-dx/wp73-b-world-editors.md#75-保存时记录集合pbs-路径与消费者) 和《PBS 生命周期》§5.5。
 
 ### 4.4 查询副作用
 
@@ -327,7 +347,7 @@ Shape、Color、Habitat 采用下列精确身份。表内位置为固定定义�
 
 ## 10. 示例场景与测试目录
 
-静态推导场景（未运行）见测试目录 [`../test-catalog/generic-kernel-wp02-03-04.md`](../test-catalog/generic-kernel-wp02-03-04.md) 的 KR01–KR16（既有身份/默认/校验场景，以及 Nature 固定身份顺序、电话默认后项覆盖与联系人/道具拒绝对照）。新增场景状态均为 **NOT_EXECUTED**。
+静态推导场景（未运行）见测试目录 [`../test-catalog/generic-kernel-wp02-03-04.md`](../test-catalog/generic-kernel-wp02-03-04.md) 的 KR01–KR16 及 R6-U14-C05/C06 静态对照（既有身份/默认/校验场景，以及 Nature 固定身份顺序、电话默认后项覆盖与联系人/道具拒绝对照）。新增场景状态均为 **NOT_EXECUTED**。
 
 ## 11. 依赖
 

@@ -27,9 +27,12 @@ def rows(data):
   if m and re.fullmatch(r'[A-Za-z][A-Za-z0-9_.:-]*[0-9][A-Za-z0-9_.:-]*',m.group(1).strip()):result[family+'::'+m.group(1).strip()]+=1
  return result
 d=json.loads(read(args.input))
-assert len(d['required_ids'])==42 and len(set(d['required_ids']))==42
-assert len(d['batches'])==12 and len(d['files'])==40
-checks=[];contributions=0;new_lines=0
+assert len(d['required_ids'])==d['required_count'] and len(set(d['required_ids']))==d['required_count']
+assert len(d['batches']) in (12,13,14) and len({b['batch'] for b in d['batches']})==len(d['batches'])
+assert {i for b in d['batches'] for i in b['required_ids']}==set(d['required_ids'])
+assert sum(len(b['required_ids']) for b in d['batches'])==d['required_count']
+assert len({f['path'] for f in d['files']})==len(d['files'])
+checks=[];contributions=0;new_lines=0;navigation_mappings=0
 for f in d['files']:
  actual=read(f['path']);assert identity(actual)==f['actual'],f['path']
  base=blob(d['fixed_main'],f['path']);assert identity(base)==f['baseline']
@@ -45,6 +48,16 @@ for f in d['files']:
   for kind,i,j,u,v in difflib.SequenceMatcher(None,a,b,autojunk=False).get_opcodes():
    if kind in ('replace','insert'):
     block=b[u:v]
+    for resolution in d['resolutions']:
+     if resolution['path']==f['path'] and 'candidate_lines' in resolution:
+      assert f['path']=='deliverables/final-specification-set/generic-kernel/wp04-pbs-lifecycle.md'
+      old=resolution['candidate_lines'].get(c['batch'])
+      if old and old in block:
+       base_line=resolution['baseline_line'];ours=resolution['candidate_lines']['R6-U09'];theirs=resolution['candidate_lines']['R6-U14']
+       assert base_line in a and ours.startswith(base_line) and ours!=base_line
+       assert theirs==base_line.replace('的 KL01–KL36（','的 KL01–KL36 及 R6-U14-FLAGS 静态对照（',1)
+       assert resolution['actual_line']==theirs+ours[len(base_line):]
+       block=[resolution['actual_line'] if x==old else x for x in block];navigation_mappings+=1
     if any(x.strip() for x in block):
      hay=actual_lines;needle=block
      if f['path']=='deliverables/final-specification-set/test-catalog/generic-kernel-wp02-03-04.md':
@@ -62,11 +75,17 @@ receiver=json.loads(payload);actual=read(receiver['receiver_path']).decode()
 assert actual.count(receiver['proposed_full_line'])==1 and receiver['old_full_line'] not in actual
 assert d['receiver_delta']['applied'] and not d['receiver_delta']['INTEGRATED_PASS']
 for b in d['batches']:
+ contract=read(b['contract_path']);assert identity(contract)==b['contract_identity']
+ assert json.loads(contract)['required_ids']==b['required_ids']
  report=blob(b['independent_review']['review_commit'],b['independent_review']['report_path'])
  # U04 report identity is stored in the actual input for this composite, as for all other reports.
  assert identity(report)==b['independent_review']['report_identity']
  assert b['candidate_published_commit'] in report.decode()
  assert b['required_ids'] and b['author_cloud_thread_id']!=b['independent_review']['reviewer_cloud_thread_id']
+ prefix='review/remediation-sixth-20261014-prepare/candidates/'+b['batch']+'/mirror/'
+ expected=set(git('diff-tree','--no-commit-id','--name-only','-r',d['preparation_commit'],b['candidate_published_commit'],'--',prefix).decode().splitlines())
+ received={c['candidate_path'] for f in d['files'] for c in f['contributions'] if c['batch']==b['batch']}
+ assert received==expected,(b['batch'],'missing/extra candidate paths',sorted(expected-received),sorted(received-expected))
 assert d['state']=='ACTUAL_COMPOSITION_PENDING_INDEPENDENT_REVIEW'
 assert not d['INTEGRATED_PASS'] and not d['formal_acceptance'] and not d['CLOSED']
-print(json.dumps({'evidence_level':'TOOL_VALIDATION','files_full_byte_bound':len(checks),'contributions_exact_added_blocks_retained':contributions,'nonblank_candidate_added_lines_checked':new_lines,'receiver_clause_exact':True,'case_row_checks':checks,'reference_model_host_Demo_execution':0,'semantic_PASS':False,'INTEGRATED_PASS':False,'accepted':0,'CLOSED':0},ensure_ascii=False))
+print(json.dumps({'evidence_level':'TOOL_VALIDATION','files_full_byte_bound':len(checks),'contributions_added_blocks_retained':contributions,'explicit_shared_navigation_line_mappings':navigation_mappings,'nonblank_candidate_added_lines_checked':new_lines,'receiver_clause_exact':True,'case_row_checks':checks,'reference_model_host_Demo_execution':0,'semantic_PASS':False,'INTEGRATED_PASS':False,'accepted':0,'CLOSED':0},ensure_ascii=False))

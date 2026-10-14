@@ -59,6 +59,8 @@
 
 重要物品 = KeyItem 或 TM 或 HM；TR 本身不重要（若另带 KeyItem 则重要）。使用资格与消耗时机沿 WP28，不因数量显示改变。
 
+**名称的独立省略默认**：合法新物品显式给单数原名 Review、但省略 NamePlural 时，复数原名为 Unnamed，不自动使用 Review 或推导 Reviews；显式给 NamePlural=Reviews 才保留该复数原名。普通单／复数名称分别查各自语言域，原始默认不保证最终显示字面 Unnamed。份名单／复数原字段缺席时，分别回对应普通名称；非空份名命中空译仍返回空串（WP03 §4.3.1／WP08），不改成普通名。
+
 ### 2.2 数量判定与逐槽显示
 
 | 物品分类 | ShowQuantity 省略 / false / true 的数量判定 | Consumable 省略 / false / true 的有效消耗 |

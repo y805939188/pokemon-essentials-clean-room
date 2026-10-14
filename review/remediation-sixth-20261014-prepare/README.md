@@ -1,6 +1,6 @@
 # 第六轮云端整改接续入口
 
-用户已批准执行整改。14批／56项候选均已发布并核固定对象；U01–U12共42项通过独立候选复审，现已串行接收至40份正式文件。[当前实际组合](integration/U01-U12-composite-20261014/actual-review-input.json)给出全部准确字节与贡献；WP66-A具名接收补充已落地，仍待U13修后及独立实际复验。U13旧整包FAIL由原作者定向修订，U14待审。INTEGRATED_PASS、正式接受、CLOSED均0，56项仍OPEN；有效配置回显UNVERIFIED，宿主／Demo／真实save未执行。队列与总台账是当前状态；初始准备和固定发布回执仅绑定其生成时点。
+用户已批准执行整改。14批／56项候选均已发布并核固定对象；U01–U12／U14共48项通过独立候选复审，现已串行接收至47份正式文件。[当前实际组合](integration/U01-U12-U14-composite-20261014/actual-review-input.json)给出全部准确字节与68份批次贡献；WP66-A具名接收补充已落地，仍待U13修后及独立实际复验。U13旧整包FAIL由原作者定向修订。INTEGRATED_PASS、正式接受、CLOSED均0，56项仍OPEN；有效配置回显UNVERIFIED，宿主／Demo／真实save未执行。队列与总台账是当前状态；旧输入／准备／发布记录仅绑定其生成时点。
 
 云端执行根 `/workspace/pokemon-essentials-clean-room`，分支 `codex/remediation-sixth-20261014-8ea169f-cloud`。唯一正式接收和公共台账写者为此任务的 `/root`；父线程 ID `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2` 是已知来源身份，没有冒称不可见平台 UUID。未操作 Mac、main、交付 tag、旧分支或环境释放。
 

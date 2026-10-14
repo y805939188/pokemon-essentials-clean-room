@@ -177,3 +177,22 @@
 | U01-M01-031-02 | 单链A→B→C | 族块A,B,C |
 | U01-M01-031-03 | 上述族块生成后主编辑器No；另独立例边标为None | No不保存新图鉴；None仍可出现在族集合，但不被当作可执行进化 |
 | U01-M01-031-04 | A/B/C/D定义序，A先C再B、B→D；主编辑器No / 另例None边 | 族块A/B/D/C；No不保存新图鉴；None连族但不可执行进化。 |
+
+## R6-U14：有限默认、部分指标与显式空特性标志
+
+全部为 DERIVED_VECTOR／NOT_EXECUTED_THIS_UPDATE；固定参考、合法唯一新身份、无schema／查询覆写、其它字段／引用／终检依赖正常。各行独立复位，观察登记原始记录／直接查询；名称例无语言命中或只读原始字段，不声称完成整表落盘、UI绘制或宿主执行。正文WP03 §4.3.1–§4.3.2、WP04 §4.2；域内消费者另见WP27／WP43／WP73-B。
+
+| ID | 输入／前提 | 静态预期 |
+| --- | --- | --- |
+| R6-U14-C05-01 | 新Item显式Name=Review，省略NamePlural及两份名 | 原始单数Review、复数Unnamed；份名读取分别回普通单／复数名，不自动派生Reviews |
+| R6-U14-C05-02 | 同Item显式NamePlural=Reviews；独立普通名称查找命中非空／空译 | 原始Review／Reviews保留；显示查找可交对应译文／空串，原始默认与最终本地化分层 |
+| R6-U14-C05-03 | 新Move显式Type=NORMAL已登记，省Name／Description／Priority／EffectChance／Flags／Category／Power／Target／FunctionCode | Unnamed／???／0／0／空列表；Status／0／None／文本None；Type仍NORMAL，既有命中100／PP5保持；类别×威力校验正常 |
+| R6-U14-C05-04 | 合法Move显式Name=Review、Description=Text、Priority=1、EffectChance=25、Flags=Other、Category=Physical、Power=40，Type正常 | 所列原始值保留；不因有限省略默认拒绝合法显式输入，战斗效果仍按其消费者 |
+| R6-U14-C05-05 | 新Type仅给合法身份；独立显式Name=Review、IconPosition=3、IsSpecialType=true、IsPseudoType=true | 省略例Unnamed／0／false／false；显式例Review／3／true／true。类型名另查语言，不推定像素或攻击无效 |
+| R6-U14-C06-01 | 有效VENUSAUR及形态1；基础背面(5,6)，形态指标作者节存在且仅给ShadowSize=2，无额外查询／覆盖 | 形态背面(0,0)、正面(0,0)、高度0、阴影横移0、大小2；后续查询命中它，不逐字段复制基础(5,6) |
+| R6-U14-C06-02 | 同基础(5,6)，整条形态1指标缺席；首次正常查询 | 惰性克隆背面(5,6)和其余基础指标，登记形态，后缀为空；不继承基础来源后缀 |
+| R6-U14-C06-03 | 同有效作者形态节，显式BackSprite=7,8，其余指标字段按省略规则 | 背面(7,8)；其它缺字段取自身默认，与C06-01/02分开；登记不自动证明保存／布局刷新 |
+| R6-U14-FLAGS-01 | 新Ability省略Flags，查询普通FasterEggHatching | 登记零元素空列表，查询否；现有C01F-016-01保持 |
+| R6-U14-FLAGS-02 | 同合法新Ability出现Flags但等号后没有CSV值；宿主／插件未赋予缺值元素字符串比较能力 | 首组求值形成一个缺值元素，登记保留；随后普通标志查询在首元素比较处失败，不正常返回否／清理为空；不证明已保存档案或随附数据含此空属性 |
+| R6-U14-FLAGS-03 | 同合法新Ability，Flags=Other，查询FasterEggHatching | 正常文本元素保留，查询否；不把全部显式列表推广为失败 |
+| R6-U14-FLAGS-04 | FLAGS-02已登记；正常蛋原剩2步，除该蛋外仅一只正常非蛋队员且带此特性，之前正常；独立省略Flags对照 | 空属性例先2→1再查询失败；未到额外减步／夹0／孵化；省略例保持1并通过检查。外层恢复、最终画面、资源释放仍未知；无真实存档或宿主执行 |
