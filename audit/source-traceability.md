@@ -1759,3 +1759,16 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 | GR5-M12-101 | R5-U07 | 11 | 精确owner静态已接受 | OPEN_REQUIRED |
 | GR5-M12-102 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
 | GR5-M12-103 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+
+
+## 第六轮 U04 实际规则追溯（整合后验收待定）
+
+本段对应本轮固定参考 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。实际规则载荷及源／旧新字节由 [实际整合输入](../review/remediation-sixth-20261014-prepare/integration/U04-first-20261014/actual-review-input.json) 绑定；独立候选报告 `4be1e586fcbe2416c33ede333430e5f2918f3cae` 只授候选资格。第五92项CLOSED和原精确历史范围保留，本段不重开第五流程。
+
+| ID | 规则与实际正式条款 | 固定源及必要消费者 | 当前验收门 |
+| --- | --- | --- | --- |
+| GR6-CA-EB-001 | WP52-B§3合法围攻空名单、正替身、预测关／评分开时人数除零；诊断正常返回保候选初100；B16、B72–B76及正常对照 | AI MultiHit151–185、ChooseMove25–68/232–310、AIMove81–106/367–374、真实MultiHit155–180；WP51/WP52-A/WP46 | CANDIDATE_PASS，已实际接收；共享U02测试和实际全文／接口复验待定 |
+| GR6-CA-EB-002 | WP52-B§2.1合法无物自然之恩的缺物身份先异常；有物无完整匹配的正常1→0分开；B77–B82 | AI MoveAttributes1423–1436、真实MoveAttributes1338–1380、Battler81–83、GameData109–115、ChooseMove／OtherScores297–323／AIMove81–92；WP51/WP52-A/WP47-A | CANDIDATE_PASS，已实际接收；U02/U05后继消费者及实际组合复验待定 |
+| R6-CA-EA-P001 | WP52-B coverage第21行四危害失败定位§5.2，天气／地形仍§5.1；正文原条件不变 | AI Misc358–362/386–390/414–418/440–444、ChooseMove38–43/177–191 | CANDIDATE_PASS，已实际接收；当前实际导航全文复验待定 |
+
+上述11个新增案例是静态推导，337作者检查和独立337复算／55载荷检查属工具／文本核验；不授参考、完整评分器、宿主、Demo或持久化执行资格。所有正式接受与CLOSED均待独立实际整合验收及依赖关闭。

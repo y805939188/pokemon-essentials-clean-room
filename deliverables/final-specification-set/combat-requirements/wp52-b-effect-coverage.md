@@ -18,7 +18,7 @@
 
 MoveEffectAgainstTargetScore：CrashDamageIfFailsUnusableInGravity（§6.2）。
 
-MoveFailureCheck：StartSunWeather（§5.1）；StartRainWeather←StartSunWeather；StartSandstormWeather←StartSunWeather；StartHailWeather←StartSunWeather；StartElectricTerrain；StartGrassyTerrain；StartMistyTerrain；StartPsychicTerrain；RemoveTerrain；AddSpikesToFoeSide；AddToxicSpikesToFoeSide；AddStealthRocksToFoeSide；AddStickyWebToFoeSide（均 §5.1）；UserMakeSubstitute、RemoveAllScreensAndSafeguard（§5.2）；StartShadowSkyWeather←StartSunWeather（§5.1）。
+MoveFailureCheck：StartSunWeather（§5.1）；StartRainWeather←StartSunWeather；StartSandstormWeather←StartSunWeather；StartHailWeather←StartSunWeather；StartElectricTerrain；StartGrassyTerrain；StartMistyTerrain；StartPsychicTerrain；RemoveTerrain（均 §5.1）；AddSpikesToFoeSide；AddToxicSpikesToFoeSide；AddStealthRocksToFoeSide；AddStickyWebToFoeSide（均 §5.2）；UserMakeSubstitute、RemoveAllScreensAndSafeguard（§5.2）；StartShadowSkyWeather←StartSunWeather（§5.1）。
 
 MoveEffectScore：StartSunWeather、StartRainWeather、StartSandstormWeather、StartHailWeather、StartElectricTerrain、StartGrassyTerrain、StartMistyTerrain、StartPsychicTerrain、RemoveTerrain、StartShadowSkyWeather（均 §5.1）；AddSpikesToFoeSide、AddToxicSpikesToFoeSide、AddStealthRocksToFoeSide、AddStickyWebToFoeSide、UserMakeSubstitute、RemoveAllScreensAndSafeguard（§5.2）；AttackTwoTurnsLater（§5.2）；AllBattlersLoseHalfHPUserSkipsNextTurn、UserLosesHalfHP（§4）。
 
