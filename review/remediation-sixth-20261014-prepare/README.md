@@ -1,6 +1,6 @@
 # 第六轮云端整改接续入口
 
-用户已批准执行整改。父线程已确认 U01–U14 的独立 saved-cloud 作者身份，本台账登记14个 ADMITTED；实际运行、有效配置回显和候选完成仍待证。U01–U12独立审者均已由父线程确认身份并登记admitted，U13／U14作者候选和相应审者仍待后继回执。本整合环境已实读恢复可执行，详见[环境回执](admissions/20261014-parent-u01-u09/environment-readback.json)、[父线程身份来源](admissions/20261014-parent-u01-u09/parent-report.json)及[接收队列](reception-queue.json)。当前56 OPEN、候选 PASS 0、实际整合 PASS 0、接受 0、CLOSED 0，U01–U12共42项固定作者候选已提交并取得Git对象，仅完成载荷身份和允许写集核验，U04独立3项已通过并实际接收，其他独立复审待回执。U04的337静态检查／11推导向量／26远端回读及U07的317工具检查／43远端回读均为作者报告，不等于独立PASS。U07仅改2份mirror及证据，WP67-A保持只读未改。U01原任务已完成候选，连接不再阻塞该候选；历史disconnect和保全请求记录保留，未重建作者。U01仅改7份mirror及证据，WP21/27保持未改。U04三份formal及audit追溯已实际更新，详见[首次实际整合输入](integration/U04-first-20261014/actual-review-input.json)；本地79份作者baseline镜像仍保持原字节。
+用户已批准执行整改。14批／56项作者候选均已发布并核固定对象，14位独立审者均已登记。U01／U02／U03／U04／U06／U08／U09／U10／U11／U12共31项候选通过完整独立报告核验；U05／U07／U13／U14仍待结论。当前实际接收U04三项，正在合成其余已通过贡献。INTEGRATED_PASS、正式接受、CLOSED均0，56项仍OPEN；运行配置回显保持UNVERIFIED，宿主／Demo／真实save未执行。本整合者完整读取上述10份报告及明确资格，未把作者完成、表格行数或工具检查数变成行为运行证明。现有[队列](reception-queue.json)和[总台账](ledger.json)是当前状态；初始准备和各固定发布回执保留其生成时点。
 
 云端执行根 `/workspace/pokemon-essentials-clean-room`，分支 `codex/remediation-sixth-20261014-8ea169f-cloud`。唯一正式接收和公共台账写者为此任务的 `/root`；父线程 ID `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2` 是已知来源身份，没有冒称不可见平台 UUID。未操作 Mac、main、交付 tag、旧分支或环境释放。
 
