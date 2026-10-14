@@ -26,24 +26,28 @@ remote = git('ls-remote','--heads','origin',branch).decode().strip()
 started = datetime.datetime.now(datetime.timezone.utc).isoformat()
 rows = []
 attempts = []
-commit_response = None
-commit_url = 'https://api.github.com/repos/y805939188/pokemon-essentials-clean-room/git/commits/'+commit
+remote_repository = Path('/tmp/r6-u06-remote-readback.git')
+remote_url = 'https://github.com/y805939188/pokemon-essentials-clean-room.git'
+if not remote_repository.exists():
+    subprocess.run(['git','init','--bare',str(remote_repository)],check=True,capture_output=True)
+fetched = False
 for n in range(1,4):
     t = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    try:
-        with urllib.request.urlopen(commit_url,timeout=25) as response:
-            commit_response = json.loads(response.read())
-        attempts.append(dict(path='GIT_COMMIT_OBJECT',attempt=n,started_utc=t,ended_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),status=200))
+    argv = ['git','-C',str(remote_repository),'fetch','--depth=1','--filter=blob:none','--no-tags',remote_url,commit]
+    p = subprocess.run(argv,capture_output=True)
+    attempts.append(dict(path='GIT_COMMIT_OBJECT',attempt=n,argv=argv,cwd=str(ROOT),started_utc=t,ended_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),exit=p.returncode,stdout=p.stdout.decode(errors='replace'),stderr=p.stderr.decode(errors='replace')))
+    if p.returncode == 0:
+        fetched = True
         break
-    except Exception as ex:
-        attempts.append(dict(path='GIT_COMMIT_OBJECT',attempt=n,started_utc=t,ended_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),error=repr(ex)))
 local_tree = git('rev-parse',commit+'^{tree}').decode().strip()
-remote_tree = None if commit_response is None else commit_response['tree']['sha']
+remote_tree = None if not fetched else subprocess.check_output(['git','-C',str(remote_repository),'rev-parse',commit+'^{tree}']).decode().strip()
 remote_tree_exact = remote_tree == local_tree
 for path in paths:
     expected = git('cat-file','blob',commit+':'+path)
     mode, typ, tail = git('ls-tree',commit,'--',path).decode().strip().split(' ',2)
     blob, _ = tail.split('\t',1)
+    remote_entry = None if not fetched else subprocess.check_output(['git','-C',str(remote_repository),'ls-tree',commit,'--',path]).decode().strip()
+    local_entry = mode+' '+typ+' '+tail
     url = 'https://raw.githubusercontent.com/y805939188/pokemon-essentials-clean-room/'+commit+'/'+urllib.parse.quote(path,safe='/')
     data = None
     for n in range(1,4):
@@ -61,7 +65,8 @@ for path in paths:
                      sha256=hashlib.sha256(expected).hexdigest(),git_blob=blob,
                      remote_bytes=None if data is None else len(data),
                      remote_sha256=None if data is None else hashlib.sha256(data).hexdigest(),
-                     remote_git_blob=actual_blob,exact=data == expected and actual_blob == blob))
+                     remote_git_blob=actual_blob,remote_tree_entry=remote_entry,
+                     exact=data == expected and actual_blob == blob and remote_entry == local_entry))
     print(json.dumps(dict(path=path,exact=rows[-1]['exact'],bytes=len(expected))),flush=True)
 result = dict(evidence_level='TOOL_VALIDATION_REMOTE_FULL_BYTE_READBACK',commit=commit,
               tree=local_tree,remote_tree=remote_tree,remote_tree_exact=remote_tree_exact,
@@ -73,7 +78,7 @@ result = dict(evidence_level='TOOL_VALIDATION_REMOTE_FULL_BYTE_READBACK',commit=
               rows=rows,attempts=attempts,payload_count=len(rows),
               all_payloads_exact=all(x['exact'] for x in rows),
               no_undeclared_write_paths=True,reference_execution=False,
-              mode_type_binding='Remote Git commit API independently reports the exact same complete tree SHA, binding every path/mode/type/blob; every changed raw payload independently read in full and compared. ls-remote binds branch to commit.')
+              mode_type_binding='Separate remote Git object cache fetched exact commit with depth1/blob:none; complete tree SHA and each changed path/mode/type/blob compared. Every raw payload independently read in full. ls-remote binds branch to commit. Earlier API403 attempts retained in core-readback.json.')
 out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({k:result[k] for k in ['commit','tree','candidate_directory_tree','payload_count','all_payloads_exact','remote_branch_exact','remote_tree_exact']}))
 sys.exit(0 if result['all_payloads_exact'] and result['remote_branch_exact'] and remote_tree_exact else 1)
