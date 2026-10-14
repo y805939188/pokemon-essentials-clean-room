@@ -1,0 +1,240 @@
+{"utc_start": "2026-10-14T16:40:51.793252+00:00", "utc_end": "2026-10-14T16:40:51.796882+00:00", "cwd": "/workspace/pokemon-essentials-clean-room", "argv": ["review/remediation-sixth-20261014-prepare/actual-reviews/group-E/facility/read_payload.py", "Data/Scripts/018_Alternate battle modes/002_Battle Frontier rules/002_Challenge_Rulesets.rb", "1", "239", "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b"], "platform": "Linux-6.18.44-x86_64-with-glibc2.41", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0", "path": "Data/Scripts/018_Alternate battle modes/002_Battle Frontier rules/002_Challenge_Rulesets.rb", "mode_type_blob_path": "100644 blob 270a8fed20599be84bf1992e0dc6a3f502613892\tData/Scripts/018_Alternate battle modes/002_Battle Frontier rules/002_Challenge_Rulesets.rb", "bytes": 9230, "sha256": "c31011ebfc610f013ade62ba733c90198b8be95570e18a004dc82d0db63790c3", "git_blob": "270a8fed20599be84bf1992e0dc6a3f502613892", "lines": 323, "range": [1, 239], "full_payload_emitted": false, "exit": 0, "stderr": ""}
+1:#===============================================================================
+2:#
+3:#===============================================================================
+4:class PokemonRuleSet
+5:  def initialize(number = 0)
+6:    @pokemonRules = []
+7:    @teamRules    = []
+8:    @subsetRules  = []
+9:    @minLength    = 1
+10:    @number       = number
+11:  end
+12:
+13:  def copy
+14:    ret = PokemonRuleSet.new(@number)
+15:    @pokemonRules.each do |rule|
+16:      ret.addPokemonRule(rule)
+17:    end
+18:    @teamRules.each do |rule|
+19:      ret.addTeamRule(rule)
+20:    end
+21:    @subsetRules.each do |rule|
+22:      ret.addSubsetRule(rule)
+23:    end
+24:    return ret
+25:  end
+26:
+27:  def minLength
+28:    return (@minLength) ? @minLength : self.maxLength
+29:  end
+30:
+31:  def maxLength
+32:    return (@number < 0) ? Settings::MAX_PARTY_SIZE : @number
+33:  end
+34:  alias number maxLength
+35:
+36:  def minTeamLength
+37:    return [1, self.minLength].max
+38:  end
+39:
+40:  def maxTeamLength
+41:    return [Settings::MAX_PARTY_SIZE, self.maxLength].max
+42:  end
+43:
+44:  # Returns the length of a valid subset of a Pokemon team.
+45:  def suggestedNumber
+46:    return self.maxLength
+47:  end
+48:
+49:  # Returns a valid level to assign to each member of a valid Pokemon team.
+50:  def suggestedLevel
+51:    minLevel = 1
+52:    maxLevel = GameData::GrowthRate.max_level
+53:    num = self.suggestedNumber
+54:    @pokemonRules.each do |rule|
+55:      case rule
+56:      when MinimumLevelRestriction
+57:        minLevel = rule.level
+58:      when MaximumLevelRestriction
+59:        maxLevel = rule.level
+60:      end
+61:    end
+62:    totalLevel = maxLevel * num
+63:    @subsetRules.each do |rule|
+64:      totalLevel = rule.level if rule.is_a?(TotalLevelRestriction)
+65:    end
+66:    return [maxLevel, minLevel].max if totalLevel >= maxLevel * num
+67:    return [totalLevel / self.suggestedNumber, minLevel].max
+68:  end
+69:
+70:  def setNumberRange(minValue, maxValue)
+71:    @minLength = [1, minValue].max
+72:    @number = [1, maxValue].max
+73:    return self
+74:  end
+75:
+76:  def setNumber(value)
+77:    return setNumberRange(value, value)
+78:  end
+79:
+80:  # This rule checks either:
+81:  # - the entire team to determine whether a subset of the team meets the rule, or
+82:  # - whether the entire team meets the rule. If the condition holds for the
+83:  #   entire team, the condition must also hold for any possible subset of the
+84:  #   team with the suggested number.
+85:  # Examples of team rules:
+86:  # - No two Pokemon can be the same species.
+87:  # - No two Pokemon can hold the same items.
+88:  def addTeamRule(rule)
+89:    @teamRules.push(rule)
+90:    return self
+91:  end
+92:
+93:  # This rule checks:
+94:  # - the entire team to determine whether a subset of the team meets the rule, or
+95:  # - a list of Pokemon whose length is equal to the suggested number. For an
+96:  #   entire team, the condition must hold for at least one possible subset of
+97:  #   the team, but not necessarily for the entire team.
+98:  # A subset rule is "number-dependent", that is, whether the condition is likely
+99:  # to hold depends on the number of Pokemon in the subset.
+100:  # Example of a subset rule:
+101:  # - The combined level of X Pokemon can't exceed Y.
+102:  def addSubsetRule(rule)
+103:    @teamRules.push(rule)
+104:    return self
+105:  end
+106:
+107:  def addPokemonRule(rule)
+108:    @pokemonRules.push(rule)
+109:    return self
+110:  end
+111:
+112:  def clearTeamRules
+113:    @teamRules.clear
+114:    return self
+115:  end
+116:
+117:  def clearSubsetRules
+118:    @subsetRules.clear
+119:    return self
+120:  end
+121:
+122:  def clearPokemonRules
+123:    @pokemonRules.clear
+124:    return self
+125:  end
+126:
+127:  def isPokemonValid?(pkmn)
+128:    return false if !pkmn
+129:    @pokemonRules.each do |rule|
+130:      return false if !rule.isValid?(pkmn)
+131:    end
+132:    return true
+133:  end
+134:
+135:  def hasRegistrableTeam?(list)
+136:    return false if !list || list.length < self.minTeamLength
+137:    pbEachCombination(list, self.maxTeamLength) do |comb|
+138:      return true if canRegisterTeam?(comb)
+139:    end
+140:    return false
+141:  end
+142:
+143:  # Returns true if the team's length is greater or equal to the suggested
+144:  # number and is Settings::MAX_PARTY_SIZE or less, the team as a whole meets
+145:  # the requirements of any team rules, and at least one subset of the team
+146:  # meets the requirements of any subset rules. Each Pokemon in the team must be
+147:  # valid.
+148:  def canRegisterTeam?(team)
+149:    return false if !team || team.length < self.minTeamLength
+150:    return false if team.length > self.maxTeamLength
+151:    teamNumber = self.minTeamLength
+152:    team.each do |pkmn|
+153:      return false if !isPokemonValid?(pkmn)
+154:    end
+155:    @teamRules.each do |rule|
+156:      return false if !rule.isValid?(team)
+157:    end
+158:    if @subsetRules.length > 0
+159:      pbEachCombination(team, teamNumber) do |comb|
+160:        isValid = true
+161:        @subsetRules.each do |rule|
+162:          next if rule.isValid?(comb)
+163:          isValid = false
+164:          break
+165:        end
+166:        return true if isValid
+167:      end
+168:      return false
+169:    end
+170:    return true
+171:  end
+172:
+173:  # Returns true if the team's length is greater or equal to the suggested
+174:  # number and at least one subset of the team meets the requirements of any
+175:  # team rules and subset rules. Not all Pokemon in the team have to be valid.
+176:  def hasValidTeam?(team)
+177:    return false if !team || team.length < self.minTeamLength
+178:    teamNumber = self.minTeamLength
+179:    validPokemon = []
+180:    team.each do |pkmn|
+181:      validPokemon.push(pkmn) if isPokemonValid?(pkmn)
+182:    end
+183:    return false if validPokemon.length < teamNumber
+184:    if @teamRules.length > 0
+185:      pbEachCombination(team, teamNumber) { |comb| return true if isValid?(comb) }
+186:      return false
+187:    end
+188:    return true
+189:  end
+190:
+191:  # Returns true if the team's length meets the subset length range requirements
+192:  # and the team meets the requirements of any team rules and subset rules. Each
+193:  # Pokemon in the team must be valid.
+194:  def isValid?(team, error = nil)
+195:    if team.length < self.minLength
+196:      error.push(_INTL("Choose a Pokémon.")) if error && self.minLength == 1
+197:      error.push(_INTL("{1} Pokémon are needed.", self.minLength)) if error && self.minLength > 1
+198:      return false
+199:    elsif team.length > self.maxLength
+200:      error&.push(_INTL("No more than {1} Pokémon may enter.", self.maxLength))
+201:      return false
+202:    end
+203:    team.each do |pkmn|
+204:      next if isPokemonValid?(pkmn)
+205:      if pkmn
+206:        error&.push(_INTL("{1} is not allowed.", pkmn.name))
+207:      elsif error
+208:        error.push(_INTL("This team is not allowed."))
+209:      end
+210:      return false
+211:    end
+212:    @teamRules.each do |rule|
+213:      next if rule.isValid?(team)
+214:      error&.push(rule.errorMessage)
+215:      return false
+216:    end
+217:    @subsetRules.each do |rule|
+218:      next if rule.isValid?(team)
+219:      error&.push(rule.errorMessage)
+220:      return false
+221:    end
+222:    return true
+223:  end
+224:end
+225:
+226:#===============================================================================
+227:#
+228:#===============================================================================
+229:class StandardRules < PokemonRuleSet
+230:  attr_reader :number
+231:
+232:  def initialize(number, level = nil)
+233:    super(number)
+234:    addPokemonRule(StandardRestriction.new)
+235:    addTeamRule(SpeciesClause.new)
+236:    addTeamRule(ItemClause.new)
+237:    addPokemonRule(MaximumLevelRestriction.new(level)) if level
+238:  end
+239:end
