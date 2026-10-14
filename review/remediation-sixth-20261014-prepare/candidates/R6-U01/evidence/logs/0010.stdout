@@ -1,0 +1,355 @@
+FILE /tmp/r6-u01-frozen/Maruno17/pokemon-essentials/8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/Data/Scripts/016_UI/007_UI_Bag.rb LINES 351-704/704
+351:   def pbChooseItem
+352:     @sprites["helpwindow"].visible = false
+353:     itemwindow = @sprites["itemlist"]
+354:     thispocket = @bag.pockets[itemwindow.pocket]
+355:     swapinitialpos = -1
+356:     pbActivateWindow(@sprites, "itemlist") do
+357:       loop do
+358:         oldindex = itemwindow.index
+359:         Graphics.update
+360:         Input.update
+361:         pbUpdate
+362:         if itemwindow.sorting && itemwindow.index >= thispocket.length
+363:           itemwindow.index = (oldindex == thispocket.length - 1) ? 0 : thispocket.length - 1
+364:         end
+365:         if itemwindow.index != oldindex
+366:           # Move the item being switched
+367:           if itemwindow.sorting
+368:             thispocket.insert(itemwindow.index, thispocket.delete_at(oldindex))
+369:           end
+370:           # Update selected item for current pocket
+371:           @bag.set_last_viewed_index(itemwindow.pocket, itemwindow.index)
+372:           pbRefresh
+373:         end
+374:         if itemwindow.sorting
+375:           if Input.trigger?(Input::ACTION) ||
+376:              Input.trigger?(Input::USE)
+377:             itemwindow.sorting = false
+378:             pbPlayDecisionSE
+379:             pbRefresh
+380:           elsif Input.trigger?(Input::BACK)
+381:             thispocket.insert(swapinitialpos, thispocket.delete_at(itemwindow.index))
+382:             itemwindow.index = swapinitialpos
+383:             itemwindow.sorting = false
+384:             pbPlayCancelSE
+385:             pbRefresh
+386:           end
+387:         else   # Change pockets
+388:           if Input.trigger?(Input::LEFT)
+389:             newpocket = itemwindow.pocket
+390:             loop do
+391:               newpocket = (newpocket == 1) ? PokemonBag.pocket_count : newpocket - 1
+392:               break if !@choosing || newpocket == itemwindow.pocket
+393:               if @filterlist
+394:                 break if @filterlist[newpocket].length > 0
+395:               elsif @bag.pockets[newpocket].length > 0
+396:                 break
+397:               end
+398:             end
+399:             if itemwindow.pocket != newpocket
+400:               itemwindow.pocket = newpocket
+401:               @bag.last_viewed_pocket = itemwindow.pocket
+402:               thispocket = @bag.pockets[itemwindow.pocket]
+403:               pbPlayCursorSE
+404:               pbRefresh
+405:             end
+406:           elsif Input.trigger?(Input::RIGHT)
+407:             newpocket = itemwindow.pocket
+408:             loop do
+409:               newpocket = (newpocket == PokemonBag.pocket_count) ? 1 : newpocket + 1
+410:               break if !@choosing || newpocket == itemwindow.pocket
+411:               if @filterlist
+412:                 break if @filterlist[newpocket].length > 0
+413:               elsif @bag.pockets[newpocket].length > 0
+414:                 break
+415:               end
+416:             end
+417:             if itemwindow.pocket != newpocket
+418:               itemwindow.pocket = newpocket
+419:               @bag.last_viewed_pocket = itemwindow.pocket
+420:               thispocket = @bag.pockets[itemwindow.pocket]
+421:               pbPlayCursorSE
+422:               pbRefresh
+423:             end
+424: #          elsif Input.trigger?(Input::SPECIAL)   # Register/unregister selected item
+425: #            if !@choosing && itemwindow.index<thispocket.length
+426: #              if @bag.registered?(itemwindow.item)
+427: #                @bag.unregister(itemwindow.item)
+428: #              elsif pbCanRegisterItem?(itemwindow.item)
+429: #                @bag.register(itemwindow.item)
+430: #              end
+431: #              pbPlayDecisionSE
+432: #              pbRefresh
+433: #            end
+434:           elsif Input.trigger?(Input::ACTION)   # Start switching the selected item
+435:             if !@choosing && thispocket.length > 1 && itemwindow.index < thispocket.length &&
+436:                !Settings::BAG_POCKET_AUTO_SORT[itemwindow.pocket - 1]
+437:               itemwindow.sorting = true
+438:               swapinitialpos = itemwindow.index
+439:               pbPlayDecisionSE
+440:               pbRefresh
+441:             end
+442:           elsif Input.trigger?(Input::BACK)   # Cancel the item screen
+443:             pbPlayCloseMenuSE
+444:             return nil
+445:           elsif Input.trigger?(Input::USE)   # Choose selected item
+446:             (itemwindow.item) ? pbPlayDecisionSE : pbPlayCloseMenuSE
+447:             return itemwindow.item
+448:           end
+449:         end
+450:       end
+451:     end
+452:   end
+453: end
+454: 
+455: #===============================================================================
+456: # Bag mechanics
+457: #===============================================================================
+458: class PokemonBagScreen
+459:   def initialize(scene, bag)
+460:     @bag   = bag
+461:     @scene = scene
+462:   end
+463: 
+464:   def pbStartScreen
+465:     @scene.pbStartScene(@bag)
+466:     item = nil
+467:     loop do
+468:       item = @scene.pbChooseItem
+469:       break if !item
+470:       itm = GameData::Item.get(item)
+471:       cmdRead     = -1
+472:       cmdUse      = -1
+473:       cmdRegister = -1
+474:       cmdGive     = -1
+475:       cmdToss     = -1
+476:       cmdDebug    = -1
+477:       commands = []
+478:       # Generate command list
+479:       commands[cmdRead = commands.length] = _INTL("Read") if itm.is_mail?
+480:       if ItemHandlers.hasOutHandler(item) || (itm.is_machine? && $player.party.length > 0)
+481:         if ItemHandlers.hasUseText(item)
+482:           commands[cmdUse = commands.length]    = ItemHandlers.getUseText(item)
+483:         else
+484:           commands[cmdUse = commands.length]    = _INTL("Use")
+485:         end
+486:       end
+487:       commands[cmdGive = commands.length]       = _INTL("Give") if $player.pokemon_party.length > 0 && itm.can_hold?
+488:       commands[cmdToss = commands.length]       = _INTL("Toss") if !itm.is_important? || $DEBUG
+489:       if @bag.registered?(item)
+490:         commands[cmdRegister = commands.length] = _INTL("Deselect")
+491:       elsif pbCanRegisterItem?(item)
+492:         commands[cmdRegister = commands.length] = _INTL("Register")
+493:       end
+494:       commands[cmdDebug = commands.length]      = _INTL("Debug") if $DEBUG
+495:       commands[commands.length]                 = _INTL("Cancel")
+496:       # Show commands generated above
+497:       itemname = itm.name
+498:       command = @scene.pbShowCommands(_INTL("{1} is selected.", itemname), commands)
+499:       if cmdRead >= 0 && command == cmdRead   # Read mail
+500:         pbFadeOutIn do
+501:           pbDisplayMail(Mail.new(item, "", ""))
+502:         end
+503:       elsif cmdUse >= 0 && command == cmdUse   # Use item
+504:         ret = pbUseItem(@bag, item, @scene)
+505:         # ret: 0=Item wasn't used; 1=Item used; 2=Close Bag to use in field
+506:         break if ret == 2   # End screen
+507:         @scene.pbRefresh
+508:         next
+509:       elsif cmdGive >= 0 && command == cmdGive   # Give item to Pokémon
+510:         if $player.pokemon_count == 0
+511:           @scene.pbDisplay(_INTL("There is no Pokémon."))
+512:         elsif itm.is_important?
+513:           @scene.pbDisplay(_INTL("The {1} can't be held.", itm.portion_name))
+514:         else
+515:           pbFadeOutIn do
+516:             sscene = PokemonParty_Scene.new
+517:             sscreen = PokemonPartyScreen.new(sscene, $player.party)
+518:             sscreen.pbPokemonGiveScreen(item)
+519:             @scene.pbRefresh
+520:           end
+521:         end
+522:       elsif cmdToss >= 0 && command == cmdToss   # Toss item
+523:         qty = @bag.quantity(item)
+524:         if qty > 1
+525:           helptext = _INTL("Toss out how many {1}?", itm.portion_name_plural)
+526:           qty = @scene.pbChooseNumber(helptext, qty)
+527:         end
+528:         if qty > 0
+529:           itemname = (qty > 1) ? itm.portion_name_plural : itm.portion_name
+530:           if pbConfirm(_INTL("Is it OK to throw away {1} {2}?", qty, itemname))
+531:             pbDisplay(_INTL("Threw away {1} {2}.", qty, itemname))
+532:             qty.times { @bag.remove(item) }
+533:             @scene.pbRefresh
+534:           end
+535:         end
+536:       elsif cmdRegister >= 0 && command == cmdRegister   # Register item
+537:         if @bag.registered?(item)
+538:           @bag.unregister(item)
+539:         else
+540:           @bag.register(item)
+541:         end
+542:         @scene.pbRefresh
+543:       elsif cmdDebug >= 0 && command == cmdDebug   # Debug
+544:         command = 0
+545:         loop do
+546:           command = @scene.pbShowCommands(_INTL("Do what with {1}?", itemname),
+547:                                           [_INTL("Change quantity"),
+548:                                            _INTL("Make Mystery Gift"),
+549:                                            _INTL("Cancel")], command)
+550:           case command
+551:           ### Cancel ###
+552:           when -1, 2
+553:             break
+554:           ### Change quantity ###
+555:           when 0
+556:             qty = @bag.quantity(item)
+557:             itemplural = itm.name_plural
+558:             params = ChooseNumberParams.new
+559:             params.setRange(0, Settings::BAG_MAX_PER_SLOT)
+560:             params.setDefaultValue(qty)
+561:             newqty = pbMessageChooseNumber(
+562:               _INTL("Choose new quantity of {1} (max. {2}).", itemplural, Settings::BAG_MAX_PER_SLOT), params
+563:             ) { @scene.pbUpdate }
+564:             if newqty > qty
+565:               @bag.add(item, newqty - qty)
+566:             elsif newqty < qty
+567:               @bag.remove(item, qty - newqty)
+568:             end
+569:             @scene.pbRefresh
+570:             break if newqty == 0
+571:           ### Make Mystery Gift ###
+572:           when 1
+573:             pbCreateMysteryGift(1, item)
+574:           end
+575:         end
+576:       end
+577:     end
+578:     ($game_temp.fly_destination) ? @scene.dispose : @scene.pbEndScene
+579:     return item
+580:   end
+581: 
+582:   def pbDisplay(text)
+583:     @scene.pbDisplay(text)
+584:   end
+585: 
+586:   def pbConfirm(text)
+587:     return @scene.pbConfirm(text)
+588:   end
+589: 
+590:   # UI logic for the item screen for choosing an item.
+591:   def pbChooseItemScreen(proc = nil)
+592:     oldlastpocket = @bag.last_viewed_pocket
+593:     oldchoices = @bag.last_pocket_selections.clone
+594:     @bag.reset_last_selections if proc
+595:     @scene.pbStartScene(@bag, true, proc)
+596:     item = @scene.pbChooseItem
+597:     @scene.pbEndScene
+598:     @bag.last_viewed_pocket = oldlastpocket
+599:     @bag.last_pocket_selections = oldchoices
+600:     return item
+601:   end
+602: 
+603:   # UI logic for withdrawing an item in the item storage screen.
+604:   def pbWithdrawItemScreen
+605:     if !$PokemonGlobal.pcItemStorage
+606:       $PokemonGlobal.pcItemStorage = PCItemStorage.new
+607:     end
+608:     storage = $PokemonGlobal.pcItemStorage
+609:     @scene.pbStartScene(storage)
+610:     loop do
+611:       item = @scene.pbChooseItem
+612:       break if !item
+613:       itm = GameData::Item.get(item)
+614:       qty = storage.quantity(item)
+615:       if qty > 1 && !itm.is_important?
+616:         qty = @scene.pbChooseNumber(_INTL("How many do you want to withdraw?"), qty)
+617:       end
+618:       next if qty <= 0
+619:       if @bag.can_add?(item, qty)
+620:         if !storage.remove(item, qty)
+621:           raise "Can't delete items from storage"
+622:         end
+623:         if !@bag.add(item, qty)
+624:           raise "Can't withdraw items from storage"
+625:         end
+626:         @scene.pbRefresh
+627:         dispqty = (itm.is_important?) ? 1 : qty
+628:         itemname = (dispqty > 1) ? itm.portion_name_plural : itm.portion_name
+629:         pbDisplay(_INTL("Withdrew {1} {2}.", dispqty, itemname))
+630:       else
+631:         pbDisplay(_INTL("There's no more room in the Bag."))
+632:       end
+633:     end
+634:     @scene.pbEndScene
+635:   end
+636: 
+637:   # UI logic for depositing an item in the item storage screen.
+638:   def pbDepositItemScreen
+639:     @scene.pbStartScene(@bag)
+640:     if !$PokemonGlobal.pcItemStorage
+641:       $PokemonGlobal.pcItemStorage = PCItemStorage.new
+642:     end
+643:     storage = $PokemonGlobal.pcItemStorage
+644:     loop do
+645:       item = @scene.pbChooseItem
+646:       break if !item
+647:       itm = GameData::Item.get(item)
+648:       qty = @bag.quantity(item)
+649:       if qty > 1 && !itm.is_important?
+650:         qty = @scene.pbChooseNumber(_INTL("How many do you want to deposit?"), qty)
+651:       end
+652:       if qty > 0
+653:         if storage.can_add?(item, qty)
+654:           if !@bag.remove(item, qty)
+655:             raise "Can't delete items from Bag"
+656:           end
+657:           if !storage.add(item, qty)
+658:             raise "Can't deposit items to storage"
+659:           end
+660:           @scene.pbRefresh
+661:           dispqty  = (itm.is_important?) ? 1 : qty
+662:           itemname = (dispqty > 1) ? itm.portion_name_plural : itm.portion_name
+663:           pbDisplay(_INTL("Deposited {1} {2}.", dispqty, itemname))
+664:         else
+665:           pbDisplay(_INTL("There's no room to store items."))
+666:         end
+667:       end
+668:     end
+669:     @scene.pbEndScene
+670:   end
+671: 
+672:   # UI logic for tossing an item in the item storage screen.
+673:   def pbTossItemScreen
+674:     if !$PokemonGlobal.pcItemStorage
+675:       $PokemonGlobal.pcItemStorage = PCItemStorage.new
+676:     end
+677:     storage = $PokemonGlobal.pcItemStorage
+678:     @scene.pbStartScene(storage)
+679:     loop do
+680:       item = @scene.pbChooseItem
+681:       break if !item
+682:       itm = GameData::Item.get(item)
+683:       if itm.is_important?
+684:         @scene.pbDisplay(_INTL("That's too important to toss out!"))
+685:         next
+686:       end
+687:       qty = storage.quantity(item)
+688:       itemname       = itm.portion_name
+689:       itemnameplural = itm.portion_name_plural
+690:       if qty > 1
+691:         qty = @scene.pbChooseNumber(_INTL("Toss out how many {1}?", itemnameplural), qty)
+692:       end
+693:       next if qty <= 0
+694:       itemname = itemnameplural if qty > 1
+695:       next if !pbConfirm(_INTL("Is it OK to throw away {1} {2}?", qty, itemname))
+696:       if !storage.remove(item, qty)
+697:         raise "Can't delete items from storage"
+698:       end
+699:       @scene.pbRefresh
+700:       pbDisplay(_INTL("Threw away {1} {2}.", qty, itemname))
+701:     end
+702:     @scene.pbEndScene
+703:   end
+704: end

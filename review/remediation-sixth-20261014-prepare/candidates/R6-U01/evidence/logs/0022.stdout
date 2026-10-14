@@ -1,0 +1,265 @@
+FILE /tmp/r6-u01-frozen/Maruno17/pokemon-essentials/8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/Data/Scripts/012_Overworld/007_Overworld_DayCare.rb LINES 301-564/564
+301:         return _INTL("{1} (♀, Lv.{2})", @pokemon.name, @pokemon.level)
+302:       end
+303:       return _INTL("{1} (Lv.{2})", @pokemon.name, @pokemon.level)
+304:     end
+305: 
+306:     def add_exp(amount = 1)
+307:       return if !filled?
+308:       max_exp = @pokemon.growth_rate.maximum_exp
+309:       return if @pokemon.exp >= max_exp
+310:       old_level = @pokemon.level
+311:       @pokemon.exp += amount
+312:       return if @pokemon.level == old_level
+313:       @pokemon.calc_stats
+314:       move_list = @pokemon.getMoveList
+315:       move_list.each { |move| @pokemon.learn_move(move[1]) if move[0] == @pokemon.level }
+316:     end
+317:   end
+318: 
+319:   #=============================================================================
+320: 
+321:   attr_reader   :slots
+322:   attr_accessor :egg_generated
+323:   attr_accessor :step_counter
+324:   attr_accessor :gain_exp
+325:   attr_accessor :share_egg_moves   # For deposited Pokémon of the same species
+326: 
+327:   MAX_SLOTS = 2
+328: 
+329:   def initialize
+330:     @slots = []
+331:     MAX_SLOTS.times { @slots.push(DayCareSlot.new) }
+332:     reset_egg_counters
+333:     @gain_exp = Settings::DAY_CARE_POKEMON_GAIN_EXP_FROM_WALKING
+334:     @share_egg_moves = Settings::DAY_CARE_POKEMON_CAN_SHARE_EGG_MOVES
+335:   end
+336: 
+337:   def [](index)
+338:     return @slots[index]
+339:   end
+340: 
+341:   def reset_egg_counters
+342:     @egg_generated = false
+343:     @step_counter = 0
+344:   end
+345: 
+346:   def count
+347:     return @slots.select { |slot| slot.filled? }.length
+348:   end
+349: 
+350:   def get_compatibility
+351:     return compatibility
+352:   end
+353: 
+354:   def generate_egg
+355:     return nil if self.count != 2
+356:     pkmn1, pkmn2 = pokemon_pair
+357:     return EggGenerator.generate(pkmn1, pkmn2)
+358:   end
+359: 
+360:   def share_egg_move
+361:     return if count != 2
+362:     pkmn1, pkmn2 = pokemon_pair
+363:     return if pkmn1.species != pkmn2.species
+364:     egg_moves1 = pkmn1.species_data.get_egg_moves
+365:     egg_moves2 = pkmn2.species_data.get_egg_moves
+366:     known_moves1 = []
+367:     known_moves2 = []
+368:     if pkmn2.numMoves < Pokemon::MAX_MOVES
+369:       pkmn1.moves.each { |m| known_moves1.push(m.id) if egg_moves2.include?(m.id) && !pkmn2.hasMove?(m.id) }
+370:     end
+371:     if pkmn1.numMoves < Pokemon::MAX_MOVES
+372:       pkmn2.moves.each { |m| known_moves2.push(m.id) if egg_moves1.include?(m.id) && !pkmn1.hasMove?(m.id) }
+373:     end
+374:     if !known_moves1.empty?
+375:       if known_moves2.empty?
+376:         pkmn2.learn_move(known_moves1[0])
+377:       else
+378:         learner = [[pkmn1, known_moves2[0]], [pkmn2, known_moves1[0]]].sample
+379:         learner[0].learn_move(learner[1])
+380:       end
+381:     elsif !known_moves2.empty?
+382:       pkmn1.learn_move(known_moves2[0])
+383:     end
+384:   end
+385: 
+386:   def update_on_step_taken
+387:     @step_counter += 1
+388:     if @step_counter >= 256
+389:       @step_counter = 0
+390:       # Make an egg available at the Day Care
+391:       if !@egg_generated && count == 2
+392:         compat = compatibility
+393:         egg_chance = [0, 20, 50, 70][compat]
+394:         egg_chance = [0, 40, 80, 88][compat] if $bag.has?(:OVALCHARM)
+395:         @egg_generated = true if rand(100) < egg_chance
+396:       end
+397:       # Have one deposited Pokémon learn an egg move from the other
+398:       # NOTE: I don't know what the chance of this happening is.
+399:       share_egg_move if @share_egg_moves && rand(100) < 50
+400:     end
+401:     # Day Care Pokémon gain Exp/moves
+402:     if @gain_exp
+403:       @slots.each { |slot| slot.add_exp }
+404:     end
+405:   end
+406: 
+407:   #-----------------------------------------------------------------------------
+408: 
+409:   def self.count
+410:     return $PokemonGlobal.day_care.count
+411:   end
+412: 
+413:   def self.egg_generated?
+414:     return $PokemonGlobal.day_care.egg_generated
+415:   end
+416: 
+417:   def self.reset_egg_counters
+418:     $PokemonGlobal.day_care.reset_egg_counters
+419:   end
+420: 
+421:   def self.get_details(index, name_var, cost_var)
+422:     day_care = $PokemonGlobal.day_care
+423:     $game_variables[name_var] = day_care[index].pokemon_name if name_var > 0
+424:     $game_variables[cost_var] = day_care[index].cost if cost_var > 0
+425:   end
+426: 
+427:   def self.get_level_gain(index, name_var, level_var)
+428:     day_care = $PokemonGlobal.day_care
+429:     $game_variables[name_var] = day_care[index].pokemon_name if name_var > 0
+430:     $game_variables[level_var] = day_care[index].level_gain if level_var > 0
+431:   end
+432: 
+433:   def self.get_compatibility(compat_var)
+434:     $game_variables[compat_var] = $PokemonGlobal.day_care.get_compatibility if compat_var > 0
+435:   end
+436: 
+437:   def self.deposit(party_index)
+438:     $stats.day_care_deposits += 1
+439:     day_care = $PokemonGlobal.day_care
+440:     pkmn = $player.party[party_index]
+441:     raise _INTL("No Pokémon at index {1} in party.", party_index) if pkmn.nil?
+442:     day_care.slots.each do |slot|
+443:       next if slot.filled?
+444:       slot.deposit(pkmn)
+445:       $player.party.delete_at(party_index)
+446:       day_care.reset_egg_counters
+447:       return
+448:     end
+449:     raise _INTL("No room to deposit a Pokémon.")
+450:   end
+451: 
+452:   def self.withdraw(index)
+453:     day_care = $PokemonGlobal.day_care
+454:     slot = day_care[index]
+455:     if !slot.filled?
+456:       raise _INTL("No Pokémon found in slot {1}.", index)
+457:     elsif $player.party_full?
+458:       raise _INTL("No room in party for Pokémon.")
+459:     end
+460:     $stats.day_care_levels_gained += slot.level_gain
+461:     $player.party.push(slot.pokemon)
+462:     slot.reset
+463:     day_care.reset_egg_counters
+464:   end
+465: 
+466:   def self.choose(message, choice_var)
+467:     day_care = $PokemonGlobal.day_care
+468:     case day_care.count
+469:     when 0
+470:       raise _INTL("No Pokémon found in Day Care to choose from.")
+471:     when 1
+472:       day_care.slots.each_with_index { |slot, i| $game_variables[choice_var] = i if slot.filled? }
+473:     else
+474:       commands = []
+475:       indices = []
+476:       day_care.slots.each_with_index do |slot, i|
+477:         choice_text = slot.choice_text
+478:         next if !choice_text
+479:         commands.push(choice_text)
+480:         indices.push(i)
+481:       end
+482:       commands.push(_INTL("CANCEL"))
+483:       command = pbMessage(message, commands, commands.length)
+484:       $game_variables[choice_var] = (command == commands.length - 1) ? -1 : indices[command]
+485:     end
+486:   end
+487: 
+488:   def self.collect_egg
+489:     day_care = $PokemonGlobal.day_care
+490:     egg = day_care.generate_egg
+491:     raise _INTL("Couldn't generate the egg.") if egg.nil?
+492:     raise _INTL("No room in party for egg.") if $player.party_full?
+493:     $player.party.push(egg)
+494:     day_care.reset_egg_counters
+495:   end
+496: 
+497:   #-----------------------------------------------------------------------------
+498: 
+499:   private
+500: 
+501:   def pokemon_pair
+502:     pkmn1 = nil
+503:     pkmn2 = nil
+504:     @slots.each do |slot|
+505:       next if !slot.filled?
+506:       if pkmn1.nil?
+507:         pkmn1 = slot.pokemon
+508:       else
+509:         pkmn2 = slot.pokemon
+510:       end
+511:     end
+512:     raise _INTL("Couldn't find 2 deposited Pokémon.") if pkmn2.nil?
+513:     return pkmn1, pkmn2
+514:   end
+515: 
+516:   def pokemon_in_ditto_egg_group?(pkmn)
+517:     return pkmn.species_data.egg_groups.include?(:Ditto)
+518:   end
+519: 
+520:   def compatible_gender?(pkmn1, pkmn2)
+521:     return true if pkmn1.female? && pkmn2.male?
+522:     return true if pkmn1.male? && pkmn2.female?
+523:     ditto1 = pokemon_in_ditto_egg_group?(pkmn1)
+524:     ditto2 = pokemon_in_ditto_egg_group?(pkmn2)
+525:     return true if ditto1 && !ditto2
+526:     return true if ditto2 && !ditto1
+527:     return false
+528:   end
+529: 
+530:   def compatibility
+531:     return 0 if self.count != 2
+532:     # Find the Pokémon whose compatibility is being calculated
+533:     pkmn1, pkmn2 = pokemon_pair
+534:     # Shadow Pokémon cannot breed
+535:     return 0 if pkmn1.shadowPokemon? || pkmn2.shadowPokemon?
+536:     # Pokémon in the Undiscovered egg group cannot breed
+537:     egg_groups1 = pkmn1.species_data.egg_groups
+538:     egg_groups2 = pkmn2.species_data.egg_groups
+539:     return 0 if egg_groups1.include?(:Undiscovered) ||
+540:                 egg_groups2.include?(:Undiscovered)
+541:     # Pokémon that don't share an egg group (and neither is in the Ditto group)
+542:     # cannot breed
+543:     return 0 if !egg_groups1.include?(:Ditto) &&
+544:                 !egg_groups2.include?(:Ditto) &&
+545:                 (egg_groups1 & egg_groups2).length == 0
+546:     # Pokémon with incompatible genders cannot breed
+547:     return 0 if !compatible_gender?(pkmn1, pkmn2)
+548:     # Pokémon can breed; calculate a compatibility factor
+549:     ret = 1
+550:     ret += 1 if pkmn1.species == pkmn2.species
+551:     ret += 1 if pkmn1.owner.id != pkmn2.owner.id
+552:     return ret
+553:   end
+554: end
+555: 
+556: #===============================================================================
+557: # With each step taken, add Exp to Pokémon in the Day Care and try to generate
+558: # an egg.
+559: #===============================================================================
+560: EventHandlers.add(:on_player_step_taken, :update_day_care,
+561:   proc {
+562:     $PokemonGlobal.day_care.update_on_step_taken
+563:   }
+564: )
