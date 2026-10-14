@@ -1,6 +1,6 @@
 # 第六轮云端整改接续入口
 
-用户已批准执行整改。当前已完成云端固定输入核验和隔离任务准备，尚未发生正式规格修订：56 OPEN、候选 PASS 0、实际整合 PASS 0、接受 0、CLOSED 0。实际作者／审者启动数 0。候选镜像均为固定 main 原字节，不能作为修订成果或候选通过证明。
+用户已批准执行整改。父线程已确认 U01–U09 的独立 saved-cloud 作者身份，本台账登记9个 ADMITTED；实际运行、有效配置回显和候选完成仍待证。U10–U14尚未创建，所有独立审者尚未创建。本整合环境已实读恢复可执行，详见[环境回执](admissions/20261014-parent-u01-u09/environment-readback.json)、[父线程身份来源](admissions/20261014-parent-u01-u09/parent-report.json)及[接收队列](reception-queue.json)。当前56 OPEN、候选 PASS 0、实际整合 PASS 0、接受 0、CLOSED 0，没有候选实物收到或正式文件修订。本地79份镜像仍为固定main原字节。
 
 云端执行根 `/workspace/pokemon-essentials-clean-room`，分支 `codex/remediation-sixth-20261014-8ea169f-cloud`。唯一正式接收和公共台账写者为此任务的 `/root`；父线程 ID `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2` 是已知来源身份，没有冒称不可见平台 UUID。未操作 Mac、main、交付 tag、旧分支或环境释放。
 
@@ -22,7 +22,7 @@ main `8ea169fbd0f33f378b5d732fd6bea59e854e04a6`，workspace tree `6ab3429170d276
 
 内置 collaboration 工具可指定 gpt-6.1-sol/xhigh/ultra，但其模型说明只公开 priority，工具参数没有 default tier；本轮合同禁止 priority/Fast，因此没有借它启动违规作者或审者。没有检查认证、token、额度，未安装服务、修改安全配置或尝试绕过只读目录。相同失败探针不重建；仅在能力改变的真实证据出现后另登记新尝试。
 
-父线程应在符合 model/effort/tier/speed 要求的实际云端执行入口，按[任务登记](task-register.json)创建排队或运行任务。作者统一 gpt-6.1-sol / xhigh / default；非作者审者同模型 / ultra / default。配置请求和有效回显分列；不可只让代理自称配置符合。14作者批均可独立准备，没有作者阶段跨批阻塞边，实际并行数服从可验证资源。本环境内置工具当前总容量7（含root），这不是default运行能力证明。先核不存在已启动任务，再登记实际平台身份和所有输出路径，避免重复启动。
+作者创建由父线程的 saved-cloud 入口负责。U01–U09已经确认身份并入台账，不再重复创建；U10–U14在父线程安全检查后续创建之前保持NOT_CREATED。作者统一 gpt-6.1-sol / xhigh / default；非作者审者同模型 / ultra / default，父线程在确定候选身份后创建独立审者。父线程报告的请求配置与任务有效回显分列；当前有效配置仍UNVERIFIED，任务创建不证明运行或完成。14作者批可独立准备，实际并行数服从可验证资源。本整合者只登记和准备接收，等待父线程交付具名候选分支、commit/tree、完整载荷manifest及逐项证据；不重试失败CLI、不重新生成准备包，不接收baseline为修订。
 
 作者仅写自己的候选镜像逐路径allowlist和 `candidates/R6-Uxx/evidence/`。79个镜像副本代表54个唯一正式路径，初始均为baseline；[完整合同](contracts/)及下列每份prompt保留全部七组、原提案补充、前提／反例／最小改动／验收／回归／依赖。审者只写自己的 `reviews/R6-Uxx-R/`，必须先等root绑定确定候选完整身份，且与该作者独立。实际运行cwd必须云端根，不采用原合同Mac绝对路径；原冻结身份保留，其云端映射已在每入口展开。必要生产、消费、显示、保存及历史资格的额外只读上下文，按完整合同具名新增阅读范围。
 
