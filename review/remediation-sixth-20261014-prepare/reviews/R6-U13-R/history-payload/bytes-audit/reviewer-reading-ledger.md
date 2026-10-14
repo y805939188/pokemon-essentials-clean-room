@@ -1,0 +1,30 @@
+# R6-U13-R bytes/script 分段阅读账本
+
+这是本辅助审读实际完整呈现并读过的 AGENTS、六份指定 JSON 和四份作者 Python；8ID 语义、历史大正文阅读由父审读负责。冻结候选commit `00b45de642f07cee9953e42f04cce9c35d77346f` / tree `6708f580d5a02f874a1a24a95d7c0649b10c393b`。
+
+段摘要是原文件对应行段的 UTF-8 原字节摘要，排除显示时插入的行号与 FILE 标头。初次呈现UTC没有单独留钟回显，明确记为 NOT_RECONSTRUCTED；后续身份核对UTC留在JSON账本中，不冒充初读收据。按文件归组，不重建初读顺序。
+
+|文件|完整行段|整文件bytes|整文件SHA256|Git blob|段bytes|段SHA256|
+|---|---|---:|---|---|---:|---|
+| `AGENTS.md` | 1-297 | 6328 | `41cea9c6aa439dc70eaca2c26ce1f7967a887538c1aef25b9297c07b0437ff40` | `07b3655388c7405ec32aeb12e143db10a5e28c81` | 6328 | `41cea9c6aa439dc70eaca2c26ce1f7967a887538c1aef25b9297c07b0437ff40` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/candidate-manifest.json` | 1-122 | 5959 | `54f5ec319f32c4f0f89a1483f55fb94a9451a5f08623fd9b31434e2ce1b38895` | `0dbc57085a7a5f9124963c7c58ffcbc8ec6d39f8` | 5959 | `54f5ec319f32c4f0f89a1483f55fb94a9451a5f08623fd9b31434e2ce1b38895` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/input-identities.json` | 1-300 | 20662 | `8d5b7b9ed1acc4cde30492860683290510c2358cffc2796ff22d3aad79f08905` | `3a1d157928bb0299150927dda584ad7079f5c4bc` | 7947 | `607c63cc466c268565ac4f7fad64b3ef878415c3b8d729b113993d27baa936c9` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/input-identities.json` | 301-600 | 20662 | `8d5b7b9ed1acc4cde30492860683290510c2358cffc2796ff22d3aad79f08905` | `3a1d157928bb0299150927dda584ad7079f5c4bc` | 8532 | `f0282ac7117a1c2ca16c97686ec9bd017f5c44f286399c93425596fb73742100` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/input-identities.json` | 601-763 | 20662 | `8d5b7b9ed1acc4cde30492860683290510c2358cffc2796ff22d3aad79f08905` | `3a1d157928bb0299150927dda584ad7079f5c4bc` | 4183 | `7b0f7e0c2fc5903c5bc2bb2fd73d9ecda49c8c1f3310f24b9d263077035ce7b2` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/contract-payload-checks.json` | 1-280 | 43531 | `119dc8f0e8d1ebcc4e6f16467cacdc6753c204a23cb1fdd6b512baf1086f414a` | `cb7694ff90b62b5fd504d7a811d6351d8b1ebd06` | 10334 | `7a4aefd4691a063962741688d0c50dd04b1d91eeae74624c7248833daca3d356` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/contract-payload-checks.json` | 281-560 | 43531 | `119dc8f0e8d1ebcc4e6f16467cacdc6753c204a23cb1fdd6b512baf1086f414a` | `cb7694ff90b62b5fd504d7a811d6351d8b1ebd06` | 10464 | `8deccb5c1806da8c96ac242967ab83b5b48dedc3b24e823ad602bcc0d5d760de` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/contract-payload-checks.json` | 561-840 | 43531 | `119dc8f0e8d1ebcc4e6f16467cacdc6753c204a23cb1fdd6b512baf1086f414a` | `cb7694ff90b62b5fd504d7a811d6351d8b1ebd06` | 10775 | `24aa8e53110e3d6d02e9e6eb4884dc530e383b315dac00dc0b670ad17652375e` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/contract-payload-checks.json` | 841-1136 | 43531 | `119dc8f0e8d1ebcc4e6f16467cacdc6753c204a23cb1fdd6b512baf1086f414a` | `cb7694ff90b62b5fd504d7a811d6351d8b1ebd06` | 11958 | `5b8b5aaf4d09271522e4bacaef78b5e8e16d4f6a8ab3256126d868b1bb571efa` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/counter-packet-identities.json` | 1-126 | 3856 | `cdc66e11e7175161f9cb9dc31cab3b222c17240686f8c427020c347411e51def` | `88154e366283fb33eaad488e8dbdd23beed2d12d` | 3856 | `cdc66e11e7175161f9cb9dc31cab3b222c17240686f8c427020c347411e51def` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/environment-snapshot.json` | 1-31 | 1267 | `b2043624b25f9d88121d5c5f7b9e720f2cb6343bc962e8383df280f9ece175e0` | `b68aeef35c3afacbc9afaa7d6b1606ff5bf9b942` | 1267 | `b2043624b25f9d88121d5c5f7b9e720f2cb6343bc962e8383df280f9ece175e0` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/tool-validation.json` | 1-88 | 2084 | `3bb4c3c912b9f351524e6c292fad2f4444c320b259bf914e0fd627f18e2b535d` | `0637ace54a8d404a81c00f40621b906bc2315e91` | 2084 | `3bb4c3c912b9f351524e6c292fad2f4444c320b259bf914e0fd627f18e2b535d` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/verify_candidate.py` | 1-149 | 9497 | `746af8c9cdb03fce9d46047aa31ddb9b82cd7a129355b35391e0be742fdc159b` | `e04dce587f9f97874035eb720ca79168013006db` | 9497 | `746af8c9cdb03fce9d46047aa31ddb9b82cd7a129355b35391e0be742fdc159b` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/bind_history.py` | 1-91 | 8146 | `9cc454f3593320300cb79e0ea78cd7b699b3f1b0f8abc12adfc2fcc8344569ac` | `b4cd398586e5df37b1c1513b0ef68da328852e51` | 8146 | `9cc454f3593320300cb79e0ea78cd7b699b3f1b0f8abc12adfc2fcc8344569ac` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/read_unit.py` | 1-38 | 1818 | `4552b869eac46da3f66a9d40fddbc4b8aa02a7b1e7946f7420e34035886c0b94` | `3290ae0cda99cc850c948eec39c5d2a3d7a994aa` | 1818 | `4552b869eac46da3f66a9d40fddbc4b8aa02a7b1e7946f7420e34035886c0b94` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/edit_candidate.py` | 1-44 | 25666 | `b12637729126b3163cf909bc1579de25eb75ce371b0dc55145c3b619ccdae0db` | `e60fa13566db571d292ae6ae610d954a97ca1141` | 7367 | `6b3f9a1e017cc73093084cf51ae0d426896759815f078552c639d0d9776302c4` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/edit_candidate.py` | 45-88 | 25666 | `b12637729126b3163cf909bc1579de25eb75ce371b0dc55145c3b619ccdae0db` | `e60fa13566db571d292ae6ae610d954a97ca1141` | 7750 | `4f06d2e100c205512312055e46d8c4b0bbdf08e1e1b0f968589f3bf8df609649` |
+| `review/remediation-sixth-20261014-prepare/candidates/R6-U13/evidence/edit_candidate.py` | 89-129 | 25666 | `b12637729126b3163cf909bc1579de25eb75ce371b0dc55145c3b619ccdae0db` | `e60fa13566db571d292ae6ae610d954a97ca1141` | 10549 | `08b3ddb96732e44600c029301be6578532b52e8e51460eb7e359855c5948288e` |
+
+18段覆盖各指定文件完整行域，未把截断的历史元数据展示、批量R5工具完整内容的截断日志，或JSON解析/哈希视为全文语义阅读。作者reading-ledger的79条另作机械一致性核验，不借用其“已读”资格。
+
+actual model/effort/tier/speed/UUID 全部 UNVERIFIED。未查认证、CLI模型或运行配置。一次辅助spawn尝试只返回thread limit failure，无子agent启动；之后未再spawn。
