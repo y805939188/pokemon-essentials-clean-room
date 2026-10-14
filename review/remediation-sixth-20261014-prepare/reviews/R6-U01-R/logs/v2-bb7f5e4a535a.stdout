@@ -1,0 +1,420 @@
+  # Ability
+  #=============================================================================
+
+  # The index of this Pokémon's ability (0, 1 are natural abilities, 2+ are
+  # hidden abilities) as defined for its species/form. An ability may not be
+  # defined at this index. Is recalculated (as 0 or 1) if made nil.
+  # @return [Integer] the index of this Pokémon's ability
+  def ability_index
+    @ability_index = (@personalID & 1) if !@ability_index
+    return @ability_index
+  end
+
+  # @param value [Integer, nil] forced ability index (nil if none is set)
+  def ability_index=(value)
+    @ability_index = value
+    @ability = nil
+  end
+
+  # @return [GameData::Ability, nil] an Ability object corresponding to this Pokémon's ability
+  def ability
+    return GameData::Ability.try_get(ability_id)
+  end
+
+  # @return [Symbol, nil] the ability symbol of this Pokémon's ability
+  def ability_id
+    if !@ability
+      sp_data = species_data
+      abil_index = ability_index
+      if abil_index >= 2   # Hidden ability
+        @ability = sp_data.hidden_abilities[abil_index - 2]
+        abil_index = (@personalID & 1) if !@ability
+      end
+      if !@ability   # Natural ability or no hidden ability defined
+        @ability = sp_data.abilities[abil_index] || sp_data.abilities[0]
+      end
+    end
+    return @ability
+  end
+
+  # @param value [Symbol, String, GameData::Ability, nil] ability to set
+  def ability=(value)
+    return if value && !GameData::Ability.exists?(value)
+    @ability = (value) ? GameData::Ability.get(value).id : value
+  end
+
+  # Returns whether this Pokémon has a particular ability. If no value
+  # is given, returns whether this Pokémon has an ability set.
+  # @param check_ability [Symbol, String, GameData::Ability, nil] ability ID to check
+  # @return [Boolean] whether this Pokémon has a particular ability or
+  #   an ability at all
+  def hasAbility?(check_ability = nil)
+    current_ability = self.ability
+    return !current_ability.nil? if check_ability.nil?
+    return current_ability == check_ability
+  end
+
+  # @return [Boolean] whether this Pokémon has a hidden ability
+  def hasHiddenAbility?
+    return ability_index >= 2
+  end
+
+  # @return [Array<Array<Symbol,Integer>>] the abilities this Pokémon can have,
+  #   where every element is [ability ID, ability index]
+  def getAbilityList
+    ret = []
+    sp_data = species_data
+    sp_data.abilities.each_with_index { |a, i| ret.push([a, i]) if a }
+    sp_data.hidden_abilities.each_with_index { |a, i| ret.push([a, i + 2]) if a }
+    return ret
+  end
+
+  #=============================================================================
+  # Nature
+  #=============================================================================
+
+  # @return [GameData::Nature, nil] a Nature object corresponding to this Pokémon's nature
+  def nature
+    if !@nature
+      idx = @personalID % GameData::Nature.count
+      @nature = GameData::Nature.get(GameData::Nature.keys[idx]).id
+    end
+    return GameData::Nature.try_get(@nature)
+  end
+
+  def nature_id
+    return @nature
+  end
+
+  # Sets this Pokémon's nature to a particular nature.
+  # @param value [Symbol, String, GameData::Nature, nil] nature to change to
+  def nature=(value)
+    return if value && !GameData::Nature.exists?(value)
+    @nature = (value) ? GameData::Nature.get(value).id : value
+    calc_stats if !@nature_for_stats
+  end
+
+  # Returns the calculated nature, taking into account things that change its
+  # stat-altering effect (i.e. Gen 8 mints). Only used for calculating stats.
+  # @return [GameData::Nature, nil] this Pokémon's calculated nature
+  def nature_for_stats
+    return GameData::Nature.try_get(@nature_for_stats) if @nature_for_stats
+    return self.nature
+  end
+
+  def nature_for_stats_id
+    return @nature_for_stats
+  end
+
+  # If defined, this Pokémon's nature is considered to be this when calculating stats.
+  # @param value [Symbol, String, GameData::Nature, nil] ID of the nature to use for calculating stats
+  def nature_for_stats=(value)
+    return if value && !GameData::Nature.exists?(value)
+    @nature_for_stats = (value) ? GameData::Nature.get(value).id : value
+    calc_stats
+  end
+
+  # Returns whether this Pokémon has a particular nature. If no value is given,
+  # returns whether this Pokémon has a nature set.
+  # @param check_nature [Symbol, String, GameData::Nature, nil] nature ID to check
+  # @return [Boolean] whether this Pokémon has a particular nature or a nature
+  #   at all
+  def hasNature?(check_nature = nil)
+    return !@nature.nil? if check_nature.nil?
+    return self.nature == check_nature
+  end
+
+  #=============================================================================
+  # Items
+  #=============================================================================
+
+  # @return [GameData::Item, nil] an Item object corresponding to this Pokémon's item
+  def item
+    return GameData::Item.try_get(@item)
+  end
+
+  def item_id
+    return @item
+  end
+
+  # Gives an item to this Pokémon to hold.
+  # @param value [Symbol, String, GameData::Item, nil] ID of the item to give
+  #   to this Pokémon
+  def item=(value)
+    return if value && !GameData::Item.exists?(value)
+    @item = (value) ? GameData::Item.get(value).id : value
+  end
+
+  # Returns whether this Pokémon is holding an item. If an item id is passed,
+  # returns whether the Pokémon is holding that item.
+  # @param check_item [Symbol, String, GameData::Item, nil] item ID to check
+  # @return [Boolean] whether the Pokémon is holding the specified item or
+  #   an item at all
+  def hasItem?(check_item = nil)
+    return !@item.nil? if check_item.nil?
+    held_item = self.item
+    return held_item && held_item == check_item
+  end
+
+  # @return [Array<Array<Symbol>>] the items this species can be found holding in the wild
+  def wildHoldItems
+    sp_data = species_data
+    return [sp_data.wild_item_common, sp_data.wild_item_uncommon, sp_data.wild_item_rare]
+  end
+
+  # @return [Mail, nil] mail held by this Pokémon (nil if there is none)
+  def mail
+    @mail = nil if @mail && (!@mail.item || !hasItem?(@mail.item))
+    return @mail
+  end
+
+  # If mail is a Mail object, gives that mail to this Pokémon. If nil is given,
+  # removes the held mail.
+  # @param mail [Mail, nil] mail to be held by this Pokémon
+  def mail=(mail)
+    if !mail.nil? && !mail.is_a?(Mail)
+      raise ArgumentError, _INTL("Invalid value {1} given", mail.inspect)
+    end
+    @mail = mail
+  end
+
+  #=============================================================================
+  # Moves
+  #=============================================================================
+
+  # @return [Integer] the number of moves known by the Pokémon
+  def numMoves
+    return @moves.length
+  end
+
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to check
+  # @return [Boolean] whether the Pokémon knows the given move
+  def hasMove?(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    return false if !move_data
+    return @moves.any? { |m| m.id == move_data.id }
+  end
+
+  # Returns the list of moves this Pokémon can learn by levelling up.
+  # @return [Array<Array<Integer,Symbol>>] this Pokémon's move list, where every element is [level, move ID]
+  def getMoveList
+    return species_data.moves
+  end
+
+  # Sets this Pokémon's movelist to the default movelist it originally had.
+  def reset_moves
+    this_level = self.level
+    # Find all level-up moves that self could have learned
+    moveset = self.getMoveList
+    knowable_moves = []
+    moveset.each { |m| knowable_moves.push(m[1]) if m[0] <= this_level }
+    # Remove duplicates (retaining the latest copy of each move)
+    knowable_moves = knowable_moves.reverse
+    knowable_moves |= []
+    knowable_moves = knowable_moves.reverse
+    # Add all moves
+    @moves.clear
+    first_move_index = knowable_moves.length - MAX_MOVES
+    first_move_index = 0 if first_move_index < 0
+    (first_move_index...knowable_moves.length).each do |i|
+      @moves.push(Pokemon::Move.new(knowable_moves[i]))
+    end
+  end
+
+  # Silently learns the given move. Will erase the first known move if it has to.
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to learn
+  def learn_move(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    return if !move_data
+    # Check if self already knows the move; if so, move it to the end of the array
+    @moves.each_with_index do |m, i|
+      next if m.id != move_data.id
+      @moves.push(m)
+      @moves.delete_at(i)
+      return
+    end
+    # Move is not already known; learn it
+    @moves.push(Pokemon::Move.new(move_data.id))
+    # Delete the first known move if self now knows more moves than it should
+    @moves.shift if numMoves > MAX_MOVES
+  end
+
+  # Deletes the given move from the Pokémon.
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to delete
+  def forget_move(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    return if !move_data
+    @moves.delete_if { |m| m.id == move_data.id }
+  end
+
+  # Deletes the move at the given index from the Pokémon.
+  # @param index [Integer] index of the move to be deleted
+  def forget_move_at_index(index)
+    @moves.delete_at(index)
+  end
+
+  # Deletes all moves from the Pokémon.
+  def forget_all_moves
+    @moves.clear
+  end
+
+  # Copies currently known moves into a separate array, for Move Relearner.
+  def record_first_moves
+    clear_first_moves
+    @moves.each { |m| @first_moves.push(m.id) }
+  end
+
+  # Adds a move to this Pokémon's first moves.
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to add
+  def add_first_move(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    @first_moves.push(move_data.id) if move_data && !@first_moves.include?(move_data.id)
+  end
+
+  # Removes a move from this Pokémon's first moves.
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to remove
+  def remove_first_move(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    @first_moves.delete(move_data.id) if move_data
+  end
+
+  # Clears this Pokémon's first moves.
+  def clear_first_moves
+    @first_moves.clear
+  end
+
+  # @param move_id [Symbol, String, GameData::Move] ID of the move to check
+  # @return [Boolean] whether the Pokémon is compatible with the given move
+  def compatible_with_move?(move_id)
+    move_data = GameData::Move.try_get(move_id)
+    return false if !move_data
+    return true if species_data.tutor_moves.include?(move_data.id)
+    return true if getMoveList.any? { |m| m[1] == move_data.id }
+    return true if species_data.get_egg_moves.include?(move_data.id)
+    return false
+  end
+
+  def can_relearn_move?
+    return false if egg? || shadowPokemon?
+    this_level = self.level
+    getMoveList.each { |m| return true if m[0] <= this_level && !hasMove?(m[1]) }
+    @first_moves.each { |m| return true if !hasMove?(m) }
+    return false
+  end
+
+  #=============================================================================
+  # Ribbons
+  #=============================================================================
+
+  # @return [Integer] the number of ribbons this Pokémon has
+  def numRibbons
+    return @ribbons.length
+  end
+
+  # @param ribbon [Symbol, String, GameData::Ribbon] ribbon ID to check for
+  # @return [Boolean] whether this Pokémon has the specified ribbon
+  def hasRibbon?(ribbon)
+    ribbon_data = GameData::Ribbon.try_get(ribbon)
+    return ribbon_data && @ribbons.include?(ribbon_data.id)
+  end
+
+  # Gives a ribbon to this Pokémon.
+  # @param ribbon [Symbol, String, GameData::Ribbon] ID of the ribbon to give
+  def giveRibbon(ribbon)
+    ribbon_data = GameData::Ribbon.try_get(ribbon)
+    return if !ribbon_data || @ribbons.include?(ribbon_data.id)
+    @ribbons.push(ribbon_data.id)
+  end
+
+  # Replaces one ribbon with the next one along, if possible. If none of the
+  # given ribbons are owned, give the first one.
+  # @return [Symbol, String, GameData::Ribbon] ID of the ribbon that was gained
+  def upgradeRibbon(*args)
+    args.each_with_index do |ribbon, i|
+      this_ribbon_data = GameData::Ribbon.try_get(ribbon)
+      next if !this_ribbon_data
+      @ribbons.length.times do |j|
+        next if @ribbons[j] != this_ribbon_data.id
+        next_ribbon_data = GameData::Ribbon.try_get(args[i + 1])
+        next if !next_ribbon_data
+        @ribbons[j] = next_ribbon_data.id
+        return @ribbons[j]
+      end
+    end
+    first_ribbon_data = GameData::Ribbon.try_get(args.first)
+    last_ribbon_data = GameData::Ribbon.try_get(args.last)
+    if first_ribbon_data && last_ribbon_data && !hasRibbon?(last_ribbon_data.id)
+      giveRibbon(first_ribbon_data.id)
+      return first_ribbon_data.id
+    end
+    return nil
+  end
+
+  # Removes the specified ribbon from this Pokémon.
+  # @param ribbon [Symbol, String, GameData::Ribbon] ID of the ribbon to remove
+  def takeRibbon(ribbon)
+    ribbon_data = GameData::Ribbon.try_get(ribbon)
+    return if !ribbon_data
+    @ribbons.delete_at(@ribbons.index(ribbon_data.id))
+  end
+
+  # Removes all ribbons from this Pokémon.
+  def clearAllRibbons
+    @ribbons.clear
+  end
+
+  #=============================================================================
+  # Pokérus
+  #=============================================================================
+
+  # @return [Integer] the Pokérus infection stage for this Pokémon
+  def pokerusStrain
+    return @pokerus / 16
+  end
+
+  # Returns the Pokérus infection stage for this Pokémon. The possible stages are
+  # 0 (not infected), 1 (infected) and 2 (cured).
+  # @return [0, 1, 2] current Pokérus infection stage
+  def pokerusStage
+    return 0 if @pokerus == 0
+    return ((@pokerus % 16) == 0) ? 2 : 1
+  end
+
+  # Gives this Pokémon Pokérus (either the specified strain or a random one).
+  # @param strain [Integer] Pokérus strain to give (1-15 inclusive, or 0 for random)
+  def givePokerus(strain = 0)
+    return if self.pokerusStage == 2   # Can't re-infect a cured Pokémon
+    $stats.pokerus_infections += 1
+    strain = rand(1...16) if strain <= 0 || strain >= 16
+    time = 1 + (strain % 4)
+    @pokerus = time
+    @pokerus |= strain << 4
+  end
+
+  # Resets the infection time for this Pokémon's Pokérus (even if cured).
+  def resetPokerusTime
+    return if @pokerus == 0
+    strain = @pokerus / 16
+    time = 1 + (strain % 4)
+    @pokerus = time
+    @pokerus |= strain << 4
+  end
+
+  # Reduces the time remaining for this Pokémon's Pokérus (if infected).
+  def lowerPokerusCount
+    return if self.pokerusStage != 1
+    @pokerus -= 1
+  end
+
+  # Cures this Pokémon's Pokérus (if infected).
+  def curePokerus
+    @pokerus -= @pokerus % 16
+  end
+
+  #=============================================================================
+  # Ownership, obtained information
+  #=============================================================================
+
+  # Changes this Pokémon's owner.
+  # @param new_owner [Owner] the owner to change to
+  def owner=(new_owner)
