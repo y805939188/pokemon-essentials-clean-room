@@ -4,6 +4,7 @@ This executes documentation checks and independent integer arithmetic only.
 It does not execute reference behavior, a substitute engine, a writer or host UI.
 """
 from pathlib import Path
+from collections import Counter
 import datetime, difflib, hashlib, json, re, subprocess
 
 REPO = Path(__file__).resolve().parents[5]
@@ -115,26 +116,64 @@ pt='deliverables/final-specification-set/test-catalog/pokemon-rules-wp53-60-61-6
 before=git('show',MAIN+':'+ct).decode();after=(REPO/PREFIX/'mirror'/ct).read_text()
 def groups(s):
     parts=re.split(r'^## ',s,flags=re.M)
+    names=[p.split('：',1)[0] for p in parts[1:]]
+    assert len(names)==len(set(names)),('duplicate series headers',names)
     return {p.split('：',1)[0]:p for p in parts[1:]}
-counts={};preservation=[]
+
+def catalogue_rows(s, pattern, label):
+    raw=[l for l in s.splitlines() if re.match(pattern,l)]
+    ids=[l.split('|')[1].strip() for l in raw]
+    duplicates={k:v for k,v in Counter(ids).items() if v>1}
+    assert not duplicates,(label,duplicates)
+    audit={'series':label,'raw_row_count':len(raw),'unique_id_count':len(set(ids)),
+           'duplicate_counts':duplicates,'raw_ids':ids,'checked_before_indexing':True}
+    return dict(zip(ids,raw)),audit
+
+def sf30_subcase_presence(line):
+    columns=line.split('|')
+    assert len(columns)==5 and columns[1].strip()=='SF30'
+    inp,out=columns[2],columns[3]
+    return {
+      'normal_save_load_input':all(t in inp for t in ['d两会话正常结束后','保存/普通载入依赖有效','正常保存→载入']),
+      'normal_nonactive_and_statistics':all(t in out for t in ['d会话仍为未开始/已结束态','模式统计字段持久']),
+      'normal_clock_and_execution_limits':all(t in out for t in ['计时起点等运行时刻值的重载语义仍未知','仅静态设计、未执行真实保存/载入']),
+      'default_conversion_search_input':all(t in inp for t in ['e检索固定参考当前默认保存转换集合与注册者','排除插件/动态追加']),
+      'dedicated_conversion_absence':all(t in out for t in ['e当前默认集合无Safari/捕虫专用格式转换','普通载入无针对两会话的专用格式迁移']),
+      'conversion_no_generalization': '不外推任意版本/插件或整个存档都无迁移' in out}
+
+counts={};preservation=[];raw_row_audits=[]
 for g,n,modified in [('QC',49,set()),('WS',36,{'W13'}),('PA',32,{'P14','P15','P16'}),('RC',29,{'W18'})]:
     a=groups(before)[g];b=groups(after)[g]
-    rows=lambda s:{l.split('|')[1].strip():l for l in s.splitlines() if re.match(r'^\| [QWP]\d',l)}
-    oldrows=rows(a);newrows=rows(b);assert len(newrows)==n and len(newrows)==len(set(newrows))
+    oldrows,old_audit=catalogue_rows(a,r'^\| [QWP]\d',g+' baseline')
+    newrows,new_audit=catalogue_rows(b,r'^\| [QWP]\d',g+' candidate')
+    assert new_audit['raw_row_count']==n
+    raw_row_audits.extend([old_audit,new_audit])
     assert all(k in newrows for k in oldrows)
     for k,v in oldrows.items():
         if k not in modified:assert newrows[k]==v,(g,k)
     counts[g]=n
     preservation.append({'series':g,'original_count':len(oldrows),'current_count':n,
-                          'changed_original_rows':sorted(modified),'all_other_original_rows_byte_equal':True})
+                          'changed_original_rows':sorted(modified),'all_other_original_rows_byte_equal':True,
+                          'changed_row_semantics_proved_by_this_tool':False})
 pb=git('show',MAIN+':'+pt).decode();pa=(REPO/PREFIX/'mirror'/pt).read_text()
 assert pb.split('## BP：',1)[1]==pa.split('## BP：',1)[1]
-oldsf={l.split('|')[1].strip():l for l in pb.splitlines() if re.match(r'^\| SF\d',l)}
-newsf={l.split('|')[1].strip():l for l in pa.splitlines() if re.match(r'^\| SF\d',l)}
-assert len(newsf)==40
+oldsf,old_audit=catalogue_rows(pb,r'^\| SF\d','SF baseline')
+newsf,new_audit=catalogue_rows(pa,r'^\| SF\d','SF candidate')
+raw_row_audits.extend([old_audit,new_audit])
+assert new_audit['raw_row_count']==40
+assert all(k in newsf for k in oldsf)
 assert all(newsf[k]==v for k,v in oldsf.items() if k not in {'SF01','SF30'})
+sf30_presence=sf30_subcase_presence(newsf['SF30'])
+assert all(sf30_presence.values()),sf30_presence
+prior=git('show','00b45de642f07cee9953e42f04cce9c35d77346f:'+PREFIX+'mirror/'+pt).decode()
+prior_sf,_=catalogue_rows(prior,r'^\| SF\d','SF prior FAIL candidate')
+oldcols=prior_sf['SF30'].split('|');newcols=newsf['SF30'].split('|')
+assert newcols[2].strip().startswith(oldcols[2].strip())
+assert newcols[3].strip().startswith(oldcols[3].strip())
 counts['SF']=40
-preservation.append({'series':'SF','original_count':35,'current_count':40,'changed_original_rows':['SF01','SF30'],'all_other_original_rows_byte_equal':True,'BP_FP_PD_VF_LT_suffix_byte_equal':True})
+preservation.append({'series':'SF','original_count':35,'current_count':40,'changed_original_rows':['SF01','SF30'],'all_other_original_rows_byte_equal':True,'BP_FP_PD_VF_LT_suffix_byte_equal':True,
+ 'SF30_new_menu_input_and_expected_prefix_byte_equal':True,'SF30_restored_subcase_presence':sf30_presence,
+ 'subcase_check_limit':'Text-presence and exact menu-prefix checks; author static comparison in repair-01/report.md establishes the bounded meaning. This tool does not prove arbitrary changed-row semantics or runtime save/load.'})
 
 wp40='deliverables/final-specification-set/combat-requirements/wp40-commands-obedience-and-action-order.md'
 wold=git('show',MAIN+':'+wp40).decode();wnew=(REPO/PREFIX/'mirror'/wp40).read_text()
@@ -143,7 +182,9 @@ assert wnew.replace(addon,'')==wold
 dump('tool-validation.json',{'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'cwd':str(REPO),
  'argv':['python',str(Path(__file__).relative_to(REPO))],'exit':0,'stderr':'',
  'checks':{'allowlist':True,'eight_actual_mirror_changes':True,'baseline_fixed_main':True,'fixed_identity_checks':True,'whole_required_read_coverage':True,'diff_check':True,'unique_catalogue_ids':True,'catalogue_counts':counts},
- 'preservation':preservation,'wp40_old_text_equal_after_removing_only_arena_addition':True,
- 'arithmetic':{'1x100_div205':1*100//205,'3x100_div205':3*100//205,'h24_m0_factor':30,'h24_m1_factor':30,'r0_less30':0<30},
+ 'preservation':preservation,'raw_catalogue_rows':raw_row_audits,'wp40_old_text_equal_after_removing_only_arena_addition':True,
+ 'arithmetic':{'1x100_div205':1*100//205,'3x100_div205':3*100//205,'r0_less_expected30':0<30},
+ 'expected_constants_not_computed':{'h24_m0_factor':30,'h24_m1_factor':30},
+ 'probability_factor_semantics_proved_by_this_tool':False,
  'level':'TOOL_DOCUMENT_AUDIT_AND_INDEPENDENT_ARITHMETIC','reference_execution':False,'behavior_model_execution':False,'writer_execution':False,'host_execution':False})
 print(json.dumps({'status':'AUTHOR_TOOL_CHECKS_PASS_NOT_INDEPENDENT_REVIEW','counts':counts,'mirror_files':len(manifest),'required_source_files':len(sources),'formal_files':len(formal),'write_scope':PREFIX},ensure_ascii=False))
