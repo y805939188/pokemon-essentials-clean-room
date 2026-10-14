@@ -1,0 +1,124 @@
+1: #===============================================================================
+2: # Wild encounters editor
+3: #===============================================================================
+4: # Main editor method for editing wild encounters. Lists all defined encounter
+5: # sets, and edits them.
+6: def pbEncountersEditor
+7:   map_infos = pbLoadMapInfos
+8:   commands = []
+9:   maps = []
+10:   list = pbListWindow([])
+11:   help_window = Window_UnformattedTextPokemon.newWithSize(
+12:     _INTL("Edit wild encounters"), Graphics.width / 2, 0, Graphics.width / 2, 96
+13:   )
+14:   help_window.z = 99999
+15:   ret = 0
+16:   need_refresh = true
+17:   loop do
+18:     if need_refresh
+19:       commands.clear
+20:       maps.clear
+21:       commands.push(_INTL("[Add new encounter set]"))
+22:       GameData::Encounter.each do |enc_data|
+23:         name = (map_infos[enc_data.map]) ? map_infos[enc_data.map].name : nil
+24:         if enc_data.version > 0 && name
+25:           commands.push(sprintf("%03d (v.%d): %s", enc_data.map, enc_data.version, name))
+26:         elsif enc_data.version > 0
+27:           commands.push(sprintf("%03d (v.%d)", enc_data.map, enc_data.version))
+28:         elsif name
+29:           commands.push(sprintf("%03d: %s", enc_data.map, name))
+30:         else
+31:           commands.push(sprintf("%03d", enc_data.map))
+32:         end
+33:         maps.push([enc_data.map, enc_data.version])
+34:       end
+35:       need_refresh = false
+36:     end
+37:     ret = pbCommands2(list, commands, -1, ret)
+38:     if ret == 0   # Add new encounter set
+39:       new_map_ID = pbListScreen(_INTL("Choose a map"), MapLister.new(pbDefaultMap))
+40:       if new_map_ID > 0
+41:         new_version = LimitProperty2.new(999).set(_INTL("version number"), 0)
+42:         if new_version && new_version >= 0
+43:           if GameData::Encounter.exists?(new_map_ID, new_version)
+44:             pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", new_map_ID, new_version))
+45:           else
+46:             # Construct encounter hash
+47:             key = sprintf("%s_%d", new_map_ID, new_version).to_sym
+48:             encounter_hash = {
+49:               :id           => key,
+50:               :map          => new_map_ID,
+51:               :version      => new_version,
+52:               :step_chances => {},
+53:               :types        => {}
+54:             }
+55:             GameData::Encounter.register(encounter_hash)
+56:             maps.push([new_map_ID, new_version])
+57:             maps.sort! { |a, b| (a[0] == b[0]) ? a[1] <=> b[1] : a[0] <=> b[0] }
+58:             ret = maps.index([new_map_ID, new_version]) + 1
+59:             need_refresh = true
+60:           end
+61:         end
+62:       end
+63:     elsif ret > 0   # Edit an encounter set
+64:       this_set = maps[ret - 1]
+65:       case pbShowCommands(nil, [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+66:       when 0   # Edit
+67:         pbEncounterMapVersionEditor(GameData::Encounter.get(this_set[0], this_set[1]))
+68:         need_refresh = true
+69:       when 1   # Copy
+70:         new_map_ID = pbListScreen(_INTL("Copy to which map?"), MapLister.new(this_set[0]))
+71:         if new_map_ID > 0
+72:           new_version = LimitProperty2.new(999).set(_INTL("version number"), 0)
+73:           if new_version && new_version >= 0
+74:             if GameData::Encounter.exists?(new_map_ID, new_version)
+75:               pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", new_map_ID, new_version))
+76:             else
+77:               # Construct encounter hash
+78:               key = sprintf("%s_%d", new_map_ID, new_version).to_sym
+79:               encounter_hash = {
+80:                 :id              => key,
+81:                 :map             => new_map_ID,
+82:                 :version         => new_version,
+83:                 :step_chances    => {},
+84:                 :types           => {},
+85:                 :pbs_file_suffix => GameData::Encounter.get(this_set[0], this_set[1]).pbs_file_suffix
+86:               }
+87:               GameData::Encounter.get(this_set[0], this_set[1]).step_chances.each do |type, value|
+88:                 encounter_hash[:step_chances][type] = value
+89:               end
+90:               GameData::Encounter.get(this_set[0], this_set[1]).types.each do |type, slots|
+91:                 next if !type || !slots || slots.length == 0
+92:                 encounter_hash[:types][type] = []
+93:                 slots.each { |slot| encounter_hash[:types][type].push(slot.clone) }
+94:               end
+95:               GameData::Encounter.register(encounter_hash)
+96:               maps.push([new_map_ID, new_version])
+97:               maps.sort! { |a, b| (a[0] == b[0]) ? a[1] <=> b[1] : a[0] <=> b[0] }
+98:               ret = maps.index([new_map_ID, new_version]) + 1
+99:               need_refresh = true
+100:             end
+101:           end
+102:         end
+103:       when 2   # Delete
+104:         if pbConfirmMessage(_INTL("Delete the encounter set for map {1} version {2}?", this_set[0], this_set[1]))
+105:           key = sprintf("%s_%d", this_set[0], this_set[1]).to_sym
+106:           GameData::Encounter::DATA.delete(key)
+107:           ret -= 1
+108:           need_refresh = true
+109:         end
+110:       end
+111:     else
+112:       break
+113:     end
+114:   end
+115:   if pbConfirmMessage(_INTL("Save changes?"))
+116:     GameData::Encounter.save
+117:     Compiler.write_encounters   # Rewrite PBS file encounters.txt
+118:   else
+119:     GameData::Encounter.load
+120:   end
+121:   list.dispose
+122:   help_window.dispose
+123:   Input.update
+124: end

@@ -1,0 +1,251 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/003_Scene_ChooseCommands.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 250], "total_lines": 474, "sha256": "ea7052b2f316cebd26157d3c0fd25935ccff32b6677fa0c54be81c99ad5ce40d", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:28:13.636414+00:00"}
+1: class Battle::Scene
+2:   #=============================================================================
+3:   # The player chooses a main command for a Pokémon
+4:   # Return values: -1=Cancel, 0=Fight, 1=Bag, 2=Pokémon, 3=Run, 4=Call
+5:   #=============================================================================
+6:   def pbCommandMenu(idxBattler, firstAction)
+7:     shadowTrainer = (GameData::Type.exists?(:SHADOW) && @battle.trainerBattle?)
+8:     cmds = [
+9:       _INTL("What will\n{1} do?", @battle.battlers[idxBattler].name),
+10:       _INTL("Fight"),
+11:       _INTL("Bag"),
+12:       _INTL("Pokémon"),
+13:       (shadowTrainer) ? _INTL("Call") : (firstAction) ? _INTL("Run") : _INTL("Cancel")
+14:     ]
+15:     ret = pbCommandMenuEx(idxBattler, cmds, (shadowTrainer) ? 2 : (firstAction) ? 0 : 1)
+16:     ret = 4 if ret == 3 && shadowTrainer   # Convert "Run" to "Call"
+17:     ret = -1 if ret == 3 && !firstAction   # Convert "Run" to "Cancel"
+18:     return ret
+19:   end
+20: 
+21:   # Mode: 0 = regular battle with "Run" (first choosable action in the round only)
+22:   #       1 = regular battle with "Cancel"
+23:   #       2 = regular battle with "Call" (for Shadow Pokémon battles)
+24:   #       3 = Safari Zone
+25:   #       4 = Bug-Catching Contest
+26:   def pbCommandMenuEx(idxBattler, texts, mode = 0)
+27:     pbShowWindow(COMMAND_BOX)
+28:     cw = @sprites["commandWindow"]
+29:     cw.setTexts(texts)
+30:     cw.setIndexAndMode(@lastCmd[idxBattler], mode)
+31:     pbSelectBattler(idxBattler)
+32:     ret = -1
+33:     loop do
+34:       oldIndex = cw.index
+35:       pbUpdate(cw)
+36:       # Update selected command
+37:       if Input.trigger?(Input::LEFT)
+38:         cw.index -= 1 if (cw.index & 1) == 1
+39:       elsif Input.trigger?(Input::RIGHT)
+40:         cw.index += 1 if (cw.index & 1) == 0
+41:       elsif Input.trigger?(Input::UP)
+42:         cw.index -= 2 if (cw.index & 2) == 2
+43:       elsif Input.trigger?(Input::DOWN)
+44:         cw.index += 2 if (cw.index & 2) == 0
+45:       end
+46:       pbPlayCursorSE if cw.index != oldIndex
+47:       # Actions
+48:       if Input.trigger?(Input::USE)                 # Confirm choice
+49:         pbPlayDecisionSE
+50:         ret = cw.index
+51:         @lastCmd[idxBattler] = ret
+52:         break
+53:       elsif Input.trigger?(Input::BACK) && mode == 1   # Cancel
+54:         pbPlayCancelSE
+55:         break
+56:       elsif Input.trigger?(Input::F9) && $DEBUG    # Debug menu
+57:         pbPlayDecisionSE
+58:         ret = -2
+59:         break
+60:       end
+61:     end
+62:     return ret
+63:   end
+64: 
+65:   #=============================================================================
+66:   # The player chooses a move for a Pokémon to use
+67:   #=============================================================================
+68:   def pbFightMenu(idxBattler, megaEvoPossible = false)
+69:     battler = @battle.battlers[idxBattler]
+70:     cw = @sprites["fightWindow"]
+71:     cw.battler = battler
+72:     moveIndex = 0
+73:     if battler.moves[@lastMove[idxBattler]]&.id
+74:       moveIndex = @lastMove[idxBattler]
+75:     end
+76:     cw.shiftMode = (@battle.pbCanShift?(idxBattler)) ? 1 : 0
+77:     cw.setIndexAndMode(moveIndex, (megaEvoPossible) ? 1 : 0)
+78:     needFullRefresh = true
+79:     needRefresh = false
+80:     loop do
+81:       # Refresh view if necessary
+82:       if needFullRefresh
+83:         pbShowWindow(FIGHT_BOX)
+84:         pbSelectBattler(idxBattler)
+85:         needFullRefresh = false
+86:       end
+87:       if needRefresh
+88:         if megaEvoPossible
+89:           newMode = (@battle.pbRegisteredMegaEvolution?(idxBattler)) ? 2 : 1
+90:           cw.mode = newMode if newMode != cw.mode
+91:         end
+92:         needRefresh = false
+93:       end
+94:       oldIndex = cw.index
+95:       # General update
+96:       pbUpdate(cw)
+97:       # Update selected command
+98:       if Input.trigger?(Input::LEFT)
+99:         cw.index -= 1 if (cw.index & 1) == 1
+100:       elsif Input.trigger?(Input::RIGHT)
+101:         cw.index += 1 if battler.moves[cw.index + 1]&.id && (cw.index & 1) == 0
+102:       elsif Input.trigger?(Input::UP)
+103:         cw.index -= 2 if (cw.index & 2) == 2
+104:       elsif Input.trigger?(Input::DOWN)
+105:         cw.index += 2 if battler.moves[cw.index + 2]&.id && (cw.index & 2) == 0
+106:       end
+107:       pbPlayCursorSE if cw.index != oldIndex
+108:       # Actions
+109:       if Input.trigger?(Input::USE)      # Confirm choice
+110:         pbPlayDecisionSE
+111:         break if yield cw.index
+112:         needFullRefresh = true
+113:         needRefresh = true
+114:       elsif Input.trigger?(Input::BACK)   # Cancel fight menu
+115:         pbPlayCancelSE
+116:         break if yield -1
+117:         needRefresh = true
+118:       elsif Input.trigger?(Input::ACTION)   # Toggle Mega Evolution
+119:         if megaEvoPossible
+120:           pbPlayDecisionSE
+121:           break if yield -2
+122:           needRefresh = true
+123:         end
+124:       elsif Input.trigger?(Input::SPECIAL)   # Shift
+125:         if cw.shiftMode > 0
+126:           pbPlayDecisionSE
+127:           break if yield -3
+128:           needRefresh = true
+129:         end
+130:       end
+131:     end
+132:     @lastMove[idxBattler] = cw.index
+133:   end
+134: 
+135:   #=============================================================================
+136:   # Opens the party screen to choose a Pokémon to switch in (or just view its
+137:   # summary screens)
+138:   # mode: 0=Pokémon command, 1=choose a Pokémon to send to the Boxes, 2=view
+139:   #       summaries only
+140:   #=============================================================================
+141:   def pbPartyScreen(idxBattler, canCancel = false, mode = 0)
+142:     # Fade out and hide all sprites
+143:     visibleSprites = pbFadeOutAndHide(@sprites)
+144:     # Get player's party
+145:     partyPos = @battle.pbPartyOrder(idxBattler)
+146:     partyStart, _partyEnd = @battle.pbTeamIndexRangeFromBattlerIndex(idxBattler)
+147:     modParty = @battle.pbPlayerDisplayParty(idxBattler)
+148:     # Start party screen
+149:     scene = PokemonParty_Scene.new
+150:     switchScreen = PokemonPartyScreen.new(scene, modParty)
+151:     msg = _INTL("Choose a Pokémon.")
+152:     msg = _INTL("Send which Pokémon to Boxes?") if mode == 1
+153:     switchScreen.pbStartScene(msg, @battle.pbNumPositions(0, 0))
+154:     # Loop while in party screen
+155:     loop do
+156:       # Select a Pokémon
+157:       scene.pbSetHelpText(msg)
+158:       idxParty = switchScreen.pbChoosePokemon
+159:       if idxParty < 0
+160:         next if !canCancel
+161:         break
+162:       end
+163:       # Choose a command for the selected Pokémon
+164:       cmdSwitch  = -1
+165:       cmdBoxes   = -1
+166:       cmdSummary = -1
+167:       commands = []
+168:       commands[cmdSwitch  = commands.length] = _INTL("Switch In") if mode == 0 && modParty[idxParty].able? &&
+169:                                                                      (@battle.canSwitch || !canCancel)
+170:       commands[cmdBoxes   = commands.length] = _INTL("Send to Boxes") if mode == 1
+171:       commands[cmdSummary = commands.length] = _INTL("Summary")
+172:       commands[commands.length]              = _INTL("Cancel")
+173:       command = scene.pbShowCommands(_INTL("Do what with {1}?", modParty[idxParty].name), commands)
+174:       if (cmdSwitch >= 0 && command == cmdSwitch) ||   # Switch In
+175:          (cmdBoxes >= 0 && command == cmdBoxes)        # Send to Boxes
+176:         idxPartyRet = -1
+177:         partyPos.each_with_index do |pos, i|
+178:           next if pos != idxParty + partyStart
+179:           idxPartyRet = i
+180:           break
+181:         end
+182:         break if yield idxPartyRet, switchScreen
+183:       elsif cmdSummary >= 0 && command == cmdSummary   # Summary
+184:         scene.pbSummary(idxParty, true)
+185:       end
+186:     end
+187:     # Close party screen
+188:     switchScreen.pbEndScene
+189:     # Fade back into battle screen
+190:     pbFadeInAndShow(@sprites, visibleSprites)
+191:   end
+192: 
+193:   #=============================================================================
+194:   # Opens the Bag screen and chooses an item to use
+195:   #=============================================================================
+196:   def pbItemMenu(idxBattler, _firstAction)
+197:     # Fade out and hide all sprites
+198:     visibleSprites = pbFadeOutAndHide(@sprites)
+199:     # Set Bag starting positions
+200:     oldLastPocket = $bag.last_viewed_pocket
+201:     oldChoices    = $bag.last_pocket_selections.clone
+202:     if @bagLastPocket
+203:       $bag.last_viewed_pocket     = @bagLastPocket
+204:       $bag.last_pocket_selections = @bagChoices
+205:     else
+206:       $bag.reset_last_selections
+207:     end
+208:     # Start Bag screen
+209:     itemScene = PokemonBag_Scene.new
+210:     itemScene.pbStartScene($bag, true,
+211:                            proc { |item|
+212:                              useType = GameData::Item.get(item).battle_use
+213:                              next useType && useType > 0
+214:                            }, false)
+215:     # Loop while in Bag screen
+216:     wasTargeting = false
+217:     loop do
+218:       # Select an item
+219:       item = itemScene.pbChooseItem
+220:       break if !item
+221:       # Choose a command for the selected item
+222:       item = GameData::Item.get(item)
+223:       itemName = item.name
+224:       useType = item.battle_use
+225:       cmdUse = -1
+226:       commands = []
+227:       commands[cmdUse = commands.length] = _INTL("Use") if useType && useType != 0
+228:       commands[commands.length]          = _INTL("Cancel")
+229:       command = itemScene.pbShowCommands(_INTL("{1} is selected.", itemName), commands)
+230:       next unless cmdUse >= 0 && command == cmdUse   # Use
+231:       # Use types:
+232:       # 0 = not usable in battle
+233:       # 1 = use on Pokémon (lots of items, Blue Flute)
+234:       # 2 = use on Pokémon's move (Ethers)
+235:       # 3 = use on battler (X items, Persim Berry, Red/Yellow Flutes)
+236:       # 4 = use on opposing battler (Poké Balls)
+237:       # 5 = use no target (Poké Doll, Guard Spec., Poké Flute, Launcher items)
+238:       case useType
+239:       when 1, 2, 3   # Use on Pokémon/Pokémon's move/battler
+240:         # Auto-choose the Pokémon/battler whose action is being decided if they
+241:         # are the only available Pokémon/battler to use the item on
+242:         case useType
+243:         when 1   # Use on Pokémon
+244:           if @battle.pbTeamLengthFromBattlerIndex(idxBattler) == 1
+245:             break if yield item.id, useType, @battle.battlers[idxBattler].pokemonIndex, -1, itemScene
+246:           end
+247:         when 3   # Use on battler
+248:           if @battle.pbPlayerBattlerCount == 1
+249:             break if yield item.id, useType, @battle.battlers[idxBattler].pokemonIndex, -1, itemScene
+250:           end

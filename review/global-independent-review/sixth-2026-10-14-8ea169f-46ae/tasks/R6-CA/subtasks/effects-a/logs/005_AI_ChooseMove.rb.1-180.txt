@@ -1,0 +1,180 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Battle::AI
+5:   MOVE_FAIL_SCORE    = 20
+6:   MOVE_USELESS_SCORE = 60   # Move predicted to do nothing or just be detrimental
+7:   MOVE_BASE_SCORE    = 100
+8: 
+9:   # Returns a value between 0.0 and 1.0. All move scores are lowered by this
+10:   # value multiplied by the highest-scoring move's score.
+11:   def move_score_threshold
+12:     return 0.6 + (0.35 * (([@trainer.skill, 100].min / 100.0)**0.5))   # 0.635 to 0.95
+13:   end
+14: 
+15:   #-----------------------------------------------------------------------------
+16: 
+17:   # Get scores for the user's moves.
+18:   # NOTE: For any move with a target type that can target a foe (or which
+19:   #       includes a foe(s) if it has multiple targets), the score calculated
+20:   #       for a target ally will be inverted. The MoveHandlers for those moves
+21:   #       should therefore treat an ally as a foe when calculating a score
+22:   #       against it.
+23:   def pbGetMoveScores
+24:     choices = []
+25:     @user.battler.eachMoveWithIndex do |orig_move, idxMove|
+26:       # Unchoosable moves aren't considered
+27:       if !@battle.pbCanChooseMove?(@user.index, idxMove, false)
+28:         if orig_move.pp == 0 && orig_move.total_pp > 0
+29:           PBDebug.log_ai("#{@user.name} cannot use #{orig_move.name} (no PP left)")
+30:         else
+31:           PBDebug.log_ai("#{@user.name} cannot choose to use #{orig_move.name}")
+32:         end
+33:         next
+34:       end
+35:       # Set up move in class variables
+36:       set_up_move_check(orig_move)
+37:       # Predict whether the move will fail (generally)
+38:       if @trainer.has_skill_flag?("PredictMoveFailure") && pbPredictMoveFailure
+39:         PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+40:         PBDebug.log_score_change(MOVE_FAIL_SCORE - MOVE_BASE_SCORE, "move will fail")
+41:         add_move_to_choices(choices, idxMove, MOVE_FAIL_SCORE)
+42:         next
+43:       end
+44:       # Get the move's target type
+45:       target_data = @move.pbTarget(@user.battler)
+46:       if @move.function_code == "CurseTargetOrLowerUserSpd1RaiseUserAtkDef1" &&
+47:          @move.rough_type == :GHOST && @user.has_active_ability?([:LIBERO, :PROTEAN])
+48:         target_data = GameData::Target.get((Settings::MECHANICS_GENERATION >= 8) ? :RandomNearFoe : :NearFoe)
+49:       end
+50:       case target_data.num_targets
+51:       when 0   # No targets, affects the user or a side or the whole field
+52:         # Includes: BothSides, FoeSide, None, User, UserSide
+53:         PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+54:         score = MOVE_BASE_SCORE
+55:         PBDebug.logonerr { score = pbGetMoveScore }
+56:         add_move_to_choices(choices, idxMove, score)
+57:       when 1   # One target to be chosen by the trainer
+58:         # Includes: Foe, NearAlly, NearFoe, NearOther, Other, RandomNearFoe, UserOrNearAlly
+59:         redirected_target = get_redirected_target(target_data)
+60:         num_targets = 0
+61:         @battle.allBattlers.each do |b|
+62:           next if redirected_target && b.index != redirected_target
+63:           next if !@battle.pbMoveCanTarget?(@user.battler.index, b.index, target_data)
+64:           next if target_data.targets_foe && !@user.battler.opposes?(b)
+65:           PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name} against #{b.name} (#{b.index})...")
+66:           score = MOVE_BASE_SCORE
+67:           PBDebug.logonerr { score = pbGetMoveScore([b]) }
+68:           add_move_to_choices(choices, idxMove, score, b.index)
+69:           num_targets += 1
+70:         end
+71:         PBDebug.log("     no valid targets") if num_targets == 0
+72:       else   # Multiple targets at once
+73:         # Includes: AllAllies, AllBattlers, AllFoes, AllNearFoes, AllNearOthers, UserAndAllies
+74:         targets = []
+75:         @battle.allBattlers.each do |b|
+76:           next if !@battle.pbMoveCanTarget?(@user.battler.index, b.index, target_data)
+77:           targets.push(b)
+78:         end
+79:         PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+80:         score = MOVE_BASE_SCORE
+81:         PBDebug.logonerr { score = pbGetMoveScore(targets) }
+82:         add_move_to_choices(choices, idxMove, score)
+83:       end
+84:     end
+85:     @battle.moldBreaker = false
+86:     return choices
+87:   end
+88: 
+89:   # If the target of a move can be changed by an external effect, this method
+90:   # returns the battler index of the new target.
+91:   def get_redirected_target(target_data)
+92:     return nil if @move.move.cannotRedirect?
+93:     return nil if !target_data.can_target_one_foe? || target_data.num_targets != 1
+94:     return nil if @user.has_active_ability?([:PROPELLERTAIL, :STALWART])
+95:     priority = @battle.pbPriority(true)
+96:     near_only = !target_data.can_choose_distant_target?
+97:     # Spotlight, Follow Me/Rage Powder
+98:     new_target = -1
+99:     strength = 100   # Lower strength takes priority
+100:     priority.each do |b|
+101:       next if b.fainted? || b.effects[PBEffects::SkyDrop] >= 0
+102:       next if !b.opposes?(@user.battler)
+103:       next if near_only && !b.near?(@user.battler)
+104:       if b.effects[PBEffects::Spotlight] > 0 && b.effects[PBEffects::Spotlight] - 50 < strength
+105:         new_target = b.index
+106:         strength = b.effects[PBEffects::Spotlight] - 50   # Spotlight takes priority
+107:       elsif (b.effects[PBEffects::RagePowder] && @user.battler.affectedByPowder?) ||
+108:             (b.effects[PBEffects::FollowMe] > 0 && b.effects[PBEffects::FollowMe] < strength)
+109:         new_target = b.index
+110:         strength = b.effects[PBEffects::FollowMe]
+111:       end
+112:     end
+113:     return new_target if new_target >= 0
+114:     calc_type = @move.rough_type
+115:     priority.each do |b|
+116:       next if b.index == @user.index
+117:       next if near_only && !b.near?(@user.battler)
+118:       case calc_type
+119:       when :ELECTRIC
+120:         new_target = b.index if b.hasActiveAbility?(:LIGHTNINGROD)
+121:       when :WATER
+122:         new_target = b.index if b.hasActiveAbility?(:STORMDRAIN)
+123:       end
+124:       break if new_target >= 0
+125:     end
+126:     return (new_target >= 0) ? new_target : nil
+127:   end
+128: 
+129:   def add_move_to_choices(choices, idxMove, score, idxTarget = -1)
+130:     choices.push([idxMove, score, idxTarget])
+131:     # If the user is a wild Pokémon, doubly prefer one of its moves (the choice
+132:     # is random but consistent and does not correlate to any other property of
+133:     # the user)
+134:     if @user.wild? && @user.pokemon.personalID % @user.battler.moves.length == idxMove
+135:       choices.push([idxMove, score, idxTarget])
+136:     end
+137:   end
+138: 
+139:   #-----------------------------------------------------------------------------
+140: 
+141:   # Set some extra class variables for the move being assessed.
+142:   def set_up_move_check(move)
+143:     case move.function_code
+144:     when "UseLastMoveUsed"
+145:       if @battle.lastMoveUsed &&
+146:          GameData::Move.exists?(@battle.lastMoveUsed) &&
+147:          !move.moveBlacklist.include?(GameData::Move.get(@battle.lastMoveUsed).function_code)
+148:         move = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@battle.lastMoveUsed))
+149:       end
+150:     when "UseMoveDependingOnEnvironment"
+151:       move.pbOnStartUse(@user.battler, [])   # Determine which move is used instead
+152:       move = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(move.npMove))
+153:     end
+154:     @battle.moldBreaker = @user.has_mold_breaker?
+155:     @move.set_up(move)
+156:   end
+157: 
+158:   # Set some extra class variables for the target being assessed.
+159:   def set_up_move_check_target(target)
+160:     @target = (target) ? @battlers[target.index] : nil
+161:     @target&.refresh_battler
+162:     if @target && @move.function_code == "UseLastMoveUsedByTarget"
+163:       if @target.battler.lastRegularMoveUsed &&
+164:          GameData::Move.exists?(@target.battler.lastRegularMoveUsed) &&
+165:          GameData::Move.get(@target.battler.lastRegularMoveUsed).has_flag?("CanMirrorMove")
+166:         @battle.moldBreaker = @user.has_mold_breaker?
+167:         mov = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@target.battler.lastRegularMoveUsed))
+168:         @move.set_up(mov)
+169:       end
+170:     end
+171:   end
+172: 
+173:   #-----------------------------------------------------------------------------
+174: 
+175:   # Returns whether the move will definitely fail (assuming no battle conditions
+176:   # change between now and using the move).
+177:   def pbPredictMoveFailure
+178:     # User is asleep and will not wake up
+179:     return true if @user.battler.asleep? && @user.statusCount > 1 && !@move.move.usableWhenAsleep?
+180:     # User is awake and can't use moves that are only usable when asleep

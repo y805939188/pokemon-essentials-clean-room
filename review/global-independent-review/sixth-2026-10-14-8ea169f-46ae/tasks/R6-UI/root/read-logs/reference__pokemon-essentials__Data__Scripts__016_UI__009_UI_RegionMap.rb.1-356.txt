@@ -1,0 +1,357 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/009_UI_RegionMap.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 356], "total_lines": 356, "sha256": "d97dda3e95c5db8ec6ff1fa1611135c27f5f3e860fb59cf4ead29c88433b9b8b", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:30.383038+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class MapBottomSprite < Sprite
+5:   attr_reader :mapname, :maplocation
+6: 
+7:   TEXT_MAIN_COLOR   = Color.new(248, 248, 248)
+8:   TEXT_SHADOW_COLOR = Color.new(0, 0, 0)
+9: 
+10:   def initialize(viewport = nil)
+11:     super(viewport)
+12:     @mapname     = ""
+13:     @maplocation = ""
+14:     @mapdetails  = ""
+15:     self.bitmap = Bitmap.new(Graphics.width, Graphics.height)
+16:     pbSetSystemFont(self.bitmap)
+17:     refresh
+18:   end
+19: 
+20:   def mapname=(value)
+21:     return if @mapname == value
+22:     @mapname = value
+23:     refresh
+24:   end
+25: 
+26:   def maplocation=(value)
+27:     return if @maplocation == value
+28:     @maplocation = value
+29:     refresh
+30:   end
+31: 
+32:   # From Wichu
+33:   def mapdetails=(value)
+34:     return if @mapdetails == value
+35:     @mapdetails = value
+36:     refresh
+37:   end
+38: 
+39:   def refresh
+40:     bitmap.clear
+41:     textpos = [
+42:       [@mapname,                     18,   4, :left, TEXT_MAIN_COLOR, TEXT_SHADOW_COLOR],
+43:       [@maplocation,                 18, 360, :left, TEXT_MAIN_COLOR, TEXT_SHADOW_COLOR],
+44:       [@mapdetails, Graphics.width - 16, 360, :right, TEXT_MAIN_COLOR, TEXT_SHADOW_COLOR]
+45:     ]
+46:     pbDrawTextPositions(bitmap, textpos)
+47:   end
+48: end
+49: 
+50: #===============================================================================
+51: #
+52: #===============================================================================
+53: class PokemonRegionMap_Scene
+54:   LEFT          = 0
+55:   TOP           = 0
+56:   RIGHT         = 29
+57:   BOTTOM        = 19
+58:   SQUARE_WIDTH  = 16
+59:   SQUARE_HEIGHT = 16
+60: 
+61:   def initialize(region = - 1, wallmap = true)
+62:     @region  = region
+63:     @wallmap = wallmap
+64:   end
+65: 
+66:   def pbUpdate
+67:     pbUpdateSpriteHash(@sprites)
+68:   end
+69: 
+70:   def pbStartScene(as_editor = false, fly_map = false)
+71:     @editor   = as_editor
+72:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+73:     @viewport.z = 99999
+74:     @sprites = {}
+75:     @fly_map = fly_map
+76:     @mode    = fly_map ? 1 : 0
+77:     map_metadata = $game_map.metadata
+78:     playerpos = (map_metadata) ? map_metadata.town_map_position : nil
+79:     if !playerpos
+80:       mapindex = 0
+81:       @map     = GameData::TownMap.get(0)
+82:       @map_x   = LEFT
+83:       @map_y   = TOP
+84:     elsif @region >= 0 && @region != playerpos[0] && GameData::TownMap.exists?(@region)
+85:       mapindex = @region
+86:       @map     = GameData::TownMap.get(@region)
+87:       @map_x   = LEFT
+88:       @map_y   = TOP
+89:     else
+90:       mapindex = playerpos[0]
+91:       @map     = GameData::TownMap.get(playerpos[0])
+92:       @map_x   = playerpos[1]
+93:       @map_y   = playerpos[2]
+94:       mapsize  = map_metadata.town_map_size
+95:       if mapsize && mapsize[0] && mapsize[0] > 0
+96:         sqwidth  = mapsize[0]
+97:         sqheight = (mapsize[1].length.to_f / mapsize[0]).ceil
+98:         @map_x += ($game_player.x * sqwidth / $game_map.width).floor if sqwidth > 1
+99:         @map_y += ($game_player.y * sqheight / $game_map.height).floor if sqheight > 1
+100:       end
+101:     end
+102:     if !@map
+103:       pbMessage(_INTL("The map data cannot be found."))
+104:       return false
+105:     end
+106:     addBackgroundOrColoredPlane(@sprites, "background", "Town Map/bg", Color.black, @viewport)
+107:     @sprites["map"] = IconSprite.new(0, 0, @viewport)
+108:     @sprites["map"].setBitmap("Graphics/UI/Town Map/#{@map.filename}")
+109:     @sprites["map"].x += (Graphics.width - @sprites["map"].bitmap.width) / 2
+110:     @sprites["map"].y += (Graphics.height - @sprites["map"].bitmap.height) / 2
+111:     Settings::REGION_MAP_EXTRAS.each do |graphic|
+112:       next if graphic[0] != mapindex || !location_shown?(graphic)
+113:       if !@sprites["map2"]
+114:         @sprites["map2"] = BitmapSprite.new(480, 320, @viewport)
+115:         @sprites["map2"].x = @sprites["map"].x
+116:         @sprites["map2"].y = @sprites["map"].y
+117:       end
+118:       pbDrawImagePositions(
+119:         @sprites["map2"].bitmap,
+120:         [["Graphics/UI/Town Map/#{graphic[4]}", graphic[2] * SQUARE_WIDTH, graphic[3] * SQUARE_HEIGHT]]
+121:       )
+122:     end
+123:     @sprites["mapbottom"] = MapBottomSprite.new(@viewport)
+124:     @sprites["mapbottom"].mapname     = @map.name
+125:     @sprites["mapbottom"].maplocation = pbGetMapLocation(@map_x, @map_y)
+126:     @sprites["mapbottom"].mapdetails  = pbGetMapDetails(@map_x, @map_y)
+127:     if playerpos && mapindex == playerpos[0]
+128:       @sprites["player"] = IconSprite.new(0, 0, @viewport)
+129:       @sprites["player"].setBitmap(GameData::TrainerType.player_map_icon_filename($player.trainer_type))
+130:       @sprites["player"].x = point_x_to_screen_x(@map_x)
+131:       @sprites["player"].y = point_y_to_screen_y(@map_y)
+132:     end
+133:     k = 0
+134:     (LEFT..RIGHT).each do |i|
+135:       (TOP..BOTTOM).each do |j|
+136:         healspot = pbGetHealingSpot(i, j)
+137:         next if !healspot || !$PokemonGlobal.visitedMaps[healspot[0]]
+138:         @sprites["point#{k}"] = AnimatedSprite.create("Graphics/UI/Town Map/icon_fly", 2, 16)
+139:         @sprites["point#{k}"].viewport = @viewport
+140:         @sprites["point#{k}"].x        = point_x_to_screen_x(i)
+141:         @sprites["point#{k}"].y        = point_y_to_screen_y(j)
+142:         @sprites["point#{k}"].visible  = @mode == 1
+143:         @sprites["point#{k}"].play
+144:         k += 1
+145:       end
+146:     end
+147:     @sprites["cursor"] = AnimatedSprite.create("Graphics/UI/Town Map/cursor", 2, 5)
+148:     @sprites["cursor"].viewport = @viewport
+149:     @sprites["cursor"].x        = point_x_to_screen_x(@map_x)
+150:     @sprites["cursor"].y        = point_y_to_screen_y(@map_y)
+151:     @sprites["cursor"].play
+152:     @sprites["help"] = BitmapSprite.new(Graphics.width, 32, @viewport)
+153:     pbSetSystemFont(@sprites["help"].bitmap)
+154:     refresh_fly_screen
+155:     @changed = false
+156:     pbFadeInAndShow(@sprites) { pbUpdate }
+157:   end
+158: 
+159:   def pbEndScene
+160:     pbFadeOutAndHide(@sprites)
+161:     pbDisposeSpriteHash(@sprites)
+162:     @viewport.dispose
+163:   end
+164: 
+165:   def point_x_to_screen_x(x)
+166:     return (-SQUARE_WIDTH / 2) + (x * SQUARE_WIDTH) + ((Graphics.width - @sprites["map"].bitmap.width) / 2)
+167:   end
+168: 
+169:   def point_y_to_screen_y(y)
+170:     return (-SQUARE_HEIGHT / 2) + (y * SQUARE_HEIGHT) + ((Graphics.height - @sprites["map"].bitmap.height) / 2)
+171:   end
+172: 
+173:   def location_shown?(point)
+174:     return point[5] if @wallmap
+175:     return point[1] > 0 && $game_switches[point[1]]
+176:   end
+177: 
+178:   def pbSaveMapData
+179:     GameData::TownMap.save
+180:     Compiler.write_town_map
+181:   end
+182: 
+183:   def pbGetMapLocation(x, y)
+184:     return "" if !@map.point
+185:     @map.point.each do |point|
+186:       next if point[0] != x || point[1] != y
+187:       return "" if point[7] && (@wallmap || point[7] <= 0 || !$game_switches[point[7]])
+188:       name = pbGetMessageFromHash(MessageTypes::REGION_LOCATION_NAMES, point[2])
+189:       return (@editor) ? point[2] : name
+190:     end
+191:     return ""
+192:   end
+193: 
+194:   def pbChangeMapLocation(x, y)
+195:     return "" if !@editor || !@map.point
+196:     point = @map.point.select { |loc| loc[0] == x && loc[1] == y }[0]
+197:     currentobj  = point
+198:     currentname = (point) ? point[2] : ""
+199:     currentname = pbMessageFreeText(_INTL("Set the name for this point."), currentname, false, 250) { pbUpdate }
+200:     if currentname
+201:       if currentobj
+202:         currentobj[2] = currentname
+203:       else
+204:         newobj = [x, y, currentname, ""]
+205:         @map.point.push(newobj)
+206:       end
+207:       @changed = true
+208:     end
+209:   end
+210: 
+211:   def pbGetMapDetails(x, y)
+212:     return "" if !@map.point
+213:     @map.point.each do |point|
+214:       next if point[0] != x || point[1] != y
+215:       return "" if point[7] && (@wallmap || point[7] <= 0 || !$game_switches[point[7]])
+216:       return "" if !point[3]
+217:       mapdesc = pbGetMessageFromHash(MessageTypes::REGION_LOCATION_DESCRIPTIONS, point[3])
+218:       return (@editor) ? point[3] : mapdesc
+219:     end
+220:     return ""
+221:   end
+222: 
+223:   def pbGetHealingSpot(x, y)
+224:     return nil if !@map.point
+225:     @map.point.each do |point|
+226:       next if point[0] != x || point[1] != y
+227:       return nil if point[7] && (@wallmap || point[7] <= 0 || !$game_switches[point[7]])
+228:       return (point[4] && point[5] && point[6]) ? [point[4], point[5], point[6]] : nil
+229:     end
+230:     return nil
+231:   end
+232: 
+233:   def refresh_fly_screen
+234:     return if @fly_map || !Settings::CAN_FLY_FROM_TOWN_MAP || !pbCanFly?
+235:     @sprites["help"].bitmap.clear
+236:     text = (@mode == 0) ? _INTL("ACTION: Fly") : _INTL("ACTION: Cancel Fly")
+237:     pbDrawTextPositions(
+238:       @sprites["help"].bitmap,
+239:       [[text, Graphics.width - 16, 4, :right, Color.new(248, 248, 248), Color.black]]
+240:     )
+241:     @sprites.each do |key, sprite|
+242:       next if !key.include?("point")
+243:       sprite.visible = (@mode == 1)
+244:       sprite.frame   = 0
+245:     end
+246:   end
+247: 
+248:   def pbMapScene
+249:     x_offset = 0
+250:     y_offset = 0
+251:     new_x    = 0
+252:     new_y    = 0
+253:     timer_start = System.uptime
+254:     loop do
+255:       Graphics.update
+256:       Input.update
+257:       pbUpdate
+258:       if x_offset != 0 || y_offset != 0
+259:         if x_offset != 0
+260:           @sprites["cursor"].x = lerp(new_x - x_offset, new_x, 0.1, timer_start, System.uptime)
+261:           x_offset = 0 if @sprites["cursor"].x == new_x
+262:         end
+263:         if y_offset != 0
+264:           @sprites["cursor"].y = lerp(new_y - y_offset, new_y, 0.1, timer_start, System.uptime)
+265:           y_offset = 0 if @sprites["cursor"].y == new_y
+266:         end
+267:         next if x_offset != 0 || y_offset != 0
+268:       end
+269:       ox = 0
+270:       oy = 0
+271:       case Input.dir8
+272:       when 1, 2, 3
+273:         oy = 1 if @map_y < BOTTOM
+274:       when 7, 8, 9
+275:         oy = -1 if @map_y > TOP
+276:       end
+277:       case Input.dir8
+278:       when 1, 4, 7
+279:         ox = -1 if @map_x > LEFT
+280:       when 3, 6, 9
+281:         ox = 1 if @map_x < RIGHT
+282:       end
+283:       if ox != 0 || oy != 0
+284:         @map_x += ox
+285:         @map_y += oy
+286:         x_offset = ox * SQUARE_WIDTH
+287:         y_offset = oy * SQUARE_HEIGHT
+288:         new_x = @sprites["cursor"].x + x_offset
+289:         new_y = @sprites["cursor"].y + y_offset
+290:         timer_start = System.uptime
+291:       end
+292:       @sprites["mapbottom"].maplocation = pbGetMapLocation(@map_x, @map_y)
+293:       @sprites["mapbottom"].mapdetails  = pbGetMapDetails(@map_x, @map_y)
+294:       if Input.trigger?(Input::BACK)
+295:         if @editor && @changed
+296:           pbSaveMapData if pbConfirmMessage(_INTL("Save changes?")) { pbUpdate }
+297:           break if pbConfirmMessage(_INTL("Exit from the map?")) { pbUpdate }
+298:         else
+299:           break
+300:         end
+301:       elsif Input.trigger?(Input::USE) && @mode == 1   # Choosing an area to fly to
+302:         healspot = pbGetHealingSpot(@map_x, @map_y)
+303:         if healspot && ($PokemonGlobal.visitedMaps[healspot[0]] ||
+304:            ($DEBUG && Input.press?(Input::CTRL)))
+305:           return healspot if @fly_map
+306:           name = pbGetMapNameFromId(healspot[0])
+307:           return healspot if pbConfirmMessage(_INTL("Would you like to use Fly to go to {1}?", name)) { pbUpdate }
+308:         end
+309:       elsif Input.trigger?(Input::USE) && @editor   # Intentionally after other USE input check
+310:         pbChangeMapLocation(@map_x, @map_y)
+311:       elsif Input.trigger?(Input::ACTION) && Settings::CAN_FLY_FROM_TOWN_MAP &&
+312:             !@wallmap && !@fly_map && pbCanFly?
+313:         pbPlayDecisionSE
+314:         @mode = (@mode == 1) ? 0 : 1
+315:         refresh_fly_screen
+316:       end
+317:     end
+318:     pbPlayCloseMenuSE
+319:     return nil
+320:   end
+321: end
+322: 
+323: #===============================================================================
+324: #
+325: #===============================================================================
+326: class PokemonRegionMapScreen
+327:   def initialize(scene)
+328:     @scene = scene
+329:   end
+330: 
+331:   def pbStartFlyScreen
+332:     @scene.pbStartScene(false, true)
+333:     ret = @scene.pbMapScene
+334:     @scene.pbEndScene
+335:     return ret
+336:   end
+337: 
+338:   def pbStartScreen
+339:     @scene.pbStartScene($DEBUG)
+340:     ret = @scene.pbMapScene
+341:     @scene.pbEndScene
+342:     return ret
+343:   end
+344: end
+345: 
+346: #===============================================================================
+347: #
+348: #===============================================================================
+349: def pbShowMap(region = -1, wallmap = true)
+350:   pbFadeOutIn do
+351:     scene = PokemonRegionMap_Scene.new(region, wallmap)
+352:     screen = PokemonRegionMapScreen.new(scene)
+353:     ret = screen.pbStartScreen
+354:     $game_temp.fly_destination = ret if ret && !wallmap
+355:   end
+356: end

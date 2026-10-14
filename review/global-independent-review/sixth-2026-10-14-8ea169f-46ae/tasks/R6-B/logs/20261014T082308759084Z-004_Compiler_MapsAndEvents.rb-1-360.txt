@@ -1,0 +1,360 @@
+1: module Compiler
+2:   SCRIPT_REPLACEMENTS = [
+3:     ["Kernel.",                      ""],
+4:     ["$PokemonBag.pbQuantity",       "$bag.quantity"],
+5:     ["$PokemonBag.pbHasItem?",       "$bag.has?"],
+6:     ["$PokemonBag.pbCanStore?",      "$bag.can_add?"],
+7:     ["$PokemonBag.pbStoreItem",      "$bag.add"],
+8:     ["$PokemonBag.pbStoreAllOrNone", "$bag.add_all"],
+9:     ["$PokemonBag.pbChangeItem",     "$bag.replace_item"],
+10:     ["$PokemonBag.pbDeleteItem",     "$bag.remove"],
+11:     ["$PokemonBag.pbIsRegistered?",  "$bag.registered?"],
+12:     ["$PokemonBag.pbRegisterItem",   "$bag.register"],
+13:     ["$PokemonBag.pbUnregisterItem", "$bag.unregister"],
+14:     ["$PokemonBag",                  "$bag"],
+15:     ["pbQuantity",                   "$bag.quantity"],
+16:     ["pbHasItem?",                   "$bag.has?"],
+17:     ["pbCanStore?",                  "$bag.can_add?"],
+18:     ["pbStoreItem",                  "$bag.add"],
+19:     ["pbStoreAllOrNone",             "$bag.add_all"],
+20:     ["$Trainer",                     "$player"],
+21:     ["$SaveVersion",                 "$save_engine_version"],
+22:     ["$game_version",                "$save_game_version"],
+23:     ["$MapFactory",                  "$map_factory"],
+24:     ["pbDayCareDeposited",           "DayCare.count"],
+25:     ["pbDayCareGetDeposited",        "DayCare.get_details"],
+26:     ["pbDayCareGetLevelGain",        "DayCare.get_level_gain"],
+27:     ["pbDayCareDeposit",             "DayCare.deposit"],
+28:     ["pbDayCareWithdraw",            "DayCare.withdraw"],
+29:     ["pbDayCareChoose",              "DayCare.choose"],
+30:     ["pbDayCareGetCompatibility",    "DayCare.get_compatibility"],
+31:     ["pbEggGenerated?",              "DayCare.egg_generated?"],
+32:     ["pbDayCareGenerateEgg",         "DayCare.collect_egg"],
+33:     ["get_character(0)",             "get_self"],
+34:     ["get_character(-1)",            "get_player"],
+35:     ["pbCheckAble",                  "$player.has_other_able_pokemon?"],
+36:     ["$PokemonTemp.lastbattle",      "$game_temp.last_battle_record"],
+37:     ["calcStats",                    "calc_stats"]
+38:   ]
+39: 
+40:   module_function
+41: 
+42:   #=============================================================================
+43:   # Add new map files to the map tree.
+44:   #=============================================================================
+45:   def import_new_maps
+46:     return false if !$DEBUG
+47:     mapfiles = {}
+48:     # Get IDs of all maps in the Data folder
+49:     Dir.chdir("Data") do
+50:       mapData = sprintf("Map*.rxdata")
+51:       Dir.glob(mapData).each do |map|
+52:         mapfiles[$1.to_i(10)] = true if map[/map(\d+)\.rxdata/i]
+53:       end
+54:     end
+55:     mapinfos = pbLoadMapInfos
+56:     maxOrder = 0
+57:     # Exclude maps found in mapinfos
+58:     mapinfos.each_key do |id|
+59:       next if !mapinfos[id]
+60:       mapfiles.delete(id) if mapfiles[id]
+61:       maxOrder = [maxOrder, mapinfos[id].order].max
+62:     end
+63:     # Import maps not found in mapinfos
+64:     maxOrder += 1
+65:     imported = false
+66:     count = 0
+67:     mapfiles.each_key do |id|
+68:       next if id == 999   # Ignore 999 (random dungeon map)
+69:       mapinfo = RPG::MapInfo.new
+70:       mapinfo.order = maxOrder
+71:       mapinfo.name  = sprintf("MAP%03d", id)
+72:       maxOrder += 1
+73:       mapinfos[id] = mapinfo
+74:       imported = true
+75:       count += 1
+76:     end
+77:     if imported
+78:       save_data(mapinfos, "Data/MapInfos.rxdata")
+79:       $game_temp.map_infos = nil
+80:       pbMessage(_INTL("{1} new map(s) copied to the Data folder were successfully imported.", count))
+81:     end
+82:     return imported
+83:   end
+84: 
+85:   #=============================================================================
+86:   # Generate and modify event commands.
+87:   #=============================================================================
+88:   def generate_move_route(commands)
+89:     route           = RPG::MoveRoute.new
+90:     route.repeat    = false
+91:     route.skippable = true
+92:     route.list.clear
+93:     i = 0
+94:     while i < commands.length
+95:       case commands[i]
+96:       when PBMoveRoute::WAIT, PBMoveRoute::SWITCH_ON, PBMoveRoute::SWITCH_OFF,
+97:            PBMoveRoute::CHANGE_SPEED, PBMoveRoute::CHANGE_FREQUENCY, PBMoveRoute::OPACITY,
+98:            PBMoveRoute::BLENDING, PBMoveRoute::PLAY_SE, PBMoveRoute::SCRIPT
+99:         route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1]]))
+100:         i += 1
+101:       when PBMoveRoute::SCRIPT_ASYNC
+102:         route.list.push(RPG::MoveCommand.new(PBMoveRoute::SCRIPT, [commands[i + 1]]))
+103:         route.list.push(RPG::MoveCommand.new(PBMoveRoute::WAIT, [0]))
+104:         i += 1
+105:       when PBMoveRoute::JUMP
+106:         route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1], commands[i + 2]]))
+107:         i += 2
+108:       when PBMoveRoute::GRAPHIC
+109:         route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1], commands[i + 2], commands[i + 3], commands[i + 4]]))
+110:         i += 4
+111:       else
+112:         route.list.push(RPG::MoveCommand.new(commands[i]))
+113:       end
+114:       i += 1
+115:     end
+116:     route.list.push(RPG::MoveCommand.new(0))
+117:     return route
+118:   end
+119: 
+120:   def push_move_route(list, character, route, indent = 0)
+121:     route = generate_move_route(route) if route.is_a?(Array)
+122:     route.list.length.times do |i|
+123:       list.push(
+124:         RPG::EventCommand.new((i == 0) ? 209 : 509, indent,
+125:                               (i == 0) ? [character, route] : [route.list[i - 1]])
+126:       )
+127:     end
+128:   end
+129: 
+130:   def push_move_route_and_wait(list, character, route, indent = 0)
+131:     push_move_route(list, character, route, indent)
+132:     push_event(list, 210, [], indent)
+133:   end
+134: 
+135:   def push_wait(list, frames, indent = 0)
+136:     push_event(list, 106, [frames], indent)
+137:   end
+138: 
+139:   def push_event(list, cmd, params = nil, indent = 0)
+140:     list.push(RPG::EventCommand.new(cmd, indent, params || []))
+141:   end
+142: 
+143:   def push_end(list)
+144:     list.push(RPG::EventCommand.new(0, 0, []))
+145:   end
+146: 
+147:   def push_comment(list, cmt, indent = 0)
+148:     textsplit2 = cmt.split(/\n/)
+149:     textsplit2.length.times do |i|
+150:       list.push(RPG::EventCommand.new((i == 0) ? 108 : 408, indent, [textsplit2[i].gsub(/\s+$/, "")]))
+151:     end
+152:   end
+153: 
+154:   def push_text(list, text, indent = 0)
+155:     return if !text
+156:     textsplit = text.split(/\\m/)
+157:     textsplit.each do |t|
+158:       first = true
+159:       textsplit2 = t.split(/\n/)
+160:       textsplit2.length.times do |i|
+161:         textchunk = textsplit2[i].gsub(/\s+$/, "")
+162:         if textchunk && textchunk != ""
+163:           list.push(RPG::EventCommand.new((first) ? 101 : 401, indent, [textchunk]))
+164:           first = false
+165:         end
+166:       end
+167:     end
+168:   end
+169: 
+170:   def push_script(list, script, indent = 0)
+171:     return if !script
+172:     first = true
+173:     textsplit2 = script.split(/\n/)
+174:     textsplit2.length.times do |i|
+175:       textchunk = textsplit2[i].gsub(/\s+$/, "")
+176:       if textchunk && textchunk != ""
+177:         list.push(RPG::EventCommand.new((first) ? 355 : 655, indent, [textchunk]))
+178:         first = false
+179:       end
+180:     end
+181:   end
+182: 
+183:   def push_exit(list, indent = 0)
+184:     list.push(RPG::EventCommand.new(115, indent, []))
+185:   end
+186: 
+187:   def push_else(list, indent = 0)
+188:     list.push(RPG::EventCommand.new(0, indent, []))
+189:     list.push(RPG::EventCommand.new(411, indent - 1, []))
+190:   end
+191: 
+192:   def push_branch(list, script, indent = 0)
+193:     list.push(RPG::EventCommand.new(111, indent, [12, script]))
+194:   end
+195: 
+196:   def push_branch_end(list, indent = 0)
+197:     list.push(RPG::EventCommand.new(0, indent, []))
+198:     list.push(RPG::EventCommand.new(412, indent - 1, []))
+199:   end
+200: 
+201:   # cancel is 1/2/3/4 for the options, 0 for disallow, 5 for branch
+202:   def push_choices(list, choices, cancel = 0, indent = 0)
+203:     list.push(RPG::EventCommand.new(102, indent, [choices, cancel, [0, 1, 2, 3]]))
+204:   end
+205: 
+206:   def push_choice(list, index, text, indent = 0)
+207:     list.push(RPG::EventCommand.new(0, indent, [])) if index > 0
+208:     list.push(RPG::EventCommand.new(402, indent - 1, [index, text]))
+209:   end
+210: 
+211:   def push_choices_end(list, indent = 0)
+212:     list.push(RPG::EventCommand.new(0, indent, []))
+213:     list.push(RPG::EventCommand.new(404, indent - 1, []))
+214:   end
+215: 
+216:   def push_self_switch(list, swtch, switchOn, indent = 0)
+217:     list.push(RPG::EventCommand.new(123, indent, [swtch, switchOn ? 0 : 1]))
+218:   end
+219: 
+220:   def apply_pages(page, pages)
+221:     pages.each do |p|
+222:       p.graphic       = page.graphic
+223:       p.walk_anime    = page.walk_anime
+224:       p.step_anime    = page.step_anime
+225:       p.direction_fix = page.direction_fix
+226:       p.through       = page.through
+227:       p.always_on_top = page.always_on_top
+228:     end
+229:   end
+230: 
+231:   def add_passage_list(event, mapData)
+232:     return if !event || event.pages.length == 0
+233:     page                         = RPG::Event::Page.new
+234:     page.condition.switch1_valid = true
+235:     page.condition.switch1_id    = mapData.registerSwitch('s:tsOff?("A")')
+236:     page.graphic.character_name  = ""
+237:     page.trigger                 = 3   # Autorun
+238:     page.list.clear
+239:     list = page.list
+240:     push_branch(list, "get_self.onEvent?")
+241:     push_event(list, 208, [0], 1)   # Change Transparent Flag
+242:     push_wait(list, 6, 1)          # Wait
+243:     push_event(list, 208, [1], 1)   # Change Transparent Flag
+244:     push_move_route_and_wait(list, -1, [PBMoveRoute::DOWN], 1)
+245:     push_branch_end(list, 1)
+246:     push_script(list, "setTempSwitchOn(\"A\")")
+247:     push_end(list)
+248:     event.pages.push(page)
+249:   end
+250: 
+251:   #=============================================================================
+252:   #
+253:   #=============================================================================
+254:   def safequote(x)
+255:     x = x.gsub(/\"\#\'\\/) { |a| "\\" + a }
+256:     x = x.gsub(/\t/, "\\t")
+257:     x = x.gsub(/\r/, "\\r")
+258:     x = x.gsub(/\n/, "\\n")
+259:     return x
+260:   end
+261: 
+262:   def safequote2(x)
+263:     x = x.gsub(/\"\#\'\\/) { |a| "\\" + a }
+264:     x = x.gsub(/\t/, "\\t")
+265:     x = x.gsub(/\r/, "\\r")
+266:     x = x.gsub(/\n/, " ")
+267:     return x
+268:   end
+269: 
+270:   def pbEventId(event)
+271:     list = event.pages[0].list
+272:     return nil if list.length == 0
+273:     codes = []
+274:     i = 0
+275:     while i < list.length
+276:       codes.push(list[i].code)
+277:       i += 1
+278:     end
+279:   end
+280: 
+281:   def pbEachPage(e)
+282:     return true if !e
+283:     if e.is_a?(RPG::CommonEvent)
+284:       yield e
+285:     else
+286:       e.pages.each { |page| yield page }
+287:     end
+288:   end
+289: 
+290:   #=============================================================================
+291:   #
+292:   #=============================================================================
+293:   class MapData
+294:     attr_reader :mapinfos
+295: 
+296:     def initialize
+297:       @mapinfos = pbLoadMapInfos
+298:       @system   = load_data("Data/System.rxdata")
+299:       @tilesets = load_data("Data/Tilesets.rxdata")
+300:       @mapxy      = []
+301:       @mapWidths  = []
+302:       @mapHeights = []
+303:       @maps       = []
+304:       @registeredSwitches = {}
+305:     end
+306: 
+307:     def switchName(id)
+308:       return @system.switches[id] || ""
+309:     end
+310: 
+311:     def mapFilename(mapID)
+312:       return sprintf("Data/Map%03d.rxdata", mapID)
+313:     end
+314: 
+315:     def getMap(mapID)
+316:       return @maps[mapID] if @maps[mapID]
+317:       begin
+318:         @maps[mapID] = load_data(mapFilename(mapID))
+319:         return @maps[mapID]
+320:       rescue
+321:         return nil
+322:       end
+323:     end
+324: 
+325:     def getEventFromXY(mapID, x, y)
+326:       return nil if x < 0 || y < 0
+327:       mapPositions = @mapxy[mapID]
+328:       return mapPositions[(y * @mapWidths[mapID]) + x] if mapPositions
+329:       map = getMap(mapID)
+330:       return nil if !map
+331:       @mapWidths[mapID]  = map.width
+332:       @mapHeights[mapID] = map.height
+333:       mapPositions = []
+334:       width = map.width
+335:       map.events.each_value do |e|
+336:         mapPositions[(e.y * width) + e.x] = e if e
+337:       end
+338:       @mapxy[mapID] = mapPositions
+339:       return mapPositions[(y * width) + x]
+340:     end
+341: 
+342:     def getEventFromID(mapID, id)
+343:       map = getMap(mapID)
+344:       return nil if !map
+345:       return map.events[id]
+346:     end
+347: 
+348:     def getTilesetPassages(map, mapID)
+349:       begin
+350:         return @tilesets[map.tileset_id].passages
+351:       rescue
+352:         raise "Tileset data for tileset number #{map.tileset_id} used on map #{mapID} was not found. " +
+353:               "The tileset was likely deleted, but one or more maps still use it."
+354:       end
+355:     end
+356: 
+357:     def getTilesetPriorities(map, mapID)
+358:       begin
+359:         return @tilesets[map.tileset_id].priorities
+360:       rescue

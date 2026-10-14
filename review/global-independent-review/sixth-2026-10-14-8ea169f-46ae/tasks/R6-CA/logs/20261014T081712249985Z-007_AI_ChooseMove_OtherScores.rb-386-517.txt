@@ -1,0 +1,132 @@
+386:          target.battler.form > 0 && !target.effects[PBEffects::Transform]
+387:         old_score = score
+388:         score += 8
+389:         PBDebug.log_score_change(score - old_score, "can trigger the target's ability")
+390:       end
+391:       if target.item_active?
+392:         if Battle::ItemEffects::OnBeingHit[target.item] ||
+393:            (Battle::ItemEffects::AfterMoveUseFromTarget[target.item] &&
+394:            (!user.has_active_ability?(:SHEERFORCE) || move.move.addlEffect == 0))
+395:           old_score = score
+396:           score += 8
+397:           PBDebug.log_score_change(score - old_score, "can trigger the target's item")
+398:         end
+399:       end
+400:     end
+401:     next score
+402:   }
+403: )
+404: 
+405: #===============================================================================
+406: # Prefer a damaging move if it will trigger the user's ability when used, e.g.
+407: # Poison Touch, Magician.
+408: #===============================================================================
+409: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:trigger_user_ability_upon_hit,
+410:   proc { |score, move, user, target, ai, battle|
+411:     if ai.trainer.high_skill? && user.ability_active? && move.damagingMove? &&
+412:        target.effects[PBEffects::Substitute] == 0
+413:       # NOTE: The only ability with an OnDealingHit effect also requires the
+414:       #       move to make contact. The only abilities with an OnEndOfUsingMove
+415:       #       effect revolve around damaging moves.
+416:       if (Battle::AbilityEffects::OnDealingHit[user.ability] && move.move.contactMove?) ||
+417:          Battle::AbilityEffects::OnEndOfUsingMove[user.ability]
+418:         old_score = score
+419:         score += 8
+420:         PBDebug.log_score_change(score - old_score, "can trigger the user's ability")
+421:       end
+422:     end
+423:     next score
+424:   }
+425: )
+426: 
+427: #===============================================================================
+428: # Don't prefer damaging moves that will knock out the target if they are using
+429: # Destiny Bond or Grudge.
+430: #===============================================================================
+431: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:knocking_out_a_destiny_bonder_or_grudger,
+432:   proc { |score, move, user, target, ai, battle|
+433:     if (ai.trainer.has_skill_flag?("HPAware") || ai.trainer.high_skill?) && move.damagingMove? &&
+434:        (target.effects[PBEffects::DestinyBond] || target.effects[PBEffects::Grudge])
+435:       priority = move.rough_priority(user)
+436:       if priority > 0 || (priority == 0 && user.faster_than?(target))   # User goes first
+437:         if move.rough_damage > target.hp * 1.1   # Predicted to KO the target
+438:           old_score = score
+439:           if target.effects[PBEffects::DestinyBond]
+440:             score -= 20
+441:             score -= 10 if battle.pbAbleNonActiveCount(user.idxOwnSide) == 0
+442:             PBDebug.log_score_change(score - old_score, "don't want to KO the Destiny Bonding target")
+443:           elsif target.effects[PBEffects::Grudge]
+444:             score -= 15
+445:             score -= 7 if battle.pbAbleNonActiveCount(user.idxOwnSide) == 0
+446:             PBDebug.log_score_change(score - old_score, "don't want to KO the Grudge-using target")
+447:           end
+448:         end
+449:       end
+450:     end
+451:     next score
+452:   }
+453: )
+454: 
+455: #===============================================================================
+456: # Don't prefer damaging moves if the target is using Rage, unless the move will
+457: # deal enough damage to KO the target within two rounds.
+458: #===============================================================================
+459: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:damaging_a_raging_target,
+460:   proc { |score, move, user, target, ai, battle|
+461:     if ai.trainer.medium_skill? && target.effects[PBEffects::Rage] && move.damagingMove?
+462:       # Worth damaging the target if it can be knocked out within two rounds
+463:       if ai.trainer.has_skill_flag?("HPAware")
+464:         next score if (move.rough_damage + target.rough_end_of_round_damage) * 2 > target.hp * 1.1
+465:       end
+466:       old_score = score
+467:       score -= 10
+468:       PBDebug.log_score_change(score - old_score, "don't want to damage a Raging target")
+469:     end
+470:     next score
+471:   }
+472: )
+473: 
+474: #===============================================================================
+475: # Don't prefer damaging moves if the target is Biding, unless the move will deal
+476: # enough damage to KO the target before it retaliates (assuming the move is used
+477: # repeatedly until the target retaliates). Doesn't do a score change if the user
+478: # will be immune to Bide's damage.
+479: #===============================================================================
+480: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:damaging_a_biding_target,
+481:   proc { |score, move, user, target, ai, battle|
+482:     if ai.trainer.medium_skill? && target.effects[PBEffects::Bide] > 0 && move.damagingMove?
+483:       eff = user.effectiveness_of_type_against_battler(:NORMAL, target)   # Bide is Normal type
+484:       if !Effectiveness.ineffective?(eff)
+485:         # Worth damaging the target if it can be knocked out before Bide ends
+486:         if ai.trainer.has_skill_flag?("HPAware")
+487:           dmg = move.rough_damage
+488:           eor_dmg = target.rough_end_of_round_damage
+489:           hits_possible = target.effects[PBEffects::Bide] - 1
+490:           eor_dmg *= hits_possible
+491:           hits_possible += 1 if user.faster_than?(target)
+492:           next score if (dmg * hits_possible) + eor_dmg > target.hp * 1.1
+493:         end
+494:         old_score = score
+495:         score -= 20
+496:         PBDebug.log_score_change(score - old_score, "don't want to damage the Biding target")
+497:       end
+498:     end
+499:     next score
+500:   }
+501: )
+502: 
+503: #===============================================================================
+504: # Don't prefer a dancing move if the target has the Dancer ability.
+505: #===============================================================================
+506: Battle::AI::Handlers::GeneralMoveScore.add(:dance_move_against_dancer,
+507:   proc { |score, move, user, ai, battle|
+508:     if move.move.danceMove?
+509:       old_score = score
+510:       ai.each_foe_battler(user.side) do |b, i|
+511:         score -= 10 if b.has_active_ability?(:DANCER)
+512:       end
+513:       PBDebug.log_score_change(score - old_score, "don't want to use a dance move because a foe has Dancer")
+514:     end
+515:     next score
+516:   }
+517: )

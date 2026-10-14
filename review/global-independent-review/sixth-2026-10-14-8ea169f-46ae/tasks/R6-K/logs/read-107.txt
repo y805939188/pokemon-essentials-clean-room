@@ -1,0 +1,247 @@
+PATH reference/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/009_Species_files.rb RANGE 1-246 TOTAL 246
+1	module GameData
+2	  class Species
+3	    def self.check_graphic_file(path, species, form = 0, gender = 0, shiny = false, shadow = false, subfolder = "")
+4	      try_subfolder = sprintf("%s/", subfolder)
+5	      try_species = species
+6	      try_form    = (form > 0) ? sprintf("_%d", form) : ""
+7	      try_gender  = (gender == 1) ? "_female" : ""
+8	      try_shadow  = (shadow) ? "_shadow" : ""
+9	      factors = []
+10	      factors.push([4, sprintf("%s shiny/", subfolder), try_subfolder]) if shiny
+11	      factors.push([3, try_shadow, ""]) if shadow
+12	      factors.push([2, try_gender, ""]) if gender == 1
+13	      factors.push([1, try_form, ""]) if form > 0
+14	      factors.push([0, try_species, "000"])
+15	      # Go through each combination of parameters in turn to find an existing sprite
+16	      (2**factors.length).times do |i|
+17	        # Set try_ parameters for this combination
+18	        factors.each_with_index do |factor, index|
+19	          value = ((i / (2**index)).even?) ? factor[1] : factor[2]
+20	          case factor[0]
+21	          when 0 then try_species   = value
+22	          when 1 then try_form      = value
+23	          when 2 then try_gender    = value
+24	          when 3 then try_shadow    = value
+25	          when 4 then try_subfolder = value   # Shininess
+26	          end
+27	        end
+28	        # Look for a graphic matching this combination's parameters
+29	        try_species_text = try_species
+30	        ret = pbResolveBitmap(sprintf("%s%s%s%s%s%s", path, try_subfolder,
+31	                                      try_species_text, try_form, try_gender, try_shadow))
+32	        return ret if ret
+33	      end
+34	      return nil
+35	    end
+36	
+37	    def self.check_egg_graphic_file(path, species, form, suffix = "")
+38	      species_data = self.get_species_form(species, form)
+39	      return nil if species_data.nil?
+40	      if form > 0
+41	        ret = pbResolveBitmap(sprintf("%s%s_%d%s", path, species_data.species, form, suffix))
+42	        return ret if ret
+43	      end
+44	      return pbResolveBitmap(sprintf("%s%s%s", path, species_data.species, suffix))
+45	    end
+46	
+47	    def self.front_sprite_filename(species, form = 0, gender = 0, shiny = false, shadow = false)
+48	      return self.check_graphic_file("Graphics/Pokemon/", species, form, gender, shiny, shadow, "Front")
+49	    end
+50	
+51	    def self.back_sprite_filename(species, form = 0, gender = 0, shiny = false, shadow = false)
+52	      return self.check_graphic_file("Graphics/Pokemon/", species, form, gender, shiny, shadow, "Back")
+53	    end
+54	
+55	    def self.egg_sprite_filename(species, form)
+56	      ret = self.check_egg_graphic_file("Graphics/Pokemon/Eggs/", species, form)
+57	      return (ret) ? ret : pbResolveBitmap("Graphics/Pokemon/Eggs/000")
+58	    end
+59	
+60	    def self.egg_cracks_sprite_filename(species, form)
+61	      ret = self.check_egg_graphic_file("Graphics/Pokemon/Eggs/", species, form, "_cracks")
+62	      return (ret) ? ret : pbResolveBitmap("Graphics/Pokemon/Eggs/000_cracks")
+63	    end
+64	
+65	    def self.sprite_filename(species, form = 0, gender = 0, shiny = false, shadow = false, back = false, egg = false)
+66	      return self.egg_sprite_filename(species, form) if egg
+67	      return self.back_sprite_filename(species, form, gender, shiny, shadow) if back
+68	      return self.front_sprite_filename(species, form, gender, shiny, shadow)
+69	    end
+70	
+71	    def self.front_sprite_bitmap(species, form = 0, gender = 0, shiny = false, shadow = false)
+72	      filename = self.front_sprite_filename(species, form, gender, shiny, shadow)
+73	      return (filename) ? AnimatedBitmap.new(filename) : nil
+74	    end
+75	
+76	    def self.back_sprite_bitmap(species, form = 0, gender = 0, shiny = false, shadow = false)
+77	      filename = self.back_sprite_filename(species, form, gender, shiny, shadow)
+78	      return (filename) ? AnimatedBitmap.new(filename) : nil
+79	    end
+80	
+81	    def self.egg_sprite_bitmap(species, form = 0)
+82	      filename = self.egg_sprite_filename(species, form)
+83	      return (filename) ? AnimatedBitmap.new(filename) : nil
+84	    end
+85	
+86	    def self.sprite_bitmap(species, form = 0, gender = 0, shiny = false, shadow = false, back = false, egg = false)
+87	      return self.egg_sprite_bitmap(species, form) if egg
+88	      return self.back_sprite_bitmap(species, form, gender, shiny, shadow) if back
+89	      return self.front_sprite_bitmap(species, form, gender, shiny, shadow)
+90	    end
+91	
+92	    def self.sprite_bitmap_from_pokemon(pkmn, back = false, species = nil)
+93	      species = pkmn.species if !species
+94	      species = GameData::Species.get(species).species   # Just to be sure it's a symbol
+95	      return self.egg_sprite_bitmap(species, pkmn.form) if pkmn.egg?
+96	      if back
+97	        ret = self.back_sprite_bitmap(species, pkmn.form, pkmn.gender, pkmn.shiny?, pkmn.shadowPokemon?)
+98	      else
+99	        ret = self.front_sprite_bitmap(species, pkmn.form, pkmn.gender, pkmn.shiny?, pkmn.shadowPokemon?)
+100	      end
+101	      alter_bitmap_function = MultipleForms.getFunction(species, "alterBitmap")
+102	      if ret && alter_bitmap_function
+103	        new_ret = ret.copy
+104	        ret.dispose
+105	        new_ret.each { |bitmap| alter_bitmap_function.call(pkmn, bitmap) }
+106	        ret = new_ret
+107	      end
+108	      return ret
+109	    end
+110	
+111	    #===========================================================================
+112	
+113	    def self.egg_icon_filename(species, form)
+114	      ret = self.check_egg_graphic_file("Graphics/Pokemon/Eggs/", species, form, "_icon")
+115	      return (ret) ? ret : pbResolveBitmap("Graphics/Pokemon/Eggs/000_icon")
+116	    end
+117	
+118	    def self.icon_filename(species, form = 0, gender = 0, shiny = false, shadow = false, egg = false)
+119	      return self.egg_icon_filename(species, form) if egg
+120	      return self.check_graphic_file("Graphics/Pokemon/", species, form, gender, shiny, shadow, "Icons")
+121	    end
+122	
+123	    def self.icon_filename_from_pokemon(pkmn)
+124	      return self.icon_filename(pkmn.species, pkmn.form, pkmn.gender, pkmn.shiny?, pkmn.shadowPokemon?, pkmn.egg?)
+125	    end
+126	
+127	    def self.egg_icon_bitmap(species, form)
+128	      filename = self.egg_icon_filename(species, form)
+129	      return (filename) ? AnimatedBitmap.new(filename).deanimate : nil
+130	    end
+131	
+132	    def self.icon_bitmap(species, form = 0, gender = 0, shiny = false, shadow = false, egg = false)
+133	      return self.egg_icon_bitmap(species, form) if egg
+134	      filename = self.icon_filename(species, form, gender, shiny, shadow)
+135	      return (filename) ? AnimatedBitmap.new(filename).deanimate : nil
+136	    end
+137	
+138	    def self.icon_bitmap_from_pokemon(pkmn)
+139	      return self.icon_bitmap(pkmn.species, pkmn.form, pkmn.gender, pkmn.shiny?, pkmn.shadowPokemon?, pkmn.egg?)
+140	    end
+141	
+142	    #===========================================================================
+143	
+144	    def self.footprint_filename(species, form = 0)
+145	      species_data = self.get_species_form(species, form)
+146	      return nil if species_data.nil?
+147	      if form > 0
+148	        ret = pbResolveBitmap(sprintf("Graphics/Pokemon/Footprints/%s_%d", species_data.species, form))
+149	        return ret if ret
+150	      end
+151	      return pbResolveBitmap(sprintf("Graphics/Pokemon/Footprints/%s", species_data.species))
+152	    end
+153	
+154	    #===========================================================================
+155	
+156	    def self.shadow_filename(species, form = 0)
+157	      species_data = self.get_species_form(species, form)
+158	      return nil if species_data.nil?
+159	      # Look for species-specific shadow graphic
+160	      if form > 0
+161	        ret = pbResolveBitmap(sprintf("Graphics/Pokemon/Shadow/%s_%d", species_data.species, form))
+162	        return ret if ret
+163	      end
+164	      ret = pbResolveBitmap(sprintf("Graphics/Pokemon/Shadow/%s", species_data.species))
+165	      return ret if ret
+166	      # Use general shadow graphic
+167	      metrics_data = GameData::SpeciesMetrics.get_species_form(species_data.species, form)
+168	      return pbResolveBitmap(sprintf("Graphics/Pokemon/Shadow/%d", metrics_data.shadow_size))
+169	    end
+170	
+171	    def self.shadow_bitmap(species, form = 0)
+172	      filename = self.shadow_filename(species, form)
+173	      return (filename) ? AnimatedBitmap.new(filename) : nil
+174	    end
+175	
+176	    def self.shadow_bitmap_from_pokemon(pkmn)
+177	      filename = self.shadow_filename(pkmn.species, pkmn.form)
+178	      return (filename) ? AnimatedBitmap.new(filename) : nil
+179	    end
+180	
+181	    #===========================================================================
+182	
+183	    def self.check_cry_file(species, form, suffix = "")
+184	      species_data = self.get_species_form(species, form)
+185	      return nil if species_data.nil?
+186	      if form > 0
+187	        ret = sprintf("Cries/%s_%d%s", species_data.species, form, suffix)
+188	        return ret if pbResolveAudioSE(ret)
+189	      end
+190	      ret = sprintf("Cries/%s%s", species_data.species, suffix)
+191	      return (pbResolveAudioSE(ret)) ? ret : nil
+192	    end
+193	
+194	    def self.cry_filename(species, form = 0, suffix = "")
+195	      return self.check_cry_file(species, form || 0, suffix)
+196	    end
+197	
+198	    def self.cry_filename_from_pokemon(pkmn, suffix = "")
+199	      return self.check_cry_file(pkmn.species, pkmn.form, suffix)
+200	    end
+201	
+202	    def self.play_cry_from_species(species, form = 0, volume = 90, pitch = 100)
+203	      filename = self.cry_filename(species, form)
+204	      return if !filename
+205	      pbSEPlay(RPG::AudioFile.new(filename, volume, pitch)) rescue nil
+206	    end
+207	
+208	    def self.play_cry_from_pokemon(pkmn, volume = 90, pitch = 100)
+209	      return if !pkmn || pkmn.egg?
+210	      filename = self.cry_filename_from_pokemon(pkmn)
+211	      return if !filename
+212	      pitch ||= 100
+213	      pbSEPlay(RPG::AudioFile.new(filename, volume, pitch)) rescue nil
+214	    end
+215	
+216	    def self.play_cry(pkmn, volume = 90, pitch = 100)
+217	      if pkmn.is_a?(Pokemon)
+218	        self.play_cry_from_pokemon(pkmn, volume, pitch)
+219	      else
+220	        self.play_cry_from_species(pkmn, 0, volume, pitch)
+221	      end
+222	    end
+223	
+224	    def self.cry_length(species, form = 0, pitch = 100, suffix = "")
+225	      pitch ||= 100
+226	      return 0 if !species || pitch <= 0
+227	      pitch = pitch.to_f / 100
+228	      ret = 0.0
+229	      if species.is_a?(Pokemon)
+230	        if !species.egg?
+231	          filename = self.cry_filename_from_pokemon(species, suffix)
+232	          filename = self.cry_filename_from_pokemon(species) if !filename && !nil_or_empty?(suffix)
+233	          filename = pbResolveAudioSE(filename)
+234	          ret = getPlayTime(filename) if filename
+235	        end
+236	      else
+237	        filename = self.cry_filename(species, form, suffix)
+238	        filename = self.cry_filename(species, form) if !filename && !nil_or_empty?(suffix)
+239	        filename = pbResolveAudioSE(filename)
+240	        ret = getPlayTime(filename) if filename
+241	      end
+242	      ret /= pitch   # Sound played at a lower pitch lasts longer
+243	      return ret
+244	    end
+245	  end
+246	end

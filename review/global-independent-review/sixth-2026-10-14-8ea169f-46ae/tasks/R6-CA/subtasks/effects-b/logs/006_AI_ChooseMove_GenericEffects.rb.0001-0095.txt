@@ -1,0 +1,95 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Battle::AI
+5:   # Main method for calculating the score for moves that raise a battler's
+6:   # stat(s).
+7:   # By default, assumes that a stat raise is a good thing. However, this score
+8:   # is inverted (by desire_mult) if the target opposes the user. If the move
+9:   # could target a foe but is targeting an ally, the score is also inverted, but
+10:   # only because it is inverted again in def pbGetMoveScoreAgainstTarget.
+11:   def get_score_for_target_stat_raise(score, target, stat_changes, whole_effect = true,
+12:                                       fixed_change = false, ignore_contrary = false)
+13:     whole_effect = false if @move.damagingMove?
+14:     # Decide whether the target raising its stat(s) is a good thing
+15:     desire_mult = 1
+16:     if target.opposes?(@user) ||
+17:        (@move.pbTarget(@user.battler).targets_foe && target.index != @user.index)
+18:       desire_mult = -1
+19:     end
+20:     # If target has Contrary, use different calculations to score the stat change
+21:     if !ignore_contrary && !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:CONTRARY)
+22:       if desire_mult > 0 && whole_effect
+23:         PBDebug.log_score_change(MOVE_USELESS_SCORE - score, "don't prefer raising target's stats (it has Contrary)")
+24:         return MOVE_USELESS_SCORE
+25:       end
+26:       return get_score_for_target_stat_drop(score, target, stat_changes, whole_effect, fixed_change, true)
+27:     end
+28:     # Don't make score changes if the move is a damaging move and its additional
+29:     # effect (the stat raise(s)) will be negated
+30:     add_effect = @move.get_score_change_for_additional_effect(@user, target)
+31:     return score if add_effect == -999   # Additional effect will be negated
+32:     # Don't make score changes if target will faint from EOR damage
+33:     if target.rough_end_of_round_damage >= target.hp
+34:       ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+35:       PBDebug.log("     ignore stat change (target predicted to faint this round)")
+36:       return ret
+37:     end
+38:     # Don't make score changes if foes have Unaware and target can't make use of
+39:     # extra stat stages
+40:     if !target.has_move_with_function?("PowerHigherWithUserPositiveStatStages")
+41:       foe_is_aware = false
+42:       each_foe_battler(target.side) do |b, i|
+43:         foe_is_aware = true if !b.has_active_ability?(:UNAWARE)
+44:       end
+45:       if !foe_is_aware
+46:         ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+47:         PBDebug.log("     ignore stat change (target's foes have Unaware)")
+48:         return ret
+49:       end
+50:     end
+51:     # Figure out which stat raises can happen
+52:     real_stat_changes = []
+53:     stat_changes.each_with_index do |stat, idx|
+54:       next if idx.odd?
+55:       if !stat_raise_worthwhile?(target, stat, fixed_change)
+56:         if target.index == @user.index
+57:           PBDebug.log("     raising the user's #{GameData::Stat.get(stat).name} isn't worthwhile")
+58:         else
+59:           PBDebug.log("     raising the target's #{GameData::Stat.get(stat).name} isn't worthwhile")
+60:         end
+61:         next
+62:       end
+63:       # Calculate amount that stat will be raised by
+64:       increment = stat_changes[idx + 1]
+65:       increment *= 2 if !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:SIMPLE)
+66:       increment = [increment, Battle::Battler::STAT_STAGE_MAXIMUM - target.stages[stat]].min   # The actual stages gained
+67:       # Count this as a valid stat raise
+68:       real_stat_changes.push([stat, increment]) if increment > 0
+69:     end
+70:     # Discard move if it can't raise any stats
+71:     if real_stat_changes.length == 0
+72:       return (whole_effect) ? MOVE_USELESS_SCORE : score
+73:     end
+74:     # Make score change based on the additional effect chance
+75:     score += add_effect
+76:     # Make score changes based on the general concept of raising stats at all
+77:     score = get_target_stat_raise_score_generic(score, target, real_stat_changes, desire_mult)
+78:     # Make score changes based on the specific changes to each stat that will be
+79:     # raised
+80:     real_stat_changes.each do |change|
+81:       old_score = score
+82:       score = get_target_stat_raise_score_one(score, target, change[0], change[1], desire_mult)
+83:       if target.index == @user.index
+84:         PBDebug.log_score_change(score - old_score, "raising the user's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+85:       else
+86:         PBDebug.log_score_change(score - old_score, "raising the target's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+87:       end
+88:     end
+89:     return score
+90:   end
+91: 
+92:   #-----------------------------------------------------------------------------
+93: 
+94:   # Returns whether the target raising the given stat will have any impact.
+95:   def stat_raise_worthwhile?(target, stat, fixed_change = false)

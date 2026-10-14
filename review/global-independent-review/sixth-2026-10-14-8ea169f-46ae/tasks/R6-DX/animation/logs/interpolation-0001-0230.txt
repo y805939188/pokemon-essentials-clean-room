@@ -1,0 +1,230 @@
+1: module BattleAnimationEditor
+2:   module_function
+3: 
+4:   #=============================================================================
+5:   # Paths and interpolation
+6:   #=============================================================================
+7:   class ControlPointSprite < Sprite
+8:     attr_accessor :dragging
+9: 
+10:     def initialize(red, viewport = nil)
+11:       super(viewport)
+12:       self.bitmap = Bitmap.new(6, 6)
+13:       self.bitmap.fill_rect(0, 0, 6, 1, Color.black)
+14:       self.bitmap.fill_rect(0, 0, 1, 6, Color.black)
+15:       self.bitmap.fill_rect(0, 5, 6, 1, Color.black)
+16:       self.bitmap.fill_rect(5, 0, 1, 6, Color.black)
+17:       color = (red) ? Color.new(255, 0, 0) : Color.black
+18:       self.bitmap.fill_rect(2, 2, 2, 2, color)
+19:       self.x = -6
+20:       self.y = -6
+21:       self.visible = false
+22:       @dragging = false
+23:     end
+24: 
+25:     def mouseover
+26:       if Input.time?(Input::MOUSELEFT) == 0 || !@dragging
+27:         @dragging = false
+28:         return
+29:       end
+30:       mouse = Mouse.getMousePos(true)
+31:       return if !mouse
+32:       self.x = [[mouse[0], 0].max, 512].min
+33:       self.y = [[mouse[1], 0].max, 384].min
+34:     end
+35: 
+36:     def hittest?
+37:       return true if !self.visible
+38:       mouse = Mouse.getMousePos(true)
+39:       return false if !mouse
+40:       return mouse[0] >= self.x && mouse[0] < self.x + 6 &&
+41:              mouse[1] >= self.y && mouse[1] < self.y + 6
+42:     end
+43: 
+44:     def inspect
+45:       return "[#{self.x},#{self.y}]"
+46:     end
+47: 
+48:     def dispose
+49:       self.bitmap.dispose
+50:       super
+51:     end
+52:   end
+53: 
+54:   #=============================================================================
+55:   #
+56:   #=============================================================================
+57:   class PointSprite < Sprite
+58:     def initialize(x, y, viewport = nil)
+59:       super(viewport)
+60:       self.bitmap = Bitmap.new(2, 2)
+61:       self.bitmap.fill_rect(0, 0, 2, 2, Color.black)
+62:       self.x = x
+63:       self.y = y
+64:     end
+65: 
+66:     def dispose
+67:       self.bitmap.dispose
+68:       super
+69:     end
+70:   end
+71: 
+72:   #=============================================================================
+73:   #
+74:   #=============================================================================
+75:   class PointPath
+76:     include Enumerable
+77: 
+78:     def initialize
+79:       @points = []
+80:       @distances = []
+81:       @totaldist = 0
+82:     end
+83: 
+84:     def [](x)
+85:       return @points[x].clone
+86:     end
+87: 
+88:     def each
+89:       @points.each { |o| yield o.clone }
+90:     end
+91: 
+92:     def size
+93:       return @points.size
+94:     end
+95: 
+96:     def length
+97:       return @points.length
+98:     end
+99: 
+100:     def totalDistance
+101:       return @totaldist
+102:     end
+103: 
+104:     def inspect
+105:       p = []
+106:       @points.each do |point|
+107:         p.push([point[0].to_i, point[1].to_i])
+108:       end
+109:       return p.inspect
+110:     end
+111: 
+112:     def isEndPoint?(x, y)
+113:       return false if @points.length == 0
+114:       index = @points.length - 1
+115:       return @points[index][0] == x &&
+116:              @points[index][1] == y
+117:     end
+118: 
+119:     def addPoint(x, y)
+120:       @points.push([x, y])
+121:       if @points.length > 1
+122:         len = @points.length
+123:         dx = @points[len - 2][0] - @points[len - 1][0]
+124:         dy = @points[len - 2][1] - @points[len - 1][1]
+125:         dist = Math.sqrt((dx * dx) + (dy * dy))
+126:         @distances.push(dist)
+127:         @totaldist += dist
+128:       end
+129:     end
+130: 
+131:     def clear
+132:       @points.clear
+133:       @distances.clear
+134:       @totaldist = 0
+135:     end
+136: 
+137:     def smoothPointPath(frames, roundValues = false)
+138:       raise ArgumentError.new("frames out of range: #{frames}") if frames < 0
+139:       ret = PointPath.new
+140:       return ret if @points.length == 0
+141:       step = 1.0 / frames
+142:       t = 0.0
+143:       (frames + 2).times do
+144:         point = pointOnPath(t)
+145:         if roundValues
+146:           ret.addPoint(point[0].round, point[1].round)
+147:         else
+148:           ret.addPoint(point[0], point[1])
+149:         end
+150:         t += step
+151:         t = [1.0, t].min
+152:       end
+153:       return ret
+154:     end
+155: 
+156:     def pointOnPath(t)
+157:       if t < 0 || t > 1
+158:         raise ArgumentError.new("t out of range for pointOnPath: #{t}")
+159:       end
+160:       return nil if @points.length == 0
+161:       ret = @points[@points.length - 1].clone
+162:       return ret if @points.length == 1
+163:       curdist = 0
+164:       distForT = @totaldist * t
+165:       i = 0
+166:       @distances.each do |dist|
+167:         curdist += dist
+168:         if dist > 0.0 && curdist >= distForT
+169:           distT = 1.0 - ((curdist - distForT) / dist)
+170:           dx = @points[i + 1][0] - @points[i][0]
+171:           dy = @points[i + 1][1] - @points[i][1]
+172:           ret = [@points[i][0] + (dx * distT),
+173:                  @points[i][1] + (dy * distT)]
+174:           break
+175:         end
+176:         i += 1
+177:       end
+178:       return ret
+179:     end
+180:   end
+181: 
+182:   #=============================================================================
+183:   #
+184:   #=============================================================================
+185:   def catmullRom(p1, p2, p3, p4, t)
+186:     # p1=prevPoint, p2=startPoint, p3=endPoint, p4=nextPoint, t is from 0 through 1
+187:     t2 = t * t
+188:     t3 = t2 * t
+189:     return 0.5 * ((2 * p2) + (t * (p3 - p1)) +
+190:            (t2 * ((2 * p1) - (5 * p2) + (4 * p3) - p4)) +
+191:            (t3 * (p4 - (3 * p3) + (3 * p2) - p1)))
+192:   end
+193: 
+194:   def getCatmullRomPoint(src, t)
+195:     x = 0, y = 0
+196:     t *= 3.0
+197:     if t < 1.0
+198:       x = catmullRom(src[0].x, src[0].x, src[1].x, src[2].x, t)
+199:       y = catmullRom(src[0].y, src[0].y, src[1].y, src[2].y, t)
+200:     elsif t < 2.0
+201:       t -= 1.0
+202:       x = catmullRom(src[0].x, src[1].x, src[2].x, src[3].x, t)
+203:       y = catmullRom(src[0].y, src[1].y, src[2].y, src[3].y, t)
+204:     else
+205:       t -= 2.0
+206:       x = catmullRom(src[1].x, src[2].x, src[3].x, src[3].x, t)
+207:       y = catmullRom(src[1].y, src[2].y, src[3].y, src[3].y, t)
+208:     end
+209:     return [x, y]
+210:   end
+211: 
+212:   def getCurvePoint(src, t)
+213:     return getCatmullRomPoint(src, t)
+214:   end
+215: 
+216:   def curveToPointPath(curve, numpoints)
+217:     return nil if numpoints < 2
+218:     path = PointPath.new
+219:     step = 1.0 / (numpoints - 1)
+220:     t = 0.0
+221:     numpoints.times do
+222:       point = getCurvePoint(curve, t)
+223:       path.addPoint(point[0], point[1])
+224:       t += step
+225:     end
+226:     return path
+227:   end
+228: 
+229:   def pbDefinePath(canvas)
+230:     sliderwin2 = ControlWindow.new(0, 0, 320, 320)

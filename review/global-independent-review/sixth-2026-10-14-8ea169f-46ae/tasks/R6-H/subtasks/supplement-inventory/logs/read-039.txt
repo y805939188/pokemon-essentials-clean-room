@@ -1,0 +1,160 @@
+1: """Bounded PE/CLI metadata reader. Never maps, loads or executes an input.
+2: 
+3: No external dependency; writes sanitized interface data, not disassembled source.
+4: --inspect-il N prints decoded instructions transiently for human static review.
+5: """
+6: from audit_resources import ROOT, OUT, PIN, Reader, require, sha, save
+7: import collections
+8: import json
+9: import re
+10: import struct
+11: import sys
+12: import uuid
+13: 
+14: class PE(Reader):
+15:     def __init__(self,b):
+16:         super().__init__(b)
+17:         require(self.span(0,2)==b'MZ','DOS signature')
+18:         pe=self.unpack('<I',60)[0];require(self.span(pe,4)==b'PE\0\0','PE signature')
+19:         self.machine,ns,stamp,sym,nsym,optlen,flags=self.unpack('<HHIIIHH',pe+4)
+20:         self.symoff,self.nsym=sym,nsym
+21:         self.strbase=sym+18*nsym if sym else 0
+22:         self.strsize=self.unpack('<I',self.strbase)[0] if sym else 0
+23:         if sym:self.span(self.strbase,self.strsize)
+24:         opt=pe+24;magic=self.unpack('<H',opt)[0];require(magic in (0x10b,0x20b),'optional magic')
+25:         self.wide=magic==0x20b; self.imagebase=self.unpack('<Q' if self.wide else '<I',opt+(24 if self.wide else 28))[0]
+26:         self.entry=self.unpack('<I',opt+16)[0];self.headers=self.unpack('<I',opt+60)[0]
+27:         nd=self.unpack('<I',opt+(108 if self.wide else 92))[0];require(nd<=16,'directory count')
+28:         ds=opt+(112 if self.wide else 96);require(ds+nd*8<=opt+optlen,'directory beyond optional header')
+29:         self.dirs=[self.unpack('<II',ds+8*i) for i in range(nd)]+[(0,0)]*(16-nd)
+30:         self.sections=[]
+31:         for i in range(ns):
+32:             p=opt+optlen+i*40; nm,vs,va,sz,off,rel,ln,nrel,nln,fl=self.unpack('<8sIIIIIIHHI',p)
+33:             self.span(off,sz)
+34:             name=nm.rstrip(b'\0').decode('ascii','replace')
+35:             if name.startswith('/') and name[1:].isdigit():name=self.coff_string(int(name[1:]))
+36:             self.sections.append({'name':name,'virtual_size':vs,'rva':va,'size':sz,'offset':off,'flags':fl,'sha256':sha(self.span(off,sz))})
+37:         self.meta={'machine':self.machine,'PE32_plus':self.wide,'entry_rva':self.entry,'image_base':self.imagebase,
+38:             'sections':self.sections,'directories':[{'index':i,'address':v[0],'size':v[1]} for i,v in enumerate(self.dirs)],'coff_symbol_count':nsym}
+39:     def coff_string(self,ix):
+40:         require(4<=ix<self.strsize,'COFF string index');return self.cstr(self.strbase+ix,self.strsize-ix)
+41:     def coff_symbols(self):
+42:         out=[];i=0
+43:         while i<self.nsym:
+44:             p=self.symoff+18*i;nm,value,section,typ,storage,aux=self.unpack('<8sIhHBB',p)
+45:             name=self.coff_string(int.from_bytes(nm[4:],'little')) if nm[:4]==b'\0'*4 else nm.rstrip(b'\0').decode('ascii','replace')
+46:             require(i+1+aux<=self.nsym,'COFF aux count');ab=self.span(p+18,18*aux)
+47:             row={'index':i,'name':name,'section_number':section,'section_name':self.sections[section-1]['name'] if section>0 and section<=len(self.sections) else None,
+48:                 'value':value,'type':typ,'storage_class':storage,'auxiliary_count':aux}
+49:             if aux:
+50:                 row['aux_sha256']=sha(ab)
+51:                 if storage==103:row['file_name']=ab.rstrip(b'\0').decode('utf8','replace')
+52:                 elif storage==3 and aux==1:row['section_aux_fields']=list(struct.unpack('<IHHIHB3s',ab))[:-1]
+53:                 else:row['aux_data_hex']=ab.hex()
+54:             out.append(row);i+=1+aux
+55:         return out
+56:     def offset(self,rva,size=1):
+57:         if rva<self.headers:
+58:             self.span(rva,size);return rva
+59:         match=[s for s in self.sections if s['rva']<=rva and rva+size<=s['rva']+s['size']]
+60:         require(len(match)==1,'unmapped/ambiguous RVA')
+61:         return match[0]['offset']+rva-match[0]['rva']
+62:     def cstr(self,off,limit=65536):
+63:         require(0<=off<len(self.b),'bad string offset');end=self.b.find(b'\0',off,min(len(self.b),off+limit))
+64:         require(end>=0,'unterminated string');return self.b[off:end].decode('utf8','replace')
+65:     def imports(self):
+66:         r,n=self.dirs[1];out=[]
+67:         if not r:return out
+68:         start=self.offset(r,n)
+69:         for p in range(start,start+n-19,20):
+70:             lookup,time,fwd,name,iat=self.unpack('<IIIII',p)
+71:             if not any((lookup,time,fwd,name,iat)):break
+72:             dll=self.cstr(self.offset(name));items=[];w=8 if self.wide else 4;f='<Q' if self.wide else '<I'
+73:             table=self.offset(lookup or iat)
+74:             for ix in range(65536):
+75:                 v=self.unpack(f,table+w*ix)[0]
+76:                 if not v:break
+77:                 entry={'iat_rva':iat+w*ix}
+78:                 if v & (1<<(w*8-1)):entry['ordinal']=v&65535
+79:                 else:
+80:                     at=self.offset(v,2);entry.update(hint=self.unpack('<H',at)[0],name=self.cstr(at+2))
+81:                 items.append(entry)
+82:             else:raise ValueError('import cap')
+83:             out.append({'dll':dll,'symbols':items})
+84:         return out
+85:     def exports(self):
+86:         r,n=self.dirs[0]
+87:         if not r:return []
+88:         p=self.offset(r,40);_,_,_,_,name,base,nfunc,nnames,func,nm,ordr=self.unpack('<IIHHIIIIIII',p)
+89:         require(nfunc<100000 and nnames<=nfunc,'export count');names={}
+90:         for i in range(nnames):
+91:             ix=self.unpack('<H',self.offset(ordr+2*i,2))[0];require(ix<nfunc,'export ordinal')
+92:             names[ix]=self.cstr(self.offset(self.unpack('<I',self.offset(nm+4*i,4))[0]))
+93:         out=[]
+94:         for i in range(nfunc):
+95:             va=self.unpack('<I',self.offset(func+4*i,4))[0]
+96:             if not va:continue
+97:             out.append({'ordinal':base+i,'name':names.get(i),'rva':va,'forwarder':self.cstr(self.offset(va)) if r<=va<r+n else None})
+98:         return out
+99:     def resources(self):
+100:         r,n=self.dirs[2];out=[]
+101:         if not r:return out
+102:         base=self.offset(r,n);seen=set()
+103:         def walk(rel,path,depth):
+104:             require(depth<=5 and rel not in seen,'resource cycle/depth');seen.add(rel)
+105:             require(rel+16<=n,'resource directory bounds');at=base+rel
+106:             nn,ni=self.unpack('<HH',at+12);require(rel+16+8*(nn+ni)<=n,'resource entries bounds')
+107:             for j in range(nn+ni):
+108:                 key,ptr=self.unpack('<II',at+16+8*j)
+109:                 if key & 0x80000000:
+110:                     ka=key&0x7fffffff;require(ka+2<=n,'resource name');ln=self.unpack('<H',base+ka)[0]
+111:                     require(ka+2+ln*2<=n,'resource name length');key=self.span(base+ka+2,ln*2).decode('utf-16-le')
+112:                 if ptr & 0x80000000:walk(ptr&0x7fffffff,path+[key],depth+1)
+113:                 else:
+114:                     require(ptr+16<=n,'resource leaf');va,sz,cp,_=self.unpack('<IIII',base+ptr);o=self.offset(va,sz);raw=self.span(o,sz)
+115:                     row={'path':path+[key],'offset':o,'size':sz,'codepage':cp,'sha256':sha(raw)}
+116:                     if path and path[0]==16:row['version']=version_resource(raw)
+117:                     elif path and path[0]==24:
+118:                         text=raw.rstrip(b'\0').decode('utf8','replace')
+119:                         row['manifest_properties']={k:re.search(r'<'+k+r'\b[^>]*>([^<]+)</'+k+'>',text).group(1).strip() for k in ('dpiAware','dpiAwareness') if re.search(r'<'+k+r'\b[^>]*>([^<]+)</'+k+'>',text)}
+120:                     elif path and path[0]==14:
+121:                         rr=Reader(raw);reserved,typ,count=rr.unpack('<HHH',0);require(reserved==0 and typ==1 and 6+count*14==len(raw),'icon group')
+122:                         row['icon_group']=[dict(zip(('width_byte','height_byte','color_count','reserved','planes','bpp','bytes','resource_id'),rr.unpack('<BBBBHHIH',6+14*i))) for i in range(count)]
+123:                     elif path and path[0]==3 and raw[:4]==b'\x28\0\0\0':
+124:                         rr=Reader(raw);size,w,h,planes,bpp,compression,imagesize,xppm,yppm,colors,important=rr.unpack('<IiiHHIIiiII',0)
+125:                         row['icon_DIB']={'width':w,'height_including_mask':h,'planes':planes,'bits_per_pixel':bpp,'compression':compression,'image_size_field':imagesize,'palette_entries':colors}
+126:                     elif path and path[0]==6:
+127:                         ss=[];q=0
+128:                         for k in range(16):
+129:                             length=struct.unpack_from('<H',raw,q)[0];q+=2;ss.append(raw[q:q+2*length].decode('utf-16-le'));q+=2*length
+130:                         row['string_table']=ss
+131:                     else:row['content_review']='resource descriptor only; icon/image payload outside additional interface scope'
+132:                     out.append(row)
+133:         walk(0,[],0);return out
+134:     def debug(self):
+135:         r,n=self.dirs[6];out=[]
+136:         if not r:return out
+137:         require(n%28==0,'debug size')
+138:         for i in range(n//28):
+139:             _,ts,maj,mi,typ,sz,va,ptr=self.unpack('<IIHHIIII',self.offset(r+28*i,28));raw=self.span(ptr,sz)
+140:             row={'type':typ,'size':sz,'offset':ptr,'sha256':sha(raw)}
+141:             if typ==2 and raw[:4]==b'RSDS':row.update(format='RSDS',age=struct.unpack_from('<I',raw,20)[0],pdb_path=raw[24:].rstrip(b'\0').decode('utf8','replace'))
+142:             out.append(row)
+143:         return out
+144: 
+145: def version_resource(b):
+146:     rd=Reader(b)
+147:     def walk(p,end,depth):
+148:         require(depth<=8,'version depth');ln,vln,typ=rd.unpack('<HHH',p);require(ln>=6 and p+ln<=end,'version bounds')
+149:         q=p+6;key=[]
+150:         while q+2<=p+ln:
+151:             v=rd.unpack('<H',q)[0];q+=2
+152:             if not v:break
+153:             key.append(v)
+154:         name=''.join(chr(c) for c in key);q=(q+3)&~3;vs=vln*2 if typ==1 else vln
+155:         value=rd.span(q,vs) if vs else b'';require(q+vs<=p+ln,'version value')
+156:         obj={'key':name}
+157:         if typ==1:obj['value']=value.decode('utf-16-le').rstrip('\0')
+158:         elif name=='VS_VERSION_INFO' and vs==52:obj['fixed_info_dwords']=list(struct.unpack('<13I',value))
+159:         elif value:obj['value_hex']=value.hex()
+160:         q=(q+vs+3)&~3;children=[]

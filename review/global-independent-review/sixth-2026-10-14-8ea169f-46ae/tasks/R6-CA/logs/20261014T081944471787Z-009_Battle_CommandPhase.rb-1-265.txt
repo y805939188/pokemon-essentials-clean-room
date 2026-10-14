@@ -1,0 +1,265 @@
+1: class Battle
+2:   #=============================================================================
+3:   # Clear commands
+4:   #=============================================================================
+5:   def pbClearChoice(idxBattler)
+6:     @choices[idxBattler] = [] if !@choices[idxBattler]
+7:     @choices[idxBattler][0] = :None
+8:     @choices[idxBattler][1] = 0
+9:     @choices[idxBattler][2] = nil
+10:     @choices[idxBattler][3] = -1
+11:   end
+12: 
+13:   def pbCancelChoice(idxBattler)
+14:     # If idxBattler's choice was to use an item, return that item to the Bag
+15:     if @choices[idxBattler][0] == :UseItem
+16:       item = @choices[idxBattler][1]
+17:       pbReturnUnusedItemToBag(item, idxBattler) if item
+18:     end
+19:     # If idxBattler chose to Mega Evolve, cancel it
+20:     pbUnregisterMegaEvolution(idxBattler)
+21:     # Clear idxBattler's choice
+22:     pbClearChoice(idxBattler)
+23:   end
+24: 
+25:   #=============================================================================
+26:   # Use main command menu (Fight/Pokémon/Bag/Run)
+27:   #=============================================================================
+28:   def pbCommandMenu(idxBattler, firstAction)
+29:     return @scene.pbCommandMenu(idxBattler, firstAction)
+30:   end
+31: 
+32:   #=============================================================================
+33:   # Check whether actions can be taken
+34:   #=============================================================================
+35:   def pbCanShowCommands?(idxBattler)
+36:     battler = @battlers[idxBattler]
+37:     return false if !battler || battler.fainted?
+38:     return false if battler.usingMultiTurnAttack?
+39:     return true
+40:   end
+41: 
+42:   def pbCanShowFightMenu?(idxBattler)
+43:     battler = @battlers[idxBattler]
+44:     # Encore
+45:     return false if battler.effects[PBEffects::Encore] > 0
+46:     # No moves that can be chosen (will Struggle instead)
+47:     usable = false
+48:     battler.eachMoveWithIndex do |_m, i|
+49:       next if !pbCanChooseMove?(idxBattler, i, false)
+50:       usable = true
+51:       break
+52:     end
+53:     return usable
+54:   end
+55: 
+56:   #=============================================================================
+57:   # Use sub-menus to choose an action, and register it if is allowed
+58:   #=============================================================================
+59:   # Returns true if a choice was made, false if cancelled.
+60:   def pbFightMenu(idxBattler)
+61:     # Auto-use Encored move or no moves choosable, so auto-use Struggle
+62:     return pbAutoChooseMove(idxBattler) if !pbCanShowFightMenu?(idxBattler)
+63:     # Battle Palace only
+64:     return true if pbAutoFightMenu(idxBattler)
+65:     # Regular move selection
+66:     ret = false
+67:     @scene.pbFightMenu(idxBattler, pbCanMegaEvolve?(idxBattler)) do |cmd|
+68:       case cmd
+69:       when -1   # Cancel
+70:       when -2   # Toggle Mega Evolution
+71:         pbToggleRegisteredMegaEvolution(idxBattler)
+72:         next false
+73:       when -3   # Shift
+74:         pbUnregisterMegaEvolution(idxBattler)
+75:         pbRegisterShift(idxBattler)
+76:         ret = true
+77:       else      # Chose a move to use
+78:         next false if cmd < 0 || !@battlers[idxBattler].moves[cmd] ||
+79:                       !@battlers[idxBattler].moves[cmd].id
+80:         next false if !pbRegisterMove(idxBattler, cmd)
+81:         next false if !singleBattle? &&
+82:                       !pbChooseTarget(@battlers[idxBattler], @battlers[idxBattler].moves[cmd])
+83:         ret = true
+84:       end
+85:       next true
+86:     end
+87:     return ret
+88:   end
+89: 
+90:   def pbAutoFightMenu(idxBattler); return false; end
+91: 
+92:   def pbChooseTarget(battler, move)
+93:     target_data = move.pbTarget(battler)
+94:     idxTarget = @scene.pbChooseTarget(battler.index, target_data)
+95:     return false if idxTarget < 0
+96:     pbRegisterTarget(battler.index, idxTarget)
+97:     return true
+98:   end
+99: 
+100:   def pbItemMenu(idxBattler, firstAction)
+101:     if !@internalBattle
+102:       pbDisplay(_INTL("Items can't be used here."))
+103:       return false
+104:     end
+105:     ret = false
+106:     @scene.pbItemMenu(idxBattler, firstAction) do |item, useType, idxPkmn, idxMove, itemScene|
+107:       next false if !item
+108:       battler = pkmn = nil
+109:       case useType
+110:       when 1, 2   # Use on Pokémon/Pokémon's move
+111:         next false if !ItemHandlers.hasBattleUseOnPokemon(item)
+112:         battler = pbFindBattler(idxPkmn, idxBattler)
+113:         pkmn    = pbParty(idxBattler)[idxPkmn]
+114:         next false if !pbCanUseItemOnPokemon?(item, pkmn, battler, itemScene)
+115:       when 3   # Use on battler
+116:         next false if !ItemHandlers.hasBattleUseOnBattler(item)
+117:         battler = pbFindBattler(idxPkmn, idxBattler)
+118:         pkmn    = battler.pokemon if battler
+119:         next false if !pbCanUseItemOnPokemon?(item, pkmn, battler, itemScene)
+120:       when 4   # Poké Balls
+121:         next false if idxPkmn < 0
+122:         battler = @battlers[idxPkmn]
+123:         pkmn    = battler.pokemon if battler
+124:       when 5   # No target (Poké Doll, Guard Spec., Launcher items)
+125:         battler = @battlers[idxBattler]
+126:         pkmn    = battler.pokemon if battler
+127:       else
+128:         next false
+129:       end
+130:       next false if !pkmn
+131:       next false if !ItemHandlers.triggerCanUseInBattle(item, pkmn, battler, idxMove,
+132:                                                         firstAction, self, itemScene)
+133:       next false if !pbRegisterItem(idxBattler, item, idxPkmn, idxMove)
+134:       ret = true
+135:       next true
+136:     end
+137:     return ret
+138:   end
+139: 
+140:   def pbPartyMenu(idxBattler)
+141:     ret = -1
+142:     if @debug
+143:       ret = @battleAI.pbDefaultChooseNewEnemy(idxBattler)
+144:     else
+145:       ret = pbPartyScreen(idxBattler, false, true, true)
+146:     end
+147:     return ret >= 0
+148:   end
+149: 
+150:   def pbRunMenu(idxBattler)
+151:     # Regardless of succeeding or failing to run, stop choosing actions
+152:     return pbRun(idxBattler) != 0
+153:   end
+154: 
+155:   def pbCallMenu(idxBattler)
+156:     return pbRegisterCall(idxBattler)
+157:   end
+158: 
+159:   def pbDebugMenu
+160:     pbBattleDebug(self)
+161:     @scene.pbRefreshEverything
+162:     allBattlers.each { |b| b.pbCheckFormOnWeatherChange }
+163:     pbEndPrimordialWeather
+164:     allBattlers.each { |b| b.pbAbilityOnTerrainChange }
+165:     allBattlers.each do |b|
+166:       b.pbCheckFormOnMovesetChange
+167:       b.pbCheckFormOnStatusChange
+168:     end
+169:   end
+170: 
+171:   #=============================================================================
+172:   # Command phase
+173:   #=============================================================================
+174:   def pbCommandPhase
+175:     @command_phase = true
+176:     @scene.pbBeginCommandPhase
+177:     # Reset choices if commands can be shown
+178:     @battlers.each_with_index do |b, i|
+179:       next if !b
+180:       pbClearChoice(i) if pbCanShowCommands?(i)
+181:     end
+182:     # Reset choices to perform Mega Evolution if it wasn't done somehow
+183:     2.times do |side|
+184:       @megaEvolution[side].each_with_index do |megaEvo, i|
+185:         @megaEvolution[side][i] = -1 if megaEvo >= 0
+186:       end
+187:     end
+188:     # Choose actions for the round (player first, then AI)
+189:     pbCommandPhaseLoop(true)    # Player chooses their actions
+190:     if @decision != 0   # Battle ended, stop choosing actions
+191:       @command_phase = false
+192:       return
+193:     end
+194:     pbCommandPhaseLoop(false)   # AI chooses their actions
+195:     @command_phase = false
+196:   end
+197: 
+198:   def pbCommandPhaseLoop(isPlayer)
+199:     # NOTE: Doing some things (e.g. running, throwing a Poké Ball) takes up all
+200:     #       your actions in a round.
+201:     actioned = []
+202:     idxBattler = -1
+203:     loop do
+204:       break if @decision != 0   # Battle ended, stop choosing actions
+205:       idxBattler += 1
+206:       break if idxBattler >= @battlers.length
+207:       next if !@battlers[idxBattler] || pbOwnedByPlayer?(idxBattler) != isPlayer
+208:       if @choices[idxBattler][0] != :None || !pbCanShowCommands?(idxBattler)
+209:         # Action is forced, can't choose one
+210:         PBDebug.log_ai("#{@battlers[idxBattler].pbThis} (#{idxBattler}) is forced to use a multi-turn move")
+211:         next
+212:       end
+213:       # AI controls this battler
+214:       if @controlPlayer || !pbOwnedByPlayer?(idxBattler)
+215:         @battleAI.pbDefaultChooseEnemyCommand(idxBattler)
+216:         next
+217:       end
+218:       # Player chooses an action
+219:       actioned.push(idxBattler)
+220:       commandsEnd = false   # Whether to cancel choosing all other actions this round
+221:       loop do
+222:         cmd = pbCommandMenu(idxBattler, actioned.length == 1)
+223:         # If being Sky Dropped, can't do anything except use a move
+224:         if cmd > 0 && @battlers[idxBattler].effects[PBEffects::SkyDrop] >= 0
+225:           pbDisplay(_INTL("Sky Drop won't let {1} go!", @battlers[idxBattler].pbThis(true)))
+226:           next
+227:         end
+228:         case cmd
+229:         when 0    # Fight
+230:           break if pbFightMenu(idxBattler)
+231:         when 1    # Bag
+232:           if pbItemMenu(idxBattler, actioned.length == 1)
+233:             commandsEnd = true if pbItemUsesAllActions?(@choices[idxBattler][1])
+234:             break
+235:           end
+236:         when 2    # Pokémon
+237:           break if pbPartyMenu(idxBattler)
+238:         when 3    # Run
+239:           # NOTE: "Run" is only an available option for the first battler the
+240:           #       player chooses an action for in a round. Attempting to run
+241:           #       from battle prevents you from choosing any other actions in
+242:           #       that round.
+243:           if pbRunMenu(idxBattler)
+244:             commandsEnd = true
+245:             break
+246:           end
+247:         when 4    # Call
+248:           break if pbCallMenu(idxBattler)
+249:         when -2   # Debug
+250:           pbDebugMenu
+251:           next
+252:         when -1   # Go back to previous battler's action choice
+253:           next if actioned.length <= 1
+254:           actioned.pop   # Forget this battler was done
+255:           idxBattler = actioned.last - 1
+256:           pbCancelChoice(idxBattler + 1)   # Clear the previous battler's choice
+257:           actioned.pop   # Forget the previous battler was done
+258:           break
+259:         end
+260:         pbCancelChoice(idxBattler)
+261:       end
+262:       break if commandsEnd
+263:     end
+264:   end
+265: end

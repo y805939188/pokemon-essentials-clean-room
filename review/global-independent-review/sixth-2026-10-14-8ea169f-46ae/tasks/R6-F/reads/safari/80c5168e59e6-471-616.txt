@@ -1,0 +1,147 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/004_Game classes/008_Game_Player.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "8f49870b94fdda6dbb53cbaeebfaf458498cd02d", "sha256": "4c0ede87e6c8c8b6e36e7637ebb1a074671492be9ecb0a0f4f8136c21acb7d15", "start_line": 471, "end_line": 616, "total_lines": 616, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:35:38.959932+00:00"}
+471:           set_movement_type((faster) ? :diving_fast : :diving)
+472:         elsif $PokemonGlobal&.surfing
+473:           set_movement_type((faster) ? :surfing_fast : :surfing)
+474:         elsif $PokemonGlobal&.bicycle
+475:           set_movement_type((faster) ? :cycling_fast : :cycling)
+476:         else
+477:           set_movement_type((faster) ? :running : :walking)
+478:         end
+479:       end
+480:       if jumping?
+481:         if $PokemonGlobal&.diving
+482:           set_movement_type(:diving_jumping)
+483:         elsif $PokemonGlobal&.surfing
+484:           set_movement_type(:surfing_jumping)
+485:         elsif $PokemonGlobal&.bicycle
+486:           set_movement_type(:cycling_jumping)
+487:         else
+488:           set_movement_type(:jumping)   # Walking speed/charset while jumping
+489:         end
+490:       end
+491:     end
+492:     was_jumping = jumping?
+493:     super
+494:     if was_jumping && !jumping? && !@transparent && (@tile_id > 0 || @character_name != "")
+495:       if !$PokemonGlobal.surfing || $game_temp.ending_surf
+496:         spriteset = $scene.spriteset(map_id)
+497:         spriteset&.addUserAnimation(Settings::DUST_ANIMATION_ID, self.x, self.y, true, 1)
+498:       end
+499:     end
+500:   end
+501: 
+502:   def update_stop
+503:     if @stopped_last_frame
+504:       if $PokemonGlobal&.diving
+505:         set_movement_type(:diving_stopped)
+506:       elsif $PokemonGlobal&.surfing
+507:         set_movement_type(:surfing_stopped)
+508:       elsif $PokemonGlobal&.bicycle
+509:         set_movement_type(:cycling_stopped)
+510:       else
+511:         set_movement_type(:walking_stopped)
+512:       end
+513:     end
+514:     super
+515:   end
+516: 
+517:   def update_pattern
+518:     if $PokemonGlobal&.surfing || $PokemonGlobal&.diving
+519:       bob_pattern = (4 * System.uptime / SURF_BOB_DURATION).to_i % 4
+520:       @pattern = bob_pattern if !@lock_pattern
+521:       @pattern_surf = bob_pattern
+522:       @bob_height = (bob_pattern >= 2) ? 2 : 0
+523:       @anime_count = 0
+524:     else
+525:       @bob_height = 0
+526:       super
+527:     end
+528:   end
+529: 
+530:   # Track the player on-screen as they move.
+531:   def update_screen_position(last_real_x, last_real_y)
+532:     return if self.map.scrolling? || !(@moved_last_frame || @moved_this_frame)
+533:     if (@real_x < last_real_x && @real_x < $game_map.display_x + SCREEN_CENTER_X) ||
+534:        (@real_x > last_real_x && @real_x > $game_map.display_x + SCREEN_CENTER_X)
+535:       self.map.display_x += @real_x - last_real_x
+536:     end
+537:     if (@real_y < last_real_y && @real_y < $game_map.display_y + SCREEN_CENTER_Y) ||
+538:        (@real_y > last_real_y && @real_y > $game_map.display_y + SCREEN_CENTER_Y)
+539:       self.map.display_y += @real_y - last_real_y
+540:     end
+541:   end
+542: 
+543:   def update_event_triggering
+544:     return if moving? || jumping? || $PokemonGlobal.forced_movement?
+545:     # Try triggering events upon walking into them/in front of them
+546:     if @moved_this_frame
+547:       $game_temp.followers.turn_followers
+548:       result = pbCheckEventTriggerFromDistance([2])
+549:       # Event determinant is via touch of same position event
+550:       result |= check_event_trigger_here([1, 2])
+551:       # No events triggered, try other event triggers upon finishing a step
+552:       pbOnStepTaken(result)
+553:     end
+554:   end
+555: end
+556: 
+557: #===============================================================================
+558: #
+559: #===============================================================================
+560: def pbGetPlayerCharset(charset, trainer = nil, force = false)
+561:   trainer = $player if !trainer
+562:   outfit = (trainer) ? trainer.outfit : 0
+563:   return nil if !force && $game_player&.charsetData &&
+564:                 $game_player.charsetData[0] == trainer.character_ID &&
+565:                 $game_player.charsetData[1] == charset &&
+566:                 $game_player.charsetData[2] == outfit
+567:   $game_player.charsetData = [trainer.character_ID, charset, outfit] if $game_player
+568:   ret = charset
+569:   if pbResolveBitmap("Graphics/Characters/" + ret + "_" + outfit.to_s)
+570:     ret = ret + "_" + outfit.to_s
+571:   end
+572:   return ret
+573: end
+574: 
+575: def pbUpdateVehicle
+576:   if $PokemonGlobal&.diving
+577:     $game_player.set_movement_type(:diving_stopped)
+578:   elsif $PokemonGlobal&.surfing
+579:     $game_player.set_movement_type(:surfing_stopped)
+580:   elsif $PokemonGlobal&.bicycle
+581:     $game_player.set_movement_type(:cycling_stopped)
+582:   else
+583:     $game_player.set_movement_type(:walking_stopped)
+584:   end
+585: end
+586: 
+587: def pbCancelVehicles(destination = nil, cancel_swimming = true)
+588:   $PokemonGlobal.surfing = false if cancel_swimming
+589:   $PokemonGlobal.diving  = false if cancel_swimming
+590:   $PokemonGlobal.bicycle = false if !destination || !pbCanUseBike?(destination)
+591:   pbUpdateVehicle
+592: end
+593: 
+594: def pbCanUseBike?(map_id)
+595:   map_metadata = GameData::MapMetadata.try_get(map_id)
+596:   return false if !map_metadata
+597:   return map_metadata.always_bicycle || map_metadata.can_bicycle || map_metadata.outdoor_map
+598: end
+599: 
+600: def pbMountBike
+601:   return if $PokemonGlobal.bicycle
+602:   $PokemonGlobal.bicycle = true
+603:   $stats.cycle_count += 1
+604:   pbUpdateVehicle
+605:   bike_bgm = GameData::Metadata.get.bicycle_BGM
+606:   pbCueBGM(bike_bgm, 0.4) if bike_bgm
+607:   pbSEPlay("Bicycle")
+608:   pbPokeRadarCancel
+609: end
+610: 
+611: def pbDismountBike
+612:   return if !$PokemonGlobal.bicycle
+613:   $PokemonGlobal.bicycle = false
+614:   pbUpdateVehicle
+615:   $game_map.autoplayAsCue
+616: end

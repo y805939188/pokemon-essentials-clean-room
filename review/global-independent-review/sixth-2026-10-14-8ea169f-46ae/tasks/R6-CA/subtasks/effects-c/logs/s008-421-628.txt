@@ -1,0 +1,208 @@
+421:     ai.each_ally(user.index) do |b, i|
+422:       score += 10 if b.has_move_with_function?("FirePledge", "WaterPledge")
+423:     end
+424:     next score
+425:   }
+426: )
+427: 
+428: #===============================================================================
+429: #
+430: #===============================================================================
+431: Battle::AI::Handlers::MoveEffectScore.add("FirePledge",
+432:   proc { |score, move, user, ai, battle|
+433:     # Prefer if an ally knows a different Pledge move
+434:     ai.each_ally(user.index) do |b, i|
+435:       score += 10 if b.has_move_with_function?("GrassPledge", "WaterPledge")
+436:     end
+437:     next score
+438:   }
+439: )
+440: 
+441: #===============================================================================
+442: #
+443: #===============================================================================
+444: Battle::AI::Handlers::MoveEffectScore.add("WaterPledge",
+445:   proc { |score, move, user, ai, battle|
+446:     # Prefer if an ally knows a different Pledge move
+447:     ai.each_ally(user.index) do |b, i|
+448:       score += 10 if b.has_move_with_function?("GrassPledge", "FirePledge")
+449:     end
+450:     next score
+451:   }
+452: )
+453: 
+454: #===============================================================================
+455: # NOTE: The move that this move will become is determined in def
+456: #       set_up_move_check, and the score for that move is calculated instead. If
+457: #       this move cannot become another move and will fail, the score for this
+458: #       move is calculated as normal (and the code below says it fails).
+459: #===============================================================================
+460: Battle::AI::Handlers::MoveFailureCheck.add("UseLastMoveUsed",
+461:   proc { |move, user, ai, battle|
+462:     next true if !battle.lastMoveUsed || !GameData::Move.exists?(battle.lastMoveUsed)
+463:     next move.move.moveBlacklist.include?(GameData::Move.get(battle.lastMoveUsed).function_code)
+464:   }
+465: )
+466: 
+467: #===============================================================================
+468: # NOTE: The move that this move will become is determined in def
+469: #       set_up_move_check, and the score for that move is calculated instead. If
+470: #       this move cannot become another move and will fail, the score for this
+471: #       move is calculated as normal (and the code below says it fails).
+472: #===============================================================================
+473: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("UseLastMoveUsedByTarget",
+474:   proc { |move, user, target, ai, battle|
+475:     next true if !target.battler.lastRegularMoveUsed
+476:     next true if !GameData::Move.exists?(target.battler.lastRegularMoveUsed)
+477:     next !GameData::Move.get(target.battler.lastRegularMoveUsed).has_flag?("CanMirrorMove")
+478:   }
+479: )
+480: 
+481: #===============================================================================
+482: #
+483: #===============================================================================
+484: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("UseMoveTargetIsAboutToUse",
+485:   proc { |move, user, target, ai, battle|
+486:     next !target.check_for_move { |m| m.damagingMove? && !move.move.moveBlacklist.include?(m.function_code) }
+487:   }
+488: )
+489: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UseMoveTargetIsAboutToUse",
+490:   proc { |score, move, user, target, ai, battle|
+491:     next Battle::AI::MOVE_USELESS_SCORE if target.faster_than?(user)
+492:     # Don't prefer if target knows any moves that can't be copied
+493:     if target.check_for_move { |m| m.statusMove? || move.move.moveBlacklist.include?(m.function_code) }
+494:       score -= 8
+495:     end
+496:     next score
+497:   }
+498: )
+499: 
+500: #===============================================================================
+501: # NOTE: The move that this move will become is determined in def
+502: #       set_up_move_check, and the score for that move is calculated instead.
+503: #===============================================================================
+504: # UseMoveDependingOnEnvironment
+505: 
+506: #===============================================================================
+507: #
+508: #===============================================================================
+509: # UseRandomMove
+510: 
+511: #===============================================================================
+512: #
+513: #===============================================================================
+514: Battle::AI::Handlers::MoveFailureCheck.add("UseRandomMoveFromUserParty",
+515:   proc { |move, user, ai, battle|
+516:     will_fail = true
+517:     battle.pbParty(user.index).each_with_index do |pkmn, i|
+518:       next if !pkmn || i == user.party_index
+519:       next if Settings::MECHANICS_GENERATION >= 6 && pkmn.egg?
+520:       pkmn.moves.each do |pkmn_move|
+521:         next if move.move.moveBlacklist.include?(pkmn_move.function_code)
+522:         next if pkmn_move.type == :SHADOW
+523:         will_fail = false
+524:         break
+525:       end
+526:       break if !will_fail
+527:     end
+528:     next will_fail
+529:   }
+530: )
+531: 
+532: #===============================================================================
+533: #
+534: #===============================================================================
+535: Battle::AI::Handlers::MoveFailureCheck.add("UseRandomUserMoveIfAsleep",
+536:   proc { |move, user, ai, battle|
+537:     will_fail = true
+538:     user.battler.eachMoveWithIndex do |m, i|
+539:       next if move.move.moveBlacklist.include?(m.function_code)
+540:       next if !battle.pbCanChooseMove?(user.index, i, false, true)
+541:       will_fail = false
+542:       break
+543:     end
+544:     next will_fail
+545:   }
+546: )
+547: 
+548: #===============================================================================
+549: #
+550: #===============================================================================
+551: Battle::AI::Handlers::MoveEffectScore.add("BounceBackProblemCausingStatusMoves",
+552:   proc { |score, move, user, ai, battle|
+553:     next Battle::AI::MOVE_USELESS_SCORE if user.has_active_ability?(:MAGICBOUNCE)
+554:     useless = true
+555:     ai.each_foe_battler(user.side) do |b, i|
+556:       next if !b.can_attack?
+557:       next if !b.check_for_move { |m| m.statusMove? && m.canMagicCoat? }
+558:       score += 5
+559:       useless = false
+560:     end
+561:     next Battle::AI::MOVE_USELESS_SCORE if useless
+562:     # Don't prefer the lower the user's HP is (better to try something else)
+563:     if ai.trainer.has_skill_flag?("HPAware") && user.hp < user.totalhp / 2
+564:       score -= (20 * (1.0 - (user.hp.to_f / user.totalhp))).to_i   # -10 to -20
+565:     end
+566:     next score
+567:   }
+568: )
+569: 
+570: #===============================================================================
+571: #
+572: #===============================================================================
+573: Battle::AI::Handlers::MoveEffectScore.add("StealAndUseBeneficialStatusMove",
+574:   proc { |score, move, user, ai, battle|
+575:     useless = true
+576:     ai.each_foe_battler(user.side) do |b, i|
+577:       next if !b.can_attack?
+578:       next if !b.check_for_move { |m| m.statusMove? && m.canSnatch? }
+579:       score += 5
+580:       useless = false
+581:     end
+582:     next Battle::AI::MOVE_USELESS_SCORE if useless
+583:     # Don't prefer the lower the user's HP is (better to try something else)
+584:     if ai.trainer.has_skill_flag?("HPAware") && user.hp < user.totalhp / 2
+585:       score -= (20 * (1.0 - (user.hp.to_f / user.totalhp))).to_i   # -10 to -20
+586:     end
+587:     next score
+588:   }
+589: )
+590: 
+591: #===============================================================================
+592: #
+593: #===============================================================================
+594: Battle::AI::Handlers::MoveFailureCheck.add("ReplaceMoveThisBattleWithTargetLastMoveUsed",
+595:   proc { |move, user, ai, battle|
+596:     next user.effects[PBEffects::Transform] || !user.battler.pbHasMove?(move.id)
+597:   }
+598: )
+599: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("ReplaceMoveThisBattleWithTargetLastMoveUsed",
+600:   proc { |move, user, target, ai, battle|
+601:     next false if !user.faster_than?(target)
+602:     last_move_data = GameData::Move.try_get(target.battler.lastRegularMoveUsed)
+603:     next true if !last_move_data ||
+604:                  user.battler.pbHasMove?(target.battler.lastRegularMoveUsed) ||
+605:                  move.move.moveBlacklist.include?(last_move_data.function_code) ||
+606:                  last_move_data.type == :SHADOW
+607:     next false
+608:   }
+609: )
+610: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("ReplaceMoveThisBattleWithTargetLastMoveUsed",
+611:   proc { |score, move, user, target, ai, battle|
+612:     # Generally don't prefer, as this wastes the user's turn just to gain a move
+613:     # of unknown utility
+614:     score -= 10
+615:     # Slightly prefer if this move will definitely succeed, just for the sake of
+616:     # getting rid of this move
+617:     score += 5 if user.faster_than?(target)
+618:     next score
+619:   }
+620: )
+621: 
+622: #===============================================================================
+623: #
+624: #===============================================================================
+625: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.copy("ReplaceMoveThisBattleWithTargetLastMoveUsed",
+626:                                                          "ReplaceMoveWithTargetLastMoveUsed")
+627: Battle::AI::Handlers::MoveEffectScore.copy("ReplaceMoveThisBattleWithTargetLastMoveUsed",
+628:                                            "ReplaceMoveWithTargetLastMoveUsed")

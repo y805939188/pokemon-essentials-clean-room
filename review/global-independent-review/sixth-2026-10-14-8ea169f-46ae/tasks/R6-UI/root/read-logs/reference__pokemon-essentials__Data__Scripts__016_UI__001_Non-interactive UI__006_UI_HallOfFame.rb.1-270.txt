@@ -1,0 +1,271 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/001_Non-interactive UI/006_UI_HallOfFame.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 270], "total_lines": 494, "sha256": "ce2fbb090be3c1b01270880ec012ab63823b231f1173584456621c7aed8a390a", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:19:50.292735+00:00"}
+1: #===============================================================================
+2: # * Hall of Fame - by FL (Credits will be apreciated)
+3: #===============================================================================
+4: #
+5: # This script is for Pokémon Essentials. It makes a recordable Hall of Fame
+6: # like the Gen 3 games.
+7: #
+8: #===============================================================================
+9: #
+10: # To this scripts works, put it above main, put a 512x384 picture in
+11: # hallfamebars and a 8x24 background picture in hallfamebg. To call this script,
+12: # use 'pbHallOfFameEntry'. After you recorder the first entry, you can access
+13: # the hall teams using a PC. You can also check the player Hall of Fame last
+14: # number using '$PokemonGlobal.hallOfFameLastNumber'.
+15: #
+16: #===============================================================================
+17: class HallOfFame_Scene
+18:   # When true, all pokémon will be in one line.
+19:   # When false, all pokémon will be in two lines.
+20:   SINGLE_ROW_OF_POKEMON = false
+21:   # Make the pokémon movement ON in hall entry.
+22:   ANIMATION = true
+23:   # Time in seconds for a Pokémon to slide to its position from off-screen.
+24:   APPEAR_SPEED = 0.4
+25:   # Entry wait time (in seconds) between showing each Pokémon (and trainer).
+26:   ENTRY_WAIT_TIME = 3.0
+27:   # Wait time (in seconds) when showing "Welcome to the Hall of Fame!".
+28:   WELCOME_WAIT_TIME = 4.0
+29:   # Maximum number limit of simultaneous hall entries saved.
+30:   # 0 = Doesn't save any hall. -1 = no limit
+31:   # Prefer to use larger numbers (like 500 and 1000) than don't put a limit.
+32:   # If a player exceed this limit, the first one will be removed.
+33:   HALL_ENTRIES_LIMIT = 50
+34:   # The entry music name. Put "" to doesn't play anything.
+35:   HALL_OF_FAME_BGM = "Hall of Fame"
+36:   # Allow eggs to be show and saved in hall.
+37:   ALLOW_EGGS = true
+38:   # Remove the hallbars when the trainer sprite appears.
+39:   REMOVE_BARS_WHEN_SHOWING_TRAINER = true
+40:   # The final fade speed on entry.
+41:   FINAL_FADE_DURATION = 1.0
+42:   # Sprite's opacity value when it isn't selected.
+43:   OPACITY = 64
+44:   TEXT_BASE_COLOR   = Color.new(248, 248, 248)
+45:   TEXT_SHADOW_COLOR = Color.new(0, 0, 0)
+46: 
+47:   # Placement for pokemon icons
+48:   def pbStartScene
+49:     @sprites = {}
+50:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+51:     @viewport.z = 99999
+52:     # Comment the below line to doesn't use a background
+53:     addBackgroundPlane(@sprites, "bg", "Hall of Fame/bg", @viewport)
+54:     @sprites["hallbars"] = IconSprite.new(@viewport)
+55:     @sprites["hallbars"].setBitmap("Graphics/UI/Hall of Fame/bars")
+56:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+57:     @sprites["overlay"].z = 10
+58:     pbSetSystemFont(@sprites["overlay"].bitmap)
+59:     @alreadyFadedInEnd = false
+60:     @useMusic = false
+61:     @battlerIndex = 0
+62:     @hallEntry = []
+63:     @nationalDexList = [:NONE]
+64:     GameData::Species.each_species { |s| @nationalDexList.push(s.species) }
+65:   end
+66: 
+67:   def pbStartSceneEntry
+68:     pbStartScene
+69:     @useMusic = (HALL_OF_FAME_BGM && HALL_OF_FAME_BGM != "")
+70:     pbBGMPlay(HALL_OF_FAME_BGM) if @useMusic
+71:     saveHallEntry
+72:     @movements = []
+73:     createBattlers
+74:     pbFadeInAndShow(@sprites) { pbUpdate }
+75:   end
+76: 
+77:   def pbStartScenePC
+78:     pbStartScene
+79:     @hallIndex = $PokemonGlobal.hallOfFame.size - 1
+80:     @hallEntry = $PokemonGlobal.hallOfFame[-1]
+81:     createBattlers(false)
+82:     pbFadeInAndShow(@sprites) { pbUpdate }
+83:     pbUpdatePC
+84:   end
+85: 
+86:   def pbEndScene
+87:     $game_map.autoplay if @useMusic
+88:     pbDisposeMessageWindow(@sprites["msgwindow"]) if @sprites.include?("msgwindow")
+89:     pbFadeOutAndHide(@sprites) { pbUpdate } if !@alreadyFadedInEnd
+90:     pbDisposeSpriteHash(@sprites)
+91:     @viewport.dispose
+92:   end
+93: 
+94:   def slowFadeOut(duration)
+95:     col = Color.new(0, 0, 0, 0)
+96:     timer_start = System.uptime
+97:     loop do
+98:       col.alpha = lerp(0, 255, duration, timer_start, System.uptime)
+99:       @viewport.color = col
+100:       Graphics.update
+101:       Input.update
+102:       pbUpdate
+103:       break if col.alpha == 255
+104:     end
+105:   end
+106: 
+107:   # Dispose the sprite if the sprite exists and make it null
+108:   def restartSpritePosition(sprites, spritename)
+109:     sprites[spritename].dispose if sprites.include?(spritename) && sprites[spritename]
+110:     sprites[spritename] = nil
+111:   end
+112: 
+113:   # Change the pokémon sprites opacity except the index one
+114:   def setPokemonSpritesOpacity(index, opacity = 255)
+115:     @hallEntry.size.times do |n|
+116:       @sprites["pokemon#{n}"].opacity = (n == index) ? 255 : opacity if @sprites["pokemon#{n}"]
+117:     end
+118:   end
+119: 
+120:   def saveHallEntry
+121:     $player.party.each do |pkmn|
+122:       # Clones every pokémon object
+123:       @hallEntry.push(pkmn.clone) if !pkmn.egg? || ALLOW_EGGS
+124:     end
+125:     # Update the global variables
+126:     $PokemonGlobal.hallOfFame.push(@hallEntry)
+127:     $PokemonGlobal.hallOfFameLastNumber += 1
+128:     if HALL_ENTRIES_LIMIT >= 0 && $PokemonGlobal.hallOfFame.size > HALL_ENTRIES_LIMIT
+129:       $PokemonGlobal.hallOfFame.delete_at(0)
+130:     end
+131:   end
+132: 
+133:   # Return the x/y point position in screen for battler index number
+134:   # Don't use odd numbers!
+135:   def xpointformula(battlernumber)
+136:     if SINGLE_ROW_OF_POKEMON
+137:       ret = ((60 * (battlernumber / 2)) + 48) * (xpositionformula(battlernumber) - 1)   # -48, 48, -108, 108, -168, 168
+138:       return ret + (Graphics.width / 2)                   # 208, 304, 148, 364, 88, 424
+139:     end
+140:     return 96 + (160 * xpositionformula(battlernumber))   # 256, 96, 456, 256, 456, 96
+141:   end
+142: 
+143:   def ypointformula(battlernumber)
+144:     return 180 - (32 * (battlernumber / 2)) if SINGLE_ROW_OF_POKEMON   # 180, 180, 148, 148, 116, 116
+145:     return 96 + (64 * ypositionformula(battlernumber))                 # 90, 90, 90, 160, 160, 160
+146:   end
+147: 
+148:   # Returns 0, 1 or 2 as the x position value (left, middle, right column)
+149:   def xpositionformula(battlernumber)
+150:     return (battlernumber % 2) * 2 if SINGLE_ROW_OF_POKEMON       # 0, 2, 0, 2, 0, 2
+151:     return (1 - battlernumber) % 3 if (battlernumber / 3).even?   # First 3 mons: 1, 0, 2
+152:     return (1 + battlernumber) % 3                                # Second 3 mons: 1, 2, 0
+153:   end
+154: 
+155:   # Returns 0, 1 or 2 as the y position value (top, middle, bottom row)
+156:   def ypositionformula(battlernumber)
+157:     return 1 if SINGLE_ROW_OF_POKEMON      # 1, 1, 1, 1, 1, 1
+158:     return ((battlernumber / 3) % 2) * 2   # 0, 0, 0, 2, 2, 2
+159:   end
+160: 
+161:   def moveSprite(i)
+162:     spritename = (i > -1) ? "pokemon#{i}" : "trainer"
+163:     if !ANIMATION   # Skips animation, place directly in end position
+164:       @sprites[spritename].x = @movements[i][1]
+165:       @sprites[spritename].y = @movements[i][3]
+166:       @movements[i][0] = @movements[i][1]
+167:       @movements[i][2] = @movements[i][3]
+168:       return
+169:     end
+170:     @movements[i][4] = System.uptime if !@movements[i][4]
+171:     speed = (i > -1) ? APPEAR_SPEED : APPEAR_SPEED * 3
+172:     @sprites[spritename].x = lerp(@movements[i][0], @movements[i][1], speed, @movements[i][4], System.uptime)
+173:     @sprites[spritename].y = lerp(@movements[i][2], @movements[i][3], speed, @movements[i][4], System.uptime)
+174:     @movements[i][0] = @movements[i][1] if @sprites[spritename].x == @movements[i][1]
+175:     @movements[i][2] = @movements[i][3] if @sprites[spritename].y == @movements[i][3]
+176:   end
+177: 
+178:   def createBattlers(hide = true)
+179:     # Movement in animation
+180:     Settings::MAX_PARTY_SIZE.times do |i|
+181:       # Clear all pokémon sprites and dispose the ones that exists every time
+182:       # that this method is call
+183:       restartSpritePosition(@sprites, "pokemon#{i}")
+184:       next if i >= @hallEntry.size
+185:       end_x = xpointformula(i)
+186:       end_y = ypointformula(i)
+187:       @sprites["pokemon#{i}"] = PokemonSprite.new(@viewport)
+188:       @sprites["pokemon#{i}"].setPokemonBitmap(@hallEntry[i])
+189:       # This method doesn't put the exact coordinates
+190:       @sprites["pokemon#{i}"].x = end_x
+191:       @sprites["pokemon#{i}"].y = end_y
+192:       @sprites["pokemon#{i}"].z = Settings::MAX_PARTY_SIZE - i if SINGLE_ROW_OF_POKEMON
+193:       next if !hide
+194:       # Animation distance calculation
+195:       x_direction = xpositionformula(i) - 1
+196:       y_direction = ypositionformula(i) - 1
+197:       distance = 0
+198:       if y_direction == 0
+199:         distance = (x_direction > 0) ? end_x : Graphics.width - end_x
+200:         distance += @sprites["pokemon#{i}"].bitmap.width / 2
+201:       else
+202:         distance = (y_direction > 0) ? end_y : Graphics.height - end_y
+203:         distance += @sprites["pokemon#{i}"].bitmap.height / 2
+204:       end
+205:       start_x = end_x - (x_direction * distance)
+206:       start_y = end_y - (y_direction * distance)
+207:       @sprites["pokemon#{i}"].x = start_x
+208:       @sprites["pokemon#{i}"].y = start_y
+209:       @movements[i] = [start_x, end_x, start_y, end_y]
+210:     end
+211:   end
+212: 
+213:   def createTrainerBattler
+214:     @sprites["trainer"] = IconSprite.new(@viewport)
+215:     @sprites["trainer"].setBitmap(GameData::TrainerType.player_front_sprite_filename($player.trainer_type))
+216:     if SINGLE_ROW_OF_POKEMON
+217:       @sprites["trainer"].x = Graphics.width / 2
+218:       @sprites["trainer"].y = 208
+219:     else
+220:       @sprites["trainer"].x = Graphics.width - 96
+221:       @sprites["trainer"].y = 160
+222:     end
+223:     @movements.push([Graphics.width / 2, @sprites["trainer"].x, @sprites["trainer"].y, @sprites["trainer"].y])
+224:     @sprites["trainer"].z = 9
+225:     @sprites["trainer"].ox = @sprites["trainer"].bitmap.width / 2
+226:     @sprites["trainer"].oy = @sprites["trainer"].bitmap.height / 2
+227:     if REMOVE_BARS_WHEN_SHOWING_TRAINER
+228:       @sprites["overlay"].bitmap.clear
+229:       @sprites["hallbars"].visible = false
+230:     end
+231:     if ANIMATION && !SINGLE_ROW_OF_POKEMON   # Trainer Animation
+232:       @sprites["trainer"].x = @movements.last[0]
+233:     else
+234:       timer_start = System.uptime
+235:       loop do
+236:         Graphics.update
+237:         Input.update
+238:         pbUpdate
+239:         break if System.uptime - timer_start >= ENTRY_WAIT_TIME
+240:       end
+241:     end
+242:   end
+243: 
+244:   def writeTrainerData
+245:     if $PokemonGlobal.hallOfFameLastNumber == 1
+246:       totalsec = $stats.time_to_enter_hall_of_fame.to_i
+247:     else
+248:       totalsec = $stats.play_time.to_i
+249:     end
+250:     hour = totalsec / 60 / 60
+251:     min = totalsec / 60 % 60
+252:     pubid = sprintf("%05d", $player.public_ID)
+253:     lefttext = _INTL("Name<r>{1}", $player.name) + "<br>"
+254:     lefttext += _INTL("ID No.<r>{1}", pubid) + "<br>"
+255:     if hour > 0
+256:       lefttext += _INTL("Time<r>{1}h {2}m", hour, min) + "<br>"
+257:     else
+258:       lefttext += _INTL("Time<r>{1}m", min) + "<br>"
+259:     end
+260:     lefttext += _INTL("Pokédex<r>{1}/{2}",
+261:                       $player.pokedex.owned_count, $player.pokedex.seen_count) + "<br>"
+262:     @sprites["messagebox"] = Window_AdvancedTextPokemon.new(lefttext)
+263:     @sprites["messagebox"].viewport = @viewport
+264:     @sprites["messagebox"].width = 192 if @sprites["messagebox"].width < 192
+265:     @sprites["msgwindow"] = pbCreateMessageWindow(@viewport)
+266:     pbMessageDisplay(@sprites["msgwindow"],
+267:                      _INTL("League champion!\nCongratulations!") + "\\^")
+268:   end
+269: 
+270:   def writePokemonData(pokemon, hallNumber = -1)

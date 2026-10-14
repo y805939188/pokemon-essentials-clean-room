@@ -1,0 +1,72 @@
+791:   def compile_trainers(*paths)
+792:     GameData::Trainer::DATA.clear
+793:     schema = GameData::Trainer.schema
+794:     sub_schema = GameData::Trainer.sub_schema
+795:     idx = 0
+796:     # Read from PBS file(s)
+797:     paths.each do |path|
+798:       compile_pbs_file_message_start(path)
+799:       file_suffix = File.basename(path, ".txt")[GameData::Trainer::PBS_BASE_FILENAME.length + 1, path.length] || ""
+800:       data_hash = nil
+801:       current_pkmn = nil
+802:       section_name = nil
+803:       section_line = nil
+804:       # Read each line of trainers.txt at a time and compile it as a trainer property
+805:       pbCompilerEachPreppedLine(path) do |line, line_no|
+806:         echo "." if idx % 100 == 0
+807:         idx += 1
+808:         Graphics.update if idx % 500 == 0
+809:         FileLineData.setSection(section_name, nil, section_line)
+810:         if line[/^\s*\[\s*(.+)\s*\]\s*$/]
+811:           # New section [trainer_type, name] or [trainer_type, name, version]
+812:           section_name = $~[1]
+813:           section_line = line
+814:           if data_hash
+815:             validate_compiled_trainer(data_hash)
+816:             GameData::Trainer.register(data_hash)
+817:           end
+818:           FileLineData.setSection(section_name, nil, section_line)
+819:           # Construct data hash
+820:           data_hash = {
+821:             :pbs_file_suffix => file_suffix
+822:           }
+823:           data_hash[schema["SectionName"][0]] = get_csv_record(section_name.clone, schema["SectionName"])
+824:           data_hash[schema["Pokemon"][0]] = []
+825:           current_pkmn = nil
+826:         elsif line[/^\s*(\w+)\s*=\s*(.*)$/]
+827:           # XXX=YYY lines
+828:           if !data_hash
+829:             raise _INTL("Expected a section at the beginning of the file.") + "\n" + FileLineData.linereport
+830:           end
+831:           key = $~[1]
+832:           if schema[key]   # Property of the trainer
+833:             property_value = get_csv_record($~[2], schema[key])
+834:             if key == "Pokemon"
+835:               current_pkmn = {
+836:                 :species => property_value[0],
+837:                 :level   => property_value[1]
+838:               }
+839:               data_hash[schema[key][0]].push(current_pkmn)
+840:             else
+841:               data_hash[schema[key][0]] = property_value
+842:             end
+843:           elsif sub_schema[key]   # Property of a Pokémon
+844:             if !current_pkmn
+845:               raise _INTL("Pokémon hasn't been defined yet!") + "\n" + FileLineData.linereport
+846:             end
+847:             current_pkmn[sub_schema[key][0]] = get_csv_record($~[2], sub_schema[key])
+848:           end
+849:         end
+850:       end
+851:       # Add last trainer's data to records
+852:       if data_hash
+853:         FileLineData.setSection(section_name, nil, section_line)
+854:         validate_compiled_trainer(data_hash)
+855:         GameData::Trainer.register(data_hash)
+856:       end
+857:       process_pbs_file_message_end
+858:     end
+859:     validate_all_compiled_trainers
+860:     # Save all data
+861:     GameData::Trainer.save
+862:   end

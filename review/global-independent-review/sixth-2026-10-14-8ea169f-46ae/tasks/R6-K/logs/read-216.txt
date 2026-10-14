@@ -1,0 +1,285 @@
+PATH reference/pokemon-essentials/Data/Scripts/002_Save data/002_SaveData_Value.rb RANGE 1-284 TOTAL 284
+1	module SaveData
+2	  # Contains Value objects for each save element.
+3	  # Populated during runtime by SaveData.register calls.
+4	  # @type [Array<Value>]
+5	  @values = []
+6	
+7	  # An error raised if an invalid save value is being saved or loaded.
+8	  class InvalidValueError < RuntimeError; end
+9	
+10	  #=============================================================================
+11	  # Represents a single value in save data.
+12	  # New values are added using {SaveData.register}.
+13	  class Value
+14	    # @return [Symbol] the value id
+15	    attr_reader :id
+16	
+17	    # @param id [Symbol] value id
+18	    def initialize(id, &block)
+19	      validate id => Symbol, block => Proc
+20	      @id = id
+21	      @loaded = false
+22	      @load_in_bootup = false
+23	      @reset_on_new_game = false
+24	      instance_eval(&block)
+25	      raise "No save_value defined for save value #{id.inspect}" if @save_proc.nil?
+26	      raise "No load_value defined for save value #{id.inspect}" if @load_proc.nil?
+27	    end
+28	
+29	    # @param value [Object] value to check
+30	    # @return [Boolean] whether the given value is valid
+31	    def valid?(value)
+32	      return true if @ensured_class.nil?
+33	      return value.is_a?(Object.const_get(@ensured_class))
+34	    end
+35	
+36	    # Calls the value's load proc with the given argument passed into it.
+37	    # @param value [Object] load proc argument
+38	    # @raise [InvalidValueError] if an invalid value is being loaded
+39	    def load(value)
+40	      validate_value(value)
+41	      @load_proc.call(value)
+42	      @loaded = true
+43	    end
+44	
+45	    # Calls the value's save proc and returns its value.
+46	    # @return [Object] save proc value
+47	    # @raise [InvalidValueError] if an invalid value is being saved
+48	    def save
+49	      value = @save_proc.call
+50	      validate_value(value)
+51	      return value
+52	    end
+53	
+54	    # @return [Boolean] whether the value has a new game value proc defined
+55	    def has_new_game_proc?
+56	      return @new_game_value_proc.is_a?(Proc)
+57	    end
+58	
+59	    # Calls the save value's load proc with the value fetched
+60	    # from the defined new game value proc.
+61	    # @raise (see #load)
+62	    def load_new_game_value
+63	      unless self.has_new_game_proc?
+64	        raise "Save value #{@id.inspect} has no new_game_value defined"
+65	      end
+66	      self.load(@new_game_value_proc.call)
+67	    end
+68	
+69	    # @return [Boolean] whether the value should be loaded during bootup
+70	    def load_in_bootup?
+71	      return @load_in_bootup
+72	    end
+73	
+74	    def reset_on_new_game
+75	      @reset_on_new_game = true
+76	    end
+77	
+78	    def reset_on_new_game?
+79	      return @reset_on_new_game
+80	    end
+81	
+82	    # @return [Boolean] whether the value has been loaded
+83	    def loaded?
+84	      return @loaded
+85	    end
+86	
+87	    # Marks value as unloaded.
+88	    def mark_as_unloaded
+89	      @loaded = false
+90	    end
+91	
+92	    # Uses the {#from_old_format} proc to select the correct data from
+93	    # +old_format+ and return it.
+94	    # Returns nil if the proc is undefined.
+95	    # @param old_format [Array] old format to load value from
+96	    # @return [Object] data from the old format
+97	    def get_from_old_format(old_format)
+98	      return nil if @old_format_get_proc.nil?
+99	      return @old_format_get_proc.call(old_format)
+100	    end
+101	
+102	    #---------------------------------------------------------------------------
+103	
+104	    private
+105	
+106	    # Raises an {InvalidValueError} if the given value is invalid.
+107	    # @param value [Object] value to check
+108	    # @raise [InvalidValueError] if the value is invalid
+109	    def validate_value(value)
+110	      return if self.valid?(value)
+111	      raise InvalidValueError, "Save value #{@id.inspect} is not a #{@ensured_class} (#{value.class.name} given)"
+112	    end
+113	
+114	    # @!group Configuration
+115	
+116	    # If present, ensures that the value is of the given class.
+117	    # @param class_name [Symbol] class to enforce
+118	    # @see SaveData.register
+119	    def ensure_class(class_name)
+120	      validate class_name => Symbol
+121	      @ensured_class = class_name
+122	    end
+123	
+124	    # Defines how the loaded value is placed into a global variable.
+125	    # Requires a block with the loaded value as its parameter.
+126	    # @see SaveData.register
+127	    def load_value(&block)
+128	      raise ArgumentError, "No block given to load_value" unless block_given?
+129	      @load_proc = block
+130	    end
+131	
+132	    # Defines what is saved into save data. Requires a block.
+133	    # @see SaveData.register
+134	    def save_value(&block)
+135	      raise ArgumentError, "No block given to save_value" unless block_given?
+136	      @save_proc = block
+137	    end
+138	
+139	    # If present, defines what the value is set to at the start of a new game.
+140	    # @see SaveData.register
+141	    def new_game_value(&block)
+142	      raise ArgumentError, "No block given to new_game_value" unless block_given?
+143	      @new_game_value_proc = block
+144	    end
+145	
+146	    # If present, sets the value to be loaded during bootup.
+147	    # @see SaveData.register
+148	    def load_in_bootup
+149	      @load_in_bootup = true
+150	    end
+151	
+152	    # If present, defines how the value should be fetched from the pre-v19
+153	    # save format. Requires a block with the old format array as its parameter.
+154	    # @see SaveData.register
+155	    def from_old_format(&block)
+156	      raise ArgumentError, "No block given to from_old_format" unless block_given?
+157	      @old_format_get_proc = block
+158	    end
+159	
+160	    # @!endgroup
+161	  end
+162	
+163	  #=============================================================================
+164	  # Registers a {Value} to be saved into save data.
+165	  # Takes a block which defines the value's saving ({Value#save_value})
+166	  # and loading ({Value#load_value}) procedures.
+167	  #
+168	  # It is also possible to provide a proc for fetching the value
+169	  # from the pre-v19 format ({Value#from_old_format}), define
+170	  # a value to be set upon starting a new game with {Value#new_game_value}
+171	  # and ensure that the saved and loaded value is of the correct
+172	  # class with {Value#ensure_class}.
+173	  #
+174	  # Values can be registered to be loaded on bootup with
+175	  # {Value#load_in_bootup}. If a new_game_value proc is defined, it
+176	  # will be called when the game is launched for the first time,
+177	  # or if the save data does not contain the value in question.
+178	  #
+179	  # @example Registering a new value
+180	  #   SaveData.register(:foo) do
+181	  #     ensure_class :Foo
+182	  #     save_value { $foo }
+183	  #     load_value { |value| $foo = value }
+184	  #     new_game_value { Foo.new }
+185	  #   end
+186	  # @example Registering a value to be loaded on bootup
+187	  #   SaveData.register(:bar) do
+188	  #     load_in_bootup
+189	  #     save_value { $bar }
+190	  #     load_value { |value| $bar = value }
+191	  #     new_game_value { Bar.new }
+192	  #   end
+193	  # @param id [Symbol] value id
+194	  # @yield the block of code to be saved as a Value
+195	  def self.register(id, &block)
+196	    validate id => Symbol
+197	    unless block_given?
+198	      raise ArgumentError, "No block given to SaveData.register"
+199	    end
+200	    @values << Value.new(id, &block)
+201	  end
+202	
+203	  def self.unregister(id)
+204	    validate id => Symbol
+205	    @values.delete_if { |value| value.id == id }
+206	  end
+207	
+208	  # @param save_data [Hash] save data to validate
+209	  # @return [Boolean] whether the given save data is valid
+210	  def self.valid?(save_data)
+211	    validate save_data => Hash
+212	    return @values.all? { |value| value.valid?(save_data[value.id]) }
+213	  end
+214	
+215	  # Loads values from the given save data.
+216	  # An optional condition can be passed.
+217	  # @param save_data [Hash] save data to load from
+218	  # @param condition_block [Proc] optional condition
+219	  # @api private
+220	  def self.load_values(save_data, &condition_block)
+221	    @values.each do |value|
+222	      next if block_given? && !condition_block.call(value)
+223	      if save_data.has_key?(value.id)
+224	        value.load(save_data[value.id])
+225	      elsif value.has_new_game_proc?
+226	        value.load_new_game_value
+227	      end
+228	    end
+229	  end
+230	
+231	  # Loads the values from the given save data by
+232	  # calling each {Value} object's {Value#load_value} proc.
+233	  # Values that are already loaded are skipped.
+234	  # If a value does not exist in the save data and has
+235	  # a {Value#new_game_value} proc defined, that value
+236	  # is loaded instead.
+237	  # @param save_data [Hash] save data to load
+238	  # @raise [InvalidValueError] if an invalid value is being loaded
+239	  def self.load_all_values(save_data)
+240	    validate save_data => Hash
+241	    load_values(save_data) { |value| !value.loaded? }
+242	  end
+243	
+244	  # Marks all values that aren't loaded on bootup as unloaded.
+245	  def self.mark_values_as_unloaded
+246	    @values.each do |value|
+247	      value.mark_as_unloaded if !value.load_in_bootup? || value.reset_on_new_game?
+248	    end
+249	  end
+250	
+251	  # Loads each value from the given save data that has
+252	  # been set to be loaded during bootup. Done when a save file exists.
+253	  # @param save_data [Hash] save data to load
+254	  # @raise [InvalidValueError] if an invalid value is being loaded
+255	  def self.load_bootup_values(save_data)
+256	    validate save_data => Hash
+257	    load_values(save_data) { |value| !value.loaded? && value.load_in_bootup? }
+258	  end
+259	
+260	  # Goes through each value with {Value#load_in_bootup} enabled and loads their
+261	  # new game value, if one is defined. Done when no save file exists.
+262	  def self.initialize_bootup_values
+263	    @values.each do |value|
+264	      next unless value.load_in_bootup?
+265	      value.load_new_game_value if value.has_new_game_proc? && !value.loaded?
+266	    end
+267	  end
+268	
+269	  # Loads each {Value}'s new game value, if one is defined. Done when starting a
+270	  # new game.
+271	  def self.load_new_game_values
+272	    @values.each do |value|
+273	      value.load_new_game_value if value.has_new_game_proc? && (!value.loaded? || value.reset_on_new_game?)
+274	    end
+275	  end
+276	
+277	  # @return [Hash{Symbol => Object}] a hash representation of the save data
+278	  # @raise [InvalidValueError] if an invalid value is being saved
+279	  def self.compile_save_hash
+280	    save_data = {}
+281	    @values.each { |value| save_data[value.id] = value.save }
+282	    return save_data
+283	  end
+284	end

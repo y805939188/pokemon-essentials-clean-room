@@ -1,0 +1,161 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/004_ChallengeGenerator_BattleSim.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "3d74238e2e7319ad487445b4e037a4167929456e", "sha256": "f4d0b0d5b456daa180655fc796a94d37efe66f291d3ebae24228e7a3d84a1e47", "start_line": 161, "end_line": 320, "total_lines": 438, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:27:48.311476+00:00"}
+161:     end
+162:     @rating += stake
+163:   end
+164: end
+165: 
+166: #===============================================================================
+167: #
+168: #===============================================================================
+169: class PlayerRating
+170:   attr_reader :volatility
+171:   attr_reader :deviation
+172:   attr_reader :rating
+173: 
+174:   def initialize
+175:     @rating          = 1500.0
+176:     @deviation       = 350.0
+177:     @volatility      = 0.9
+178:     @estimatedRating = nil
+179:   end
+180: 
+181:   def winChancePercent
+182:     return @estimatedRating if @estimatedRating
+183:     if @deviation > 100
+184:       # https://www.smogon.com/forums/threads/make-sense-of-your-shoddy-battle-rating.55764/
+185:       otherRating = 1500.0
+186:       otherDeviation = 350.0
+187:       s = Math.sqrt(100_000.0 + (@deviation * @deviation) + (otherDeviation * otherDeviation))
+188:       g = 10.0**((otherRating - @rating) * 0.79 / s)
+189:       @estimatedRating = (1.0 / (1.0 + g)) * 100.0   # Percent chance that I win against opponent
+190:     else
+191:       # GLIXARE method
+192:       rds = @deviation * @deviation
+193:       sqr = Math.sqrt(15.905694331435 * (rds + 221_781.21786254))
+194:       inner = (1500.0 - @rating) * Math::PI / sqr
+195:       @estimatedRating = ((10_000.0 / (1.0 + (10.0**inner))) + 0.5) / 100.0
+196:     end
+197:     return @estimatedRating
+198:   end
+199: 
+200:   def update(matches, system = 1.2)
+201:     volatility = volatility2
+202:     deviation = deviation2
+203:     rating = rating2
+204:     if matches.length == 0
+205:       setDeviation2(Math.sqrt((deviation * deviation) + (volatility * volatility)))
+206:       return
+207:     end
+208:     g = []
+209:     e = []
+210:     score = []
+211:     matches.length.times do |i|
+212:       match = matches[i]
+213:       g[i] = getGFactor(match.opponentDeviation)
+214:       e[i] = getEFactor(rating, match.opponentRating, g[i])
+215:       score[i] = match.score
+216:     end
+217:     # Estimated variance
+218:     variance = 0.0
+219:     matches.length.times do |i|
+220:       variance += g[i] * g[i] * e[i] * (1 - e[i])
+221:     end
+222:     variance = 1.0 / variance
+223:     # Improvement sum
+224:     sum = 0.0
+225:     matches.length.times do |i|
+226:       v = score[i]
+227:       sum += g[i] * (v.to_f - e[i]) if v != -1
+228:     end
+229:     volatility = getUpdatedVolatility(volatility, deviation, variance, sum, system)
+230:     # Update deviation
+231:     t = (deviation * deviation) + (volatility * volatility)
+232:     deviation = 1.0 / Math.sqrt((1.0 / t) + (1.0 / variance))
+233:     # Update rating
+234:     rating += deviation * deviation * sum
+235:     setRating2(rating)
+236:     setDeviation2(deviation)
+237:     setVolatility2(volatility)
+238:   end
+239: 
+240:   #-----------------------------------------------------------------------------
+241: 
+242:   private
+243: 
+244:   attr_writer :volatility
+245: 
+246:   alias volatility2 volatility
+247: 
+248:   def rating2
+249:     return (@rating - 1500.0) / 173.7178
+250:   end
+251: 
+252:   def deviation2
+253:     return @deviation / 173.7178
+254:   end
+255: 
+256:   def getGFactor(deviation)
+257:     # deviation is not yet in glicko2
+258:     deviation /= 173.7178
+259:     return 1.0 / Math.sqrt(1.0 + ((3.0 * deviation * deviation) / (Math::PI * Math::PI)))
+260:   end
+261: 
+262:   def getEFactor(rating, opponentRating, g)
+263:     # rating is already in glicko2
+264:     # opponentRating is not yet in glicko2
+265:     opponentRating = (opponentRating - 1500.0) / 173.7178
+266:     return 1.0 / (1.0 + Math.exp(-g * (rating - opponentRating)))
+267:   end
+268: 
+269:   def setVolatility2(value)
+270:     @volatility = value
+271:   end
+272: 
+273:   def setRating2(value)
+274:     @estimatedRating = nil
+275:     @rating = (value * 173.7178) + 1500.0
+276:   end
+277: 
+278:   def setDeviation2(value)
+279:     @estimatedRating = nil
+280:     @deviation = value * 173.7178
+281:   end
+282: 
+283:   def getUpdatedVolatility(volatility, deviation, variance, improvementSum, system)
+284:     improvement = improvementSum * variance
+285:     a = Math.log(volatility * volatility)
+286:     squSystem = system * system
+287:     squDeviation = deviation * deviation
+288:     squVariance = variance + variance
+289:     squDevplusVar = squDeviation + variance
+290:     x0 = a
+291:     100.times do   # Up to 100 iterations to avoid potentially infinite loops
+292:       e = Math.exp(x0)
+293:       d = squDevplusVar + e
+294:       squD = d * d
+295:       i = improvement / d
+296:       h1 = (-(x0 - a) / squSystem) - (0.5 * e * i * i)
+297:       h2 = (-1.0 / squSystem) - (0.5 * e * squDevplusVar / squD)
+298:       h2 += 0.5 * squVariance * e * (squDevplusVar - e) / (squD * d)
+299:       x1 = x0
+300:       x0 -= h1 / h2
+301:       break if (x1 - x0).abs < 0.000001
+302:     end
+303:     return Math.exp(x0 / 2.0)
+304:   end
+305: end
+306: 
+307: #===============================================================================
+308: #
+309: #===============================================================================
+310: def pbDecideWinnerEffectiveness(move, otype1, otype2, ability, scores)
+311:   data = GameData::Move.get(move)
+312:   return 0 if data.power == 0
+313:   atype = data.type
+314:   typemod = 1.0
+315:   if ability != :LEVITATE || data.type != :GROUND
+316:     mod1 = Effectiveness.calculate(atype, otype1)
+317:     mod2 = (otype1 == otype2) ? 1.0 : Effectiveness.calculate(atype, otype2)
+318:     if ability == :WONDERGUARD
+319:       mod1 = 1.0 if !Effectiveness.super_effective?(mod1)
+320:       mod2 = 1.0 if !Effectiveness.super_effective?(mod2)

@@ -1,0 +1,290 @@
+1: #===============================================================================
+2: # HP/Status options
+3: #===============================================================================
+4: MenuHandlers.add(:pokemon_debug_menu, :hp_status_menu, {
+5:   "name"   => _INTL("HP/status..."),
+6:   "parent" => :main
+7: })
+8: 
+9: MenuHandlers.add(:pokemon_debug_menu, :set_hp, {
+10:   "name"   => _INTL("Set HP"),
+11:   "parent" => :hp_status_menu,
+12:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+13:     if pkmn.egg?
+14:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+15:     else
+16:       params = ChooseNumberParams.new
+17:       params.setRange(0, pkmn.totalhp)
+18:       params.setDefaultValue(pkmn.hp)
+19:       newhp = pbMessageChooseNumber(
+20:         _INTL("Set {1}'s HP (max. {2}).", pkmn.name, pkmn.totalhp), params
+21:       ) { screen.pbUpdate }
+22:       if newhp != pkmn.hp
+23:         pkmn.hp = newhp
+24:         screen.pbRefreshSingle(pkmnid)
+25:       end
+26:     end
+27:     next false
+28:   }
+29: })
+30: 
+31: MenuHandlers.add(:pokemon_debug_menu, :set_status, {
+32:   "name"   => _INTL("Set status"),
+33:   "parent" => :hp_status_menu,
+34:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+35:     if pkmn.egg?
+36:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+37:     elsif pkmn.hp <= 0
+38:       screen.pbDisplay(_INTL("{1} is fainted, can't change status.", pkmn.name))
+39:     else
+40:       cmd = 0
+41:       commands = [_INTL("[Cure]")]
+42:       ids = [:NONE]
+43:       GameData::Status.each do |s|
+44:         next if s.id == :NONE
+45:         commands.push(_INTL("Set {1}", s.name))
+46:         ids.push(s.id)
+47:       end
+48:       loop do
+49:         msg = _INTL("Current status: {1}", GameData::Status.get(pkmn.status).name)
+50:         if pkmn.status == :SLEEP
+51:           msg = _INTL("Current status: {1} (turns: {2})",
+52:                       GameData::Status.get(pkmn.status).name, pkmn.statusCount)
+53:         end
+54:         cmd = screen.pbShowCommands(msg, commands, cmd)
+55:         break if cmd < 0
+56:         case cmd
+57:         when 0   # Cure
+58:           pkmn.heal_status
+59:           screen.pbRefreshSingle(pkmnid)
+60:         else   # Give status problem
+61:           count = 0
+62:           cancel = false
+63:           if ids[cmd] == :SLEEP
+64:             params = ChooseNumberParams.new
+65:             params.setRange(0, 9)
+66:             params.setDefaultValue(3)
+67:             count = pbMessageChooseNumber(
+68:               _INTL("Set the Pokémon's sleep count."), params
+69:             ) { screen.pbUpdate }
+70:             cancel = true if count <= 0
+71:           end
+72:           if !cancel
+73:             pkmn.status      = ids[cmd]
+74:             pkmn.statusCount = count
+75:             screen.pbRefreshSingle(pkmnid)
+76:           end
+77:         end
+78:       end
+79:     end
+80:     next false
+81:   }
+82: })
+83: 
+84: MenuHandlers.add(:pokemon_debug_menu, :full_heal, {
+85:   "name"   => _INTL("Fully heal"),
+86:   "parent" => :hp_status_menu,
+87:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+88:     if pkmn.egg?
+89:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+90:     else
+91:       pkmn.heal
+92:       screen.pbDisplay(_INTL("{1} was fully healed.", pkmn.name))
+93:       screen.pbRefreshSingle(pkmnid)
+94:     end
+95:     next false
+96:   }
+97: })
+98: 
+99: MenuHandlers.add(:pokemon_debug_menu, :make_fainted, {
+100:   "name"   => _INTL("Make fainted"),
+101:   "parent" => :hp_status_menu,
+102:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+103:     if pkmn.egg?
+104:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+105:     else
+106:       pkmn.hp = 0
+107:       screen.pbRefreshSingle(pkmnid)
+108:     end
+109:     next false
+110:   }
+111: })
+112: 
+113: MenuHandlers.add(:pokemon_debug_menu, :set_pokerus, {
+114:   "name"   => _INTL("Set Pokérus"),
+115:   "parent" => :hp_status_menu,
+116:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+117:     cmd = 0
+118:     loop do
+119:       pokerus = (pkmn.pokerus) ? pkmn.pokerus : 0
+120:       msg = [_INTL("{1} doesn't have Pokérus.", pkmn.name),
+121:              _INTL("Has strain {1}, infectious for {2} more days.", pokerus / 16, pokerus % 16),
+122:              _INTL("Has strain {1}, not infectious.", pokerus / 16)][pkmn.pokerusStage]
+123:       cmd = screen.pbShowCommands(msg,
+124:                                   [_INTL("Give random strain"),
+125:                                    _INTL("Make not infectious"),
+126:                                    _INTL("Clear Pokérus")], cmd)
+127:       break if cmd < 0
+128:       case cmd
+129:       when 0   # Give random strain
+130:         pkmn.givePokerus
+131:         screen.pbRefreshSingle(pkmnid)
+132:       when 1   # Make not infectious
+133:         if pokerus > 0
+134:           strain = pokerus / 16
+135:           p = strain << 4
+136:           pkmn.pokerus = p
+137:           screen.pbRefreshSingle(pkmnid)
+138:         end
+139:       when 2   # Clear Pokérus
+140:         pkmn.pokerus = 0
+141:         screen.pbRefreshSingle(pkmnid)
+142:       end
+143:     end
+144:     next false
+145:   }
+146: })
+147: 
+148: #===============================================================================
+149: # Level/stats options
+150: #===============================================================================
+151: MenuHandlers.add(:pokemon_debug_menu, :level_stats, {
+152:   "name"   => _INTL("Level/stats..."),
+153:   "parent" => :main
+154: })
+155: 
+156: MenuHandlers.add(:pokemon_debug_menu, :set_level, {
+157:   "name"   => _INTL("Set level"),
+158:   "parent" => :level_stats,
+159:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+160:     if pkmn.egg?
+161:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+162:     else
+163:       params = ChooseNumberParams.new
+164:       params.setRange(1, GameData::GrowthRate.max_level)
+165:       params.setDefaultValue(pkmn.level)
+166:       level = pbMessageChooseNumber(
+167:         _INTL("Set the Pokémon's level (max. {1}).", params.maxNumber), params
+168:       ) { screen.pbUpdate }
+169:       if level != pkmn.level
+170:         pkmn.level = level
+171:         pkmn.calc_stats
+172:         screen.pbRefreshSingle(pkmnid)
+173:       end
+174:     end
+175:     next false
+176:   }
+177: })
+178: 
+179: MenuHandlers.add(:pokemon_debug_menu, :set_exp, {
+180:   "name"   => _INTL("Set Exp"),
+181:   "parent" => :level_stats,
+182:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+183:     if pkmn.egg?
+184:       screen.pbDisplay(_INTL("{1} is an egg.", pkmn.name))
+185:     else
+186:       minxp = pkmn.growth_rate.minimum_exp_for_level(pkmn.level)
+187:       maxxp = pkmn.growth_rate.minimum_exp_for_level(pkmn.level + 1)
+188:       if minxp == maxxp
+189:         screen.pbDisplay(_INTL("{1} is at the maximum level.", pkmn.name))
+190:       else
+191:         params = ChooseNumberParams.new
+192:         params.setRange(minxp, maxxp - 1)
+193:         params.setDefaultValue(pkmn.exp)
+194:         newexp = pbMessageChooseNumber(
+195:           _INTL("Set the Pokémon's Exp (range {1}-{2}).", minxp, maxxp - 1), params
+196:         ) { screen.pbUpdate }
+197:         if newexp != pkmn.exp
+198:           pkmn.exp = newexp
+199:           pkmn.calc_stats
+200:           screen.pbRefreshSingle(pkmnid)
+201:         end
+202:       end
+203:     end
+204:     next false
+205:   }
+206: })
+207: 
+208: MenuHandlers.add(:pokemon_debug_menu, :hidden_values, {
+209:   "name"   => _INTL("EV/IV/personal ID..."),
+210:   "parent" => :level_stats,
+211:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+212:     cmd = 0
+213:     loop do
+214:       persid = sprintf("0x%08X", pkmn.personalID)
+215:       cmd = screen.pbShowCommands(_INTL("Personal ID is {1}.", persid),
+216:                                   [_INTL("Set EVs"),
+217:                                    _INTL("Set IVs"),
+218:                                    _INTL("Randomise pID")], cmd)
+219:       break if cmd < 0
+220:       case cmd
+221:       when 0   # Set EVs
+222:         cmd2 = 0
+223:         loop do
+224:           totalev = 0
+225:           evcommands = []
+226:           ev_id = []
+227:           GameData::Stat.each_main do |s|
+228:             evcommands.push(s.name + " (#{pkmn.ev[s.id]})")
+229:             ev_id.push(s.id)
+230:             totalev += pkmn.ev[s.id]
+231:           end
+232:           evcommands.push(_INTL("Randomise all"))
+233:           evcommands.push(_INTL("Max randomise all"))
+234:           cmd2 = screen.pbShowCommands(_INTL("Change which EV?\nTotal: {1}/{2} ({3}%)",
+235:                                              totalev, Pokemon::EV_LIMIT,
+236:                                              100 * totalev / Pokemon::EV_LIMIT), evcommands, cmd2)
+237:           break if cmd2 < 0
+238:           if cmd2 < ev_id.length
+239:             params = ChooseNumberParams.new
+240:             upperLimit = 0
+241:             GameData::Stat.each_main { |s| upperLimit += pkmn.ev[s.id] if s.id != ev_id[cmd2] }
+242:             upperLimit = Pokemon::EV_LIMIT - upperLimit
+243:             upperLimit = [upperLimit, Pokemon::EV_STAT_LIMIT].min
+244:             thisValue = [pkmn.ev[ev_id[cmd2]], upperLimit].min
+245:             params.setRange(0, upperLimit)
+246:             params.setDefaultValue(thisValue)
+247:             params.setCancelValue(thisValue)
+248:             f = pbMessageChooseNumber(_INTL("Set the EV for {1} (max. {2}).",
+249:                                             GameData::Stat.get(ev_id[cmd2]).name, upperLimit), params) { screen.pbUpdate }
+250:             if f != pkmn.ev[ev_id[cmd2]]
+251:               pkmn.ev[ev_id[cmd2]] = f
+252:               pkmn.calc_stats
+253:               screen.pbRefreshSingle(pkmnid)
+254:             end
+255:           else   # (Max) Randomise all
+256:             evTotalTarget = Pokemon::EV_LIMIT
+257:             if cmd2 == evcommands.length - 2   # Randomize all (not max)
+258:               evTotalTarget = rand(Pokemon::EV_LIMIT)
+259:             end
+260:             GameData::Stat.each_main { |s| pkmn.ev[s.id] = 0 }
+261:             while evTotalTarget > 0
+262:               r = rand(ev_id.length)
+263:               next if pkmn.ev[ev_id[r]] >= Pokemon::EV_STAT_LIMIT
+264:               addVal = 1 + rand(Pokemon::EV_STAT_LIMIT / 4)
+265:               addVal = addVal.clamp(0, evTotalTarget)
+266:               addVal = addVal.clamp(0, Pokemon::EV_STAT_LIMIT - pkmn.ev[ev_id[r]])
+267:               next if addVal == 0
+268:               pkmn.ev[ev_id[r]] += addVal
+269:               evTotalTarget -= addVal
+270:             end
+271:             pkmn.calc_stats
+272:             screen.pbRefreshSingle(pkmnid)
+273:           end
+274:         end
+275:       when 1   # Set IVs
+276:         cmd2 = 0
+277:         loop do
+278:           hiddenpower = pbHiddenPower(pkmn)
+279:           totaliv = 0
+280:           ivcommands = []
+281:           iv_id = []
+282:           GameData::Stat.each_main do |s|
+283:             ivcommands.push(s.name + " (#{pkmn.iv[s.id]})")
+284:             iv_id.push(s.id)
+285:             totaliv += pkmn.iv[s.id]
+286:           end
+287:           msg = _INTL("Change which IV?\nHidden Power:\n{1}, power {2}\nTotal: {3}/{4} ({5}%)",
+288:                       GameData::Type.get(hiddenpower[0]).name, hiddenpower[1], totaliv,
+289:                       iv_id.length * Pokemon::IV_STAT_LIMIT, 100 * totaliv / (iv_id.length * Pokemon::IV_STAT_LIMIT))
+290:           ivcommands.push(_INTL("Randomise all"))

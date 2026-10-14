@@ -1,0 +1,150 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/004_Game classes/008_Game_Player.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "8f49870b94fdda6dbb53cbaeebfaf458498cd02d", "sha256": "4c0ede87e6c8c8b6e36e7637ebb1a074671492be9ecb0a0f4f8136c21acb7d15", "start_line": 1, "end_line": 149, "total_lines": 616, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:40:22.347081+00:00"}
+1: #===============================================================================
+2: # ** Game_Player
+3: #-------------------------------------------------------------------------------
+4: #  This class handles the player. Its functions include event starting
+5: #  determinants and map scrolling. Refer to "$game_player" for the one
+6: #  instance of this class.
+7: #===============================================================================
+8: class Game_Player < Game_Character
+9:   attr_accessor :charsetData
+10:   attr_accessor :encounter_count
+11: 
+12:   SCREEN_CENTER_X = ((Settings::SCREEN_WIDTH / 2) - (Game_Map::TILE_WIDTH / 2)) * Game_Map::X_SUBPIXELS
+13:   SCREEN_CENTER_Y = ((Settings::SCREEN_HEIGHT / 2) - (Game_Map::TILE_HEIGHT / 2)) * Game_Map::Y_SUBPIXELS
+14:   # Time in seconds for one cycle of bobbing (playing 4 charset frames) while
+15:   # surfing or diving.
+16:   SURF_BOB_DURATION = 1.5
+17: 
+18:   def initialize(*arg)
+19:     super(*arg)
+20:     @lastdir = 0
+21:     @lastdirframe = 0
+22:   end
+23: 
+24:   def map
+25:     @map = nil
+26:     return $game_map
+27:   end
+28: 
+29:   def map_id
+30:     return $game_map.map_id
+31:   end
+32: 
+33:   def screen_z(height = 0)
+34:     ret = super
+35:     return ret + 1
+36:   end
+37: 
+38:   def has_follower?
+39:     return $PokemonGlobal.followers.length > 0
+40:   end
+41: 
+42:   def can_map_transfer_with_follower?
+43:     return $PokemonGlobal.followers.length == 0
+44:   end
+45: 
+46:   def can_ride_vehicle_with_follower?
+47:     return $PokemonGlobal.followers.length == 0
+48:   end
+49: 
+50:   #-----------------------------------------------------------------------------
+51: 
+52:   def can_run?
+53:     return @move_speed > 3 if @move_route_forcing
+54:     return false if @bumping
+55:     return false if $game_temp.in_menu || $game_temp.in_battle ||
+56:                     $game_temp.message_window_showing || pbMapInterpreterRunning?
+57:     return false if !$player.has_running_shoes && !$PokemonGlobal.diving &&
+58:                     !$PokemonGlobal.surfing && !$PokemonGlobal.bicycle
+59:     return false if jumping?
+60:     return false if pbTerrainTag.must_walk
+61:     return ($PokemonSystem.runstyle == 1) ^ Input.press?(Input::BACK)
+62:   end
+63: 
+64:   def set_movement_type(type)
+65:     meta = GameData::PlayerMetadata.get($player&.character_ID || 1)
+66:     new_charset = nil
+67:     case type
+68:     when :fishing
+69:       new_charset = pbGetPlayerCharset(meta.fish_charset)
+70:     when :surf_fishing
+71:       new_charset = pbGetPlayerCharset(meta.surf_fish_charset)
+72:     when :diving, :diving_fast, :diving_jumping, :diving_stopped
+73:       self.move_speed = 3 if !@move_route_forcing
+74:       new_charset = pbGetPlayerCharset(meta.dive_charset)
+75:     when :surfing, :surfing_fast, :surfing_jumping, :surfing_stopped
+76:       if !@move_route_forcing
+77:         self.move_speed = (type == :surfing_jumping) ? 3 : 4
+78:       end
+79:       new_charset = pbGetPlayerCharset(meta.surf_charset)
+80:     when :descending_waterfall, :ascending_waterfall
+81:       self.move_speed = 2 if !@move_route_forcing
+82:       new_charset = pbGetPlayerCharset(meta.surf_charset)
+83:     when :cycling, :cycling_fast, :cycling_jumping, :cycling_stopped
+84:       if !@move_route_forcing
+85:         self.move_speed = (type == :cycling_jumping) ? 3 : 5
+86:       end
+87:       new_charset = pbGetPlayerCharset(meta.cycle_charset)
+88:     when :running
+89:       self.move_speed = 4 if !@move_route_forcing
+90:       new_charset = pbGetPlayerCharset(meta.run_charset)
+91:     when :ice_sliding
+92:       self.move_speed = 4 if !@move_route_forcing
+93:       new_charset = pbGetPlayerCharset(meta.walk_charset)
+94:     else   # :walking, :jumping, :walking_stopped
+95:       self.move_speed = 3 if !@move_route_forcing
+96:       new_charset = pbGetPlayerCharset(meta.walk_charset)
+97:     end
+98:     self.move_speed = 3 if @bumping
+99:     @character_name = new_charset if new_charset
+100:   end
+101: 
+102:   # Called when the player's character or outfit changes. Assumes the player
+103:   # isn't moving.
+104:   def refresh_charset
+105:     meta = GameData::PlayerMetadata.get($player&.character_ID || 1)
+106:     new_charset = nil
+107:     if $PokemonGlobal&.diving
+108:       new_charset = pbGetPlayerCharset(meta.dive_charset)
+109:     elsif $PokemonGlobal&.surfing
+110:       new_charset = pbGetPlayerCharset(meta.surf_charset)
+111:     elsif $PokemonGlobal&.bicycle
+112:       new_charset = pbGetPlayerCharset(meta.cycle_charset)
+113:     else
+114:       new_charset = pbGetPlayerCharset(meta.walk_charset)
+115:     end
+116:     @character_name = new_charset if new_charset
+117:   end
+118: 
+119:   #-----------------------------------------------------------------------------
+120: 
+121:   def bump_into_object
+122:     pbSEPlay("Player bump") if !@move_route_forcing
+123:     $stats.bump_count += 1
+124:     @move_initial_x = @x
+125:     @move_initial_y = @y
+126:     @move_timer = 0.0
+127:     @bumping = true
+128:   end
+129: 
+130:   def add_move_distance_to_stats(distance = 1)
+131:     if $PokemonGlobal&.diving || $PokemonGlobal&.surfing
+132:       $stats.distance_surfed += distance
+133:     elsif $PokemonGlobal&.bicycle
+134:       $stats.distance_cycled += distance
+135:     else
+136:       $stats.distance_walked += distance
+137:     end
+138:     $stats.distance_slid_on_ice += distance if $PokemonGlobal.ice_sliding
+139:   end
+140: 
+141:   def move_generic(dir, turn_enabled = true)
+142:     turn_generic(dir, true) if turn_enabled
+143:     if !$game_temp.encounter_triggered
+144:       if can_move_in_direction?(dir)
+145:         x_offset = (dir == 4) ? -1 : (dir == 6) ? 1 : 0
+146:         y_offset = (dir == 8) ? -1 : (dir == 2) ? 1 : 0
+147:         # Jump over ledges
+148:         if pbFacingTerrainTag.ledge
+149:           if jumpForward(2)

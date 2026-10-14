@@ -1,0 +1,225 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Battle::AI
+5:   def pbAIRandom(x); return rand(x); end
+6: 
+7:   #-----------------------------------------------------------------------------
+8: 
+9:   def each_battler
+10:     @battlers.each_with_index do |battler, i|
+11:       next if !battler || battler.fainted?
+12:       yield battler, i
+13:     end
+14:   end
+15: 
+16:   def each_foe_battler(side)
+17:     @battlers.each_with_index do |battler, i|
+18:       next if !battler || battler.fainted?
+19:       yield battler, i if i.even? != side.even?
+20:     end
+21:   end
+22: 
+23:   def each_same_side_battler(side)
+24:     @battlers.each_with_index do |battler, i|
+25:       next if !battler || battler.fainted?
+26:       yield battler, i if i.even? == side.even?
+27:     end
+28:   end
+29: 
+30:   def each_ally(index)
+31:     @battlers.each_with_index do |battler, i|
+32:       next if !battler || battler.fainted?
+33:       yield battler, i if i != index && i.even? == index.even?
+34:     end
+35:   end
+36: 
+37:   #-----------------------------------------------------------------------------
+38: 
+39:   # Assumes that pkmn's ability is not negated by a global effect (e.g.
+40:   # Neutralizing Gas).
+41:   # pkmn is either a Battle::AI::AIBattler or a Pokemon.
+42:   # move is a Battle::Move or a Pokemon::Move.
+43:   def pokemon_can_absorb_move?(pkmn, move, move_type)
+44:     return false if pkmn.is_a?(Battle::AI::AIBattler) && !pkmn.ability_active?
+45:     # Check pkmn's ability
+46:     # Anything with a Battle::AbilityEffects::MoveImmunity handler
+47:     case pkmn.ability_id
+48:     when :BULLETPROOF
+49:       move_data = GameData::Move.get(move.id)
+50:       return move_data.has_flag?("Bomb")
+51:     when :FLASHFIRE
+52:       return move_type == :FIRE
+53:     when :LIGHTNINGROD, :MOTORDRIVE, :VOLTABSORB
+54:       return move_type == :ELECTRIC
+55:     when :SAPSIPPER
+56:       return move_type == :GRASS
+57:     when :SOUNDPROOF
+58:       move_data = GameData::Move.get(move.id)
+59:       return move_data.has_flag?("Sound")
+60:     when :STORMDRAIN, :WATERABSORB, :DRYSKIN
+61:       return move_type == :WATER
+62:     when :TELEPATHY
+63:       # NOTE: The move is being used by a foe of pkmn.
+64:       return false
+65:     when :WONDERGUARD
+66:       types = pkmn.types
+67:       types = pkmn.pbTypes(true) if pkmn.is_a?(Battle::AI::AIBattler)
+68:       return !Effectiveness.super_effective_type?(move_type, *types)
+69:     end
+70:     return false
+71:   end
+72: 
+73:   # Used by Toxic Spikes.
+74:   def pokemon_can_be_poisoned?(pkmn)
+75:     # Check pkmn's immunity to being poisoned
+76:     return false if @battle.field.terrain == :Misty
+77:     return false if pkmn.hasType?(:POISON)
+78:     return false if pkmn.hasType?(:STEEL)
+79:     return false if pkmn.hasAbility?(:IMMUNITY)
+80:     return false if pkmn.hasAbility?(:PASTELVEIL)
+81:     return false if pkmn.hasAbility?(:FLOWERVEIL) && pkmn.hasType?(:GRASS)
+82:     return false if pkmn.hasAbility?(:LEAFGUARD) && [:Sun, :HarshSun].include?(@battle.pbWeather)
+83:     return false if pkmn.hasAbility?(:COMATOSE) && pkmn.isSpecies?(:KOMALA)
+84:     return false if pkmn.hasAbility?(:SHIELDSDOWN) && pkmn.isSpecies?(:MINIOR) && pkmn.form < 7
+85:     return true
+86:   end
+87: 
+88:   def pokemon_airborne?(pkmn)
+89:     return false if pkmn.hasItem?(:IRONBALL)
+90:     return false if @battle.field.effects[PBEffects::Gravity] > 0
+91:     return true if pkmn.hasType?(:FLYING)
+92:     return true if pkmn.hasAbility?(:LEVITATE)
+93:     return true if pkmn.hasItem?(:AIRBALLOON)
+94:     return false
+95:   end
+96: 
+97:   #-----------------------------------------------------------------------------
+98: 
+99:   # These values are taken from the Complete-Fire-Red-Upgrade decomp here:
+100:   # https://github.com/Skeli789/Complete-Fire-Red-Upgrade/blob/f7f35becbd111c7e936b126f6328fc52d9af68c8/src/ability_battle_effects.c#L41
+101:   BASE_ABILITY_RATINGS = {
+102:     10 => [:DELTASTREAM, :DESOLATELAND, :HUGEPOWER, :MOODY, :PARENTALBOND,
+103:            :POWERCONSTRUCT, :PRIMORDIALSEA, :PUREPOWER, :SHADOWTAG,
+104:            :STANCECHANGE, :WONDERGUARD],
+105:     9  => [:ARENATRAP, :DRIZZLE, :DROUGHT, :IMPOSTER, :MAGICBOUNCE, :MAGICGUARD,
+106:            :MAGNETPULL, :SANDSTREAM, :SPEEDBOOST],
+107:     8  => [:ADAPTABILITY, :AERILATE, :CONTRARY, :DISGUISE, :DRAGONSMAW,
+108:            :ELECTRICSURGE, :GALVANIZE, :GRASSYSURGE, :ILLUSION, :LIBERO,
+109:            :MISTYSURGE, :MULTISCALE, :MULTITYPE, :NOGUARD, :POISONHEAL,
+110:            :PIXILATE, :PRANKSTER, :PROTEAN, :PSYCHICSURGE, :REFRIGERATE,
+111:            :REGENERATOR, :RKSSYSTEM, :SERENEGRACE, :SHADOWSHIELD, :SHEERFORCE,
+112:            :SIMPLE, :SNOWWARNING, :TECHNICIAN, :TRANSISTOR, :WATERBUBBLE],
+113:     7  => [:BEASTBOOST, :BULLETPROOF, :COMPOUNDEYES, :DOWNLOAD, :FURCOAT,
+114:            :HUSTLE, :ICESCALES, :INTIMIDATE, :LEVITATE, :LIGHTNINGROD,
+115:            :MEGALAUNCHER, :MOLDBREAKER, :MOXIE, :NATURALCURE, :SAPSIPPER,
+116:            :SHEDSKIN, :SKILLLINK, :SOULHEART, :STORMDRAIN, :TERAVOLT, :THICKFAT,
+117:            :TINTEDLENS, :TOUGHCLAWS, :TRIAGE, :TURBOBLAZE, :UNBURDEN,
+118:            :VOLTABSORB, :WATERABSORB],
+119:     6  => [:BATTLEBOND, :CHLOROPHYLL, :COMATOSE, :DARKAURA, :DRYSKIN,
+120:            :FAIRYAURA, :FILTER, :FLASHFIRE, :FORECAST, :GALEWINGS, :GUTS,
+121:            :INFILTRATOR, :IRONBARBS, :IRONFIST, :MIRRORARMOR, :MOTORDRIVE,
+122:            :NEUROFORCE, :PRISMARMOR, :QUEENLYMAJESTY, :RECKLESS, :ROUGHSKIN,
+123:            :SANDRUSH, :SCHOOLING, :SCRAPPY, :SHIELDSDOWN, :SOLIDROCK, :STAKEOUT,
+124:            :STAMINA, :STEELWORKER, :STRONGJAW, :STURDY, :SWIFTSWIM, :TOXICBOOST,
+125:            :TRACE, :UNAWARE, :VICTORYSTAR],
+126:     5  => [:AFTERMATH, :AIRLOCK, :ANALYTIC, :BERSERK, :BLAZE, :CLOUDNINE,
+127:            :COMPETITIVE, :CORROSION, :DANCER, :DAZZLING, :DEFIANT, :FLAREBOOST,
+128:            :FLUFFY, :GOOEY, :HARVEST, :HEATPROOF, :INNARDSOUT, :LIQUIDVOICE,
+129:            :MARVELSCALE, :MUMMY, :NEUTRALIZINGGAS, :OVERCOAT, :OVERGROW,
+130:            :PRESSURE, :QUICKFEET, :ROCKHEAD, :SANDSPIT, :SHIELDDUST, :SLUSHRUSH,
+131:            :SWARM, :TANGLINGHAIR, :TORRENT],
+132:     4  => [:ANGERPOINT, :BADDREAMS, :CHEEKPOUCH, :CLEARBODY, :CURSEDBODY,
+133:            :EARLYBIRD, :EFFECTSPORE, :FLAMEBODY, :FLOWERGIFT, :FULLMETALBODY,
+134:            :GORILLATACTICS, :HYDRATION, :ICEFACE, :IMMUNITY, :INSOMNIA,
+135:            :JUSTIFIED, :MERCILESS, :PASTELVEIL, :POISONPOINT, :POISONTOUCH,
+136:            :RIPEN, :SANDFORCE, :SOUNDPROOF, :STATIC, :SURGESURFER, :SWEETVEIL,
+137:            :SYNCHRONIZE, :VITALSPIRIT, :WATERCOMPACTION, :WATERVEIL,
+138:            :WHITESMOKE, :WONDERSKIN],
+139:     3  => [:AROMAVEIL, :AURABREAK, :COTTONDOWN, :DAUNTLESSSHIELD,
+140:            :EMERGENCYEXIT, :GLUTTONY, :GULPMISSLE, :HYPERCUTTER, :ICEBODY,
+141:            :INTREPIDSWORD, :LIMBER, :LIQUIDOOZE, :LONGREACH, :MAGICIAN,
+142:            :OWNTEMPO, :PICKPOCKET, :RAINDISH, :RATTLED, :SANDVEIL,
+143:            :SCREENCLEANER, :SNIPER, :SNOWCLOAK, :SOLARPOWER, :STEAMENGINE,
+144:            :STICKYHOLD, :SUPERLUCK, :UNNERVE, :WIMPOUT],
+145:     2  => [:BATTLEARMOR, :COLORCHANGE, :CUTECHARM, :DAMP, :GRASSPELT,
+146:            :HUNGERSWITCH, :INNERFOCUS, :LEAFGUARD, :LIGHTMETAL, :MIMICRY,
+147:            :OBLIVIOUS, :POWERSPOT, :PROPELLORTAIL, :PUNKROCK, :SHELLARMOR,
+148:            :STALWART, :STEADFAST, :STEELYSPIRIT, :SUCTIONCUPS, :TANGLEDFEET,
+149:            :WANDERINGSPIRIT, :WEAKARMOR],
+150:     1  => [:BIGPECKS, :KEENEYE, :MAGMAARMOR, :PICKUP, :RIVALRY, :STENCH],
+151:     0  => [:ANTICIPATION, :ASONECHILLINGNEIGH, :ASONEGRIMNEIGH, :BALLFETCH,
+152:            :BATTERY, :CHILLINGNEIGH, :CURIOUSMEDICINE, :FLOWERVEIL, :FOREWARN,
+153:            :FRIENDGUARD, :FRISK, :GRIMNEIGH, :HEALER, :HONEYGATHER, :ILLUMINATE,
+154:            :MINUS, :PLUS, :POWEROFALCHEMY, :QUICKDRAW, :RECEIVER, :RUNAWAY,
+155:            :SYMBIOSIS, :TELEPATHY, :UNSEENFIST],
+156:     -1 => [:DEFEATIST, :HEAVYMETAL, :KLUTZ, :NORMALIZE, :PERISHBODY, :STALL,
+157:            :ZENMODE],
+158:     -2 => [:SLOWSTART, :TRUANT]
+159:   }
+160: 
+161:   #-----------------------------------------------------------------------------
+162: 
+163:   BASE_ITEM_RATINGS = {
+164:     10 => [:EVIOLITE, :FOCUSSASH, :LIFEORB, :THICKCLUB],
+165:     9  => [:ASSAULTVEST, :BLACKSLUDGE, :CHOICEBAND, :CHOICESCARF, :CHOICESPECS,
+166:            :DEEPSEATOOTH, :LEFTOVERS],
+167:     8  => [:LEEK, :STICK, :THROATSPRAY, :WEAKNESSPOLICY],
+168:     7  => [:EXPERTBELT, :LIGHTBALL, :LUMBERRY, :POWERHERB, :ROCKYHELMET,
+169:            :SITRUSBERRY],
+170:     6  => [:KINGSROCK, :LIECHIBERRY, :LIGHTCLAY, :PETAYABERRY, :RAZORFANG,
+171:            :REDCARD, :SALACBERRY, :SHELLBELL, :WHITEHERB,
+172:            # Type-resisting berries
+173:            :BABIRIBERRY, :CHARTIBERRY, :CHILANBERRY, :CHOPLEBERRY, :COBABERRY,
+174:            :COLBURBERRY, :HABANBERRY, :KASIBBERRY, :KEBIABERRY, :OCCABERRY,
+175:            :PASSHOBERRY, :PAYAPABERRY, :RINDOBERRY, :ROSELIBERRY, :SHUCABERRY,
+176:            :TANGABERRY, :WACANBERRY, :YACHEBERRY,
+177:            # Gems
+178:            :BUGGEM, :DARKGEM, :DRAGONGEM, :ELECTRICGEM, :FAIRYGEM, :FIGHTINGGEM,
+179:            :FIREGEM, :FLYINGGEM, :GHOSTGEM, :GRASSGEM, :GROUNDGEM, :ICEGEM,
+180:            :NORMALGEM, :POISONGEM, :PSYCHICGEM, :ROCKGEM, :STEELGEM, :WATERGEM,
+181:            # Legendary Orbs
+182:            :ADAMANTORB, :GRISEOUSORB, :LUSTROUSORB, :SOULDEW,
+183:            # Berries that heal HP and may confuse
+184:            :AGUAVBERRY, :FIGYBERRY, :IAPAPABERRY, :MAGOBERRY, :WIKIBERRY],
+185:     5  => [:CUSTAPBERRY, :DEEPSEASCALE, :EJECTBUTTON, :FOCUSBAND, :JABOCABERRY,
+186:            :KEEBERRY, :LANSATBERRY, :MARANGABERRY, :MENTALHERB, :METRONOME,
+187:            :MUSCLEBAND, :QUICKCLAW, :RAZORCLAW, :ROWAPBERRY, :SCOPELENS,
+188:            :WISEGLASSES,
+189:            # Type power boosters
+190:            :BLACKBELT, :BLACKGLASSES, :CHARCOAL, :DRAGONFANG, :HARDSTONE,
+191:            :MAGNET, :METALCOAT, :MIRACLESEED, :MYSTICWATER, :NEVERMELTICE,
+192:            :POISONBARB, :SHARPBEAK, :SILKSCARF, :SILVERPOWDER, :SOFTSAND,
+193:            :SPELLTAG, :TWISTEDSPOON,
+194:            :ODDINCENSE, :ROCKINCENSE, :ROSEINCENSE, :SEAINCENSE, :WAVEINCENSE,
+195:            # Plates
+196:            :DRACOPLATE, :DREADPLATE, :EARTHPLATE, :FISTPLATE, :FLAMEPLATE,
+197:            :ICICLEPLATE, :INSECTPLATE, :IRONPLATE, :MEADOWPLATE, :MINDPLATE,
+198:            :PIXIEPLATE, :SKYPLATE, :SPLASHPLATE, :SPOOKYPLATE, :STONEPLATE,
+199:            :TOXICPLATE, :ZAPPLATE,
+200:            # Weather/terrain extenders
+201:            :DAMPROCK, :HEATROCK, :ICYROCK, :SMOOTHROCK, :TERRAINEXTENDER],
+202:     4  => [:ADRENALINEORB, :APICOTBERRY, :BLUNDERPOLICY, :CHESTOBERRY,
+203:            :EJECTPACK, :ENIGMABERRY, :GANLONBERRY, :HEAVYDUTYBOOTS,
+204:            :ROOMSERVICE, :SAFETYGOGGLES, :SHEDSHELL, :STARFBERRY],
+205:     3  => [:BIGROOT, :BRIGHTPOWDER, :LAXINCENSE, :LEPPABERRY, :PERSIMBERRY,
+206:            :PROTECTIVEPADS, :UTILITYUMBRELLA,
+207:            # Status problem-curing berries (except Chesto which is in 4)
+208:            :ASPEARBERRY, :CHERIBERRY, :PECHABERRY, :RAWSTBERRY],
+209:     2  => [:ABSORBBULB, :BERRYJUICE, :CELLBATTERY, :GRIPCLAW, :LUMINOUSMOSS,
+210:            :MICLEBERRY, :ORANBERRY, :SNOWBALL, :WIDELENS, :ZOOMLENS,
+211:            # Terrain seeds
+212:            :ELECTRICSEED, :GRASSYSEED, :MISTYSEED, :PSYCHICSEED],
+213:     1  => [:AIRBALLOON, :BINDINGBAND, :DESTINYKNOT, :FLOATSTONE, :LUCKYPUNCH,
+214:            :METALPOWDER, :QUICKPOWDER,
+215:            # Drives
+216:            :BURNDRIVE, :CHILLDRIVE, :DOUSEDRIVE, :SHOCKDRIVE,
+217:            # Memories
+218:            :BUGMEMORY, :DARKMEMORY, :DRAGONMEMORY, :ELECTRICMEMORY,
+219:            :FAIRYMEMORY, :FIGHTINGMEMORY, :FIREMEMORY, :FLYINGMEMORY,
+220:            :GHOSTMEMORY, :GRASSMEMORY, :GROUNDMEMORY, :ICEMEMORY, :POISONMEMORY,
+221:            :PSYCHICMEMORY, :ROCKMEMORY, :STEELMEMORY, :WATERMEMORY],
+222:     0  => [:SMOKEBALL],
+223:     -5 => [:FULLINCENSE, :LAGGINGTAIL, :RINGTARGET],
+224:     -6 => [:MACHOBRACE, :POWERANKLET, :POWERBAND, :POWERBELT, :POWERBRACER,
+225:            :POWERLENS, :POWERWEIGHT],

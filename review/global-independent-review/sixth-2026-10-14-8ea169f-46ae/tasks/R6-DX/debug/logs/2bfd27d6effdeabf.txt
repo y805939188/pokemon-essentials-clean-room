@@ -1,0 +1,211 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: def getTypes(species)
+5:   species_data = GameData::Species.get(species)
+6:   return species_data.types.clone
+7: end
+8: 
+9: #===============================================================================
+10: # If no trainers are defined for the current challenge, generate a set of random
+11: # ones for it. If pokemonlist is given, assign Pokémon from it to all trainers.
+12: # Save the results in the appropriate PBS files.
+13: #===============================================================================
+14: def pbTrainerInfo(pokemonlist, trfile, rules)
+15:   bttrainers = pbGetBTTrainers(trfile)
+16:   btpokemon = pbGetBTPokemon(trfile)
+17:   # No battle trainers found; fill bttrainers with 200 randomly chosen ones from
+18:   # all that exist (with a base money < 100)
+19:   if bttrainers.length == 0
+20:     200.times do |i|
+21:       yield(nil) if block_given? && i % 50 == 0
+22:       trainerid = nil
+23:       if GameData::TrainerType.exists?(:YOUNGSTER) && rand(30) == 0
+24:         trainerid = :YOUNGSTER
+25:       else
+26:         tr_typekeys = GameData::TrainerType.keys
+27:         loop do
+28:           tr_type = tr_typekeys.sample
+29:           tr_type_data = GameData::TrainerType.get(tr_type)
+30:           next if tr_type_data.base_money >= 100
+31:           trainerid = tr_type_data.id
+32:         end
+33:       end
+34:       # Create a random name for the trainer
+35:       gender = GameData::TrainerType.get(trainerid).gender
+36:       randomName = getRandomNameEx(gender, nil, 0, 12)
+37:       # Add the trainer to bttrainers
+38:       tr = [trainerid, randomName, _INTL("Here I come!"), _INTL("Yes, I won!"),
+39:             _INTL("Man, I lost!"), []]
+40:       bttrainers.push(tr)
+41:     end
+42:     # Sort all the randomly chosen trainers by their base money (smallest first)
+43:     bttrainers.sort! do |a, b|
+44:       money1 = GameData::TrainerType.get(a[0]).base_money
+45:       money2 = GameData::TrainerType.get(b[0]).base_money
+46:       next (money1 == money2) ? a[0].to_s <=> b[0].to_s : money1 <=> money2
+47:     end
+48:   end
+49:   yield(nil) if block_given?
+50:   # Set all Pokémon in pokemonlist to the appropriate level, and determine their
+51:   # type(s) and whether they are valid for the given rules
+52:   suggestedLevel = rules.ruleset.suggestedLevel
+53:   rulesetTeam = rules.ruleset.copy.clearPokemonRules
+54:   pkmntypes = []
+55:   validities = []
+56:   pokemonlist.each do |pkmn|
+57:     pkmn.level = suggestedLevel if pkmn.level != suggestedLevel
+58:     pkmntypes.push(getTypes(pkmn.species))
+59:     validities.push(rules.ruleset.isPokemonValid?(pkmn))
+60:   end
+61:   # For each trainer in bttrainers, come up with a set of Pokémon taken from
+62:   # pokemonlist for that trainer, and copy the trainer and their set of Pokémon
+63:   # to newbttrainers
+64:   newbttrainers = []
+65:   bttrainers.length.times do |btt|
+66:     yield(nil) if block_given? && btt % 50 == 0
+67:     trainerdata = bttrainers[btt]
+68:     pokemonnumbers = trainerdata[5] || []
+69:     # Find all the Pokémon available to the trainer, and count up how often
+70:     # those Pokémon have each type
+71:     species = []
+72:     types = {}
+73:     GameData::Type.each { |t| types[t.id] = 0 }
+74:     pokemonnumbers.each do |pn|
+75:       pkmn = btpokemon[pn]
+76:       species.push(pkmn.species)
+77:       t = getTypes(pkmn.species)
+78:       t.each { |typ| types[typ] += 1 }
+79:     end
+80:     species |= []   # remove duplicates
+81:     # Scale down the counts of each type to the range 0 -> 10
+82:     count = 0
+83:     GameData::Type.each do |t|
+84:       if types[t.id] >= 5
+85:         types[t.id] /= 4
+86:         types[t.id] = 10 if types[t.id] > 10
+87:       else
+88:         types[t.id] = 0
+89:       end
+90:       count += types[t.id]
+91:     end
+92:     types[:NORMAL] = 1 if count == 0   # All type counts are 0; add 1 to Normal
+93:     # Trainer had no Pokémon available to it; make all the type counts 1
+94:     if pokemonnumbers.length == 0
+95:       GameData::Type.each { |t| types[t.id] = 1 }
+96:     end
+97:     # Get Pokémon from pokemonlist, if there are any, and make sure enough are
+98:     # gotten that a valid team can be made from them
+99:     numbers = []
+100:     if pokemonlist
+101:       # For each valid Pokémon in pokemonlist, add its index within pokemonlist
+102:       # to numbers, but only if that species is available to the trainer.
+103:       # Pokémon are less likely to be added if it is positioned later in
+104:       # pokemonlist, or if the trainer is positioned earlier in bttrainers (i.e.
+105:       # later trainers get better Pokémon).
+106:       numbersPokemon = []
+107:       pokemonlist.length.times do |index|
+108:         next if !validities[index]
+109:         pkmn = pokemonlist[index]
+110:         absDiff = ((index * 8 / pokemonlist.length) - (btt * 8 / bttrainers.length)).abs
+111:         if species.include?(pkmn.species)
+112:           weight = [32, 12, 5, 2, 1, 0, 0, 0][[absDiff, 7].min]
+113:           if rand(40) < weight
+114:             numbers.push(index)
+115:             numbersPokemon.push(pokemonlist[index])
+116:           end
+117:         else
+118:           # Pokémon's species isn't available to the trainer; try adding it
+119:           # anyway (more likely to add it if the trainer has access to more
+120:           # Pokémon of the same type(s) as this Pokémon)
+121:           t = pkmntypes[index]
+122:           t.each do |typ|
+123:             weight = [32, 12, 5, 2, 1, 0, 0, 0][[absDiff, 7].min]
+124:             weight *= types[typ]
+125:             if rand(40) < weight
+126:               numbers.push(index)
+127:               numbersPokemon.push(pokemonlist[index])
+128:             end
+129:           end
+130:         end
+131:       end
+132:       numbers |= []   # Remove duplicates
+133:       # If there aren't enough Pokémon to form a full team, or a valid team
+134:       # can't be made from them, fill up numbers with Pokémon in pokemonlist
+135:       # that EITHER have the same species as one available to the trainer OR has
+136:       # a type that is available to the trainer, until a valid team can be
+137:       # formed from what's in numbers
+138:       if numbers.length < Settings::MAX_PARTY_SIZE ||
+139:          !rulesetTeam.hasValidTeam?(numbersPokemon)
+140:         pokemonlist.length.times do |index|
+141:           pkmn = pokemonlist[index]
+142:           next if !validities[index]
+143:           if species.include?(pkmn.species)
+144:             numbers.push(index)
+145:             numbersPokemon.push(pokemonlist[index])
+146:           else
+147:             t = pkmntypes[index]
+148:             t.each do |typ|
+149:               next if types[typ] <= 0 || numbers.include?(index)
+150:               numbers.push(index)
+151:               numbersPokemon.push(pokemonlist[index])
+152:               break
+153:             end
+154:           end
+155:           break if numbers.length >= Settings::MAX_PARTY_SIZE && rules.ruleset.hasValidTeam?(numbersPokemon)
+156:         end
+157:         # If there STILL aren't enough Pokémon to form a full team, or a valid
+158:         # team can't be made from them, add random Pokémon from pokemonlist
+159:         # until a valid team can be formed from what's in numbers
+160:         if numbers.length < Settings::MAX_PARTY_SIZE || !rules.ruleset.hasValidTeam?(numbersPokemon)
+161:           while numbers.length < pokemonlist.length &&
+162:                 (numbers.length < Settings::MAX_PARTY_SIZE || !rules.ruleset.hasValidTeam?(numbersPokemon))
+163:             index = rand(pokemonlist.length)
+164:             if !numbers.include?(index)
+165:               numbers.push(index)
+166:               numbersPokemon.push(pokemonlist[index])
+167:             end
+168:           end
+169:         end
+170:       end
+171:       numbers.sort!
+172:     end
+173:     # Add the trainer's data, including all Pokémon that should be available to
+174:     # it (from pokemonlist), to newbttrainers
+175:     newbttrainers.push([trainerdata[0], trainerdata[1], trainerdata[2],
+176:                         trainerdata[3], trainerdata[4], numbers])
+177:   end
+178:   yield(nil) if block_given?
+179:   # Add the trainer and Pokémon data from above to trainer_lists.dat, and then
+180:   # create all PBS files from it
+181:   pbpokemonlist = []
+182:   pokemonlist.each do |pkmn|
+183:     pbpokemonlist.push(PBPokemon.fromPokemon(pkmn))
+184:   end
+185:   trlists = (load_data("Data/trainer_lists.dat") rescue [])
+186:   hasDefault = false
+187:   trIndex = -1
+188:   trlists.length.times do |i|
+189:     next if !trlists[i][5]
+190:     hasDefault = true
+191:     break
+192:   end
+193:   trlists.length.times do |i|
+194:     next if !trlists[i][2].include?(trfile)
+195:     trIndex = i
+196:     trlists[i][0] = newbttrainers
+197:     trlists[i][1] = pbpokemonlist
+198:     trlists[i][5] = !hasDefault
+199:   end
+200:   yield(nil) if block_given?
+201:   if trIndex < 0
+202:     info = [newbttrainers, pbpokemonlist, [trfile],
+203:             trfile + "_trainers.txt", trfile + "_pkmn.txt", !hasDefault]
+204:     trlists.push(info)
+205:   end
+206:   yield(nil) if block_given?
+207:   save_data(trlists, "Data/trainer_lists.dat")
+208:   yield(nil) if block_given?
+209:   Compiler.write_trainer_lists
+210:   yield(nil) if block_given?
+211: end

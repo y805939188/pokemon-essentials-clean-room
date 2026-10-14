@@ -1,0 +1,79 @@
+65:         break
+66:       end
+67:       count += 1
+68:     end
+69:     return index
+70:   end
+71: 
+72:   def prepline(line)
+73:     line.sub!(/\s*\#.*$/, "")
+74:     line.sub!(/^\s+/, "")
+75:     line.sub!(/\s+$/, "")
+76:     return line
+77:   end
+78: 
+79:   def csvQuote(str, always = false)
+80:     return "" if nil_or_empty?(str)
+81:     if always || str[/[,\"]/]   # || str[/^\s/] || str[/\s$/] || str[/^#/]
+82:       str = str.gsub(/\"/, "\\\"")
+83:       str = "\"#{str}\""
+84:     end
+85:     return str
+86:   end
+87: 
+88:   def csvQuoteAlways(str)
+89:     return csvQuote(str, true)
+90:   end
+91: 
+92:   #=============================================================================
+93:   # PBS file readers
+94:   #=============================================================================
+95:   def pbEachFileSectionEx(f, schema = nil)
+96:     lineno      = 1
+97:     havesection = false
+98:     sectionname = nil
+99:     lastsection = {}
+100:     f.each_line do |line|
+101:       if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+102:         line = line[3, line.length - 3]
+103:       end
+104:       line.force_encoding(Encoding::UTF_8)
+105:       if !line[/^\#/] && !line[/^\s*$/]
+106:         line = prepline(line)
+107:         if line[/^\s*\[\s*(.*)\s*\]\s*$/]   # Of the format: [something]
+108:           yield lastsection, sectionname if havesection
+109:           sectionname = $~[1]
+110:           havesection = true
+111:           lastsection = {}
+112:         else
+113:           if sectionname.nil?
+114:             FileLineData.setLine(line, lineno)
+115:             raise _INTL("Expected a section at the beginning of the file.\nThis error may also occur if the file was not saved in UTF-8.") + "\n" + FileLineData.linereport
+116:           end
+117:           if !line[/^\s*(\w+)\s*=\s*(.*)$/]
+118:             FileLineData.setSection(sectionname, nil, line)
+119:             raise _INTL("Bad line syntax (expected syntax like XXX=YYY).") + "\n" + FileLineData.linereport
+120:           end
+121:           r1 = $~[1]
+122:           r2 = $~[2]
+123:           if schema && schema[r1] && schema[r1][1][0] == "^"
+124:             lastsection[r1] ||= []
+125:             lastsection[r1].push(r2.gsub(/\s+$/, ""))
+126:           else
+127:             lastsection[r1] = r2.gsub(/\s+$/, "")
+128:           end
+129:         end
+130:       end
+131:       lineno += 1
+132:       Graphics.update if lineno % 1000 == 0
+133:     end
+134:     yield lastsection, sectionname if havesection
+135:   end
+136: 
+137:   # Used for types.txt, abilities.txt, moves.txt, items.txt, berry_plants.txt,
+138:   # pokemon.txt, pokemon_forms.txt, pokemon_metrics.txt, shadow_pokemon.txt,
+139:   # ribbons.txt, trainer_types.txt, battle_facility_lists.txt, Battle Tower
+140:   # trainers PBS files and dungeon_parameters.txt
+141:   def pbEachFileSection(f, schema = nil)
+142:     pbEachFileSectionEx(f, schema) do |section, name|
+143:       yield section, name if block_given? && name[/^.+$/]

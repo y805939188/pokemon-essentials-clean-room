@@ -1,0 +1,82 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/002_BugContest.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "c9c48e62d9174b3403df5c66a5983c24f8ad439c", "sha256": "7d6047bdf2566b25d45c47e288e60bb99d56fbbc72334fa027eeb96b14a0106d", "start_line": 361, "end_line": 441, "total_lines": 441, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:27:07.356735+00:00"}
+361: def pbBugContestBattle(pkmn, level = 1)
+362:   # Record information about party Pokémon to be used at the end of battle (e.g.
+363:   # comparing levels for an evolution check)
+364:   EventHandlers.trigger(:on_start_battle)
+365:   # Generate a wild Pokémon based on the species and level
+366:   pkmn = pbGenerateWildPokemon(pkmn, level) if !pkmn.is_a?(Pokemon)
+367:   foeParty = [pkmn]
+368:   # Calculate who the trainers and their party are
+369:   playerTrainer     = [$player]
+370:   playerParty       = $player.party
+371:   playerPartyStarts = [0]
+372:   # Create the battle scene (the visual side of it)
+373:   scene = BattleCreationHelperMethods.create_battle_scene
+374:   # Create the battle class (the mechanics side of it)
+375:   battle = BugContestBattle.new(scene, playerParty, foeParty, playerTrainer, nil)
+376:   battle.party1starts = playerPartyStarts
+377:   battle.ballCount    = pbBugContestState.ballcount
+378:   setBattleRule("single")
+379:   BattleCreationHelperMethods.prepare_battle(battle)
+380:   # Perform the battle itself
+381:   decision = 0
+382:   pbBattleAnimation(pbGetWildBattleBGM(foeParty), 0, foeParty) do
+383:     decision = battle.pbStartBattle
+384:     BattleCreationHelperMethods.after_battle(decision, true)
+385:     if [2, 5].include?(decision)   # Lost or drew
+386:       $game_system.bgm_unpause
+387:       $game_system.bgs_unpause
+388:       pbBugContestStartOver
+389:     end
+390:   end
+391:   Input.update
+392:   # Update Bug Contest game data based on result of battle
+393:   pbBugContestState.ballcount = battle.ballCount
+394:   if pbBugContestState.ballcount == 0
+395:     pbMessage(_INTL("ANNOUNCER:  The Bug-Catching Contest is over!"))
+396:     pbBugContestState.pbStartJudging
+397:   end
+398:   # Save the result of the battle in Game Variable 1
+399:   BattleCreationHelperMethods.set_outcome(decision, 1)
+400:   # Used by the Poké Radar to update/break the chain
+401:   EventHandlers.trigger(:on_wild_battle_end, pkmn.species_data.id, pkmn.level, decision)
+402:   # Return false if the player lost or drew the battle, and true if any other result
+403:   return (decision != 2 && decision != 5)
+404: end
+405: 
+406: #===============================================================================
+407: #
+408: #===============================================================================
+409: class PokemonPauseMenu
+410:   alias __bug_contest_pbShowInfo pbShowInfo unless method_defined?(:__bug_contest_pbShowInfo)
+411: 
+412:   def pbShowInfo
+413:     __bug_contest_pbShowInfo
+414:     return if !pbInBugContest?
+415:     if pbBugContestState.lastPokemon
+416:       @scene.pbShowInfo(_INTL("Caught: {1}\nLevel: {2}\nBalls: {3}",
+417:                               pbBugContestState.lastPokemon.speciesName,
+418:                               pbBugContestState.lastPokemon.level,
+419:                               pbBugContestState.ballcount))
+420:     else
+421:       @scene.pbShowInfo(_INTL("Caught: None\nBalls: {1}", pbBugContestState.ballcount))
+422:     end
+423:   end
+424: end
+425: 
+426: MenuHandlers.add(:pause_menu, :quit_bug_contest, {
+427:   "name"      => _INTL("Quit Contest"),
+428:   "order"     => 60,
+429:   "condition" => proc { next pbInBugContest? },
+430:   "effect"    => proc { |menu|
+431:     menu.pbHideMenu
+432:     if pbConfirmMessage(_INTL("Would you like to end the Contest now?"))
+433:       menu.pbEndScene
+434:       pbBugContestState.pbStartJudging
+435:       next true
+436:     end
+437:     menu.pbRefresh
+438:     menu.pbShowMenu
+439:     next false
+440:   }
+441: })

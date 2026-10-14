@@ -1,0 +1,286 @@
+591: MenuHandlers.add(:battle_pokemon_debug_menu, :reset_moves, {
+592:   "name"   => _INTL("Reset moves"),
+593:   "parent" => :moves,
+594:   "usage"  => :pokemon,
+595:   "effect" => proc { |pkmn, battler, battle|
+596:     next if !pbConfirmMessage(_INTL("Replace Pokémon's moves with ones it would know if it was wild?"))
+597:     pkmn.reset_moves
+598:     pbMessage("\\ts[]" + _INTL("{1}'s moves were reset.", pkmn.name))
+599:   }
+600: })
+601: 
+602: #===============================================================================
+603: # Other options
+604: #===============================================================================
+605: MenuHandlers.add(:battle_pokemon_debug_menu, :set_item, {
+606:   "name"   => _INTL("Set item"),
+607:   "parent" => :main,
+608:   "usage"  => :both,
+609:   "effect" => proc { |pkmn, battler, battle|
+610:     cmd = 0
+611:     commands = [
+612:       _INTL("Change item"),
+613:       _INTL("Remove item")
+614:     ]
+615:     loop do
+616:       msg = (pkmn.hasItem?) ? _INTL("Item is {1}.", pkmn.item.name) : _INTL("No item.")
+617:       cmd = pbMessage("\\ts[]" + msg, commands, -1, nil, cmd)
+618:       break if cmd < 0
+619:       case cmd
+620:       when 0   # Change item
+621:         item = pbChooseItemList(pkmn.item_id)
+622:         if item && item != pkmn.item_id
+623:           (battler || pkmn).item = item
+624:           if GameData::Item.get(item).is_mail?
+625:             pkmn.mail = Mail.new(item, _INTL("Text"), $player.name)
+626:           end
+627:         end
+628:       when 1   # Remove item
+629:         if pkmn.hasItem?
+630:           (battler || pkmn).item = nil
+631:           pkmn.mail = nil
+632:         end
+633:       else
+634:         break
+635:       end
+636:     end
+637:   }
+638: })
+639: 
+640: MenuHandlers.add(:battle_pokemon_debug_menu, :set_ability, {
+641:   "name"   => _INTL("Set ability"),
+642:   "parent" => :main,
+643:   "usage"  => :both,
+644:   "effect" => proc { |pkmn, battler, battle|
+645:     cmd = 0
+646:     commands = []
+647:     commands.push(_INTL("Set ability for Pokémon"))
+648:     commands.push(_INTL("Set ability for battler")) if battler
+649:     commands.push(_INTL("Reset"))
+650:     loop do
+651:       if battler
+652:         msg = _INTL("Battler's ability is {1}. Pokémon's ability is {2}.",
+653:                     battler.abilityName, pkmn.ability.name)
+654:       else
+655:         msg = _INTL("Pokémon's ability is {1}.", pkmn.ability.name)
+656:       end
+657:       cmd = pbMessage("\\ts[]" + msg, commands, -1, nil, cmd)
+658:       break if cmd < 0
+659:       cmd = 2 if cmd >= 1 && !battler   # Correct command for Pokémon (no battler)
+660:       case cmd
+661:       when 0   # Set ability for Pokémon
+662:         new_ability = pbChooseAbilityList(pkmn.ability_id)
+663:         if new_ability && new_ability != pkmn.ability_id
+664:           pkmn.ability = new_ability
+665:           battler.ability = pkmn.ability if battler
+666:         end
+667:       when 1   # Set ability for battler
+668:         if battler
+669:           new_ability = pbChooseAbilityList(battler.ability_id)
+670:           if new_ability && new_ability != battler.ability_id
+671:             battler.ability = new_ability
+672:           end
+673:         else
+674:           pbMessage(_INTL("This Pokémon isn't in battle."))
+675:         end
+676:       when 2   # Reset
+677:         pkmn.ability_index = nil
+678:         pkmn.ability = nil
+679:         battler.ability = pkmn.ability if battler
+680:       end
+681:     end
+682:   }
+683: })
+684: 
+685: MenuHandlers.add(:battle_pokemon_debug_menu, :set_nature, {
+686:   "name"   => _INTL("Set nature"),
+687:   "parent" => :main,
+688:   "usage"  => :both,
+689:   "effect" => proc { |pkmn, battler, battle|
+690:     commands = []
+691:     ids = []
+692:     GameData::Nature.each do |nature|
+693:       if nature.stat_changes.length == 0
+694:         commands.push(_INTL("{1} (---)", nature.real_name))
+695:       else
+696:         plus_text = ""
+697:         minus_text = ""
+698:         nature.stat_changes.each do |change|
+699:           if change[1] > 0
+700:             plus_text += "/" if !plus_text.empty?
+701:             plus_text += GameData::Stat.get(change[0]).name_brief
+702:           elsif change[1] < 0
+703:             minus_text += "/" if !minus_text.empty?
+704:             minus_text += GameData::Stat.get(change[0]).name_brief
+705:           end
+706:         end
+707:         commands.push(_INTL("{1} (+{2}, -{3})", nature.real_name, plus_text, minus_text))
+708:       end
+709:       ids.push(nature.id)
+710:     end
+711:     commands.push(_INTL("[Reset]"))
+712:     cmd = ids.index(pkmn.nature_id || ids[0])
+713:     loop do
+714:       msg = _INTL("Nature is {1}.", pkmn.nature.name)
+715:       cmd = pbMessage("\\ts[]" + msg, commands, -1, nil, cmd)
+716:       break if cmd < 0
+717:       if cmd >= 0 && cmd < commands.length - 1   # Set nature
+718:         pkmn.nature = ids[cmd]
+719:       elsif cmd == commands.length - 1   # Reset
+720:         pkmn.nature = nil
+721:       end
+722:       battler&.pbUpdate
+723:     end
+724:   }
+725: })
+726: 
+727: MenuHandlers.add(:battle_pokemon_debug_menu, :set_gender, {
+728:   "name"   => _INTL("Set gender"),
+729:   "parent" => :main,
+730:   "usage"  => :both,
+731:   "effect" => proc { |pkmn, battler, battle|
+732:     if pkmn.singleGendered?
+733:       pbMessage("\\ts[]" + _INTL("{1} is single-gendered or genderless.", pkmn.speciesName))
+734:       next
+735:     end
+736:     cmd = 0
+737:     loop do
+738:       msg = [_INTL("Gender is male."), _INTL("Gender is female.")][pkmn.male? ? 0 : 1]
+739:       cmd = pbMessage("\\ts[]" + msg,
+740:                       [_INTL("Make male"), _INTL("Make female"), _INTL("Reset")], -1, nil, cmd)
+741:       break if cmd < 0
+742:       case cmd
+743:       when 0   # Make male
+744:         pkmn.makeMale
+745:         pbMessage("\\ts[]" + _INTL("{1}'s gender couldn't be changed.", pkmn.name)) if !pkmn.male?
+746:       when 1   # Make female
+747:         pkmn.makeFemale
+748:         pbMessage("\\ts[]" + _INTL("{1}'s gender couldn't be changed.", pkmn.name)) if !pkmn.female?
+749:       when 2   # Reset
+750:         pkmn.gender = nil
+751:       end
+752:     end
+753:   }
+754: })
+755: 
+756: MenuHandlers.add(:battle_pokemon_debug_menu, :set_form, {
+757:   "name"   => _INTL("Set form"),
+758:   "parent" => :main,
+759:   "usage"  => :both,
+760:   "effect" => proc { |pkmn, battler, battle|
+761:     cmd = 0
+762:     formcmds = [[], []]
+763:     GameData::Species.each do |sp|
+764:       next if sp.species != pkmn.species
+765:       form_name = sp.form_name
+766:       form_name = _INTL("Unnamed form") if !form_name || form_name.empty?
+767:       form_name = sprintf("%d: %s", sp.form, form_name)
+768:       formcmds[0].push(sp.form)
+769:       formcmds[1].push(form_name)
+770:       cmd = formcmds[0].length - 1 if pkmn.form == sp.form
+771:     end
+772:     if formcmds[0].length <= 1
+773:       pbMessage("\\ts[]" + _INTL("Species {1} only has one form.", pkmn.speciesName))
+774:       next
+775:     end
+776:     loop do
+777:       cmd = pbMessage("\\ts[]" + _INTL("Form is {1}.", pkmn.form), formcmds[1], -1, nil, cmd)
+778:       break if cmd < 0
+779:       f = formcmds[0][cmd]
+780:       next if f == pkmn.form
+781:       pkmn.forced_form = nil
+782:       if MultipleForms.hasFunction?(pkmn, "getForm")
+783:         next if !pbConfirmMessage(_INTL("This species decides its own form. Override?"))
+784:         pkmn.forced_form = f
+785:       end
+786:       pkmn.form_simple = f
+787:       battler.form = pkmn.form if battler
+788:     end
+789:   }
+790: })
+791: 
+792: MenuHandlers.add(:battle_pokemon_debug_menu, :set_species, {
+793:   "name"   => _INTL("Set species"),
+794:   "parent" => :main,
+795:   "usage"  => :both,
+796:   "effect" => proc { |pkmn, battler, battle|
+797:     species = pbChooseSpeciesList(pkmn.species)
+798:     if species && species != pkmn.species
+799:       pkmn.species = species
+800:       battler.species = species if battler
+801:       battler&.pbUpdate(true)
+802:       battler.name = pkmn.name if battler
+803:     end
+804:   }
+805: })
+806: 
+807: MenuHandlers.add(:battle_pokemon_debug_menu, :set_shininess, {
+808:   "name"   => _INTL("Set shininess"),
+809:   "parent" => :main,
+810:   "usage"  => :both,
+811:   "effect" => proc { |pkmn, battler, battle|
+812:     cmd = 0
+813:     loop do
+814:       msg_idx = pkmn.shiny? ? (pkmn.super_shiny? ? 1 : 0) : 2
+815:       msg = [_INTL("Is shiny."), _INTL("Is super shiny."), _INTL("Is normal (not shiny).")][msg_idx]
+816:       cmd = pbMessage("\\ts[]" + msg,
+817:                       [_INTL("Make shiny"),
+818:                        _INTL("Make super shiny"),
+819:                        _INTL("Make normal"),
+820:                        _INTL("Reset")], -1, nil, cmd)
+821:       break if cmd < 0
+822:       case cmd
+823:       when 0   # Make shiny
+824:         pkmn.shiny = true
+825:         pkmn.super_shiny = false
+826:       when 1   # Make super shiny
+827:         pkmn.super_shiny = true
+828:       when 2   # Make normal
+829:         pkmn.shiny = false
+830:         pkmn.super_shiny = false
+831:       when 3   # Reset
+832:         pkmn.shiny = nil
+833:         pkmn.super_shiny = nil
+834:       end
+835:     end
+836:   }
+837: })
+838: 
+839: MenuHandlers.add(:battle_pokemon_debug_menu, :shadow_pokemon, {
+840:   "name"   => _INTL("Shadow Pokémon"),
+841:   "parent" => :main,
+842:   "usage"  => :battler,
+843:   "effect" => proc { |pkmn, battler, battle|
+844:     if battler.shadowPokemon?
+845:       loop do
+846:         if battler.inHyperMode?
+847:           msg = _INTL("Shadow Pokémon (in Hyper Mode)")
+848:         else
+849:           msg = _INTL("Shadow Pokémon (not in Hyper Mode)")
+850:         end
+851:         cmd = pbMessage("\\ts[]" + msg, [_INTL("Toggle Hyper Mode"), _INTL("Cancel")], -1, nil, 0)
+852:         break if cmd != 0
+853:         if battler.inHyperMode?
+854:           pkmn.hyper_mode = false
+855:         elsif battler.fainted? || !battler.pbOwnedByPlayer?
+856:           pbMessage("\\ts[]" + _INTL("Pokémon is fainted or not the player's. Can't put it in Hyper Mode."))
+857:         else
+858:           pkmn.hyper_mode = true
+859:         end
+860:       end
+861:     else
+862:       pbMessage("\\ts[]" + _INTL("Pokémon is not a Shadow Pokémon."))
+863:     end
+864:   }
+865: })
+866: 
+867: MenuHandlers.add(:battle_pokemon_debug_menu, :set_effects, {
+868:   "name"   => _INTL("Set effects"),
+869:   "parent" => :main,
+870:   "usage"  => :battler,
+871:   "effect" => proc { |pkmn, battler, battle|
+872:     editor = Battle::DebugSetEffects.new(battle, :battler, battler.index)
+873:     editor.update
+874:     editor.dispose
+875:   }
+876: })

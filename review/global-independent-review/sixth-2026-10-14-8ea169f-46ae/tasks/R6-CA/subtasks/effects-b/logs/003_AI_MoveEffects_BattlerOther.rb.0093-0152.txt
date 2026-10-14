@@ -1,0 +1,60 @@
+93: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("PoisonTarget",
+94:   proc { |move, user, target, ai, battle|
+95:     next move.statusMove? && !target.battler.pbCanPoison?(user.battler, false, move.move)
+96:   }
+97: )
+98: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("PoisonTarget",
+99:   proc { |score, move, user, target, ai, battle|
+100:     useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+101:     next useless_score if target.has_active_ability?(:POISONHEAL)
+102:     # No score modifier if the poisoning will be removed immediately
+103:     next useless_score if target.has_active_item?([:PECHABERRY, :LUMBERRY])
+104:     next useless_score if target.faster_than?(user) &&
+105:                           target.has_active_ability?(:HYDRATION) &&
+106:                           [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+107:     if target.battler.pbCanPoison?(user.battler, false, move.move)
+108:       add_effect = move.get_score_change_for_additional_effect(user, target)
+109:       next useless_score if add_effect == -999   # Additional effect will be negated
+110:       score += add_effect
+111:       # Inherent preference
+112:       score += 15
+113:       # Prefer if the target is at high HP
+114:       if ai.trainer.has_skill_flag?("HPAware")
+115:         score += 15 * target.hp / target.totalhp
+116:       end
+117:       # Prefer if the user or an ally has a move/ability that is better if the target is poisoned
+118:       ai.each_same_side_battler(user.side) do |b, i|
+119:         score += 5 if b.has_move_with_function?("DoublePowerIfTargetPoisoned",
+120:                                                 "DoublePowerIfTargetStatusProblem")
+121:         score += 10 if b.has_active_ability?(:MERCILESS)
+122:       end
+123:       # Don't prefer if target benefits from having the poison status problem
+124:       score -= 8 if target.has_active_ability?([:GUTS, :MARVELSCALE, :QUICKFEET, :TOXICBOOST])
+125:       score -= 25 if target.has_active_ability?(:POISONHEAL)
+126:       score -= 20 if target.has_active_ability?(:SYNCHRONIZE) &&
+127:                      user.battler.pbCanPoisonSynchronize?(target.battler)
+128:       score -= 5 if target.has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed",
+129:                                                    "CureUserBurnPoisonParalysis")
+130:       score -= 15 if target.check_for_move { |m|
+131:         m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanPoison?(target.battler, false, m)
+132:       }
+133:       # Don't prefer if the target won't take damage from the poison
+134:       score -= 20 if !target.battler.takesIndirectDamage?
+135:       # Don't prefer if the target can heal itself (or be healed by an ally)
+136:       if target.has_active_ability?(:SHEDSKIN)
+137:         score -= 8
+138:       elsif target.has_active_ability?(:HYDRATION) &&
+139:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+140:         score -= 15
+141:       end
+142:       ai.each_same_side_battler(target.side) do |b, i|
+143:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+144:       end
+145:     end
+146:     next score
+147:   }
+148: )
+149: 
+150: #===============================================================================
+151: #
+152: #===============================================================================

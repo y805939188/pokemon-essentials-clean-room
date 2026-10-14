@@ -1,0 +1,161 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 179, "end_line": 338, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:47:22.213505+00:00"}
+179:     # Try to use the move (inc. disobedience)
+180:     @lastMoveFailed = false
+181:     if !pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)
+182:       @lastMoveUsed     = nil
+183:       @lastMoveUsedType = nil
+184:       if !specialUsage
+185:         @lastRegularMoveUsed   = nil
+186:         @lastRegularMoveTarget = -1
+187:       end
+188:       @battle.pbGainExp   # In case self is KO'd due to confusion
+189:       pbCancelMoves
+190:       pbEndTurn(choice)
+191:       return
+192:     end
+193:     move = choice[2]   # In case disobedience changed the move to be used
+194:     return if !move   # if move was not chosen somehow
+195:     # Subtract PP
+196:     if !specialUsage && !pbReducePP(move)
+197:       @battle.pbDisplay(_INTL("{1} used {2}!", pbThis, move.name))
+198:       @battle.pbDisplay(_INTL("But there was no PP left for the move!"))
+199:       @lastMoveUsed          = nil
+200:       @lastMoveUsedType      = nil
+201:       @lastRegularMoveUsed   = nil
+202:       @lastRegularMoveTarget = -1
+203:       @lastMoveFailed        = true
+204:       pbCancelMoves
+205:       pbEndTurn(choice)
+206:       return
+207:     end
+208:     # Stance Change
+209:     if isSpecies?(:AEGISLASH) && self.ability == :STANCECHANGE
+210:       if move.damagingMove?
+211:         pbChangeForm(1, _INTL("{1} changed to Blade Forme!", pbThis))
+212:       elsif move.id == :KINGSSHIELD
+213:         pbChangeForm(0, _INTL("{1} changed to Shield Forme!", pbThis))
+214:       end
+215:     end
+216:     # Calculate the move's type during this usage
+217:     move.calcType = move.pbCalcType(self)
+218:     # Start effect of Mold Breaker
+219:     @battle.moldBreaker = hasMoldBreaker?
+220:     # Remember that user chose a two-turn move
+221:     if move.pbIsChargingTurn?(self)
+222:       # Beginning the use of a two-turn attack
+223:       @effects[PBEffects::TwoTurnAttack] = move.id
+224:       @currentMove = move.id
+225:     else
+226:       @effects[PBEffects::TwoTurnAttack] = nil   # Cancel use of two-turn attack
+227:     end
+228:     # Add to counters for moves which increase them when used in succession
+229:     move.pbChangeUsageCounters(self, specialUsage)
+230:     # Charge up Metronome item
+231:     if hasActiveItem?(:METRONOME) && !move.callsAnotherMove?
+232:       if @lastMoveUsed && @lastMoveUsed == move.id && !@lastMoveFailed
+233:         @effects[PBEffects::Metronome] += 1
+234:       else
+235:         @effects[PBEffects::Metronome] = 0
+236:       end
+237:     end
+238:     # Record move as having been used
+239:     @lastMoveUsed     = move.id
+240:     @lastMoveUsedType = move.calcType   # For Conversion 2
+241:     if !specialUsage
+242:       @lastRegularMoveUsed   = move.id   # For Disable, Encore, Instruct, Mimic, Mirror Move, Sketch, Spite
+243:       @lastRegularMoveTarget = choice[3]   # For Instruct (remembering original target is fine)
+244:       @movesUsed.push(move.id) if !@movesUsed.include?(move.id)   # For Last Resort
+245:     end
+246:     @battle.lastMoveUsed = move.id   # For Copycat
+247:     @battle.lastMoveUser = @index   # For "self KO" battle clause to avoid draws
+248:     @battle.successStates[@index].useState = 1   # Battle Arena - assume failure
+249:     # Find the default user (self or Snatcher) and target(s)
+250:     user = pbFindUser(choice, move)
+251:     user = pbChangeUser(choice, move, user)
+252:     targets = pbFindTargets(choice, move, user)
+253:     targets = pbChangeTargets(move, user, targets)
+254:     # Pressure
+255:     if !specialUsage
+256:       targets.each do |b|
+257:         next unless b.opposes?(user) && b.hasActiveAbility?(:PRESSURE)
+258:         PBDebug.log("[Ability triggered] #{b.pbThis}'s #{b.abilityName}")
+259:         user.pbReducePP(move)
+260:       end
+261:       if move.pbTarget(user).affects_foe_side
+262:         @battle.allOtherSideBattlers(user).each do |b|
+263:           next unless b.hasActiveAbility?(:PRESSURE)
+264:           PBDebug.log("[Ability triggered] #{b.pbThis}'s #{b.abilityName}")
+265:           user.pbReducePP(move)
+266:         end
+267:       end
+268:     end
+269:     # Dazzling/Queenly Majesty make the move fail here
+270:     @battle.pbPriority(true).each do |b|
+271:       next if !b || !b.abilityActive?
+272:       if Battle::AbilityEffects.triggerMoveBlocking(b.ability, b, user, targets, move, @battle)
+273:         @battle.pbDisplayBrief(_INTL("{1} used {2}!", user.pbThis, move.name))
+274:         @battle.pbShowAbilitySplash(b)
+275:         @battle.pbDisplay(_INTL("{1} cannot use {2}!", user.pbThis, move.name))
+276:         @battle.pbHideAbilitySplash(b)
+277:         user.lastMoveFailed = true
+278:         pbCancelMoves
+279:         pbEndTurn(choice)
+280:         return
+281:       end
+282:     end
+283:     # "X used Y!" message
+284:     # Can be different for Bide, Fling, Focus Punch and Future Sight
+285:     # NOTE: This intentionally passes self rather than user. The user is always
+286:     #       self except if Snatched, but this message should state the original
+287:     #       user (self) even if the move is Snatched.
+288:     move.pbDisplayUseMessage(self)
+289:     # Snatch's message (user is the new user, self is the original user)
+290:     if move.snatched
+291:       @lastMoveFailed = true   # Intentionally applies to self, not user
+292:       @battle.pbDisplay(_INTL("{1} snatched {2}'s move!", user.pbThis, pbThis(true)))
+293:     end
+294:     # "But it failed!" checks
+295:     if move.pbMoveFailed?(user, targets)
+296:       PBDebug.log(sprintf("[Move failed] In function code %s's def pbMoveFailed?", move.function_code))
+297:       user.lastMoveFailed = true
+298:       pbCancelMoves
+299:       pbEndTurn(choice)
+300:       return
+301:     end
+302:     # Perform set-up actions and display messages
+303:     # Messages include Magnitude's number and Pledge moves' "it's a combo!"
+304:     move.pbOnStartUse(user, targets)
+305:     # Self-thawing due to the move
+306:     if user.status == :FROZEN && move.thawsUser?
+307:       user.pbCureStatus(false)
+308:       @battle.pbDisplay(_INTL("{1} melted the ice!", user.pbThis))
+309:     end
+310:     # Powder
+311:     if user.effects[PBEffects::Powder] && move.calcType == :FIRE
+312:       @battle.pbCommonAnimation("Powder", user)
+313:       @battle.pbDisplay(_INTL("When the flame touched the powder on the Pokémon, it exploded!"))
+314:       user.lastMoveFailed = true
+315:       if ![:Rain, :HeavyRain].include?(user.effectiveWeather) && user.takesIndirectDamage?
+316:         user.pbTakeEffectDamage((user.totalhp / 4.0).round, false) do |hp_lost|
+317:           @battle.pbDisplay(_INTL("{1} is hurt by Powder!", user.pbThis))
+318:         end
+319:         @battle.pbGainExp   # In case user is KO'd by this
+320:       end
+321:       pbCancelMoves
+322:       pbEndTurn(choice)
+323:       return
+324:     end
+325:     # Primordial Sea, Desolate Land
+326:     if move.damagingMove?
+327:       case @battle.pbWeather
+328:       when :HeavyRain
+329:         if move.calcType == :FIRE
+330:           @battle.pbDisplay(_INTL("The Fire-type attack fizzled out in the heavy rain!"))
+331:           user.lastMoveFailed = true
+332:           pbCancelMoves
+333:           pbEndTurn(choice)
+334:           return
+335:         end
+336:       when :HarshSun
+337:         if move.calcType == :WATER
+338:           @battle.pbDisplay(_INTL("The Water-type attack evaporated in the harsh sunlight!"))

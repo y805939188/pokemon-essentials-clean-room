@@ -1,0 +1,200 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTakesTargetItem",
+5:   proc { |score, move, user, target, ai, battle|
+6:     next score if user.wild? || user.item
+7:     next score if !target.item || target.battler.unlosableItem?(target.item)
+8:     next score if user.battler.unlosableItem?(target.item)
+9:     next score if target.effects[PBEffects::Substitute] > 0
+10:     next score if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+11:     # User can steal the target's item; score it
+12:     user_item_preference = user.wants_item?(target.item_id)
+13:     user_no_item_preference = user.wants_item?(:NONE)
+14:     user_diff = user_item_preference - user_no_item_preference
+15:     user_diff = 0 if !user.item_active?
+16:     target_item_preference = target.wants_item?(target.item_id)
+17:     target_no_item_preference = target.wants_item?(:NONE)
+18:     target_diff = target_no_item_preference - target_item_preference
+19:     target_diff = 0 if !target.item_active?
+20:     score += user_diff * 4
+21:     score -= target_diff * 4
+22:     next score
+23:   }
+24: )
+25: 
+26: #===============================================================================
+27: #
+28: #===============================================================================
+29: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TargetTakesUserItem",
+30:   proc { |move, user, target, ai, battle|
+31:     next true if !user.item || user.battler.unlosableItem?(user.item)
+32:     next true if target.item || target.battler.unlosableItem?(user.item)
+33:     next false
+34:   }
+35: )
+36: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetTakesUserItem",
+37:   proc { |score, move, user, target, ai, battle|
+38:     user_item_preference = user.wants_item?(user.item_id)
+39:     user_no_item_preference = user.wants_item?(:NONE)
+40:     user_diff = user_no_item_preference - user_item_preference
+41:     user_diff = 0 if !user.item_active?
+42:     target_item_preference = target.wants_item?(user.item_id)
+43:     target_no_item_preference = target.wants_item?(:NONE)
+44:     target_diff = target_item_preference - target_no_item_preference
+45:     target_diff = 0 if !target.item_active?
+46:     score += user_diff * 4
+47:     score -= target_diff * 4
+48:     next score
+49:   }
+50: )
+51: 
+52: #===============================================================================
+53: #
+54: #===============================================================================
+55: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("UserTargetSwapItems",
+56:   proc { |move, user, target, ai, battle|
+57:     next true if user.wild?
+58:     next true if !user.item && !target.item
+59:     next true if user.battler.unlosableItem?(user.item) || user.battler.unlosableItem?(target.item)
+60:     next true if target.battler.unlosableItem?(target.item) || target.battler.unlosableItem?(user.item)
+61:     next true if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+62:     next false
+63:   }
+64: )
+65: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTargetSwapItems",
+66:   proc { |score, move, user, target, ai, battle|
+67:     user_new_item_preference = user.wants_item?(target.item_id)
+68:     user_old_item_preference = user.wants_item?(user.item_id)
+69:     user_diff = user_new_item_preference - user_old_item_preference
+70:     user_diff = 0 if !user.item_active?
+71:     target_new_item_preference = target.wants_item?(user.item_id)
+72:     target_old_item_preference = target.wants_item?(target.item_id)
+73:     target_diff = target_new_item_preference - target_old_item_preference
+74:     target_diff = 0 if !target.item_active?
+75:     score += user_diff * 4
+76:     score -= target_diff * 4
+77:     # Don't prefer if user used this move in the last round
+78:     score -= 15 if user.battler.lastMoveUsed &&
+79:                    GameData::Move.exists?(user.battler.lastMoveUsed) &&
+80:                    GameData::Move.get(user.battler.lastMoveUsed).function_code == move.function_code
+81:     next score
+82:   }
+83: )
+84: 
+85: #===============================================================================
+86: #
+87: #===============================================================================
+88: Battle::AI::Handlers::MoveFailureCheck.add("RestoreUserConsumedItem",
+89:   proc { |move, user, ai, battle|
+90:     next !user.battler.recycleItem || user.item
+91:   }
+92: )
+93: Battle::AI::Handlers::MoveEffectScore.add("RestoreUserConsumedItem",
+94:   proc { |score, move, user, ai, battle|
+95:     next Battle::AI::MOVE_USELESS_SCORE if !user.item_active?
+96:     item_preference = user.wants_item?(user.battler.recycleItem)
+97:     no_item_preference = user.wants_item?(:NONE)
+98:     score += (item_preference - no_item_preference) * 4
+99:     next score
+100:   }
+101: )
+102: 
+103: #===============================================================================
+104: #
+105: #===============================================================================
+106: Battle::AI::Handlers::MoveBasePower.add("RemoveTargetItem",
+107:   proc { |power, move, user, target, ai, battle|
+108:     next move.move.pbBaseDamage(power, user.battler, target.battler)
+109:   }
+110: )
+111: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("RemoveTargetItem",
+112:   proc { |score, move, user, target, ai, battle|
+113:     next score if user.wild?
+114:     next score if !target.item || target.battler.unlosableItem?(target.item)
+115:     next score if target.effects[PBEffects::Substitute] > 0
+116:     next score if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+117:     next score if !target.item_active?
+118:     # User can knock off the target's item; score it
+119:     item_preference = target.wants_item?(target.item_id)
+120:     no_item_preference = target.wants_item?(:NONE)
+121:     score -= (no_item_preference - item_preference) * 4
+122:     next score
+123:   }
+124: )
+125: 
+126: #===============================================================================
+127: #
+128: #===============================================================================
+129: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("DestroyTargetBerryOrGem",
+130:   proc { |score, move, user, target, ai, battle|
+131:     next score if !target.item || (!target.item.is_berry? &&
+132:                   !(Settings::MECHANICS_GENERATION >= 6 && target.item.is_gem?))
+133:     next score if user.battler.unlosableItem?(target.item)
+134:     next score if target.effects[PBEffects::Substitute] > 0
+135:     next score if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+136:     next score if !target.item_active?
+137:     # User can incinerate the target's item; score it
+138:     item_preference = target.wants_item?(target.item_id)
+139:     no_item_preference = target.wants_item?(:NONE)
+140:     score -= (no_item_preference - item_preference) * 4
+141:     next score
+142:   }
+143: )
+144: 
+145: #===============================================================================
+146: #
+147: #===============================================================================
+148: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("CorrodeTargetItem",
+149:   proc { |move, user, target, ai, battle|
+150:     next true if !target.item || target.battler.unlosableItem?(target.item) ||
+151:                  target.effects[PBEffects::Substitute] > 0
+152:     next true if target.has_active_ability?(:STICKYHOLD)
+153:     next true if battle.corrosiveGas[target.index % 2][target.party_index]
+154:     next false
+155:   }
+156: )
+157: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("CorrodeTargetItem",
+158:   proc { |score, move, user, target, ai, battle|
+159:     item_preference = target.wants_item?(target.item_id)
+160:     no_item_preference = target.wants_item?(:NONE)
+161:     target_diff = no_item_preference - item_preference
+162:     target_diff = 0 if !target.item_active?
+163:     score += target_diff * 4
+164:     next score
+165:   }
+166: )
+167: 
+168: #===============================================================================
+169: #
+170: #===============================================================================
+171: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("StartTargetCannotUseItem",
+172:   proc { |move, user, target, ai, battle|
+173:     next target.effects[PBEffects::Embargo] > 0
+174:   }
+175: )
+176: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("StartTargetCannotUseItem",
+177:   proc { |score, move, user, target, ai, battle|
+178:     next Battle::AI::MOVE_USELESS_SCORE if !target.item || !target.item_active?
+179:     # NOTE: We won't check if the item has an effect, because if a Pokémon is
+180:     #       holding an item, it probably does.
+181:     item_score = target.wants_item?(target.item_id)
+182:     next Battle::AI::MOVE_USELESS_SCORE if item_score <= 0   # Item has no effect or is bad
+183:     score += item_score * 2
+184:     next score
+185:   }
+186: )
+187: 
+188: #===============================================================================
+189: #
+190: #===============================================================================
+191: Battle::AI::Handlers::MoveEffectScore.add("StartNegateHeldItems",
+192:   proc { |score, move, user, ai, battle|
+193:     next if battle.field.effects[PBEffects::MagicRoom] == 1   # About to expire anyway
+194:     any_held_items = false
+195:     total_want = 0   # Positive means foes want their items more than allies do
+196:     ai.each_battler do |b, i|
+197:       next if !b.item
+198:       # Skip b if its item is disabled
+199:       if ai.trainer.medium_skill?
+200:         # NOTE: We won't check if the item has an effect, because if a Pokémon

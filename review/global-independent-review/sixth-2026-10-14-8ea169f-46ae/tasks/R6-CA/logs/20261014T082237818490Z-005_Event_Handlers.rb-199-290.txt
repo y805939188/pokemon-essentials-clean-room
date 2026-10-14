@@ -1,0 +1,92 @@
+199: #===============================================================================
+200: # A specialised version of class HandlerHash which only deals with IDs that are
+201: # constants in a particular class or module. That class or module must be
+202: # defined when creating an instance of this class.
+203: # Unused.
+204: #===============================================================================
+205: class HandlerHashEnum
+206:   def initialize(mod)
+207:     @mod         = mod
+208:     @hash        = {}
+209:     @addIfs      = []
+210:     @symbolCache = {}
+211:   end
+212: 
+213:   # 'sym' can be an ID or symbol.
+214:   def [](sym)
+215:     id = fromSymbol(sym)
+216:     ret = nil
+217:     ret = @hash[id] if id && @hash[id]   # Real ID from the item
+218:     symbol = toSymbol(sym)
+219:     ret = @hash[symbol] if symbol && @hash[symbol]   # Symbol or string
+220:     unless ret
+221:       @addIfs.each do |addif|
+222:         return addif[1] if addif[0].call(id)
+223:       end
+224:     end
+225:     return ret
+226:   end
+227: 
+228:   def fromSymbol(sym)
+229:     return sym unless sym.is_a?(Symbol) || sym.is_a?(String)
+230:     mod = Object.const_get(@mod) rescue nil
+231:     return nil if !mod
+232:     return mod.const_get(sym.to_sym) rescue nil
+233:   end
+234: 
+235:   def toSymbol(sym)
+236:     return sym.to_sym if sym.is_a?(Symbol) || sym.is_a?(String)
+237:     ret = @symbolCache[sym]
+238:     return ret if ret
+239:     mod = Object.const_get(@mod) rescue nil
+240:     return nil if !mod
+241:     mod.constants.each do |key|
+242:       next if mod.const_get(key) != sym
+243:       ret = key.to_sym
+244:       @symbolCache[sym] = ret
+245:       break
+246:     end
+247:     return ret
+248:   end
+249: 
+250:   # 'sym' can be an ID or symbol.
+251:   def add(sym, handler = nil, &handlerBlock)
+252:     if ![Proc, Hash].include?(handler.class) && !block_given?
+253:       raise ArgumentError, "#{self.class.name} for #{sym.inspect} has no valid handler (#{handler.inspect} was given)"
+254:     end
+255:     id = fromSymbol(sym)
+256:     @hash[id] = handler || handlerBlock if id
+257:     symbol = toSymbol(sym)
+258:     @hash[symbol] = handler || handlerBlock if symbol
+259:   end
+260: 
+261:   def addIf(conditionProc, handler = nil, &handlerBlock)
+262:     if ![Proc, Hash].include?(handler.class) && !block_given?
+263:       raise ArgumentError, "addIf call for #{self.class.name} has no valid handler (#{handler.inspect} was given)"
+264:     end
+265:     @addIfs.push([conditionProc, handler || handlerBlock])
+266:   end
+267: 
+268:   def copy(src, *dests)
+269:     handler = self[src]
+270:     return if !handler
+271:     dests.each { |dest| self.add(dest, handler) }
+272:   end
+273: 
+274:   def clear
+275:     @hash.clear
+276:     @addIfs.clear
+277:   end
+278: 
+279:   def trigger(sym, *args)
+280:     handler = self[sym]
+281:     return (handler) ? handler.call(fromSymbol(sym), *args) : nil
+282:   end
+283: end
+284: 
+285: #===============================================================================
+286: #
+287: #===============================================================================
+288: class SpeciesHandlerHash < HandlerHashSymbol
+289: end
+290: 

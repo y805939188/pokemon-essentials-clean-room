@@ -1,0 +1,234 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/001_Non-interactive UI/007_UI_Credits.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 233], "total_lines": 233, "sha256": "e2b3556e8169dc653e86820efc6a7f6ef6ff647ea9e5e8f83750f39f77732454", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:19:50.566890+00:00"}
+1: #==============================================================================
+2: # * Scene_Credits
+3: #------------------------------------------------------------------------------
+4: # Scrolls the credits you make below. Original Author unknown.
+5: #
+6: ## Edited by MiDas Mike so it doesn't play over the Title, but runs by calling
+7: # the following:
+8: #    $scene = Scene_Credits.new
+9: #
+10: ## New Edit 3/6/2007 11:14 PM by AvatarMonkeyKirby.
+11: # Ok, what I've done is changed the part of the script that was supposed to make
+12: # the credits automatically end so that way they actually end! Yes, they will
+13: # actually end when the credits are finished! So, that will make the people you
+14: # should give credit to now is: Unknown, MiDas Mike, and AvatarMonkeyKirby.
+15: #                                             -sincerly yours,
+16: #                                               Your Beloved
+17: # Oh yea, and I also added a line of code that fades out the BGM so it fades
+18: # sooner and smoother.
+19: #
+20: ## New Edit 24/1/2012 by Maruno.
+21: # Added the ability to split a line into two halves with <s>, with each half
+22: # aligned towards the centre. Please also credit me if used.
+23: #
+24: ## New Edit 22/2/2012 by Maruno.
+25: # Credits now scroll properly when played with a zoom factor of 0.5. Music can
+26: # now be defined. Credits can't be skipped during their first play.
+27: #
+28: ## New Edit 25/3/2020 by Maruno.
+29: # Scroll speed is now independent of frame rate. Now supports non-integer values
+30: # for SCROLL_SPEED.
+31: #
+32: ## New Edit 21/8/2020 by Marin.
+33: # Now automatically inserts the credits from the plugins that have been
+34: # registered through the PluginManager module.
+35: #==============================================================================
+36: class Scene_Credits
+37:   # Backgrounds to show in credits. Found in Graphics/Titles/ folder
+38:   BACKGROUNDS_LIST       = ["credits1", "credits2", "credits3", "credits4", "credits5"]
+39:   BGM                    = "Credits"
+40:   SCROLL_SPEED           = 40   # Pixels per second
+41:   SECONDS_PER_BACKGROUND = 11
+42:   TEXT_OUTLINE_COLOR     = Color.new(0, 0, 128, 255)
+43:   TEXT_BASE_COLOR        = Color.new(255, 255, 255, 255)
+44:   TEXT_SHADOW_COLOR      = Color.new(0, 0, 0, 100)
+45: 
+46:   def add_names_to_credits(credits, names, with_final_new_line = true)
+47:     if names.length >= 5
+48:       i = 0
+49:       loop do
+50:         credits.push(names[i] + "<s>" + (names[i + 1] || ""))
+51:         i += 2
+52:         break if i >= names.length
+53:       end
+54:     else
+55:       names.each { |name| credits.push(name) }
+56:     end
+57:     credits.push("") if with_final_new_line
+58:   end
+59: 
+60:   def get_text
+61:     ret = Settings.game_credits || []
+62:     # Add plugin credits
+63:     if PluginManager.plugins.length > 0
+64:       ret.push("", "", "")
+65:       PluginManager.plugins.each do |plugin|
+66:         pcred = PluginManager.credits(plugin)
+67:         ret.push(_INTL("\"{1}\" v.{2} by:", plugin, PluginManager.version(plugin)))
+68:         add_names_to_credits(ret, pcred)
+69:       end
+70:     end
+71:     # Add Essentials credits
+72:     ret.push("", "", "")
+73:     ret.push(_INTL("\"Pokémon Essentials\" was created by:"))
+74:     add_names_to_credits(ret, [
+75:       "Poccil (Peter O.)",
+76:       "Maruno",
+77:       _INTL("Inspired by work by Flameguru")
+78:     ])
+79:     ret.push(_INTL("With contributions from:"))
+80:     add_names_to_credits(ret, [
+81:       "AvatarMonkeyKirby", "Boushy", "Brother1440", "FL.", "Genzai Kawakami",
+82:       "Golisopod User", "help-14", "IceGod64", "Jacob O. Wobbrock", "KitsuneKouta",
+83:       "Lisa Anthony", "Luka S.J.", "Marin", "MiDas Mike", "Near Fantastica",
+84:       "PinkMan", "Popper", "Rataime", "Savordez", "SoundSpawn",
+85:       "the__end", "Venom12", "Wachunga"
+86:     ], false)
+87:     ret.push(_INTL("and everyone else who helped out"))
+88:     ret.push("")
+89:     ret.push(_INTL("\"mkxp-z\" by:"))
+90:     add_names_to_credits(ret, [
+91:       "Anon",
+92:       _INTL("Based on \"mkxp\" by Ancurio et al.")
+93:     ])
+94:     ret.push(_INTL("\"RPG Maker XP\" by:"))
+95:     add_names_to_credits(ret, ["Enterbrain"])
+96:     ret.push(_INTL("Pokémon is owned by:"))
+97:     add_names_to_credits(ret, [
+98:       "The Pokémon Company",
+99:       "Nintendo",
+100:       _INTL("Affiliated with Game Freak")
+101:     ])
+102:     ret.push("", "")
+103:     ret.push(_INTL("This is a non-profit fan-made game."),
+104:              _INTL("No copyright infringements intended."),
+105:              _INTL("Please support the official games!"))
+106:     return ret
+107:   end
+108: 
+109:   def main
+110:     @quit = false
+111:     #-------------------------------
+112:     # Animated Background Setup
+113:     #-------------------------------
+114:     @timer_start = System.uptime   # Time when the credits started
+115:     @bg_index = 0
+116:     @bitmap_height = Graphics.height   # For a single credits text bitmap
+117:     @trim = Graphics.height / 10
+118:     # Number of game frames per background frame
+119:     @realOY = -(Graphics.height - @trim)
+120:     #-------------------------------
+121:     # Credits text Setup
+122:     #-------------------------------
+123:     credit_lines = get_text
+124:     #-------------------------------
+125:     # Make background and text sprites
+126:     #-------------------------------
+127:     viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+128:     viewport.z = 99999
+129:     text_viewport = Viewport.new(0, @trim, Graphics.width, Graphics.height - (@trim * 2))
+130:     text_viewport.z = 99999
+131:     @background_sprite = IconSprite.new(0, 0)
+132:     @background_sprite.setBitmap("Graphics/Titles/" + BACKGROUNDS_LIST[0])
+133:     @credit_sprites = []
+134:     @total_height = credit_lines.size * 32
+135:     lines_per_bitmap = @bitmap_height / 32
+136:     num_bitmaps = (credit_lines.size.to_f / lines_per_bitmap).ceil
+137:     num_bitmaps.times do |i|
+138:       credit_bitmap = Bitmap.new(Graphics.width, @bitmap_height + 16)
+139:       pbSetSystemFont(credit_bitmap)
+140:       lines_per_bitmap.times do |j|
+141:         line = credit_lines[(i * lines_per_bitmap) + j]
+142:         next if !line
+143:         line += " " if line.end_with?("<s>")
+144:         line = line.split("<s>")
+145:         xpos = 0
+146:         align = 1   # Centre align
+147:         linewidth = Graphics.width
+148:         line.length.times do |k|
+149:           text = line[k].strip
+150:           if line.length > 1
+151:             xpos = (k == 0) ? 0 : 20 + (Graphics.width / 2)
+152:             align = (k == 0) ? 2 : 0   # Right align : left align
+153:             linewidth = (Graphics.width / 2) - 20
+154:           end
+155:           credit_bitmap.font.color = TEXT_SHADOW_COLOR
+156:           credit_bitmap.draw_text(xpos, (j * 32) + 12, linewidth, 32, text, align)
+157:           credit_bitmap.font.color = TEXT_OUTLINE_COLOR
+158:           credit_bitmap.draw_text(xpos + 2, (j * 32) + 2, linewidth, 32, text, align)
+159:           credit_bitmap.draw_text(xpos,     (j * 32) + 2, linewidth, 32, text, align)
+160:           credit_bitmap.draw_text(xpos - 2, (j * 32) + 2, linewidth, 32, text, align)
+161:           credit_bitmap.draw_text(xpos + 2, (j * 32) + 4, linewidth, 32, text, align)
+162:           credit_bitmap.draw_text(xpos - 2, (j * 32) + 4, linewidth, 32, text, align)
+163:           credit_bitmap.draw_text(xpos + 2, (j * 32) + 6, linewidth, 32, text, align)
+164:           credit_bitmap.draw_text(xpos,     (j * 32) + 6, linewidth, 32, text, align)
+165:           credit_bitmap.draw_text(xpos - 2, (j * 32) + 6, linewidth, 32, text, align)
+166:           credit_bitmap.font.color = TEXT_BASE_COLOR
+167:           credit_bitmap.draw_text(xpos, (j * 32) + 4, linewidth, 32, text, align)
+168:         end
+169:       end
+170:       credit_sprite = Sprite.new(text_viewport)
+171:       credit_sprite.bitmap = credit_bitmap
+172:       credit_sprite.z      = 9998
+173:       credit_sprite.oy     = @realOY - (@bitmap_height * i)
+174:       @credit_sprites[i] = credit_sprite
+175:     end
+176:     #-------------------------------
+177:     # Setup
+178:     #-------------------------------
+179:     # Stops all audio but background music
+180:     previousBGM = $game_system.getPlayingBGM
+181:     pbMEStop
+182:     pbBGSStop
+183:     pbSEStop
+184:     pbBGMFade(2.0)
+185:     pbBGMPlay(BGM)
+186:     Graphics.transition
+187:     loop do
+188:       Graphics.update
+189:       Input.update
+190:       update
+191:       break if @quit
+192:     end
+193:     $game_temp.background_bitmap = Graphics.snap_to_bitmap
+194:     pbBGMFade(2.0)
+195:     Graphics.freeze
+196:     viewport.color = Color.black   # Ensure screen is black
+197:     text_viewport.color = Color.black   # Ensure screen is black
+198:     Graphics.transition(8, "fadetoblack")
+199:     $game_temp.background_bitmap.dispose
+200:     @background_sprite.dispose
+201:     @credit_sprites.each { |s| s&.dispose }
+202:     viewport.dispose
+203:     text_viewport.dispose
+204:     $PokemonGlobal.creditsPlayed = true
+205:     pbBGMPlay(previousBGM)
+206:     $scene = ($game_map) ? Scene_Map.new : nil
+207:   end
+208: 
+209:   # Check if the credits should be cancelled
+210:   def cancel?
+211:     @quit = true if Input.trigger?(Input::USE) && $PokemonGlobal.creditsPlayed
+212:     return @quit
+213:   end
+214: 
+215:   # Checks if credits bitmap has reached its ending point
+216:   def last?
+217:     @quit = true if @realOY > @total_height + @trim
+218:     return @quit
+219:   end
+220: 
+221:   def update
+222:     # Go to next slide
+223:     new_bg_index = ((System.uptime - @timer_start) / SECONDS_PER_BACKGROUND) % BACKGROUNDS_LIST.length
+224:     if @bg_index != new_bg_index
+225:       @bg_index = new_bg_index
+226:       @background_sprite.setBitmap("Graphics/Titles/" + BACKGROUNDS_LIST[@bg_index])
+227:     end
+228:     return if cancel?
+229:     return if last?
+230:     @realOY = (SCROLL_SPEED * (System.uptime - @timer_start)) - Graphics.height + @trim
+231:     @credit_sprites.each_with_index { |s, i| s.oy = @realOY - (@bitmap_height * i) }
+232:   end
+233: end

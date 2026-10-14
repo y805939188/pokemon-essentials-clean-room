@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "7eec7d96aeb720822c776a611be8b105a25dbc84", "sha256": "0af8bb2af002feec8227e797be14ffbfac95ebcc15cc0126ad57a4e8ff60caec", "start_line": 1, "end_line": 180, "total_lines": 469, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:28:55.481329+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class PokemonEncounters
+5:   attr_reader :step_count
+6: 
+7:   def initialize
+8:     @step_chances       = {}
+9:     @encounter_tables   = {}
+10:     @chance_accumulator = 0
+11:   end
+12: 
+13:   def setup(map_ID)
+14:     @step_count       = 0
+15:     @step_chances     = {}
+16:     @encounter_tables = {}
+17:     encounter_data = GameData::Encounter.get(map_ID, $PokemonGlobal.encounter_version)
+18:     if encounter_data
+19:       encounter_data.step_chances.each { |type, value| @step_chances[type] = value }
+20:       @encounter_tables = Marshal.load(Marshal.dump(encounter_data.types))
+21:     end
+22:   end
+23: 
+24:   def reset_step_count
+25:     @step_count = 0
+26:     @chance_accumulator = 0
+27:   end
+28: 
+29:   #-----------------------------------------------------------------------------
+30: 
+31:   # Returns whether encounters for the given encounter type have been defined
+32:   # for the current map.
+33:   def has_encounter_type?(enc_type)
+34:     return false if !enc_type
+35:     return @encounter_tables[enc_type] && @encounter_tables[enc_type].length > 0
+36:   end
+37: 
+38:   # Returns whether encounters for the given encounter type have been defined
+39:   # for the given map. Only called by Bug-Catching Contest to see if it can use
+40:   # the map's BugContest encounter type to generate caught Pokémon for the other
+41:   # contestants.
+42:   def map_has_encounter_type?(map_ID, enc_type)
+43:     return false if !enc_type
+44:     encounter_data = GameData::Encounter.get(map_ID, $PokemonGlobal.encounter_version)
+45:     return false if !encounter_data
+46:     return encounter_data.types[enc_type] && encounter_data.types[enc_type].length > 0
+47:   end
+48: 
+49:   # Returns whether land-like encounters have been defined for the current map.
+50:   # Applies only to encounters triggered by moving around.
+51:   def has_land_encounters?
+52:     GameData::EncounterType.each do |enc_type|
+53:       next if ![:land, :contest].include?(enc_type.type)
+54:       return true if has_encounter_type?(enc_type.id)
+55:     end
+56:     return false
+57:   end
+58: 
+59:   # Returns whether land-like encounters have been defined for the current map
+60:   # (ignoring the Bug-Catching Contest one).
+61:   # Applies only to encounters triggered by moving around.
+62:   def has_normal_land_encounters?
+63:     GameData::EncounterType.each do |enc_type|
+64:       return true if enc_type.type == :land && has_encounter_type?(enc_type.id)
+65:     end
+66:     return false
+67:   end
+68: 
+69:   # Returns whether cave-like encounters have been defined for the current map.
+70:   # Applies only to encounters triggered by moving around.
+71:   def has_cave_encounters?
+72:     GameData::EncounterType.each do |enc_type|
+73:       return true if enc_type.type == :cave && has_encounter_type?(enc_type.id)
+74:     end
+75:     return false
+76:   end
+77: 
+78:   # Returns whether water-like encounters have been defined for the current map.
+79:   # Applies only to encounters triggered by moving around (i.e. not fishing).
+80:   def has_water_encounters?
+81:     GameData::EncounterType.each do |enc_type|
+82:       return true if enc_type.type == :water && has_encounter_type?(enc_type.id)
+83:     end
+84:     return false
+85:   end
+86: 
+87:   #-----------------------------------------------------------------------------
+88: 
+89:   # Returns whether the player's current location allows wild encounters to
+90:   # trigger upon taking a step.
+91:   def encounter_possible_here?
+92:     return true if $PokemonGlobal.surfing
+93:     terrain_tag = $game_map.terrain_tag($game_player.x, $game_player.y)
+94:     return false if terrain_tag.ice
+95:     return true if has_cave_encounters?   # i.e. this map is a cave
+96:     return true if has_land_encounters? && terrain_tag.land_wild_encounters
+97:     return false
+98:   end
+99: 
+100:   # Returns whether a wild encounter should happen, based on its encounter
+101:   # chance. Called when taking a step and by Rock Smash.
+102:   def encounter_triggered?(enc_type, repel_active = false, triggered_by_step = true)
+103:     if !enc_type || !GameData::EncounterType.exists?(enc_type)
+104:       raise ArgumentError.new(_INTL("Encounter type {1} does not exist", enc_type))
+105:     end
+106:     return false if $game_system.encounter_disabled
+107:     return false if !$player
+108:     return false if $DEBUG && Input.press?(Input::CTRL)
+109:     # Check if enc_type has a defined step chance/encounter table
+110:     return false if !@step_chances[enc_type] || @step_chances[enc_type] == 0
+111:     return false if !has_encounter_type?(enc_type)
+112:     # Poké Radar encounters always happen, ignoring the minimum step period and
+113:     # trigger probabilities
+114:     return true if pbPokeRadarOnShakingGrass
+115:     # Get base encounter chance and minimum steps grace period
+116:     encounter_chance = @step_chances[enc_type].to_f
+117:     min_steps_needed = (8 - (encounter_chance / 10)).clamp(0, 8).to_f
+118:     # Apply modifiers to the encounter chance and the minimum steps amount
+119:     if triggered_by_step
+120:       encounter_chance += @chance_accumulator / 200
+121:       encounter_chance *= 0.8 if $PokemonGlobal.bicycle
+122:     end
+123:     if $PokemonMap.lower_encounter_rate
+124:       encounter_chance /= 2
+125:       min_steps_needed *= 2
+126:     elsif $PokemonMap.higher_encounter_rate
+127:       encounter_chance *= 1.5
+128:       min_steps_needed /= 2
+129:     end
+130:     first_pkmn = $player.first_pokemon
+131:     if first_pkmn
+132:       case first_pkmn.item_id
+133:       when :CLEANSETAG
+134:         encounter_chance *= 2.0 / 3
+135:         min_steps_needed *= 4 / 3.0
+136:       when :PUREINCENSE
+137:         encounter_chance *= 2.0 / 3
+138:         min_steps_needed *= 4 / 3.0
+139:       else   # Ignore ability effects if an item effect applies
+140:         case first_pkmn.ability_id
+141:         when :STENCH, :WHITESMOKE, :QUICKFEET
+142:           encounter_chance /= 2
+143:           min_steps_needed *= 2
+144:         when :INFILTRATOR
+145:           if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS
+146:             encounter_chance /= 2
+147:             min_steps_needed *= 2
+148:           end
+149:         when :SNOWCLOAK
+150:           if GameData::Weather.get($game_screen.weather_type).category == :Hail
+151:             encounter_chance /= 2
+152:             min_steps_needed *= 2
+153:           end
+154:         when :SANDVEIL
+155:           if GameData::Weather.get($game_screen.weather_type).category == :Sandstorm
+156:             encounter_chance /= 2
+157:             min_steps_needed *= 2
+158:           end
+159:         when :SWARM
+160:           encounter_chance *= 1.5
+161:           min_steps_needed /= 2
+162:         when :ILLUMINATE, :ARENATRAP, :NOGUARD
+163:           encounter_chance *= 2
+164:           min_steps_needed /= 2
+165:         end
+166:       end
+167:     end
+168:     # Wild encounters are much less likely to happen for the first few steps
+169:     # after a previous wild encounter
+170:     if triggered_by_step && @step_count < min_steps_needed
+171:       @step_count += 1
+172:       return false if rand(100) >= encounter_chance * 5 / (@step_chances[enc_type] + (@chance_accumulator / 200))
+173:     end
+174:     # Decide whether the wild encounter should actually happen
+175:     return true if rand(100) < encounter_chance
+176:     # If encounter didn't happen, make the next step more likely to produce one
+177:     if triggered_by_step
+178:       @chance_accumulator += @step_chances[enc_type]
+179:       @chance_accumulator = 0 if repel_active
+180:     end

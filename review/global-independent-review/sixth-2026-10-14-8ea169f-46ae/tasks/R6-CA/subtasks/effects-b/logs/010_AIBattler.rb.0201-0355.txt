@@ -1,0 +1,155 @@
+201:     stage_mul = Battle::Battler::STAT_STAGE_MULTIPLIERS
+202:     stage_div = Battle::Battler::STAT_STAGE_DIVISORS
+203:     if [:ACCURACY, :EVASION].include?(stat)
+204:       stage_mul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+205:       stage_div = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+206:     end
+207:     stage = battler.stages[stat] + Battle::Battler::STAT_STAGE_MAXIMUM
+208:     value = base_stat(stat)
+209:     return (value.to_f * stage_mul[stage] / stage_div[stage]).floor
+210:   end
+211: 
+212:   def faster_than?(other)
+213:     return false if other.nil?
+214:     this_speed  = rough_stat(:SPEED)
+215:     other_speed = other.rough_stat(:SPEED)
+216:     return (this_speed > other_speed) ^ (@ai.battle.field.effects[PBEffects::TrickRoom] > 0)
+217:   end
+218: 
+219:   #-----------------------------------------------------------------------------
+220: 
+221:   def types; return battler.types; end
+222:   def pbTypes(withExtraType = false); return battler.pbTypes(withExtraType); end
+223: 
+224:   def has_type?(type)
+225:     return false if !type
+226:     active_types = pbTypes(true)
+227:     return active_types.include?(GameData::Type.get(type).id)
+228:   end
+229:   alias pbHasType? has_type?
+230: 
+231:   def effectiveness_of_type_against_battler(type, user = nil, move = nil)
+232:     ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+233:     return ret if !type
+234:     return ret if type == :GROUND && has_type?(:FLYING) && has_active_item?(:IRONBALL)
+235:     # Get effectivenesses
+236:     if type == :SHADOW
+237:       if battler.shadowPokemon?
+238:         ret = Effectiveness::NOT_VERY_EFFECTIVE_MULTIPLIER
+239:       else
+240:         ret = Effectiveness::SUPER_EFFECTIVE_MULTIPLIER
+241:       end
+242:     else
+243:       battler.pbTypes(true).each do |defend_type|
+244:         mult = effectiveness_of_type_against_single_battler_type(type, defend_type, user)
+245:         if move
+246:           case move.function_code
+247:           when "HitsTargetInSkyGroundsTarget"
+248:             mult = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER if type == :GROUND && defend_type == :FLYING
+249:           when "FreezeTargetSuperEffectiveAgainstWater"
+250:             mult = Effectiveness::SUPER_EFFECTIVE_MULTIPLIER if defend_type == :WATER
+251:           end
+252:         end
+253:         ret *= mult
+254:       end
+255:       ret *= 2 if self.effects[PBEffects::TarShot] && type == :FIRE
+256:     end
+257:     return ret
+258:   end
+259: 
+260:   #-----------------------------------------------------------------------------
+261: 
+262:   def ability_id; return battler.ability_id; end
+263:   def ability;    return battler.ability;    end
+264: 
+265:   def ability_active?
+266:     return battler.abilityActive?
+267:   end
+268: 
+269:   def has_active_ability?(ability, ignore_fainted = false)
+270:     return battler.hasActiveAbility?(ability, ignore_fainted)
+271:   end
+272: 
+273:   def has_mold_breaker?
+274:     return battler.hasMoldBreaker?
+275:   end
+276: 
+277:   #-----------------------------------------------------------------------------
+278: 
+279:   def item_id; return battler.item_id; end
+280:   def item;    return battler.item;    end
+281: 
+282:   def item_active?
+283:     return battler.itemActive?
+284:   end
+285: 
+286:   def has_active_item?(item)
+287:     return battler.hasActiveItem?(item)
+288:   end
+289: 
+290:   #-----------------------------------------------------------------------------
+291: 
+292:   def check_for_move
+293:     ret = false
+294:     battler.eachMove do |move|
+295:       next if move.pp == 0 && move.total_pp > 0
+296:       next unless yield move
+297:       ret = true
+298:       break
+299:     end
+300:     return ret
+301:   end
+302: 
+303:   def has_damaging_move_of_type?(*types)
+304:     check_for_move do |m|
+305:       return true if m.damagingMove? && types.include?(m.pbCalcType(battler))
+306:     end
+307:     return false
+308:   end
+309: 
+310:   def has_move_with_function?(*functions)
+311:     check_for_move { |m| return true if functions.include?(m.function_code) }
+312:     return false
+313:   end
+314: 
+315:   #-----------------------------------------------------------------------------
+316: 
+317:   def can_attack?
+318:     return false if self.effects[PBEffects::HyperBeam] > 0
+319:     return false if status == :SLEEP && statusCount > 1
+320:     return false if status == :FROZEN   # Only 20% chance of unthawing; assune it won't
+321:     return false if self.effects[PBEffects::Truant] && has_active_ability?(:TRUANT)
+322:     return false if self.effects[PBEffects::Flinch]
+323:     # NOTE: Confusion/infatuation/paralysis have higher chances of allowing the
+324:     #       attack, so the battler is treated as able to attack in those cases.
+325:     return true
+326:   end
+327: 
+328:   def can_switch_lax?
+329:     return false if wild?
+330:     @ai.battle.eachInTeamFromBattlerIndex(@index) do |pkmn, i|
+331:       return true if @ai.battle.pbCanSwitchIn?(@index, i)
+332:     end
+333:     return false
+334:   end
+335: 
+336:   # NOTE: This specifically means "is not currently trapped but can become
+337:   #       trapped by an effect". Similar to def pbCanSwitchOut? but this returns
+338:   #       false if any certain switching OR certain trapping applies.
+339:   def can_become_trapped?
+340:     return false if fainted?
+341:     # Ability/item effects that allow switching no matter what
+342:     if ability_active? && Battle::AbilityEffects.triggerCertainSwitching(ability, battler, @ai.battle)
+343:       return false
+344:     end
+345:     if item_active? && Battle::ItemEffects.triggerCertainSwitching(item, battler, @ai.battle)
+346:       return false
+347:     end
+348:     # Other certain switching effects
+349:     return false if Settings::MORE_TYPE_EFFECTS && has_type?(:GHOST)
+350:     # Other certain trapping effects
+351:     return false if battler.trappedInBattle?
+352:     # Trapping abilities/items
+353:     @ai.each_foe_battler(side) do |b, i|
+354:       if b.ability_active? &&
+355:          Battle::AbilityEffects.triggerTrappingByTarget(b.ability, battler, b.battler, @ai.battle)

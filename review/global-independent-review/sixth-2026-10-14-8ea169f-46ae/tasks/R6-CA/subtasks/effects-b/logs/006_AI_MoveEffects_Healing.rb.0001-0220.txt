@@ -1,0 +1,220 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: Battle::AI::Handlers::MoveFailureCheck.add("HealUserFullyAndFallAsleep",
+5:   proc { |move, user, ai, battle|
+6:     next true if !user.battler.canHeal?
+7:     next true if user.battler.asleep?
+8:     next true if !user.battler.pbCanSleep?(user.battler, false, move.move, true)
+9:     next false
+10:   }
+11: )
+12: Battle::AI::Handlers::MoveEffectScore.add("HealUserFullyAndFallAsleep",
+13:   proc { |score, move, user, ai, battle|
+14:     # Consider how much HP will be restored
+15:     if ai.trainer.has_skill_flag?("HPAware")
+16:       if user.hp >= user.totalhp * 0.5
+17:         score -= 10
+18:       else
+19:         score += 30 * (user.totalhp - user.hp) / user.totalhp   # +15 to +30
+20:       end
+21:     end
+22:     # Check whether an existing status problem will be removed
+23:     if user.status != :NONE
+24:       score += (user.wants_status_problem?(user.status)) ? -10 : 8
+25:     end
+26:     # Check if user is happy to be asleep, e.g. can use moves while asleep
+27:     if ai.trainer.medium_skill?
+28:       score += (user.wants_status_problem?(:SLEEP)) ? 10 : -8
+29:     end
+30:     next score
+31:   }
+32: )
+33: 
+34: #===============================================================================
+35: #
+36: #===============================================================================
+37: Battle::AI::Handlers::MoveFailureCheck.add("HealUserHalfOfTotalHP",
+38:   proc { |move, user, ai, battle|
+39:     next !user.battler.canHeal?
+40:   }
+41: )
+42: Battle::AI::Handlers::MoveEffectScore.add("HealUserHalfOfTotalHP",
+43:   proc { |score, move, user, ai, battle|
+44:     # Consider how much HP will be restored
+45:     if ai.trainer.has_skill_flag?("HPAware")
+46:       next score - 10 if user.hp >= user.totalhp * 0.5
+47:       score += 30 * (user.totalhp - user.hp) / user.totalhp   # +15 to +30
+48:     end
+49:     next score
+50:   }
+51: )
+52: 
+53: #===============================================================================
+54: #
+55: #===============================================================================
+56: Battle::AI::Handlers::MoveFailureCheck.copy("HealUserHalfOfTotalHP",
+57:                                             "HealUserDependingOnWeather")
+58: Battle::AI::Handlers::MoveEffectScore.add("HealUserDependingOnWeather",
+59:   proc { |score, move, user, ai, battle|
+60:     # Consider how much HP will be restored
+61:     score = Battle::AI::Handlers.apply_move_effect_score("HealUserHalfOfTotalHP",
+62:        score, move, user, ai, battle)
+63:     case user.battler.effectiveWeather
+64:     when :Sun, :HarshSun
+65:       score += 5
+66:     when :None, :StrongWinds
+67:     else
+68:       score -= 10
+69:     end
+70:     next score
+71:   }
+72: )
+73: 
+74: #===============================================================================
+75: #
+76: #===============================================================================
+77: Battle::AI::Handlers::MoveFailureCheck.copy("HealUserHalfOfTotalHP",
+78:                                             "HealUserDependingOnSandstorm")
+79: Battle::AI::Handlers::MoveEffectScore.add("HealUserDependingOnSandstorm",
+80:   proc { |score, move, user, ai, battle|
+81:     # Consider how much HP will be restored
+82:     score = Battle::AI::Handlers.apply_move_effect_score("HealUserHalfOfTotalHP",
+83:        score, move, user, ai, battle)
+84:     score += 5 if user.battler.effectiveWeather == :Sandstorm
+85:     next score
+86:   }
+87: )
+88: 
+89: #===============================================================================
+90: #
+91: #===============================================================================
+92: Battle::AI::Handlers::MoveFailureCheck.copy("HealUserHalfOfTotalHP",
+93:                                             "HealUserHalfOfTotalHPLoseFlyingTypeThisTurn")
+94: Battle::AI::Handlers::MoveEffectScore.add("HealUserHalfOfTotalHPLoseFlyingTypeThisTurn",
+95:   proc { |score, move, user, ai, battle|
+96:     # Consider how much HP will be restored
+97:     score = Battle::AI::Handlers.apply_move_effect_score("HealUserHalfOfTotalHP",
+98:        score, move, user, ai, battle)
+99:     # User loses the Flying type this round
+100:     # NOTE: Not worth considering and scoring for.
+101:     next score
+102:   }
+103: )
+104: 
+105: #===============================================================================
+106: #
+107: #===============================================================================
+108: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("CureTargetStatusHealUserHalfOfTotalHP",
+109:   proc { |move, user, target, ai, battle|
+110:     next !user.battler.canHeal? || target.status == :NONE
+111:   }
+112: )
+113: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("CureTargetStatusHealUserHalfOfTotalHP",
+114:   proc { |score, move, user, target, ai, battle|
+115:     # Consider how much HP will be restored
+116:     score = Battle::AI::Handlers.apply_move_effect_score("HealUserHalfOfTotalHP",
+117:        score, move, user, ai, battle)
+118:     # Will cure target's status
+119:     score += (target.wants_status_problem?(target.status)) ? 10 : -8
+120:     next score
+121:   }
+122: )
+123: 
+124: #===============================================================================
+125: #
+126: #===============================================================================
+127: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("HealUserByTargetAttackLowerTargetAttack1",
+128:   proc { |move, user, target, ai, battle|
+129:     if !battle.moldBreaker && target.has_active_ability?(:CONTRARY)
+130:       next target.statStageAtMax?(:ATTACK)
+131:     end
+132:     next target.statStageAtMin?(:ATTACK)
+133:   }
+134: )
+135: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("HealUserByTargetAttackLowerTargetAttack1",
+136:   proc { |score, move, user, target, ai, battle|
+137:     # Check whether lowering the target's Attack will have any impact
+138:     if ai.trainer.medium_skill?
+139:       score = ai.get_score_for_target_stat_drop(score, target, move.move.statDown)
+140:     end
+141:     # Healing the user
+142:     if target.has_active_ability?(:LIQUIDOOZE)
+143:       score -= 20
+144:     elsif user.battler.canHeal?
+145:       score += 5 if user.has_active_item?(:BIGROOT)
+146:       if ai.trainer.has_skill_flag?("HPAware")
+147:         # Consider how much HP will be restored
+148:         heal_amt = target.rough_stat(:ATTACK)
+149:         heal_amt *= 1.3 if user.has_active_item?(:BIGROOT)
+150:         heal_amt = [heal_amt, user.totalhp - user.hp].min
+151:         if heal_amt > user.totalhp * 0.3   # Only modify the score if it'll heal a decent amount
+152:           if user.hp < user.totalhp * 0.5
+153:             score += 20 * (user.totalhp - user.hp) / user.totalhp   # +10 to +20
+154:           end
+155:           score += 20 * heal_amt / user.totalhp   # +6 to +20
+156:         end
+157:       end
+158:     end
+159:     next score
+160:   }
+161: )
+162: 
+163: #===============================================================================
+164: #
+165: #===============================================================================
+166: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("HealUserByHalfOfDamageDone",
+167:   proc { |score, move, user, target, ai, battle|
+168:     rough_dmg = move.rough_damage
+169:     if target.has_active_ability?(:LIQUIDOOZE)
+170:       score -= 20 if rough_dmg < target.hp
+171:     elsif user.battler.canHeal?
+172:       score += 5 if user.has_active_item?(:BIGROOT)
+173:       if ai.trainer.has_skill_flag?("HPAware")
+174:         # Consider how much HP will be restored
+175:         heal_amt = rough_dmg / 2
+176:         heal_amt *= 1.3 if user.has_active_item?(:BIGROOT)
+177:         heal_amt = [heal_amt, user.totalhp - user.hp].min
+178:         if heal_amt > user.totalhp * 0.3   # Only modify the score if it'll heal a decent amount
+179:           if user.hp < user.totalhp * 0.5
+180:             score += 20 * (user.totalhp - user.hp) / user.totalhp   # +10 to +20
+181:           end
+182:           score += 20 * heal_amt / user.totalhp   # +6 to +20
+183:         end
+184:       end
+185:     end
+186:     next score
+187:   }
+188: )
+189: 
+190: #===============================================================================
+191: #
+192: #===============================================================================
+193: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("HealUserByHalfOfDamageDoneIfTargetAsleep",
+194:   proc { |move, user, target, ai, battle|
+195:     next !target.battler.asleep?
+196:   }
+197: )
+198: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("HealUserByHalfOfDamageDone",
+199:                                                         "HealUserByHalfOfDamageDoneIfTargetAsleep")
+200: 
+201: #===============================================================================
+202: #
+203: #===============================================================================
+204: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("HealUserByThreeQuartersOfDamageDone",
+205:   proc { |score, move, user, target, ai, battle|
+206:     rough_dmg = move.rough_damage
+207:     if target.has_active_ability?(:LIQUIDOOZE)
+208:       score -= 20 if rough_dmg < target.hp
+209:     elsif user.battler.canHeal?
+210:       score += 5 if user.has_active_item?(:BIGROOT)
+211:       if ai.trainer.has_skill_flag?("HPAware")
+212:         # Consider how much HP will be restored
+213:         heal_amt = rough_dmg * 0.75
+214:         heal_amt *= 1.3 if user.has_active_item?(:BIGROOT)
+215:         heal_amt = [heal_amt, user.totalhp - user.hp].min
+216:         if heal_amt > user.totalhp * 0.3   # Only modify the score if it'll heal a decent amount
+217:           if user.hp < user.totalhp * 0.5
+218:             score += 20 * (user.totalhp - user.hp) / user.totalhp   # +10 to +20
+219:           end
+220:           score += 20 * heal_amt / user.totalhp   # +6 to +20

@@ -1,0 +1,252 @@
+1421:   }
+1422: )
+1423: Battle::AI::Handlers::MoveEffectScore.add("StartUserSideImmunityToStatStageLowering",
+1424:   proc { |score, move, user, ai, battle|
+1425:     has_move = false
+1426:     ai.each_foe_battler(user.side) do |b, i|
+1427:       if b.check_for_move { |m| m.is_a?(Battle::Move::TargetStatDownMove) ||
+1428:                                 m.is_a?(Battle::Move::TargetMultiStatDownMove) ||
+1429:                                 ["LowerPoisonedTargetAtkSpAtkSpd1",
+1430:                                  "PoisonTargetLowerTargetSpeed1",
+1431:                                  "HealUserByTargetAttackLowerTargetAttack1"].include?(m.function_code) }
+1432:         score += 15
+1433:         has_move = true
+1434:       end
+1435:     end
+1436:     next Battle::AI::MOVE_USELESS_SCORE if !has_move
+1437:     next score
+1438:   }
+1439: )
+1440: 
+1441: #===============================================================================
+1442: #
+1443: #===============================================================================
+1444: Battle::AI::Handlers::MoveEffectScore.add("UserSwapBaseAtkDef",
+1445:   proc { |score, move, user, ai, battle|
+1446:     # No flip-flopping
+1447:     next Battle::AI::MOVE_USELESS_SCORE if user.effects[PBEffects::PowerTrick]
+1448:     # Check stats
+1449:     user_atk = user.base_stat(:ATTACK)
+1450:     user_def = user.base_stat(:DEFENSE)
+1451:     next Battle::AI::MOVE_USELESS_SCORE if user_atk == user_def
+1452:     # NOTE: Prefer to raise Attack regardless of the drop to Defense. Only
+1453:     #       prefer to raise Defense if Attack is useless.
+1454:     if user_def > user_atk   # Attack will be raised
+1455:       next Battle::AI::MOVE_USELESS_SCORE if !ai.stat_raise_worthwhile?(user, :ATTACK, true)
+1456:       score += (40 * ((user_def.to_f / user_atk) - 1)).to_i
+1457:       score += 5 if !ai.stat_drop_worthwhile?(user, :DEFENSE, true)   # No downside
+1458:     else   # Defense will be raised
+1459:       next Battle::AI::MOVE_USELESS_SCORE if !ai.stat_raise_worthwhile?(user, :DEFENSE, true)
+1460:       # Don't want to lower user's Attack if it can make use of it
+1461:       next Battle::AI::MOVE_USELESS_SCORE if ai.stat_drop_worthwhile?(user, :ATTACK, true)
+1462:       score += (40 * ((user_atk.to_f / user_def) - 1)).to_i
+1463:     end
+1464:     next score
+1465:   }
+1466: )
+1467: 
+1468: #===============================================================================
+1469: #
+1470: #===============================================================================
+1471: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTargetSwapBaseSpeed",
+1472:   proc { |score, move, user, target, ai, battle|
+1473:     user_speed = user.base_stat(:SPEED)
+1474:     target_speed = target.base_stat(:SPEED)
+1475:     next Battle::AI::MOVE_USELESS_SCORE if user_speed == target_speed
+1476:     if battle.field.effects[PBEffects::TrickRoom] > 1
+1477:       # User wants to be slower so it can move first
+1478:       next Battle::AI::MOVE_USELESS_SCORE if target_speed > user_speed
+1479:       score += (40 * ((user_speed.to_f / target_speed) - 1)).to_i
+1480:     else
+1481:       # User wants to be faster so it can move first
+1482:       next Battle::AI::MOVE_USELESS_SCORE if user_speed > target_speed
+1483:       score += (40 * ((target_speed.to_f / user_speed) - 1)).to_i
+1484:     end
+1485:     next score
+1486:   }
+1487: )
+1488: 
+1489: #===============================================================================
+1490: #
+1491: #===============================================================================
+1492: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTargetAverageBaseAtkSpAtk",
+1493:   proc { |score, move, user, target, ai, battle|
+1494:     user_atk = user.base_stat(:ATTACK)
+1495:     user_spatk = user.base_stat(:SPECIAL_ATTACK)
+1496:     target_atk = target.base_stat(:ATTACK)
+1497:     target_spatk = target.base_stat(:SPECIAL_ATTACK)
+1498:     next Battle::AI::MOVE_USELESS_SCORE if user_atk >= target_atk && user_spatk >= target_spatk
+1499:     change_matters = false
+1500:     # Score based on changes to Attack
+1501:     if target_atk > user_atk
+1502:       # User's Attack will be raised, target's Attack will be lowered
+1503:       if ai.stat_raise_worthwhile?(user, :ATTACK, true) ||
+1504:          ai.stat_drop_worthwhile?(target, :ATTACK, true)
+1505:         score += (40 * ((target_atk.to_f / user_atk) - 1)).to_i
+1506:         change_matters = true
+1507:       end
+1508:     elsif target_atk < user_atk
+1509:       # User's Attack will be lowered, target's Attack will be raised
+1510:       if ai.stat_drop_worthwhile?(user, :ATTACK, true) ||
+1511:          ai.stat_raise_worthwhile?(target, :ATTACK, true)
+1512:         score -= (40 * ((user_atk.to_f / target_atk) - 1)).to_i
+1513:         change_matters = true
+1514:       end
+1515:     end
+1516:     # Score based on changes to Special Attack
+1517:     if target_spatk > user_spatk
+1518:       # User's Special Attack will be raised, target's Special Attack will be lowered
+1519:       if ai.stat_raise_worthwhile?(user, :SPECIAL_ATTACK, true) ||
+1520:          ai.stat_drop_worthwhile?(target, :SPECIAL_ATTACK, true)
+1521:         score += (40 * ((target_spatk.to_f / user_spatk) - 1)).to_i
+1522:         change_matters = true
+1523:       end
+1524:     elsif target_spatk < user_spatk
+1525:       # User's Special Attack will be lowered, target's Special Attack will be raised
+1526:       if ai.stat_drop_worthwhile?(user, :SPECIAL_ATTACK, true) ||
+1527:          ai.stat_raise_worthwhile?(target, :SPECIAL_ATTACK, true)
+1528:         score -= (40 * ((user_spatk.to_f / target_spatk) - 1)).to_i
+1529:         change_matters = true
+1530:       end
+1531:     end
+1532:     next Battle::AI::MOVE_USELESS_SCORE if !change_matters
+1533:     next score
+1534:   }
+1535: )
+1536: 
+1537: #===============================================================================
+1538: #
+1539: #===============================================================================
+1540: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTargetAverageBaseDefSpDef",
+1541:   proc { |score, move, user, target, ai, battle|
+1542:     user_def = user.base_stat(:DEFENSE)
+1543:     user_spdef = user.base_stat(:SPECIAL_DEFENSE)
+1544:     target_def = target.base_stat(:DEFENSE)
+1545:     target_spdef = target.base_stat(:SPECIAL_DEFENSE)
+1546:     next Battle::AI::MOVE_USELESS_SCORE if user_def >= target_def && user_spdef >= target_spdef
+1547:     change_matters = false
+1548:     # Score based on changes to Defense
+1549:     if target_def > user_def
+1550:       # User's Defense will be raised, target's Defense will be lowered
+1551:       if ai.stat_raise_worthwhile?(user, :DEFENSE, true) ||
+1552:          ai.stat_drop_worthwhile?(target, :DEFENSE, true)
+1553:         score += (40 * ((target_def.to_f / user_def) - 1)).to_i
+1554:         change_matters = true
+1555:       end
+1556:     elsif target_def < user_def
+1557:       # User's Defense will be lowered, target's Defense will be raised
+1558:       if ai.stat_drop_worthwhile?(user, :DEFENSE, true) ||
+1559:          ai.stat_raise_worthwhile?(target, :DEFENSE, true)
+1560:         score -= (40 * ((user_def.to_f / target_def) - 1)).to_i
+1561:         change_matters = true
+1562:       end
+1563:     end
+1564:     # Score based on changes to Special Defense
+1565:     if target_spdef > user_spdef
+1566:       # User's Special Defense will be raised, target's Special Defense will be lowered
+1567:       if ai.stat_raise_worthwhile?(user, :SPECIAL_DEFENSE, true) ||
+1568:          ai.stat_drop_worthwhile?(target, :SPECIAL_DEFENSE, true)
+1569:         score += (40 * ((target_spdef.to_f / user_spdef) - 1)).to_i
+1570:         change_matters = true
+1571:       end
+1572:     elsif target_spdef < user_spdef
+1573:       # User's Special Defense will be lowered, target's Special Defense will be raised
+1574:       if ai.stat_drop_worthwhile?(user, :SPECIAL_DEFENSE, true) ||
+1575:          ai.stat_raise_worthwhile?(target, :SPECIAL_DEFENSE, true)
+1576:         score -= (40 * ((user_spdef.to_f / target_spdef) - 1)).to_i
+1577:         change_matters = true
+1578:       end
+1579:     end
+1580:     next Battle::AI::MOVE_USELESS_SCORE if !change_matters
+1581:     next score
+1582:   }
+1583: )
+1584: 
+1585: #===============================================================================
+1586: #
+1587: #===============================================================================
+1588: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserTargetAverageHP",
+1589:   proc { |score, move, user, target, ai, battle|
+1590:     next Battle::AI::MOVE_USELESS_SCORE if user.hp >= target.hp
+1591:     mult = (user.hp + target.hp) / (2.0 * user.hp)
+1592:     score += (10 * mult).to_i if mult >= 1.2
+1593:     next score
+1594:   }
+1595: )
+1596: 
+1597: #===============================================================================
+1598: #
+1599: #===============================================================================
+1600: Battle::AI::Handlers::MoveFailureCheck.add("StartUserSideDoubleSpeed",
+1601:   proc { |move, user, ai, battle|
+1602:     next user.pbOwnSide.effects[PBEffects::Tailwind] > 0
+1603:   }
+1604: )
+1605: Battle::AI::Handlers::MoveEffectScore.add("StartUserSideDoubleSpeed",
+1606:   proc { |score, move, user, ai, battle|
+1607:     # Don't want to make allies faster if Trick Room will make them act later
+1608:     if ai.trainer.medium_skill?
+1609:       next Battle::AI::MOVE_USELESS_SCORE if battle.field.effects[PBEffects::TrickRoom] > 1
+1610:     end
+1611:     # Get the speeds of all battlers
+1612:     ally_speeds = []
+1613:     foe_speeds = []
+1614:     ai.each_battler do |b|
+1615:       spd = b.rough_stat(:SPEED)
+1616:       (b.opposes?(user)) ? foe_speeds.push(spd) : ally_speeds.push(spd)
+1617:     end
+1618:     next Battle::AI::MOVE_USELESS_SCORE if ally_speeds.min > foe_speeds.max
+1619:     # Compare speeds of all battlers
+1620:     outspeeds = 0
+1621:     ally_speeds.each do |ally_speed|
+1622:       foe_speeds.each do |foe_speed|
+1623:         outspeeds += 1 if foe_speed > ally_speed && foe_speed < ally_speed * 2
+1624:       end
+1625:     end
+1626:     next Battle::AI::MOVE_USELESS_SCORE if outspeeds == 0
+1627:     # This move will achieve something
+1628:     next score + 8 + (10 * outspeeds)
+1629:   }
+1630: )
+1631: 
+1632: #===============================================================================
+1633: #
+1634: #===============================================================================
+1635: Battle::AI::Handlers::MoveEffectScore.add("StartSwapAllBattlersBaseDefensiveStats",
+1636:   proc { |score, move, user, ai, battle|
+1637:     change_matters = false
+1638:     ai.each_battler do |b, i|
+1639:       b_def = b.base_stat(:DEFENSE)
+1640:       b_spdef = b.base_stat(:SPECIAL_DEFENSE)
+1641:       next if b_def == b_spdef
+1642:       score_change = 0
+1643:       if b_def > b_spdef
+1644:         # Battler's Defense will be lowered, battler's Special Defense will be raised
+1645:         if ai.stat_drop_worthwhile?(b, :DEFENSE, true)
+1646:           score_change -= (20 * ((b_def.to_f / b_spdef) - 1)).to_i
+1647:           change_matters = true
+1648:         end
+1649:         # Battler's Special Defense will be raised
+1650:         if ai.stat_raise_worthwhile?(b, :SPECIAL_DEFENSE, true)
+1651:           score_change += (20 * ((b_def.to_f / b_spdef) - 1)).to_i
+1652:           change_matters = true
+1653:         end
+1654:       else
+1655:         # Battler's Special Defense will be lowered
+1656:         if ai.stat_drop_worthwhile?(b, :SPECIAL_DEFENSE, true)
+1657:           score_change -= (20 * ((b_spdef.to_f / b_def) - 1)).to_i
+1658:           change_matters = true
+1659:         end
+1660:         # Battler's Defense will be raised
+1661:         if ai.stat_raise_worthwhile?(b, :DEFENSE, true)
+1662:           score_change += (20 * ((b_spdef.to_f / b_def) - 1)).to_i
+1663:           change_matters = true
+1664:         end
+1665:       end
+1666:       score += (b.opposes?(user)) ? -score_change : score_change
+1667:     end
+1668:     next Battle::AI::MOVE_USELESS_SCORE if !change_matters
+1669:     next Battle::AI::MOVE_USELESS_SCORE if score <= Battle::AI::MOVE_BASE_SCORE
+1670:     next score
+1671:   }
+1672: )

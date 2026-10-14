@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/003_Game processing/002_Scene_Map.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "8be1640f36b293f44329a3bbe6ccf3e13fb0d825", "sha256": "e0cee293c8febda5df6acfe083fa372886a52d4d507484c709b44466e5939e1a", "start_line": 1, "end_line": 180, "total_lines": 252, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:33:52.598744+00:00"}
+1: #===============================================================================
+2: # ** Modified Scene_Map class for Pokémon.
+3: #-------------------------------------------------------------------------------
+4: #
+5: #===============================================================================
+6: class Scene_Map
+7:   attr_reader :spritesetGlobal
+8:   attr_reader :map_renderer
+9: 
+10:   def spriteset(map_id = -1)
+11:     return @spritesets[map_id] if map_id > 0 && @spritesets[map_id]
+12:     @spritesets.each_value do |i|
+13:       return i if i.map == $game_map
+14:     end
+15:     return @spritesets.values[0]
+16:   end
+17: 
+18:   def createSpritesets
+19:     @map_renderer = TilemapRenderer.new(Spriteset_Map.viewport) if !@map_renderer || @map_renderer.disposed?
+20:     @spritesetGlobal = Spriteset_Global.new if !@spritesetGlobal
+21:     @spritesets = {}
+22:     $map_factory.maps.each do |map|
+23:       @spritesets[map.map_id] = Spriteset_Map.new(map)
+24:     end
+25:     $map_factory.setSceneStarted(self)
+26:     updateSpritesets(true)
+27:   end
+28: 
+29:   def createSingleSpriteset(map)
+30:     temp = $scene.spriteset.getAnimations
+31:     @spritesets[map] = Spriteset_Map.new($map_factory.maps[map])
+32:     $scene.spriteset.restoreAnimations(temp)
+33:     $map_factory.setSceneStarted(self)
+34:     updateSpritesets(true)
+35:   end
+36: 
+37:   def disposeSpritesets
+38:     return if !@spritesets
+39:     @spritesets.each_key do |i|
+40:       next if !@spritesets[i]
+41:       @spritesets[i].dispose
+42:       @spritesets[i] = nil
+43:     end
+44:     @spritesets.clear
+45:     @spritesets = {}
+46:   end
+47: 
+48:   def dispose
+49:     disposeSpritesets
+50:     @map_renderer.dispose
+51:     @map_renderer = nil
+52:     @spritesetGlobal.dispose
+53:     @spritesetGlobal = nil
+54:   end
+55: 
+56:   def autofade(mapid)
+57:     playingBGM = $game_system.playing_bgm
+58:     playingBGS = $game_system.playing_bgs
+59:     return if !playingBGM && !playingBGS
+60:     map = load_data(sprintf("Data/Map%03d.rxdata", mapid))
+61:     if playingBGM && map.autoplay_bgm
+62:       test_filename = map.bgm.name
+63:       test_filename += "_n" if PBDayNight.isNight? && FileTest.audio_exist?("Audio/BGM/" + test_filename + "_n")
+64:       pbBGMFade(0.8) if playingBGM.name != test_filename
+65:     end
+66:     if playingBGS && map.autoplay_bgs && playingBGS.name != map.bgs.name
+67:       pbBGMFade(0.8)
+68:     end
+69:     Graphics.frame_reset
+70:   end
+71: 
+72:   def transfer_player(cancel_swimming = true)
+73:     $game_temp.player_transferring = false
+74:     pbCancelVehicles($game_temp.player_new_map_id, cancel_swimming)
+75:     autofade($game_temp.player_new_map_id)
+76:     pbBridgeOff
+77:     @spritesetGlobal.playersprite.clearShadows
+78:     if $game_map.map_id != $game_temp.player_new_map_id
+79:       $map_factory.setup($game_temp.player_new_map_id)
+80:     end
+81:     $game_player.moveto($game_temp.player_new_x, $game_temp.player_new_y)
+82:     case $game_temp.player_new_direction
+83:     when 2 then $game_player.turn_down
+84:     when 4 then $game_player.turn_left
+85:     when 6 then $game_player.turn_right
+86:     when 8 then $game_player.turn_up
+87:     end
+88:     $game_player.straighten
+89:     $game_temp.followers.map_transfer_followers
+90:     $game_map.update
+91:     disposeSpritesets
+92:     RPG::Cache.clear
+93:     createSpritesets
+94:     if $game_temp.transition_processing
+95:       $game_temp.transition_processing = false
+96:       Graphics.transition
+97:     end
+98:     $game_map.autoplay
+99:     Graphics.frame_reset
+100:     Input.update
+101:   end
+102: 
+103:   def call_menu
+104:     $game_temp.menu_calling = false
+105:     $game_temp.in_menu = true
+106:     $game_player.straighten
+107:     $game_map.update
+108:     sscene = PokemonPauseMenu_Scene.new
+109:     sscreen = PokemonPauseMenu.new(sscene)
+110:     sscreen.pbStartPokemonMenu
+111:     $game_temp.in_menu = false
+112:   end
+113: 
+114:   def call_debug
+115:     $game_temp.debug_calling = false
+116:     pbPlayDecisionSE
+117:     $game_player.straighten
+118:     pbFadeOutIn { pbDebugMenu }
+119:   end
+120: 
+121:   def miniupdate
+122:     $game_temp.in_mini_update = true
+123:     loop do
+124:       $game_player.update
+125:       updateMaps
+126:       $game_system.update
+127:       $game_screen.update
+128:       break if !$game_temp.player_transferring
+129:       transfer_player(false)
+130:       break if $game_temp.transition_processing
+131:     end
+132:     updateSpritesets
+133:     $game_temp.in_mini_update = false
+134:   end
+135: 
+136:   def updateMaps
+137:     $map_factory.maps.each do |map|
+138:       map.update
+139:     end
+140:     $map_factory.updateMaps(self)
+141:   end
+142: 
+143:   def updateSpritesets(refresh = false)
+144:     @spritesets = {} if !@spritesets
+145:     $map_factory.maps.each do |map|
+146:       @spritesets[map.map_id] = Spriteset_Map.new(map) if !@spritesets[map.map_id]
+147:     end
+148:     keys = @spritesets.keys.clone
+149:     keys.each do |i|
+150:       if $map_factory.hasMap?(i)
+151:         @spritesets[i].update
+152:       else
+153:         @spritesets[i]&.dispose
+154:         @spritesets[i] = nil
+155:         @spritesets.delete(i)
+156:       end
+157:     end
+158:     @spritesetGlobal.update
+159:     pbDayNightTint(@map_renderer)
+160:     @map_renderer.refresh if refresh
+161:     @map_renderer.update
+162:     EventHandlers.trigger(:on_frame_update)
+163:   end
+164: 
+165:   def update
+166:     loop do
+167:       pbMapInterpreter.update
+168:       $game_player.update
+169:       updateMaps
+170:       $game_system.update
+171:       $game_screen.update
+172:       break if !$game_temp.player_transferring
+173:       transfer_player(false)
+174:       break if $game_temp.transition_processing
+175:     end
+176:     updateSpritesets
+177:     if $game_temp.title_screen_calling
+178:       SaveData.mark_values_as_unloaded
+179:       $scene = pbCallTitle
+180:       return

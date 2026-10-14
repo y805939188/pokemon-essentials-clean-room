@@ -1,0 +1,182 @@
+1101:       score -= 5 * side_mult * [target_ability_rating.abs, 3].max
+1102:     end
+1103:     next score
+1104:   }
+1105: )
+1106: 
+1107: #===============================================================================
+1108: #
+1109: #===============================================================================
+1110: # IgnoreTargetAbility
+1111: 
+1112: #===============================================================================
+1113: #
+1114: #===============================================================================
+1115: Battle::AI::Handlers::MoveFailureCheck.add("StartUserAirborne",
+1116:   proc { |move, user, ai, battle|
+1117:     next true if user.has_active_item?(:IRONBALL)
+1118:     next true if user.effects[PBEffects::Ingrain] ||
+1119:                  user.effects[PBEffects::SmackDown] ||
+1120:                  user.effects[PBEffects::MagnetRise] > 0
+1121:     next false
+1122:   }
+1123: )
+1124: Battle::AI::Handlers::MoveEffectScore.add("StartUserAirborne",
+1125:   proc { |score, move, user, ai, battle|
+1126:     # Move is useless if user is already airborne
+1127:     if user.has_type?(:FLYING) ||
+1128:        user.has_active_ability?(:LEVITATE) ||
+1129:        user.has_active_item?(:AIRBALLOON) ||
+1130:        user.effects[PBEffects::Telekinesis] > 0
+1131:       next Battle::AI::MOVE_USELESS_SCORE
+1132:     end
+1133:     # Prefer if any foes have damaging Ground-type moves that do 1x or more
+1134:     # damage to the user
+1135:     ai.each_foe_battler(user.side) do |b, i|
+1136:       next if !b.has_damaging_move_of_type?(:GROUND)
+1137:       next if Effectiveness.resistant?(user.effectiveness_of_type_against_battler(:GROUND, b))
+1138:       score += 10
+1139:     end
+1140:     # Don't prefer if terrain exists (which the user will no longer be affected by)
+1141:     if ai.trainer.medium_skill?
+1142:       score -= 8 if battle.field.terrain != :None
+1143:     end
+1144:     next score
+1145:   }
+1146: )
+1147: 
+1148: #===============================================================================
+1149: #
+1150: #===============================================================================
+1151: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("StartTargetAirborneAndAlwaysHitByMoves",
+1152:   proc { |move, user, target, ai, battle|
+1153:     next true if target.has_active_item?(:IRONBALL)
+1154:     next move.move.pbFailsAgainstTarget?(user.battler, target.battler, false)
+1155:   }
+1156: )
+1157: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("StartTargetAirborneAndAlwaysHitByMoves",
+1158:   proc { |score, move, user, target, ai, battle|
+1159:     # Move is useless if the target is already airborne
+1160:     if target.has_type?(:FLYING) ||
+1161:        target.has_active_ability?(:LEVITATE) ||
+1162:        target.has_active_item?(:AIRBALLOON)
+1163:       next Battle::AI::MOVE_USELESS_SCORE
+1164:     end
+1165:     # Prefer if any allies have moves with accuracy < 90%
+1166:     # Don't prefer if any allies have damaging Ground-type moves that do 1x or
+1167:     # more damage to the target
+1168:     ai.each_foe_battler(target.side) do |b, i|
+1169:       b.battler.eachMove do |m|
+1170:         acc = m.accuracy
+1171:         acc = m.pbBaseAccuracy(b.battler, target.battler) if ai.trainer.medium_skill?
+1172:         score += 5 if acc < 90 && acc != 0
+1173:         score += 5 if acc <= 50 && acc != 0
+1174:       end
+1175:       next if !b.has_damaging_move_of_type?(:GROUND)
+1176:       next if Effectiveness.resistant?(target.effectiveness_of_type_against_battler(:GROUND, b))
+1177:       score -= 7
+1178:     end
+1179:     # Prefer if terrain exists (which the target will no longer be affected by)
+1180:     if ai.trainer.medium_skill?
+1181:       score += 8 if battle.field.terrain != :None
+1182:     end
+1183:     next score
+1184:   }
+1185: )
+1186: 
+1187: #===============================================================================
+1188: #
+1189: #===============================================================================
+1190: # HitsTargetInSky
+1191: 
+1192: #===============================================================================
+1193: #
+1194: #===============================================================================
+1195: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("HitsTargetInSkyGroundsTarget",
+1196:   proc { |score, move, user, target, ai, battle|
+1197:     next score if target.effects[PBEffects::Substitute] > 0
+1198:     if !target.battler.airborne?
+1199:       next score if target.faster_than?(user) ||
+1200:                     !target.battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableInSky",
+1201:                                                      "TwoTurnAttackInvulnerableInSkyParalyzeTarget")
+1202:     end
+1203:     # Prefer if the target is airborne
+1204:     score += 10
+1205:     # Prefer if any allies have damaging Ground-type moves
+1206:     ai.each_foe_battler(target.side) do |b, i|
+1207:       score += 8 if b.has_damaging_move_of_type?(:GROUND)
+1208:     end
+1209:     # Don't prefer if terrain exists (which the target will become affected by)
+1210:     if ai.trainer.medium_skill?
+1211:       score -= 8 if battle.field.terrain != :None
+1212:     end
+1213:     next score
+1214:   }
+1215: )
+1216: 
+1217: #===============================================================================
+1218: #
+1219: #===============================================================================
+1220: Battle::AI::Handlers::MoveFailureCheck.add("StartGravity",
+1221:   proc { |move, user, ai, battle|
+1222:     next battle.field.effects[PBEffects::Gravity] > 0
+1223:   }
+1224: )
+1225: Battle::AI::Handlers::MoveEffectScore.add("StartGravity",
+1226:   proc { |score, move, user, ai, battle|
+1227:     ai.each_battler do |b, i|
+1228:       # Prefer grounding airborne foes, don't prefer grounding airborne allies
+1229:       # Prefer making allies affected by terrain, don't prefer making foes
+1230:       # affected by terrain
+1231:       if b.battler.airborne?
+1232:         score_change = 10
+1233:         if ai.trainer.medium_skill?
+1234:           score_change -= 8 if battle.field.terrain != :None
+1235:         end
+1236:         score += (user.opposes?(b)) ? score_change : -score_change
+1237:         # Prefer if allies have any damaging Ground moves they'll be able to use
+1238:         # on a grounded foe, and vice versa
+1239:         ai.each_foe_battler(b.side) do |b2, j|
+1240:           next if !b2.has_damaging_move_of_type?(:GROUND)
+1241:           score += (user.opposes?(b2)) ? -8 : 8
+1242:         end
+1243:       end
+1244:       # Prefer ending Sky Drop being used on allies, don't prefer ending Sky
+1245:       # Drop being used on foes
+1246:       if b.effects[PBEffects::SkyDrop] >= 0
+1247:         score += (user.opposes?(b)) ? -8 : 8
+1248:       end
+1249:       # Gravity raises accuracy of all moves; prefer if the user/ally has low
+1250:       # accuracy moves, don't prefer if foes have any
+1251:       if b.check_for_move { |m| m.accuracy < 85 }
+1252:         score += (user.opposes?(b)) ? -8 : 8
+1253:       end
+1254:       # Prefer stopping foes' sky-based attacks, don't prefer stopping allies'
+1255:       # sky-based attacks
+1256:       if user.faster_than?(b) &&
+1257:          b.battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableInSky",
+1258:                                     "TwoTurnAttackInvulnerableInSkyParalyzeTarget",
+1259:                                     "TwoTurnAttackInvulnerableInSkyTargetCannotAct")
+1260:         score += (user.opposes?(b)) ? 10 : -10
+1261:       end
+1262:     end
+1263:     next score
+1264:   }
+1265: )
+1266: 
+1267: #===============================================================================
+1268: #
+1269: #===============================================================================
+1270: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TransformUserIntoTarget",
+1271:   proc { |move, user, target, ai, battle|
+1272:     next true if user.effects[PBEffects::Transform]
+1273:     next true if target.effects[PBEffects::Transform] ||
+1274:                  target.effects[PBEffects::Illusion]
+1275:     next false
+1276:   }
+1277: )
+1278: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TransformUserIntoTarget",
+1279:   proc { |score, move, user, target, ai, battle|
+1280:     next score - 5
+1281:   }
+1282: )

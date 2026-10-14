@@ -1,0 +1,228 @@
+481:       end
+482:       break if has_effect
+483:     end
+484:     next !has_effect
+485:   }
+486: )
+487: Battle::AI::Handlers::MoveEffectScore.add("SwapSideEffects",
+488:   proc { |score, move, user, ai, battle|
+489:     if ai.trainer.medium_skill?
+490:       good_effects = [:AuroraVeil, :LightScreen, :Mist, :Rainbow, :Reflect,
+491:                       :Safeguard, :SeaOfFire, :Swamp, :Tailwind].map! { |e| PBEffects.const_get(e) }
+492:       bad_effects = [:Spikes, :StealthRock, :StickyWeb, :ToxicSpikes].map! { |e| PBEffects.const_get(e) }
+493:       bad_effects.each do |e|
+494:         score += 10 if ![0, false, nil].include?(user.pbOwnSide.effects[e])
+495:         score -= 10 if ![0, 1, false, nil].include?(user.pbOpposingSide.effects[e])
+496:       end
+497:       if ai.trainer.high_skill?
+498:         good_effects.each do |e|
+499:           score += 10 if ![0, 1, false, nil].include?(user.pbOpposingSide.effects[e])
+500:           score -= 10 if ![0, false, nil].include?(user.pbOwnSide.effects[e])
+501:         end
+502:       end
+503:     end
+504:     next score
+505:   }
+506: )
+507: 
+508: #===============================================================================
+509: #
+510: #===============================================================================
+511: Battle::AI::Handlers::MoveFailureCheck.add("UserMakeSubstitute",
+512:   proc { |move, user, ai, battle|
+513:     next true if user.effects[PBEffects::Substitute] > 0
+514:     next user.hp <= [user.totalhp / 4, 1].max
+515:   }
+516: )
+517: Battle::AI::Handlers::MoveEffectScore.add("UserMakeSubstitute",
+518:   proc { |score, move, user, ai, battle|
+519:     # Prefer more the higher the user's HP
+520:     if ai.trainer.has_skill_flag?("HPAware")
+521:       score += (10 * user.hp.to_f / user.totalhp).round
+522:     end
+523:     # Prefer if foes don't know any moves that can bypass a substitute
+524:     ai.each_foe_battler(user.side) do |b, i|
+525:       score += 5 if !b.check_for_move { |m| m.ignoresSubstitute?(b.battler) }
+526:     end
+527:     # Prefer if the user lost more than a Substitute's worth of HP from the last
+528:     # attack against it
+529:     score += 7 if user.battler.lastHPLost >= user.totalhp / 4
+530:     next score
+531:   }
+532: )
+533: 
+534: #===============================================================================
+535: #
+536: #===============================================================================
+537: Battle::AI::Handlers::MoveEffectScore.add("RemoveUserBindingAndEntryHazards",
+538:   proc { |score, move, user, ai, battle|
+539:     # Score for raising user's Speed
+540:     if Settings::MECHANICS_GENERATION >= 8
+541:       score = Battle::AI::Handlers.apply_move_effect_score("RaiseUserSpeed1",
+542:          score, move, user, ai, battle)
+543:     end
+544:     # Score for removing various effects
+545:     score += 10 if user.effects[PBEffects::Trapping] > 0
+546:     score += 15 if user.effects[PBEffects::LeechSeed] >= 0
+547:     if battle.pbAbleNonActiveCount(user.idxOwnSide) > 0
+548:       score += 15 if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+549:       score += 15 if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+550:       score += 20 if user.pbOwnSide.effects[PBEffects::StealthRock]
+551:       score += 15 if user.pbOwnSide.effects[PBEffects::StickyWeb]
+552:     end
+553:     next score
+554:   }
+555: )
+556: 
+557: #===============================================================================
+558: #
+559: #===============================================================================
+560: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("AttackTwoTurnsLater",
+561:   proc { |move, user, target, ai, battle|
+562:     next battle.positions[target.index].effects[PBEffects::FutureSightCounter] > 0
+563:   }
+564: )
+565: Battle::AI::Handlers::MoveEffectScore.add("AttackTwoTurnsLater",
+566:   proc { |score, move, user, ai, battle|
+567:     # Future Sight tends to be wasteful if down to last Pokémon
+568:     score -= 20 if battle.pbAbleNonActiveCount(user.idxOwnSide) == 0
+569:     next score
+570:   }
+571: )
+572: 
+573: #===============================================================================
+574: #
+575: #===============================================================================
+576: Battle::AI::Handlers::MoveFailureCheck.add("UserSwapsPositionsWithAlly",
+577:   proc { |move, user, ai, battle|
+578:     num_targets = 0
+579:     idxUserOwner = battle.pbGetOwnerIndexFromBattlerIndex(user.index)
+580:     ai.each_ally(user.side) do |b, i|
+581:       next if battle.pbGetOwnerIndexFromBattlerIndex(b.index) != idxUserOwner
+582:       next if !b.battler.near?(user.battler)
+583:       num_targets += 1
+584:     end
+585:     next num_targets != 1
+586:   }
+587: )
+588: Battle::AI::Handlers::MoveEffectScore.add("UserSwapsPositionsWithAlly",
+589:   proc { |score, move, user, ai, battle|
+590:     next score - 30   # Usually no point in using this
+591:   }
+592: )
+593: 
+594: #===============================================================================
+595: #
+596: #===============================================================================
+597: Battle::AI::Handlers::MoveEffectScore.add("BurnAttackerBeforeUserActs",
+598:   proc { |score, move, user, ai, battle|
+599:     ai.each_foe_battler(user.side) do |b|
+600:       next if !b.battler.affectedByContactEffect?
+601:       next if !b.battler.pbCanBurn?(user.battler, false, move.move)
+602:       if ai.trainer.high_skill?
+603:         next if !b.check_for_move { |m| m.pbContactMove?(b.battler) }
+604:       end
+605:       score += 10   # Possible to burn
+606:     end
+607:     next score
+608:   }
+609: )
+610: 
+611: #===============================================================================
+612: #
+613: #===============================================================================
+614: Battle::AI::Handlers::MoveEffectScore.add("AllBattlersLoseHalfHPUserSkipsNextTurn",
+615:   proc { |score, move, user, ai, battle|
+616:     # HP halving
+617:     foe_hp_lost = 0
+618:     ally_hp_lost = 0
+619:     ai.each_battler do |b, i|
+620:       next if b.hp == 1
+621:       if b.battler.opposes?(user.battler)
+622:         foe_hp_lost += b.hp / 2
+623:       else
+624:         ally_hp_lost += b.hp / 2
+625:       end
+626:     end
+627:     score += 20 * foe_hp_lost / ally_hp_lost
+628:     score -= 20 * ally_hp_lost / foe_hp_lost
+629:     # Recharging
+630:     score = Battle::AI::Handlers.apply_move_effect_score("AttackAndSkipNextTurn",
+631:        score, move, user, ai, battle)
+632:     next score
+633:   }
+634: )
+635: 
+636: #===============================================================================
+637: #
+638: #===============================================================================
+639: Battle::AI::Handlers::MoveEffectScore.add("UserLosesHalfHP",
+640:   proc { |score, move, user, ai, battle|
+641:     score = Battle::AI::Handlers.apply_move_effect_score("UserLosesHalfOfTotalHP",
+642:        score, move, user, ai, battle)
+643:     next score
+644:   }
+645: )
+646: 
+647: #===============================================================================
+648: #
+649: #===============================================================================
+650: Battle::AI::Handlers::MoveFailureCheck.copy("StartSunWeather",
+651:                                             "StartShadowSkyWeather")
+652: Battle::AI::Handlers::MoveEffectScore.add("StartShadowSkyWeather",
+653:   proc { |score, move, user, ai, battle|
+654:     next Battle::AI::MOVE_USELESS_SCORE if battle.pbCheckGlobalAbility(:AIRLOCK) ||
+655:                                            battle.pbCheckGlobalAbility(:CLOUDNINE)
+656:     # Not worth it at lower HP
+657:     if ai.trainer.has_skill_flag?("HPAware")
+658:       score -= 15 if user.hp < user.totalhp / 2
+659:     end
+660:     if ai.trainer.high_skill? && battle.field.weather != :None
+661:       score -= ai.get_score_for_weather(battle.field.weather, user)
+662:     end
+663:     score += ai.get_score_for_weather(:ShadowSky, user, true)
+664:     next score
+665:   }
+666: )
+667: 
+668: #===============================================================================
+669: #
+670: #===============================================================================
+671: Battle::AI::Handlers::MoveFailureCheck.add("RemoveAllScreensAndSafeguard",
+672:   proc { |move, user, ai, battle|
+673:     will_fail = true
+674:     battle.sides.each do |side|
+675:       will_fail = false if side.effects[PBEffects::AuroraVeil] > 0 ||
+676:                            side.effects[PBEffects::LightScreen] > 0 ||
+677:                            side.effects[PBEffects::Reflect] > 0 ||
+678:                            side.effects[PBEffects::Safeguard] > 0
+679:     end
+680:     next will_fail
+681:   }
+682: )
+683: Battle::AI::Handlers::MoveEffectScore.add("RemoveAllScreensAndSafeguard",
+684:   proc { |score, move, user, ai, battle|
+685:     foe_side = user.pbOpposingSide
+686:     # Useless if the foe's side has no screens/Safeguard to remove, or if
+687:     # they'll end this round anyway
+688:     if foe_side.effects[PBEffects::AuroraVeil] <= 1 &&
+689:        foe_side.effects[PBEffects::LightScreen] <= 1 &&
+690:        foe_side.effects[PBEffects::Reflect] <= 1 &&
+691:        foe_side.effects[PBEffects::Safeguard] <= 1
+692:       next Battle::AI::MOVE_USELESS_SCORE
+693:     end
+694:     # Prefer removing opposing screens
+695:     score = Battle::AI::Handlers.apply_move_effect_score("RemoveScreens",
+696:        score, move, user, ai, battle)
+697:     # Don't prefer removing same side screens
+698:     ai.each_foe_battler(user.side) do |b, i|
+699:       score -= Battle::AI::Handlers.apply_move_effect_score("RemoveScreens",
+700:          0, move, b, ai, battle)
+701:       break
+702:     end
+703:     # Safeguard
+704:     score += 10 if foe_side.effects[PBEffects::Safeguard] > 0
+705:     score -= 10 if user.pbOwnSide.effects[PBEffects::Safeguard] > 0
+706:     next score
+707:   }
+708: )

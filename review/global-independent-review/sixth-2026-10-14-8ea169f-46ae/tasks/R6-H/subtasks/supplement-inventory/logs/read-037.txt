@@ -1,0 +1,160 @@
+1: """Fixed-input, read-only static resource audit. Standard library only.
+2: 
+3: This is an inspection tool, not a renderer, synthesizer or framework. It never
+4: loads reference code as code. All writes are confined to this file's directory.
+5: External format names/numbers are data-layout facts. No reference source copied.
+6: """
+7: from pathlib import Path
+8: import array
+9: import collections
+10: import hashlib
+11: import json
+12: import math
+13: import re
+14: import struct
+15: import sys
+16: 
+17: ROOT = Path('/Users/dingshinn/Desktop/pokemon-framework-reference/reference/pokemon-essentials')
+18: OUT = Path(__file__).resolve().parent
+19: PIN = {
+20:     'main': '8ea169fbd0f33f378b5d732fd6bea59e854e04a6',
+21:     'formal_root': 'deliverables/final-specification-set/',
+22:     'R_root': str(ROOT),
+23:     'R_commit': '8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b',
+24:     'R_tree': '7589c800b61ba13a13040ed0d686979b80a84fd0',
+25:     'runtime_request_verbatim': '请求 gpt-6.1-sol / reasoning_effort=ultra / service_tier=default，禁Fast。',
+26:     'actual_runtime': 'UNVERIFIED',
+27:     'execution': {'reference': 0, 'model': 0, 'host_or_demo': 0},
+28: }
+29: 
+30: def sha(b):
+31:     return hashlib.sha256(b).hexdigest()
+32: 
+33: def save(name, payload):
+34:     if Path(name).name != name:
+35:         raise ValueError('output must be a basename')
+36:     (OUT / name).write_text(json.dumps({'identity': PIN, **payload}, ensure_ascii=False, indent=2) + '\n')
+37: 
+38: def require(ok, why):
+39:     if not ok:
+40:         raise ValueError(why)
+41: 
+42: class Reader:
+43:     def __init__(self, b):
+44:         self.b = b
+45:     def span(self, start, size):
+46:         require(0 <= start <= len(self.b) and 0 <= size <= len(self.b)-start, 'out of bounds')
+47:         return self.b[start:start+size]
+48:     def unpack(self, fmt, at):
+49:         return struct.unpack(fmt, self.span(at, struct.calcsize(fmt)))
+50: 
+51: GEN_NAMES = ('startAddrsOffset endAddrsOffset startloopAddrsOffset endloopAddrsOffset '
+52:     'startAddrsCoarseOffset modLfoToPitch vibLfoToPitch modEnvToPitch initialFilterFc '
+53:     'initialFilterQ modLfoToFilterFc modEnvToFilterFc endAddrsCoarseOffset modLfoToVolume '
+54:     'unused1 chorusEffectsSend reverbEffectsSend pan unused2 unused3 unused4 delayModLFO '
+55:     'freqModLFO delayVibLFO freqVibLFO delayModEnv attackModEnv holdModEnv decayModEnv '
+56:     'sustainModEnv releaseModEnv keynumToModEnvHold keynumToModEnvDecay delayVolEnv '
+57:     'attackVolEnv holdVolEnv decayVolEnv sustainVolEnv releaseVolEnv keynumToVolEnvHold '
+58:     'keynumToVolEnvDecay instrument reserved1 keyRange velRange startloopAddrsCoarseOffset '
+59:     'keynum velocity initialAttenuation reserved2 endloopAddrsCoarseOffset coarseTune '
+60:     'fineTune sampleID sampleModes reserved3 scaleTuning exclusiveClass overridingRootKey '
+61:     'unused5 endOper').split()
+62: RESERVED = {14,18,19,20,42,49,55,59,60}
+63: INSTRUMENT_ONLY = {0,1,2,3,4,12,45,46,47,50,54,57,58}
+64: DEFAULTS = {i:0 for i in range(59) if i not in RESERVED | {41,53}}
+65: DEFAULTS.update({8:13500, 43:[0,127], 44:[0,127], 46:-1,47:-1,56:100,58:-1})
+66: for _i in (21,23,25,26,27,28,30,33,34,35,36,38):
+67:     DEFAULTS[_i] = -12000
+68: RANGES = {i:(-12000,12000) for i in (5,6,7,10,11)}
+69: RANGES.update({8:(1500,13500),9:(0,960),13:(-960,960),15:(0,1000),16:(0,1000),17:(-500,500),
+70:     22:(-16000,4500),24:(-16000,4500),29:(0,1000),37:(0,1440),48:(0,1440),
+71:     51:(-120,120),52:(-99,99),56:(0,1200),57:(0,127),46:(0,127),47:(1,127),58:(0,127)})
+72: for _i in (21,23,25,27,33,35): RANGES[_i] = (-12000,5000)
+73: for _i in (26,28,30,34,36,38): RANGES[_i] = (-12000,8000)
+74: for _i in (31,32,39,40): RANGES[_i] = (-1200,1200)
+75: 
+76: def unit(op):
+77:     if op in (0,1,2,3): return 'sample_points'
+78:     if op in (4,12,45,50): return '32768_sample_points'
+79:     if op in (5,6,7,10,11,52): return 'relative_cents'
+80:     if op in (8,22,24): return 'absolute_cents'
+81:     if op in (9,13,37,48): return 'centibels'
+82:     if op in (15,16,17,29): return '0.1_percent'
+83:     if op in (21,23,25,26,27,28,30,33,34,35,36,38): return 'timecents'
+84:     if op in (31,32,39,40): return 'timecents_per_key'
+85:     return {41:'instrument_index',43:'inclusive_key_interval',44:'inclusive_velocity_interval',
+86:         46:'MIDI_key',47:'MIDI_velocity',51:'semitones',53:'sample_index',54:'loop_flags',
+87:         56:'cents_per_key',57:'exclusive_group',58:'MIDI_root_key'}.get(op,'reserved')
+88: 
+89: def mod_source(raw):
+90:     ix,cc=raw & 127,bool(raw & 128)
+91:     names={0:'constant_one',2:'note_on_velocity',3:'note_key',10:'poly_pressure',13:'channel_pressure',14:'pitch_wheel',16:'pitch_wheel_sensitivity'}
+92:     return {'raw':raw,'index':ix,'cc':cc,'source':f'MIDI_CC_{ix}' if cc else names.get(ix,'reserved'),
+93:         'direction':'decreasing' if raw & 256 else 'increasing',
+94:         'polarity':'bipolar' if raw & 512 else 'unipolar',
+95:         'curve':{0:'linear',1:'concave',2:'convex',3:'switch'}.get(raw >> 10,'reserved')}
+96: 
+97: # Format-defined defaults, explicitly NOT rows discovered in R.
+98: # SF2.01 section 8.4.2 is internally inconsistent: printed 0x502 versus
+99: # type=3,D=1,CC=0,index=2 (0x0d02). This projection uses the bitfield description
+100: # conditionally; alternatives below prevent treating this as known host policy.
+101: DEFAULT_MODS = [(0x0502,48,960,0,0),(0x0102,8,-2400,0x0d02,0),
+102:     (13,6,50,0,0),(0x81,6,50,0,0),(0x0587,48,960,0,0),(0x028a,17,1000,0,0),
+103:     (0x058b,48,960,0,0),(0xdb,16,200,0,0),(0xdd,15,200,0,0),(0x020e,'initial_pitch_cents',12700,16,0)]
+104: 
+105: def soundfont(data):
+106:     rd=Reader(data); require(rd.span(0,4)==b'RIFF' and rd.span(8,4)==b'sfbk','not SF2')
+107:     require(rd.unpack('<I',4)[0]+8==len(data),'RIFF size mismatch')
+108:     chunks=[]; bypath={}
+109:     def walk(a,z,parent,depth):
+110:         require(depth<=3,'excessive nesting')
+111:         while a<z:
+112:             require(z-a>=8,'partial chunk')
+113:             cid=rd.span(a,4).decode('ascii'); n=rd.unpack('<I',a+4)[0]; s=a+8; e=s+n
+114:             require(e<=z and e+(n&1)<=z,'chunk overrun')
+115:             path=parent+'/'+cid; row={'path':path,'header_offset':a,'payload_offset':s,'size':n,'padding':n&1}
+116:             chunks.append(row)
+117:             if cid=='LIST':
+118:                 require(n>=4,'short LIST'); kind=rd.span(s,4).decode('ascii'); row['list_type']=kind
+119:                 walk(s+4,e,kind,depth+1)
+120:             else:
+121:                 require(path not in bypath,'duplicate chunk'); bypath[path]=(s,n)
+122:             a=e+(n&1)
+123:         require(a==z,'chunk alignment')
+124:     walk(12,len(data),'',0)
+125:     require([x.get('list_type') for x in chunks if x['path']=='/LIST']==['INFO','sdta','pdta'],'LIST order')
+126:     require([x['path'] for x in chunks if x['path'].startswith('pdta/')]==['pdta/'+n for n in ('phdr','pbag','pmod','pgen','inst','ibag','imod','igen','shdr')],'hydra order')
+127:     formats={'phdr':'20sHHHIII','pbag':'HH','pmod':'HHhHH','pgen':'HH','inst':'20sH','ibag':'HH','imod':'HHhHH','igen':'HH','shdr':'20sIIIIIBbHH'}
+128:     tables={}; observations=[]
+129:     def note(kind,**kwargs): observations.append({'kind':kind,**kwargs})
+130:     for table,fmt in formats.items():
+131:         a,n=bypath['pdta/'+table]; width=struct.calcsize('<'+fmt)
+132:         require(n%width==0 and n>=width,'table width/count')
+133:         tables[table]=[]
+134:         for ix,vals in enumerate(struct.iter_unpack('<'+fmt,rd.span(a,n))):
+135:             values=[v.split(b'\0')[0].decode('ascii','replace') if isinstance(v,bytes) else v for v in vals]
+136:             r={'id':f'{table}:{ix}','index':ix,'offset':a+ix*width,'values':values,'consumers':[], 'terminal':(ix+1)*width==n}
+137:             if isinstance(vals[0],bytes):
+138:                 rawname=vals[0]; r['name_padding_zero']=b'\0' not in rawname or not any(rawname[rawname.index(0):])
+139:                 if not r['name_padding_zero']: note('nonzero_name_padding',record=r['id'])
+140:             if table in ('pgen','igen'):
+141:                 op,raw=vals; value=[raw&255,raw>>8] if op in (43,44) else raw if op in (41,53,54,57) else struct.unpack('<h',struct.pack('<H',raw))[0]
+142:                 r.update(op=op,field=GEN_NAMES[op] if op<len(GEN_NAMES) else 'unknown',value=value,unit=unit(op))
+143:                 if not r['terminal']:
+144:                     if op in RESERVED or op>=len(GEN_NAMES): note('reserved_generator',record=r['id'])
+145:                     if op in RANGES and not RANGES[op][0]<=value<=RANGES[op][1]:
+146:                         # The immediate-zero-time sentinel is allowed for applicable envelope stages.
+147:                         if not (value==-32768 and unit(op)=='timecents'):
+148:                             note('nominal_parameter_range',record=r['id'],field=r['field'],value=value,nominal=RANGES[op])
+149:                     if table=='pgen' and op in INSTRUMENT_ONLY|{53}:note('illegal_preset_generator',record=r['id'])
+150:                     if table=='igen' and op==41:note('illegal_instrument_generator',record=r['id'])
+151:             if table in ('pmod','imod'):
+152:                 src,dst,amount,amt_src,transform=vals
+153:                 r.update(source=mod_source(src),destination=GEN_NAMES[dst] if dst<len(GEN_NAMES) else 'unknown',amount=amount,amount_source=mod_source(amt_src),transform=transform)
+154:                 if not r['terminal']:
+155:                     for v in (r['source'],r['amount_source']):
+156:                         if v['source']=='reserved' or v['curve']=='reserved':note('reserved_mod_source',record=r['id'])
+157:                     if transform!=0 or dst in RESERVED|{41,43,44,46,47,53,54,56,57,58} or dst>=60:note('invalid_mod_destination_or_transform',record=r['id'])
+158:             tables[table].append(r)
+159:     # Explicit terminal rows retained; no terminal treated as a playable record.
+160:     for h,expected in [('phdr','EOP'),('inst','EOI'),('shdr','EOS')]:

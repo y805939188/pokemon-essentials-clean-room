@@ -1,0 +1,161 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/007_Battle_ActionRunning.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "5e46c83a1467be7247d47ad52be512085284dd1c", "sha256": "b90245d3392953ba569f3127e5224371a6aa8946c3b67d6838fc6b2d7da6937d", "start_line": 1, "end_line": 160, "total_lines": 160, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:50:22.561940+00:00"}
+1: class Battle
+2:   #=============================================================================
+3:   # Running from battle
+4:   #=============================================================================
+5:   def pbCanRun?(idxBattler)
+6:     return false if trainerBattle?
+7:     battler = @battlers[idxBattler]
+8:     return false if !@canRun && !battler.opposes?
+9:     return true if battler.pbHasType?(:GHOST) && Settings::MORE_TYPE_EFFECTS
+10:     return true if battler.abilityActive? &&
+11:                    Battle::AbilityEffects.triggerCertainEscapeFromBattle(battler.ability, battler)
+12:     return true if battler.itemActive? &&
+13:                    Battle::ItemEffects.triggerCertainEscapeFromBattle(battler.item, battler)
+14:     return false if battler.trappedInBattle?
+15:     allOtherSideBattlers(idxBattler).each do |b|
+16:       return false if b.abilityActive? &&
+17:                       Battle::AbilityEffects.triggerTrappingByTarget(b.ability, battler, b, self)
+18:       return false if b.itemActive? &&
+19:                       Battle::ItemEffects.triggerTrappingByTarget(b.item, battler, b, self)
+20:     end
+21:     return true
+22:   end
+23: 
+24:   # Return values:
+25:   # -1: Chose not to end the battle via Debug means
+26:   #  0: Couldn't end the battle via Debug means; carry on trying to run
+27:   #  1: Ended the battle via Debug means
+28:   def pbDebugRun
+29:     return 0 if !$DEBUG || !Input.press?(Input::CTRL)
+30:     commands = [_INTL("Treat as a win"), _INTL("Treat as a loss"),
+31:                 _INTL("Treat as a draw"), _INTL("Treat as running away/forfeit")]
+32:     commands.push(_INTL("Treat as a capture")) if wildBattle?
+33:     commands.push(_INTL("Cancel"))
+34:     case pbShowCommands(_INTL("Choose the outcome of this battle."), commands)
+35:     when 0   # Win
+36:       @decision = 1
+37:     when 1   # Loss
+38:       @decision = 2
+39:     when 2   # Draw
+40:       @decision = 5
+41:     when 3   # Run away/forfeit
+42:       pbSEPlay("Battle flee")
+43:       pbDisplayPaused(_INTL("You got away safely!"))
+44:       @decision = 3
+45:     when 4   # Capture
+46:       return -1 if trainerBattle?
+47:       @decision = 4
+48:     else
+49:       return -1
+50:     end
+51:     return 1
+52:   end
+53: 
+54:   # Return values:
+55:   # -1: Failed fleeing
+56:   #  0: Wasn't possible to attempt fleeing, continue choosing action for the round
+57:   #  1: Succeeded at fleeing, battle will end
+58:   # duringBattle is true for replacing a fainted Pokémon during the End Of Round
+59:   # phase, and false for choosing the Run command.
+60:   def pbRun(idxBattler, duringBattle = false)
+61:     battler = @battlers[idxBattler]
+62:     if battler.opposes?
+63:       return 0 if trainerBattle?
+64:       @choices[idxBattler][0] = :Run
+65:       @choices[idxBattler][1] = 0
+66:       @choices[idxBattler][2] = nil
+67:       return -1
+68:     end
+69:     # Debug ending the battle
+70:     debug_ret = pbDebugRun
+71:     return debug_ret if debug_ret != 0
+72:     # Running from trainer battles
+73:     if trainerBattle?
+74:       if @internalBattle
+75:         pbDisplayPaused(_INTL("No! There's no running from a Trainer battle!"))
+76:       elsif pbDisplayConfirm(_INTL("Would you like to forfeit the match and quit now?"))
+77:         pbSEPlay("Battle flee")
+78:         pbDisplay(_INTL("{1} forfeited the match!", self.pbPlayer.name))
+79:         @decision = 3
+80:         return 1
+81:       end
+82:       return 0
+83:     end
+84:     if !@canRun
+85:       pbDisplayPaused(_INTL("You can't escape!"))
+86:       return 0
+87:     end
+88:     if !duringBattle
+89:       if battler.pbHasType?(:GHOST) && Settings::MORE_TYPE_EFFECTS
+90:         pbSEPlay("Battle flee")
+91:         pbDisplayPaused(_INTL("You got away safely!"))
+92:         @decision = 3
+93:         return 1
+94:       end
+95:       # Abilities that guarantee escape
+96:       if battler.abilityActive? &&
+97:          Battle::AbilityEffects.triggerCertainEscapeFromBattle(battler.ability, battler)
+98:         pbShowAbilitySplash(battler, true)
+99:         pbHideAbilitySplash(battler)
+100:         pbSEPlay("Battle flee")
+101:         pbDisplayPaused(_INTL("You got away safely!"))
+102:         @decision = 3
+103:         return 1
+104:       end
+105:       # Held items that guarantee escape
+106:       if battler.itemActive? &&
+107:          Battle::ItemEffects.triggerCertainEscapeFromBattle(battler.item, battler)
+108:         pbSEPlay("Battle flee")
+109:         pbDisplayPaused(_INTL("{1} fled using its {2}!", battler.pbThis, battler.itemName))
+110:         @decision = 3
+111:         return 1
+112:       end
+113:       # Other certain trapping effects
+114:       if battler.trappedInBattle?
+115:         pbDisplayPaused(_INTL("You can't escape!"))
+116:         return 0
+117:       end
+118:       # Trapping abilities/items
+119:       allOtherSideBattlers(idxBattler).each do |b|
+120:         next if !b.abilityActive?
+121:         if Battle::AbilityEffects.triggerTrappingByTarget(b.ability, battler, b, self)
+122:           pbDisplayPaused(_INTL("{1} prevents escape with {2}!", b.pbThis, b.abilityName))
+123:           return 0
+124:         end
+125:       end
+126:       allOtherSideBattlers(idxBattler).each do |b|
+127:         next if !b.itemActive?
+128:         if Battle::ItemEffects.triggerTrappingByTarget(b.item, battler, b, self)
+129:           pbDisplayPaused(_INTL("{1} prevents escape with {2}!", b.pbThis, b.itemName))
+130:           return 0
+131:         end
+132:       end
+133:     end
+134:     # Fleeing calculation
+135:     # Get the speeds of the Pokémon fleeing and the fastest opponent
+136:     # NOTE: Not pbSpeed, because using unmodified Speed.
+137:     @runCommand += 1 if !duringBattle   # Make it easier to flee next time
+138:     speedPlayer = @battlers[idxBattler].speed
+139:     speedEnemy = 1
+140:     allOtherSideBattlers(idxBattler).each do |b|
+141:       speed = b.speed
+142:       speedEnemy = speed if speedEnemy < speed
+143:     end
+144:     # Compare speeds and perform fleeing calculation
+145:     if speedPlayer > speedEnemy
+146:       rate = 256
+147:     else
+148:       rate = (speedPlayer * 128) / speedEnemy
+149:       rate += @runCommand * 30
+150:     end
+151:     if rate >= 256 || @battleAI.pbAIRandom(256) < rate
+152:       pbSEPlay("Battle flee")
+153:       pbDisplayPaused(_INTL("You got away safely!"))
+154:       @decision = 3
+155:       return 1
+156:     end
+157:     pbDisplayPaused(_INTL("You couldn't get away!"))
+158:     return -1
+159:   end
+160: end

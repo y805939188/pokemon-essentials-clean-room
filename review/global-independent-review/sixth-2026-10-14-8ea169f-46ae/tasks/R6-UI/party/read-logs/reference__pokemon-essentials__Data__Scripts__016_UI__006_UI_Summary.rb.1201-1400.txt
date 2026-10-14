@@ -1,0 +1,201 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/006_UI_Summary.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1201, 1400], "total_lines": 1400, "sha256": "085e02ff7b581917f95e652672d5a01e156b62a11f38b3f20593de9e7be28389", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:20.977547+00:00"}
+1201:       commands[cmdGiveItem = commands.length] = _INTL("Give item")
+1202:       commands[cmdTakeItem = commands.length] = _INTL("Take item") if @pokemon.hasItem?
+1203:       commands[cmdPokedex = commands.length]  = _INTL("View Pokédex") if $player.has_pokedex
+1204:     end
+1205:     commands[cmdMark = commands.length]       = _INTL("Mark")
+1206:     commands[commands.length]                 = _INTL("Cancel")
+1207:     command = pbShowCommands(commands)
+1208:     if cmdGiveItem >= 0 && command == cmdGiveItem
+1209:       item = nil
+1210:       pbFadeOutIn do
+1211:         scene = PokemonBag_Scene.new
+1212:         screen = PokemonBagScreen.new(scene, $bag)
+1213:         item = screen.pbChooseItemScreen(proc { |itm| GameData::Item.get(itm).can_hold? })
+1214:       end
+1215:       dorefresh = pbGiveItemToPokemon(item, @pokemon, self, @partyindex) if item
+1216:     elsif cmdTakeItem >= 0 && command == cmdTakeItem
+1217:       dorefresh = pbTakeItemFromPokemon(@pokemon, self)
+1218:     elsif cmdPokedex >= 0 && command == cmdPokedex
+1219:       $player.pokedex.register_last_seen(@pokemon)
+1220:       pbFadeOutIn do
+1221:         scene = PokemonPokedexInfo_Scene.new
+1222:         screen = PokemonPokedexInfoScreen.new(scene)
+1223:         screen.pbStartSceneSingle(@pokemon.species)
+1224:       end
+1225:       dorefresh = true
+1226:     elsif cmdMark >= 0 && command == cmdMark
+1227:       dorefresh = pbMarking(@pokemon)
+1228:     end
+1229:     return dorefresh
+1230:   end
+1231: 
+1232:   def pbChooseMoveToForget(move_to_learn)
+1233:     new_move = (move_to_learn) ? Pokemon::Move.new(move_to_learn) : nil
+1234:     selmove = 0
+1235:     maxmove = (new_move) ? Pokemon::MAX_MOVES : Pokemon::MAX_MOVES - 1
+1236:     loop do
+1237:       Graphics.update
+1238:       Input.update
+1239:       pbUpdate
+1240:       if Input.trigger?(Input::BACK)
+1241:         selmove = Pokemon::MAX_MOVES
+1242:         pbPlayCloseMenuSE if new_move
+1243:         break
+1244:       elsif Input.trigger?(Input::USE)
+1245:         pbPlayDecisionSE
+1246:         break
+1247:       elsif Input.trigger?(Input::UP)
+1248:         selmove -= 1
+1249:         selmove = maxmove if selmove < 0
+1250:         if selmove < Pokemon::MAX_MOVES && selmove >= @pokemon.numMoves
+1251:           selmove = @pokemon.numMoves - 1
+1252:         end
+1253:         @sprites["movesel"].index = selmove
+1254:         selected_move = (selmove == Pokemon::MAX_MOVES) ? new_move : @pokemon.moves[selmove]
+1255:         drawSelectedMove(new_move, selected_move)
+1256:       elsif Input.trigger?(Input::DOWN)
+1257:         selmove += 1
+1258:         selmove = 0 if selmove > maxmove
+1259:         if selmove < Pokemon::MAX_MOVES && selmove >= @pokemon.numMoves
+1260:           selmove = (new_move) ? maxmove : 0
+1261:         end
+1262:         @sprites["movesel"].index = selmove
+1263:         selected_move = (selmove == Pokemon::MAX_MOVES) ? new_move : @pokemon.moves[selmove]
+1264:         drawSelectedMove(new_move, selected_move)
+1265:       end
+1266:     end
+1267:     return (selmove == Pokemon::MAX_MOVES) ? -1 : selmove
+1268:   end
+1269: 
+1270:   def pbScene
+1271:     @pokemon.play_cry
+1272:     loop do
+1273:       Graphics.update
+1274:       Input.update
+1275:       pbUpdate
+1276:       dorefresh = false
+1277:       if Input.trigger?(Input::ACTION)
+1278:         pbSEStop
+1279:         @pokemon.play_cry
+1280:       elsif Input.trigger?(Input::BACK)
+1281:         pbPlayCloseMenuSE
+1282:         break
+1283:       elsif Input.trigger?(Input::USE)
+1284:         if @page == 4
+1285:           pbPlayDecisionSE
+1286:           pbMoveSelection
+1287:           dorefresh = true
+1288:         elsif @page == 5
+1289:           pbPlayDecisionSE
+1290:           pbRibbonSelection
+1291:           dorefresh = true
+1292:         elsif !@inbattle
+1293:           pbPlayDecisionSE
+1294:           dorefresh = pbOptions
+1295:         end
+1296:       elsif Input.trigger?(Input::UP) && @partyindex > 0
+1297:         oldindex = @partyindex
+1298:         pbGoToPrevious
+1299:         if @partyindex != oldindex
+1300:           pbChangePokemon
+1301:           @ribbonOffset = 0
+1302:           dorefresh = true
+1303:         end
+1304:       elsif Input.trigger?(Input::DOWN) && @partyindex < @party.length - 1
+1305:         oldindex = @partyindex
+1306:         pbGoToNext
+1307:         if @partyindex != oldindex
+1308:           pbChangePokemon
+1309:           @ribbonOffset = 0
+1310:           dorefresh = true
+1311:         end
+1312:       elsif Input.trigger?(Input::LEFT) && !@pokemon.egg?
+1313:         oldpage = @page
+1314:         @page -= 1
+1315:         @page = 1 if @page < 1
+1316:         @page = 5 if @page > 5
+1317:         if @page != oldpage   # Move to next page
+1318:           pbSEPlay("GUI summary change page")
+1319:           @ribbonOffset = 0
+1320:           dorefresh = true
+1321:         end
+1322:       elsif Input.trigger?(Input::RIGHT) && !@pokemon.egg?
+1323:         oldpage = @page
+1324:         @page += 1
+1325:         @page = 1 if @page < 1
+1326:         @page = 5 if @page > 5
+1327:         if @page != oldpage   # Move to next page
+1328:           pbSEPlay("GUI summary change page")
+1329:           @ribbonOffset = 0
+1330:           dorefresh = true
+1331:         end
+1332:       end
+1333:       drawPage(@page) if dorefresh
+1334:     end
+1335:     return @partyindex
+1336:   end
+1337: end
+1338: 
+1339: #===============================================================================
+1340: #
+1341: #===============================================================================
+1342: class PokemonSummaryScreen
+1343:   def initialize(scene, inbattle = false)
+1344:     @scene = scene
+1345:     @inbattle = inbattle
+1346:   end
+1347: 
+1348:   def pbStartScreen(party, partyindex)
+1349:     @scene.pbStartScene(party, partyindex, @inbattle)
+1350:     ret = @scene.pbScene
+1351:     @scene.pbEndScene
+1352:     return ret
+1353:   end
+1354: 
+1355:   def pbStartForgetScreen(party, partyindex, move_to_learn)
+1356:     ret = -1
+1357:     @scene.pbStartForgetScene(party, partyindex, move_to_learn)
+1358:     loop do
+1359:       ret = @scene.pbChooseMoveToForget(move_to_learn)
+1360:       break if ret < 0 || !move_to_learn
+1361:       break if $DEBUG || !party[partyindex].moves[ret].hidden_move?
+1362:       pbMessage(_INTL("HM moves can't be forgotten now.")) { @scene.pbUpdate }
+1363:     end
+1364:     @scene.pbEndScene
+1365:     return ret
+1366:   end
+1367: 
+1368:   def pbStartChooseMoveScreen(party, partyindex, message)
+1369:     ret = -1
+1370:     @scene.pbStartForgetScene(party, partyindex, nil)
+1371:     pbMessage(message) { @scene.pbUpdate }
+1372:     loop do
+1373:       ret = @scene.pbChooseMoveToForget(nil)
+1374:       break if ret >= 0
+1375:       pbMessage(_INTL("You must choose a move!")) { @scene.pbUpdate }
+1376:     end
+1377:     @scene.pbEndScene
+1378:     return ret
+1379:   end
+1380: end
+1381: 
+1382: #===============================================================================
+1383: #
+1384: #===============================================================================
+1385: def pbChooseMove(pokemon, variableNumber, nameVarNumber)
+1386:   return if !pokemon
+1387:   ret = -1
+1388:   pbFadeOutIn do
+1389:     scene = PokemonSummary_Scene.new
+1390:     screen = PokemonSummaryScreen.new(scene)
+1391:     ret = screen.pbStartForgetScreen([pokemon], 0, nil)
+1392:   end
+1393:   $game_variables[variableNumber] = ret
+1394:   if ret >= 0
+1395:     $game_variables[nameVarNumber] = pokemon.moves[ret].name
+1396:   else
+1397:     $game_variables[nameVarNumber] = ""
+1398:   end
+1399:   $game_map.need_refresh = true if $game_map
+1400: end

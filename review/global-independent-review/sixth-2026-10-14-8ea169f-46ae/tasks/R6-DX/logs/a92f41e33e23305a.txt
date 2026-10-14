@@ -1,0 +1,436 @@
+1271:                 else   # Apply the new level
+1272:                   entry[0] = newlevel
+1273:                   oldsel = entry[2]
+1274:                 end
+1275:                 refreshlist = true
+1276:               end
+1277:             when 1   # Change move
+1278:               newmove = pbChooseMoveList(entry[1])
+1279:               if newmove && newmove != entry[1]
+1280:                 havemove = -1
+1281:                 realcmds.each do |e|
+1282:                   havemove = e[2] if e[0] == entry[0] && e[1] == newmove
+1283:                 end
+1284:                 if havemove >= 0   # New move already known at level; delete this move
+1285:                   realcmds.delete_at(cmd[1])
+1286:                   cmd[1] = [cmd[1], realcmds.length - 1].min
+1287:                   oldsel = havemove
+1288:                 else   # Apply the new move
+1289:                   entry[1] = newmove
+1290:                   entry[3] = GameData::Move.get(newmove).real_name
+1291:                   oldsel = entry[2]
+1292:                 end
+1293:                 refreshlist = true
+1294:               end
+1295:             when 2   # Delete
+1296:               realcmds.delete_at(cmd[1])
+1297:               cmd[1] = [cmd[1], realcmds.length - 1].min
+1298:               refreshlist = true
+1299:             end
+1300:           end
+1301:         else   # Cancel/quit
+1302:           case pbMessage(_INTL("Save changes?"),
+1303:                          [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1304:           when 0
+1305:             realcmds.shift
+1306:             realcmds.length.times do |i|
+1307:               realcmds[i].pop   # Remove name
+1308:               realcmds[i].pop   # Remove index in this list
+1309:             end
+1310:             realcmds.compact!
+1311:             ret = realcmds
+1312:             break
+1313:           when 1
+1314:             break
+1315:           end
+1316:         end
+1317:       end
+1318:     end
+1319:     cmdwin.dispose
+1320:     return ret
+1321:   end
+1322: 
+1323:   def self.defaultValue
+1324:     return []
+1325:   end
+1326: 
+1327:   def self.format(value)
+1328:     ret = ""
+1329:     value.length.times do |i|
+1330:       ret << "," if i > 0
+1331:       ret << sprintf("%s,%s", value[i][0], GameData::Move.get(value[i][1]).real_name)
+1332:     end
+1333:     return ret
+1334:   end
+1335: end
+1336: 
+1337: #===============================================================================
+1338: #
+1339: #===============================================================================
+1340: class EvolutionsProperty
+1341:   def initialize
+1342:     @methods = []
+1343:     @evo_ids = []
+1344:     GameData::Evolution.each_alphabetically do |e|
+1345:       @methods.push(e.real_name)
+1346:       @evo_ids.push(e.id)
+1347:     end
+1348:   end
+1349: 
+1350:   def edit_parameter(evo_method, value = nil)
+1351:     param_type = GameData::Evolution.get(evo_method).parameter
+1352:     return nil if param_type.nil?
+1353:     ret = value
+1354:     case param_type
+1355:     when :Item
+1356:       ret = pbChooseItemList(value)
+1357:     when :Move
+1358:       ret = pbChooseMoveList(value)
+1359:     when :Species
+1360:       ret = pbChooseSpeciesList(value)
+1361:     when :Type
+1362:       ret = pbChooseTypeList(value)
+1363:     when :Ability
+1364:       ret = pbChooseAbilityList(value)
+1365:     when String
+1366:       ret = pbMessageFreeText(_INTL("Enter a value."), ret || "", false, 250, Graphics.width)
+1367:       ret.strip!
+1368:       ret = nil if ret.empty?
+1369:     else
+1370:       params = ChooseNumberParams.new
+1371:       params.setRange(0, 65_535)
+1372:       params.setDefaultValue(value.to_i) if value
+1373:       params.setCancelValue(-1)
+1374:       ret = pbMessageChooseNumber(_INTL("Choose a parameter."), params)
+1375:       ret = nil if ret < 0
+1376:     end
+1377:     return (ret) ? ret.to_s : nil
+1378:   end
+1379: 
+1380:   def set(_settingname, oldsetting)
+1381:     ret = oldsetting
+1382:     cmdwin = pbListWindow([])
+1383:     commands = []
+1384:     realcmds = []
+1385:     realcmds.push([-1, 0, 0, -1])
+1386:     oldsetting.length.times do |i|
+1387:       realcmds.push([oldsetting[i][0], oldsetting[i][1], oldsetting[i][2], i])
+1388:     end
+1389:     refreshlist = true
+1390:     oldsel = -1
+1391:     cmd = [0, 0]
+1392:     loop do
+1393:       if refreshlist
+1394:         realcmds.sort! { |a, b| a[3] <=> b[3] }
+1395:         commands = []
+1396:         realcmds.length.times do |i|
+1397:           if realcmds[i][3] < 0
+1398:             commands.push(_INTL("[ADD EVOLUTION]"))
+1399:           else
+1400:             level = realcmds[i][2]
+1401:             evo_method_data = GameData::Evolution.get(realcmds[i][1])
+1402:             param_type = evo_method_data.parameter
+1403:             if param_type.nil?
+1404:               commands.push(_INTL("{1}: {2}",
+1405:                                   GameData::Species.get(realcmds[i][0]).name, evo_method_data.real_name))
+1406:             else
+1407:               if param_type.is_a?(Symbol) && !GameData.const_defined?(param_type)
+1408:                 level = getConstantName(param_type, level)
+1409:               end
+1410:               level = "???" if !level || (level.is_a?(String) && level.empty?)
+1411:               commands.push(_INTL("{1}: {2}, {3}",
+1412:                                   GameData::Species.get(realcmds[i][0]).name, evo_method_data.real_name, level.to_s))
+1413:             end
+1414:           end
+1415:           cmd[1] = i if oldsel >= 0 && realcmds[i][3] == oldsel
+1416:         end
+1417:       end
+1418:       refreshlist = false
+1419:       oldsel = -1
+1420:       cmd = pbCommands3(cmdwin, commands, -1, cmd[1], true)
+1421:       case cmd[0]
+1422:       when 1   # Swap evolution up
+1423:         if cmd[1] > 0 && cmd[1] < realcmds.length - 1
+1424:           realcmds[cmd[1] + 1][3], realcmds[cmd[1]][3] = realcmds[cmd[1]][3], realcmds[cmd[1] + 1][3]
+1425:           refreshlist = true
+1426:         end
+1427:       when 2   # Swap evolution down
+1428:         if cmd[1] > 1
+1429:           realcmds[cmd[1] - 1][3], realcmds[cmd[1]][3] = realcmds[cmd[1]][3], realcmds[cmd[1] - 1][3]
+1430:           refreshlist = true
+1431:         end
+1432:       when 0
+1433:         if cmd[1] >= 0
+1434:           entry = realcmds[cmd[1]]
+1435:           if entry[3] == -1   # Add new evolution path
+1436:             pbMessage(_INTL("Choose an evolved form, method and parameter."))
+1437:             newspecies = pbChooseSpeciesList
+1438:             if newspecies
+1439:               newmethodindex = pbMessage(_INTL("Choose an evolution method."), @methods, -1)
+1440:               if newmethodindex >= 0
+1441:                 newmethod = @evo_ids[newmethodindex]
+1442:                 newparam = edit_parameter(newmethod)
+1443:                 if newparam || GameData::Evolution.get(newmethod).parameter.nil?
+1444:                   existing_evo = -1
+1445:                   realcmds.length.times do |i|
+1446:                     existing_evo = realcmds[i][3] if realcmds[i][0] == newspecies &&
+1447:                                                      realcmds[i][1] == newmethod &&
+1448:                                                      realcmds[i][2] == newparam
+1449:                   end
+1450:                   if existing_evo >= 0
+1451:                     oldsel = existing_evo
+1452:                   else
+1453:                     maxid = -1
+1454:                     realcmds.each { |i| maxid = [maxid, i[3]].max }
+1455:                     realcmds.push([newspecies, newmethod, newparam, maxid + 1])
+1456:                     oldsel = maxid + 1
+1457:                   end
+1458:                   refreshlist = true
+1459:                 end
+1460:               end
+1461:             end
+1462:           else   # Edit evolution
+1463:             case pbMessage("\\ts[]" + _INTL("Do what with this evolution?"),
+1464:                            [_INTL("Change species"), _INTL("Change method"),
+1465:                             _INTL("Change parameter"), _INTL("Delete"), _INTL("Cancel")], 5)
+1466:             when 0   # Change species
+1467:               newspecies = pbChooseSpeciesList(entry[0])
+1468:               if newspecies
+1469:                 existing_evo = -1
+1470:                 realcmds.length.times do |i|
+1471:                   existing_evo = realcmds[i][3] if realcmds[i][0] == newspecies &&
+1472:                                                    realcmds[i][1] == entry[1] &&
+1473:                                                    realcmds[i][2] == entry[2]
+1474:                 end
+1475:                 if existing_evo >= 0
+1476:                   realcmds.delete_at(cmd[1])
+1477:                   oldsel = existing_evo
+1478:                 else
+1479:                   entry[0] = newspecies
+1480:                   oldsel = entry[3]
+1481:                 end
+1482:                 refreshlist = true
+1483:               end
+1484:             when 1   # Change method
+1485:               default_index = 0
+1486:               @evo_ids.each_with_index { |evo, i| default_index = i if evo == entry[1] }
+1487:               newmethodindex = pbMessage(_INTL("Choose an evolution method."), @methods, -1, nil, default_index)
+1488:               if newmethodindex >= 0
+1489:                 newmethod = @evo_ids[newmethodindex]
+1490:                 existing_evo = -1
+1491:                 realcmds.length.times do |i|
+1492:                   existing_evo = realcmds[i][3] if realcmds[i][0] == entry[0] &&
+1493:                                                    realcmds[i][1] == newmethod &&
+1494:                                                    realcmds[i][2] == entry[2]
+1495:                 end
+1496:                 if existing_evo >= 0
+1497:                   realcmds.delete_at(cmd[1])
+1498:                   oldsel = existing_evo
+1499:                 elsif newmethod != entry[1]
+1500:                   entry[1] = newmethod
+1501:                   entry[2] = 0
+1502:                   oldsel = entry[3]
+1503:                 end
+1504:                 refreshlist = true
+1505:               end
+1506:             when 2   # Change parameter
+1507:               if GameData::Evolution.get(entry[1]).parameter.nil?
+1508:                 pbMessage(_INTL("This evolution method doesn't use a parameter."))
+1509:               else
+1510:                 newparam = edit_parameter(entry[1], entry[2])
+1511:                 if newparam
+1512:                   existing_evo = -1
+1513:                   realcmds.length.times do |i|
+1514:                     existing_evo = realcmds[i][3] if realcmds[i][0] == entry[0] &&
+1515:                                                      realcmds[i][1] == entry[1] &&
+1516:                                                      realcmds[i][2] == newparam
+1517:                   end
+1518:                   if existing_evo >= 0
+1519:                     realcmds.delete_at(cmd[1])
+1520:                     oldsel = existing_evo
+1521:                   else
+1522:                     entry[2] = newparam
+1523:                     oldsel = entry[3]
+1524:                   end
+1525:                   refreshlist = true
+1526:                 end
+1527:               end
+1528:             when 3   # Delete
+1529:               realcmds.delete_at(cmd[1])
+1530:               cmd[1] = [cmd[1], realcmds.length - 1].min
+1531:               refreshlist = true
+1532:             end
+1533:           end
+1534:         else
+1535:           cmd2 = pbMessage(_INTL("Save changes?"),
+1536:                            [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1537:           if [0, 1].include?(cmd2)
+1538:             if cmd2 == 0
+1539:               realcmds.length.times do |i|
+1540:                 realcmds[i].pop
+1541:                 realcmds[i] = nil if realcmds[i][0] == -1
+1542:               end
+1543:               realcmds.compact!
+1544:               ret = realcmds
+1545:             end
+1546:             break
+1547:           end
+1548:         end
+1549:       end
+1550:     end
+1551:     cmdwin.dispose
+1552:     return ret
+1553:   end
+1554: 
+1555:   def defaultValue
+1556:     return []
+1557:   end
+1558: 
+1559:   def format(value)
+1560:     return "" if !value
+1561:     ret = ""
+1562:     value.length.times do |i|
+1563:       ret << "," if i > 0
+1564:       ret << (value[i][0].to_s + ",")
+1565:       ret << (value[i][1].to_s + ",")
+1566:       ret << value[i][2].to_s if value[i][2]
+1567:     end
+1568:     return ret
+1569:   end
+1570: end
+1571: 
+1572: #===============================================================================
+1573: #
+1574: #===============================================================================
+1575: module EncounterSlotProperty
+1576:   def self.set(setting_name, data)
+1577:     max_level = GameData::GrowthRate.max_level
+1578:     if !data
+1579:       data = [20, nil, 5, 5]
+1580:       GameData::Species.each do |species_data|
+1581:         data[1] = species_data.species
+1582:         break
+1583:       end
+1584:     end
+1585:     data[3] = data[2] if !data[3]
+1586:     properties = [
+1587:       [_INTL("Probability"),   NonzeroLimitProperty.new(999),       _INTL("Relative probability of choosing this slot.")],
+1588:       [_INTL("Species"),       SpeciesFormProperty.new(data[1]),    _INTL("A Pokémon species/form.")],
+1589:       [_INTL("Minimum level"), NonzeroLimitProperty.new(max_level), _INTL("Minimum level of this species (1-{1}).", max_level)],
+1590:       [_INTL("Maximum level"), NonzeroLimitProperty.new(max_level), _INTL("Maximum level of this species (1-{1}).", max_level)]
+1591:     ]
+1592:     pbPropertyList(setting_name, data, properties, false)
+1593:     if data[2] > data[3]
+1594:       data[3], data[2] = data[2], data[3]
+1595:     end
+1596:     return data
+1597:   end
+1598: 
+1599:   def self.defaultValue
+1600:     return nil
+1601:   end
+1602: 
+1603:   def self.format(value)
+1604:     return "-" if !value
+1605:     species_data = GameData::Species.get(value[1])
+1606:     if species_data.form > 0
+1607:       if value[2] == value[3]
+1608:         return sprintf("%d, %s_%d (Lv.%d)", value[0],
+1609:                        species_data.real_name, species_data.form, value[2])
+1610:       end
+1611:       return sprintf("%d, %s_%d (Lv.%d-%d)", value[0],
+1612:                      species_data.real_name, species_data.form, value[2], value[3])
+1613:     end
+1614:     if value[2] == value[3]
+1615:       return sprintf("%d, %s (Lv.%d)", value[0], species_data.real_name, value[2])
+1616:     end
+1617:     return sprintf("%d, %s (Lv.%d-%d)", value[0], species_data.real_name, value[2], value[3])
+1618:   end
+1619: end
+1620: 
+1621: #===============================================================================
+1622: # Core property editor script
+1623: #===============================================================================
+1624: def pbPropertyList(title, data, properties, saveprompt = false)
+1625:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+1626:   viewport.z = 99999
+1627:   list = pbListWindow([], Graphics.width / 2)
+1628:   list.viewport = viewport
+1629:   list.z        = 2
+1630:   title = Window_UnformattedTextPokemon.newWithSize(
+1631:     title, list.width, 0, Graphics.width / 2, 64, viewport
+1632:   )
+1633:   title.z = 2
+1634:   desc = Window_UnformattedTextPokemon.newWithSize(
+1635:     "", list.width, title.height, Graphics.width / 2, Graphics.height - title.height, viewport
+1636:   )
+1637:   desc.z = 2
+1638:   selectedmap = -1
+1639:   retval = nil
+1640:   commands = []
+1641:   properties.length.times do |i|
+1642:     propobj = properties[i][1]
+1643:     commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+1644:   end
+1645:   list.commands = commands
+1646:   list.index    = 0
+1647:   loop do
+1648:     loop do
+1649:       Graphics.update
+1650:       Input.update
+1651:       list.update
+1652:       desc.update
+1653:       if list.index != selectedmap
+1654:         desc.text = properties[list.index][2]
+1655:         selectedmap = list.index
+1656:       end
+1657:       if Input.trigger?(Input::ACTION)
+1658:         propobj = properties[selectedmap][1]
+1659:         if propobj != ReadOnlyProperty && !propobj.is_a?(ReadOnlyProperty) &&
+1660:            pbConfirmMessage(_INTL("Reset the setting {1}?", properties[selectedmap][0]))
+1661:           if propobj.respond_to?("defaultValue")
+1662:             data[selectedmap] = propobj.defaultValue
+1663:           else
+1664:             data[selectedmap] = nil
+1665:           end
+1666:         end
+1667:         commands.clear
+1668:         properties.length.times do |i|
+1669:           propobj = properties[i][1]
+1670:           commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+1671:         end
+1672:         list.commands = commands
+1673:       elsif Input.trigger?(Input::BACK)
+1674:         selectedmap = -1
+1675:         break
+1676:       elsif Input.trigger?(Input::USE)
+1677:         propobj = properties[selectedmap][1]
+1678:         oldsetting = data[selectedmap]
+1679:         newsetting = propobj.set(properties[selectedmap][0], oldsetting)
+1680:         data[selectedmap] = newsetting
+1681:         commands.clear
+1682:         properties.length.times do |i|
+1683:           propobj = properties[i][1]
+1684:           commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+1685:         end
+1686:         list.commands = commands
+1687:         break
+1688:       end
+1689:     end
+1690:     if selectedmap == -1 && saveprompt
+1691:       cmd = pbMessage(_INTL("Save changes?"),
+1692:                       [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1693:       if cmd == 2
+1694:         selectedmap = list.index
+1695:       else
+1696:         retval = (cmd == 0)
+1697:       end
+1698:     end
+1699:     break unless selectedmap != -1
+1700:   end
+1701:   title.dispose
+1702:   list.dispose
+1703:   desc.dispose
+1704:   Input.update
+1705:   return retval
+1706: end

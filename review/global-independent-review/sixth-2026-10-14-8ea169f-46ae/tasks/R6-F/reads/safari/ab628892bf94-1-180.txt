@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/002_BugContest.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "c9c48e62d9174b3403df5c66a5983c24f8ad439c", "sha256": "7d6047bdf2566b25d45c47e288e60bb99d56fbbc72334fa027eeb96b14a0106d", "start_line": 1, "end_line": 180, "total_lines": 441, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:47:03.548420+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class BugContestState
+5:   attr_accessor :ballcount
+6:   attr_accessor :decision
+7:   attr_accessor :lastPokemon
+8:   attr_accessor :timer_start
+9: 
+10:   CONTESTANT_NAMES = [
+11:     _INTL("Bug Catcher Ed"),
+12:     _INTL("Bug Catcher Benny"),
+13:     _INTL("Bug Catcher Josh"),
+14:     _INTL("Camper Barry"),
+15:     _INTL("Cool Trainer Nick"),
+16:     _INTL("Lass Abby"),
+17:     _INTL("Picnicker Cindy"),
+18:     _INTL("Youngster Samuel")
+19:   ]
+20:   TIME_ALLOWED = Settings::BUG_CONTEST_TIME   # In seconds
+21: 
+22:   def initialize
+23:     clear
+24:     @lastContest = nil
+25:   end
+26: 
+27:   # Returns whether the last contest ended less than 24 hours ago.
+28:   def pbContestHeld?
+29:     return false if !@lastContest
+30:     return pbGetTimeNow.to_i - @lastContest < 24 * 60 * 60   # 24 hours
+31:   end
+32: 
+33:   def expired?
+34:     return false if !undecided?
+35:     return false if TIME_ALLOWED <= 0
+36:     return System.uptime - timer_start >= TIME_ALLOWED
+37:   end
+38: 
+39:   def clear
+40:     @ballcount    = 0
+41:     @ended        = false
+42:     @inProgress   = false
+43:     @decision     = 0
+44:     @lastPokemon  = nil
+45:     @otherparty   = []
+46:     @contestants  = []
+47:     @places       = []
+48:     @start        = nil
+49:     @contestMaps  = []
+50:     @reception    = []
+51:   end
+52: 
+53:   def inProgress?
+54:     return @inProgress
+55:   end
+56: 
+57:   def undecided?
+58:     return (@inProgress && @decision == 0)
+59:   end
+60: 
+61:   def decided?
+62:     return (@inProgress && @decision != 0) || @ended
+63:   end
+64: 
+65:   def pbSetPokemon(chosenpoke)
+66:     @chosenPokemon = chosenpoke
+67:   end
+68: 
+69:   def pbSetContestMap(*maps)
+70:     maps.each do |map|
+71:       if map.is_a?(String)   # Map metadata flag
+72:         GameData::MapMetadata.each do |map_data|
+73:           @contestMaps.push(map_data.id) if map_data.has_flag?(map)
+74:         end
+75:       else
+76:         @contestMaps.push(map)
+77:       end
+78:     end
+79:   end
+80: 
+81:   # Reception map is handled separately from contest map since the reception map
+82:   # can be outdoors, with its own grassy patches.
+83:   def pbSetReception(*maps)
+84:     maps.each do |map|
+85:       if map.is_a?(String)   # Map metadata flag
+86:         GameData::MapMetadata.each do |map_data|
+87:           @reception.push(map_data.id) if map_data.has_flag?(map)
+88:         end
+89:       else
+90:         @reception.push(map)
+91:       end
+92:     end
+93:   end
+94: 
+95:   def pbOffLimits?(map)
+96:     return false if @contestMaps.include?(map)
+97:     return false if @reception.include?(map)
+98:     return true
+99:   end
+100: 
+101:   def pbSetJudgingPoint(startMap, startX, startY, dir = 8)
+102:     @start = [startMap, startX, startY, dir]
+103:   end
+104: 
+105:   def pbJudge
+106:     judgearray = []
+107:     if @lastPokemon
+108:       judgearray.push([-1, @lastPokemon.species, pbBugContestScore(@lastPokemon)])
+109:     end
+110:     maps_with_encounters = []
+111:     @contestMaps.each do |map|
+112:       enc_type = :BugContest
+113:       enc_type = :Land if !$PokemonEncounters.map_has_encounter_type?(map, enc_type)
+114:       if $PokemonEncounters.map_has_encounter_type?(map, enc_type)
+115:         maps_with_encounters.push([map, enc_type])
+116:       end
+117:     end
+118:     raise _INTL("There are no Bug Contest/Land encounters for any Bug Contest maps.") if maps_with_encounters.empty?
+119:     @contestants.each do |cont|
+120:       enc_data = maps_with_encounters.sample
+121:       enc = $PokemonEncounters.choose_wild_pokemon_for_map(enc_data[0], enc_data[1])
+122:       raise _INTL("No encounters for map {1} somehow, so can't judge contest.", enc_data[0]) if !enc
+123:       pokemon = Pokemon.new(enc[0], enc[1])
+124:       pokemon.hp = rand(1...pokemon.totalhp)
+125:       score = pbBugContestScore(pokemon)
+126:       judgearray.push([cont, pokemon.species, score])
+127:     end
+128:     raise _INTL("Too few bug-catching contestants") if judgearray.length < 3
+129:     judgearray.sort! { |a, b| b[2] <=> a[2] }   # sort by score in descending order
+130:     @places.push(judgearray[0])
+131:     @places.push(judgearray[1])
+132:     @places.push(judgearray[2])
+133:   end
+134: 
+135:   def pbGetPlaceInfo(place)
+136:     cont = @places[place][0]
+137:     if cont < 0
+138:       $game_variables[1] = $player.name
+139:     else
+140:       $game_variables[1] = CONTESTANT_NAMES[cont]
+141:     end
+142:     $game_variables[2] = GameData::Species.get(@places[place][1]).name
+143:     $game_variables[3] = @places[place][2]
+144:   end
+145: 
+146:   def pbClearIfEnded
+147:     clear if !@inProgress && (!@start || @start[0] != $game_map.map_id)
+148:   end
+149: 
+150:   def pbStartJudging
+151:     @decision = 1
+152:     pbJudge
+153:     if $scene.is_a?(Scene_Map)
+154:       pbFadeOutIn do
+155:         $game_temp.player_transferring  = true
+156:         $game_temp.player_new_map_id    = @start[0]
+157:         $game_temp.player_new_x         = @start[1]
+158:         $game_temp.player_new_y         = @start[2]
+159:         $game_temp.player_new_direction = @start[3]
+160:         pbDismountBike
+161:         $scene.transfer_player
+162:         $game_map.need_refresh = true   # in case player moves to the same map
+163:       end
+164:     end
+165:   end
+166: 
+167:   def pbIsContestant?(i)
+168:     return @contestants.any? { |item| i == item }
+169:   end
+170: 
+171:   def pbStart(ballcount)
+172:     @ballcount = ballcount
+173:     @inProgress = true
+174:     @otherparty = []
+175:     @lastPokemon = nil
+176:     @lastContest = nil
+177:     @timer_start = System.uptime
+178:     @places = []
+179:     chosenpkmn = $player.party[@chosenPokemon]
+180:     $player.party.length.times do |i|

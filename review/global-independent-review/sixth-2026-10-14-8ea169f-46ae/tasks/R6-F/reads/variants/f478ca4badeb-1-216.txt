@@ -1,0 +1,217 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 1, "end_line": 216, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:31:26.560218+00:00"}
+1: class Battle::Battler
+2:   #=============================================================================
+3:   # Turn processing
+4:   #=============================================================================
+5:   def pbProcessTurn(choice, tryFlee = true)
+6:     return false if fainted?
+7:     # Wild roaming Pokémon always flee if possible
+8:     if tryFlee && wild? &&
+9:        @battle.rules["alwaysflee"] && @battle.pbCanRun?(@index)
+10:       pbBeginTurn(choice)
+11:       pbSEPlay("Battle flee")
+12:       @battle.pbDisplay(_INTL("{1} fled from battle!", pbThis))
+13:       @battle.decision = 3
+14:       pbEndTurn(choice)
+15:       return true
+16:     end
+17:     # Shift with the battler next to this one
+18:     if choice[0] == :Shift
+19:       idxOther = -1
+20:       case @battle.pbSideSize(@index)
+21:       when 2
+22:         idxOther = (@index + 2) % 4
+23:       when 3
+24:         if @index != 2 && @index != 3   # If not in middle spot already
+25:           idxOther = (@index.even?) ? 2 : 3
+26:         end
+27:       end
+28:       if idxOther >= 0
+29:         @battle.pbSwapBattlers(@index, idxOther)
+30:         case @battle.pbSideSize(@index)
+31:         when 2
+32:           @battle.pbDisplay(_INTL("{1} moved across!", pbThis))
+33:         when 3
+34:           @battle.pbDisplay(_INTL("{1} moved to the center!", pbThis))
+35:         end
+36:       end
+37:       pbBeginTurn(choice)
+38:       pbCancelMoves
+39:       @lastRoundMoved = @battle.turnCount   # Done something this round
+40:       return true
+41:     end
+42:     # If this battler's action for this round wasn't "use a move"
+43:     if choice[0] != :UseMove
+44:       # Clean up effects that end at battler's turn
+45:       pbBeginTurn(choice)
+46:       pbEndTurn(choice)
+47:       return false
+48:     end
+49:     # Use the move
+50:     PBDebug.log("[Use move] #{pbThis} (#{@index}) used #{choice[2].name}")
+51:     PBDebug.logonerr { pbUseMove(choice, choice[2] == @battle.struggle) }
+52:     @battle.pbJudge
+53:     # Update priority order
+54:     @battle.pbCalculatePriority if Settings::RECALCULATE_TURN_ORDER_AFTER_SPEED_CHANGES
+55:     return true
+56:   end
+57: 
+58:   #=============================================================================
+59:   #
+60:   #=============================================================================
+61:   def pbBeginTurn(_choice)
+62:     # Cancel some lingering effects which only apply until the user next moves
+63:     @effects[PBEffects::DestinyBondPrevious] = @effects[PBEffects::DestinyBond]
+64:     @effects[PBEffects::DestinyBond]         = false
+65:     @effects[PBEffects::Grudge]              = false
+66:     @effects[PBEffects::MoveNext]            = false
+67:     @effects[PBEffects::Quash]               = 0
+68:     # Encore's effect ends if the encored move is no longer available
+69:     if @effects[PBEffects::Encore] > 0 && pbEncoredMoveIndex < 0
+70:       @effects[PBEffects::Encore]     = 0
+71:       @effects[PBEffects::EncoreMove] = nil
+72:     end
+73:   end
+74: 
+75:   # Called when the usage of various multi-turn moves is disrupted due to
+76:   # failing pbTryUseMove, being ineffective against all targets, or because
+77:   # Pursuit was used specially to intercept a switching foe.
+78:   # Cancels the use of multi-turn moves and counters thereof. Note that Hyper
+79:   # Beam's effect is NOT cancelled.
+80:   def pbCancelMoves(full_cancel = false)
+81:     # Outragers get confused anyway if they are disrupted during their final
+82:     # turn of using the move
+83:     if @effects[PBEffects::Outrage] == 1 && pbCanConfuseSelf?(false) && !full_cancel
+84:       pbConfuse(_INTL("{1} became confused due to fatigue!", pbThis))
+85:     end
+86:     # Cancel usage of most multi-turn moves
+87:     @effects[PBEffects::TwoTurnAttack] = nil
+88:     @effects[PBEffects::Rollout]       = 0
+89:     @effects[PBEffects::Outrage]       = 0
+90:     @effects[PBEffects::Uproar]        = 0
+91:     @effects[PBEffects::Bide]          = 0
+92:     @currentMove = nil if @effects[PBEffects::HyperBeam] == 0
+93:     # Reset counters for moves which increase them when used in succession
+94:     @effects[PBEffects::FuryCutter] = 0
+95:   end
+96: 
+97:   def pbEndTurn(_choice)
+98:     @lastRoundMoved = @battle.turnCount   # Done something this round
+99:     if !@effects[PBEffects::ChoiceBand] &&
+100:        (hasActiveItem?([:CHOICEBAND, :CHOICESPECS, :CHOICESCARF]) ||
+101:        hasActiveAbility?(:GORILLATACTICS))
+102:       if @lastMoveUsed && pbHasMove?(@lastMoveUsed)
+103:         @effects[PBEffects::ChoiceBand] = @lastMoveUsed
+104:       elsif @lastRegularMoveUsed && pbHasMove?(@lastRegularMoveUsed)
+105:         @effects[PBEffects::ChoiceBand] = @lastRegularMoveUsed
+106:       end
+107:     end
+108:     @effects[PBEffects::BeakBlast]   = false
+109:     @effects[PBEffects::Charge]      = 0 if @effects[PBEffects::Charge] == 1
+110:     @effects[PBEffects::GemConsumed] = nil
+111:     @effects[PBEffects::ShellTrap]   = false
+112:     @battle.allBattlers.each { |b| b.pbContinualAbilityChecks }   # Trace, end primordial weathers
+113:   end
+114: 
+115:   def pbConfusionDamage(msg)
+116:     @damageState.reset
+117:     confusionMove = Battle::Move::Confusion.new(@battle, nil)
+118:     confusionMove.calcType = confusionMove.pbCalcType(self)   # nil
+119:     @damageState.typeMod = confusionMove.pbCalcTypeMod(confusionMove.calcType, self, self)   # 8
+120:     confusionMove.pbCheckDamageAbsorption(self, self)
+121:     confusionMove.pbCalcDamage(self, self)
+122:     confusionMove.pbReduceDamage(self, self)
+123:     self.hp -= @damageState.hpLost
+124:     confusionMove.pbAnimateHitAndHPLost(self, [self])
+125:     @battle.pbDisplay(msg)   # "It hurt itself in its confusion!"
+126:     confusionMove.pbRecordDamageLost(self, self)
+127:     confusionMove.pbEndureKOMessage(self)
+128:     pbFaint if fainted?
+129:     pbItemHPHealCheck
+130:   end
+131: 
+132:   #=============================================================================
+133:   # Simple "use move" method, used when a move calls another move and for Future
+134:   # Sight's attack
+135:   #=============================================================================
+136:   def pbUseMoveSimple(moveID, target = -1, idxMove = -1, specialUsage = true)
+137:     choice = []
+138:     choice[0] = :UseMove   # "Use move"
+139:     choice[1] = idxMove    # Index of move to be used in user's moveset
+140:     if idxMove >= 0
+141:       choice[2] = @moves[idxMove]
+142:     else
+143:       choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(moveID))
+144:       choice[2].pp = -1
+145:     end
+146:     choice[3] = target     # Target (-1 means no target yet)
+147:     PBDebug.log("[Use move] #{pbThis} used the called/simple move #{choice[2].name}")
+148:     pbUseMove(choice, specialUsage)
+149:   end
+150: 
+151:   #=============================================================================
+152:   # Master "use move" method
+153:   #=============================================================================
+154:   def pbUseMove(choice, specialUsage = false)
+155:     # NOTE: This is intentionally determined before a multi-turn attack can
+156:     #       set specialUsage to true.
+157:     skipAccuracyCheck = (specialUsage && choice[2] != @battle.struggle)
+158:     # Start using the move
+159:     pbBeginTurn(choice)
+160:     # Force the use of certain moves if they're already being used
+161:     if !@battle.futureSight
+162:       if usingMultiTurnAttack?
+163:         choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@currentMove))
+164:         specialUsage = true
+165:       elsif @effects[PBEffects::Encore] > 0 && choice[1] >= 0 &&
+166:             @battle.pbCanShowCommands?(@index)
+167:         idxEncoredMove = pbEncoredMoveIndex
+168:         if idxEncoredMove >= 0 && choice[1] != idxEncoredMove &&
+169:            @battle.pbCanChooseMove?(@index, idxEncoredMove, false)   # Change move if battler was Encored mid-round
+170:           choice[1] = idxEncoredMove
+171:           choice[2] = @moves[idxEncoredMove]
+172:           choice[3] = -1   # No target chosen
+173:         end
+174:       end
+175:     end
+176:     # Labels the move being used as "move"
+177:     move = choice[2]
+178:     return if !move   # if move was not chosen somehow
+179:     # Try to use the move (inc. disobedience)
+180:     @lastMoveFailed = false
+181:     if !pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)
+182:       @lastMoveUsed     = nil
+183:       @lastMoveUsedType = nil
+184:       if !specialUsage
+185:         @lastRegularMoveUsed   = nil
+186:         @lastRegularMoveTarget = -1
+187:       end
+188:       @battle.pbGainExp   # In case self is KO'd due to confusion
+189:       pbCancelMoves
+190:       pbEndTurn(choice)
+191:       return
+192:     end
+193:     move = choice[2]   # In case disobedience changed the move to be used
+194:     return if !move   # if move was not chosen somehow
+195:     # Subtract PP
+196:     if !specialUsage && !pbReducePP(move)
+197:       @battle.pbDisplay(_INTL("{1} used {2}!", pbThis, move.name))
+198:       @battle.pbDisplay(_INTL("But there was no PP left for the move!"))
+199:       @lastMoveUsed          = nil
+200:       @lastMoveUsedType      = nil
+201:       @lastRegularMoveUsed   = nil
+202:       @lastRegularMoveTarget = -1
+203:       @lastMoveFailed        = true
+204:       pbCancelMoves
+205:       pbEndTurn(choice)
+206:       return
+207:     end
+208:     # Stance Change
+209:     if isSpecies?(:AEGISLASH) && self.ability == :STANCECHANGE
+210:       if move.damagingMove?
+211:         pbChangeForm(1, _INTL("{1} changed to Blade Forme!", pbThis))
+212:       elsif move.id == :KINGSSHIELD
+213:         pbChangeForm(0, _INTL("{1} changed to Shield Forme!", pbThis))
+214:       end
+215:     end
+216:     # Calculate the move's type during this usage

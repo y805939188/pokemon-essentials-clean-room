@@ -1,0 +1,300 @@
+901:     end
+902:     return changed
+903:   end
+904: 
+905:   #=============================================================================
+906:   # Fix up standard code snippets
+907:   #=============================================================================
+908:   def event_is_empty?(e)
+909:     return true if !e
+910:     return false if e.is_a?(RPG::CommonEvent)
+911:     return e.pages.length == 0
+912:   end
+913: 
+914:   # Checks if the event has exactly 1 page, said page has no graphic, it has
+915:   # less than 12 commands and at least one is a Transfer Player, and the tiles
+916:   # to the left/right/upper left/upper right are not passable but the event's
+917:   # tile is. Causes a second page to be added to the event which is the "is
+918:   # player on me?" check that occurs when the map is entered.
+919:   def likely_passage?(thisEvent, mapID, mapData)
+920:     return false if !thisEvent || thisEvent.pages.length == 0
+921:     return false if thisEvent.pages.length != 1
+922:     if thisEvent.pages[0].graphic.character_name == "" &&
+923:        thisEvent.pages[0].list.length <= 12 &&
+924:        thisEvent.pages[0].list.any? { |cmd| cmd.code == 201 } &&   # Transfer Player
+925: #       mapData.isPassable?(mapID,thisEvent.x,thisEvent.y+1) &&
+926:        mapData.isPassable?(mapID, thisEvent.x, thisEvent.y) &&
+927:        !mapData.isPassable?(mapID, thisEvent.x - 1, thisEvent.y) &&
+928:        !mapData.isPassable?(mapID, thisEvent.x + 1, thisEvent.y) &&
+929:        !mapData.isPassable?(mapID, thisEvent.x - 1, thisEvent.y - 1) &&
+930:        !mapData.isPassable?(mapID, thisEvent.x + 1, thisEvent.y - 1)
+931:       return true
+932:     end
+933:     return false
+934:   end
+935: 
+936:   def fix_event_name(event)
+937:     return false if !event
+938:     case event.name.downcase
+939:     when "tree"
+940:       event.name = "CutTree"
+941:     when "rock"
+942:       event.name = "SmashRock"
+943:     when "boulder"
+944:       event.name = "StrengthBoulder"
+945:     else
+946:       return false
+947:     end
+948:     return true
+949:   end
+950: 
+951:   def replace_scripts(script)
+952:     ret = false
+953:     SCRIPT_REPLACEMENTS.each { |pair| ret = true if script.gsub!(pair[0], pair[1]) }
+954:     ret = true if script.gsub!(/\$game_variables\[(\d+)\](?!\s*(?:\=|\!|<|>))/) { |m| "pbGet(" + $~[1] + ")" }
+955:     ret = true if script.gsub!(/\$player\.party\[\s*pbGet\((\d+)\)\s*\]/) { |m| "pbGetPokemon(" + $~[1] + ")" }
+956:     return ret
+957:   end
+958: 
+959:   def fix_event_scripts(event)
+960:     return false if event_is_empty?(event)
+961:     ret = false
+962:     pbEachPage(event) do |page|
+963:       page.list.each do |cmd|
+964:         params = cmd.parameters
+965:         case cmd.code
+966:         when 355, 655   # Script (first line, continuation line)
+967:           ret = true if params[0].is_a?(String) && replace_scripts(params[0])
+968:         when 111   # Conditional Branch
+969:           ret = true if params[0] == 12 && replace_scripts(params[1])
+970:         end
+971:       end
+972:     end
+973:     return ret
+974:   end
+975: 
+976:   # Splits the given code string into an array of parameters (all strings),
+977:   # using "," as the delimiter. It will not split in the middle of a string
+978:   # parameter. Used to extract parameters from a script call in an event.
+979:   def split_string_with_quotes(str)
+980:     ret = []
+981:     new_str = ""
+982:     in_msg = false
+983:     str.scan(/./) do |s|
+984:       if s == "," && !in_msg
+985:         ret.push(new_str.strip)
+986:         new_str = ""
+987:       else
+988:         in_msg = !in_msg if s == "\""
+989:         new_str += s
+990:       end
+991:     end
+992:     new_str.strip!
+993:     ret.push(new_str) if !new_str.empty?
+994:     return ret
+995:   end
+996: 
+997:   def replace_old_battle_scripts(event, list, index)
+998:     changed = false
+999:     script = list[index].parameters[1]
+1000:     if script[/^\s*pbWildBattle\((.+)\)\s*$/]
+1001:       battle_params = split_string_with_quotes($1)   # Split on commas
+1002:       list[index].parameters[1] = sprintf("WildBattle.start(#{battle_params[0]}, #{battle_params[1]})")
+1003:       old_indent = list[index].indent
+1004:       new_events = []
+1005:       if battle_params[3] && battle_params[3][/false/]
+1006:         push_script(new_events, "setBattleRule(\"cannotRun\")", old_indent)
+1007:       end
+1008:       if battle_params[4] && battle_params[4][/true/]
+1009:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1010:       end
+1011:       if battle_params[2] && battle_params[2] != "1"
+1012:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[2]})", old_indent)
+1013:       end
+1014:       list[index, 0] = new_events if new_events.length > 0
+1015:       changed = true
+1016:     elsif script[/^\s*pbDoubleWildBattle\((.+)\)\s*$/]
+1017:       battle_params = split_string_with_quotes($1)   # Split on commas
+1018:       pkmn1 = "#{battle_params[0]}, #{battle_params[1]}"
+1019:       pkmn2 = "#{battle_params[2]}, #{battle_params[3]}"
+1020:       list[index].parameters[1] = sprintf("WildBattle.start(#{pkmn1}, #{pkmn2})")
+1021:       old_indent = list[index].indent
+1022:       new_events = []
+1023:       if battle_params[5] && battle_params[5][/false/]
+1024:         push_script(new_events, "setBattleRule(\"cannotRun\")", old_indent)
+1025:       end
+1026:       if battle_params[6] && battle_params[6][/true/]
+1027:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1028:       end
+1029:       if battle_params[4] && battle_params[4] != "1"
+1030:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[4]})", old_indent)
+1031:       end
+1032:       list[index, 0] = new_events if new_events.length > 0
+1033:       changed = true
+1034:     elsif script[/^\s*pbTripleWildBattle\((.+)\)\s*$/]
+1035:       battle_params = split_string_with_quotes($1)   # Split on commas
+1036:       pkmn1 = "#{battle_params[0]}, #{battle_params[1]}"
+1037:       pkmn2 = "#{battle_params[2]}, #{battle_params[3]}"
+1038:       pkmn3 = "#{battle_params[4]}, #{battle_params[5]}"
+1039:       list[index].parameters[1] = sprintf("WildBattle.start(#{pkmn1}, #{pkmn2}, #{pkmn3})")
+1040:       old_indent = list[index].indent
+1041:       new_events = []
+1042:       if battle_params[7] && battle_params[7][/false/]
+1043:         push_script(new_events, "setBattleRule(\"cannotRun\")", old_indent)
+1044:       end
+1045:       if battle_params[8] && battle_params[8][/true/]
+1046:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1047:       end
+1048:       if battle_params[6] && battle_params[6] != "1"
+1049:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[6]})", old_indent)
+1050:       end
+1051:       list[index, 0] = new_events if new_events.length > 0
+1052:       changed = true
+1053:     elsif script[/^\s*pbTrainerBattle\((.+)\)\s*$/]
+1054:       battle_params = split_string_with_quotes($1)   # Split on commas
+1055:       trainer1 = "#{battle_params[0]}, #{battle_params[1]}"
+1056:       trainer1 += ", #{battle_params[4]}" if battle_params[4] && battle_params[4] != "nil"
+1057:       list[index].parameters[1] = "TrainerBattle.start(#{trainer1})"
+1058:       old_indent = list[index].indent
+1059:       new_events = []
+1060:       if battle_params[2] && !battle_params[2].empty? && battle_params[2] != "nil"
+1061:         speech = battle_params[2].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1062:         push_comment(new_events, "EndSpeech: #{speech.strip}", old_indent)
+1063:       end
+1064:       if battle_params[3] && battle_params[3][/true/]
+1065:         push_script(new_events, "setBattleRule(\"double\")", old_indent)
+1066:       end
+1067:       if battle_params[5] && battle_params[5][/true/]
+1068:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1069:       end
+1070:       if battle_params[6] && battle_params[6] != "1"
+1071:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[6]})", old_indent)
+1072:       end
+1073:       list[index, 0] = new_events if new_events.length > 0
+1074:       changed = true
+1075:     elsif script[/^\s*pbDoubleTrainerBattle\((.+)\)\s*$/]
+1076:       battle_params = split_string_with_quotes($1)   # Split on commas
+1077:       trainer1 = "#{battle_params[0]}, #{battle_params[1]}"
+1078:       trainer1 += ", #{battle_params[2]}" if battle_params[2] && battle_params[2] != "nil"
+1079:       trainer2 = "#{battle_params[4]}, #{battle_params[5]}"
+1080:       trainer2 += ", #{battle_params[6]}" if battle_params[6] && battle_params[6] != "nil"
+1081:       list[index].parameters[1] = "TrainerBattle.start(#{trainer1}, #{trainer2})"
+1082:       old_indent = list[index].indent
+1083:       new_events = []
+1084:       if battle_params[3] && !battle_params[3].empty? && battle_params[3] != "nil"
+1085:         speech = battle_params[3].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1086:         push_comment(new_events, "EndSpeech1: #{speech.strip}", old_indent)
+1087:       end
+1088:       if battle_params[7] && !battle_params[7].empty? && battle_params[7] != "nil"
+1089:         speech = battle_params[7].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1090:         push_comment(new_events, "EndSpeech2: #{speech.strip}", old_indent)
+1091:       end
+1092:       if battle_params[8] && battle_params[8][/true/]
+1093:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1094:       end
+1095:       if battle_params[9] && battle_params[9] != "1"
+1096:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[9]})", old_indent)
+1097:       end
+1098:       list[index, 0] = new_events if new_events.length > 0
+1099:       changed = true
+1100:     elsif script[/^\s*pbTripleTrainerBattle\((.+)\)\s*$/]
+1101:       battle_params = split_string_with_quotes($1)   # Split on commas
+1102:       trainer1 = "#{battle_params[0]}, #{battle_params[1]}"
+1103:       trainer1 += ", #{battle_params[2]}" if battle_params[2] && battle_params[2] != "nil"
+1104:       trainer2 = "#{battle_params[4]}, #{battle_params[5]}"
+1105:       trainer2 += ", #{battle_params[6]}" if battle_params[6] && battle_params[6] != "nil"
+1106:       trainer3 = "#{battle_params[8]}, #{battle_params[9]}"
+1107:       trainer3 += ", #{battle_params[10]}" if battle_params[10] && battle_params[10] != "nil"
+1108:       list[index].parameters[1] = "TrainerBattle.start(#{trainer1}, #{trainer2}, #{trainer3})"
+1109:       old_indent = list[index].indent
+1110:       new_events = []
+1111:       if battle_params[3] && !battle_params[3].empty? && battle_params[3] != "nil"
+1112:         speech = battle_params[3].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1113:         push_comment(new_events, "EndSpeech1: #{speech.strip}", old_indent)
+1114:       end
+1115:       if battle_params[7] && !battle_params[7].empty? && battle_params[7] != "nil"
+1116:         speech = battle_params[7].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1117:         push_comment(new_events, "EndSpeech2: #{speech.strip}", old_indent)
+1118:       end
+1119:       if battle_params[11] && !battle_params[11].empty? && battle_params[11] != "nil"
+1120:         speech = battle_params[11].gsub(/^\s*_I\(\s*"\s*/, "").gsub(/\"\s*\)\s*$/, "")
+1121:         push_comment(new_events, "EndSpeech3: #{speech.strip}", old_indent)
+1122:       end
+1123:       if battle_params[12] && battle_params[12][/true/]
+1124:         push_script(new_events, "setBattleRule(\"canLose\")", old_indent)
+1125:       end
+1126:       if battle_params[13] && battle_params[13] != "1"
+1127:         push_script(new_events, "setBattleRule(\"outcome\", #{battle_params[13]})", old_indent)
+1128:       end
+1129:       list[index, 0] = new_events if new_events.length > 0
+1130:       changed = true
+1131:     end
+1132:     return changed
+1133:   end
+1134: 
+1135:   def fix_event_use(event, _mapID, mapData)
+1136:     return nil if event_is_empty?(event)
+1137:     changed = false
+1138:     trainerMoneyRE = /^\s*\$player\.money\s*(<|<=|>|>=)\s*(\d+)\s*$/
+1139:     itemBallRE     = /^\s*(Kernel\.)?pbItemBall/
+1140:     # Rewrite event if it looks like a door
+1141:     changed = true if update_door_event(event, mapData)
+1142:     # Check through each page of the event in turn
+1143:     pbEachPage(event) do |page|
+1144:       i = 0
+1145:       list = page.list
+1146:       while i < list.length
+1147:         params = list[i].parameters
+1148:         case list[i].code
+1149: #        when 655   # Script (continuation line)
+1150:         when 355   # Script (first line)
+1151:           lastScript = i
+1152:           if !params[0].is_a?(String)
+1153:             i += 1
+1154:             next
+1155:           end
+1156:           # Check if the script is an old way of healing the entire party, and if
+1157:           # so, replace it with a better version that uses event commands
+1158:           if params[0][0, 1] != "f" && params[0][0, 1] != "p" && params[0][0, 1] != "K"
+1159:             i += 1
+1160:             next
+1161:           end
+1162:           # Script begins with "f" (for...), "p" (pbMethod) or "K" (Kernel.)
+1163:           script = " " + params[0]
+1164:           j = i + 1
+1165:           while j < list.length
+1166:             break if list[j].code != 655   # Script (continuation line)
+1167:             script += list[j].parameters[0]
+1168:             lastScript = j
+1169:             j += 1
+1170:           end
+1171:           script.gsub!(/\s+/, "")
+1172:           # Using old method of recovering
+1173:           case script
+1174:           when "foriin$player.partyi.healend"
+1175:             (lastScript - i).times { list.delete_at(i) }
+1176:             list.insert(i,
+1177:                         RPG::EventCommand.new(314, list[i].indent, [0]))   # Recover All
+1178:             changed = true
+1179:           when "pbFadeOutIn(99999){foriin$player.partyi.healend}"
+1180:             oldIndent = list[i].indent
+1181:             (lastScript - i).times { list.delete_at(i) }
+1182:             list.insert(
+1183:               i,
+1184:               RPG::EventCommand.new(223, oldIndent, [Tone.new(-255, -255, -255), 6]),   # Fade to black
+1185:               RPG::EventCommand.new(106, oldIndent, [6]),                               # Wait
+1186:               RPG::EventCommand.new(314, oldIndent, [0]),                               # Recover All
+1187:               RPG::EventCommand.new(223, oldIndent, [Tone.new(0, 0, 0), 6]),            # Fade to normal
+1188:               RPG::EventCommand.new(106, oldIndent, [6])                                # Wait
+1189:             )
+1190:             changed = true
+1191:           end
+1192:         when 108   # Comment (first line)
+1193:           # Replace a "SellItem:POTION,200" comment with event commands that do so
+1194:           if params[0][/SellItem\s*\(\s*(\w+)\s*\,\s*(\d+)\s*\)/]
+1195:             itemname = $1
+1196:             cost     = $2.to_i
+1197:             if GameData::Item.exists?(itemname)
+1198:               oldIndent = list[i].indent
+1199:               list.delete_at(i)
+1200:               newEvents = []

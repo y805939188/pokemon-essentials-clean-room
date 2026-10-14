@@ -1,0 +1,300 @@
+1201:               if cost == 0
+1202:                 push_branch(newEvents, "$bag.can_add?(:#{itemname})", oldIndent)
+1203:                 push_text(newEvents, _INTL("Here you go!"), oldIndent + 1)
+1204:                 push_script(newEvents, "pbReceiveItem(:#{itemname})", oldIndent + 1)
+1205:                 push_else(newEvents, oldIndent + 1)
+1206:                 push_text(newEvents, _INTL("You have no room left in the Bag."), oldIndent + 1)
+1207:               else
+1208:                 push_event(newEvents, 111, [7, cost, 0], oldIndent)
+1209:                 push_branch(newEvents, "$bag.can_add?(:#{itemname})", oldIndent + 1)
+1210:                 push_event(newEvents, 125, [1, 0, cost], oldIndent + 2)
+1211:                 push_text(newEvents, _INTL("\\GHere you go!"), oldIndent + 2)
+1212:                 push_script(newEvents, "pbReceiveItem(:#{itemname})", oldIndent + 2)
+1213:                 push_else(newEvents, oldIndent + 2)
+1214:                 push_text(newEvents, _INTL("\\GYou have no room left in the Bag."), oldIndent + 2)
+1215:                 push_branch_end(newEvents, oldIndent + 2)
+1216:                 push_else(newEvents, oldIndent + 1)
+1217:                 push_text(newEvents, _INTL("\\GYou don't have enough money."), oldIndent + 1)
+1218:               end
+1219:               push_branch_end(newEvents, oldIndent + 1)
+1220:               list[i, 0] = newEvents   # insert 'newEvents' at index 'i'
+1221:               changed = true
+1222:             end
+1223:           end
+1224:         when 115   # Exit Event Processing
+1225:           if i == list.length - 2
+1226:             # Superfluous exit command, delete it
+1227:             list.delete_at(i)
+1228:             changed = true
+1229:           end
+1230:         when 201   # Transfer Player
+1231:           if list.length <= 8
+1232: =begin
+1233:             if params[0]==0
+1234:               # Look for another event just above the position this Transfer
+1235:               # Player command will transfer to - it may be a door, in which case
+1236:               # this command should transfer the player onto the door instead of
+1237:               # in front of it.
+1238:               e = mapData.getEventFromXY(params[1],params[2],params[3]-1)
+1239:               # This bit of code is just in case Switch 22 has been renamed/
+1240:               # repurposed, which is highly unlikely. It changes the Switch used
+1241:               # in the found event's condition to whichever is named
+1242:               # 's:tsOff?("A")'.
+1243:               if e && e.pages.length>=2 &&
+1244:                  e.pages[e.pages.length-1].condition.switch1_valid &&
+1245:                  e.pages[e.pages.length-1].condition.switch1_id==22 &&
+1246:                  mapData.switchName(e.pages[e.pages.length-1].condition.switch1_id)!='s:tsOff?("A")' &&
+1247:                  e.pages[e.pages.length-1].list.length>5 &&
+1248:                  e.pages[e.pages.length-1].list[0].code==111   # Conditional Branch
+1249:                 e.pages[e.pages.length-1].condition.switch1_id = mapData.registerSwitch('s:tsOff?("A")')
+1250:                 mapData.saveMap(params[1])
+1251:                 changed = true
+1252:               end
+1253:               # Checks if the found event is a simple Transfer Player one nestled
+1254:               # between tiles that aren't passable - it is likely a door, so give
+1255:               # it a second page with an "is player on me?" check.
+1256:               if likely_passage?(e,params[1],mapData)   # Checks the first page
+1257:                 add_passage_list(e,mapData)
+1258:                 mapData.saveMap(params[1])
+1259:                 changed = true
+1260:               end
+1261:               # If the found event's last page's Switch condition uses a Switch
+1262:               # named 's:tsOff?("A")', it really does look like a door. Make this
+1263:               # command transfer the player on top of it rather than in front of
+1264:               # it.
+1265:               if e && e.pages.length>=2 &&
+1266:                  e.pages[e.pages.length-1].condition.switch1_valid &&
+1267:                  mapData.switchName(e.pages[e.pages.length-1].condition.switch1_id)=='s:tsOff?("A")'
+1268:                 # If this is really a door, move transfer target to it
+1269:                 params[3] -= 1   # Move this command's destination up 1 tile (onto the found event)
+1270:                 params[5]  = 1   # No fade (the found event should take care of that)
+1271:                 changed = true
+1272:               end
+1273:               deletedRoute = nil
+1274:               deleteMoveRouteAt = proc { |list,i|
+1275:                 arr = []
+1276:                 if list[i] && list[i].code==209   # Set Move Route
+1277:                   arr.push(list[i])
+1278:                   list.delete_at(i)
+1279:                   while i<list.length
+1280:                     break if !list[i] || list[i].code!=509   # Set Move Route (continuation line)
+1281:                     arr.push(list[i])
+1282:                     list.delete_at(i)
+1283:                   end
+1284:                 end
+1285:                 next arr
+1286:               }
+1287:               insertMoveRouteAt = proc { |list,i,route|
+1288:                 j = route.length-1
+1289:                 while j>=0
+1290:                   list.insert(i,route[j])
+1291:                   j -= 1
+1292:                 end
+1293:               }
+1294:               # If the next event command is a Move Route that moves the player,
+1295:               # check whether all it does is turn the player in a direction (or
+1296:               # its first item is to move the player in a direction). If so, this
+1297:               # Transfer Player command may as well set the player's direction
+1298:               # instead; make it do so and delete that Move Route.
+1299:               if params[4]==0 &&   # Retain direction
+1300:                  i+1<list.length && list[i+1].code==209 && list[i+1].parameters[0]==-1   # Set Move Route
+1301:                 route = list[i+1].parameters[1]
+1302:                 if route && route.list.length<=2
+1303:                   # Delete superfluous move route command if necessary
+1304:                   if route.list[0].code==16      # Player Turn Down
+1305:                     deleteMoveRouteAt.call(list,i+1)
+1306:                     params[4] = 2
+1307:                     changed = true
+1308:                   elsif route.list[0].code==17   # Player Turn Left
+1309:                     deleteMoveRouteAt.call(list,i+1)
+1310:                     params[4] = 4
+1311:                     changed = true
+1312:                   elsif route.list[0].code==18   # Player Turn Right
+1313:                     deleteMoveRouteAt.call(list,i+1)
+1314:                     params[4] = 6
+1315:                     changed = true
+1316:                   elsif route.list[0].code==19   # Player Turn Up
+1317:                     deleteMoveRouteAt.call(list,i+1)
+1318:                     params[4] = 8
+1319:                     changed = true
+1320:                   elsif (route.list[0].code==1 || route.list[0].code==2 ||   # Player Move (4-dir)
+1321:                      route.list[0].code==3 || route.list[0].code==4) && list.length==4
+1322:                     params[4] = [0,2,4,6,8][route.list[0].code]
+1323:                     deletedRoute = deleteMoveRouteAt.call(list,i+1)
+1324:                     changed = true
+1325:                   end
+1326:                 end
+1327:               # If an event command before this one is a Move Route that just
+1328:               # turns the player, delete it and make this Transfer Player command
+1329:               # set the player's direction instead.
+1330:               # (I don't know if it makes sense to do this, as there could be a
+1331:               # lot of commands between then and this Transfer Player which this
+1332:               # code can't recognise and deal with, so I've quoted this code out.)
+1333:               elsif params[4]==0 && i>3   # Retain direction
+1334: #                for j in 0...i
+1335: #                  if list[j].code==209 && list[j].parameters[0]==-1   # Set Move Route
+1336: #                    route = list[j].parameters[1]
+1337: #                    if route && route.list.length<=2
+1338: #                      oldlistlength = list.length
+1339: #                      # Delete superfluous move route command if necessary
+1340: #                      if route.list[0].code==16      # Player Turn Down
+1341: #                        deleteMoveRouteAt.call(list,j)
+1342: #                        params[4] = 2
+1343: #                        changed = true
+1344: #                        i -= (oldlistlength-list.length)
+1345: #                      elsif route.list[0].code==17   # Player Turn Left
+1346: #                        deleteMoveRouteAt.call(list,j)
+1347: #                        params[4] = 4
+1348: #                        changed = true
+1349: #                        i -= (oldlistlength-list.length)
+1350: #                      elsif route.list[0].code==18   # Player Turn Right
+1351: #                        deleteMoveRouteAt.call(list,j)
+1352: #                        params[4] = 6
+1353: #                        changed = true
+1354: #                        i -= (oldlistlength-list.length)
+1355: #                      elsif route.list[0].code==19   # Player Turn Up
+1356: #                        deleteMoveRouteAt.call(list,j)
+1357: #                        params[4] = 8
+1358: #                        changed = true
+1359: #                        i -= (oldlistlength-list.length)
+1360: #                      end
+1361: #                    end
+1362: #                  end
+1363: #                end
+1364:               # If the next event command changes the screen color, and the one
+1365:               # after that is a Move Route which only turns the player in a
+1366:               # direction, this Transfer Player command may as well set the
+1367:               # player's direction instead; make it do so and delete that Move
+1368:               # Route.
+1369:               elsif params[4]==0 &&   # Retain direction
+1370:                  i+2<list.length &&
+1371:                  list[i+1].code==223 &&   # Change Screen Color Tone
+1372:                  list[i+2].code==209 &&   # Set Move Route
+1373:                  list[i+2].parameters[0]==-1
+1374:                 route = list[i+2].parameters[1]
+1375:                 if route && route.list.length<=2
+1376:                   # Delete superfluous move route command if necessary
+1377:                   if route.list[0].code==16      # Player Turn Down
+1378:                     deleteMoveRouteAt.call(list,i+2)
+1379:                     params[4] = 2
+1380:                     changed = true
+1381:                   elsif route.list[0].code==17   # Player Turn Left
+1382:                     deleteMoveRouteAt.call(list,i+2)
+1383:                     params[4] = 4
+1384:                     changed = true
+1385:                   elsif route.list[0].code==18   # Player Turn Right
+1386:                     deleteMoveRouteAt.call(list,i+2)
+1387:                     params[4] = 6
+1388:                     changed = true
+1389:                   elsif route.list[0].code==19   # Player Turn Up
+1390:                     deleteMoveRouteAt.call(list,i+2)
+1391:                     params[4] = 8
+1392:                     changed = true
+1393:                   end
+1394:                 end
+1395:               end
+1396:             end
+1397: =end
+1398:             # If this is the only event command, convert to a full event
+1399:             if list.length == 2 || (list.length == 3 && (list[0].code == 250 || list[1].code == 250))   # Play SE
+1400:               params[5] = 1   # No fade
+1401:               fullTransfer = list[i]
+1402:               indent = list[i].indent
+1403:               (list.length - 1).times { list.delete_at(0) }
+1404:               list.insert(
+1405:                 0,
+1406:                 RPG::EventCommand.new(250, indent, [RPG::AudioFile.new("Exit Door", 80, 100)]),   # Play SE
+1407:                 RPG::EventCommand.new(223, indent, [Tone.new(-255, -255, -255), 6]),              # Fade to black
+1408:                 RPG::EventCommand.new(106, indent, [8]),                                          # Wait
+1409:                 fullTransfer,                                                                     # Transfer event
+1410:                 RPG::EventCommand.new(223, indent, [Tone.new(0, 0, 0), 6])                        # Fade to normal
+1411:               )
+1412:               changed = true
+1413:             end
+1414: #            if deletedRoute
+1415: #              insertMoveRouteAt.call(list,list.length-1,deletedRoute)
+1416: #              changed = true
+1417: #            end
+1418:           end
+1419:         when 101   # Show Text
+1420:           # Capitalise/decapitalise various text formatting codes
+1421:           if list[i].parameters[0][0, 1] == "\\"
+1422:             newx = list[i].parameters[0].clone
+1423:             newx.sub!(/^\\[Bb]\s+/, "\\b")
+1424:             newx.sub!(/^\\[Rr]\s+/, "\\r")
+1425:             newx.sub!(/^\\[Pp][Gg]\s+/, "\\pg")
+1426:             newx.sub!(/^\\[Pp][Oo][Gg]\s+/, "\\pog")
+1427:             newx.sub!(/^\\[Gg]\s+/, "\\G")
+1428:             newx.sub!(/^\\[Cc][Nn]\s+/, "\\CN")
+1429:             if list[i].parameters[0] != newx
+1430:               list[i].parameters[0] = newx
+1431:               changed = true
+1432:             end
+1433:           end
+1434:           # Split Show Text commands with 5+ lines into multiple Show Text
+1435:           # commands each with a maximum of 4 lines
+1436:           lines = 1
+1437:           j = i + 1
+1438:           while j < list.length
+1439:             break if list[j].code != 401   # Show Text (continuation line)
+1440:             if lines % 4 == 0
+1441:               list[j].code = 101   # Show Text
+1442:               changed = true
+1443:             end
+1444:             lines += 1
+1445:             j += 1
+1446:           end
+1447:           # If this Show Text command has 2+ lines of text but not much actual
+1448:           # text in the first line, merge the second line into it
+1449:           if lines >= 2 && list[i].parameters[0].length > 0 && list[i].parameters[0].length <= 20 &&
+1450:              !list[i].parameters[0][/\\n/]
+1451:             # Very short line
+1452:             list[i].parameters[0] += "\\n" + list[i + 1].parameters[0]
+1453:             list.delete_at(i + 1)
+1454:             i -= 1   # revisit this text command
+1455:             changed = true
+1456:           # Check whether this Show Text command has 3+ lines and the next command
+1457:           # is also a Show Text
+1458:           elsif lines >= 3 && list[i + lines] && list[i + lines].code == 101   # Show Text
+1459:             # Check whether a sentence is being broken midway between two Text
+1460:             # commands (i.e. the first Show Text doesn't end in certain punctuation)
+1461:             lastLine = list[i + lines - 1].parameters[0].sub(/\s+$/, "")
+1462:             if lastLine.length > 0 && !lastLine[/[\\<]/] && lastLine[/[^\.,\!\?\;\-\"]$/]
+1463:               message = list[i].parameters[0]
+1464:               j = i + 1
+1465:               while j < list.length
+1466:                 break if list[j].code != 401   # Show Text (continuation line)
+1467:                 message += "\n" + list[j].parameters[0]
+1468:                 j += 1
+1469:               end
+1470:               # Find a punctuation mark to split at
+1471:               punct = [message.rindex(". "), message.rindex(".\n"),
+1472:                        message.rindex("!"), message.rindex("?"), -1].compact.max
+1473:               if punct == -1
+1474:                 punct = [message.rindex(", "), message.rindex(",\n"), -1].compact.max
+1475:               end
+1476:               if punct != -1
+1477:                 # Delete old message
+1478:                 indent = list[i].indent
+1479:                 newMessage  = message[0, punct + 1].split("\n")
+1480:                 nextMessage = message[punct + 1, message.length].sub(/^\s+/, "").split("\n")
+1481:                 list[i + lines].code = 401
+1482:                 lines.times { list.delete_at(i) }
+1483:                 j = nextMessage.length - 1
+1484:                 while j >= 0
+1485:                   list.insert(i, RPG::EventCommand.new((j == 0) ? 101 : 401, indent, [nextMessage[j]]))
+1486:                   j -= 1
+1487:                 end
+1488:                 j = newMessage.length - 1
+1489:                 while j >= 0
+1490:                   list.insert(i, RPG::EventCommand.new((j == 0) ? 101 : 401, indent, [newMessage[j]]))
+1491:                   j -= 1
+1492:                 end
+1493:                 changed = true
+1494:                 i += 1
+1495:                 next
+1496:               end
+1497:             end
+1498:           end
+1499:         when 111   # Conditional Branch
+1500:           if list[i].parameters[0] == 12   # script

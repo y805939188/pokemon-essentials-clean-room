@@ -1,0 +1,181 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/003_Battle_ExpAndMoveLearning.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [92, 271], "total_lines": 271, "sha256": "ea74697615054880cdfb7b9da4444bc9dfc97ef6f1142fc639806b1aaf792c9e", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:37:08.537644+00:00"}
+92:   def pbGainExpOne(idxParty, defeatedBattler, numPartic, expShare, expAll, showMessages = true)
+93:     pkmn = pbParty(0)[idxParty]   # The Pokémon gaining Exp from defeatedBattler
+94:     growth_rate = pkmn.growth_rate
+95:     # Don't bother calculating if gainer is already at max Exp
+96:     if pkmn.exp >= growth_rate.maximum_exp
+97:       pkmn.calc_stats   # To ensure new EVs still have an effect
+98:       return
+99:     end
+100:     isPartic    = defeatedBattler.participants.include?(idxParty)
+101:     hasExpShare = expShare.include?(idxParty)
+102:     level = defeatedBattler.level
+103:     # Main Exp calculation
+104:     exp = 0
+105:     a = level * defeatedBattler.pokemon.base_exp
+106:     if expShare.length > 0 && (isPartic || hasExpShare)
+107:       if numPartic == 0   # No participants, all Exp goes to Exp Share holders
+108:         exp = a / (Settings::SPLIT_EXP_BETWEEN_GAINERS ? expShare.length : 1)
+109:       elsif Settings::SPLIT_EXP_BETWEEN_GAINERS   # Gain from participating and/or Exp Share
+110:         exp = a / (2 * numPartic) if isPartic
+111:         exp += a / (2 * expShare.length) if hasExpShare
+112:       else   # Gain from participating and/or Exp Share (Exp not split)
+113:         exp = (isPartic) ? a : a / 2
+114:       end
+115:     elsif isPartic   # Participated in battle, no Exp Shares held by anyone
+116:       exp = a / (Settings::SPLIT_EXP_BETWEEN_GAINERS ? numPartic : 1)
+117:     elsif expAll   # Didn't participate in battle, gaining Exp due to Exp All
+118:       # NOTE: Exp All works like the Exp Share from Gen 6+, not like the Exp All
+119:       #       from Gen 1, i.e. Exp isn't split between all Pokémon gaining it.
+120:       exp = a / 2
+121:     end
+122:     return if exp <= 0
+123:     # Pokémon gain more Exp from trainer battles
+124:     exp = (exp * 1.5).floor if Settings::MORE_EXP_FROM_TRAINER_POKEMON && trainerBattle?
+125:     # Scale the gained Exp based on the gainer's level (or not)
+126:     if Settings::SCALED_EXP_FORMULA
+127:       exp /= 5
+128:       levelAdjust = ((2 * level) + 10.0) / (pkmn.level + level + 10.0)
+129:       levelAdjust **= 5
+130:       levelAdjust = Math.sqrt(levelAdjust)
+131:       exp *= levelAdjust
+132:       exp = exp.floor
+133:       exp += 1 if isPartic || hasExpShare
+134:     else
+135:       exp /= 7
+136:     end
+137:     # Foreign Pokémon gain more Exp
+138:     isOutsider = (pkmn.owner.id != pbPlayer.id ||
+139:                  (pkmn.owner.language != 0 && pkmn.owner.language != pbPlayer.language))
+140:     if isOutsider
+141:       if pkmn.owner.language != 0 && pkmn.owner.language != pbPlayer.language
+142:         exp = (exp * 1.7).floor
+143:       else
+144:         exp = (exp * 1.5).floor
+145:       end
+146:     end
+147:     # Exp. Charm increases Exp gained
+148:     exp = exp * 3 / 2 if $bag.has?(:EXPCHARM)
+149:     # Modify Exp gain based on pkmn's held item
+150:     i = Battle::ItemEffects.triggerExpGainModifier(pkmn.item, pkmn, exp)
+151:     if i < 0
+152:       i = Battle::ItemEffects.triggerExpGainModifier(@initialItems[0][idxParty], pkmn, exp)
+153:     end
+154:     exp = i if i >= 0
+155:     # Boost Exp gained with high affection
+156:     if Settings::AFFECTION_EFFECTS && @internalBattle && pkmn.affection_level >= 4 && !pkmn.mega?
+157:       exp = exp * 6 / 5
+158:       isOutsider = true   # To show the "boosted Exp" message
+159:     end
+160:     # Make sure Exp doesn't exceed the maximum
+161:     expFinal = growth_rate.add_exp(pkmn.exp, exp)
+162:     expGained = expFinal - pkmn.exp
+163:     return if expGained <= 0
+164:     # "Exp gained" message
+165:     if showMessages
+166:       if isOutsider
+167:         pbDisplayPaused(_INTL("{1} got a boosted {2} Exp. Points!", pkmn.name, expGained))
+168:       else
+169:         pbDisplayPaused(_INTL("{1} got {2} Exp. Points!", pkmn.name, expGained))
+170:       end
+171:     end
+172:     curLevel = pkmn.level
+173:     newLevel = growth_rate.level_from_exp(expFinal)
+174:     if newLevel < curLevel
+175:       debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
+176:       raise _INTL("{1}'s new level is less than its current level, which shouldn't happen.", pkmn.name) + "\n[#{debugInfo}]"
+177:     end
+178:     # Give Exp
+179:     if pkmn.shadowPokemon?
+180:       if pkmn.heartStage <= 3
+181:         pkmn.exp += expGained
+182:         $stats.total_exp_gained += expGained
+183:       end
+184:       return
+185:     end
+186:     $stats.total_exp_gained += expGained
+187:     tempExp1 = pkmn.exp
+188:     battler = pbFindBattler(idxParty)
+189:     loop do   # For each level gained in turn...
+190:       # EXP Bar animation
+191:       levelMinExp = growth_rate.minimum_exp_for_level(curLevel)
+192:       levelMaxExp = growth_rate.minimum_exp_for_level(curLevel + 1)
+193:       tempExp2 = (levelMaxExp < expFinal) ? levelMaxExp : expFinal
+194:       pkmn.exp = tempExp2
+195:       @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)
+196:       tempExp1 = tempExp2
+197:       curLevel += 1
+198:       if curLevel > newLevel
+199:         # Gained all the Exp now, end the animation
+200:         pkmn.calc_stats
+201:         battler&.pbUpdate(false)
+202:         @scene.pbRefreshOne(battler.index) if battler
+203:         break
+204:       end
+205:       # Levelled up
+206:       pbCommonAnimation("LevelUp", battler) if battler
+207:       oldTotalHP = pkmn.totalhp
+208:       oldAttack  = pkmn.attack
+209:       oldDefense = pkmn.defense
+210:       oldSpAtk   = pkmn.spatk
+211:       oldSpDef   = pkmn.spdef
+212:       oldSpeed   = pkmn.speed
+213:       battler.pokemon.changeHappiness("levelup") if battler&.pokemon
+214:       pkmn.calc_stats
+215:       battler&.pbUpdate(false)
+216:       @scene.pbRefreshOne(battler.index) if battler
+217:       pbDisplayPaused(_INTL("{1} grew to Lv. {2}!", pkmn.name, curLevel)) { pbSEPlay("Pkmn level up") }
+218:       @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,
+219:                        oldSpAtk, oldSpDef, oldSpeed)
+220:       # Learn all moves learned at this level
+221:       moveList = pkmn.getMoveList
+222:       moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
+223:     end
+224:   end
+225: 
+226:   #=============================================================================
+227:   # Learning a move
+228:   #=============================================================================
+229:   def pbLearnMove(idxParty, newMove)
+230:     pkmn = pbParty(0)[idxParty]
+231:     return if !pkmn
+232:     pkmnName = pkmn.name
+233:     battler = pbFindBattler(idxParty)
+234:     moveName = GameData::Move.get(newMove).name
+235:     # Pokémon already knows the move
+236:     return if pkmn.hasMove?(newMove)
+237:     # Pokémon has space for the new move; just learn it
+238:     if pkmn.numMoves < Pokemon::MAX_MOVES
+239:       pkmn.learn_move(newMove)
+240:       pbDisplay(_INTL("{1} learned {2}!", pkmnName, moveName)) { pbSEPlay("Pkmn move learnt") }
+241:       if battler
+242:         battler.moves.push(Move.from_pokemon_move(self, pkmn.moves.last))
+243:         battler.pbCheckFormOnMovesetChange
+244:       end
+245:       return
+246:     end
+247:     # Pokémon already knows the maximum number of moves; try to forget one to learn the new move
+248:     pbDisplayPaused(_INTL("{1} wants to learn {2}, but it already knows {3} moves.",
+249:                           pkmnName, moveName, pkmn.numMoves.to_word))
+250:     if pbDisplayConfirm(_INTL("Should {1} forget a move to learn {2}?", pkmnName, moveName))
+251:       loop do
+252:         forgetMove = @scene.pbForgetMove(pkmn, newMove)
+253:         if forgetMove >= 0
+254:           oldMoveName = pkmn.moves[forgetMove].name
+255:           pkmn.moves[forgetMove] = Pokemon::Move.new(newMove)   # Replaces current/total PP
+256:           battler.moves[forgetMove] = Move.from_pokemon_move(self, pkmn.moves[forgetMove]) if battler
+257:           pbDisplayPaused(_INTL("1, 2, and... ... ... Ta-da!")) { pbSEPlay("Battle ball drop") }
+258:           pbDisplayPaused(_INTL("{1} forgot how to use {2}. And...", pkmnName, oldMoveName))
+259:           pbDisplay(_INTL("{1} learned {2}!", pkmnName, moveName)) { pbSEPlay("Pkmn move learnt") }
+260:           battler&.pbCheckFormOnMovesetChange
+261:           break
+262:         elsif pbDisplayConfirm(_INTL("Give up on learning {1}?", moveName))
+263:           pbDisplay(_INTL("{1} did not learn {2}.", pkmnName, moveName))
+264:           break
+265:         end
+266:       end
+267:     else
+268:       pbDisplay(_INTL("{1} did not learn {2}.", pkmnName, moveName))
+269:     end
+270:   end
+271: end

@@ -1,0 +1,217 @@
+901:     clonnature.sub!(/\s*$/, "")
+902:     nat = GameData::Nature.try_get(clonnature)
+903:     if !nat
+904:       raise _INTL("Undefined nature constant name: {1}.\nMake sure the nature is defined in the scripts.", nature) + "\n" + FileLineData.linereport
+905:     end
+906:     return nat.id
+907:   end
+908: 
+909:   # Unused
+910:   def parseTrainer(type)
+911:     clontype = type.clone
+912:     clontype.sub!(/^\s*/, "")
+913:     clontype.sub!(/\s*$/, "")
+914:     typ = GameData::TrainerType.try_get(clontype)
+915:     if !typ
+916:       raise _INTL("Undefined trainer type constant name: {1}.\nMake sure the trainer type is defined in PBS/trainer_types.txt.", type) + "\n" + FileLineData.linereport
+917:     end
+918:     return typ.id
+919:   end
+920: 
+921:   #=============================================================================
+922:   # Replace text in PBS files before compiling them
+923:   #=============================================================================
+924:   def edit_and_rewrite_pbs_file_text(filename)
+925:     return if !block_given?
+926:     lines = []
+927:     File.open(filename, "rb") do |f|
+928:       f.each_line { |line| lines.push(line) }
+929:     end
+930:     changed = false
+931:     lines.each { |line| changed = true if yield line }
+932:     if changed
+933:       Console.markup_style("Changes made to file #{filename}.", text: :yellow)
+934:       File.open(filename, "wb") do |f|
+935:         lines.each { |line| f.write(line) }
+936:       end
+937:     end
+938:   end
+939: 
+940:   def modify_pbs_file_contents_before_compiling
+941:     edit_and_rewrite_pbs_file_text("PBS/trainer_types.txt") do |line|
+942:       next line.gsub!(/^\s*VictoryME\s*=/, "VictoryBGM =")
+943:     end
+944:     edit_and_rewrite_pbs_file_text("PBS/moves.txt") do |line|
+945:       next line.gsub!(/^\s*BaseDamage\s*=/, "Power =")
+946:     end
+947:   end
+948: 
+949:   #=============================================================================
+950:   # Compile all data
+951:   #=============================================================================
+952:   def compile_pbs_file_message_start(filename)
+953:     # The `` around the file's name turns it cyan
+954:     Console.echo_li(_INTL("Compiling PBS file `{1}`...", filename.split("/").last))
+955:   end
+956: 
+957:   def write_pbs_file_message_start(filename)
+958:     # The `` around the file's name turns it cyan
+959:     Console.echo_li(_INTL("Writing PBS file `{1}`...", filename.split("/").last))
+960:   end
+961: 
+962:   def process_pbs_file_message_end
+963:     Console.echo_done(true)
+964:     Graphics.update
+965:   end
+966: 
+967:   def get_all_pbs_files_to_compile
+968:     # Get the GameData classes and their respective base PBS filenames
+969:     ret = GameData.get_all_pbs_base_filenames
+970:     ret.merge!({
+971:       :BattleFacility => "battle_facility_lists",
+972:       :Connection     => "map_connections",
+973:       :RegionalDex    => "regional_dexes"
+974:     })
+975:     ret.each { |key, val| ret[key] = [val] }   # [base_filename, ["PBS/file.txt", etc.]]
+976:     # Look through all PBS files and match them to a GameData class based on
+977:     # their base filenames
+978:     text_files_keys = ret.keys.sort! { |a, b| ret[b][0].length <=> ret[a][0].length }
+979:     Dir.chdir("PBS/") do
+980:       Dir.glob("*.txt") do |f|
+981:         base_name = File.basename(f, ".txt")
+982:         text_files_keys.each do |key|
+983:           next if base_name != ret[key][0] && !f.start_with?(ret[key][0] + "_")
+984:           ret[key][1] ||= []
+985:           ret[key][1].push("PBS/" + f)
+986:           break
+987:         end
+988:       end
+989:     end
+990:     return ret
+991:   end
+992: 
+993:   def compile_pbs_files
+994:     text_files = get_all_pbs_files_to_compile
+995:     modify_pbs_file_contents_before_compiling
+996:     compile_town_map(*text_files[:TownMap][1])
+997:     compile_connections(*text_files[:Connection][1])
+998:     compile_types(*text_files[:Type][1])
+999:     compile_abilities(*text_files[:Ability][1])
+1000:     compile_moves(*text_files[:Move][1])                       # Depends on Type
+1001:     compile_items(*text_files[:Item][1])                       # Depends on Move
+1002:     compile_berry_plants(*text_files[:BerryPlant][1])          # Depends on Item
+1003:     compile_pokemon(*text_files[:Species][1])                  # Depends on Move, Item, Type, Ability
+1004:     compile_pokemon_forms(*text_files[:Species1][1])           # Depends on Species, Move, Item, Type, Ability
+1005:     compile_pokemon_metrics(*text_files[:SpeciesMetrics][1])   # Depends on Species
+1006:     compile_shadow_pokemon(*text_files[:ShadowPokemon][1])     # Depends on Species
+1007:     compile_regional_dexes(*text_files[:RegionalDex][1])       # Depends on Species
+1008:     compile_ribbons(*text_files[:Ribbon][1])
+1009:     compile_encounters(*text_files[:Encounter][1])             # Depends on Species
+1010:     compile_trainer_types(*text_files[:TrainerType][1])
+1011:     compile_trainers(*text_files[:Trainer][1])                 # Depends on Species, Item, Move
+1012:     compile_trainer_lists                                      # Depends on TrainerType
+1013:     compile_metadata(*text_files[:Metadata][1])                # Depends on TrainerType
+1014:     compile_map_metadata(*text_files[:MapMetadata][1])
+1015:     compile_dungeon_tilesets(*text_files[:DungeonTileset][1])
+1016:     compile_dungeon_parameters(*text_files[:DungeonParameters][1])
+1017:     compile_phone(*text_files[:PhoneMessage][1])               # Depends on TrainerType
+1018:   end
+1019: 
+1020:   def compile_all(mustCompile)
+1021:     Console.echo_h1(_INTL("Checking game data"))
+1022:     if !mustCompile
+1023:       Console.echoln_li(_INTL("Game data was not compiled"))
+1024:       echoln ""
+1025:       return
+1026:     end
+1027:     FileLineData.clear
+1028:     compile_pbs_files
+1029:     compile_animations
+1030:     compile_trainer_events(mustCompile)
+1031:     Console.echo_li(_INTL("Saving messages..."))
+1032:     Translator.gather_script_and_event_texts
+1033:     MessageTypes.save_default_messages
+1034:     MessageTypes.load_default_messages if FileTest.exist?("Data/messages_core.dat")
+1035:     Console.echo_done(true)
+1036:     Console.echoln_li_done(_INTL("Successfully compiled all game data"))
+1037:   end
+1038: 
+1039:   def main
+1040:     return if !$DEBUG
+1041:     begin
+1042:       mustCompile = false
+1043:       # If no PBS file, create one and fill it, then recompile
+1044:       if !FileTest.directory?("PBS")
+1045:         Dir.mkdir("PBS") rescue nil
+1046:         GameData.load_all
+1047:         write_all
+1048:         mustCompile = true
+1049:       end
+1050:       # Get all data files and PBS files to be checked for their last modified times
+1051:       data_files = GameData.get_all_data_filenames
+1052:       data_files += [   # Extra .dat files for data that isn't a GameData class
+1053:         ["map_connections.dat", true],
+1054:         ["regional_dexes.dat", true],
+1055:         ["trainer_lists.dat", true]
+1056:       ]
+1057:       text_files = get_all_pbs_files_to_compile
+1058:       latestDataTime = 0
+1059:       latestTextTime = 0
+1060:       # Should recompile if new maps were imported
+1061:       mustCompile |= import_new_maps
+1062:       # Check data files for their latest modify time
+1063:       data_files.each do |filename|   # filename = [string, boolean (whether mandatory)]
+1064:         if FileTest.exist?("Data/" + filename[0])
+1065:           begin
+1066:             File.open("Data/#{filename[0]}") do |file|
+1067:               latestDataTime = [latestDataTime, file.mtime.to_i].max
+1068:             end
+1069:           rescue SystemCallError
+1070:             mustCompile = true
+1071:           end
+1072:         elsif filename[1]
+1073:           mustCompile = true
+1074:           break
+1075:         end
+1076:       end
+1077:       # Check PBS files for their latest modify time
+1078:       text_files.each do |key, value|
+1079:         next if !value || !value[1].is_a?(Array)
+1080:         value[1].each do |filepath|
+1081:           begin
+1082:             File.open(filepath) { |file| latestTextTime = [latestTextTime, file.mtime.to_i].max }
+1083:           rescue SystemCallError
+1084:           end
+1085:         end
+1086:       end
+1087:       # Decide to compile if a PBS file was edited more recently than any .dat files
+1088:       mustCompile |= (latestTextTime >= latestDataTime)
+1089:       # Should recompile if holding Ctrl
+1090:       Input.update
+1091:       mustCompile = true if $full_compile || Input.press?(Input::CTRL)
+1092:       # Delete old data files in preparation for recompiling
+1093:       if mustCompile
+1094:         data_files.each do |filename|
+1095:           begin
+1096:             File.delete("Data/#{filename[0]}") if FileTest.exist?("Data/#{filename[0]}")
+1097:           rescue SystemCallError
+1098:           end
+1099:         end
+1100:       end
+1101:       # Recompile all data
+1102:       compile_all(mustCompile)
+1103:     rescue Exception
+1104:       e = $!
+1105:       raise e if e.class.to_s == "Reset" || e.is_a?(Reset) || e.is_a?(SystemExit)
+1106:       pbPrintException(e)
+1107:       data_files.each do |filename|
+1108:         begin
+1109:           File.delete("Data/#{filename[0]}") if FileTest.exist?("Data/#{filename[0]}")
+1110:         rescue SystemCallError
+1111:         end
+1112:       end
+1113:       raise Reset.new if e.is_a?(Hangup)
+1114:       raise "Unknown exception when compiling."
+1115:     end
+1116:   end
+1117: end

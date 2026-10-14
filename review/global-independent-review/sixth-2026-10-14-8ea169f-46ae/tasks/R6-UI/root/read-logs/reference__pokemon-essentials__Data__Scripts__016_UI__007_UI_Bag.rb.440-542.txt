@@ -1,0 +1,104 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/007_UI_Bag.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [440, 542], "total_lines": 704, "sha256": "2699b59e43db3bda38b565114b56bc55f9d5ecfc7f824f4f7c09cd3ef8012ce8", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:45:47.638626+00:00"}
+440:               pbRefresh
+441:             end
+442:           elsif Input.trigger?(Input::BACK)   # Cancel the item screen
+443:             pbPlayCloseMenuSE
+444:             return nil
+445:           elsif Input.trigger?(Input::USE)   # Choose selected item
+446:             (itemwindow.item) ? pbPlayDecisionSE : pbPlayCloseMenuSE
+447:             return itemwindow.item
+448:           end
+449:         end
+450:       end
+451:     end
+452:   end
+453: end
+454: 
+455: #===============================================================================
+456: # Bag mechanics
+457: #===============================================================================
+458: class PokemonBagScreen
+459:   def initialize(scene, bag)
+460:     @bag   = bag
+461:     @scene = scene
+462:   end
+463: 
+464:   def pbStartScreen
+465:     @scene.pbStartScene(@bag)
+466:     item = nil
+467:     loop do
+468:       item = @scene.pbChooseItem
+469:       break if !item
+470:       itm = GameData::Item.get(item)
+471:       cmdRead     = -1
+472:       cmdUse      = -1
+473:       cmdRegister = -1
+474:       cmdGive     = -1
+475:       cmdToss     = -1
+476:       cmdDebug    = -1
+477:       commands = []
+478:       # Generate command list
+479:       commands[cmdRead = commands.length] = _INTL("Read") if itm.is_mail?
+480:       if ItemHandlers.hasOutHandler(item) || (itm.is_machine? && $player.party.length > 0)
+481:         if ItemHandlers.hasUseText(item)
+482:           commands[cmdUse = commands.length]    = ItemHandlers.getUseText(item)
+483:         else
+484:           commands[cmdUse = commands.length]    = _INTL("Use")
+485:         end
+486:       end
+487:       commands[cmdGive = commands.length]       = _INTL("Give") if $player.pokemon_party.length > 0 && itm.can_hold?
+488:       commands[cmdToss = commands.length]       = _INTL("Toss") if !itm.is_important? || $DEBUG
+489:       if @bag.registered?(item)
+490:         commands[cmdRegister = commands.length] = _INTL("Deselect")
+491:       elsif pbCanRegisterItem?(item)
+492:         commands[cmdRegister = commands.length] = _INTL("Register")
+493:       end
+494:       commands[cmdDebug = commands.length]      = _INTL("Debug") if $DEBUG
+495:       commands[commands.length]                 = _INTL("Cancel")
+496:       # Show commands generated above
+497:       itemname = itm.name
+498:       command = @scene.pbShowCommands(_INTL("{1} is selected.", itemname), commands)
+499:       if cmdRead >= 0 && command == cmdRead   # Read mail
+500:         pbFadeOutIn do
+501:           pbDisplayMail(Mail.new(item, "", ""))
+502:         end
+503:       elsif cmdUse >= 0 && command == cmdUse   # Use item
+504:         ret = pbUseItem(@bag, item, @scene)
+505:         # ret: 0=Item wasn't used; 1=Item used; 2=Close Bag to use in field
+506:         break if ret == 2   # End screen
+507:         @scene.pbRefresh
+508:         next
+509:       elsif cmdGive >= 0 && command == cmdGive   # Give item to Pokémon
+510:         if $player.pokemon_count == 0
+511:           @scene.pbDisplay(_INTL("There is no Pokémon."))
+512:         elsif itm.is_important?
+513:           @scene.pbDisplay(_INTL("The {1} can't be held.", itm.portion_name))
+514:         else
+515:           pbFadeOutIn do
+516:             sscene = PokemonParty_Scene.new
+517:             sscreen = PokemonPartyScreen.new(sscene, $player.party)
+518:             sscreen.pbPokemonGiveScreen(item)
+519:             @scene.pbRefresh
+520:           end
+521:         end
+522:       elsif cmdToss >= 0 && command == cmdToss   # Toss item
+523:         qty = @bag.quantity(item)
+524:         if qty > 1
+525:           helptext = _INTL("Toss out how many {1}?", itm.portion_name_plural)
+526:           qty = @scene.pbChooseNumber(helptext, qty)
+527:         end
+528:         if qty > 0
+529:           itemname = (qty > 1) ? itm.portion_name_plural : itm.portion_name
+530:           if pbConfirm(_INTL("Is it OK to throw away {1} {2}?", qty, itemname))
+531:             pbDisplay(_INTL("Threw away {1} {2}.", qty, itemname))
+532:             qty.times { @bag.remove(item) }
+533:             @scene.pbRefresh
+534:           end
+535:         end
+536:       elsif cmdRegister >= 0 && command == cmdRegister   # Register item
+537:         if @bag.registered?(item)
+538:           @bag.unregister(item)
+539:         else
+540:           @bag.register(item)
+541:         end
+542:         @scene.pbRefresh

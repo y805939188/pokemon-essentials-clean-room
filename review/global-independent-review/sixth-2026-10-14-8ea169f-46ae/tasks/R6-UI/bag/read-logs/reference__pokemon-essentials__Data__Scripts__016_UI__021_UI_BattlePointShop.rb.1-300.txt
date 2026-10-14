@@ -1,0 +1,301 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/021_UI_BattlePointShop.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 300], "total_lines": 525, "sha256": "7304f4f212f523e414852032b1e2a313628f89602da76ef45b3ed79011335873", "owner": "bag", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:26.478552+00:00"}
+1: #===============================================================================
+2: # Abstraction layer for Pokemon Essentials
+3: #===============================================================================
+4: class BattlePointShopAdapter
+5:   def getBP
+6:     return $player.battle_points
+7:   end
+8: 
+9:   def getBPString
+10:     return _INTL("{1} BP", $player.battle_points.to_s_formatted)
+11:   end
+12: 
+13:   def setBP(value)
+14:     $player.battle_points = value
+15:   end
+16: 
+17:   def getInventory
+18:     return $bag
+19:   end
+20: 
+21:   def getName(item)
+22:     return GameData::Item.get(item).portion_name
+23:   end
+24: 
+25:   def getNamePlural(item)
+26:     return GameData::Item.get(item).portion_name_plural
+27:   end
+28: 
+29:   def getDisplayName(item)
+30:     item_name = GameData::Item.get(item).name
+31:     if GameData::Item.get(item).is_machine?
+32:       machine = GameData::Item.get(item).move
+33:       item_name = _INTL("{1} {2}", item_name, GameData::Move.get(machine).name)
+34:     end
+35:     return item_name
+36:   end
+37: 
+38:   def getDisplayNamePlural(item)
+39:     item_name_plural = GameData::Item.get(item).name_plural
+40:     if GameData::Item.get(item).is_machine?
+41:       machine = GameData::Item.get(item).move
+42:       item_name_plural = _INTL("{1} {2}", item_name_plural, GameData::Move.get(machine).name)
+43:     end
+44:     return item_name_plural
+45:   end
+46: 
+47:   def getDescription(item)
+48:     return GameData::Item.get(item).description
+49:   end
+50: 
+51:   def getItemIcon(item)
+52:     return (item) ? GameData::Item.icon_filename(item) : nil
+53:   end
+54: 
+55:   # Unused
+56:   def getItemIconRect(_item)
+57:     return Rect.new(0, 0, 48, 48)
+58:   end
+59: 
+60:   def getQuantity(item)
+61:     return $bag.quantity(item)
+62:   end
+63: 
+64:   def showQuantity?(item)
+65:     return !GameData::Item.get(item).is_important?
+66:   end
+67: 
+68:   def getPrice(item)
+69:     if $game_temp.mart_prices && $game_temp.mart_prices[item]
+70:       if $game_temp.mart_prices[item][0] > 0
+71:         return $game_temp.mart_prices[item][0]
+72:       end
+73:     end
+74:     return GameData::Item.get(item).bp_price
+75:   end
+76: 
+77:   def getDisplayPrice(item, selling = false)
+78:     price = getPrice(item).to_s_formatted
+79:     return _INTL("{1} BP", price)
+80:   end
+81: 
+82:   def addItem(item)
+83:     return $bag.add(item)
+84:   end
+85: 
+86:   def removeItem(item)
+87:     return $bag.remove(item)
+88:   end
+89: end
+90: 
+91: #===============================================================================
+92: # Battle Point Shop
+93: #===============================================================================
+94: class Window_BattlePointShop < Window_DrawableCommand
+95:   def initialize(stock, adapter, x, y, width, height, viewport = nil)
+96:     @stock       = stock
+97:     @adapter     = adapter
+98:     super(x, y, width, height, viewport)
+99:     @selarrow    = AnimatedBitmap.new("Graphics/UI/Mart/cursor")
+100:     @baseColor   = Color.new(88, 88, 80)
+101:     @shadowColor = Color.new(168, 184, 184)
+102:     self.windowskin = nil
+103:   end
+104: 
+105:   def itemCount
+106:     return @stock.length + 1
+107:   end
+108: 
+109:   def item
+110:     return (self.index >= @stock.length) ? nil : @stock[self.index]
+111:   end
+112: 
+113:   def drawItem(index, count, rect)
+114:     textpos = []
+115:     rect = drawCursor(index, rect)
+116:     ypos = rect.y
+117:     if index == count - 1
+118:       textpos.push([_INTL("CANCEL"), rect.x, ypos + 2, :left, self.baseColor, self.shadowColor])
+119:     else
+120:       item = @stock[index]
+121:       itemname = @adapter.getDisplayName(item)
+122:       qty = @adapter.getDisplayPrice(item)
+123:       sizeQty = self.contents.text_size(qty).width
+124:       xQty = rect.x + rect.width - sizeQty - 2 - 16
+125:       textpos.push([itemname, rect.x, ypos + 2, :left, self.baseColor, self.shadowColor])
+126:       textpos.push([qty, xQty, ypos + 2, :left, self.baseColor, self.shadowColor])
+127:     end
+128:     pbDrawTextPositions(self.contents, textpos)
+129:   end
+130: end
+131: 
+132: #===============================================================================
+133: #
+134: #===============================================================================
+135: class BattlePointShop_Scene
+136:   def update
+137:     pbUpdateSpriteHash(@sprites)
+138:     @subscene&.pbUpdate
+139:   end
+140: 
+141:   def pbRefresh
+142:     if @subscene
+143:       @subscene.pbRefresh
+144:     else
+145:       itemwindow = @sprites["itemwindow"]
+146:       @sprites["icon"].item = itemwindow.item
+147:       @sprites["itemtextwindow"].text =
+148:         (itemwindow.item) ? @adapter.getDescription(itemwindow.item) : _INTL("Quit shopping.")
+149:       @sprites["qtywindow"].visible = !itemwindow.item.nil?
+150:       @sprites["qtywindow"].text    = _INTL("In Bag:<r>{1}", @adapter.getQuantity(itemwindow.item))
+151:       @sprites["qtywindow"].y       = Graphics.height - 102 - @sprites["qtywindow"].height
+152:       itemwindow.refresh
+153:     end
+154:     @sprites["battlepointwindow"].text = _INTL("Battle Points:\n<r>{1}", @adapter.getBPString)
+155:   end
+156: 
+157:   def pbStartScene(stock, adapter)
+158:     # Scroll right before showing screen
+159:     pbScrollMap(6, 5, 5)
+160:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+161:     @viewport.z = 99999
+162:     @stock = stock
+163:     @adapter = adapter
+164:     @sprites = {}
+165:     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+166:     @sprites["background"].setBitmap("Graphics/UI/Mart/bg")
+167:     @sprites["icon"] = ItemIconSprite.new(36, Graphics.height - 50, nil, @viewport)
+168:     winAdapter = BattlePointShopAdapter.new
+169:     @sprites["itemwindow"] = Window_BattlePointShop.new(
+170:       stock, winAdapter, Graphics.width - 316 - 16, 10, 330 + 16, Graphics.height - 124
+171:     )
+172:     @sprites["itemwindow"].viewport = @viewport
+173:     @sprites["itemwindow"].index = 0
+174:     @sprites["itemwindow"].refresh
+175:     @sprites["itemtextwindow"] = Window_UnformattedTextPokemon.newWithSize(
+176:       "", 64, Graphics.height - 96 - 16, Graphics.width - 64, 128, @viewport
+177:     )
+178:     pbPrepareWindow(@sprites["itemtextwindow"])
+179:     @sprites["itemtextwindow"].baseColor = Color.new(248, 248, 248)
+180:     @sprites["itemtextwindow"].shadowColor = Color.new(0, 0, 0)
+181:     @sprites["itemtextwindow"].windowskin = nil
+182:     @sprites["helpwindow"] = Window_AdvancedTextPokemon.new("")
+183:     pbPrepareWindow(@sprites["helpwindow"])
+184:     @sprites["helpwindow"].visible = false
+185:     @sprites["helpwindow"].viewport = @viewport
+186:     pbBottomLeftLines(@sprites["helpwindow"], 1)
+187:     @sprites["battlepointwindow"] = Window_AdvancedTextPokemon.new("")
+188:     pbPrepareWindow(@sprites["battlepointwindow"])
+189:     @sprites["battlepointwindow"].setSkin("Graphics/Windowskins/goldskin")
+190:     @sprites["battlepointwindow"].visible = true
+191:     @sprites["battlepointwindow"].viewport = @viewport
+192:     @sprites["battlepointwindow"].x = 0
+193:     @sprites["battlepointwindow"].y = 0
+194:     @sprites["battlepointwindow"].width = 190
+195:     @sprites["battlepointwindow"].height = 96
+196:     @sprites["battlepointwindow"].baseColor = Color.new(88, 88, 80)
+197:     @sprites["battlepointwindow"].shadowColor = Color.new(168, 184, 184)
+198:     @sprites["qtywindow"] = Window_AdvancedTextPokemon.new("")
+199:     pbPrepareWindow(@sprites["qtywindow"])
+200:     @sprites["qtywindow"].setSkin("Graphics/Windowskins/goldskin")
+201:     @sprites["qtywindow"].viewport = @viewport
+202:     @sprites["qtywindow"].width = 190
+203:     @sprites["qtywindow"].height = 64
+204:     @sprites["qtywindow"].baseColor = Color.new(88, 88, 80)
+205:     @sprites["qtywindow"].shadowColor = Color.new(168, 184, 184)
+206:     @sprites["qtywindow"].text = _INTL("In Bag:<r>{1}", @adapter.getQuantity(@sprites["itemwindow"].item))
+207:     @sprites["qtywindow"].y = Graphics.height - 102 - @sprites["qtywindow"].height
+208:     pbDeactivateWindows(@sprites)
+209:     pbRefresh
+210:     Graphics.frame_reset
+211:   end
+212: 
+213:   def pbEndScene
+214:     pbDisposeSpriteHash(@sprites)
+215:     @viewport.dispose
+216:     # Scroll left after showing screen
+217:     pbScrollMap(4, 5, 5)
+218:   end
+219: 
+220:   def pbPrepareWindow(window)
+221:     window.visible = true
+222:     window.letterbyletter = false
+223:   end
+224: 
+225:   def pbShowBattlePoints
+226:     pbRefresh
+227:     @sprites["battlepointwindow"].visible = true
+228:   end
+229: 
+230:   def pbHideBattlePoints
+231:     pbRefresh
+232:     @sprites["battlepointwindow"].visible = false
+233:   end
+234: 
+235:   def pbShowQuantity
+236:     pbRefresh
+237:     @sprites["qtywindow"].visible = true
+238:   end
+239: 
+240:   def pbHideQuantity
+241:     pbRefresh
+242:     @sprites["qtywindow"].visible = false
+243:   end
+244: 
+245:   def pbDisplay(msg, brief = false)
+246:     cw = @sprites["helpwindow"]
+247:     cw.letterbyletter = true
+248:     cw.text = msg
+249:     pbBottomLeftLines(cw, 2)
+250:     cw.visible = true
+251:     pbPlayDecisionSE
+252:     refreshed_after_busy = false
+253:     timer_start = System.uptime
+254:     loop do
+255:       Graphics.update
+256:       Input.update
+257:       self.update
+258:       if !cw.busy?
+259:         return if brief
+260:         if !refreshed_after_busy
+261:           pbRefresh
+262:           timer_start = System.uptime
+263:           refreshed_after_busy = true
+264:         end
+265:       end
+266:       if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+267:         cw.resume if cw.busy?
+268:       end
+269:       return if refreshed_after_busy && System.uptime - timer_start >= 1.5
+270:     end
+271:   end
+272: 
+273:   def pbDisplayPaused(msg)
+274:     cw = @sprites["helpwindow"]
+275:     cw.letterbyletter = true
+276:     cw.text = msg
+277:     pbBottomLeftLines(cw, 2)
+278:     cw.visible = true
+279:     yielded = false
+280:     pbPlayDecisionSE
+281:     loop do
+282:       Graphics.update
+283:       Input.update
+284:       wasbusy = cw.busy?
+285:       self.update
+286:       if !cw.busy? && !yielded
+287:         yield if block_given?   # For playing SE as soon as the message is all shown
+288:         yielded = true
+289:       end
+290:       pbRefresh if !cw.busy? && wasbusy
+291:       if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+292:         if cw.resume && !cw.busy?
+293:           @sprites["helpwindow"].visible = false
+294:           break
+295:         end
+296:       end
+297:     end
+298:   end
+299: 
+300:   def pbConfirm(msg)

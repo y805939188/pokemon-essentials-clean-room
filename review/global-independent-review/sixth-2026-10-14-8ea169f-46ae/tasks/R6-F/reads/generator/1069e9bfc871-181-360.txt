@@ -1,0 +1,181 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/001_Battle Frontier/001_Challenge_BattleChallenge.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "36aa3fbfbbd205fdd8cd9ac94c400e9f6fb4fe8d", "sha256": "f0417a0440747730bceeb9f0778534ddaf68f1dfc1a2119e641ab3ed973fb5b8", "start_line": 181, "end_line": 360, "total_lines": 429, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:53:20.555555+00:00"}
+181: class BattleChallengeData
+182:   attr_reader   :battleNumber
+183:   attr_reader   :numRounds
+184:   attr_reader   :party
+185:   attr_reader   :inProgress
+186:   attr_reader   :resting
+187:   attr_reader   :wins
+188:   attr_reader   :swaps
+189:   attr_accessor :decision
+190:   attr_reader   :extraData
+191: 
+192:   def initialize
+193:     reset
+194:   end
+195: 
+196:   def setExtraData(value)
+197:     @extraData = value
+198:   end
+199: 
+200:   def setParty(value)
+201:     $player.party = value if @inProgress
+202:     @party = value
+203:   end
+204: 
+205:   def pbStart(t, numRounds)
+206:     @inProgress   = true
+207:     @resting      = false
+208:     @decision     = 0
+209:     @swaps        = t.currentSwaps
+210:     @wins         = t.currentWins
+211:     @battleNumber = 1
+212:     @trainers     = []
+213:     raise _INTL("Number of rounds is 0 or less.") if numRounds <= 0
+214:     @numRounds = numRounds
+215:     # Get all the trainers for the next set of battles
+216:     btTrainers = pbGetBTTrainers(pbBattleChallenge.currentChallenge)
+217:     while @trainers.length < @numRounds
+218:       newtrainer = pbBattleChallengeTrainer(@wins + @trainers.length, btTrainers)
+219:       found = false
+220:       @trainers.each do |tr|
+221:         found = true if tr == newtrainer
+222:       end
+223:       @trainers.push(newtrainer) if !found
+224:     end
+225:     @start = [$game_map.map_id, $game_player.x, $game_player.y]
+226:     @oldParty = $player.party
+227:     $player.party = @party if @party
+228:     Game.save(safe: true)
+229:   end
+230: 
+231:   def pbGoToStart
+232:     if $scene.is_a?(Scene_Map)
+233:       $game_temp.player_transferring  = true
+234:       $game_temp.player_new_map_id    = @start[0]
+235:       $game_temp.player_new_x         = @start[1]
+236:       $game_temp.player_new_y         = @start[2]
+237:       $game_temp.player_new_direction = 8
+238:       pbDismountBike
+239:       $scene.transfer_player
+240:     end
+241:   end
+242: 
+243:   def pbAddWin
+244:     return if !@inProgress
+245:     @battleNumber += 1
+246:     @wins += 1
+247:   end
+248: 
+249:   def pbAddSwap
+250:     @swaps += 1 if @inProgress
+251:   end
+252: 
+253:   def pbMatchOver?
+254:     return true if !@inProgress || @decision != 0
+255:     return @battleNumber > @numRounds
+256:   end
+257: 
+258:   def pbRest
+259:     return if !@inProgress
+260:     @resting = true
+261:     pbSaveInProgress
+262:   end
+263: 
+264:   def pbGoOn
+265:     return if !@inProgress
+266:     @resting = false
+267:     pbSaveInProgress
+268:   end
+269: 
+270:   def pbCancel
+271:     $player.party = @oldParty if @oldParty
+272:     reset
+273:   end
+274: 
+275:   def pbEnd
+276:     $player.party = @oldParty
+277:     return if !@inProgress
+278:     save = (@decision != 0)
+279:     reset
+280:     $game_map.need_refresh = true
+281:     Game.save(safe: true) if save
+282:   end
+283: 
+284:   def nextTrainer
+285:     return @trainers[@battleNumber - 1]
+286:   end
+287: 
+288:   #-----------------------------------------------------------------------------
+289: 
+290:   private
+291: 
+292:   def reset
+293:     @inProgress   = false
+294:     @resting      = false
+295:     @start        = nil
+296:     @decision     = 0
+297:     @wins         = 0
+298:     @swaps        = 0
+299:     @battleNumber = 0
+300:     @trainers     = []
+301:     @oldParty     = nil
+302:     @party        = nil
+303:     @extraData    = nil
+304:   end
+305: 
+306:   def pbSaveInProgress
+307:     oldmapid     = $game_map.map_id
+308:     oldx         = $game_player.x
+309:     oldy         = $game_player.y
+310:     olddirection = $game_player.direction
+311:     $game_map.map_id = @start[0]
+312:     $game_player.moveto2(@start[1], @start[2])
+313:     $game_player.direction = 8   # facing up
+314:     Game.save(safe: true)
+315:     $game_map.map_id = oldmapid
+316:     $game_player.moveto2(oldx, oldy)
+317:     $game_player.direction = olddirection
+318:   end
+319: end
+320: 
+321: #===============================================================================
+322: #
+323: #===============================================================================
+324: class BattleChallengeType
+325:   attr_accessor :currentWins
+326:   attr_accessor :previousWins
+327:   attr_accessor :maxWins
+328:   attr_accessor :currentSwaps
+329:   attr_accessor :previousSwaps
+330:   attr_accessor :maxSwaps
+331:   attr_reader   :doublebattle
+332:   attr_reader   :numPokemon
+333:   attr_reader   :battletype
+334:   attr_reader   :mode
+335: 
+336:   def initialize
+337:     @previousWins  = 0
+338:     @maxWins       = 0
+339:     @currentWins   = 0
+340:     @currentSwaps  = 0
+341:     @previousSwaps = 0
+342:     @maxSwaps      = 0
+343:   end
+344: 
+345:   def saveWins(challenge)
+346:     if challenge.decision == 0     # if undecided
+347:       @currentWins  = 0
+348:       @currentSwaps = 0
+349:     else
+350:       if challenge.decision == 1   # if won
+351:         @currentWins  = challenge.wins
+352:         @currentSwaps = challenge.swaps
+353:       else                       # if lost
+354:         @currentWins  = 0
+355:         @currentSwaps = 0
+356:       end
+357:       @maxWins       = [@maxWins, challenge.wins].max
+358:       @previousWins  = challenge.wins
+359:       @maxSwaps      = [@maxSwaps, challenge.swaps].max
+360:       @previousSwaps = challenge.swaps

@@ -1,0 +1,52 @@
+280: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("BurnTarget",
+281:   proc { |move, user, target, ai, battle|
+282:     next move.statusMove? && !target.battler.pbCanBurn?(user.battler, false, move.move)
+283:   }
+284: )
+285: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("BurnTarget",
+286:   proc { |score, move, user, target, ai, battle|
+287:     useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+288:     # No score modifier if the burn will be removed immediately
+289:     next useless_score if target.has_active_item?([:RAWSTBERRY, :LUMBERRY])
+290:     next useless_score if target.faster_than?(user) &&
+291:                           target.has_active_ability?(:HYDRATION) &&
+292:                           [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+293:     if target.battler.pbCanBurn?(user.battler, false, move.move)
+294:       add_effect = move.get_score_change_for_additional_effect(user, target)
+295:       next useless_score if add_effect == -999   # Additional effect will be negated
+296:       score += add_effect
+297:       # Inherent preference
+298:       score += 15
+299:       # Prefer if the target knows any physical moves that will be weaked by a burn
+300:       if !target.has_active_ability?(:GUTS) && target.check_for_move { |m| m.physicalMove? }
+301:         score += 8
+302:         score += 8 if !target.check_for_move { |m| m.specialMove? }
+303:       end
+304:       # Prefer if the user or an ally has a move/ability that is better if the target is burned
+305:       ai.each_same_side_battler(user.side) do |b, i|
+306:         score += 5 if b.has_move_with_function?("DoublePowerIfTargetStatusProblem")
+307:       end
+308:       # Don't prefer if target benefits from having the burn status problem
+309:       score -= 8 if target.has_active_ability?([:FLAREBOOST, :GUTS, :MARVELSCALE, :QUICKFEET])
+310:       score -= 5 if target.has_active_ability?(:HEATPROOF)
+311:       score -= 20 if target.has_active_ability?(:SYNCHRONIZE) &&
+312:                      user.battler.pbCanBurnSynchronize?(target.battler)
+313:       score -= 5 if target.has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed",
+314:                                                    "CureUserBurnPoisonParalysis")
+315:       score -= 15 if target.check_for_move { |m|
+316:         m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanBurn?(target.battler, false, m)
+317:       }
+318:       # Don't prefer if the target won't take damage from the burn
+319:       score -= 20 if !target.battler.takesIndirectDamage?
+320:       # Don't prefer if the target can heal itself (or be healed by an ally)
+321:       if target.has_active_ability?(:SHEDSKIN)
+322:         score -= 8
+323:       elsif target.has_active_ability?(:HYDRATION) &&
+324:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+325:         score -= 15
+326:       end
+327:       ai.each_same_side_battler(target.side) do |b, i|
+328:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+329:       end
+330:     end
+331:     next score

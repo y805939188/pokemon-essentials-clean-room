@@ -1,0 +1,118 @@
+1: #===============================================================================
+2: # The Bag object, which actually contains all the items.
+3: #===============================================================================
+4: class PokemonBag
+5:   attr_reader   :pockets
+6:   attr_accessor :last_viewed_pocket
+7:   attr_accessor :last_pocket_selections
+8:   attr_reader   :registered_items
+9:   attr_reader   :ready_menu_selection
+10: 
+11:   def self.pocket_names
+12:     return Settings.bag_pocket_names
+13:   end
+14: 
+15:   def self.pocket_count
+16:     return self.pocket_names.length
+17:   end
+18: 
+19:   def initialize
+20:     @pockets = []
+21:     (0..PokemonBag.pocket_count).each { |i| @pockets[i] = [] }
+22:     reset_last_selections
+23:     @registered_items = []
+24:     @ready_menu_selection = [0, 0, 1]   # Used by the Ready Menu to remember cursor positions
+25:   end
+26: 
+27:   def reset_last_selections
+28:     @last_viewed_pocket = 1
+29:     @last_pocket_selections ||= []
+30:     (0..PokemonBag.pocket_count).each { |i| @last_pocket_selections[i] = 0 }
+31:   end
+32: 
+33:   def clear
+34:     @pockets.each { |pocket| pocket.clear }
+35:     (PokemonBag.pocket_count + 1).times { |i| @last_pocket_selections[i] = 0 }
+36:   end
+37: 
+38:   #-----------------------------------------------------------------------------
+39: 
+40:   # Gets the index of the current selected item in the pocket
+41:   def last_viewed_index(pocket)
+42:     if pocket <= 0 || pocket > PokemonBag.pocket_count
+43:       raise ArgumentError.new(_INTL("Invalid pocket: {1}", pocket.inspect))
+44:     end
+45:     return [@last_pocket_selections[pocket], @pockets[pocket].length].min || 0
+46:   end
+47: 
+48:   # Sets the index of the current selected item in the pocket
+49:   def set_last_viewed_index(pocket, value)
+50:     if pocket <= 0 || pocket > PokemonBag.pocket_count
+51:       raise ArgumentError.new(_INTL("Invalid pocket: {1}", pocket.inspect))
+52:     end
+53:     @last_pocket_selections[pocket] = value if value <= @pockets[pocket].length
+54:   end
+55: 
+56:   #-----------------------------------------------------------------------------
+57: 
+58:   def quantity(item)
+59:     item_data = GameData::Item.try_get(item)
+60:     return 0 if !item_data
+61:     pocket = item_data.pocket
+62:     return ItemStorageHelper.quantity(@pockets[pocket], item_data.id)
+63:   end
+64: 
+65:   def has?(item, qty = 1)
+66:     return quantity(item) >= qty
+67:   end
+68:   alias can_remove? has?
+69: 
+70:   def can_add?(item, qty = 1)
+71:     item_data = GameData::Item.try_get(item)
+72:     return false if !item_data
+73:     pocket = item_data.pocket
+74:     max_size = max_pocket_size(pocket)
+75:     max_size = @pockets[pocket].length + 1 if max_size < 0   # Infinite size
+76:     return ItemStorageHelper.can_add?(
+77:       @pockets[pocket], max_size, Settings::BAG_MAX_PER_SLOT, item_data.id, qty
+78:     )
+79:   end
+80: 
+81:   def add(item, qty = 1)
+82:     item_data = GameData::Item.try_get(item)
+83:     return false if !item_data
+84:     pocket = item_data.pocket
+85:     max_size = max_pocket_size(pocket)
+86:     max_size = @pockets[pocket].length + 1 if max_size < 0   # Infinite size
+87:     ret = ItemStorageHelper.add(@pockets[pocket],
+88:                                 max_size, Settings::BAG_MAX_PER_SLOT, item_data.id, qty)
+89:     if ret && Settings::BAG_POCKET_AUTO_SORT[pocket - 1]
+90:       @pockets[pocket].sort! { |a, b| GameData::Item.keys.index(a[0]) <=> GameData::Item.keys.index(b[0]) }
+91:     end
+92:     return ret
+93:   end
+94: 
+95:   # Adds qty number of item. Doesn't add anything if it can't add all of them.
+96:   def add_all(item, qty = 1)
+97:     return false if !can_add?(item, qty)
+98:     return add(item, qty)
+99:   end
+100: 
+101:   # Deletes as many of item as possible (up to qty), and returns whether it
+102:   # managed to delete qty of them.
+103:   def remove(item, qty = 1)
+104:     item_data = GameData::Item.try_get(item)
+105:     return false if !item_data
+106:     pocket = item_data.pocket
+107:     return ItemStorageHelper.remove(@pockets[pocket], item_data.id, qty)
+108:   end
+109: 
+110:   # Deletes qty number of item. Doesn't delete anything if there are less than
+111:   # qty of the item in the Bag.
+112:   def remove_all(item, qty = 1)
+113:     return false if !can_remove?(item, qty)
+114:     return remove(item, qty)
+115:   end
+116: 
+117:   # This only works if the old and new items are in the same pocket. Used for
+118:   # switching on/off certain Key Items. Replaces all old_item in its pocket with

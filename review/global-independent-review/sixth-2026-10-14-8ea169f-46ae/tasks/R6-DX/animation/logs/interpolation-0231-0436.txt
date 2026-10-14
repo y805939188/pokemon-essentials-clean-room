@@ -1,0 +1,206 @@
+231:     sliderwin2.viewport = canvas.viewport
+232:     sliderwin2.addSlider(_INTL("Number of frames:"), 2, 500, 20)
+233:     sliderwin2.opacity = 200
+234:     defcurvebutton = sliderwin2.addButton(_INTL("Define Smooth Curve"))
+235:     defpathbutton = sliderwin2.addButton(_INTL("Define Freehand Path"))
+236:     okbutton = sliderwin2.addButton(_INTL("OK"))
+237:     cancelbutton = sliderwin2.addButton(_INTL("Cancel"))
+238:     points = []
+239:     path = nil
+240:     loop do
+241:       Graphics.update
+242:       Input.update
+243:       sliderwin2.update
+244:       if sliderwin2.changed?(0)   # Number of frames
+245:         if path
+246:           path = path.smoothPointPath(sliderwin2.value(0), false)
+247:           i = 0
+248:           path.each do |point|
+249:             if i < points.length
+250:               points[i].x = point[0]
+251:               points[i].y = point[1]
+252:             else
+253:               points.push(PointSprite.new(point[0], point[1], canvas.viewport))
+254:             end
+255:             i += 1
+256:           end
+257:           (i...points.length).each do |j|
+258:             points[j].dispose
+259:             points[j] = nil
+260:           end
+261:           points.compact!
+262:         end
+263:       elsif sliderwin2.changed?(defcurvebutton)
+264:         points.each do |point|
+265:           point.dispose
+266:         end
+267:         points.clear
+268:         30.times do
+269:           point = PointSprite.new(0, 0, canvas.viewport)
+270:           point.visible = false
+271:           points.push(point)
+272:         end
+273:         curve = [
+274:           ControlPointSprite.new(true, canvas.viewport),
+275:           ControlPointSprite.new(false, canvas.viewport),
+276:           ControlPointSprite.new(false, canvas.viewport),
+277:           ControlPointSprite.new(true, canvas.viewport)
+278:         ]
+279:         showline = false
+280:         sliderwin2.visible = false
+281:         # This window displays the mouse's current position
+282:         window = Window_UnformattedTextPokemon.newWithSize(
+283:           "", 0, 320 - 64, 128, 64, canvas.viewport
+284:         )
+285:         loop do
+286:           Graphics.update
+287:           Input.update
+288:           if Input.trigger?(Input::BACK)
+289:             break
+290:           end
+291:           if Input.trigger?(Input::MOUSELEFT)
+292:             4.times do |j|
+293:               next if !curve[j].hittest?
+294:               if [1, 2].include?(j) && (!curve[0].visible || !curve[3].visible)
+295:                 next
+296:               end
+297:               curve[j].visible = true
+298:               4.times do |k|
+299:                 curve[k].dragging = (k == j)
+300:               end
+301:               break
+302:             end
+303:           end
+304:           4.times do |j|
+305:             curve[j].mouseover
+306:           end
+307:           mousepos = Mouse.getMousePos(true)
+308:           newtext = (mousepos) ? sprintf("(%d,%d)", mousepos[0], mousepos[1]) : "(??,??)"
+309:           window.text = newtext if window.text != newtext
+310:           if curve[0].visible && curve[3].visible &&
+311:              !curve[0].dragging && !curve[3].dragging
+312:             points.each do |point|
+313:               point.visible = true
+314:             end
+315:             if !showline
+316:               curve[1].visible = true
+317:               curve[2].visible = true
+318:               curve[1].x = curve[0].x + (0.3333 * (curve[3].x - curve[0].x))
+319:               curve[1].y = curve[0].y + (0.3333 * (curve[3].y - curve[0].y))
+320:               curve[2].x = curve[0].x + (0.6666 * (curve[3].x - curve[0].x))
+321:               curve[2].y = curve[0].y + (0.6666 * (curve[3].y - curve[0].y))
+322:             end
+323:             showline = true
+324:           end
+325:           if showline
+326:             step = 1.0 / (points.length - 1)
+327:             t = 0.0
+328:             points.length.times do |j|
+329:               point = getCurvePoint(curve, t)
+330:               points[j].x = point[0]
+331:               points[j].y = point[1]
+332:               t += step
+333:             end
+334:           end
+335:         end
+336:         window.dispose
+337:         # dispose temporary path
+338:         points.each do |point|
+339:           point.dispose
+340:         end
+341:         points.clear
+342:         if showline
+343:           path = curveToPointPath(curve, sliderwin2.value(0))
+344: #          File.open("pointpath.txt", "wb") { |f| f.write(path.inspect) }
+345:           path.each do |point|
+346:             points.push(PointSprite.new(point[0], point[1], canvas.viewport))
+347:           end
+348:         end
+349:         curve.each do |point|
+350:           point.dispose
+351:         end
+352:         sliderwin2.visible = true
+353:         next
+354:       elsif sliderwin2.changed?(defpathbutton)
+355:         canceled = false
+356:         pointpath = PointPath.new
+357:         points.each do |point|
+358:           point.dispose
+359:         end
+360:         points.clear
+361:         window = Window_UnformattedTextPokemon.newWithSize(
+362:           "", 0, 320 - 64, 128, 64, canvas.viewport
+363:         )
+364:         sliderwin2.visible = false
+365:         loop do
+366:           Graphics.update
+367:           Input.update
+368:           if Input.triggerex?(:ESCAPE)
+369:             canceled = true
+370:             break
+371:           end
+372:           if Input.trigger?(Input::MOUSELEFT)
+373:             break
+374:           end
+375:           mousepos = Mouse.getMousePos(true)
+376:           window.text = (mousepos) ? sprintf("(%d,%d)", mousepos[0], mousepos[1]) : "(??,??)"
+377:         end
+378:         until canceled
+379:           mousepos = Mouse.getMousePos(true)
+380:           if mousepos && !pointpath.isEndPoint?(mousepos[0], mousepos[1])
+381:             pointpath.addPoint(mousepos[0], mousepos[1])
+382:             points.push(PointSprite.new(mousepos[0], mousepos[1], canvas.viewport))
+383:           end
+384:           window.text = (mousepos) ? sprintf("(%d,%d)", mousepos[0], mousepos[1]) : "(??,??)"
+385:           Graphics.update
+386:           Input.update
+387:           if Input.triggerex?(:ESCAPE) || Input.time?(Input::MOUSELEFT) == 0
+388:             break
+389:           end
+390:         end
+391:         window.dispose
+392:         # dispose temporary path
+393:         points.each do |point|
+394:           point.dispose
+395:         end
+396:         points.clear
+397:         # generate smooth path from temporary path
+398:         path = pointpath.smoothPointPath(sliderwin2.value(0), true)
+399:         # redraw path from smooth path
+400:         path.each do |point|
+401:           points.push(PointSprite.new(point[0], point[1], canvas.viewport))
+402:         end
+403: #        File.open("pointpath.txt", "wb") { |f| f.write(path.inspect) }
+404:         sliderwin2.visible = true
+405:         next
+406:       elsif sliderwin2.changed?(okbutton) && path
+407: #        File.open("pointpath.txt", "wb") { |f| f.write(path.inspect) }
+408:         neededsize = canvas.currentframe + sliderwin2.value(0)
+409:         if neededsize > canvas.animation.length
+410:           canvas.animation.resize(neededsize)
+411:         end
+412:         thiscel = canvas.currentCel
+413:         celnumber = canvas.currentcel
+414:         (canvas.currentframe...neededsize).each do |j|
+415:           cel = canvas.animation[j][celnumber]
+416:           if !canvas.animation[j][celnumber]
+417:             cel = pbCreateCel(0, 0, thiscel[AnimFrame::PATTERN], canvas.animation.position)
+418:             canvas.animation[j][celnumber] = cel
+419:           end
+420:           cel[AnimFrame::X] = path[j - canvas.currentframe][0]
+421:           cel[AnimFrame::Y] = path[j - canvas.currentframe][1]
+422:         end
+423:         break
+424:       elsif sliderwin2.changed?(cancelbutton) || Input.trigger?(Input::BACK)
+425:         break
+426:       end
+427:     end
+428:     # dispose all points
+429:     points.each do |point|
+430:       point.dispose
+431:     end
+432:     points.clear
+433:     sliderwin2.dispose
+434:     return
+435:   end
+436: end

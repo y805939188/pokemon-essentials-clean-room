@@ -1,0 +1,171 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/004_Game classes/008_Game_Player.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "8f49870b94fdda6dbb53cbaeebfaf458498cd02d", "sha256": "4c0ede87e6c8c8b6e36e7637ebb1a074671492be9ecb0a0f4f8136c21acb7d15", "start_line": 191, "end_line": 360, "total_lines": 616, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:40:22.505418+00:00"}
+191:     super
+192:     add_move_distance_to_stats(x_plus.abs + y_plus.abs) if @x != old_x || @y != old_y
+193:   end
+194: 
+195:   #-----------------------------------------------------------------------------
+196: 
+197:   def pbTerrainTag(countBridge = false)
+198:     return $map_factory.getTerrainTagFromCoords(self.map.map_id, @x, @y, countBridge) if $map_factory
+199:     return $game_map.terrain_tag(@x, @y, countBridge)
+200:   end
+201: 
+202:   def pbFacingEvent(ignoreInterpreter = false)
+203:     return nil if $game_system.map_interpreter.running? && !ignoreInterpreter
+204:     # Check the tile in front of the player for events
+205:     new_x = @x + (@direction == 6 ? 1 : @direction == 4 ? -1 : 0)
+206:     new_y = @y + (@direction == 2 ? 1 : @direction == 8 ? -1 : 0)
+207:     return nil if !$game_map.valid?(new_x, new_y)
+208:     $game_map.events.each_value do |event|
+209:       next if !event.at_coordinate?(new_x, new_y)
+210:       next if event.jumping? || event.over_trigger?
+211:       return event
+212:     end
+213:     # If the tile in front is a counter, check one tile beyond that for events
+214:     if $game_map.counter?(new_x, new_y)
+215:       new_x += (@direction == 6 ? 1 : @direction == 4 ? -1 : 0)
+216:       new_y += (@direction == 2 ? 1 : @direction == 8 ? -1 : 0)
+217:       $game_map.events.each_value do |event|
+218:         next if !event.at_coordinate?(new_x, new_y)
+219:         next if event.jumping? || event.over_trigger?
+220:         return event
+221:       end
+222:     end
+223:     return nil
+224:   end
+225: 
+226:   def pbFacingTerrainTag(dir = nil)
+227:     dir = self.direction if !dir
+228:     return $map_factory.getFacingTerrainTag(dir, self) if $map_factory
+229:     facing = pbFacingTile(dir, self)
+230:     return $game_map.terrain_tag(facing[1], facing[2])
+231:   end
+232: 
+233:   # Passable Determinants
+234:   #     x : x-coordinate
+235:   #     y : y-coordinate
+236:   #     d : direction (0, 2, 4, 6, 8)
+237:   #         * 0 = Determines if all directions are impassable (for jumping)
+238:   def passable?(x, y, d, strict = false)
+239:     # Get new coordinates
+240:     new_x = x + (d == 6 ? 1 : d == 4 ? -1 : 0)
+241:     new_y = y + (d == 2 ? 1 : d == 8 ? -1 : 0)
+242:     # If coordinates are outside of map
+243:     return false if !$game_map.validLax?(new_x, new_y)
+244:     if !$game_map.valid?(new_x, new_y)
+245:       return false if !$map_factory
+246:       return $map_factory.isPassableFromEdge?(new_x, new_y)
+247:     end
+248:     # If debug mode is ON and Ctrl key was pressed
+249:     return true if $DEBUG && Input.press?(Input::CTRL)
+250:     return super
+251:   end
+252: 
+253:   # Set Map Display Position to Center of Screen
+254:   def center(x, y)
+255:     self.map.display_x = (x * Game_Map::REAL_RES_X) - SCREEN_CENTER_X
+256:     self.map.display_y = (y * Game_Map::REAL_RES_Y) - SCREEN_CENTER_Y
+257:   end
+258: 
+259:   # Move to Designated Position
+260:   #     x : x-coordinate
+261:   #     y : y-coordinate
+262:   def moveto(x, y)
+263:     super
+264:     center(x, y)
+265:     make_encounter_count
+266:   end
+267: 
+268:   # Make Encounter Count
+269:   def make_encounter_count
+270:     # Image of two dice rolling
+271:     if $game_map.map_id != 0
+272:       n = $game_map.encounter_step
+273:       @encounter_count = rand(n) + rand(n) + 1
+274:     end
+275:   end
+276: 
+277:   def refresh
+278:     @opacity    = 255
+279:     @blend_type = 0
+280:   end
+281: 
+282:   #-----------------------------------------------------------------------------
+283: 
+284:   def pbTriggeredTrainerEvents(triggers, checkIfRunning = true, trainer_only = false)
+285:     result = []
+286:     # If event is running
+287:     return result if checkIfRunning && $game_system.map_interpreter.running?
+288:     # All event loops
+289:     $game_map.events.each_value do |event|
+290:       next if !triggers.include?(event.trigger)
+291:       next if !event.name[/trainer\((\d+)\)/i] && (trainer_only || !event.name[/sight\((\d+)\)/i])
+292:       distance = $~[1].to_i
+293:       next if !pbEventCanReachPlayer?(event, self, distance)
+294:       next if event.jumping? || event.over_trigger?
+295:       result.push(event)
+296:     end
+297:     return result
+298:   end
+299: 
+300:   def pbTriggeredCounterEvents(triggers, checkIfRunning = true)
+301:     result = []
+302:     # If event is running
+303:     return result if checkIfRunning && $game_system.map_interpreter.running?
+304:     # All event loops
+305:     $game_map.events.each_value do |event|
+306:       next if !triggers.include?(event.trigger)
+307:       next if !event.name[/counter\((\d+)\)/i]
+308:       distance = $~[1].to_i
+309:       next if !pbEventFacesPlayer?(event, self, distance)
+310:       next if event.jumping? || event.over_trigger?
+311:       result.push(event)
+312:     end
+313:     return result
+314:   end
+315: 
+316:   def check_event_trigger_after_turning; end
+317: 
+318:   def pbCheckEventTriggerFromDistance(triggers)
+319:     events = pbTriggeredTrainerEvents(triggers)
+320:     events.concat(pbTriggeredCounterEvents(triggers))
+321:     return false if events.length == 0
+322:     ret = false
+323:     events.each do |event|
+324:       event.start
+325:       ret = true if event.starting
+326:     end
+327:     return ret
+328:   end
+329: 
+330:   # Trigger event(s) at the same coordinates as self with the appropriate
+331:   # trigger(s) that can be triggered
+332:   def check_event_trigger_here(triggers)
+333:     result = false
+334:     # If event is running
+335:     return result if $game_system.map_interpreter.running?
+336:     # All event loops
+337:     $game_map.events.each_value do |event|
+338:       # If event coordinates and triggers are consistent
+339:       next if !event.at_coordinate?(@x, @y)
+340:       next if !triggers.include?(event.trigger)
+341:       # If starting determinant is same position event (other than jumping)
+342:       next if event.jumping? || !event.over_trigger?
+343:       event.start
+344:       result = true if event.starting
+345:     end
+346:     return result
+347:   end
+348: 
+349:   # Front Event Starting Determinant
+350:   def check_event_trigger_there(triggers)
+351:     result = false
+352:     # If event is running
+353:     return result if $game_system.map_interpreter.running?
+354:     # Calculate front event coordinates
+355:     new_x = @x + (@direction == 6 ? 1 : @direction == 4 ? -1 : 0)
+356:     new_y = @y + (@direction == 2 ? 1 : @direction == 8 ? -1 : 0)
+357:     return false if !$game_map.valid?(new_x, new_y)
+358:     # All event loops
+359:     $game_map.events.each_value do |event|
+360:       next if !triggers.include?(event.trigger)

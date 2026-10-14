@@ -1,0 +1,211 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/003_Intl_Messages.rb RANGE 421-630 TOTAL 823
+421	        if contents[0][/^\d+$/]   # If first line is a number, text is stored in an array
+422	          text_hash = []
+423	          item_length = 3
+424	          if is_map
+425	            raise _INTL("Section {1} can't be an ordered list (section was recognized as an ordered list because its first line is a number).", section_name)
+426	          end
+427	          if contents.length % 3 != 0
+428	            raise _INTL("Section {1}'s line count is not divisible by 3 (section was recognized as an ordered list because its first line is a number).", section_name)
+429	          end
+430	        else   # Text is stored in a hash
+431	          text_hash = {}
+432	          item_length = 2
+433	          if contents.length.odd?
+434	            raise _INTL("Section {1} has an odd number of entries (section was recognized as a hash because its first line is not a number).", section_name)
+435	          end
+436	        end
+437	        # Add text in section to ordered list/hash
+438	        i = 0
+439	        loop do
+440	          if item_length == 3
+441	            if !contents[i][/^\d+$/]
+442	              raise _INTL("Expected a number in section {1}, got {2} instead", section_name, contents[i])
+443	            end
+444	            key = contents[i].to_i
+445	            i += 1
+446	          else
+447	            key = denormalize_value(contents[i])
+448	            key = Translation.stringToKey(key)
+449	          end
+450	          text_hash[key] = denormalize_value(contents[i + 1])
+451	          i += 2
+452	          break if i >= contents.length
+453	        end
+454	        # Add ordered list/hash (text_hash) to array of all text (all_text)
+455	        all_text[MessageTypes::EVENT_TEXTS] = [] if is_map && !all_text[MessageTypes::EVENT_TEXTS]
+456	        target_section = (is_map) ? all_text[MessageTypes::EVENT_TEXTS][section_id] : all_text[section_id]
+457	        if target_section
+458	          if text_hash.is_a?(Hash)
+459	            text_hash.each_key { |key| target_section[key] = text_hash[key] if text_hash[key] }
+460	          else   # text_hash is an array
+461	            text_hash.each_with_index { |line, j| target_section[j] = line if line }
+462	          end
+463	        elsif is_map
+464	          all_text[MessageTypes::EVENT_TEXTS][section_id] = text_hash
+465	        else
+466	          all_text[section_id] = text_hash
+467	        end
+468	      end
+469	    ensure
+470	      file.close
+471	    end
+472	  end
+473	end
+474	
+475	#===============================================================================
+476	#
+477	#===============================================================================
+478	class Translation
+479	  attr_reader :core_messages, :game_messages
+480	
+481	  def self.stringToKey(str)
+482	    if str && str[/[\r\n\t\1]|^\s+|\s+$|\s{2,}/]
+483	      key = str.clone
+484	      key.gsub!(/^\s+/, "")
+485	      key.gsub!(/\s+$/, "")
+486	      key.gsub!(/\s{2,}/, " ")
+487	      return key
+488	    end
+489	    return str
+490	  end
+491	
+492	  def initialize(filename = nil, delay_load = false)
+493	    @default_core_messages = nil
+494	    @default_game_messages = nil
+495	    @core_messages = nil   # A translation file
+496	    @game_messages = nil   # A translation file
+497	    @filename = filename
+498	    load_message_files(@filename) if @filename && !delay_load
+499	  end
+500	
+501	  def default_core_messages
+502	    load_default_messages
+503	    return @default_core_messages
+504	  end
+505	
+506	  def default_game_messages
+507	    load_default_messages
+508	    return @default_game_messages
+509	  end
+510	
+511	  def load_message_files(filename)
+512	    @core_messages = nil
+513	    @game_messages = nil
+514	    begin
+515	      core_filename = sprintf("Data/messages_%s_core.dat", filename)
+516	      if FileTest.exist?(core_filename)
+517	        @core_messages = load_data(core_filename)
+518	        @core_messages = nil if !@core_messages.is_a?(Array)
+519	      end
+520	      game_filename = sprintf("Data/messages_%s_game.dat", filename)
+521	      if FileTest.exist?(game_filename)
+522	        @game_messages = load_data(game_filename)
+523	        @game_messages = nil if !@game_messages.is_a?(Array)
+524	      end
+525	    rescue
+526	      @core_messages = nil
+527	      @game_messages = nil
+528	    end
+529	  end
+530	
+531	  def load_default_messages
+532	    return if @default_core_messages
+533	    begin
+534	      if FileTest.exist?("Data/messages_core.dat")
+535	        pbRgssOpen("Data/messages_core.dat", "rb") { |f| @default_core_messages = Marshal.load(f) }
+536	      end
+537	      @default_core_messages = [] if !@default_core_messages.is_a?(Array)
+538	      if FileTest.exist?("Data/messages_game.dat")
+539	        pbRgssOpen("Data/messages_game.dat", "rb") { |f| @default_game_messages = Marshal.load(f) }
+540	      end
+541	      @default_game_messages = [] if !@default_game_messages.is_a?(Array)
+542	    rescue
+543	      @default_core_messages = []
+544	      @default_game_messages = []
+545	    end
+546	  end
+547	
+548	  def save_default_messages
+549	    File.open("Data/messages_core.dat", "wb") { |f| Marshal.dump(@default_core_messages, f) }
+550	    File.open("Data/messages_game.dat", "wb") { |f| Marshal.dump(@default_game_messages, f) }
+551	  end
+552	
+553	  def setMessages(type, array)
+554	    load_default_messages
+555	    @default_game_messages[type] = priv_add_to_array(type, array, nil)
+556	  end
+557	
+558	  def addMessages(type, array)
+559	    load_default_messages
+560	    @default_game_messages[type] = priv_add_to_array(type, array, @default_game_messages[type])
+561	  end
+562	
+563	  def setMessagesAsHash(type, array)
+564	    load_default_messages
+565	    @default_game_messages[type] = priv_add_to_hash(type, array, nil)
+566	  end
+567	
+568	  def addMessagesAsHash(type, array)
+569	    load_default_messages
+570	    @default_game_messages[type] = priv_add_to_hash(type, array, @default_game_messages[type])
+571	  end
+572	
+573	  def setMapMessagesAsHash(map_id, array)
+574	    load_default_messages
+575	    @default_game_messages[MessageTypes::EVENT_TEXTS] ||= []
+576	    @default_game_messages[MessageTypes::EVENT_TEXTS][map_id] = priv_add_to_hash(
+577	      MessageTypes::EVENT_TEXTS, array, nil, map_id
+578	    )
+579	  end
+580	
+581	  def addMapMessagesAsHash(map_id, array)
+582	    load_default_messages
+583	    @default_game_messages[MessageTypes::EVENT_TEXTS] ||= []
+584	    @default_game_messages[MessageTypes::EVENT_TEXTS][map_id] = priv_add_to_hash(
+585	      MessageTypes::EVENT_TEXTS, array, @default_game_messages[MessageTypes::EVENT_TEXTS][map_id], map_id
+586	    )
+587	  end
+588	
+589	  def get(type, id)
+590	    delayed_load_message_files
+591	    if @game_messages && @game_messages[type] && @game_messages[type][id]
+592	      return @game_messages[type][id]
+593	    end
+594	    if @core_messages && @core_messages[type] && @core_messages[type][id]
+595	      return @core_messages[type][id]
+596	    end
+597	    return ""
+598	  end
+599	
+600	  def getFromHash(type, text)
+601	    delayed_load_message_files
+602	    key = Translation.stringToKey(text)
+603	    return text if nil_or_empty?(key)
+604	    if @game_messages && @game_messages[type] && @game_messages[type][key]
+605	      return @game_messages[type][key]
+606	    end
+607	    if @core_messages && @core_messages[type] && @core_messages[type][key]
+608	      return @core_messages[type][key]
+609	    end
+610	    return text
+611	  end
+612	
+613	  def getFromMapHash(map_id, text)
+614	    delayed_load_message_files
+615	    key = Translation.stringToKey(text)
+616	    return text if nil_or_empty?(key)
+617	    if @game_messages && @game_messages[MessageTypes::EVENT_TEXTS]
+618	      if @game_messages[MessageTypes::EVENT_TEXTS][map_id] && @game_messages[MessageTypes::EVENT_TEXTS][map_id][key]
+619	        return @game_messages[MessageTypes::EVENT_TEXTS][map_id][key]
+620	      elsif @game_messages[MessageTypes::EVENT_TEXTS][0] && @game_messages[MessageTypes::EVENT_TEXTS][0][key]
+621	        return @game_messages[MessageTypes::EVENT_TEXTS][0][key]
+622	      end
+623	    end
+624	    if @core_messages && @core_messages[MessageTypes::EVENT_TEXTS]
+625	      if @core_messages[MessageTypes::EVENT_TEXTS][map_id] && @core_messages[MessageTypes::EVENT_TEXTS][map_id][key]
+626	        return @core_messages[MessageTypes::EVENT_TEXTS][map_id][key]
+627	      elsif @core_messages[MessageTypes::EVENT_TEXTS][0] && @core_messages[MessageTypes::EVENT_TEXTS][0][key]
+628	        return @core_messages[MessageTypes::EVENT_TEXTS][0][key]
+629	      end
+630	    end

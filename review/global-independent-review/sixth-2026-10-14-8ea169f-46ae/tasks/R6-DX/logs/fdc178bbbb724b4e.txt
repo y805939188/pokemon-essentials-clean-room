@@ -1,0 +1,411 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: def findBottom(bitmap)
+5:   return 0 if !bitmap
+6:   (1..bitmap.height).each do |i|
+7:     bitmap.width.times do |j|
+8:       return bitmap.height - i if bitmap.get_pixel(j, bitmap.height - i).alpha > 0
+9:     end
+10:   end
+11:   return 0
+12: end
+13: 
+14: def pbAutoPositionAll
+15:   t = System.uptime
+16:   GameData::Species.each do |sp|
+17:     if System.uptime - t >= 5
+18:       t += 5
+19:       Graphics.update
+20:     end
+21:     metrics = GameData::SpeciesMetrics.get_species_form(sp.species, sp.form)
+22:     bitmap1 = GameData::Species.sprite_bitmap(sp.species, sp.form, nil, nil, nil, true)
+23:     bitmap2 = GameData::Species.sprite_bitmap(sp.species, sp.form)
+24:     if bitmap1&.bitmap   # Player's y
+25:       metrics.back_sprite[0] = 0
+26:       metrics.back_sprite[1] = (bitmap1.height - (findBottom(bitmap1.bitmap) + 1)) / 2
+27:     end
+28:     if bitmap2&.bitmap   # Foe's y
+29:       metrics.front_sprite[0] = 0
+30:       metrics.front_sprite[1] = (bitmap2.height - (findBottom(bitmap2.bitmap) + 1)) / 2
+31:       metrics.front_sprite[1] += 4   # Just because
+32:     end
+33:     metrics.front_sprite_altitude = 0   # Shouldn't be used
+34:     metrics.shadow_x              = 0
+35:     metrics.shadow_size           = 2
+36:     bitmap1&.dispose
+37:     bitmap2&.dispose
+38:   end
+39:   GameData::SpeciesMetrics.save
+40:   Compiler.write_pokemon_metrics
+41: end
+42: 
+43: #===============================================================================
+44: #
+45: #===============================================================================
+46: class SpritePositioner
+47:   def pbOpen
+48:     @sprites = {}
+49:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+50:     @viewport.z = 99999
+51:     battlebg   = "Graphics/Battlebacks/indoor1_bg"
+52:     playerbase = "Graphics/Battlebacks/indoor1_base0"
+53:     enemybase  = "Graphics/Battlebacks/indoor1_base1"
+54:     @sprites["battle_bg"] = AnimatedPlane.new(@viewport)
+55:     @sprites["battle_bg"].setBitmap(battlebg)
+56:     @sprites["battle_bg"].z = 0
+57:     baseX, baseY = Battle::Scene.pbBattlerPosition(0)
+58:     @sprites["base_0"] = IconSprite.new(baseX, baseY, @viewport)
+59:     @sprites["base_0"].setBitmap(playerbase)
+60:     @sprites["base_0"].x -= @sprites["base_0"].bitmap.width / 2 if @sprites["base_0"].bitmap
+61:     @sprites["base_0"].y -= @sprites["base_0"].bitmap.height if @sprites["base_0"].bitmap
+62:     @sprites["base_0"].z = 1
+63:     baseX, baseY = Battle::Scene.pbBattlerPosition(1)
+64:     @sprites["base_1"] = IconSprite.new(baseX, baseY, @viewport)
+65:     @sprites["base_1"].setBitmap(enemybase)
+66:     @sprites["base_1"].x -= @sprites["base_1"].bitmap.width / 2 if @sprites["base_1"].bitmap
+67:     @sprites["base_1"].y -= @sprites["base_1"].bitmap.height / 2 if @sprites["base_1"].bitmap
+68:     @sprites["base_1"].z = 1
+69:     @sprites["messageBox"] = IconSprite.new(0, Graphics.height - 96, @viewport)
+70:     @sprites["messageBox"].setBitmap("Graphics/UI/Debug/battle_message")
+71:     @sprites["messageBox"].z = 2
+72:     @sprites["shadow_1"] = IconSprite.new(0, 0, @viewport)
+73:     @sprites["shadow_1"].z = 3
+74:     @sprites["pokemon_0"] = PokemonSprite.new(@viewport)
+75:     @sprites["pokemon_0"].setOffset(PictureOrigin::BOTTOM)
+76:     @sprites["pokemon_0"].z = 4
+77:     @sprites["pokemon_1"] = PokemonSprite.new(@viewport)
+78:     @sprites["pokemon_1"].setOffset(PictureOrigin::BOTTOM)
+79:     @sprites["pokemon_1"].z = 4
+80:     @sprites["info"] = Window_UnformattedTextPokemon.new("")
+81:     @sprites["info"].viewport = @viewport
+82:     @sprites["info"].visible  = false
+83:     @oldSpeciesIndex = 0
+84:     @species = nil   # This cannot be a species_form
+85:     @form = 0
+86:     @metricsChanged = false
+87:     refresh
+88:     @starting = true
+89:   end
+90: 
+91:   def pbClose
+92:     if @metricsChanged && pbConfirmMessage(_INTL("Some metrics have been edited. Save changes?"))
+93:       pbSaveMetrics
+94:       @metricsChanged = false
+95:     else
+96:       GameData::SpeciesMetrics.load   # Clear all changes to metrics
+97:     end
+98:     pbFadeOutAndHide(@sprites) { update }
+99:     pbDisposeSpriteHash(@sprites)
+100:     @viewport.dispose
+101:   end
+102: 
+103:   def pbSaveMetrics
+104:     GameData::SpeciesMetrics.save
+105:     Compiler.write_pokemon_metrics
+106:   end
+107: 
+108:   def update
+109:     pbUpdateSpriteHash(@sprites)
+110:   end
+111: 
+112:   def refresh
+113:     if !@species
+114:       @sprites["pokemon_0"].visible = false
+115:       @sprites["pokemon_1"].visible = false
+116:       @sprites["shadow_1"].visible = false
+117:       return
+118:     end
+119:     metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+120:     2.times do |i|
+121:       pos = Battle::Scene.pbBattlerPosition(i, 1)
+122:       @sprites["pokemon_#{i}"].x = pos[0]
+123:       @sprites["pokemon_#{i}"].y = pos[1]
+124:       metrics_data.apply_metrics_to_sprite(@sprites["pokemon_#{i}"], i)
+125:       @sprites["pokemon_#{i}"].visible = true
+126:       next if i != 1
+127:       @sprites["shadow_1"].x = pos[0]
+128:       @sprites["shadow_1"].y = pos[1]
+129:       if @sprites["shadow_1"].bitmap
+130:         @sprites["shadow_1"].x -= @sprites["shadow_1"].bitmap.width / 2
+131:         @sprites["shadow_1"].y -= @sprites["shadow_1"].bitmap.height / 2
+132:       end
+133:       metrics_data.apply_metrics_to_sprite(@sprites["shadow_1"], i, true)
+134:       @sprites["shadow_1"].visible = true
+135:     end
+136:   end
+137: 
+138:   def pbAutoPosition
+139:     metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+140:     old_back_y         = metrics_data.back_sprite[1]
+141:     old_front_y        = metrics_data.front_sprite[1]
+142:     old_front_altitude = metrics_data.front_sprite_altitude
+143:     bitmap1 = @sprites["pokemon_0"].bitmap
+144:     bitmap2 = @sprites["pokemon_1"].bitmap
+145:     new_back_y  = (bitmap1.height - (findBottom(bitmap1) + 1)) / 2
+146:     new_front_y = (bitmap2.height - (findBottom(bitmap2) + 1)) / 2
+147:     new_front_y += 4   # Just because
+148:     if new_back_y != old_back_y || new_front_y != old_front_y || old_front_altitude != 0
+149:       metrics_data.back_sprite[1]        = new_back_y
+150:       metrics_data.front_sprite[1]       = new_front_y
+151:       metrics_data.front_sprite_altitude = 0
+152:       @metricsChanged = true
+153:       refresh
+154:     end
+155:   end
+156: 
+157:   def pbChangeSpecies(species, form)
+158:     @species = species
+159:     @form = form
+160:     species_data = GameData::Species.get_species_form(@species, @form)
+161:     return if !species_data
+162:     @sprites["pokemon_0"].setSpeciesBitmap(@species, 0, @form, false, false, true)
+163:     @sprites["pokemon_1"].setSpeciesBitmap(@species, 0, @form)
+164:     @sprites["shadow_1"].setBitmap(GameData::Species.shadow_filename(@species, @form))
+165:   end
+166: 
+167:   def pbShadowSize
+168:     pbChangeSpecies(@species, @form)
+169:     refresh
+170:     metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+171:     if pbResolveBitmap(sprintf("Graphics/Pokemon/Shadow/%s_%d", metrics_data.species, metrics_data.form)) ||
+172:        pbResolveBitmap(sprintf("Graphics/Pokemon/Shadow/%s", metrics_data.species))
+173:       pbMessage("This species has its own shadow sprite in Graphics/Pokemon/Shadow/. The shadow size metric cannot be edited.")
+174:       return false
+175:     end
+176:     oldval = metrics_data.shadow_size
+177:     cmdvals = [0]
+178:     commands = [_INTL("None")]
+179:     defindex = 0
+180:     i = 0
+181:     loop do
+182:       i += 1
+183:       fn = sprintf("Graphics/Pokemon/Shadow/%d", i)
+184:       break if !pbResolveBitmap(fn)
+185:       cmdvals.push(i)
+186:       commands.push(i.to_s)
+187:       defindex = cmdvals.length - 1 if oldval == i
+188:     end
+189:     cw = Window_CommandPokemon.new(commands)
+190:     cw.index    = defindex
+191:     cw.viewport = @viewport
+192:     ret = false
+193:     oldindex = cw.index
+194:     loop do
+195:       Graphics.update
+196:       Input.update
+197:       cw.update
+198:       self.update
+199:       if cw.index != oldindex
+200:         oldindex = cw.index
+201:         metrics_data.shadow_size = cmdvals[cw.index]
+202:         pbChangeSpecies(@species, @form)
+203:         refresh
+204:       end
+205:       if Input.trigger?(Input::ACTION)   # Cycle to next option
+206:         pbPlayDecisionSE
+207:         @metricsChanged = true if metrics_data.shadow_size != oldval
+208:         ret = true
+209:         break
+210:       elsif Input.trigger?(Input::BACK)
+211:         metrics_data.shadow_size = oldval
+212:         pbPlayCancelSE
+213:         break
+214:       elsif Input.trigger?(Input::USE)
+215:         pbPlayDecisionSE
+216:         @metricsChanged = true if metrics_data.shadow_size != oldval
+217:         break
+218:       end
+219:     end
+220:     cw.dispose
+221:     return ret
+222:   end
+223: 
+224:   def pbSetParameter(param)
+225:     return if !@species
+226:     return pbShadowSize if param == 2
+227:     if param == 4
+228:       pbAutoPosition
+229:       return false
+230:     end
+231:     metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+232:     case param
+233:     when 0
+234:       sprite = @sprites["pokemon_0"]
+235:       xpos = metrics_data.back_sprite[0]
+236:       ypos = metrics_data.back_sprite[1]
+237:     when 1
+238:       sprite = @sprites["pokemon_1"]
+239:       xpos = metrics_data.front_sprite[0]
+240:       ypos = metrics_data.front_sprite[1]
+241:     when 3
+242:       sprite = @sprites["shadow_1"]
+243:       xpos = metrics_data.shadow_x
+244:       ypos = 0
+245:     end
+246:     oldxpos = xpos
+247:     oldypos = ypos
+248:     @sprites["info"].visible = true
+249:     ret = false
+250:     loop do
+251:       sprite.visible = ((System.uptime * 8).to_i % 4) < 3   # Flash the selected sprite
+252:       Graphics.update
+253:       Input.update
+254:       self.update
+255:       case param
+256:       when 0 then @sprites["info"].setTextToFit("Ally Position = #{xpos},#{ypos}")
+257:       when 1 then @sprites["info"].setTextToFit("Enemy Position = #{xpos},#{ypos}")
+258:       when 3 then @sprites["info"].setTextToFit("Shadow Position = #{xpos}")
+259:       end
+260:       if (Input.repeat?(Input::UP) || Input.repeat?(Input::DOWN)) && param != 3
+261:         ypos += (Input.repeat?(Input::DOWN)) ? 1 : -1
+262:         case param
+263:         when 0 then metrics_data.back_sprite[1]  = ypos
+264:         when 1 then metrics_data.front_sprite[1] = ypos
+265:         end
+266:         refresh
+267:       end
+268:       if Input.repeat?(Input::LEFT) || Input.repeat?(Input::RIGHT)
+269:         xpos += (Input.repeat?(Input::RIGHT)) ? 1 : -1
+270:         case param
+271:         when 0 then metrics_data.back_sprite[0]  = xpos
+272:         when 1 then metrics_data.front_sprite[0] = xpos
+273:         when 3 then metrics_data.shadow_x        = xpos
+274:         end
+275:         refresh
+276:       end
+277:       if Input.repeat?(Input::ACTION) && param != 3   # Cycle to next option
+278:         @metricsChanged = true if xpos != oldxpos || ypos != oldypos
+279:         ret = true
+280:         pbPlayDecisionSE
+281:         break
+282:       elsif Input.repeat?(Input::BACK)
+283:         case param
+284:         when 0
+285:           metrics_data.back_sprite[0] = oldxpos
+286:           metrics_data.back_sprite[1] = oldypos
+287:         when 1
+288:           metrics_data.front_sprite[0] = oldxpos
+289:           metrics_data.front_sprite[1] = oldypos
+290:         when 3
+291:           metrics_data.shadow_x = oldxpos
+292:         end
+293:         pbPlayCancelSE
+294:         refresh
+295:         break
+296:       elsif Input.repeat?(Input::USE)
+297:         @metricsChanged = true if xpos != oldxpos || (param != 3 && ypos != oldypos)
+298:         pbPlayDecisionSE
+299:         break
+300:       end
+301:     end
+302:     @sprites["info"].visible = false
+303:     sprite.visible = true
+304:     return ret
+305:   end
+306: 
+307:   def pbMenu
+308:     refresh
+309:     cw = Window_CommandPokemon.new(
+310:       [_INTL("Set Ally Position"),
+311:        _INTL("Set Enemy Position"),
+312:        _INTL("Set Shadow Size"),
+313:        _INTL("Set Shadow Position"),
+314:        _INTL("Auto-Position Sprites")]
+315:     )
+316:     cw.x        = Graphics.width - cw.width
+317:     cw.y        = Graphics.height - cw.height
+318:     cw.viewport = @viewport
+319:     ret = -1
+320:     loop do
+321:       Graphics.update
+322:       Input.update
+323:       cw.update
+324:       self.update
+325:       if Input.trigger?(Input::USE)
+326:         pbPlayDecisionSE
+327:         ret = cw.index
+328:         break
+329:       elsif Input.trigger?(Input::BACK)
+330:         pbPlayCancelSE
+331:         break
+332:       end
+333:     end
+334:     cw.dispose
+335:     return ret
+336:   end
+337: 
+338:   def pbChooseSpecies
+339:     if @starting
+340:       pbFadeInAndShow(@sprites) { update }
+341:       @starting = false
+342:     end
+343:     cw = Window_CommandPokemonEx.newEmpty(0, 0, 260, 176, @viewport)
+344:     cw.rowHeight = 24
+345:     pbSetSmallFont(cw.contents)
+346:     cw.x = Graphics.width - cw.width
+347:     cw.y = Graphics.height - cw.height
+348:     allspecies = []
+349:     GameData::Species.each do |sp|
+350:       name = (sp.form == 0) ? sp.name : _INTL("{1} (form {2})", sp.real_name, sp.form)
+351:       allspecies.push([sp.id, sp.species, sp.form, name]) if name && !name.empty?
+352:     end
+353:     allspecies.sort! { |a, b| a[3] <=> b[3] }
+354:     commands = []
+355:     allspecies.each { |sp| commands.push(sp[3]) }
+356:     cw.commands = commands
+357:     cw.index    = @oldSpeciesIndex
+358:     ret = false
+359:     oldindex = -1
+360:     loop do
+361:       Graphics.update
+362:       Input.update
+363:       cw.update
+364:       if cw.index != oldindex
+365:         oldindex = cw.index
+366:         pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])
+367:         refresh
+368:       end
+369:       self.update
+370:       if Input.trigger?(Input::BACK)
+371:         pbChangeSpecies(nil, nil)
+372:         refresh
+373:         break
+374:       elsif Input.trigger?(Input::USE)
+375:         pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])
+376:         ret = true
+377:         break
+378:       end
+379:     end
+380:     @oldSpeciesIndex = cw.index
+381:     cw.dispose
+382:     return ret
+383:   end
+384: end
+385: 
+386: #===============================================================================
+387: #
+388: #===============================================================================
+389: class SpritePositionerScreen
+390:   def initialize(scene)
+391:     @scene = scene
+392:   end
+393: 
+394:   def pbStart
+395:     @scene.pbOpen
+396:     loop do
+397:       species = @scene.pbChooseSpecies
+398:       break if !species
+399:       loop do
+400:         command = @scene.pbMenu
+401:         break if command < 0
+402:         loop do
+403:           par = @scene.pbSetParameter(command)
+404:           break if !par
+405:           command = (command + 1) % 3
+406:         end
+407:       end
+408:     end
+409:     @scene.pbClose
+410:   end
+411: end

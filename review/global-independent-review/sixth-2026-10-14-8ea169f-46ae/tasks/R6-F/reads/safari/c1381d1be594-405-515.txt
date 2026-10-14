@@ -1,0 +1,112 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/002_Battle_StartAndEnd.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "54d4f8d6a10df57937838b36ec145a96fdc7b91e", "sha256": "e7d7b37b0a60fe4489f4252642abba52085ed344115acc36f42cf675e5fc1ee1", "start_line": 405, "end_line": 515, "total_lines": 568, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:39:58.330502+00:00"}
+405:   def pbEndOfBattle
+406:     oldDecision = @decision
+407:     @decision = 4 if @decision == 1 && wildBattle? && @caughtPokemon.length > 0
+408:     case oldDecision
+409:     ##### WIN #####
+410:     when 1
+411:       PBDebug.log("")
+412:       PBDebug.log_header("===== Player won =====")
+413:       PBDebug.log("")
+414:       if trainerBattle?
+415:         @scene.pbTrainerBattleSuccess
+416:         case @opponent.length
+417:         when 1
+418:           pbDisplayPaused(_INTL("You defeated {1}!", @opponent[0].full_name))
+419:         when 2
+420:           pbDisplayPaused(_INTL("You defeated {1} and {2}!", @opponent[0].full_name,
+421:                                 @opponent[1].full_name))
+422:         when 3
+423:           pbDisplayPaused(_INTL("You defeated {1}, {2} and {3}!", @opponent[0].full_name,
+424:                                 @opponent[1].full_name, @opponent[2].full_name))
+425:         end
+426:         @opponent.each_with_index do |trainer, i|
+427:           @scene.pbShowOpponent(i)
+428:           msg = trainer.lose_text
+429:           msg = "..." if !msg || msg.empty?
+430:           pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+431:         end
+432:         PBDebug.log("")
+433:       end
+434:       # Gain money from winning a trainer battle, and from Pay Day
+435:       pbGainMoney if @decision != 4
+436:       # Hide remaining trainer
+437:       @scene.pbShowOpponent(@opponent.length) if trainerBattle? && @caughtPokemon.length > 0
+438:     ##### LOSE, DRAW #####
+439:     when 2, 5
+440:       PBDebug.log("")
+441:       PBDebug.log_header("===== Player lost =====") if @decision == 2
+442:       PBDebug.log_header("===== Player drew with opponent =====") if @decision == 5
+443:       PBDebug.log("")
+444:       if @internalBattle
+445:         pbDisplayPaused(_INTL("You have no more Pokémon that can fight!"))
+446:         if trainerBattle?
+447:           case @opponent.length
+448:           when 1
+449:             pbDisplayPaused(_INTL("You lost against {1}!", @opponent[0].full_name))
+450:           when 2
+451:             pbDisplayPaused(_INTL("You lost against {1} and {2}!",
+452:                                   @opponent[0].full_name, @opponent[1].full_name))
+453:           when 3
+454:             pbDisplayPaused(_INTL("You lost against {1}, {2} and {3}!",
+455:                                   @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))
+456:           end
+457:         end
+458:         # Lose money from losing a battle
+459:         pbLoseMoney
+460:         pbDisplayPaused(_INTL("You blacked out!")) if !@canLose
+461:       elsif @decision == 2   # Lost in a Battle Frontier battle
+462:         if @opponent
+463:           @opponent.each_with_index do |trainer, i|
+464:             @scene.pbShowOpponent(i)
+465:             msg = trainer.win_text
+466:             msg = "..." if !msg || msg.empty?
+467:             pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+468:           end
+469:           PBDebug.log("")
+470:         end
+471:       end
+472:     ##### CAUGHT WILD POKÉMON #####
+473:     when 4
+474:       PBDebug.log("")
+475:       PBDebug.log_header("===== Pokémon caught =====")
+476:       PBDebug.log("")
+477:       @scene.pbWildBattleSuccess if !Settings::GAIN_EXP_FOR_CAPTURE
+478:     end
+479:     # Register captured Pokémon in the Pokédex, and store them
+480:     pbRecordAndStoreCaughtPokemon
+481:     # Collect Pay Day money in a wild battle that ended in a capture
+482:     pbGainMoney if @decision == 4
+483:     # Pass on Pokérus within the party
+484:     if @internalBattle
+485:       infected = []
+486:       $player.party.each_with_index do |pkmn, i|
+487:         infected.push(i) if pkmn.pokerusStage == 1
+488:       end
+489:       infected.each do |idxParty|
+490:         strain = $player.party[idxParty].pokerusStrain
+491:         if idxParty > 0 && $player.party[idxParty - 1].pokerusStage == 0 && rand(3) == 0   # 33%
+492:           $player.party[idxParty - 1].givePokerus(strain)
+493:         end
+494:         if idxParty < $player.party.length - 1 && $player.party[idxParty + 1].pokerusStage == 0 && rand(3) == 0   # 33%
+495:           $player.party[idxParty + 1].givePokerus(strain)
+496:         end
+497:       end
+498:     end
+499:     # Clean up battle stuff
+500:     @scene.pbEndBattle(@decision)
+501:     @battlers.each do |b|
+502:       next if !b
+503:       pbCancelChoice(b.index)   # Restore unused items to Bag
+504:       Battle::AbilityEffects.triggerOnSwitchOut(b.ability, b, true) if b.abilityActive?
+505:     end
+506:     pbParty(0).each_with_index do |pkmn, i|
+507:       next if !pkmn
+508:       @peer.pbOnLeavingBattle(self, pkmn, @usedInBattle[0][i], true)   # Reset form
+509:       pkmn.item = @initialItems[0][i]
+510:     end
+511:     return @decision
+512:   end
+513: 
+514:   #=============================================================================
+515:   # Judging

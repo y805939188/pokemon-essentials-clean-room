@@ -1,0 +1,236 @@
+PATH reference/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 236-470 TOTAL 706
+236	        @start_version   = args[5] || 0
+237	        @version         = @start_version
+238	        @time_to_ready   = 0
+239	        @rematch_flag    = 0   # 0=counting down, 1=ready for rematch, 2=ready and told player
+240	        @common_event_id = args[6] || 0
+241	      else
+242	        # Non-trainer
+243	        @name            = args[1]
+244	        @common_event_id = args[2] || 0
+245	      end
+246	      @visible = true
+247	    end
+248	
+249	    def trainer?
+250	      return @trainer
+251	    end
+252	
+253	    def visible?
+254	      return @visible
+255	    end
+256	
+257	    def visible=(value)
+258	      return if @visible == value
+259	      @visible = value
+260	      if !value && trainer?
+261	        @time_to_ready = 0
+262	        @rematch_flag = 0
+263	        $game_self_switches[[@map_id, @event_id, "A"]] = true
+264	        $game_map.need_refresh = true
+265	      end
+266	    end
+267	
+268	    def can_hide?
+269	      return trainer?
+270	    end
+271	
+272	    def common_event_call?
+273	      return @common_event_id > 0
+274	    end
+275	
+276	    def can_rematch?
+277	      return trainer? && @rematch_flag >= 1
+278	    end
+279	
+280	    def display_name
+281	      if trainer?
+282	        return sprintf("%s %s", GameData::TrainerType.get(@trainer_type).name,
+283	                       pbGetMessageFromHash(MessageTypes::TRAINER_NAMES, @name))
+284	      end
+285	      return _INTL(@name)
+286	    end
+287	
+288	    # Original battle is 0, first rematch is 1, etc.
+289	    def variant
+290	      return 0 if !trainer?
+291	      return @version - @start_version
+292	    end
+293	
+294	    # Returns the version of this trainer to be battled next.
+295	    def next_version
+296	      var = variant + 1
+297	      var = [var, $PokemonGlobal.phone.rematch_variant, @versions_count - 1].min
+298	      return @start_version + var
+299	    end
+300	
+301	    def increment_version
+302	      return if !trainer?
+303	      @version = next_version
+304	    end
+305	
+306	    def set_trainer_event_ready_for_rematch
+307	      return if !@trainer
+308	      $game_self_switches[[@map_id, @event_id, "A"]] = false
+309	      $game_self_switches[[@map_id, @event_id, "B"]] = true
+310	      $game_map.need_refresh = true
+311	    end
+312	  end
+313	end
+314	
+315	#===============================================================================
+316	#
+317	#===============================================================================
+318	class Phone
+319	  module Call
+320	    module_function
+321	
+322	    def can_make?
+323	      return false if $game_map.metadata&.has_flag?("NoPhoneSignal")
+324	      return true
+325	    end
+326	
+327	    # For the player initiating the call.
+328	    def can_call_contact?(contact)
+329	      return false if !contact
+330	      if !can_make?
+331	        pbMessage(_INTL("There is no phone signal here..."))
+332	        return false
+333	      end
+334	      return true if !contact.trainer?
+335	      if contact.map_id == $game_map.map_id
+336	        pbMessage(_INTL("The Trainer is close by.\nTalk to the Trainer in person!"))
+337	        return false
+338	      end
+339	      caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+340	      this_map_metadata = $game_map.metadata
+341	      if !caller_map_metadata || !caller_map_metadata.town_map_position ||
+342	         !this_map_metadata || !this_map_metadata.town_map_position ||
+343	         caller_map_metadata.town_map_position[0] != this_map_metadata.town_map_position[0]
+344	        pbMessage(_INTL("The Trainer is out of range."))
+345	        return false
+346	      end
+347	      return true
+348	    end
+349	
+350	    # Get a random trainer contact from the region the player is currently in,
+351	    # but is not in the same map as the player.
+352	    def get_random_trainer_for_incoming_call
+353	      player_location = $game_map.metadata&.town_map_position
+354	      return nil if !player_location
+355	      player_region = player_location[0]
+356	      valid_contacts = []
+357	      $PokemonGlobal.phone.contacts.each do |contact|
+358	        next if !contact.trainer? || !contact.visible?
+359	        next if contact.map_id == $game_map.map_id ||
+360	                pbGetMapNameFromId(contact.map_id) == $game_map.name
+361	        caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+362	        next if !caller_map_metadata || !caller_map_metadata.town_map_position
+363	        next if caller_map_metadata.town_map_position[0] != player_region
+364	        valid_contacts.push(contact)
+365	      end
+366	      return valid_contacts.sample
+367	    end
+368	
+369	    #===========================================================================
+370	
+371	    def make_incoming
+372	      return if !can_make?
+373	      contact = get_random_trainer_for_incoming_call
+374	      return if !contact
+375	      if contact.common_event_call?
+376	        if !pbCommonEvent(contact.common_event_id)
+377	          pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+378	                          contact.display_name, contact.common_event_id))
+379	        end
+380	      else
+381	        call = generate_trainer_dialogue(contact)
+382	        play(call, contact)
+383	      end
+384	    end
+385	
+386	    # Phone::Contact
+387	    # Trainer type, name[, start_version]
+388	    # Name (for non-trainers)
+389	    def make_outgoing(*args)
+390	      if args[0].is_a?(Phone::Contact)
+391	        contact = args[0]
+392	      elsif args.length > 1
+393	        contact = Phone.get(true, args[0], args[1], args[2] || 0)   # Trainer
+394	      else
+395	        contact = Phone.get(false, args[0])   # Non-trainer
+396	      end
+397	      raise _INTL("Couldn't find phone contact given: {1}.", args.inspect) if !contact
+398	      return if !can_call_contact?(contact)
+399	      if contact.common_event_call?
+400	        if !pbCommonEvent(contact.common_event_id)
+401	          pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+402	                          contact.display_name, contact.common_event_id))
+403	        end
+404	      else
+405	        call = generate_trainer_dialogue(contact)
+406	        play(call, contact)
+407	      end
+408	    end
+409	
+410	    def start_message(contact = nil)
+411	      pbMessage("......\\wt[5] ......\1")
+412	    end
+413	
+414	    def play(dialogue, contact)
+415	      start_message(contact)
+416	      contact_pokemon_species  = get_random_contact_pokemon_species(contact)
+417	      random_encounter_species = get_random_encounter_species(contact)
+418	      contact_map_name         = get_map_name(contact)
+419	      gender_colour_text       = ""
+420	      if Settings::COLOR_PHONE_CALL_MESSAGES_BY_CONTACT_GENDER && contact.trainer?
+421	        data = GameData::TrainerType.try_get(contact.trainer_type)
+422	        if data
+423	          case data.gender
+424	          when 0 then gender_colour_text = "\\b"
+425	          when 1 then gender_colour_text = "\\r"
+426	          end
+427	        end
+428	      end
+429	      messages = dialogue.split("\\m")
+430	      messages.each_with_index do |message, i|
+431	        message.gsub!(/\\TN/, _INTL(contact.name))
+432	        message.gsub!(/\\TP/, contact_pokemon_species)
+433	        message.gsub!(/\\TE/, random_encounter_species)
+434	        message.gsub!(/\\TM/, contact_map_name)
+435	        message += "\1" if i < messages.length - 1
+436	        pbMessage(gender_colour_text + message)
+437	      end
+438	      end_message(contact)
+439	    end
+440	
+441	    def end_message(contact = nil)
+442	      pbMessage(_INTL("Click!") + "\\wt[10]\n......\\wt[5] ......\1")
+443	    end
+444	
+445	    #===========================================================================
+446	
+447	    def generate_trainer_dialogue(contact)
+448	      validate contact => Phone::Contact
+449	      # Get the set of messages to be used by the contact
+450	      messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.version)
+451	      messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.start_version) if !messages
+452	      messages = GameData::PhoneMessage::DATA["default"] if !messages
+453	      # Create lambda for choosing a random message and translating it
+454	      get_random_message = lambda do |msgs|
+455	        return "" if !msgs
+456	        msg = msgs.sample
+457	        return "" if !msg
+458	        return pbGetMessageFromHash(MessageTypes::PHONE_MESSAGES, msg)
+459	      end
+460	      # Choose random greeting depending on time of day
+461	      ret = get_random_message.call(messages.intro)
+462	      time = pbGetTimeNow
+463	      if PBDayNight.isMorning?(time)
+464	        mod_call = get_random_message.call(messages.intro_morning)
+465	        ret = mod_call if !nil_or_empty?(mod_call)
+466	      elsif PBDayNight.isAfternoon?(time)
+467	        mod_call = get_random_message.call(messages.intro_afternoon)
+468	        ret = mod_call if !nil_or_empty?(mod_call)
+469	      elsif PBDayNight.isEvening?(time)
+470	        mod_call = get_random_message.call(messages.intro_evening)

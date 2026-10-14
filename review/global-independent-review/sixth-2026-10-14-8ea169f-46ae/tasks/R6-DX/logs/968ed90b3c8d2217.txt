@@ -1,0 +1,444 @@
+881:   if id.length == 0
+882:     id = sprintf("ITEM_%03d", GameData::Item.count)
+883:   elsif !id[0, 1][/[A-Z]/]
+884:     id = "ITEM_" + id
+885:   end
+886:   if GameData::Item.exists?(id)
+887:     (1..100).each do |i|
+888:       trial_id = sprintf("%s_%d", id, i)
+889:       next if GameData::Item.exists?(trial_id)
+890:       id = trial_id
+891:       break
+892:     end
+893:   end
+894:   if GameData::Item.exists?(id)
+895:     pbMessage(_INTL("Failed to create the item. Choose a different name."))
+896:     return
+897:   end
+898:   # Choose a pocket
+899:   pocket = PocketProperty.set("", 0)
+900:   return if pocket == 0
+901:   # Choose a price
+902:   price = LimitProperty.new(999_999).set(_INTL("Purchase price"), -1)
+903:   return if price == -1
+904:   # Choose a description
+905:   description = StringProperty.set(_INTL("Description"), "")
+906:   # Construct item hash
+907:   item_hash = {
+908:     :id          => id.to_sym,
+909:     :name        => name,
+910:     :name_plural => name + "s",
+911:     :pocket      => pocket,
+912:     :price       => price,
+913:     :description => description
+914:   }
+915:   # Add item's data to records
+916:   GameData::Item.register(item_hash)
+917:   GameData::Item.save
+918:   Compiler.write_items
+919:   pbMessage(_INTL("The item {1} was created (ID: {2}).", name, id.to_s))
+920:   pbMessage(_INTL("Put the item's graphic ({1}.png) in Graphics/Items, or it will be blank.", id.to_s))
+921: end
+922: 
+923: #===============================================================================
+924: # Pokémon species editor
+925: #===============================================================================
+926: def pbPokemonEditor
+927:   properties = GameData::Species.editor_properties
+928:   pbListScreenBlock(_INTL("Pokémon species"), SpeciesLister.new(0, false)) do |button, species|
+929:     if species
+930:       case button
+931:       when Input::ACTION
+932:         if species.is_a?(Symbol) && pbConfirmMessageSerious(_INTL("Delete this species?"))
+933:           GameData::Species::DATA.delete(species)
+934:           GameData::Species.save
+935:           Compiler.write_pokemon
+936:           pbMessage(_INTL("The species was deleted."))
+937:         end
+938:       when Input::USE
+939:         if species.is_a?(Symbol)
+940:           spec = GameData::Species.get(species)
+941:           data = []
+942:           properties.each do |prop|
+943:             val = spec.get_property_for_PBS(prop[0])
+944:             val = prop[1].defaultValue if val.nil? && prop[1].respond_to?(:defaultValue)
+945:             val = (val * 10).round if ["Height", "Weight"].include?(prop[0])
+946:             data.push(val)
+947:           end
+948:           # Edit the properties
+949:           if pbPropertyList(spec.id.to_s, data, properties, true)
+950:             # Construct species hash
+951:             schema = GameData::Species.schema
+952:             species_hash = {}
+953:             properties.each_with_index do |prop, i|
+954:               data[i] = data[i].to_f / 10 if ["Height", "Weight"].include?(prop[0])
+955:               case prop[0]
+956:               when "ID"
+957:                 species_hash[schema["SectionName"][0]] = data[i]
+958:               else
+959:                 species_hash[schema[prop[0]][0]] = data[i]
+960:               end
+961:             end
+962:             species_hash[:pbs_file_suffix] = spec.pbs_file_suffix
+963:             # Sanitise data
+964:             Compiler.validate_compiled_pokemon(species_hash)
+965:             species_hash[:evolutions].each do |evo|
+966:               param_type = GameData::Evolution.get(evo[1]).parameter
+967:               if param_type.nil?
+968:                 evo[2] = nil
+969:               elsif param_type == Integer
+970:                 evo[2] = Compiler.cast_csv_value(evo[2], "u")
+971:               elsif param_type != String
+972:                 evo[2] = Compiler.cast_csv_value(evo[2], "e", param_type)
+973:               end
+974:             end
+975:             # Add species' data to records
+976:             GameData::Species.register(species_hash)
+977:             GameData::Species.save
+978:             Compiler.write_pokemon
+979:             pbMessage(_INTL("Data saved."))
+980:           end
+981:         else
+982:           pbMessage(_INTL("Can't add a new species."))
+983:         end
+984:       end
+985:     end
+986:   end
+987: end
+988: 
+989: #===============================================================================
+990: # Regional Dexes editor
+991: #===============================================================================
+992: def pbRegionalDexEditor(dex)
+993:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+994:   viewport.z = 99999
+995:   cmd_window = pbListWindow([])
+996:   info = Window_AdvancedTextPokemon.newWithSize(
+997:     _INTL("Z+Up/Down: Rearrange entries\nZ+Right: Insert new entry\nZ+Left: Delete entry\nD: Clear entry"),
+998:     Graphics.width / 2, 64, Graphics.width / 2, Graphics.height - 64, viewport
+999:   )
+1000:   info.z = 2
+1001:   dex.compact!
+1002:   ret = dex.clone
+1003:   commands = []
+1004:   refresh_list = true
+1005:   cmd = [0, 0]   # [action, index in list]
+1006:   loop do
+1007:     # Populate commands
+1008:     if refresh_list
+1009:       loop do
+1010:         break if dex.length == 0 || dex[-1]
+1011:         dex.slice!(-1)
+1012:       end
+1013:       commands = []
+1014:       dex.each_with_index do |species, i|
+1015:         text = (species) ? GameData::Species.get(species).real_name : "----------"
+1016:         commands.push(sprintf("%03d: %s", i + 1, text))
+1017:       end
+1018:       commands.push(sprintf("%03d: ----------", commands.length + 1))
+1019:       cmd[1] = [cmd[1], commands.length - 1].min
+1020:       refresh_list = false
+1021:     end
+1022:     # Choose to do something
+1023:     cmd = pbCommands3(cmd_window, commands, -1, cmd[1], true)
+1024:     case cmd[0]
+1025:     when 1   # Swap entry up
+1026:       if cmd[1] < dex.length - 1
+1027:         dex[cmd[1] + 1], dex[cmd[1]] = dex[cmd[1]], dex[cmd[1] + 1]
+1028:         refresh_list = true
+1029:       end
+1030:     when 2   # Swap entry down
+1031:       if cmd[1] > 0
+1032:         dex[cmd[1] - 1], dex[cmd[1]] = dex[cmd[1]], dex[cmd[1] - 1]
+1033:         refresh_list = true
+1034:       end
+1035:     when 3   # Delete spot
+1036:       if cmd[1] < dex.length
+1037:         dex.delete_at(cmd[1])
+1038:         refresh_list = true
+1039:       end
+1040:     when 4   # Insert spot
+1041:       if cmd[1] < dex.length
+1042:         dex.insert(cmd[1], nil)
+1043:         refresh_list = true
+1044:       end
+1045:     when 5   # Clear spot
+1046:       if dex[cmd[1]]
+1047:         dex[cmd[1]] = nil
+1048:         refresh_list = true
+1049:       end
+1050:     when 0
+1051:       if cmd[1] >= 0   # Edit entry
+1052:         case pbMessage("\\ts[]" + _INTL("Do what with this entry?"),
+1053:                        [_INTL("Change species"), _INTL("Clear"),
+1054:                         _INTL("Insert entry"), _INTL("Delete entry"),
+1055:                         _INTL("Cancel")], 5)
+1056:         when 0   # Change species
+1057:           species = pbChooseSpeciesList(dex[cmd[1]])
+1058:           if species
+1059:             dex[cmd[1]] = species
+1060:             dex.each_with_index { |s, i| dex[i] = nil if i != cmd[1] && s == species }
+1061:             refresh_list = true
+1062:           end
+1063:         when 1   # Clear spot
+1064:           if dex[cmd[1]]
+1065:             dex[cmd[1]] = nil
+1066:             refresh_list = true
+1067:           end
+1068:         when 2   # Insert spot
+1069:           if cmd[1] < dex.length
+1070:             dex.insert(cmd[1], nil)
+1071:             refresh_list = true
+1072:           end
+1073:         when 3   # Delete spot
+1074:           if cmd[1] < dex.length
+1075:             dex.delete_at(cmd[1])
+1076:             refresh_list = true
+1077:           end
+1078:         end
+1079:       else   # Cancel
+1080:         case pbMessage(_INTL("Save changes?"),
+1081:                        [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1082:         when 0   # Save all changes to Dex
+1083:           dex.slice!(-1) until dex[-1]
+1084:           ret = dex
+1085:           break
+1086:         when 1   # Just quit
+1087:           break
+1088:         end
+1089:       end
+1090:     end
+1091:   end
+1092:   info.dispose
+1093:   cmd_window.dispose
+1094:   viewport.dispose
+1095:   ret.compact!
+1096:   return ret
+1097: end
+1098: 
+1099: def pbRegionalDexEditorMain
+1100:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+1101:   viewport.z = 99999
+1102:   cmd_window = pbListWindow([])
+1103:   cmd_window.viewport = viewport
+1104:   cmd_window.z        = 2
+1105:   title = Window_UnformattedTextPokemon.newWithSize(
+1106:     _INTL("Regional Dexes Editor"), Graphics.width / 2, 0, Graphics.width / 2, 64, viewport
+1107:   )
+1108:   title.z = 2
+1109:   info = Window_AdvancedTextPokemon.newWithSize(
+1110:     _INTL("Z+Up/Down: Rearrange Dexes"), Graphics.width / 2, 64,
+1111:     Graphics.width / 2, Graphics.height - 64, viewport
+1112:   )
+1113:   info.z = 2
+1114:   dex_lists = []
+1115:   pbLoadRegionalDexes.each_with_index { |d, index| dex_lists[index] = d.clone }
+1116:   commands = []
+1117:   refresh_list = true
+1118:   oldsel = -1
+1119:   cmd = [0, 0]   # [action, index in list]
+1120:   loop do
+1121:     # Populate commands
+1122:     if refresh_list
+1123:       commands = [_INTL("[ADD DEX]")]
+1124:       dex_lists.each_with_index do |list, i|
+1125:         commands.push(_INTL("Dex {1} (size {2})", i + 1, list.length))
+1126:       end
+1127:       refresh_list = false
+1128:     end
+1129:     # Choose to do something
+1130:     oldsel = -1
+1131:     cmd = pbCommands3(cmd_window, commands, -1, cmd[1], true)
+1132:     case cmd[0]
+1133:     when 1   # Swap Dex up
+1134:       if cmd[1] > 0 && cmd[1] < commands.length - 1
+1135:         dex_lists[cmd[1] - 1], dex_lists[cmd[1]] = dex_lists[cmd[1]], dex_lists[cmd[1] - 1]
+1136:         refresh_list = true
+1137:       end
+1138:     when 2   # Swap Dex down
+1139:       if cmd[1] > 1
+1140:         dex_lists[cmd[1] - 2], dex_lists[cmd[1] - 1] = dex_lists[cmd[1] - 1], dex_lists[cmd[1] - 2]
+1141:         refresh_list = true
+1142:       end
+1143:     when 0   # Clicked on a command/Dex
+1144:       if cmd[1] == 0   # Add new Dex
+1145:         case pbMessage(_INTL("Fill in this new Dex?"),
+1146:                        [_INTL("Leave blank"), _INTL("National Dex"),
+1147:                         _INTL("Nat. Dex grouped families"), _INTL("Cancel")], 4)
+1148:         when 0   # Leave blank
+1149:           dex_lists.push([])
+1150:           refresh_list = true
+1151:         when 1   # Fill with National Dex
+1152:           new_dex = []
+1153:           GameData::Species.each_species { |s| new_dex.push(s.species) }
+1154:           dex_lists.push(new_dex)
+1155:           refresh_list = true
+1156:         when 2   # Fill with National Dex (grouped families)
+1157:           new_dex = []
+1158:           seen = []
+1159:           GameData::Species.each_species do |s|
+1160:             next if seen.include?(s.species)
+1161:             family = s.get_family_species
+1162:             new_dex.concat(family)
+1163:             seen.concat(family)
+1164:           end
+1165:           dex_lists.push(new_dex)
+1166:           refresh_list = true
+1167:         end
+1168:       elsif cmd[1] > 0   # Edit a Dex
+1169:         case pbMessage("\\ts[]" + _INTL("Do what with this Dex?"),
+1170:                        [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+1171:         when 0   # Edit
+1172:           dex_lists[cmd[1] - 1] = pbRegionalDexEditor(dex_lists[cmd[1] - 1])
+1173:           refresh_list = true
+1174:         when 1   # Copy
+1175:           dex_lists[dex_lists.length] = dex_lists[cmd[1] - 1].clone
+1176:           cmd[1] = dex_lists.length
+1177:           refresh_list = true
+1178:         when 2   # Delete
+1179:           dex_lists.delete_at(cmd[1] - 1)
+1180:           cmd[1] = [cmd[1], dex_lists.length].min
+1181:           refresh_list = true
+1182:         end
+1183:       else   # Cancel
+1184:         case pbMessage(_INTL("Save changes?"),
+1185:                        [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1186:         when 0   # Save all changes to Dexes
+1187:           save_data(dex_lists, "Data/regional_dexes.dat")
+1188:           $game_temp.regional_dexes_data = nil
+1189:           Compiler.write_regional_dexes
+1190:           pbMessage(_INTL("Data saved."))
+1191:           break
+1192:         when 1   # Just quit
+1193:           break
+1194:         end
+1195:       end
+1196:     end
+1197:   end
+1198:   title.dispose
+1199:   info.dispose
+1200:   cmd_window.dispose
+1201:   viewport.dispose
+1202: end
+1203: 
+1204: def pbAppendEvoToFamilyArray(species, array, seenarray)
+1205:   return if seenarray[species]
+1206:   array.push(species)
+1207:   seenarray[species] = true
+1208:   evos = GameData::Species.get(species).get_evolutions
+1209:   if evos.length > 0
+1210:     subarray = []
+1211:     evos.each do |i|
+1212:       pbAppendEvoToFamilyArray(i[0], subarray, seenarray)
+1213:     end
+1214:     array.push(subarray) if subarray.length > 0
+1215:   end
+1216: end
+1217: 
+1218: def pbGetEvoFamilies
+1219:   seen = []
+1220:   ret = []
+1221:   GameData::Species.each_species do |sp|
+1222:     species = sp.get_baby_species
+1223:     next if seen[species]
+1224:     subret = []
+1225:     pbAppendEvoToFamilyArray(species, subret, seen)
+1226:     ret.push(subret.flatten) if subret.length > 0
+1227:   end
+1228:   return ret
+1229: end
+1230: 
+1231: def pbEvoFamiliesToStrings
+1232:   ret = []
+1233:   families = pbGetEvoFamilies
+1234:   families.length.times do |fam|
+1235:     string = ""
+1236:     families[fam].length.times do |p|
+1237:       if p >= 3
+1238:         string += " + #{families[fam].length - 3} more"
+1239:         break
+1240:       end
+1241:       string += "/" if p > 0
+1242:       string += GameData::Species.get(families[fam][p]).name
+1243:     end
+1244:     ret[fam] = string
+1245:   end
+1246:   return ret
+1247: end
+1248: 
+1249: #===============================================================================
+1250: # Battle animations rearranger
+1251: #===============================================================================
+1252: def pbAnimationsOrganiser
+1253:   list = pbLoadBattleAnimations
+1254:   if !list || !list[0]
+1255:     pbMessage(_INTL("No animations exist."))
+1256:     return
+1257:   end
+1258:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+1259:   viewport.z = 99999
+1260:   cmdwin = pbListWindow([])
+1261:   cmdwin.viewport = viewport
+1262:   cmdwin.z        = 2
+1263:   title = Window_UnformattedTextPokemon.newWithSize(
+1264:     _INTL("Animations Organiser"), Graphics.width / 2, 0, Graphics.width / 2, 64, viewport
+1265:   )
+1266:   title.z = 2
+1267:   info = Window_AdvancedTextPokemon.newWithSize(
+1268:     _INTL("Z+Up/Down: Swap\nZ+Left: Delete\nZ+Right: Insert"),
+1269:     Graphics.width / 2, 64, Graphics.width / 2, Graphics.height - 64, viewport
+1270:   )
+1271:   info.z = 2
+1272:   commands = []
+1273:   refreshlist = true
+1274:   oldsel = -1
+1275:   cmd = [0, 0]
+1276:   loop do
+1277:     if refreshlist
+1278:       commands = []
+1279:       list.length.times do |i|
+1280:         commands.push(sprintf("%d: %s", i, (list[i]) ? list[i].name : "???"))
+1281:       end
+1282:     end
+1283:     refreshlist = false
+1284:     oldsel = -1
+1285:     cmd = pbCommands3(cmdwin, commands, -1, cmd[1], true)
+1286:     case cmd[0]
+1287:     when 1   # Swap animation up
+1288:       if cmd[1] >= 0 && cmd[1] < commands.length - 1
+1289:         list[cmd[1] + 1], list[cmd[1]] = list[cmd[1]], list[cmd[1] + 1]
+1290:         refreshlist = true
+1291:       end
+1292:     when 2   # Swap animation down
+1293:       if cmd[1] > 0
+1294:         list[cmd[1] - 1], list[cmd[1]] = list[cmd[1]], list[cmd[1] - 1]
+1295:         refreshlist = true
+1296:       end
+1297:     when 3   # Delete spot
+1298:       list.delete_at(cmd[1])
+1299:       cmd[1] = [cmd[1], list.length - 1].min
+1300:       refreshlist = true
+1301:       pbWait(0.2)
+1302:     when 4   # Insert spot
+1303:       list.insert(cmd[1], PBAnimation.new)
+1304:       refreshlist = true
+1305:       pbWait(0.2)
+1306:     when 0
+1307:       cmd2 = pbMessage(_INTL("Save changes?"),
+1308:                        [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1309:       if [0, 1].include?(cmd2)
+1310:         if cmd2 == 0
+1311:           # Save animations here
+1312:           save_data(list, "Data/PkmnAnimations.rxdata")
+1313:           $game_temp.battle_animations_data = nil
+1314:           pbMessage(_INTL("Data saved."))
+1315:         end
+1316:         break
+1317:       end
+1318:     end
+1319:   end
+1320:   title.dispose
+1321:   info.dispose
+1322:   cmdwin.dispose
+1323:   viewport.dispose
+1324: end

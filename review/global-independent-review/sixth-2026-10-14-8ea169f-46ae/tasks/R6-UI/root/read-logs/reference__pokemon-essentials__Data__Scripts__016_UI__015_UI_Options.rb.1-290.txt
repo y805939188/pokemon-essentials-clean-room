@@ -1,0 +1,291 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/015_UI_Options.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 290], "total_lines": 544, "sha256": "30093452f085d5920a1c62c0530d89db84f083f34cdb6f87cd2fe377f7c41dc2", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:18.520202+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class PokemonSystem
+5:   attr_accessor :textspeed
+6:   attr_accessor :battlescene
+7:   attr_accessor :battlestyle
+8:   attr_accessor :sendtoboxes
+9:   attr_accessor :givenicknames
+10:   attr_accessor :frame
+11:   attr_accessor :textskin
+12:   attr_accessor :screensize
+13:   attr_accessor :language
+14:   attr_accessor :runstyle
+15:   attr_accessor :bgmvolume
+16:   attr_accessor :sevolume
+17:   attr_accessor :textinput
+18: 
+19:   def initialize
+20:     @textspeed     = 1     # Text speed (0=slow, 1=medium, 2=fast, 3=instant)
+21:     @battlescene   = 0     # Battle effects (animations) (0=on, 1=off)
+22:     @battlestyle   = 0     # Battle style (0=switch, 1=set)
+23:     @sendtoboxes   = 0     # Send to Boxes (0=manual, 1=automatic)
+24:     @givenicknames = 0     # Give nicknames (0=give, 1=don't give)
+25:     @frame         = 0     # Default window frame (see also Settings::MENU_WINDOWSKINS)
+26:     @textskin      = 0     # Speech frame
+27:     @screensize    = (Settings::SCREEN_SCALE * 2).floor - 1   # 0=half size, 1=full size, 2=full-and-a-half size, 3=double size
+28:     @language      = 0     # Language (see also Settings::LANGUAGES in script PokemonSystem)
+29:     @runstyle      = 0     # Default movement speed (0=walk, 1=run)
+30:     @bgmvolume     = 80    # Volume of background music and ME
+31:     @sevolume      = 100   # Volume of sound effects
+32:     @textinput     = 0     # Text input mode (0=cursor, 1=keyboard)
+33:   end
+34: end
+35: 
+36: #===============================================================================
+37: #
+38: #===============================================================================
+39: module PropertyMixin
+40:   attr_reader :name
+41: 
+42:   def get
+43:     return @get_proc&.call
+44:   end
+45: 
+46:   def set(*args)
+47:     @set_proc&.call(*args)
+48:   end
+49: end
+50: 
+51: #===============================================================================
+52: #
+53: #===============================================================================
+54: class EnumOption
+55:   include PropertyMixin
+56:   attr_reader :values
+57: 
+58:   def initialize(name, values, get_proc, set_proc)
+59:     @name     = name
+60:     @values   = values.map { |val| _INTL(val) }
+61:     @get_proc = get_proc
+62:     @set_proc = set_proc
+63:   end
+64: 
+65:   def next(current)
+66:     index = current + 1
+67:     index = @values.length - 1 if index > @values.length - 1
+68:     return index
+69:   end
+70: 
+71:   def prev(current)
+72:     index = current - 1
+73:     index = 0 if index < 0
+74:     return index
+75:   end
+76: end
+77: 
+78: #===============================================================================
+79: #
+80: #===============================================================================
+81: class NumberOption
+82:   include PropertyMixin
+83:   attr_reader :lowest_value
+84:   attr_reader :highest_value
+85: 
+86:   def initialize(name, range, get_proc, set_proc)
+87:     @name = name
+88:     case range
+89:     when Range
+90:       @lowest_value  = range.begin
+91:       @highest_value = range.end
+92:     when Array
+93:       @lowest_value  = range[0]
+94:       @highest_value = range[1]
+95:     end
+96:     @get_proc = get_proc
+97:     @set_proc = set_proc
+98:   end
+99: 
+100:   def next(current)
+101:     index = current + @lowest_value
+102:     index += 1
+103:     index = @lowest_value if index > @highest_value
+104:     return index - @lowest_value
+105:   end
+106: 
+107:   def prev(current)
+108:     index = current + @lowest_value
+109:     index -= 1
+110:     index = @highest_value if index < @lowest_value
+111:     return index - @lowest_value
+112:   end
+113: end
+114: 
+115: #===============================================================================
+116: #
+117: #===============================================================================
+118: class SliderOption
+119:   include PropertyMixin
+120:   attr_reader :lowest_value
+121:   attr_reader :highest_value
+122: 
+123:   def initialize(name, range, get_proc, set_proc)
+124:     @name          = name
+125:     @lowest_value  = range[0]
+126:     @highest_value = range[1]
+127:     @interval      = range[2]
+128:     @get_proc      = get_proc
+129:     @set_proc      = set_proc
+130:   end
+131: 
+132:   def next(current)
+133:     index = current + @lowest_value
+134:     index += @interval
+135:     index = @highest_value if index > @highest_value
+136:     return index - @lowest_value
+137:   end
+138: 
+139:   def prev(current)
+140:     index = current + @lowest_value
+141:     index -= @interval
+142:     index = @lowest_value if index < @lowest_value
+143:     return index - @lowest_value
+144:   end
+145: end
+146: 
+147: #===============================================================================
+148: # Main options list
+149: #===============================================================================
+150: class Window_PokemonOption < Window_DrawableCommand
+151:   attr_reader :value_changed
+152: 
+153:   SEL_NAME_BASE_COLOR    = Color.new(192, 120, 0)
+154:   SEL_NAME_SHADOW_COLOR  = Color.new(248, 176, 80)
+155:   SEL_VALUE_BASE_COLOR   = Color.new(248, 48, 24)
+156:   SEL_VALUE_SHADOW_COLOR = Color.new(248, 136, 128)
+157: 
+158:   def initialize(options, x, y, width, height)
+159:     @options = options
+160:     @values = []
+161:     @options.length.times { |i| @values[i] = 0 }
+162:     @value_changed = false
+163:     super(x, y, width, height)
+164:   end
+165: 
+166:   def [](i)
+167:     return @values[i]
+168:   end
+169: 
+170:   def []=(i, value)
+171:     @values[i] = value
+172:     refresh
+173:   end
+174: 
+175:   def setValueNoRefresh(i, value)
+176:     @values[i] = value
+177:   end
+178: 
+179:   def itemCount
+180:     return @options.length + 1
+181:   end
+182: 
+183:   def drawItem(index, _count, rect)
+184:     rect = drawCursor(index, rect)
+185:     sel_index = self.index
+186:     # Draw option's name
+187:     optionname = (index == @options.length) ? _INTL("Close") : @options[index].name
+188:     optionwidth = rect.width * 9 / 20
+189:     pbDrawShadowText(self.contents, rect.x, rect.y, optionwidth, rect.height, optionname,
+190:                      (index == sel_index) ? SEL_NAME_BASE_COLOR : self.baseColor,
+191:                      (index == sel_index) ? SEL_NAME_SHADOW_COLOR : self.shadowColor)
+192:     return if index == @options.length
+193:     # Draw option's values
+194:     case @options[index]
+195:     when EnumOption
+196:       if @options[index].values.length > 1
+197:         totalwidth = 0
+198:         @options[index].values.each do |value|
+199:           totalwidth += self.contents.text_size(value).width
+200:         end
+201:         spacing = (rect.width - rect.x - optionwidth - totalwidth) / (@options[index].values.length - 1)
+202:         spacing = 0 if spacing < 0
+203:         xpos = optionwidth + rect.x
+204:         ivalue = 0
+205:         @options[index].values.each do |value|
+206:           pbDrawShadowText(self.contents, xpos, rect.y, optionwidth, rect.height, value,
+207:                            (ivalue == self[index]) ? SEL_VALUE_BASE_COLOR : self.baseColor,
+208:                            (ivalue == self[index]) ? SEL_VALUE_SHADOW_COLOR : self.shadowColor)
+209:           xpos += self.contents.text_size(value).width
+210:           xpos += spacing
+211:           ivalue += 1
+212:         end
+213:       else
+214:         pbDrawShadowText(self.contents, rect.x + optionwidth, rect.y, optionwidth, rect.height,
+215:                          optionname, self.baseColor, self.shadowColor)
+216:       end
+217:     when NumberOption
+218:       value = _INTL("Type {1}/{2}", @options[index].lowest_value + self[index],
+219:                     @options[index].highest_value - @options[index].lowest_value + 1)
+220:       xpos = optionwidth + (rect.x * 2)
+221:       pbDrawShadowText(self.contents, xpos, rect.y, optionwidth, rect.height, value,
+222:                        SEL_VALUE_BASE_COLOR, SEL_VALUE_SHADOW_COLOR, 1)
+223:     when SliderOption
+224:       value = sprintf(" %d", @options[index].highest_value)
+225:       sliderlength = rect.width - rect.x - optionwidth - self.contents.text_size(value).width
+226:       xpos = optionwidth + rect.x
+227:       self.contents.fill_rect(xpos, rect.y - 2 + (rect.height / 2), sliderlength, 4, self.baseColor)
+228:       self.contents.fill_rect(
+229:         xpos + ((sliderlength - 8) * (@options[index].lowest_value + self[index]) / @options[index].highest_value),
+230:         rect.y - 8 + (rect.height / 2),
+231:         8, 16, SEL_VALUE_BASE_COLOR
+232:       )
+233:       value = (@options[index].lowest_value + self[index]).to_s
+234:       xpos += (rect.width - rect.x - optionwidth) - self.contents.text_size(value).width
+235:       pbDrawShadowText(self.contents, xpos, rect.y, optionwidth, rect.height, value,
+236:                        SEL_VALUE_BASE_COLOR, SEL_VALUE_SHADOW_COLOR)
+237:     else
+238:       value = @options[index].values[self[index]]
+239:       xpos = optionwidth + rect.x
+240:       pbDrawShadowText(self.contents, xpos, rect.y, optionwidth, rect.height, value,
+241:                        SEL_VALUE_BASE_COLOR, SEL_VALUE_SHADOW_COLOR)
+242:     end
+243:   end
+244: 
+245:   def update
+246:     oldindex = self.index
+247:     @value_changed = false
+248:     super
+249:     dorefresh = (self.index != oldindex)
+250:     if self.active && self.index < @options.length
+251:       if Input.repeat?(Input::LEFT)
+252:         self[self.index] = @options[self.index].prev(self[self.index])
+253:         dorefresh = true
+254:         @value_changed = true
+255:       elsif Input.repeat?(Input::RIGHT)
+256:         self[self.index] = @options[self.index].next(self[self.index])
+257:         dorefresh = true
+258:         @value_changed = true
+259:       end
+260:     end
+261:     refresh if dorefresh
+262:   end
+263: end
+264: 
+265: #===============================================================================
+266: # Options main screen
+267: #===============================================================================
+268: class PokemonOption_Scene
+269:   attr_reader :sprites
+270:   attr_reader :in_load_screen
+271: 
+272:   def pbStartScene(in_load_screen = false)
+273:     @in_load_screen = in_load_screen
+274:     # Get all options
+275:     @options = []
+276:     @hashes = []
+277:     MenuHandlers.each_available(:options_menu) do |option, hash, name|
+278:       @options.push(
+279:         hash["type"].new(name, hash["parameters"], hash["get_proc"], hash["set_proc"])
+280:       )
+281:       @hashes.push(hash)
+282:     end
+283:     # Create sprites
+284:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+285:     @viewport.z = 99999
+286:     @sprites = {}
+287:     addBackgroundOrColoredPlane(@sprites, "bg", "optionsbg", Color.new(192, 200, 208), @viewport)
+288:     @sprites["title"] = Window_UnformattedTextPokemon.newWithSize(
+289:       _INTL("Options"), 0, -16, Graphics.width, 64, @viewport
+290:     )

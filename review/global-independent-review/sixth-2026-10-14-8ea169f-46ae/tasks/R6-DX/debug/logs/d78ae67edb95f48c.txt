@@ -1,0 +1,100 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class SafariState
+5:   attr_accessor :ballcount
+6:   attr_accessor :captures
+7:   attr_accessor :decision
+8:   attr_accessor :steps
+9: 
+10:   def initialize
+11:     @start      = nil
+12:     @ballcount  = 0
+13:     @captures   = 0
+14:     @inProgress = false
+15:     @steps      = 0
+16:     @decision   = 0
+17:   end
+18: 
+19:   def pbReceptionMap
+20:     return @inProgress ? @start[0] : 0
+21:   end
+22: 
+23:   def inProgress?
+24:     return @inProgress
+25:   end
+26: 
+27:   def pbGoToStart
+28:     if $scene.is_a?(Scene_Map)
+29:       pbFadeOutIn do
+30:         $game_temp.player_transferring   = true
+31:         $game_temp.transition_processing = true
+32:         $game_temp.player_new_map_id    = @start[0]
+33:         $game_temp.player_new_x         = @start[1]
+34:         $game_temp.player_new_y         = @start[2]
+35:         $game_temp.player_new_direction = 2
+36:         pbDismountBike
+37:         $scene.transfer_player
+38:       end
+39:     end
+40:   end
+41: 
+42:   def pbStart(ballcount)
+43:     @start      = [$game_map.map_id, $game_player.x, $game_player.y, $game_player.direction]
+44:     @ballcount  = ballcount
+45:     @inProgress = true
+46:     @steps      = Settings::SAFARI_STEPS
+47:   end
+48: 
+49:   def pbEnd
+50:     @start      = nil
+51:     @ballcount  = 0
+52:     @captures   = 0
+53:     @inProgress = false
+54:     @steps      = 0
+55:     @decision   = 0
+56:     $game_map.need_refresh = true
+57:   end
+58: end
+59: 
+60: #===============================================================================
+61: #
+62: #===============================================================================
+63: def pbInSafari?
+64:   if pbSafariState.inProgress?
+65:     # Reception map is handled separately from safari map since the reception
+66:     # map can be outdoors, with its own grassy patches.
+67:     reception = pbSafariState.pbReceptionMap
+68:     return true if $game_map.map_id == reception
+69:     return true if $game_map.metadata&.safari_map
+70:   end
+71:   return false
+72: end
+73: 
+74: def pbSafariState
+75:   $PokemonGlobal.safariState = SafariState.new if !$PokemonGlobal.safariState
+76:   return $PokemonGlobal.safariState
+77: end
+78: 
+79: #===============================================================================
+80: #
+81: #===============================================================================
+82: EventHandlers.add(:on_enter_map, :end_safari_game,
+83:   proc { |_old_map_id|
+84:     pbSafariState.pbEnd if !pbInSafari?
+85:   }
+86: )
+87: 
+88: EventHandlers.add(:on_player_step_taken_can_transfer, :safari_game_counter,
+89:   proc { |handled|
+90:     # handled is an array: [nil]. If [true], a transfer has happened because of
+91:     # this event, so don't do anything that might cause another one
+92:     next if handled[0]
+93:     next if Settings::SAFARI_STEPS == 0 || !pbInSafari? || pbSafariState.decision != 0
+94:     pbSafariState.steps -= 1
+95:     next if pbSafariState.steps > 0
+96:     pbMessage("\\se[Safari Zone end]" + _INTL("PA: Ding-dong!") + "\1")
+97:     pbMessage(_INTL("PA: Your safari game is over!"))
+98:     pbSafariState.decision = 1
+99:     pbSafariState.pbGoToStart
+100:     handled[0] = true

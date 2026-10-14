@@ -1,0 +1,114 @@
+237:       end
+238:     end
+239:     return save_data
+240:   end
+241: 
+242:   # Called if all save data is invalid.
+243:   # Prompts the player to delete the save files.
+244:   def prompt_save_deletion
+245:     pbMessage(_INTL("The save file is corrupt, or is incompatible with this game.") + "\1")
+246:     exit unless pbConfirmMessageSerious(
+247:       _INTL("Do you want to delete the save file and start anew?")
+248:     )
+249:     self.delete_save_data
+250:     $game_system   = Game_System.new
+251:     $PokemonSystem = PokemonSystem.new
+252:   end
+253: 
+254:   def pbStartDeleteScreen
+255:     @scene.pbStartDeleteScene
+256:     @scene.pbStartScene2
+257:     if SaveData.exists?
+258:       if pbConfirmMessageSerious(_INTL("Delete all saved data?"))
+259:         pbMessage(_INTL("Once data has been deleted, there is no way to recover it.") + "\1")
+260:         if pbConfirmMessageSerious(_INTL("Delete the saved data anyway?"))
+261:           pbMessage(_INTL("Deleting all data. Don't turn off the power.") + "\\wtnp[0]")
+262:           self.delete_save_data
+263:         end
+264:       end
+265:     else
+266:       pbMessage(_INTL("No save file was found."))
+267:     end
+268:     @scene.pbEndScene
+269:     $scene = pbCallTitle
+270:   end
+271: 
+272:   def delete_save_data
+273:     begin
+274:       SaveData.delete_file
+275:       pbMessage(_INTL("The saved data was deleted."))
+276:     rescue SystemCallError
+277:       pbMessage(_INTL("All saved data could not be deleted."))
+278:     end
+279:   end
+280: 
+281:   def pbStartLoadScreen
+282:     if $DEBUG && !FileTest.exist?("Game.rgssad") && Settings::SKIP_CONTINUE_SCREEN
+283:       if @save_data.empty?
+284:         Game.start_new
+285:       else
+286:         Game.load(@save_data)
+287:       end
+288:       return
+289:     end
+290:     commands = []
+291:     cmd_continue     = -1
+292:     cmd_new_game     = -1
+293:     cmd_options      = -1
+294:     cmd_language     = -1
+295:     cmd_mystery_gift = -1
+296:     cmd_debug        = -1
+297:     cmd_quit         = -1
+298:     show_continue = !@save_data.empty?
+299:     if show_continue
+300:       commands[cmd_continue = commands.length] = _INTL("Continue")
+301:       if @save_data[:player].mystery_gift_unlocked
+302:         commands[cmd_mystery_gift = commands.length] = _INTL("Mystery Gift")
+303:       end
+304:     end
+305:     commands[cmd_new_game = commands.length]  = _INTL("New Game")
+306:     commands[cmd_options = commands.length]   = _INTL("Options")
+307:     commands[cmd_language = commands.length]  = _INTL("Language") if Settings::LANGUAGES.length >= 2
+308:     commands[cmd_debug = commands.length]     = _INTL("Debug") if $DEBUG
+309:     commands[cmd_quit = commands.length]      = _INTL("Quit Game")
+310:     map_id = show_continue ? @save_data[:map_factory].map.map_id : 0
+311:     @scene.pbStartScene(commands, show_continue, @save_data[:player], @save_data[:stats], map_id)
+312:     @scene.pbSetParty(@save_data[:player]) if show_continue
+313:     @scene.pbStartScene2
+314:     loop do
+315:       command = @scene.pbChoose(commands)
+316:       pbPlayDecisionSE if command != cmd_quit
+317:       case command
+318:       when cmd_continue
+319:         @scene.pbEndScene
+320:         Game.load(@save_data)
+321:         return
+322:       when cmd_new_game
+323:         @scene.pbEndScene
+324:         Game.start_new
+325:         return
+326:       when cmd_mystery_gift
+327:         pbFadeOutIn { pbDownloadMysteryGift(@save_data[:player]) }
+328:       when cmd_options
+329:         pbFadeOutIn do
+330:           scene = PokemonOption_Scene.new
+331:           screen = PokemonOptionScreen.new(scene)
+332:           screen.pbStartScreen(true)
+333:         end
+334:       when cmd_language
+335:         @scene.pbEndScene
+336:         $PokemonSystem.language = pbChooseLanguage
+337:         MessageTypes.load_message_files(Settings::LANGUAGES[$PokemonSystem.language][1])
+338:         if show_continue
+339:           @save_data[:pokemon_system] = $PokemonSystem
+340:           File.open(SaveData::FILE_PATH, "wb") { |file| Marshal.dump(@save_data, file) }
+341:         end
+342:         $scene = pbCallTitle
+343:         return
+344:       when cmd_debug
+345:         pbFadeOutIn { pbDebugMenu(false) }
+346:       when cmd_quit
+347:         pbPlayCloseMenuSE
+348:         @scene.pbEndScene
+349:         $scene = nil
+350:         return

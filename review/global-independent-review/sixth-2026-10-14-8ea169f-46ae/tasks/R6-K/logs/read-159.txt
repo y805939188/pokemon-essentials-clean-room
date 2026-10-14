@@ -1,0 +1,181 @@
+PATH reference/pokemon-essentials/Data/Scripts/015_Trainers and player/005_Player_Pokedex.rb RANGE 182-361 TOTAL 361
+182	    # @param dex [Integer] region ID
+183	    def owned_count(dex = -1)
+184	      validate dex => Integer
+185	      return self.count_species(@owned, dex)
+186	    end
+187	
+188	    #---------------------------------------------------------------------------
+189	
+190	    # @param species [Pokemon, Symbol, GameData::Species] Pokemon to register as seen
+191	    # @param gender [Integer] gender to register (0=male, 1=female, 2=genderless)
+192	    # @param form [Integer] form to register
+193	    # @param shiny [Boolean] shininess to register
+194	    # @param should_refresh_dexes [Boolean] whether to recalculate accessible Dex lists
+195	    def register(species, gender = 0, form = 0, shiny = false, should_refresh_dexes = true)
+196	      if species.is_a?(Pokemon)
+197	        species_data = species.species_data
+198	        gender = species.gender
+199	        shiny = species.shiny?
+200	      else
+201	        species_data = GameData::Species.get_species_form(species, form)
+202	      end
+203	      species = species_data.species
+204	      gender = 0 if gender >= 2
+205	      form = species_data.form
+206	      shin = (shiny) ? 1 : 0
+207	      if form != species_data.pokedex_form
+208	        species_data = GameData::Species.get_species_form(species, species_data.pokedex_form)
+209	        form = species_data.form
+210	      end
+211	      form = 0 if species_data.form_name.nil? || species_data.form_name.empty?
+212	      # Register as seen
+213	      @seen[species] = true
+214	      @seen_forms[species] ||= [[[], []], [[], []]]
+215	      @seen_forms[species][gender][shin][form] = true
+216	      @last_seen_forms[species] ||= []
+217	      @last_seen_forms[species] = [gender, form, shiny] if @last_seen_forms[species] == []
+218	      self.refresh_accessible_dexes if should_refresh_dexes
+219	    end
+220	
+221	    # @param pkmn [Pokemon] Pokemon to register as most recently seen
+222	    def register_last_seen(pkmn)
+223	      validate pkmn => Pokemon
+224	      species_data = pkmn.species_data
+225	      form = species_data.pokedex_form
+226	      form = 0 if species_data.form_name.nil? || species_data.form_name.empty?
+227	      @last_seen_forms[pkmn.species] = [pkmn.gender, form, pkmn.shiny?]
+228	    end
+229	
+230	    #---------------------------------------------------------------------------
+231	
+232	    # @param species [Symbol, GameData::Species] species to check
+233	    # @return [Integer] the number of Pokémon of the given species that have
+234	    #   been caught by the player
+235	    def caught_count(species)
+236	      species_id = GameData::Species.try_get(species)&.species
+237	      return 0 if species_id.nil?
+238	      return @caught_counts[species_id] || 0
+239	    end
+240	
+241	    # @param species [Symbol, GameData::Species] species to check
+242	    # @return [Integer] the number of Pokémon of the given species that have
+243	    #   been defeated by the player
+244	    def defeated_count(species)
+245	      species_id = GameData::Species.try_get(species)&.species
+246	      return 0 if species_id.nil?
+247	      return @defeated_counts[species_id] || 0
+248	    end
+249	
+250	    # @param species [Symbol, GameData::Species] species to check
+251	    # @return [Integer] the number of Pokémon of the given species that have
+252	    #   been defeated or caught by the player
+253	    def battled_count(species)
+254	      species_id = GameData::Species.try_get(species)&.species
+255	      return 0 if species_id.nil?
+256	      return (@defeated_counts[species_id] || 0) + (@caught_counts[species_id] || 0)
+257	    end
+258	
+259	    # @param species [Symbol, GameData::Species] species to count as caught
+260	    def register_caught(species)
+261	      species_id = GameData::Species.try_get(species)&.species
+262	      return if species_id.nil?
+263	      @caught_counts[species_id] = 0 if @caught_counts[species_id].nil?
+264	      @caught_counts[species_id] += 1
+265	    end
+266	
+267	    # @param species [Symbol, GameData::Species] species to count as defeated
+268	    def register_defeated(species)
+269	      species_id = GameData::Species.try_get(species)&.species
+270	      return if species_id.nil?
+271	      @defeated_counts[species_id] = 0 if @defeated_counts[species_id].nil?
+272	      @defeated_counts[species_id] += 1
+273	    end
+274	
+275	    #---------------------------------------------------------------------------
+276	
+277	    # Unlocks the given Dex, -1 being the National Dex.
+278	    # @param dex [Integer] Dex ID (-1 is the National Dex)
+279	    def unlock(dex)
+280	      validate dex => Integer
+281	      dex = @unlocked_dexes.length - 1 if dex < 0 || dex > @unlocked_dexes.length - 1
+282	      @unlocked_dexes[dex] = true
+283	      self.refresh_accessible_dexes
+284	    end
+285	
+286	    # Locks the given Dex, -1 being the National Dex.
+287	    # @param dex [Integer] Dex ID (-1 is the National Dex)
+288	    def lock(dex)
+289	      validate dex => Integer
+290	      dex = @unlocked_dexes.length - 1 if dex < 0 || dex > @unlocked_dexes.length - 1
+291	      @unlocked_dexes[dex] = false
+292	      self.refresh_accessible_dexes
+293	    end
+294	
+295	    # @param dex [Integer] Dex ID (-1 is the National Dex)
+296	    # @return [Boolean] whether the given Dex is unlocked
+297	    def unlocked?(dex)
+298	      validate dex => Integer
+299	      dex = @unlocked_dexes.length - 1 if dex == -1
+300	      return @unlocked_dexes[dex] == true
+301	    end
+302	
+303	    # @return [Integer] the number of defined Dexes (including the National Dex)
+304	    def dexes_count
+305	      return @unlocked_dexes.length
+306	    end
+307	
+308	    # Decides which Dex lists are able to be viewed (i.e. they are unlocked and
+309	    # have at least 1 seen species in them), and saves all accessible Dex region
+310	    # numbers into {#accessible_dexes}. National Dex comes after all regional
+311	    # Dexes.
+312	    # If the Dex list shown depends on the player's location, this just decides
+313	    # if a species in the current region has been seen - doesn't look at other
+314	    # regions.
+315	    def refresh_accessible_dexes
+316	      @accessible_dexes = []
+317	      if Settings::USE_CURRENT_REGION_DEX
+318	        region = pbGetCurrentRegion
+319	        region = -1 if region >= dexes_count - 1
+320	        @accessible_dexes[0] = region if self.seen_any?(region)
+321	        return
+322	      end
+323	      if dexes_count == 1   # Only National Dex is defined
+324	        @accessible_dexes.push(-1) if self.unlocked?(0) && self.seen_any?
+325	      else   # Regional Dexes + National Dex
+326	        dexes_count.times do |i|
+327	          dex_list_to_check = (i == dexes_count - 1) ? -1 : i
+328	          if self.unlocked?(i) && self.seen_any?(dex_list_to_check)
+329	            @accessible_dexes.push(dex_list_to_check)
+330	          end
+331	        end
+332	      end
+333	    end
+334	
+335	    def species_in_unlocked_dex?(species)
+336	      return true if @unlocked_dexes.last
+337	      (@unlocked_dexes.length - 1).times do |i|
+338	        next if !self.unlocked?(i)
+339	        return true if pbGetRegionalNumber(i, species) > 0
+340	      end
+341	      return false
+342	    end
+343	
+344	    #---------------------------------------------------------------------------
+345	
+346	    private
+347	
+348	    # @param hash [Hash]
+349	    # @param region [Integer]
+350	    # @return [Integer]
+351	    def count_species(hash, region = -1)
+352	      ret = 0
+353	      if region == -1
+354	        GameData::Species.each_species { |s| ret += 1 if hash[s.species] }
+355	      else
+356	        pbAllRegionalSpecies(region).each { |s| ret += 1 if s && hash[s] }
+357	      end
+358	      return ret
+359	    end
+360	  end
+361	end

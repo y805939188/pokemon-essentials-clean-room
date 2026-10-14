@@ -1,0 +1,208 @@
+231:     t = (deviation * deviation) + (volatility * volatility)
+232:     deviation = 1.0 / Math.sqrt((1.0 / t) + (1.0 / variance))
+233:     # Update rating
+234:     rating += deviation * deviation * sum
+235:     setRating2(rating)
+236:     setDeviation2(deviation)
+237:     setVolatility2(volatility)
+238:   end
+239: 
+240:   #-----------------------------------------------------------------------------
+241: 
+242:   private
+243: 
+244:   attr_writer :volatility
+245: 
+246:   alias volatility2 volatility
+247: 
+248:   def rating2
+249:     return (@rating - 1500.0) / 173.7178
+250:   end
+251: 
+252:   def deviation2
+253:     return @deviation / 173.7178
+254:   end
+255: 
+256:   def getGFactor(deviation)
+257:     # deviation is not yet in glicko2
+258:     deviation /= 173.7178
+259:     return 1.0 / Math.sqrt(1.0 + ((3.0 * deviation * deviation) / (Math::PI * Math::PI)))
+260:   end
+261: 
+262:   def getEFactor(rating, opponentRating, g)
+263:     # rating is already in glicko2
+264:     # opponentRating is not yet in glicko2
+265:     opponentRating = (opponentRating - 1500.0) / 173.7178
+266:     return 1.0 / (1.0 + Math.exp(-g * (rating - opponentRating)))
+267:   end
+268: 
+269:   def setVolatility2(value)
+270:     @volatility = value
+271:   end
+272: 
+273:   def setRating2(value)
+274:     @estimatedRating = nil
+275:     @rating = (value * 173.7178) + 1500.0
+276:   end
+277: 
+278:   def setDeviation2(value)
+279:     @estimatedRating = nil
+280:     @deviation = value * 173.7178
+281:   end
+282: 
+283:   def getUpdatedVolatility(volatility, deviation, variance, improvementSum, system)
+284:     improvement = improvementSum * variance
+285:     a = Math.log(volatility * volatility)
+286:     squSystem = system * system
+287:     squDeviation = deviation * deviation
+288:     squVariance = variance + variance
+289:     squDevplusVar = squDeviation + variance
+290:     x0 = a
+291:     100.times do   # Up to 100 iterations to avoid potentially infinite loops
+292:       e = Math.exp(x0)
+293:       d = squDevplusVar + e
+294:       squD = d * d
+295:       i = improvement / d
+296:       h1 = (-(x0 - a) / squSystem) - (0.5 * e * i * i)
+297:       h2 = (-1.0 / squSystem) - (0.5 * e * squDevplusVar / squD)
+298:       h2 += 0.5 * squVariance * e * (squDevplusVar - e) / (squD * d)
+299:       x1 = x0
+300:       x0 -= h1 / h2
+301:       break if (x1 - x0).abs < 0.000001
+302:     end
+303:     return Math.exp(x0 / 2.0)
+304:   end
+305: end
+306: 
+307: #===============================================================================
+308: #
+309: #===============================================================================
+310: def pbDecideWinnerEffectiveness(move, otype1, otype2, ability, scores)
+311:   data = GameData::Move.get(move)
+312:   return 0 if data.power == 0
+313:   atype = data.type
+314:   typemod = 1.0
+315:   if ability != :LEVITATE || data.type != :GROUND
+316:     mod1 = Effectiveness.calculate(atype, otype1)
+317:     mod2 = (otype1 == otype2) ? 1.0 : Effectiveness.calculate(atype, otype2)
+318:     if ability == :WONDERGUARD
+319:       mod1 = 1.0 if !Effectiveness.super_effective?(mod1)
+320:       mod2 = 1.0 if !Effectiveness.super_effective?(mod2)
+321:     end
+322:     typemod = mod1 * mod2
+323:   end
+324:   typemod *= 4   # Because dealing with 2 types
+325:   return scores[0] if typemod == 0    # Ineffective
+326:   return scores[1] if typemod == 1    # Doubly not very effective
+327:   return scores[2] if typemod == 2    # Not very effective
+328:   return scores[3] if typemod == 4    # Normal effective
+329:   return scores[4] if typemod == 8    # Super effective
+330:   return scores[5] if typemod == 16   # Doubly super effective
+331:   return 0
+332: end
+333: 
+334: def pbDecideWinnerScore(party0, party1, rating)
+335:   score = 0
+336:   types1 = []
+337:   types2 = []
+338:   abilities = []
+339:   party1.length.times do |j|
+340:     types1.push(party1[j].types[0])
+341:     types2.push(party1[j].types[1] || party1[j].types[0])
+342:     abilities.push(party1[j].ability_id)
+343:   end
+344:   party0.length.times do |i|
+345:     party0[i].moves.each do |move|
+346:       next if !move
+347:       party1.length.times do |j|
+348:         score += pbDecideWinnerEffectiveness(
+349:           move.id, types1[j], types2[j], abilities[j], [-16, -8, 0, 4, 12, 20]
+350:         )
+351:       end
+352:     end
+353:     basestatsum = baseStatTotal(party0[i].species)
+354:     score += basestatsum / 10
+355:     score += 10 if party0[i].item   # Not in Battle Dome ranking
+356:   end
+357:   score += rating + rand(32)
+358:   return score
+359: end
+360: 
+361: def pbDecideWinner(party0, party1, rating0, rating1)
+362:   rating0 = (rating0 * 15.0 / 100).round
+363:   rating1 = (rating1 * 15.0 / 100).round
+364:   score0 = pbDecideWinnerScore(party0, party1, rating0)
+365:   score1 = pbDecideWinnerScore(party1, party0, rating1)
+366:   if score0 == score1
+367:     return 5 if rating0 == rating1
+368:     return (rating0 > rating1) ? 1 : 2
+369:   else
+370:     return (score0 > score1) ? 1 : 2
+371:   end
+372: end
+373: 
+374: #===============================================================================
+375: #
+376: #===============================================================================
+377: def pbRuledBattle(team1, team2, rule)
+378:   decision = 0
+379:   if rand(100) == 0
+380:     level = rule.ruleset.suggestedLevel
+381:     t_type = GameData::TrainerType.keys.first
+382:     trainer1 = NPCTrainer.new("PLAYER1", t_type)
+383:     trainer2 = NPCTrainer.new("PLAYER2", t_type)
+384:     items1 = []
+385:     items2 = []
+386:     team1.team.each_with_index do |p, i|
+387:       next if !p
+388:       if p.level != level
+389:         p.level = level
+390:         p.calc_stats
+391:       end
+392:       items1[i] = p.item_id
+393:       trainer1.party.push(p)
+394:     end
+395:     team2.team.each_with_index do |p, i|
+396:       next if !p
+397:       if p.level != level
+398:         p.level = level
+399:         p.calc_stats
+400:       end
+401:       items2[i] = p.item_id
+402:       trainer2.party.push(p)
+403:     end
+404:     scene = Battle::DebugSceneNoVisuals.new
+405:     battle = rule.createBattle(scene, trainer1, trainer2)
+406:     battle.debug = true
+407:     battle.controlPlayer = true
+408:     battle.internalBattle = false
+409:     decision = battle.pbStartBattle
+410:     team1.team.each_with_index do |p, i|
+411:       next if !p
+412:       p.heal
+413:       p.item = items1[i]
+414:     end
+415:     team2.team.each_with_index do |p, i|
+416:       next if !p
+417:       p.heal
+418:       p.item = items2[i]
+419:     end
+420:   else
+421:     party1 = []
+422:     party2 = []
+423:     team1.length.times { |i| party1.push(team1[i]) }
+424:     team2.length.times { |i| party2.push(team2[i]) }
+425:     decision = pbDecideWinner(party1, party2, team1.rating, team2.rating)
+426:   end
+427:   case decision
+428:   when 1   # Team 1 wins
+429:     team1.addMatch(team2, 1)
+430:     team2.addMatch(team1, 0)
+431:   when 2   # Team 2 wins
+432:     team1.addMatch(team2, 0)
+433:     team2.addMatch(team1, 1)
+434:   else
+435:     team1.addMatch(team2, -1)
+436:     team2.addMatch(team1, -1)
+437:   end
+438: end

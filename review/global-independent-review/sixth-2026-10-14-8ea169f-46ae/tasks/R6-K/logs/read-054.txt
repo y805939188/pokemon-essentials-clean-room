@@ -1,0 +1,95 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/001_Debugging/003_Errors.rb RANGE 1-94 TOTAL 94
+1	#===============================================================================
+2	# Exceptions and critical code
+3	#===============================================================================
+4	class Reset < Exception
+5	end
+6	
+7	class EventScriptError < Exception
+8	  attr_accessor :event_message
+9	
+10	  def initialize(message)
+11	    super(nil)
+12	    @event_message = message
+13	  end
+14	end
+15	
+16	def pbGetExceptionMessage(e, _script = "")
+17	  return e.event_message.dup if e.is_a?(EventScriptError)   # Message with map/event ID generated elsewhere
+18	  emessage = e.message.dup
+19	  emessage.force_encoding(Encoding::UTF_8)
+20	  case e
+21	  when Hangup
+22	    emessage = "The script is taking too long. The game will restart."
+23	  when Errno::ENOENT
+24	    filename = emessage.sub("No such file or directory - ", "")
+25	    emessage = "File #{filename} not found."
+26	  end
+27	  emessage.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+28	  return emessage
+29	end
+30	
+31	def pbPrintException(e)
+32	  emessage = pbGetExceptionMessage(e)
+33	  # begin message formatting
+34	  message = "[Pokémon Essentials version #{Essentials::VERSION}]\r\n"
+35	  message += "#{Essentials::ERROR_TEXT}\r\n"   # For third party scripts to add to
+36	  if !e.is_a?(EventScriptError)
+37	    message += "Exception: #{e.class}\r\n"
+38	    message += "Message: "
+39	  end
+40	  message += emessage
+41	  # show last 10/25 lines of backtrace
+42	  if !e.is_a?(EventScriptError)
+43	    message += "\r\n\r\nBacktrace:\r\n"
+44	    backtrace_text = ""
+45	    if e.backtrace
+46	      maxlength = ($INTERNAL) ? 25 : 10
+47	      e.backtrace[0, maxlength].each { |i| backtrace_text += "#{i}\r\n" }
+48	    end
+49	    backtrace_text.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+50	    message += backtrace_text
+51	  end
+52	  # output to log
+53	  errorlog = "errorlog.txt"
+54	  File.open(errorlog, "ab") do |f|
+55	    f.write("\r\n=================\r\n\r\n[#{Time.now}]\r\n")
+56	    f.write(message)
+57	  end
+58	  # format/censor the error log directory
+59	  errorlogline = errorlog.gsub("/", "\\")
+60	  errorlogline.sub!(Dir.pwd + "\\", "")
+61	  errorlogline.sub!(pbGetUserName, "USERNAME")
+62	  errorlogline = "\r\n" + errorlogline if errorlogline.length > 20
+63	  # output message
+64	  print("#{message}\r\nThis exception was logged in #{errorlogline}.\r\nHold Ctrl when closing this message to copy it to the clipboard.")
+65	  # Give a ~500ms coyote time to start holding Control
+66	  t = System.uptime
+67	  until System.uptime - t >= 0.5
+68	    Input.update
+69	    if Input.press?(Input::CTRL)
+70	      Input.clipboard = message
+71	      break
+72	    end
+73	  end
+74	end
+75	
+76	def pbCriticalCode
+77	  ret = 0
+78	  begin
+79	    yield
+80	    ret = 1
+81	  rescue Exception
+82	    e = $!
+83	    if e.is_a?(Reset) || e.is_a?(SystemExit)
+84	      raise
+85	    else
+86	      pbPrintException(e)
+87	      if e.is_a?(Hangup)
+88	        ret = 2
+89	        raise Reset.new
+90	      end
+91	    end
+92	  end
+93	  return ret
+94	end

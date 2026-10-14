@@ -1,0 +1,110 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "7eec7d96aeb720822c776a611be8b105a25dbc84", "sha256": "0af8bb2af002feec8227e797be14ffbfac95ebcc15cc0126ad57a4e8ff60caec", "start_line": 361, "end_line": 469, "total_lines": 469, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:15.249490+00:00"}
+361:     enc_list.each { |a| chance_total += a[0] }
+362:     # Choose a random entry in the encounter table based on entry probabilities
+363:     rnd = rand(chance_total)
+364:     encounter = nil
+365:     enc_list.each do |enc|
+366:       rnd -= enc[0]
+367:       next if rnd >= 0
+368:       encounter = enc
+369:       break
+370:     end
+371:     # Return [species, level]
+372:     level = rand(encounter[2]..encounter[3])
+373:     return [encounter[1], level]
+374:   end
+375: end
+376: 
+377: #===============================================================================
+378: #
+379: #===============================================================================
+380: # Creates and returns a Pokémon based on the given species and level.
+381: # Applies wild Pokémon modifiers (wild held item, shiny chance modifiers,
+382: # Pokérus, gender/nature forcing because of player's lead Pokémon).
+383: def pbGenerateWildPokemon(species, level, isRoamer = false)
+384:   genwildpoke = Pokemon.new(species, level)
+385:   # Give the wild Pokémon a held item
+386:   items = genwildpoke.wildHoldItems
+387:   first_pkmn = $player.first_pokemon
+388:   chances = [50, 5, 1]
+389:   if first_pkmn
+390:     case first_pkmn.ability_id
+391:     when :COMPOUNDEYES
+392:       chances = [60, 20, 5]
+393:     when :SUPERLUCK
+394:       chances = [60, 20, 5] if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS
+395:     end
+396:   end
+397:   itemrnd = rand(100)
+398:   if (items[0] == items[1] && items[1] == items[2]) || itemrnd < chances[0]
+399:     genwildpoke.item = items[0].sample
+400:   elsif itemrnd < (chances[0] + chances[1])
+401:     genwildpoke.item = items[1].sample
+402:   elsif itemrnd < (chances[0] + chances[1] + chances[2])
+403:     genwildpoke.item = items[2].sample
+404:   end
+405:   # Improve chances of shiny Pokémon with Shiny Charm and battling more of the
+406:   # same species
+407:   shiny_retries = 0
+408:   shiny_retries += 2 if $bag.has?(:SHINYCHARM)
+409:   if Settings::HIGHER_SHINY_CHANCES_WITH_NUMBER_BATTLED
+410:     values = [0, 0]
+411:     case $player.pokedex.battled_count(species)
+412:     when 0...50    then values = [0, 0]
+413:     when 50...100  then values = [1, 15]
+414:     when 100...200 then values = [2, 20]
+415:     when 200...300 then values = [3, 25]
+416:     when 300...500 then values = [4, 30]
+417:     else                values = [5, 30]
+418:     end
+419:     shiny_retries += values[0] if values[1] > 0 && rand(1000) < values[1]
+420:   end
+421:   if shiny_retries > 0
+422:     shiny_retries.times do
+423:       break if genwildpoke.shiny?
+424:       genwildpoke.shiny = nil   # Make it recalculate shininess
+425:       genwildpoke.personalID = rand(2**16) | (rand(2**16) << 16)
+426:     end
+427:   end
+428:   # Give Pokérus
+429:   genwildpoke.givePokerus if rand(65_536) < Settings::POKERUS_CHANCE
+430:   # Change wild Pokémon's gender/nature depending on the lead party Pokémon's
+431:   # ability
+432:   if first_pkmn
+433:     if first_pkmn.hasAbility?(:CUTECHARM) && !genwildpoke.singleGendered?
+434:       if first_pkmn.male?
+435:         (rand(3) < 2) ? genwildpoke.makeFemale : genwildpoke.makeMale
+436:       elsif first_pkmn.female?
+437:         (rand(3) < 2) ? genwildpoke.makeMale : genwildpoke.makeFemale
+438:       end
+439:     elsif first_pkmn.hasAbility?(:SYNCHRONIZE)
+440:       if !isRoamer && (Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS || (rand(100) < 50))
+441:         genwildpoke.nature = first_pkmn.nature
+442:       end
+443:     end
+444:   end
+445:   # Trigger events that may alter the generated Pokémon further
+446:   genwildpoke.form_simple = genwildpoke.form if MultipleForms.hasFunction?(genwildpoke.species, "getForm")
+447:   EventHandlers.trigger(:on_wild_pokemon_created, genwildpoke)
+448:   return genwildpoke
+449: end
+450: 
+451: # Used by fishing rods and Headbutt/Rock Smash/Sweet Scent to generate a wild
+452: # Pokémon (or two if it's Sweet Scent) for a triggered wild encounter.
+453: def pbEncounter(enc_type, only_single = true)
+454:   $game_temp.encounter_type = enc_type
+455:   encounter1 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+456:   EventHandlers.trigger(:on_wild_species_chosen, encounter1)
+457:   return false if !encounter1
+458:   if !only_single && $PokemonEncounters.have_double_wild_battle?
+459:     encounter2 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+460:     EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+461:     return false if !encounter2
+462:     WildBattle.start(encounter1, encounter2, can_override: true)
+463:   else
+464:     WildBattle.start(encounter1, can_override: true)
+465:   end
+466:   $game_temp.encounter_type = nil
+467:   $game_temp.force_single_battle = false
+468:   return true
+469: end

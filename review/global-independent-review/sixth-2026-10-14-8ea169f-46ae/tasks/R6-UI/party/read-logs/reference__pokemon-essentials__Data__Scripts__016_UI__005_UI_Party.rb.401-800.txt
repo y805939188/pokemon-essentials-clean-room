@@ -1,0 +1,401 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/005_UI_Party.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [401, 800], "total_lines": 1560, "sha256": "6717a61c57d70ea534e7f6d1e76af05dd0ba725494ff75973691d126aba3ef6d", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:17:25.165852+00:00"}
+401:     return if @pokemon.egg? || (@text && @text.length > 0)
+402:     # HP numbers
+403:     hp_text = sprintf("% 3d /% 3d", @pokemon.hp, @pokemon.totalhp)
+404:     pbDrawTextPositions(@overlaysprite.bitmap,
+405:                         [[hp_text, 224, 66, :right, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR]])
+406:     # HP bar
+407:     if @pokemon.able?
+408:       w = @pokemon.hp * HP_BAR_WIDTH / @pokemon.totalhp.to_f
+409:       w = 1 if w < 1
+410:       w = ((w / 2).round) * 2   # Round to the nearest 2 pixels
+411:       hpzone = 0
+412:       hpzone = 1 if @pokemon.hp <= (@pokemon.totalhp / 2).floor
+413:       hpzone = 2 if @pokemon.hp <= (@pokemon.totalhp / 4).floor
+414:       hprect = Rect.new(0, hpzone * 8, w, 8)
+415:       @overlaysprite.bitmap.blt(128, 52, @hpbar.bitmap, hprect)
+416:     end
+417:   end
+418: 
+419:   def draw_status
+420:     return if @pokemon.egg? || (@text && @text.length > 0)
+421:     status = -1
+422:     if @pokemon.fainted?
+423:       status = GameData::Status.count - 1
+424:     elsif @pokemon.status != :NONE
+425:       status = GameData::Status.get(@pokemon.status).icon_position
+426:     elsif @pokemon.pokerusStage == 1
+427:       status = GameData::Status.count
+428:     end
+429:     return if status < 0
+430:     statusrect = Rect.new(0, STATUS_ICON_HEIGHT * status, STATUS_ICON_WIDTH, STATUS_ICON_HEIGHT)
+431:     @overlaysprite.bitmap.blt(78, 68, @statuses.bitmap, statusrect)
+432:   end
+433: 
+434:   def draw_shiny_icon
+435:     return if @pokemon.egg? || !@pokemon.shiny?
+436:     pbDrawImagePositions(@overlaysprite.bitmap,
+437:                          [["Graphics/UI/shiny", 80, 48, 0, 0, 16, 16]])
+438:   end
+439: 
+440:   def draw_annotation
+441:     return if !@text || @text.length == 0
+442:     pbDrawTextPositions(@overlaysprite.bitmap,
+443:                         [[@text, 96, 62, :left, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR]])
+444:   end
+445: 
+446:   def refresh
+447:     return if disposed?
+448:     return if @refreshing
+449:     @refreshing = true
+450:     refresh_panel_graphic
+451:     refresh_hp_bar_graphic
+452:     refresh_ball_graphic
+453:     refresh_pokemon_icon
+454:     refresh_held_item_icon
+455:     if @overlaysprite && !@overlaysprite.disposed?
+456:       @overlaysprite.x     = self.x
+457:       @overlaysprite.y     = self.y
+458:       @overlaysprite.color = self.color
+459:     end
+460:     refresh_overlay_information
+461:     @refreshBitmap = false
+462:     @refreshing = false
+463:   end
+464: 
+465:   def update
+466:     super
+467:     @panelbgsprite.update if @panelbgsprite && !@panelbgsprite.disposed?
+468:     @hpbgsprite.update if @hpbgsprite && !@hpbgsprite.disposed?
+469:     @ballsprite.update if @ballsprite && !@ballsprite.disposed?
+470:     @pkmnsprite.update if @pkmnsprite && !@pkmnsprite.disposed?
+471:     @helditemsprite.update if @helditemsprite && !@helditemsprite.disposed?
+472:   end
+473: end
+474: 
+475: #===============================================================================
+476: # Pokémon party visuals
+477: #===============================================================================
+478: class PokemonParty_Scene
+479:   def pbStartScene(party, starthelptext, annotations = nil, multiselect = false, can_access_storage = false)
+480:     @sprites = {}
+481:     @party = party
+482:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+483:     @viewport.z = 99999
+484:     @multiselect = multiselect
+485:     @can_access_storage = can_access_storage
+486:     addBackgroundPlane(@sprites, "partybg", "Party/bg", @viewport)
+487:     @sprites["messagebox"] = Window_AdvancedTextPokemon.new("")
+488:     @sprites["messagebox"].z              = 50
+489:     @sprites["messagebox"].viewport       = @viewport
+490:     @sprites["messagebox"].visible        = false
+491:     @sprites["messagebox"].letterbyletter = true
+492:     pbBottomLeftLines(@sprites["messagebox"], 2)
+493:     @sprites["storagetext"] = Window_UnformattedTextPokemon.new(
+494:       @can_access_storage ? _INTL("[Special]: To Boxes") : ""
+495:     )
+496:     @sprites["storagetext"].x           = 32
+497:     @sprites["storagetext"].y           = Graphics.height - @sprites["messagebox"].height - 16
+498:     @sprites["storagetext"].z           = 10
+499:     @sprites["storagetext"].viewport    = @viewport
+500:     @sprites["storagetext"].baseColor   = Color.new(248, 248, 248)
+501:     @sprites["storagetext"].shadowColor = Color.black
+502:     @sprites["storagetext"].windowskin  = nil
+503:     @sprites["helpwindow"] = Window_UnformattedTextPokemon.new(starthelptext)
+504:     @sprites["helpwindow"].viewport = @viewport
+505:     @sprites["helpwindow"].visible  = true
+506:     pbBottomLeftLines(@sprites["helpwindow"], 1)
+507:     pbSetHelpText(starthelptext)
+508:     # Add party Pokémon sprites
+509:     Settings::MAX_PARTY_SIZE.times do |i|
+510:       if @party[i]
+511:         @sprites["pokemon#{i}"] = PokemonPartyPanel.new(@party[i], i, @viewport)
+512:       else
+513:         @sprites["pokemon#{i}"] = PokemonPartyBlankPanel.new(@party[i], i, @viewport)
+514:       end
+515:       @sprites["pokemon#{i}"].text = annotations[i] if annotations
+516:     end
+517:     if @multiselect
+518:       @sprites["pokemon#{Settings::MAX_PARTY_SIZE}"] = PokemonPartyConfirmSprite.new(@viewport)
+519:       @sprites["pokemon#{Settings::MAX_PARTY_SIZE + 1}"] = PokemonPartyCancelSprite2.new(@viewport)
+520:     else
+521:       @sprites["pokemon#{Settings::MAX_PARTY_SIZE}"] = PokemonPartyCancelSprite.new(@viewport)
+522:     end
+523:     # Select first Pokémon
+524:     @activecmd = 0
+525:     @sprites["pokemon0"].selected = true
+526:     pbFadeInAndShow(@sprites) { update }
+527:   end
+528: 
+529:   def pbEndScene
+530:     pbFadeOutAndHide(@sprites) { update }
+531:     pbDisposeSpriteHash(@sprites)
+532:     @viewport.dispose
+533:   end
+534: 
+535:   def pbDisplay(text)
+536:     @sprites["messagebox"].text    = text
+537:     @sprites["messagebox"].visible = true
+538:     @sprites["helpwindow"].visible = false
+539:     pbPlayDecisionSE
+540:     loop do
+541:       Graphics.update
+542:       Input.update
+543:       self.update
+544:       if @sprites["messagebox"].busy?
+545:         if Input.trigger?(Input::USE)
+546:           pbPlayDecisionSE if @sprites["messagebox"].pausing?
+547:           @sprites["messagebox"].resume
+548:         end
+549:       elsif Input.trigger?(Input::BACK) || Input.trigger?(Input::USE)
+550:         break
+551:       end
+552:     end
+553:     @sprites["messagebox"].visible = false
+554:     @sprites["helpwindow"].visible = true
+555:   end
+556: 
+557:   def pbDisplayConfirm(text)
+558:     ret = -1
+559:     @sprites["messagebox"].text    = text
+560:     @sprites["messagebox"].visible = true
+561:     @sprites["helpwindow"].visible = false
+562:     using(cmdwindow = Window_CommandPokemon.new([_INTL("Yes"), _INTL("No")])) do
+563:       cmdwindow.visible = false
+564:       pbBottomRight(cmdwindow)
+565:       cmdwindow.y -= @sprites["messagebox"].height
+566:       cmdwindow.z = @viewport.z + 1
+567:       loop do
+568:         Graphics.update
+569:         Input.update
+570:         cmdwindow.visible = true if !@sprites["messagebox"].busy?
+571:         cmdwindow.update
+572:         self.update
+573:         if !@sprites["messagebox"].busy?
+574:           if Input.trigger?(Input::BACK)
+575:             ret = false
+576:             break
+577:           elsif Input.trigger?(Input::USE) && @sprites["messagebox"].resume
+578:             ret = (cmdwindow.index == 0)
+579:             break
+580:           end
+581:         end
+582:       end
+583:     end
+584:     @sprites["messagebox"].visible = false
+585:     @sprites["helpwindow"].visible = true
+586:     return ret
+587:   end
+588: 
+589:   def pbShowCommands(helptext, commands, index = 0)
+590:     ret = -1
+591:     helpwindow = @sprites["helpwindow"]
+592:     helpwindow.visible = true
+593:     using(cmdwindow = Window_CommandPokemonColor.new(commands)) do
+594:       cmdwindow.z     = @viewport.z + 1
+595:       cmdwindow.index = index
+596:       pbBottomRight(cmdwindow)
+597:       helpwindow.resizeHeightToFit(helptext, Graphics.width - cmdwindow.width)
+598:       helpwindow.text = helptext
+599:       pbBottomLeft(helpwindow)
+600:       loop do
+601:         Graphics.update
+602:         Input.update
+603:         cmdwindow.update
+604:         self.update
+605:         if Input.trigger?(Input::BACK)
+606:           pbPlayCancelSE
+607:           ret = -1
+608:           break
+609:         elsif Input.trigger?(Input::USE)
+610:           pbPlayDecisionSE
+611:           ret = cmdwindow.index
+612:           break
+613:         end
+614:       end
+615:     end
+616:     return ret
+617:   end
+618: 
+619:   def pbChooseNumber(helptext, maximum, initnum = 1)
+620:     return UIHelper.pbChooseNumber(@sprites["helpwindow"], helptext, maximum, initnum) { update }
+621:   end
+622: 
+623:   def pbSetHelpText(helptext)
+624:     helpwindow = @sprites["helpwindow"]
+625:     pbBottomLeftLines(helpwindow, 1)
+626:     helpwindow.text = helptext
+627:     helpwindow.width = 398
+628:     helpwindow.visible = true
+629:   end
+630: 
+631:   def pbHasAnnotations?
+632:     return !@sprites["pokemon0"].text.nil?
+633:   end
+634: 
+635:   def pbAnnotate(annot)
+636:     Settings::MAX_PARTY_SIZE.times do |i|
+637:       @sprites["pokemon#{i}"].text = (annot) ? annot[i] : nil
+638:     end
+639:   end
+640: 
+641:   def pbSelect(item)
+642:     @activecmd = item
+643:     numsprites = Settings::MAX_PARTY_SIZE + ((@multiselect) ? 2 : 1)
+644:     numsprites.times do |i|
+645:       @sprites["pokemon#{i}"].selected = (i == @activecmd)
+646:     end
+647:   end
+648: 
+649:   def pbPreSelect(item)
+650:     @activecmd = item
+651:   end
+652: 
+653:   def pbSwitchBegin(oldid, newid)
+654:     pbSEPlay("GUI party switch")
+655:     oldsprite = @sprites["pokemon#{oldid}"]
+656:     newsprite = @sprites["pokemon#{newid}"]
+657:     old_start_x = oldsprite.x
+658:     new_start_x = newsprite.x
+659:     old_mult = oldid.even? ? -1 : 1
+660:     new_mult = newid.even? ? -1 : 1
+661:     timer_start = System.uptime
+662:     loop do
+663:       oldsprite.x = lerp(old_start_x, old_start_x + (old_mult * Graphics.width / 2), 0.4, timer_start, System.uptime)
+664:       newsprite.x = lerp(new_start_x, new_start_x + (new_mult * Graphics.width / 2), 0.4, timer_start, System.uptime)
+665:       Graphics.update
+666:       Input.update
+667:       self.update
+668:       break if oldsprite.x == old_start_x + (old_mult * Graphics.width / 2)
+669:     end
+670:   end
+671: 
+672:   def pbSwitchEnd(oldid, newid)
+673:     pbSEPlay("GUI party switch")
+674:     oldsprite = @sprites["pokemon#{oldid}"]
+675:     newsprite = @sprites["pokemon#{newid}"]
+676:     oldsprite.pokemon = @party[oldid]
+677:     newsprite.pokemon = @party[newid]
+678:     old_start_x = oldsprite.x
+679:     new_start_x = newsprite.x
+680:     old_mult = oldid.even? ? -1 : 1
+681:     new_mult = newid.even? ? -1 : 1
+682:     timer_start = System.uptime
+683:     loop do
+684:       oldsprite.x = lerp(old_start_x, old_start_x - (old_mult * Graphics.width / 2), 0.4, timer_start, System.uptime)
+685:       newsprite.x = lerp(new_start_x, new_start_x - (new_mult * Graphics.width / 2), 0.4, timer_start, System.uptime)
+686:       Graphics.update
+687:       Input.update
+688:       self.update
+689:       break if oldsprite.x == old_start_x - (old_mult * Graphics.width / 2)
+690:     end
+691:     Settings::MAX_PARTY_SIZE.times do |i|
+692:       @sprites["pokemon#{i}"].preselected = false
+693:       @sprites["pokemon#{i}"].switching   = false
+694:     end
+695:     pbRefresh
+696:   end
+697: 
+698:   def pbClearSwitching
+699:     Settings::MAX_PARTY_SIZE.times do |i|
+700:       @sprites["pokemon#{i}"].preselected = false
+701:       @sprites["pokemon#{i}"].switching   = false
+702:     end
+703:   end
+704: 
+705:   def pbSummary(pkmnid, inbattle = false)
+706:     oldsprites = pbFadeOutAndHide(@sprites)
+707:     scene = PokemonSummary_Scene.new
+708:     screen = PokemonSummaryScreen.new(scene, inbattle)
+709:     screen.pbStartScreen(@party, pkmnid)
+710:     yield if block_given?
+711:     pbRefresh
+712:     pbFadeInAndShow(@sprites, oldsprites)
+713:   end
+714: 
+715:   def pbChooseItem(bag)
+716:     ret = nil
+717:     pbFadeOutIn do
+718:       scene = PokemonBag_Scene.new
+719:       screen = PokemonBagScreen.new(scene, bag)
+720:       ret = screen.pbChooseItemScreen(proc { |item| GameData::Item.get(item).can_hold? })
+721:       yield if block_given?
+722:     end
+723:     return ret
+724:   end
+725: 
+726:   def pbUseItem(bag, pokemon)
+727:     ret = nil
+728:     pbFadeOutIn do
+729:       scene = PokemonBag_Scene.new
+730:       screen = PokemonBagScreen.new(scene, bag)
+731:       ret = screen.pbChooseItemScreen(proc { |item|
+732:         itm = GameData::Item.get(item)
+733:         next false if !pbCanUseOnPokemon?(itm)
+734:         next false if pokemon.hyper_mode && !GameData::Item.get(item)&.is_scent?
+735:         if itm.is_machine?
+736:           move = itm.move
+737:           next false if pokemon.hasMove?(move) || !pokemon.compatible_with_move?(move)
+738:         end
+739:         next true
+740:       })
+741:       yield if block_given?
+742:     end
+743:     return ret
+744:   end
+745: 
+746:   def pbChoosePokemon(switching = false, initialsel = -1, canswitch = 0)
+747:     Settings::MAX_PARTY_SIZE.times do |i|
+748:       @sprites["pokemon#{i}"].preselected = (switching && i == @activecmd)
+749:       @sprites["pokemon#{i}"].switching   = switching
+750:     end
+751:     @activecmd = initialsel if initialsel >= 0
+752:     pbRefresh
+753:     loop do
+754:       Graphics.update
+755:       Input.update
+756:       self.update
+757:       oldsel = @activecmd
+758:       key = -1
+759:       key = Input::DOWN if Input.repeat?(Input::DOWN)
+760:       key = Input::RIGHT if Input.repeat?(Input::RIGHT)
+761:       key = Input::LEFT if Input.repeat?(Input::LEFT)
+762:       key = Input::UP if Input.repeat?(Input::UP)
+763:       if key >= 0
+764:         @activecmd = pbChangeSelection(key, @activecmd)
+765:       end
+766:       if @activecmd != oldsel   # Changing selection
+767:         pbPlayCursorSE
+768:         numsprites = Settings::MAX_PARTY_SIZE + ((@multiselect) ? 2 : 1)
+769:         numsprites.times do |i|
+770:           @sprites["pokemon#{i}"].selected = (i == @activecmd)
+771:         end
+772:       end
+773:       cancelsprite = Settings::MAX_PARTY_SIZE + ((@multiselect) ? 1 : 0)
+774:       if Input.trigger?(Input::SPECIAL) && @can_access_storage && canswitch != 2
+775:         pbPlayDecisionSE
+776:         pbFadeOutIn do
+777:           scene = PokemonStorageScene.new
+778:           screen = PokemonStorageScreen.new(scene, $PokemonStorage)
+779:           screen.pbStartScreen(0)
+780:           pbHardRefresh
+781:         end
+782:       elsif Input.trigger?(Input::ACTION) && canswitch == 1 && @activecmd != cancelsprite
+783:         pbPlayDecisionSE
+784:         return [1, @activecmd]
+785:       elsif Input.trigger?(Input::ACTION) && canswitch == 2
+786:         return -1
+787:       elsif Input.trigger?(Input::BACK)
+788:         pbPlayCloseMenuSE if !switching
+789:         return -1
+790:       elsif Input.trigger?(Input::USE)
+791:         if @activecmd == cancelsprite
+792:           (switching) ? pbPlayDecisionSE : pbPlayCloseMenuSE
+793:           return -1
+794:         else
+795:           pbPlayDecisionSE
+796:           return @activecmd
+797:         end
+798:       end
+799:     end
+800:   end

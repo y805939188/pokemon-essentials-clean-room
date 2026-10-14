@@ -1,0 +1,182 @@
+616:         if b.has_type?(:ROCK)   # +SpDef for Rock types
+617:           ret += (b.opposes?(move_user)) ? -10 : 10
+618:         end
+619:       when :Hail
+620:         # Check for battlers affected by hail's effects
+621:         if b.battler.takesHailDamage?   # End of round damage
+622:           ret += (b.opposes?(move_user)) ? 10 : -10
+623:         end
+624:       when :ShadowSky
+625:         # Check for battlers affected by Shadow Sky's effects
+626:         if b.has_damaging_move_of_type?(:SHADOW)
+627:           ret += (b.opposes?(move_user)) ? 10 : -10
+628:         end
+629:         if b.battler.takesShadowSkyDamage?   # End of round damage
+630:           ret += (b.opposes?(move_user)) ? 10 : -10
+631:         end
+632:       end
+633:       # Check each battler's abilities/other moves affected by the new weather
+634:       if @trainer.medium_skill? && !b.has_active_item?(:UTILITYUMBRELLA)
+635:         beneficial_abilities = {
+636:           :Sun       => [:CHLOROPHYLL, :FLOWERGIFT, :FORECAST, :HARVEST, :LEAFGUARD, :SOLARPOWER],
+637:           :Rain      => [:DRYSKIN, :FORECAST, :HYDRATION, :RAINDISH, :SWIFTSWIM],
+638:           :Sandstorm => [:SANDFORCE, :SANDRUSH, :SANDVEIL],
+639:           :Hail      => [:FORECAST, :ICEBODY, :SLUSHRUSH, :SNOWCLOAK]
+640:         }[weather]
+641:         if beneficial_abilities && beneficial_abilities.length > 0 &&
+642:            b.has_active_ability?(beneficial_abilities)
+643:           ret += (b.opposes?(move_user)) ? -5 : 5
+644:         end
+645:         if weather == :Hail && b.ability == :ICEFACE
+646:           ret += (b.opposes?(move_user)) ? -5 : 5
+647:         end
+648:         negative_abilities = {
+649:           :Sun => [:DRYSKIN]
+650:         }[weather]
+651:         if negative_abilities && negative_abilities.length > 0 &&
+652:            b.has_active_ability?(negative_abilities)
+653:           ret += (b.opposes?(move_user)) ? 5 : -5
+654:         end
+655:         beneficial_moves = {
+656:           :Sun       => ["HealUserDependingOnWeather",
+657:                          "RaiseUserAtkSpAtk1Or2InSun",
+658:                          "TwoTurnAttackOneTurnInSun",
+659:                          "TypeAndPowerDependOnWeather"],
+660:           :Rain      => ["ConfuseTargetAlwaysHitsInRainHitsTargetInSky",
+661:                          "ParalyzeTargetAlwaysHitsInRainHitsTargetInSky",
+662:                          "TypeAndPowerDependOnWeather"],
+663:           :Sandstorm => ["HealUserDependingOnSandstorm",
+664:                          "TypeAndPowerDependOnWeather"],
+665:           :Hail      => ["FreezeTargetAlwaysHitsInHail",
+666:                          "StartWeakenDamageAgainstUserSideIfHail",
+667:                          "TypeAndPowerDependOnWeather"],
+668:           :ShadowSky => ["TypeAndPowerDependOnWeather"]
+669:         }[weather]
+670:         if beneficial_moves && beneficial_moves.length > 0 &&
+671:            b.has_move_with_function?(*beneficial_moves)
+672:           ret += (b.opposes?(move_user)) ? -5 : 5
+673:         end
+674:         negative_moves = {
+675:           :Sun       => ["ConfuseTargetAlwaysHitsInRainHitsTargetInSky",
+676:                          "ParalyzeTargetAlwaysHitsInRainHitsTargetInSky"],
+677:           :Rain      => ["HealUserDependingOnWeather",
+678:                          "TwoTurnAttackOneTurnInSun"],
+679:           :Sandstorm => ["HealUserDependingOnWeather",
+680:                          "TwoTurnAttackOneTurnInSun"],
+681:           :Hail      => ["HealUserDependingOnWeather",
+682:                          "TwoTurnAttackOneTurnInSun"]
+683:         }[weather]
+684:         if negative_moves && negative_moves.length > 0 &&
+685:            b.has_move_with_function?(*negative_moves)
+686:           ret += (b.opposes?(move_user)) ? 5 : -5
+687:         end
+688:       end
+689:     end
+690:     return ret
+691:   end
+692: 
+693:   #-----------------------------------------------------------------------------
+694: 
+695:   def get_score_for_terrain(terrain, move_user, starting = false)
+696:     ret = 0
+697:     ret += 4 if starting && terrain != :None && move_user.has_active_item?(:TERRAINEXTENDER)
+698:     # Inherent effects of terrain
+699:     each_battler do |b, i|
+700:       next if !b.battler.affectedByTerrain?
+701:       case terrain
+702:       when :Electric
+703:         # Immunity to sleep
+704:         if b.status == :NONE
+705:           ret += (b.opposes?(move_user)) ? -8 : 8
+706:         end
+707:         if b.effects[PBEffects::Yawn] > 0
+708:           ret += (b.opposes?(move_user)) ? -10 : 10
+709:         end
+710:         # Check for Electric moves
+711:         if b.has_damaging_move_of_type?(:ELECTRIC)
+712:           ret += (b.opposes?(move_user)) ? -10 : 10
+713:         end
+714:       when :Grassy
+715:         # End of round healing
+716:         ret += (b.opposes?(move_user)) ? -8 : 8
+717:         # Check for Grass moves
+718:         if b.has_damaging_move_of_type?(:GRASS)
+719:           ret += (b.opposes?(move_user)) ? -10 : 10
+720:         end
+721:       when :Misty
+722:         # Immunity to status problems/confusion
+723:         if b.status == :NONE || b.effects[PBEffects::Confusion] == 0
+724:           ret += (b.opposes?(move_user)) ? -8 : 8
+725:         end
+726:         # Check for Dragon moves
+727:         if b.has_damaging_move_of_type?(:DRAGON)
+728:           ret += (b.opposes?(move_user)) ? 10 : -10
+729:         end
+730:       when :Psychic
+731:         # Check for priority moves
+732:         if b.check_for_move { |m| m.priority > 0 && m.pbTarget(b.battler)&.can_target_one_foe? }
+733:           ret += (b.opposes?(move_user)) ? 10 : -10
+734:         end
+735:         # Check for Psychic moves
+736:         if b.has_damaging_move_of_type?(:PSYCHIC)
+737:           ret += (b.opposes?(move_user)) ? -10 : 10
+738:         end
+739:       end
+740:     end
+741:     # Held items relating to terrain
+742:     seed = {
+743:       :Electric => :ELECTRICSEED,
+744:       :Grassy   => :GRASSYSEED,
+745:       :Misty    => :MISTYSEED,
+746:       :Psychic  => :PSYCHICSEED
+747:     }[terrain]
+748:     each_battler do |b, i|
+749:       if seed && b.has_active_item?(seed)
+750:         ret += (b.opposes?(move_user)) ? -8 : 8
+751:       end
+752:     end
+753:     # Check for abilities/moves affected by the terrain
+754:     if @trainer.medium_skill?
+755:       abils = {
+756:         :Electric => :SURGESURFER,
+757:         :Grassy   => :GRASSPELT
+758:       }[terrain]
+759:       good_moves = {
+760:         :Electric => ["DoublePowerInElectricTerrain"],
+761:         :Grassy   => ["HealTargetDependingOnGrassyTerrain",
+762:                       "HigherPriorityInGrassyTerrain"],
+763:         :Misty    => ["UserFaintsPowersUpInMistyTerrainExplosive"],
+764:         :Psychic  => ["HitsAllFoesAndPowersUpInPsychicTerrain"]
+765:       }[terrain]
+766:       bad_moves = {
+767:         :Grassy => ["DoublePowerIfTargetUnderground",
+768:                     "LowerTargetSpeed1WeakerInGrassyTerrain",
+769:                     "RandomPowerDoublePowerIfTargetUnderground"]
+770:       }[terrain]
+771:       each_battler do |b, i|
+772:         next if !b.battler.affectedByTerrain?
+773:         # Abilities
+774:         if b.has_active_ability?(:MIMICRY)
+775:           ret += (b.opposes?(move_user)) ? -5 : 5
+776:         end
+777:         if abils && b.has_active_ability?(abils)
+778:           ret += (b.opposes?(move_user)) ? -8 : 8
+779:         end
+780:         # Moves
+781:         if b.has_move_with_function?("EffectDependsOnEnvironment",
+782:                                      "SetUserTypesBasedOnEnvironment",
+783:                                      "TypeAndPowerDependOnTerrain",
+784:                                      "UseMoveDependingOnEnvironment")
+785:           ret += (b.opposes?(move_user)) ? -5 : 5
+786:         end
+787:         if good_moves && b.has_move_with_function?(*good_moves)
+788:           ret += (b.opposes?(move_user)) ? -5 : 5
+789:         end
+790:         if bad_moves && b.has_move_with_function?(*bad_moves)
+791:           ret += (b.opposes?(move_user)) ? 5 : -5
+792:         end
+793:       end
+794:     end
+795:     return ret
+796:   end
+797: end

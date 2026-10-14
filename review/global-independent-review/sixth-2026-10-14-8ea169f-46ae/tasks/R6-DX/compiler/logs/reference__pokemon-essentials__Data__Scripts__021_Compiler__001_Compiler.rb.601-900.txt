@@ -1,0 +1,300 @@
+601:         when "B"   # Optional Boolean
+602:           field = csvfield!(rec)
+603:           if nil_or_empty?(field)
+604:             subrecord.push(nil)
+605:           elsif field[/^1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Tt]|[Yy]$/]
+606:             subrecord.push(true)
+607:           else
+608:             subrecord.push(false)
+609:           end
+610:         when "n"   # Name
+611:           field = csvfield!(rec)
+612:           if !field[/^(?![0-9])\w+$/]
+613:             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+614:           end
+615:           subrecord.push(field)
+616:         when "N"   # Optional name
+617:           field = csvfield!(rec)
+618:           if nil_or_empty?(field)
+619:             subrecord.push(nil)
+620:           elsif !field[/^(?![0-9])\w+$/]
+621:             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+622:           else
+623:             subrecord.push(field)
+624:           end
+625:         when "s"   # String
+626:           subrecord.push(csvfield!(rec))
+627:         when "S"   # Optional string
+628:           field = csvfield!(rec)
+629:           subrecord.push((nil_or_empty?(field)) ? nil : field)
+630:         when "q"   # Unformatted text
+631:           subrecord.push(rec)
+632:           rec = ""
+633:         when "Q"   # Optional unformatted text
+634:           if nil_or_empty?(rec)
+635:             subrecord.push(nil)
+636:           else
+637:             subrecord.push(rec)
+638:             rec = ""
+639:           end
+640:         when "m"   # Symbol
+641:           field = csvfield!(rec)
+642:           if !field[/^(?![0-9])\w+$/]
+643:             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+644:           end
+645:           subrecord.push(field.to_sym)
+646:         when "M"   # Optional symbol
+647:           field = csvfield!(rec)
+648:           if nil_or_empty?(field)
+649:             subrecord.push(nil)
+650:           elsif !field[/^(?![0-9])\w+$/]
+651:             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+652:           else
+653:             subrecord.push(field.to_sym)
+654:           end
+655:         when "e"   # Enumerable
+656:           subrecord.push(csvEnumField!(rec, schema[2 + i - start], "", FileLineData.linereport))
+657:         when "E"   # Optional enumerable
+658:           field = csvfield!(rec)
+659:           subrecord.push(checkEnumFieldOrNil(field, schema[2 + i - start]))
+660:         when "y"   # Enumerable or integer
+661:           field = csvfield!(rec)
+662:           subrecord.push(csvEnumFieldOrInt!(field, schema[2 + i - start], "", FileLineData.linereport))
+663:         when "Y"   # Optional enumerable or integer
+664:           field = csvfield!(rec)
+665:           if nil_or_empty?(field)
+666:             subrecord.push(nil)
+667:           elsif field[/^\-?\d+$/]
+668:             subrecord.push(field.to_i)
+669:           else
+670:             subrecord.push(checkEnumFieldOrNil(field, schema[2 + i - start]))
+671:           end
+672:         end
+673:       end
+674:       if !subrecord.empty?
+675:         if subarrays
+676:           record.push(subrecord)
+677:         else
+678:           record.concat(subrecord)
+679:         end
+680:       end
+681:       break if repeat && nil_or_empty?(rec)
+682:       break unless repeat
+683:     end
+684:     return (!repeat && schema_length == 1) ? record[0] : record
+685:   end
+686: 
+687:   #=============================================================================
+688:   # Convert a string to values using a schema
+689:   #=============================================================================
+690:   def get_csv_record(rec, schema)
+691:     ret = []
+692:     repeat = false
+693:     start = 0
+694:     schema_length = schema[1].length
+695:     case schema[1][0, 1]   # First character in schema
+696:     when "*"
+697:       repeat = true
+698:       start = 1
+699:     when "^"
+700:       start = 1
+701:       schema_length -= 1
+702:     end
+703:     subarrays = repeat && schema[1].length - start > 1   # Whether ret is an array of arrays
+704:     # Split the string on commas into an array of values to apply the schema to
+705:     values = split_csv_line(rec)
+706:     # Apply the schema to each value in the line
+707:     idx = -1   # Index of value to look at in values
+708:     loop do
+709:       record = []
+710:       (start...schema[1].length).each do |i|
+711:         idx += 1
+712:         sche = schema[1][i, 1]
+713:         if sche[/[A-Z]/]   # Upper case = optional
+714:           if nil_or_empty?(values[idx])
+715:             record.push(nil)
+716:             next
+717:           end
+718:         end
+719:         if sche.downcase == "q"   # Unformatted text
+720:           record.push(rec)
+721:           idx = values.length
+722:           break
+723:         else
+724:           record.push(cast_csv_value(values[idx], sche, schema[2 + i - start]))
+725:         end
+726:       end
+727:       if !record.empty?
+728:         if subarrays
+729:           ret.push(record)
+730:         else
+731:           ret.concat(record)
+732:         end
+733:       end
+734:       break if !repeat || idx >= values.length - 1
+735:     end
+736:     return (!repeat && schema_length == 1) ? ret[0] : ret
+737:   end
+738: 
+739:   #=============================================================================
+740:   # Write values to a file using a schema
+741:   #=============================================================================
+742:   def pbWriteCsvRecord(record, file, schema)
+743:     rec = (record.is_a?(Array)) ? record.flatten : [record]
+744:     start = (["*", "^"].include?(schema[1][0, 1])) ? 1 : 0
+745:     index = -1
+746:     loop do
+747:       (start...schema[1].length).each do |i|
+748:         index += 1
+749:         value = rec[index]
+750:         if schema[1][i, 1][/[A-Z]/]   # Optional
+751:           # Check the rest of the values for non-nil things
+752:           later_value_found = false
+753:           (index...rec.length).each do |j|
+754:             later_value_found = true if !rec[j].nil?
+755:             break if later_value_found
+756:           end
+757:           if !later_value_found
+758:             start = -1
+759:             break
+760:           end
+761:         end
+762:         file.write(",") if index > 0
+763:         next if value.nil?
+764:         case schema[1][i, 1]
+765:         when "e", "E"   # Enumerable
+766:           enumer = schema[2 + i - start]
+767:           case enumer
+768:           when Array
+769:             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+770:           when Symbol, String
+771:             if GameData.const_defined?(enumer.to_sym)
+772:               mod = GameData.const_get(enumer.to_sym)
+773:               file.write(mod.get(value).id.to_s)
+774:             else
+775:               mod = Object.const_get(enumer.to_sym)
+776:               file.write(getConstantName(mod, value))
+777:             end
+778:           when Module
+779:             file.write(getConstantName(enumer, value))
+780:           when Hash
+781:             if value.is_a?(String)
+782:               file.write(value)
+783:             else
+784:               enumer.each_key do |key|
+785:                 next if enumer[key] != value
+786:                 file.write(key)
+787:                 break
+788:               end
+789:             end
+790:           end
+791:         when "y", "Y"   # Enumerable or integer
+792:           enumer = schema[2 + i - start]
+793:           case enumer
+794:           when Array
+795:             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+796:           when Symbol, String
+797:             if !Kernel.const_defined?(enumer.to_sym) && GameData.const_defined?(enumer.to_sym)
+798:               mod = GameData.const_get(enumer.to_sym)
+799:               if mod.exists?(value)
+800:                 file.write(mod.get(value).id.to_s)
+801:               else
+802:                 file.write(value.to_s)
+803:               end
+804:             else
+805:               mod = Object.const_get(enumer.to_sym)
+806:               file.write(getConstantNameOrValue(mod, value))
+807:             end
+808:           when Module
+809:             file.write(getConstantNameOrValue(enumer, value))
+810:           when Hash
+811:             if value.is_a?(String)
+812:               file.write(value)
+813:             else
+814:               has_enum = false
+815:               enumer.each_key do |key|
+816:                 next if enumer[key] != value
+817:                 file.write(key)
+818:                 has_enum = true
+819:                 break
+820:               end
+821:               file.write(value) if !has_enum
+822:             end
+823:           end
+824:         else
+825:           if value.is_a?(String)
+826:             file.write((schema[1][i, 1].downcase == "q") ? value : csvQuote(value))
+827:           elsif value.is_a?(Symbol)
+828:             file.write(csvQuote(value.to_s))
+829:           elsif value == true
+830:             file.write("true")
+831:           elsif value == false
+832:             file.write("false")
+833:           else
+834:             file.write(value.inspect)
+835:           end
+836:         end
+837:       end
+838:       break if start > 0 && index >= rec.length - 1
+839:       break if start <= 0
+840:     end
+841:     return record
+842:   end
+843: 
+844:   #=============================================================================
+845:   # Parse string into a likely constant name and return its ID number (if any).
+846:   # Last ditch attempt to figure out whether a constant is defined.
+847:   #=============================================================================
+848:   # Unused
+849:   def pbGetConst(mod, item, err)
+850:     isDef = false
+851:     begin
+852:       mod = Object.const_get(mod) if mod.is_a?(Symbol)
+853:       isDef = mod.const_defined?(item.to_sym)
+854:     rescue
+855:       raise sprintf(err, item)
+856:     end
+857:     raise sprintf(err, item) if !isDef
+858:     return mod.const_get(item.to_sym)
+859:   end
+860: 
+861:   def parseItem(item)
+862:     clonitem = item.upcase
+863:     clonitem.sub!(/^\s*/, "")
+864:     clonitem.sub!(/\s*$/, "")
+865:     itm = GameData::Item.try_get(clonitem)
+866:     if !itm
+867:       raise _INTL("Undefined item constant name: {1}.\nMake sure the item is defined in PBS/items.txt.", item) + "\n" + FileLineData.linereport
+868:     end
+869:     return itm.id
+870:   end
+871: 
+872:   def parseSpecies(species)
+873:     clonspecies = species.upcase
+874:     clonspecies.gsub!(/^\s*/, "")
+875:     clonspecies.gsub!(/\s*$/, "")
+876:     clonspecies = "NIDORANmA" if clonspecies == "NIDORANMA"
+877:     clonspecies = "NIDORANfE" if clonspecies == "NIDORANFE"
+878:     spec = GameData::Species.try_get(clonspecies)
+879:     if !spec
+880:       raise _INTL("Undefined species constant name: {1}.\nMake sure the species is defined in PBS/pokemon.txt.", species) + "\n" + FileLineData.linereport
+881:     end
+882:     return spec.id
+883:   end
+884: 
+885:   def parseMove(move, skip_unknown = false)
+886:     clonmove = move.upcase
+887:     clonmove.sub!(/^\s*/, "")
+888:     clonmove.sub!(/\s*$/, "")
+889:     mov = GameData::Move.try_get(clonmove)
+890:     if !mov
+891:       return nil if skip_unknown
+892:       raise _INTL("Undefined move constant name: {1}.\nMake sure the move is defined in PBS/moves.txt.", move) + "\n" + FileLineData.linereport
+893:     end
+894:     return mov.id
+895:   end
+896: 
+897:   # Unused
+898:   def parseNature(nature)
+899:     clonnature = nature.upcase
+900:     clonnature.sub!(/^\s*/, "")

@@ -1,0 +1,94 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 317, "end_line": 409, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:55.905331+00:00"}
+317:           @battle.pbDisplay(_INTL("{1} is hurt by Powder!", user.pbThis))
+318:         end
+319:         @battle.pbGainExp   # In case user is KO'd by this
+320:       end
+321:       pbCancelMoves
+322:       pbEndTurn(choice)
+323:       return
+324:     end
+325:     # Primordial Sea, Desolate Land
+326:     if move.damagingMove?
+327:       case @battle.pbWeather
+328:       when :HeavyRain
+329:         if move.calcType == :FIRE
+330:           @battle.pbDisplay(_INTL("The Fire-type attack fizzled out in the heavy rain!"))
+331:           user.lastMoveFailed = true
+332:           pbCancelMoves
+333:           pbEndTurn(choice)
+334:           return
+335:         end
+336:       when :HarshSun
+337:         if move.calcType == :WATER
+338:           @battle.pbDisplay(_INTL("The Water-type attack evaporated in the harsh sunlight!"))
+339:           user.lastMoveFailed = true
+340:           pbCancelMoves
+341:           pbEndTurn(choice)
+342:           return
+343:         end
+344:       end
+345:     end
+346:     # Protean
+347:     if user.hasActiveAbility?([:LIBERO, :PROTEAN]) &&
+348:        !move.callsAnotherMove? && !move.snatched &&
+349:        user.pbHasOtherType?(move.calcType) && !GameData::Type.get(move.calcType).pseudo_type
+350:       @battle.pbShowAbilitySplash(user)
+351:       user.pbChangeTypes(move.calcType)
+352:       typeName = GameData::Type.get(move.calcType).name
+353:       @battle.pbDisplay(_INTL("{1}'s type changed to {2}!", user.pbThis, typeName))
+354:       @battle.pbHideAbilitySplash(user)
+355:       # NOTE: The GF games say that if Curse is used by a non-Ghost-type
+356:       #       Pokémon which becomes Ghost-type because of Protean, it should
+357:       #       target and curse itself. I think this is silly, so I'm making it
+358:       #       choose a random opponent to curse instead.
+359:       if move.function_code == "CurseTargetOrLowerUserSpd1RaiseUserAtkDef1" && targets.length == 0
+360:         choice[3] = -1
+361:         targets = pbFindTargets(choice, move, user)
+362:       end
+363:     end
+364:     # For two-turn moves when they charge and attack in the same turn
+365:     move.pbQuickChargingMove(user, targets)
+366:     #---------------------------------------------------------------------------
+367:     magicCoater  = -1
+368:     magicBouncer = -1
+369:     if targets.length == 0 && move.pbTarget(user).num_targets > 0 && !move.worksWithNoTargets?
+370:       # def pbFindTargets should have found a target(s), but it didn't because
+371:       # they were all fainted
+372:       # All target types except: None, User, UserSide, FoeSide, BothSides
+373:       @battle.pbDisplay(_INTL("But there was no target..."))
+374:       user.lastMoveFailed = true
+375:     else   # We have targets, or move doesn't use targets
+376:       # Reset whole damage state, perform various success checks (not accuracy)
+377:       @battle.allBattlers.each do |b|
+378:         b.droppedBelowHalfHP = false
+379:         b.statsDropped = false
+380:       end
+381:       targets.each do |b|
+382:         b.damageState.reset
+383:         next if pbSuccessCheckAgainstTarget(move, user, b, targets)
+384:         b.damageState.unaffected = true
+385:       end
+386:       # Magic Coat/Magic Bounce checks (for moves which don't target Pokémon)
+387:       if targets.length == 0 && move.statusMove? && move.canMagicCoat?
+388:         @battle.pbPriority(true).each do |b|
+389:           next if b.fainted? || !b.opposes?(user)
+390:           next if b.semiInvulnerable?
+391:           if b.effects[PBEffects::MagicCoat]
+392:             magicCoater = b.index
+393:             b.effects[PBEffects::MagicCoat] = false
+394:             break
+395:           elsif b.hasActiveAbility?(:MAGICBOUNCE) && !@battle.moldBreaker &&
+396:                 !b.effects[PBEffects::MagicBounce]
+397:             magicBouncer = b.index
+398:             b.effects[PBEffects::MagicBounce] = true
+399:             break
+400:           end
+401:         end
+402:       end
+403:       # Get the number of hits
+404:       numHits = move.pbNumHits(user, targets)
+405:       # Process each hit in turn
+406:       realNumHits = 0
+407:       numHits.times do |i|
+408:         break if magicCoater >= 0 || magicBouncer >= 0
+409:         success = pbProcessMoveHit(move, user, targets, i, skipAccuracyCheck)

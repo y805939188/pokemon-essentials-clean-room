@@ -1,0 +1,112 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/004_Battle_ActionAttacksPriority.rb RANGE 1-111 TOTAL 279
+1	class Battle
+2	  #=============================================================================
+3	  # Choosing a move/target
+4	  #=============================================================================
+5	  def pbCanChooseMove?(idxBattler, idxMove, showMessages, sleepTalk = false)
+6	    battler = @battlers[idxBattler]
+7	    move = battler.moves[idxMove]
+8	    return false unless move
+9	    if move.pp == 0 && move.total_pp > 0 && !sleepTalk
+10	      pbDisplayPaused(_INTL("There's no PP left for this move!")) if showMessages
+11	      return false
+12	    end
+13	    if battler.effects[PBEffects::Encore] > 0
+14	      idxEncoredMove = battler.pbEncoredMoveIndex
+15	      return false if idxEncoredMove >= 0 && idxMove != idxEncoredMove
+16	    end
+17	    return battler.pbCanChooseMove?(move, true, showMessages, sleepTalk)
+18	  end
+19	
+20	  def pbCanChooseAnyMove?(idxBattler, sleepTalk = false)
+21	    battler = @battlers[idxBattler]
+22	    battler.eachMoveWithIndex do |m, i|
+23	      next if m.pp == 0 && m.total_pp > 0 && !sleepTalk
+24	      if battler.effects[PBEffects::Encore] > 0
+25	        idxEncoredMove = battler.pbEncoredMoveIndex
+26	        next if idxEncoredMove >= 0 && i != idxEncoredMove
+27	      end
+28	      next if !battler.pbCanChooseMove?(m, true, false, sleepTalk)
+29	      return true
+30	    end
+31	    return false
+32	  end
+33	
+34	  # Called when the Pokémon is Encored, or if it can't use any of its moves.
+35	  # Makes the Pokémon use the Encored move (if Encored), or Struggle.
+36	  def pbAutoChooseMove(idxBattler, showMessages = true)
+37	    battler = @battlers[idxBattler]
+38	    if battler.fainted?
+39	      pbClearChoice(idxBattler)
+40	      return true
+41	    end
+42	    # Encore
+43	    idxEncoredMove = battler.pbEncoredMoveIndex
+44	    if idxEncoredMove >= 0 && pbCanChooseMove?(idxBattler, idxEncoredMove, false)
+45	      encoreMove = battler.moves[idxEncoredMove]
+46	      @choices[idxBattler][0] = :UseMove         # "Use move"
+47	      @choices[idxBattler][1] = idxEncoredMove   # Index of move to be used
+48	      @choices[idxBattler][2] = encoreMove       # Battle::Move object
+49	      @choices[idxBattler][3] = -1               # No target chosen yet
+50	      return true if singleBattle?
+51	      if pbOwnedByPlayer?(idxBattler)
+52	        if showMessages
+53	          pbDisplayPaused(_INTL("{1} has to use {2}!", battler.name, encoreMove.name))
+54	        end
+55	        return pbChooseTarget(battler, encoreMove)
+56	      end
+57	      return true
+58	    end
+59	    # Struggle
+60	    if pbOwnedByPlayer?(idxBattler) && showMessages
+61	      pbDisplayPaused(_INTL("{1} has no moves left!", battler.name))
+62	    end
+63	    @choices[idxBattler][0] = :UseMove    # "Use move"
+64	    @choices[idxBattler][1] = -1          # Index of move to be used
+65	    @choices[idxBattler][2] = @struggle   # Struggle Battle::Move object
+66	    @choices[idxBattler][3] = -1          # No target chosen yet
+67	    return true
+68	  end
+69	
+70	  def pbRegisterMove(idxBattler, idxMove, showMessages = true)
+71	    battler = @battlers[idxBattler]
+72	    move = battler.moves[idxMove]
+73	    return false if !pbCanChooseMove?(idxBattler, idxMove, showMessages)
+74	    @choices[idxBattler][0] = :UseMove   # "Use move"
+75	    @choices[idxBattler][1] = idxMove    # Index of move to be used
+76	    @choices[idxBattler][2] = move       # Battle::Move object
+77	    @choices[idxBattler][3] = -1         # No target chosen yet
+78	    return true
+79	  end
+80	
+81	  def pbChoseMove?(idxBattler, moveID)
+82	    return false if !@battlers[idxBattler] || @battlers[idxBattler].fainted?
+83	    if @choices[idxBattler][0] == :UseMove && @choices[idxBattler][1]
+84	      return @choices[idxBattler][2].id == moveID
+85	    end
+86	    return false
+87	  end
+88	
+89	  def pbChoseMoveFunctionCode?(idxBattler, code)
+90	    return false if @battlers[idxBattler].fainted?
+91	    if @choices[idxBattler][0] == :UseMove && @choices[idxBattler][1]
+92	      return @choices[idxBattler][2].function_code == code
+93	    end
+94	    return false
+95	  end
+96	
+97	  def pbRegisterTarget(idxBattler, idxTarget)
+98	    @choices[idxBattler][3] = idxTarget   # Set target of move
+99	  end
+100	
+101	  # Returns whether the idxTarget will be targeted by a move with target_data
+102	  # used by a battler in idxUser.
+103	  def pbMoveCanTarget?(idxUser, idxTarget, target_data)
+104	    return false if target_data.num_targets == 0
+105	    case target_data.id
+106	    when :NearAlly
+107	      return false if opposes?(idxUser, idxTarget)
+108	      return false if !nearBattlers?(idxUser, idxTarget)
+109	    when :UserOrNearAlly
+110	      return true if idxUser == idxTarget
+111	      return false if opposes?(idxUser, idxTarget)

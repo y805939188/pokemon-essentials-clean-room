@@ -1,0 +1,248 @@
+281:           reset_sprite_position(sprite, index, is_new_sprite)
+282:           return
+283:         end
+284:       end
+285:       # Determine which weather type this sprite is representing
+286:       weather_type = (is_new_sprite) ? @target_type : @type
+287:       # Update visibility/position/opacity of sprite
+288:       if @weatherTypes[weather_type][0].category == :Rain && index.odd?   # Splash
+289:         sprite.opacity = (lifetimes[index] < 0.2) ? 255 : 0   # 0.2 seconds
+290:       else
+291:         dist_x = @weatherTypes[weather_type][0].particle_delta_x * delta_t
+292:         dist_y = @weatherTypes[weather_type][0].particle_delta_y * delta_t
+293:         sprite.x += dist_x
+294:         sprite.y += dist_y
+295:         if weather_type == :Snow
+296:           sprite.x += dist_x * (sprite.y - @oy - @oy_offset) / (Graphics.height * 3)   # Faster when further down screen
+297:           sprite.x += [2, 1, 0, -1][rand(4)] * dist_x / 8   # Random movement
+298:           sprite.y += [2, 1, 1, 0, 0, -1][index % 6] * dist_y / 10   # Variety
+299:         end
+300:         sprite.x -= Graphics.width if sprite.x - @ox - @ox_offset > Graphics.width
+301:         sprite.x += Graphics.width if sprite.x - @ox - @ox_offset < -sprite.width
+302:         sprite.y -= Graphics.height if sprite.y - @oy - @oy_offset > Graphics.height
+303:         sprite.y += Graphics.height if sprite.y - @oy - @oy_offset < -sprite.height
+304:         sprite.opacity += @weatherTypes[weather_type][0].particle_delta_opacity * delta_t
+305:         x = sprite.x - @ox - @ox_offset
+306:         y = sprite.y - @oy - @oy_offset
+307:         # Check if sprite is off-screen; if so, reset it
+308:         if sprite.opacity < 64 || x < -sprite.bitmap.width || y > Graphics.height
+309:           reset_sprite_position(sprite, index, is_new_sprite)
+310:         end
+311:       end
+312:     end
+313: 
+314:     def recalculate_tile_positions
+315:       delta_t = Graphics.delta
+316:       weather_type = @type
+317:       if @fading && @fade_time >= [FADE_OLD_TONE_END - @time_shift, 0].max
+318:         weather_type = @target_type
+319:       end
+320:       @tile_x += @weatherTypes[weather_type][0].tile_delta_x * delta_t
+321:       @tile_y += @weatherTypes[weather_type][0].tile_delta_y * delta_t
+322:       while @tile_x < @ox + @ox_offset - @weatherTypes[weather_type][2][0].width
+323:         @tile_x += @weatherTypes[weather_type][2][0].width
+324:       end
+325:       while @tile_x > @ox + @ox_offset
+326:         @tile_x -= @weatherTypes[weather_type][2][0].width
+327:       end
+328:       while @tile_y < @oy + @oy_offset - @weatherTypes[weather_type][2][0].height
+329:         @tile_y += @weatherTypes[weather_type][2][0].height
+330:       end
+331:       while @tile_y > @oy + @oy_offset
+332:         @tile_y -= @weatherTypes[weather_type][2][0].height
+333:       end
+334:     end
+335: 
+336:     def update_tile_position(sprite, index)
+337:       return if !sprite || !sprite.bitmap || !sprite.visible
+338:       sprite.x = @tile_x.round + ((index % @tiles_wide) * sprite.bitmap.width)
+339:       sprite.y = @tile_y.round + ((index / @tiles_wide) * sprite.bitmap.height)
+340:       sprite.x += @tiles_wide * sprite.bitmap.width if sprite.x - @ox - @ox_offset < -sprite.bitmap.width
+341:       sprite.y -= @tiles_tall * sprite.bitmap.height if sprite.y - @oy - @oy_offset > Graphics.height
+342:       sprite.visible = true
+343:       if @fading && @type != @target_type
+344:         if @fade_time >= FADE_OLD_TILES_START && @fade_time < FADE_OLD_TILES_END &&
+345:            @time_shift == 0   # There were old tiles to fade out
+346:           fraction = (@fade_time - [FADE_OLD_TILES_START - @time_shift, 0].max) / (FADE_OLD_TILES_END - FADE_OLD_TILES_START)
+347:           sprite.opacity = 255 * (1 - fraction)
+348:         elsif @fade_time >= [FADE_NEW_TILES_START - @time_shift, 0].max &&
+349:               @fade_time < [FADE_NEW_TILES_END - @time_shift, 0].max
+350:           fraction = (@fade_time - [FADE_NEW_TILES_START - @time_shift, 0].max) / (FADE_NEW_TILES_END - FADE_NEW_TILES_START)
+351:           sprite.opacity = 255 * fraction
+352:         else
+353:           sprite.opacity = 0
+354:         end
+355:       else
+356:         sprite.opacity = (@max > 0) ? 255 : 0
+357:       end
+358:     end
+359: 
+360:     # Set tone of viewport (general screen brightening/darkening)
+361:     def update_screen_tone
+362:       weather_type = @type
+363:       weather_max = @max
+364:       fraction = 1
+365:       tone_red = 0
+366:       tone_green = 0
+367:       tone_blue = 0
+368:       tone_gray = 0
+369:       # Get base tone
+370:       if @fading
+371:         if @type == @target_type   # Just changing max
+372:           if @fade_time >= [FADE_NEW_TONE_START - @time_shift, 0].max &&
+373:              @fade_time < [FADE_NEW_TONE_END - @time_shift, 0].max
+374:             weather_max = @target_max
+375:             fract = (@fade_time - [FADE_NEW_TONE_START - @time_shift, 0].max) / (FADE_NEW_TONE_END - FADE_NEW_TONE_START)
+376:             tone_red = @target_tone.red + ((1 - fract) * (@old_tone.red - @target_tone.red))
+377:             tone_green = @target_tone.green + ((1 - fract) * (@old_tone.green - @target_tone.green))
+378:             tone_blue = @target_tone.blue + ((1 - fract) * (@old_tone.blue - @target_tone.blue))
+379:             tone_gray = @target_tone.gray + ((1 - fract) * (@old_tone.gray - @target_tone.gray))
+380:           else
+381:             tone_red = @viewport.tone.red
+382:             tone_green = @viewport.tone.green
+383:             tone_blue = @viewport.tone.blue
+384:             tone_gray = @viewport.tone.gray
+385:           end
+386:         elsif @time_shift < 2 && @fade_time >= FADE_OLD_TONE_START && @fade_time < FADE_OLD_TONE_END
+387:           weather_max = @old_max
+388:           fraction = ((@fade_time - FADE_OLD_TONE_START) / (FADE_OLD_TONE_END - FADE_OLD_TONE_START)).clamp(0, 1)
+389:           fraction = 1 - fraction
+390:           tone_red = @old_tone.red
+391:           tone_green = @old_tone.green
+392:           tone_blue = @old_tone.blue
+393:           tone_gray = @old_tone.gray
+394:         elsif @fade_time >= [FADE_NEW_TONE_START - @time_shift, 0].max
+395:           weather_type = @target_type
+396:           weather_max = @target_max
+397:           fraction = ((@fade_time - [FADE_NEW_TONE_START - @time_shift, 0].max) / (FADE_NEW_TONE_END - FADE_NEW_TONE_START)).clamp(0, 1)
+398:           tone_red = @target_tone.red
+399:           tone_green = @target_tone.green
+400:           tone_blue = @target_tone.blue
+401:           tone_gray = @target_tone.gray
+402:         end
+403:       else
+404:         base_tone = get_weather_tone(weather_type, weather_max)
+405:         tone_red = base_tone.red
+406:         tone_green = base_tone.green
+407:         tone_blue = base_tone.blue
+408:         tone_gray = base_tone.gray
+409:       end
+410:       # Modify base tone
+411:       if weather_type == :Sun
+412:         @sun_magnitude = weather_max if @sun_magnitude != weather_max && @sun_magnitude != -weather_max
+413:         @sun_magnitude *= -1 if (@sun_magnitude > 0 && @sun_strength > @sun_magnitude) ||
+414:                                 (@sun_magnitude < 0 && @sun_strength < 0)
+415:         @sun_strength += @sun_magnitude.to_f * Graphics.delta / 0.8   # 0.8 seconds per half flash
+416:         tone_red += @sun_strength
+417:         tone_green += @sun_strength
+418:         tone_blue += @sun_strength / 2
+419:       end
+420:       # Apply screen tone
+421:       @viewport.tone.set(tone_red * fraction, tone_green * fraction,
+422:                          tone_blue * fraction, tone_gray * fraction)
+423:     end
+424: 
+425:     def update_fading
+426:       return if !@fading
+427:       old_fade_time = @fade_time
+428:       @fade_time += Graphics.delta
+429:       # Change tile bitmaps
+430:       if @type != @target_type
+431:         tile_change_threshold = [FADE_OLD_TONE_END - @time_shift, 0].max
+432:         if old_fade_time <= tile_change_threshold && @fade_time > tile_change_threshold
+433:           @tile_x = @tile_y = 0.0
+434:           if @weatherTypes[@target_type] && @weatherTypes[@target_type][2].length > 0
+435:             w = @weatherTypes[@target_type][2][0].width
+436:             h = @weatherTypes[@target_type][2][0].height
+437:             @tiles_wide = (Graphics.width.to_f / w).ceil + 1
+438:             @tiles_tall = (Graphics.height.to_f / h).ceil + 1
+439:             ensureTiles
+440:             @tiles.each_with_index { |sprite, i| set_tile_bitmap(sprite, i, @target_type) }
+441:           else
+442:             @tiles_wide = @tiles_tall = 0
+443:           end
+444:         end
+445:       end
+446:       # Reduce the number of old weather particles
+447:       if @max > 0 && @fade_time >= [FADE_OLD_PARTICLES_START - @time_shift, 0].max
+448:         fraction = (@fade_time - [FADE_OLD_PARTICLES_START - @time_shift, 0].max) / (FADE_OLD_PARTICLES_END - FADE_OLD_PARTICLES_START)
+449:         @max = @old_max * (1 - fraction)
+450:         # NOTE: Sprite visibilities aren't updated here; a sprite is allowed to
+451:         #       die off naturally in def reset_sprite_position.
+452:       end
+453:       # Increase the number of new weather particles
+454:       if @new_max < @target_max && @fade_time >= [FADE_NEW_PARTICLES_START - @time_shift, 0].max
+455:         fraction = (@fade_time - [FADE_NEW_PARTICLES_START - @time_shift, 0].max) / (FADE_NEW_PARTICLES_END - FADE_NEW_PARTICLES_START)
+456:         @new_max = (@target_max * fraction).floor
+457:         @new_sprites.each_with_index { |sprite, i| sprite.visible = (i < @new_max) if sprite }
+458:       end
+459:       # End fading
+460:       if @fade_time >= ((@target_type == :None) ? FADE_OLD_PARTICLES_END : FADE_NEW_TILES_END) - @time_shift &&
+461:          @sprites.none? { |sprite| sprite.visible }
+462:         @type                 = @target_type
+463:         @max                  = @target_max
+464:         @target_type          = nil
+465:         @target_max           = nil
+466:         @old_max              = nil
+467:         @new_max              = nil
+468:         @old_tone             = nil
+469:         @target_tone          = nil
+470:         @fade_time            = 0.0
+471:         @time_shift           = 0
+472:         @sprites.each { |sprite| sprite&.dispose }
+473:         @sprites              = @new_sprites
+474:         @new_sprites          = []
+475:         @sprite_lifetimes     = @new_sprite_lifetimes
+476:         @new_sprite_lifetimes = []
+477:         @fading               = false
+478:       end
+479:     end
+480: 
+481:     def update
+482:       update_fading
+483:       update_screen_tone
+484:       # Storm flashes
+485:       if @type == :Storm && !@fading
+486:         if @time_until_flash > 0
+487:           @time_until_flash -= Graphics.delta
+488:           if @time_until_flash <= 0
+489:             @viewport.flash(Color.new(255, 255, 255, 230), rand(2..4) * 20)
+490:           end
+491:         end
+492:         if @time_until_flash <= 0
+493:           @time_until_flash = rand(1..12) * 0.5   # 0.5-6 seconds
+494:         end
+495:       end
+496:       @viewport.update
+497:       # Update weather particles (raindrops, snowflakes, etc.)
+498:       if @weatherTypes[@type] && @weatherTypes[@type][1].length > 0
+499:         ensureSprites
+500:         MAX_SPRITES.times do |i|
+501:           update_sprite_position(@sprites[i], i, false)
+502:         end
+503:       elsif @sprites.length > 0
+504:         @sprites.each { |sprite| sprite&.dispose }
+505:         @sprites.clear
+506:       end
+507:       # Update new weather particles (while fading in only)
+508:       if @fading && @weatherTypes[@target_type] && @weatherTypes[@target_type][1].length > 0
+509:         ensureSprites
+510:         MAX_SPRITES.times do |i|
+511:           update_sprite_position(@new_sprites[i], i, true)
+512:         end
+513:       elsif @new_sprites.length > 0
+514:         @new_sprites.each { |sprite| sprite&.dispose }
+515:         @new_sprites.clear
+516:       end
+517:       # Update weather tiles (sandstorm/blizzard/fog tiled overlay)
+518:       if @tiles_wide > 0 && @tiles_tall > 0
+519:         ensureTiles
+520:         recalculate_tile_positions
+521:         @tiles.each_with_index { |sprite, i| update_tile_position(sprite, i) }
+522:       elsif @tiles.length > 0
+523:         @tiles.each { |sprite| sprite&.dispose }
+524:         @tiles.clear
+525:       end
+526:     end
+527:   end
+528: end

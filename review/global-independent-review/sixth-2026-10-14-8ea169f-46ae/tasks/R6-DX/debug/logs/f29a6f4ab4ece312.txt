@@ -1,0 +1,281 @@
+871:   "name"   => _INTL("Set ribbons"),
+872:   "parent" => :cosmetic,
+873:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+874:     cmd = 0
+875:     loop do
+876:       commands = []
+877:       ids = []
+878:       GameData::Ribbon.each do |ribbon_data|
+879:         commands.push(_INTL("{1} {2}",
+880:                             (pkmn.hasRibbon?(ribbon_data.id)) ? "[Y]" : "[  ]", ribbon_data.name))
+881:         ids.push(ribbon_data.id)
+882:       end
+883:       commands.push(_INTL("Give all"))
+884:       commands.push(_INTL("Clear all"))
+885:       cmd = screen.pbShowCommands(_INTL("{1} ribbons.", pkmn.numRibbons), commands, cmd)
+886:       break if cmd < 0
+887:       if cmd >= 0 && cmd < ids.length   # Toggle ribbon
+888:         if pkmn.hasRibbon?(ids[cmd])
+889:           pkmn.takeRibbon(ids[cmd])
+890:         else
+891:           pkmn.giveRibbon(ids[cmd])
+892:         end
+893:       elsif cmd == commands.length - 2   # Give all
+894:         GameData::Ribbon.each do |ribbon_data|
+895:           pkmn.giveRibbon(ribbon_data.id)
+896:         end
+897:       elsif cmd == commands.length - 1   # Clear all
+898:         pkmn.clearAllRibbons
+899:       end
+900:     end
+901:     next false
+902:   }
+903: })
+904: 
+905: MenuHandlers.add(:pokemon_debug_menu, :set_nickname, {
+906:   "name"   => _INTL("Set nickname"),
+907:   "parent" => :cosmetic,
+908:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+909:     cmd = 0
+910:     loop do
+911:       speciesname = pkmn.speciesName
+912:       msg = [_INTL("{1} has the nickname {2}.", speciesname, pkmn.name),
+913:              _INTL("{1} has no nickname.", speciesname)][pkmn.nicknamed? ? 0 : 1]
+914:       cmd = screen.pbShowCommands(msg, [_INTL("Rename"), _INTL("Erase name")], cmd)
+915:       break if cmd < 0
+916:       case cmd
+917:       when 0   # Rename
+918:         oldname = (pkmn.nicknamed?) ? pkmn.name : ""
+919:         newname = pbEnterPokemonName(_INTL("{1}'s nickname?", speciesname),
+920:                                      0, Pokemon::MAX_NAME_SIZE, oldname, pkmn)
+921:         pkmn.name = newname
+922:         screen.pbRefreshSingle(pkmnid)
+923:       when 1   # Erase name
+924:         pkmn.name = nil
+925:         screen.pbRefreshSingle(pkmnid)
+926:       end
+927:     end
+928:     next false
+929:   }
+930: })
+931: 
+932: MenuHandlers.add(:pokemon_debug_menu, :ownership, {
+933:   "name"   => _INTL("Ownership..."),
+934:   "parent" => :cosmetic,
+935:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+936:     cmd = 0
+937:     loop do
+938:       gender = [_INTL("Male"), _INTL("Female"), _INTL("Unknown")][pkmn.owner.gender]
+939:       msg = [_INTL("Player's Pokémon\n{1}\n{2}\n{3} ({4})",
+940:                    pkmn.owner.name, gender, pkmn.owner.public_id, pkmn.owner.id),
+941:              _INTL("Foreign Pokémon\n{1}\n{2}\n{3} ({4})",
+942:                    pkmn.owner.name, gender, pkmn.owner.public_id, pkmn.owner.id)][pkmn.foreign?($player) ? 1 : 0]
+943:       cmd = screen.pbShowCommands(msg,
+944:                                   [_INTL("Make player's"),
+945:                                    _INTL("Set OT's name"),
+946:                                    _INTL("Set OT's gender"),
+947:                                    _INTL("Random foreign ID"),
+948:                                    _INTL("Set foreign ID")], cmd)
+949:       break if cmd < 0
+950:       case cmd
+951:       when 0   # Make player's
+952:         pkmn.owner = Pokemon::Owner.new_from_trainer($player)
+953:       when 1   # Set OT's name
+954:         pkmn.owner.name = pbEnterPlayerName(_INTL("{1}'s OT's name?", pkmn.name), 1, Settings::MAX_PLAYER_NAME_SIZE)
+955:       when 2   # Set OT's gender
+956:         cmd2 = screen.pbShowCommands(_INTL("Set OT's gender."),
+957:                                      [_INTL("Male"), _INTL("Female"), _INTL("Unknown")], pkmn.owner.gender)
+958:         pkmn.owner.gender = cmd2 if cmd2 >= 0
+959:       when 3   # Random foreign ID
+960:         pkmn.owner.id = $player.make_foreign_ID
+961:       when 4   # Set foreign ID
+962:         params = ChooseNumberParams.new
+963:         params.setRange(0, 65_535)
+964:         params.setDefaultValue(pkmn.owner.public_id)
+965:         val = pbMessageChooseNumber(
+966:           _INTL("Set the new ID (max. 65535)."), params
+967:         ) { screen.pbUpdate }
+968:         pkmn.owner.id = val | (val << 16)
+969:       end
+970:     end
+971:     next false
+972:   }
+973: })
+974: 
+975: #===============================================================================
+976: # Can store/release/trade
+977: #===============================================================================
+978: MenuHandlers.add(:pokemon_debug_menu, :set_discardable, {
+979:   "name"   => _INTL("Set discardable"),
+980:   "parent" => :main,
+981:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+982:     cmd = 0
+983:     loop do
+984:       msg = _INTL("Click option to toggle.")
+985:       cmds = []
+986:       cmds.push((pkmn.cannot_store) ? _INTL("Cannot store") : _INTL("Can store"))
+987:       cmds.push((pkmn.cannot_release) ? _INTL("Cannot release") : _INTL("Can release"))
+988:       cmds.push((pkmn.cannot_trade) ? _INTL("Cannot trade") : _INTL("Can trade"))
+989:       cmd = screen.pbShowCommands(msg, cmds, cmd)
+990:       break if cmd < 0
+991:       case cmd
+992:       when 0   # Toggle storing
+993:         pkmn.cannot_store = !pkmn.cannot_store
+994:       when 1   # Toggle releasing
+995:         pkmn.cannot_release = !pkmn.cannot_release
+996:       when 2   # Toggle trading
+997:         pkmn.cannot_trade = !pkmn.cannot_trade
+998:       end
+999:     end
+1000:     next false
+1001:   }
+1002: })
+1003: 
+1004: #===============================================================================
+1005: # Other options
+1006: #===============================================================================
+1007: MenuHandlers.add(:pokemon_debug_menu, :set_egg, {
+1008:   "name"        => _INTL("Set egg"),
+1009:   "parent"      => :main,
+1010:   "always_show" => false,
+1011:   "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+1012:     cmd = 0
+1013:     loop do
+1014:       msg = [_INTL("Not an egg"),
+1015:              _INTL("Egg (hatches in {1} steps).", pkmn.steps_to_hatch)][pkmn.egg? ? 1 : 0]
+1016:       cmd = screen.pbShowCommands(msg,
+1017:                                   [_INTL("Make egg"),
+1018:                                    _INTL("Make Pokémon"),
+1019:                                    _INTL("Set steps left to 1")], cmd)
+1020:       break if cmd < 0
+1021:       case cmd
+1022:       when 0   # Make egg
+1023:         if !pkmn.egg? && (pbHasEgg?(pkmn.species) ||
+1024:            screen.pbConfirm(_INTL("{1} cannot legally be an egg. Make egg anyway?", pkmn.speciesName)))
+1025:           pkmn.level          = Settings::EGG_LEVEL
+1026:           pkmn.calc_stats
+1027:           pkmn.name           = _INTL("Egg")
+1028:           pkmn.steps_to_hatch = pkmn.species_data.hatch_steps
+1029:           pkmn.hatched_map    = 0
+1030:           pkmn.obtain_method  = 1
+1031:           screen.pbRefreshSingle(pkmnid)
+1032:         end
+1033:       when 1   # Make Pokémon
+1034:         if pkmn.egg?
+1035:           pkmn.name           = nil
+1036:           pkmn.steps_to_hatch = 0
+1037:           pkmn.hatched_map    = 0
+1038:           pkmn.obtain_method  = 0
+1039:           $player.pokedex.register(pkmn) if !settingUpBattle
+1040:           screen.pbRefreshSingle(pkmnid)
+1041:         end
+1042:       when 2   # Set steps left to 1
+1043:         pkmn.steps_to_hatch = 1 if pkmn.egg?
+1044:       end
+1045:     end
+1046:     next false
+1047:   }
+1048: })
+1049: 
+1050: MenuHandlers.add(:pokemon_debug_menu, :shadow_pkmn, {
+1051:   "name"   => _INTL("Shadow Pkmn..."),
+1052:   "parent" => :main,
+1053:   "effect" => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+1054:     cmd = 0
+1055:     loop do
+1056:       msg = [_INTL("Not a Shadow Pokémon."),
+1057:              _INTL("Heart gauge is {1} (stage {2}).", pkmn.heart_gauge, pkmn.heartStage)][pkmn.shadowPokemon? ? 1 : 0]
+1058:       cmd = screen.pbShowCommands(msg, [_INTL("Make Shadow"), _INTL("Set heart gauge")], cmd)
+1059:       break if cmd < 0
+1060:       case cmd
+1061:       when 0   # Make Shadow
+1062:         if pkmn.shadowPokemon?
+1063:           screen.pbDisplay(_INTL("{1} is already a Shadow Pokémon.", pkmn.name))
+1064:         else
+1065:           pkmn.makeShadow
+1066:           screen.pbRefreshSingle(pkmnid)
+1067:         end
+1068:       when 1   # Set heart gauge
+1069:         if pkmn.shadowPokemon?
+1070:           oldheart = pkmn.heart_gauge
+1071:           params = ChooseNumberParams.new
+1072:           params.setRange(0, pkmn.max_gauge_size)
+1073:           params.setDefaultValue(pkmn.heart_gauge)
+1074:           val = pbMessageChooseNumber(
+1075:             _INTL("Set the heart gauge (max. {1}).", pkmn.max_gauge_size),
+1076:             params
+1077:           ) { screen.pbUpdate }
+1078:           if val != oldheart
+1079:             pkmn.adjustHeart(val - oldheart)
+1080:             pkmn.check_ready_to_purify
+1081:           end
+1082:         else
+1083:           screen.pbDisplay(_INTL("{1} is not a Shadow Pokémon.", pkmn.name))
+1084:         end
+1085:       end
+1086:     end
+1087:     next false
+1088:   }
+1089: })
+1090: 
+1091: MenuHandlers.add(:pokemon_debug_menu, :mystery_gift, {
+1092:   "name"        => _INTL("Mystery Gift"),
+1093:   "parent"      => :main,
+1094:   "always_show" => false,
+1095:   "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+1096:     pbCreateMysteryGift(0, pkmn)
+1097:     next false
+1098:   }
+1099: })
+1100: 
+1101: MenuHandlers.add(:pokemon_debug_menu, :duplicate, {
+1102:   "name"        => _INTL("Duplicate"),
+1103:   "parent"      => :main,
+1104:   "always_show" => false,
+1105:   "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+1106:     next false if !screen.pbConfirm(_INTL("Are you sure you want to copy this Pokémon?"))
+1107:     clonedpkmn = pkmn.clone
+1108:     case screen
+1109:     when PokemonPartyScreen
+1110:       pbStorePokemon(clonedpkmn)
+1111:       screen.pbHardRefresh
+1112:       screen.pbDisplay(_INTL("The Pokémon was duplicated."))
+1113:     when PokemonStorageScreen
+1114:       if screen.storage.pbMoveCaughtToParty(clonedpkmn)
+1115:         if pkmnid[0] != -1
+1116:           screen.pbDisplay(_INTL("The duplicated Pokémon was moved to your party."))
+1117:         end
+1118:       else
+1119:         oldbox = screen.storage.currentBox
+1120:         newbox = screen.storage.pbStoreCaught(clonedpkmn)
+1121:         if newbox < 0
+1122:           screen.pbDisplay(_INTL("All boxes are full."))
+1123:         elsif newbox != oldbox
+1124:           screen.pbDisplay(_INTL("The duplicated Pokémon was moved to box \"{1}.\"", screen.storage[newbox].name))
+1125:           screen.storage.currentBox = oldbox
+1126:         end
+1127:       end
+1128:       screen.pbHardRefresh
+1129:     end
+1130:     next true
+1131:   }
+1132: })
+1133: 
+1134: MenuHandlers.add(:pokemon_debug_menu, :delete, {
+1135:   "name"        => _INTL("Delete"),
+1136:   "parent"      => :main,
+1137:   "always_show" => false,
+1138:   "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+1139:     next false if !screen.pbConfirm(_INTL("Are you sure you want to delete this Pokémon?"))
+1140:     case screen
+1141:     when PokemonPartyScreen
+1142:       screen.party.delete_at(pkmnid)
+1143:       screen.pbHardRefresh
+1144:     when PokemonStorageScreen
+1145:       screen.scene.pbRelease(pkmnid, heldpoke)
+1146:       (heldpoke) ? screen.heldpkmn = nil : screen.storage.pbDelete(pkmnid[0], pkmnid[1])
+1147:       screen.scene.pbRefresh
+1148:     end
+1149:     next true
+1150:   }
+1151: })

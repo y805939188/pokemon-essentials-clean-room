@@ -1,0 +1,300 @@
+1: module Compiler
+2:   module_function
+3: 
+4:   def compile_PBS_file_generic(game_data, *paths)
+5:     if game_data.const_defined?(:OPTIONAL) && game_data::OPTIONAL
+6:       return if paths.none? { |p| FileTest.exist?(p) }
+7:     end
+8:     game_data::DATA.clear
+9:     schema = game_data.schema
+10:     # Read from PBS file(s)
+11:     paths.each do |path|
+12:       compile_pbs_file_message_start(path)
+13:       base_filename = game_data::PBS_BASE_FILENAME
+14:       base_filename = base_filename[0] if base_filename.is_a?(Array)   # For Species
+15:       file_suffix = File.basename(path, ".txt")[base_filename.length + 1, path.length] || ""
+16:       File.open(path, "rb") do |f|
+17:         FileLineData.file = path   # For error reporting
+18:         # Read a whole section's lines at once, then run through this code.
+19:         # contents is a hash containing all the XXX=YYY lines in that section, where
+20:         # the keys are the XXX and the values are the YYY (as unprocessed strings).
+21:         idx = 0
+22:         pbEachFileSection(f, schema) do |contents, section_name|
+23:           echo "." if idx % 100 == 0
+24:           Graphics.update if idx % 500 == 0
+25:           idx += 1
+26:           data_hash = {
+27:             :id              => section_name.to_sym,
+28:             :pbs_file_suffix => file_suffix
+29:           }
+30:           # Go through schema hash of compilable data and compile this section
+31:           schema.each_key do |key|
+32:             FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+33:             if key == "SectionName"
+34:               data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+35:               next
+36:             end
+37:             # Skip empty properties
+38:             next if contents[key].nil?
+39:             # Compile value for key
+40:             if schema[key][1][0] == "^"
+41:               contents[key].each do |val|
+42:                 value = get_csv_record(val, schema[key])
+43:                 value = nil if value.is_a?(Array) && value.empty?
+44:                 data_hash[schema[key][0]] ||= []
+45:                 data_hash[schema[key][0]].push(value)
+46:               end
+47:               data_hash[schema[key][0]].compact!
+48:             else
+49:               value = get_csv_record(contents[key], schema[key])
+50:               value = nil if value.is_a?(Array) && value.empty?
+51:               data_hash[schema[key][0]] = value
+52:             end
+53:           end
+54:           # Validate and modify the compiled data
+55:           yield false, data_hash if block_given?
+56:           if game_data.exists?(data_hash[:id])
+57:             raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+58:           end
+59:           # Add section's data to records
+60:           game_data.register(data_hash)
+61:         end
+62:       end
+63:       process_pbs_file_message_end
+64:     end
+65:     yield true, nil if block_given?
+66:     # Save all data
+67:     game_data.save
+68:   end
+69: 
+70:   #=============================================================================
+71:   # Compile Town Map data
+72:   #=============================================================================
+73:   def compile_town_map(*paths)
+74:     compile_PBS_file_generic(GameData::TownMap, *paths) do |final_validate, hash|
+75:       (final_validate) ? validate_all_compiled_town_maps : validate_compiled_town_map(hash)
+76:     end
+77:   end
+78: 
+79:   def validate_compiled_town_map(hash)
+80:   end
+81: 
+82:   def validate_all_compiled_town_maps
+83:     # Get town map names and descriptions for translating
+84:     region_names = []
+85:     point_names = []
+86:     interest_names = []
+87:     GameData::TownMap.each do |town_map|
+88:       region_names[town_map.id] = town_map.real_name
+89:       town_map.point.each do |point|
+90:         point_names.push(point[2])
+91:         interest_names.push(point[3])
+92:       end
+93:     end
+94:     point_names.uniq!
+95:     interest_names.uniq!
+96:     MessageTypes.setMessagesAsHash(MessageTypes::REGION_NAMES, region_names)
+97:     MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_NAMES, point_names)
+98:     MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_DESCRIPTIONS, interest_names)
+99:   end
+100: 
+101:   #=============================================================================
+102:   # Compile map connections
+103:   #=============================================================================
+104:   def compile_connections(*paths)
+105:     hashenum = {
+106:       "N" => "N", "North" => "N",
+107:       "E" => "E", "East"  => "E",
+108:       "S" => "S", "South" => "S",
+109:       "W" => "W", "West"  => "W"
+110:     }
+111:     schema = [nil, "iyiiyi", nil, hashenum, nil, nil, hashenum]
+112:     records = []
+113:     paths.each do |path|
+114:       compile_pbs_file_message_start(path)
+115:       pbCompilerEachPreppedLine(path) do |line, lineno|
+116:         FileLineData.setLine(line, lineno)
+117:         record = get_csv_record(line, schema)
+118:         if !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[0]))
+119:           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[0]) + "\n" + FileLineData.linereport
+120:         elsif !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[3]))
+121:           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[3]) + "\n" + FileLineData.linereport
+122:         end
+123:         case record[1]
+124:         when "N"
+125:           raise _INTL("North side of first map must connect with south side of second map.") + "\n" + FileLineData.linereport if record[4] != "S"
+126:         when "S"
+127:           raise _INTL("South side of first map must connect with north side of second map.") + "\n" + FileLineData.linereport if record[4] != "N"
+128:         when "E"
+129:           raise _INTL("East side of first map must connect with west side of second map.") + "\n" + FileLineData.linereport if record[4] != "W"
+130:         when "W"
+131:           raise _INTL("West side of first map must connect with east side of second map.") + "\n" + FileLineData.linereport if record[4] != "E"
+132:         end
+133:         records.push(record)
+134:       end
+135:       process_pbs_file_message_end
+136:     end
+137:     save_data(records, "Data/map_connections.dat")
+138:   end
+139: 
+140:   #=============================================================================
+141:   # Compile type data
+142:   #=============================================================================
+143:   def compile_types(*paths)
+144:     compile_PBS_file_generic(GameData::Type, *paths) do |final_validate, hash|
+145:       (final_validate) ? validate_all_compiled_types : validate_compiled_type(hash)
+146:     end
+147:   end
+148: 
+149:   def validate_compiled_type(hash)
+150:     # Remove duplicate weaknesses/resistances/immunities
+151:     hash[:weaknesses].uniq! if hash[:weaknesses].is_a?(Array)
+152:     hash[:resistances].uniq! if hash[:resistances].is_a?(Array)
+153:     hash[:immunities].uniq! if hash[:immunities].is_a?(Array)
+154:   end
+155: 
+156:   def validate_all_compiled_types
+157:     type_names = []
+158:     GameData::Type.each do |type|
+159:       # Ensure all weaknesses/resistances/immunities are valid types
+160:       type.weaknesses.each do |other_type|
+161:         next if GameData::Type.exists?(other_type)
+162:         raise _INTL("'{1}' is not a defined type (type {2}, Weaknesses).", other_type.to_s, type.id)
+163:       end
+164:       type.resistances.each do |other_type|
+165:         next if GameData::Type.exists?(other_type)
+166:         raise _INTL("'{1}' is not a defined type (type {2}, Resistances).", other_type.to_s, type.id)
+167:       end
+168:       type.immunities.each do |other_type|
+169:         next if GameData::Type.exists?(other_type)
+170:         raise _INTL("'{1}' is not a defined type (type {2}, Immunities).", other_type.to_s, type.id)
+171:       end
+172:       # Get type names for translating
+173:       type_names.push(type.real_name)
+174:     end
+175:     MessageTypes.setMessagesAsHash(MessageTypes::TYPE_NAMES, type_names)
+176:   end
+177: 
+178:   #=============================================================================
+179:   # Compile ability data
+180:   #=============================================================================
+181:   def compile_abilities(*paths)
+182:     compile_PBS_file_generic(GameData::Ability, *paths) do |final_validate, hash|
+183:       (final_validate) ? validate_all_compiled_abilities : validate_compiled_ability(hash)
+184:     end
+185:   end
+186: 
+187:   def validate_compiled_ability(hash)
+188:   end
+189: 
+190:   def validate_all_compiled_abilities
+191:     # Get abilty names/descriptions for translating
+192:     ability_names = []
+193:     ability_descriptions = []
+194:     GameData::Ability.each do |ability|
+195:       ability_names.push(ability.real_name)
+196:       ability_descriptions.push(ability.real_description)
+197:     end
+198:     MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_NAMES, ability_names)
+199:     MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_DESCRIPTIONS, ability_descriptions)
+200:   end
+201: 
+202:   #=============================================================================
+203:   # Compile move data
+204:   #=============================================================================
+205:   def compile_moves(*paths)
+206:     compile_PBS_file_generic(GameData::Move, *paths) do |final_validate, hash|
+207:       (final_validate) ? validate_all_compiled_moves : validate_compiled_move(hash)
+208:     end
+209:   end
+210: 
+211:   def validate_compiled_move(hash)
+212:     if (hash[:category] || 2) == 2 && (hash[:power] || 0) != 0
+213:       raise _INTL("Move {1} is defined as a Status move with a non-zero base damage.", hash[:real_name]) + "\n" + FileLineData.linereport
+214:     elsif (hash[:category] || 2) != 2 && (hash[:power] || 0) == 0
+215:       print _INTL("Warning: Move {1} is defined as Physical or Special but has a base damage of 0. Changing it to a Status move.", hash[:real_name]) + "\n" + FileLineData.linereport
+216:       hash[:category] = 2
+217:     end
+218:   end
+219: 
+220:   def validate_all_compiled_moves
+221:     # Get move names/descriptions for translating
+222:     move_names = []
+223:     move_descriptions = []
+224:     GameData::Move.each do |move|
+225:       move_names.push(move.real_name)
+226:       move_descriptions.push(move.real_description)
+227:     end
+228:     MessageTypes.setMessagesAsHash(MessageTypes::MOVE_NAMES, move_names)
+229:     MessageTypes.setMessagesAsHash(MessageTypes::MOVE_DESCRIPTIONS, move_descriptions)
+230:   end
+231: 
+232:   #=============================================================================
+233:   # Compile item data
+234:   #=============================================================================
+235:   def compile_items(*paths)
+236:     compile_PBS_file_generic(GameData::Item, *paths) do |final_validate, hash|
+237:       (final_validate) ? validate_all_compiled_items : validate_compiled_item(hash)
+238:     end
+239:   end
+240: 
+241:   def validate_compiled_item(hash)
+242:   end
+243: 
+244:   def validate_all_compiled_items
+245:     # Get item names/descriptions for translating
+246:     item_names = []
+247:     item_names_plural = []
+248:     item_portion_names = []
+249:     item_portion_names_plural = []
+250:     item_descriptions = []
+251:     GameData::Item.each do |item|
+252:       item_names.push(item.real_name)
+253:       item_names_plural.push(item.real_name_plural)
+254:       item_portion_names.push(item.real_portion_name)
+255:       item_portion_names_plural.push(item.real_portion_name_plural)
+256:       item_descriptions.push(item.real_description)
+257:     end
+258:     MessageTypes.setMessagesAsHash(MessageTypes::ITEM_NAMES, item_names)
+259:     MessageTypes.setMessagesAsHash(MessageTypes::ITEM_NAME_PLURALS, item_names_plural)
+260:     MessageTypes.setMessagesAsHash(MessageTypes::ITEM_PORTION_NAMES, item_portion_names)
+261:     MessageTypes.setMessagesAsHash(MessageTypes::ITEM_PORTION_NAME_PLURALS, item_portion_names_plural)
+262:     MessageTypes.setMessagesAsHash(MessageTypes::ITEM_DESCRIPTIONS, item_descriptions)
+263:   end
+264: 
+265:   #=============================================================================
+266:   # Compile berry plant data
+267:   #=============================================================================
+268:   def compile_berry_plants(*paths)
+269:     compile_PBS_file_generic(GameData::BerryPlant, *paths) do |final_validate, hash|
+270:       (final_validate) ? validate_all_compiled_berry_plants : validate_compiled_berry_plant(hash)
+271:     end
+272:   end
+273: 
+274:   def validate_compiled_berry_plant(hash)
+275:   end
+276: 
+277:   def validate_all_compiled_berry_plants
+278:   end
+279: 
+280:   #=============================================================================
+281:   # Compile Pokémon data
+282:   #=============================================================================
+283:   def compile_pokemon(*paths)
+284:     compile_PBS_file_generic(GameData::Species, *paths) do |final_validate, hash|
+285:       (final_validate) ? validate_all_compiled_pokemon : validate_compiled_pokemon(hash)
+286:     end
+287:   end
+288: 
+289:   # NOTE: This method is also called by def validate_compiled_pokemon_form
+290:   #       below, and since a form's hash can contain very little data, don't
+291:   #       assume any data exists.
+292:   def validate_compiled_pokemon(hash)
+293:     # Convert base stats array to a hash
+294:     if hash[:base_stats].is_a?(Array)
+295:       new_stats = {}
+296:       GameData::Stat.each_main do |s|
+297:         new_stats[s.id] = (hash[:base_stats][s.pbs_order] || 1) if s.pbs_order >= 0
+298:       end
+299:       hash[:base_stats] = new_stats
+300:     end

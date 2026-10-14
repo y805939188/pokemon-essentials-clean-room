@@ -1,0 +1,210 @@
+181:     stage_mul = Battle::Battler::STAT_STAGE_MULTIPLIERS
+182:     stage_div = Battle::Battler::STAT_STAGE_DIVISORS
+183:     if [:ACCURACY, :EVASION].include?(stat)
+184:       stage_mul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+185:       stage_div = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+186:     end
+187:     old_stage = target.stages[stat]
+188:     new_stage = old_stage + increment
+189:     inc_mult = (stage_mul[new_stage + max_stage].to_f * stage_div[old_stage + max_stage]) / (stage_div[new_stage + max_stage] * stage_mul[old_stage + max_stage])
+190:     inc_mult -= 1
+191:     inc_mult *= desire_mult
+192:     # Stat-based score changes
+193:     case stat
+194:     when :ATTACK
+195:       # Modify score depending on current stat stage
+196:       # More strongly prefer if the target has no special moves
+197:       if old_stage >= 2 && increment == 1
+198:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+199:       else
+200:         has_special_moves = target.check_for_move { |m| m.specialMove?(m.type) }
+201:         inc = (has_special_moves) ? 8 : 12
+202:         score += inc * inc_mult
+203:       end
+204:     when :DEFENSE
+205:       # Modify score depending on current stat stage
+206:       if old_stage >= 2 && increment == 1
+207:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+208:       else
+209:         score += 10 * inc_mult
+210:       end
+211:     when :SPECIAL_ATTACK
+212:       # Modify score depending on current stat stage
+213:       # More strongly prefer if the target has no physical moves
+214:       if old_stage >= 2 && increment == 1
+215:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+216:       else
+217:         has_physical_moves = target.check_for_move { |m| m.physicalMove?(m.type) &&
+218:                                                          m.function_code != "UseUserDefenseInsteadOfUserAttack" &&
+219:                                                          m.function_code != "UseTargetAttackInsteadOfUserAttack" }
+220:         inc = (has_physical_moves) ? 8 : 12
+221:         score += inc * inc_mult
+222:       end
+223:     when :SPECIAL_DEFENSE
+224:       # Modify score depending on current stat stage
+225:       if old_stage >= 2 && increment == 1
+226:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+227:       else
+228:         score += 10 * inc_mult
+229:       end
+230:     when :SPEED
+231:       # Prefer if target is slower than a foe
+232:       target_speed = target.rough_stat(:SPEED)
+233:       each_foe_battler(target.side) do |b, i|
+234:         b_speed = b.rough_stat(:SPEED)
+235:         next if b_speed <= target_speed   # Target already outspeeds the foe b
+236:         next if b_speed > target_speed * 2.5   # Much too slow to reasonably catch up
+237:         if b_speed < target_speed * (increment + 2) / 2
+238:           score += 15 * inc_mult   # Target will become faster than the foe b
+239:         else
+240:           score += 8 * inc_mult
+241:         end
+242:         break
+243:       end
+244:       # Prefer if the target has Electro Ball or Power Trip/Stored Power
+245:       moves_that_prefer_high_speed = [
+246:         "PowerHigherWithUserFasterThanTarget",
+247:         "PowerHigherWithUserPositiveStatStages"
+248:       ]
+249:       if target.has_move_with_function?(*moves_that_prefer_high_speed)
+250:         score += 5 * inc_mult
+251:       end
+252:       # Don't prefer if any foe has Gyro Ball
+253:       each_foe_battler(target.side) do |b, i|
+254:         next if !b.has_move_with_function?("PowerHigherWithTargetFasterThanUser")
+255:         score -= 5 * inc_mult
+256:       end
+257:       # Don't prefer if target has Speed Boost (will be gaining Speed anyway)
+258:       if target.has_active_ability?(:SPEEDBOOST)
+259:         score -= 15 * ((target.opposes?(@user)) ? 1 : desire_mult)
+260:       end
+261:     when :ACCURACY
+262:       # Modify score depending on current stat stage
+263:       if old_stage >= 2 && increment == 1
+264:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+265:       else
+266:         min_accuracy = 100
+267:         target.battler.moves.each do |m|
+268:           next if m.accuracy == 0 || m.is_a?(Battle::Move::OHKO)
+269:           min_accuracy = m.accuracy if m.accuracy < min_accuracy
+270:         end
+271:         min_accuracy = min_accuracy * stage_mul[old_stage] / stage_div[old_stage]
+272:         if min_accuracy < 90
+273:           score += 10 * inc_mult
+274:         end
+275:       end
+276:     when :EVASION
+277:       # Prefer if a foe of the target will take damage at the end of the round
+278:       each_foe_battler(target.side) do |b, i|
+279:         eor_damage = b.rough_end_of_round_damage
+280:         score += 5 * inc_mult if eor_damage > 0
+281:       end
+282:       # Modify score depending on current stat stage
+283:       if old_stage >= 2 && increment == 1
+284:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+285:       else
+286:         score += 10 * inc_mult
+287:       end
+288:     end
+289:     # Prefer if target has Stored Power
+290:     if target.has_move_with_function?("PowerHigherWithUserPositiveStatStages")
+291:       score += 5 * increment * desire_mult
+292:     end
+293:     # Don't prefer if any foe has Punishment
+294:     each_foe_battler(target.side) do |b, i|
+295:       next if !b.has_move_with_function?("PowerHigherWithTargetPositiveStatStages")
+296:       score -= 5 * increment * desire_mult
+297:     end
+298:     return score
+299:   end
+300: 
+301:   #-----------------------------------------------------------------------------
+302: 
+303:   # Main method for calculating the score for moves that lower a battler's
+304:   # stat(s).
+305:   # By default, assumes that a stat drop is a good thing. However, this score
+306:   # is inverted (by desire_mult) if the target is the user or an ally. This
+307:   # inversion does not happen if the move could target a foe but is targeting an
+308:   # ally, but only because it is inverted in def pbGetMoveScoreAgainstTarget
+309:   # instead.
+310:   def get_score_for_target_stat_drop(score, target, stat_changes, whole_effect = true,
+311:                                      fixed_change = false, ignore_contrary = false)
+312:     whole_effect = false if @move.damagingMove?
+313:     # Decide whether the target lowering its stat(s) is a good thing
+314:     desire_mult = -1
+315:     if target.opposes?(@user) ||
+316:        (@move.pbTarget(@user.battler).targets_foe && target.index != @user.index)
+317:       desire_mult = 1
+318:     end
+319:     # If target has Contrary, use different calculations to score the stat change
+320:     if !ignore_contrary && !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:CONTRARY)
+321:       if desire_mult > 0 && whole_effect
+322:         PBDebug.log_score_change(MOVE_USELESS_SCORE - score, "don't prefer lowering target's stats (it has Contrary)")
+323:         return MOVE_USELESS_SCORE
+324:       end
+325:       return get_score_for_target_stat_raise(score, target, stat_changes, whole_effect, fixed_change, true)
+326:     end
+327:     # Don't make score changes if the move is a damaging move and its additional
+328:     # effect (the stat drop(s)) will be negated
+329:     add_effect = @move.get_score_change_for_additional_effect(@user, target)
+330:     return score if add_effect == -999   # Additional effect will be negated
+331:     # Don't make score changes if target will faint from EOR damage
+332:     if target.rough_end_of_round_damage >= target.hp
+333:       ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+334:       PBDebug.log("     ignore stat change (target predicted to faint this round)")
+335:       return ret
+336:     end
+337:     # Don't make score changes if foes have Unaware and target can't make use of
+338:     # its lowered stat stages
+339:     foe_is_aware = false
+340:     each_foe_battler(target.side) do |b, i|
+341:       foe_is_aware = true if !b.has_active_ability?(:UNAWARE)
+342:     end
+343:     if !foe_is_aware
+344:       ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+345:       PBDebug.log("     ignore stat change (target's foes have Unaware)")
+346:       return ret
+347:     end
+348:     # Figure out which stat drops can happen
+349:     real_stat_changes = []
+350:     stat_changes.each_with_index do |stat, idx|
+351:       next if idx.odd?
+352:       if !stat_drop_worthwhile?(target, stat, fixed_change)
+353:         if target.index == @user.index
+354:           PBDebug.log("     lowering the user's #{GameData::Stat.get(stat).name} isn't worthwhile")
+355:         else
+356:           PBDebug.log("     lowering the target's #{GameData::Stat.get(stat).name} isn't worthwhile")
+357:         end
+358:         next
+359:       end
+360:       # Calculate amount that stat will be lowered by
+361:       decrement = stat_changes[idx + 1]
+362:       decrement *= 2 if !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:SIMPLE)
+363:       decrement = [decrement, Battle::Battler::STAT_STAGE_MAXIMUM + target.stages[stat]].min   # The actual stages lost
+364:       # Count this as a valid stat drop
+365:       real_stat_changes.push([stat, decrement]) if decrement > 0
+366:     end
+367:     # Discard move if it can't lower any stats
+368:     if real_stat_changes.length == 0
+369:       return (whole_effect) ? MOVE_USELESS_SCORE : score
+370:     end
+371:     # Make score change based on the additional effect chance
+372:     score += add_effect
+373:     # Make score changes based on the general concept of lowering stats at all
+374:     score = get_target_stat_drop_score_generic(score, target, real_stat_changes, desire_mult)
+375:     # Make score changes based on the specific changes to each stat that will be
+376:     # lowered
+377:     real_stat_changes.each do |change|
+378:       old_score = score
+379:       score = get_target_stat_drop_score_one(score, target, change[0], change[1], desire_mult)
+380:       if target.index == @user.index
+381:         PBDebug.log_score_change(score - old_score, "lowering the user's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+382:       else
+383:         PBDebug.log_score_change(score - old_score, "lowering the target's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+384:       end
+385:     end
+386:     return score
+387:   end
+388: 
+389:   #-----------------------------------------------------------------------------
+390: 

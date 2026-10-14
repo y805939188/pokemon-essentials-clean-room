@@ -1,0 +1,185 @@
+PATH reference/pokemon-essentials/Data/Scripts/019_Utilities/001_Utilities.rb RANGE 441-624 TOTAL 624
+441	      elsif pkmn.compatible_with_move?(move)
+442	        # Checked data from Pokémon's tutor moves in pokemon.txt
+443	        ret[i] = _INTL("ABLE")
+444	      else
+445	        ret[i] = _INTL("NOT ABLE")
+446	      end
+447	    end
+448	  end
+449	  return ret
+450	end
+451	
+452	def pbMoveTutorChoose(move, movelist = nil, bymachine = false, oneusemachine = false)
+453	  ret = false
+454	  move = GameData::Move.get(move).id
+455	  if movelist.is_a?(Array)
+456	    movelist.map! { |m| GameData::Move.get(m).id }
+457	  end
+458	  pbFadeOutIn do
+459	    movename = GameData::Move.get(move).name
+460	    annot = pbMoveTutorAnnotations(move, movelist)
+461	    scene = PokemonParty_Scene.new
+462	    screen = PokemonPartyScreen.new(scene, $player.party)
+463	    screen.pbStartScene(_INTL("Teach which Pokémon?"), false, annot)
+464	    loop do
+465	      chosen = screen.pbChoosePokemon
+466	      break if chosen < 0
+467	      pokemon = $player.party[chosen]
+468	      if pokemon.egg?
+469	        pbMessage(_INTL("Eggs can't be taught any moves.")) { screen.pbUpdate }
+470	      elsif pokemon.shadowPokemon?
+471	        pbMessage(_INTL("Shadow Pokémon can't be taught any moves.")) { screen.pbUpdate }
+472	      elsif movelist && movelist.none? { |j| j == pokemon.species }
+473	        pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
+474	      elsif !pokemon.compatible_with_move?(move)
+475	        pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
+476	      elsif pbLearnMove(pokemon, move, false, bymachine) { screen.pbUpdate }
+477	        $stats.moves_taught_by_item += 1 if bymachine
+478	        $stats.moves_taught_by_tutor += 1 if !bymachine
+479	        pokemon.add_first_move(move) if oneusemachine
+480	        ret = true
+481	        break
+482	      end
+483	    end
+484	    screen.pbEndScene
+485	  end
+486	  return ret   # Returns whether the move was learned by a Pokemon
+487	end
+488	
+489	def pbConvertItemToItem(variable, array)
+490	  item = GameData::Item.get(pbGet(variable))
+491	  pbSet(variable, nil)
+492	  (array.length / 2).times do |i|
+493	    next if item != array[2 * i]
+494	    pbSet(variable, array[(2 * i) + 1])
+495	    return
+496	  end
+497	end
+498	
+499	def pbConvertItemToPokemon(variable, array)
+500	  item = GameData::Item.get(pbGet(variable))
+501	  pbSet(variable, nil)
+502	  (array.length / 2).times do |i|
+503	    next if item != array[2 * i]
+504	    pbSet(variable, GameData::Species.get(array[(2 * i) + 1]).id)
+505	    return
+506	  end
+507	end
+508	
+509	# Gets the value of a variable.
+510	def pbGet(id)
+511	  return 0 if !id || !$game_variables
+512	  return $game_variables[id]
+513	end
+514	
+515	# Sets the value of a variable.
+516	def pbSet(id, value)
+517	  return if !id || id < 0
+518	  $game_variables[id] = value if $game_variables
+519	  $game_map.need_refresh = true if $game_map
+520	end
+521	
+522	# Runs a common event and waits until the common event is finished.
+523	# Requires the script "Messages"
+524	def pbCommonEvent(id)
+525	  return false if id < 0
+526	  ce = $data_common_events[id]
+527	  return false if !ce
+528	  celist = ce.list
+529	  interp = Interpreter.new
+530	  interp.setup(celist, 0)
+531	  loop do
+532	    Graphics.update
+533	    Input.update
+534	    interp.update
+535	    pbUpdateSceneMap
+536	    break unless interp.running?
+537	  end
+538	  return true
+539	end
+540	
+541	def pbHideVisibleObjects
+542	  visibleObjects = []
+543	  ObjectSpace.each_object(Sprite) do |o|
+544	    if !o.disposed? && o.visible
+545	      visibleObjects.push(o)
+546	      o.visible = false
+547	    end
+548	  end
+549	  ObjectSpace.each_object(Viewport) do |o|
+550	    if !pbDisposed?(o) && o.visible
+551	      visibleObjects.push(o)
+552	      o.visible = false
+553	    end
+554	  end
+555	  ObjectSpace.each_object(Plane) do |o|
+556	    if !o.disposed? && o.visible
+557	      visibleObjects.push(o)
+558	      o.visible = false
+559	    end
+560	  end
+561	  ObjectSpace.each_object(Tilemap) do |o|
+562	    if !o.disposed? && o.visible
+563	      visibleObjects.push(o)
+564	      o.visible = false
+565	    end
+566	  end
+567	  ObjectSpace.each_object(Window) do |o|
+568	    if !o.disposed? && o.visible
+569	      visibleObjects.push(o)
+570	      o.visible = false
+571	    end
+572	  end
+573	  return visibleObjects
+574	end
+575	
+576	def pbShowObjects(visibleObjects)
+577	  visibleObjects.each do |o|
+578	    next if pbDisposed?(o)
+579	    o.visible = true
+580	  end
+581	end
+582	
+583	def pbLoadRpgxpScene(scene)
+584	  return if !$scene.is_a?(Scene_Map)
+585	  oldscene = $scene
+586	  $scene = scene
+587	  Graphics.freeze
+588	  oldscene.dispose
+589	  visibleObjects = pbHideVisibleObjects
+590	  Graphics.transition
+591	  Graphics.freeze
+592	  while $scene && !$scene.is_a?(Scene_Map)
+593	    $scene.main
+594	  end
+595	  Graphics.transition
+596	  Graphics.freeze
+597	  $scene = oldscene
+598	  $scene.createSpritesets
+599	  pbShowObjects(visibleObjects)
+600	  Graphics.transition
+601	end
+602	
+603	def pbChooseLanguage
+604	  commands = []
+605	  Settings::LANGUAGES.each do |lang|
+606	    commands.push(lang[0])
+607	  end
+608	  return pbShowCommands(nil, commands)
+609	end
+610	
+611	def pbScreenCapture
+612	  t = Time.now
+613	  filestart = t.strftime("[%Y-%m-%d] %H_%M_%S.%L")
+614	  begin
+615	    folder_name = "Screenshots"
+616	    Dir.create(folder_name) if !Dir.safe?(folder_name)
+617	    capturefile = folder_name + "/" + sprintf("%s.png", filestart)
+618	    Graphics.screenshot(capturefile)
+619	  rescue
+620	    capturefile = RTP.getSaveFileName(sprintf("%s.png", filestart))
+621	    Graphics.screenshot(capturefile)
+622	  end
+623	  pbSEPlay("Pkmn exp full") if FileTest.audio_exist?("Audio/SE/Pkmn exp full")
+624	end

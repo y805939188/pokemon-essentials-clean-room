@@ -1,0 +1,140 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class BattleChallenge
+5:   attr_reader :currentChallenge
+6: 
+7:   BATTLE_TOWER_ID   = 0
+8:   BATTLE_PALACE_ID  = 1
+9:   BATTLE_ARENA_ID   = 2
+10:   BATTLE_FACTORY_ID = 3
+11: 
+12:   def initialize
+13:     @bc = BattleChallengeData.new
+14:     @currentChallenge = -1
+15:     @types = {}
+16:   end
+17: 
+18:   def set(id, numrounds, rules)
+19:     @id = id
+20:     @numRounds = numrounds
+21:     @rules = rules
+22:     register(id, id[/double/], 3,
+23:              id[/^factory/] ? BATTLE_FACTORY_ID : BATTLE_TOWER_ID,
+24:              id[/open$/] ? 1 : 0)
+25:     pbWriteCup(id, rules)
+26:   end
+27: 
+28:   def register(id, doublebattle, numPokemon, battletype, mode = 1)
+29:     ensureType(id)
+30:     if battletype == BATTLE_FACTORY_ID
+31:       @bc.setExtraData(BattleFactoryData.new(@bc))
+32:       numPokemon = 3
+33:       battletype = BATTLE_TOWER_ID
+34:     end
+35:     @rules = modeToRules(doublebattle, numPokemon, battletype, mode) if !@rules
+36:   end
+37: 
+38:   def rules
+39:     if !@rules
+40:       @rules = modeToRules(self.data.doublebattle, self.data.numPokemon,
+41:                            self.data.battletype, self.data.mode)
+42:     end
+43:     return @rules
+44:   end
+45: 
+46:   def modeToRules(doublebattle, numPokemon, battletype, mode)
+47:     rules = PokemonChallengeRules.new
+48:     # Set the battle type
+49:     case battletype
+50:     when BATTLE_PALACE_ID
+51:       rules.setBattleType(BattlePalace.new)
+52:     when BATTLE_ARENA_ID
+53:       rules.setBattleType(BattleArena.new)
+54:       doublebattle = false
+55:     else   # Factory works the same as Tower
+56:       rules.setBattleType(BattleTower.new)
+57:     end
+58:     # Set standard rules and maximum level
+59:     case mode
+60:     when 1      # Open Level
+61:       rules.setRuleset(StandardRules.new(numPokemon, GameData::GrowthRate.max_level))
+62:       rules.setLevelAdjustment(OpenLevelAdjustment.new(30))
+63:     when 2   # Battle Tent
+64:       rules.setRuleset(StandardRules.new(numPokemon, GameData::GrowthRate.max_level))
+65:       rules.setLevelAdjustment(OpenLevelAdjustment.new(60))
+66:     else
+67:       rules.setRuleset(StandardRules.new(numPokemon, 50))
+68:       rules.setLevelAdjustment(OpenLevelAdjustment.new(50))
+69:     end
+70:     # Set whether battles are single or double
+71:     if doublebattle
+72:       rules.addBattleRule(DoubleBattle.new)
+73:     else
+74:       rules.addBattleRule(SingleBattle.new)
+75:     end
+76:     return rules
+77:   end
+78: 
+79:   def start(*args)
+80:     t = ensureType(@id)
+81:     @currentChallenge = @id   # must appear before pbStart
+82:     @bc.pbStart(t, @numRounds)
+83:   end
+84: 
+85:   def pbStart(challenge); end
+86: 
+87:   def pbEnd
+88:     if @currentChallenge != -1
+89:       ensureType(@currentChallenge).saveWins(@bc)
+90:       @currentChallenge = -1
+91:     end
+92:     @bc.pbEnd
+93:   end
+94: 
+95:   def pbBattle
+96:     return @bc.extraData.pbBattle(self) if @bc.extraData   # Battle Factory
+97:     opponent = pbGenerateBattleTrainer(self.nextTrainer, self.rules)
+98:     bttrainers = pbGetBTTrainers(@id)
+99:     trainerdata = bttrainers[self.nextTrainer]
+100:     opponent.lose_text = pbGetMessageFromHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, trainerdata[4])
+101:     opponent.win_text = pbGetMessageFromHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, trainerdata[3])
+102:     ret = pbOrganizedBattleEx(opponent, self.rules)
+103:     return ret
+104:   end
+105: 
+106:   def pbInChallenge?
+107:     return pbInProgress?
+108:   end
+109: 
+110:   def pbInProgress?
+111:     return @bc.inProgress
+112:   end
+113: 
+114:   def pbResting?
+115:     return @bc.resting
+116:   end
+117: 
+118:   def extra;        @bc.extraData;    end
+119:   def decision;     @bc.decision;     end
+120:   def wins;         @bc.wins;         end
+121:   def swaps;        @bc.swaps;        end
+122:   def battleNumber; @bc.battleNumber; end
+123:   def nextTrainer;  @bc.nextTrainer;  end
+124:   def pbGoOn;       @bc.pbGoOn;       end
+125:   def pbAddWin;     @bc.pbAddWin;     end
+126:   def pbCancel;     @bc.pbCancel;     end
+127:   def pbRest;       @bc.pbRest;       end
+128:   def pbMatchOver?; @bc.pbMatchOver?; end
+129:   def pbGoToStart;  @bc.pbGoToStart;  end
+130: 
+131:   def setDecision(value)
+132:     @bc.decision = value
+133:   end
+134: 
+135:   def setParty(value)
+136:     @bc.setParty(value)
+137:   end
+138: 
+139:   def data
+140:     return nil if !pbInProgress? || @currentChallenge < 0

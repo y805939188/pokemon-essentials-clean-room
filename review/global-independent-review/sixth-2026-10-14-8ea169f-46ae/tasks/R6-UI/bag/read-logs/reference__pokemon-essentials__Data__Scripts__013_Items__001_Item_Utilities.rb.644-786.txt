@@ -1,0 +1,144 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/013_Items/001_Item_Utilities.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [644, 786], "total_lines": 917, "sha256": "d475b64f3f0011bf9312ff3e0fbe415edc51edb46a60e00db084b4fc12b1bff8", "owner": "bag", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:21:39.568154+00:00"}
+644: def pbUseItem(bag, item, bagscene = nil)
+645:   itm = GameData::Item.get(item)
+646:   useType = itm.field_use
+647:   if useType == 1   # Item is usable on a Pokémon
+648:     if $player.pokemon_count == 0
+649:       pbMessage(_INTL("There is no Pokémon."))
+650:       return 0
+651:     end
+652:     ret = false
+653:     annot = nil
+654:     if itm.is_evolution_stone?
+655:       annot = []
+656:       $player.party.each do |pkmn|
+657:         elig = pkmn.check_evolution_on_use_item(item)
+658:         annot.push((elig) ? _INTL("ABLE") : _INTL("NOT ABLE"))
+659:       end
+660:     end
+661:     pbFadeOutIn do
+662:       scene = PokemonParty_Scene.new
+663:       screen = PokemonPartyScreen.new(scene, $player.party)
+664:       screen.pbStartScene(_INTL("Use on which Pokémon?"), false, annot)
+665:       loop do
+666:         scene.pbSetHelpText(_INTL("Use on which Pokémon?"))
+667:         chosen = screen.pbChoosePokemon
+668:         if chosen < 0
+669:           ret = false
+670:           break
+671:         end
+672:         pkmn = $player.party[chosen]
+673:         next if !pbCheckUseOnPokemon(item, pkmn, screen)
+674:         qty = 1
+675:         max_at_once = ItemHandlers.triggerUseOnPokemonMaximum(item, pkmn)
+676:         max_at_once = [max_at_once, $bag.quantity(item)].min
+677:         if max_at_once > 1
+678:           qty = screen.scene.pbChooseNumber(
+679:             _INTL("How many {1} do you want to use?", GameData::Item.get(item).portion_name_plural), max_at_once
+680:           )
+681:           screen.scene.pbSetHelpText("") if screen.is_a?(PokemonPartyScreen)
+682:         end
+683:         next if qty <= 0
+684:         ret = ItemHandlers.triggerUseOnPokemon(item, qty, pkmn, screen)
+685:         next unless ret && itm.consumed_after_use?
+686:         bag.remove(item, qty)
+687:         next if bag.has?(item)
+688:         pbMessage(_INTL("You used your last {1}.", itm.portion_name)) { screen.pbUpdate }
+689:         break
+690:       end
+691:       screen.pbEndScene
+692:       bagscene&.pbRefresh
+693:     end
+694:     return (ret) ? 1 : 0
+695:   elsif useType == 2 || itm.is_machine?   # Item is usable from Bag or teaches a move
+696:     intret = ItemHandlers.triggerUseFromBag(item)
+697:     if intret >= 0
+698:       bag.remove(item) if intret == 1 && itm.consumed_after_use?
+699:       return intret
+700:     end
+701:     pbMessage(_INTL("Can't use that here."))
+702:     return 0
+703:   end
+704:   pbMessage(_INTL("Can't use that here."))
+705:   return 0
+706: end
+707: 
+708: # Only called when in the party screen and having chosen an item to be used on
+709: # the selected Pokémon
+710: def pbUseItemOnPokemon(item, pkmn, scene)
+711:   itm = GameData::Item.get(item)
+712:   # TM or HM
+713:   if itm.is_machine?
+714:     machine = itm.move
+715:     return false if !machine
+716:     movename = GameData::Move.get(machine).name
+717:     if pkmn.shadowPokemon?
+718:       pbMessage(_INTL("Shadow Pokémon can't be taught any moves.")) { scene.pbUpdate }
+719:     elsif !pkmn.compatible_with_move?(machine)
+720:       pbMessage(_INTL("{1} can't learn {2}.", pkmn.name, movename)) { scene.pbUpdate }
+721:     else
+722:       pbMessage("\\se[PC access]" + _INTL("You booted up the {1}.", itm.portion_name) + "\1") { scene.pbUpdate }
+723:       if pbConfirmMessage(_INTL("Do you want to teach {1} to {2}?", movename, pkmn.name)) { scene.pbUpdate }
+724:         if pbLearnMove(pkmn, machine, false, true) { scene.pbUpdate }
+725:           $bag.remove(item) if itm.consumed_after_use?
+726:           return true
+727:         end
+728:       end
+729:     end
+730:     return false
+731:   end
+732:   # Other item
+733:   qty = 1
+734:   max_at_once = ItemHandlers.triggerUseOnPokemonMaximum(item, pkmn)
+735:   max_at_once = [max_at_once, $bag.quantity(item)].min
+736:   if max_at_once > 1
+737:     qty = scene.scene.pbChooseNumber(
+738:       _INTL("How many {1} do you want to use?", itm.portion_name_plural), max_at_once
+739:     )
+740:     scene.scene.pbSetHelpText("") if scene.is_a?(PokemonPartyScreen)
+741:   end
+742:   return false if qty <= 0
+743:   ret = ItemHandlers.triggerUseOnPokemon(item, qty, pkmn, scene)
+744:   scene.pbClearAnnotations
+745:   scene.pbHardRefresh
+746:   if ret && itm.consumed_after_use?
+747:     $bag.remove(item, qty)
+748:     if !$bag.has?(item)
+749:       pbMessage(_INTL("You used your last {1}.", itm.portion_name)) { scene.pbUpdate }
+750:     end
+751:   end
+752:   return ret
+753: end
+754: 
+755: def pbUseKeyItemInField(item)
+756:   ret = ItemHandlers.triggerUseInField(item)
+757:   if ret == -1   # Item effect not found
+758:     pbMessage(_INTL("Can't use that here."))
+759:   elsif ret > 0 && GameData::Item.get(item).consumed_after_use?
+760:     $bag.remove(item)
+761:   end
+762:   return ret > 0
+763: end
+764: 
+765: def pbUseItemMessage(item)
+766:   itemname = GameData::Item.get(item).portion_name
+767:   if itemname.starts_with_vowel?
+768:     pbMessage(_INTL("You used an {1}.", itemname))
+769:   else
+770:     pbMessage(_INTL("You used a {1}.", itemname))
+771:   end
+772: end
+773: 
+774: def pbCheckUseOnPokemon(item, pkmn, _screen)
+775:   return pkmn && !pkmn.egg? && (!pkmn.hyper_mode || GameData::Item.get(item)&.is_scent?)
+776: end
+777: 
+778: #===============================================================================
+779: # Give an item to a Pokémon to hold, and take a held item from a Pokémon
+780: #===============================================================================
+781: def pbGiveItemToPokemon(item, pkmn, scene, pkmnid = 0)
+782:   newitemname = GameData::Item.get(item).portion_name
+783:   if pkmn.egg?
+784:     scene.pbDisplay(_INTL("Eggs can't hold items."))
+785:     return false
+786:   elsif pkmn.mail

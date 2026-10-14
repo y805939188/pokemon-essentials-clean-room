@@ -1,0 +1,181 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/006_Battle_Clauses.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "73d0636f25419f368c8b40cd5bdac962ebea92c2", "sha256": "0ad8ed30539bd38a428fc0ca94cf18b98e01f30db67d99298b5d73507f8f8d6a", "start_line": 1, "end_line": 180, "total_lines": 306, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:45.561686+00:00"}
+1: #===============================================================================
+2: # This script modifies the battle system to implement battle rules
+3: #===============================================================================
+4: class Battle
+5:   unless @__clauses__aliased
+6:     alias __clauses__pbDecisionOnDraw pbDecisionOnDraw
+7:     alias __clauses__pbEndOfRoundPhase pbEndOfRoundPhase
+8:     @__clauses__aliased = true
+9:   end
+10: 
+11:   def pbDecisionOnDraw
+12:     if @rules["selfkoclause"]
+13:       if self.lastMoveUser < 0
+14:         # in extreme cases there may be no last move user
+15:         return 5   # game is a draw
+16:       elsif opposes?(self.lastMoveUser)
+17:         return 2   # loss
+18:       else
+19:         return 1   # win
+20:       end
+21:     end
+22:     return __clauses__pbDecisionOnDraw
+23:   end
+24: 
+25:   def pbJudgeCheckpoint(user, move = nil)
+26:     if pbAllFainted?(0) && pbAllFainted?(1)
+27:       if @rules["drawclause"]   # NOTE: Also includes Life Orb (not implemented)
+28:         if !(move && move.function_code == "HealUserByHalfOfDamageDone")
+29:           # Not a draw if fainting occurred due to Liquid Ooze
+30:           @decision = (user.opposes?) ? 1 : 2   # win / loss
+31:         end
+32:       elsif @rules["modifiedselfdestructclause"]
+33:         if move && move.function_code == "UserFaintsExplosive"   # Self-Destruct
+34:           @decision = (user.opposes?) ? 1 : 2   # win / loss
+35:         end
+36:       end
+37:     end
+38:   end
+39: 
+40:   def pbEndOfRoundPhase
+41:     __clauses__pbEndOfRoundPhase
+42:     if @rules["suddendeath"] && @decision == 0
+43:       p1able = pbAbleCount(0)
+44:       p2able = pbAbleCount(1)
+45:       if p1able > p2able
+46:         @decision = 1   # loss
+47:       elsif p1able < p2able
+48:         @decision = 2   # win
+49:       end
+50:     end
+51:   end
+52: end
+53: 
+54: #===============================================================================
+55: #
+56: #===============================================================================
+57: class Battle::Battler
+58:   unless @__clauses__aliased
+59:     alias __clauses__pbCanSleep? pbCanSleep?
+60:     alias __clauses__pbCanSleepYawn? pbCanSleepYawn?
+61:     alias __clauses__pbCanFreeze? pbCanFreeze?
+62:     alias __clauses__pbUseMove pbUseMove
+63:     @__clauses__aliased = true
+64:   end
+65: 
+66:   def pbCanSleep?(user, showMessages, move = nil, ignoreStatus = false)
+67:     selfsleep = (user && user.index == @index)
+68:     if ((@battle.rules["modifiedsleepclause"]) || (!selfsleep && @battle.rules["sleepclause"])) &&
+69:        pbHasStatusPokemon?(:SLEEP)
+70:       if showMessages
+71:         @battle.pbDisplay(_INTL("But {1} couldn't sleep!", pbThis(true)))
+72:       end
+73:       return false
+74:     end
+75:     return __clauses__pbCanSleep?(user, showMessages, move, ignoreStatus)
+76:   end
+77: 
+78:   def pbCanSleepYawn?
+79:     if (@battle.rules["sleepclause"] || @battle.rules["modifiedsleepclause"]) &&
+80:        pbHasStatusPokemon?(:SLEEP)
+81:       return false
+82:     end
+83:     return __clauses__pbCanSleepYawn?
+84:   end
+85: 
+86:   def pbCanFreeze?(*arg)
+87:     if @battle.rules["freezeclause"] && pbHasStatusPokemon?(:FROZEN)
+88:       return false
+89:     end
+90:     return __clauses__pbCanFreeze?(*arg)
+91:   end
+92: 
+93:   def pbHasStatusPokemon?(status)
+94:     count = 0
+95:     @battle.pbParty(@index).each do |pkmn|
+96:       next if !pkmn || pkmn.egg?
+97:       next if pkmn.status != status
+98:       count += 1
+99:     end
+100:     return count > 0
+101:   end
+102: end
+103: 
+104: #===============================================================================
+105: # Double Team
+106: #===============================================================================
+107: class Battle::Move::RaiseUserEvasion1
+108:   unless method_defined?(:__clauses__pbMoveFailed?)
+109:     alias __clauses__pbMoveFailed? pbMoveFailed?
+110:   end
+111: 
+112:   def pbMoveFailed?(user, targets)
+113:     if !damagingMove? && @battle.rules["evasionclause"]
+114:       @battle.pbDisplay(_INTL("But it failed!"))
+115:       return true
+116:     end
+117:     return __clauses__pbMoveFailed?(user, targets)
+118:   end
+119: end
+120: 
+121: #===============================================================================
+122: # Minimize
+123: #===============================================================================
+124: class Battle::Move::RaiseUserEvasion2MinimizeUser
+125:   unless method_defined?(:__clauses__pbMoveFailed?)
+126:     alias __clauses__pbMoveFailed? pbMoveFailed?
+127:   end
+128: 
+129:   def pbMoveFailed?(user, targets)
+130:     if !damagingMove? && @battle.rules["evasionclause"]
+131:       @battle.pbDisplay(_INTL("But it failed!"))
+132:       return true
+133:     end
+134:     return __clauses__pbMoveFailed?(user, targets)
+135:   end
+136: end
+137: 
+138: #===============================================================================
+139: # Skill Swap
+140: #===============================================================================
+141: class Battle::Move::UserTargetSwapAbilities
+142:   unless method_defined?(:__clauses__pbFailsAgainstTarget?)
+143:     alias __clauses__pbFailsAgainstTarget? pbFailsAgainstTarget?
+144:   end
+145: 
+146:   def pbFailsAgainstTarget?(user, target, show_message)
+147:     if @battle.rules["skillswapclause"]
+148:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+149:       return true
+150:     end
+151:     return __clauses__pbFailsAgainstTarget?(user, target, show_message)
+152:   end
+153: end
+154: 
+155: #===============================================================================
+156: # Sonic Boom
+157: #===============================================================================
+158: class Battle::Move::FixedDamage20
+159:   unless method_defined?(:__clauses__pbFailsAgainstTarget?)
+160:     alias __clauses__pbFailsAgainstTarget? pbFailsAgainstTarget?
+161:   end
+162: 
+163:   def pbFailsAgainstTarget?(user, target, show_message)
+164:     if @battle.rules["sonicboomclause"]
+165:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+166:       return true
+167:     end
+168:     return __clauses__pbFailsAgainstTarget?(user, target, show_message)
+169:   end
+170: end
+171: 
+172: #===============================================================================
+173: # Dragon Rage
+174: #===============================================================================
+175: class Battle::Move::FixedDamage40
+176:   unless method_defined?(:__clauses__pbFailsAgainstTarget?)
+177:     alias __clauses__pbFailsAgainstTarget? pbFailsAgainstTarget?
+178:   end
+179: 
+180:   def pbFailsAgainstTarget?(user, target, show_message)

@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/002_BugContest.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "c9c48e62d9174b3403df5c66a5983c24f8ad439c", "sha256": "7d6047bdf2566b25d45c47e288e60bb99d56fbbc72334fa027eeb96b14a0106d", "start_line": 181, "end_line": 360, "total_lines": 441, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:26:56.313679+00:00"}
+181:       @otherparty.push($player.party[i]) if i != @chosenPokemon
+182:     end
+183:     @contestants = []
+184:     [5, CONTESTANT_NAMES.length].min.times do
+185:       loop do
+186:         value = rand(CONTESTANT_NAMES.length)
+187:         next if @contestants.include?(value)
+188:         @contestants.push(value)
+189:         break
+190:       end
+191:     end
+192:     $player.party = [chosenpkmn]
+193:     @decision = 0
+194:     @ended = false
+195:     $stats.bug_contest_count += 1
+196:   end
+197: 
+198:   def place
+199:     3.times do |i|
+200:       return i if @places[i][0] < 0
+201:     end
+202:     return 3
+203:   end
+204: 
+205:   def pbEnd(interrupted = false)
+206:     return if !@inProgress
+207:     @otherparty.each { |pkmn| $player.party.push(pkmn) }
+208:     if interrupted
+209:       @ended = false
+210:     else
+211:       pbNicknameAndStore(@lastPokemon) if @lastPokemon
+212:       @ended = true
+213:     end
+214:     $stats.bug_contest_wins += 1 if place == 0
+215:     @ballcount = 0
+216:     @inProgress = false
+217:     @decision = 0
+218:     @lastPokemon = nil
+219:     @otherparty = []
+220:     @contestMaps = []
+221:     @reception = []
+222:     @lastContest = pbGetTimeNow.to_i
+223:     $game_map.need_refresh = true
+224:   end
+225: end
+226: 
+227: #===============================================================================
+228: #
+229: #===============================================================================
+230: class TimerDisplay # :nodoc:
+231:   attr_accessor :start_time
+232: 
+233:   def initialize(start_time, max_time)
+234:     @timer = Window_AdvancedTextPokemon.newWithSize("", Graphics.width - 120, 0, 120, 64)
+235:     @timer.z = 99999
+236:     @start_time = start_time
+237:     @max_time = max_time
+238:     @display_time = nil
+239:   end
+240: 
+241:   def dispose
+242:     @timer.dispose
+243:   end
+244: 
+245:   def disposed?
+246:     @timer.disposed?
+247:   end
+248: 
+249:   def update
+250:     time_left = @max_time - (System.uptime - @start_time).to_i
+251:     time_left = 0 if time_left < 0
+252:     if @display_time != time_left
+253:       @display_time = time_left
+254:       min = @display_time / 60
+255:       sec = @display_time % 60
+256:       @timer.text = _ISPRINTF("<ac>{1:02d}:{2:02d}", min, sec)
+257:     end
+258:   end
+259: end
+260: 
+261: #===============================================================================
+262: #
+263: #===============================================================================
+264: # Returns a score for this Pokemon in the Bug-Catching Contest.
+265: # Not exactly the HGSS calculation, but it should be decent enough.
+266: def pbBugContestScore(pkmn)
+267:   levelscore = pkmn.level * 4
+268:   ivscore = 0
+269:   pkmn.iv.each_value { |iv| ivscore += iv.to_f / Pokemon::IV_STAT_LIMIT }
+270:   ivscore = (ivscore * 100).floor
+271:   hpscore = (100.0 * pkmn.hp / pkmn.totalhp).floor
+272:   catch_rate = pkmn.species_data.catch_rate
+273:   rarescore = 60
+274:   rarescore += 20 if catch_rate <= 120
+275:   rarescore += 20 if catch_rate <= 60
+276:   return levelscore + ivscore + hpscore + rarescore
+277: end
+278: 
+279: def pbBugContestState
+280:   if !$PokemonGlobal.bugContestState
+281:     $PokemonGlobal.bugContestState = BugContestState.new
+282:   end
+283:   return $PokemonGlobal.bugContestState
+284: end
+285: 
+286: # Returns true if the Bug-Catching Contest in progress
+287: def pbInBugContest?
+288:   return pbBugContestState.inProgress?
+289: end
+290: 
+291: # Returns true if the Bug-Catching Contest in progress and has not yet been judged
+292: def pbBugContestUndecided?
+293:   return pbBugContestState.undecided?
+294: end
+295: 
+296: # Returns true if the Bug-Catching Contest in progress and is being judged
+297: def pbBugContestDecided?
+298:   return pbBugContestState.decided?
+299: end
+300: 
+301: def pbBugContestStartOver
+302:   $player.party.each do |pkmn|
+303:     pkmn.heal
+304:     pkmn.makeUnmega
+305:     pkmn.makeUnprimal
+306:   end
+307:   pbBugContestState.pbStartJudging
+308: end
+309: 
+310: #===============================================================================
+311: #
+312: #===============================================================================
+313: EventHandlers.add(:on_map_or_spriteset_change, :show_bug_contest_timer,
+314:   proc { |scene, _map_changed|
+315:     next if !pbInBugContest? || pbBugContestState.decision != 0 || BugContestState::TIME_ALLOWED == 0
+316:     scene.spriteset.addUserSprite(
+317:       TimerDisplay.new(pbBugContestState.timer_start, BugContestState::TIME_ALLOWED)
+318:     )
+319:   }
+320: )
+321: 
+322: EventHandlers.add(:on_frame_update, :bug_contest_counter,
+323:   proc {
+324:     next if !pbBugContestState.expired?
+325:     next if $game_player.move_route_forcing || pbMapInterpreterRunning? ||
+326:             $game_temp.message_window_showing
+327:     pbMessage(_INTL("ANNOUNCER: BEEEEEP!"))
+328:     pbMessage(_INTL("Time's up!"))
+329:     pbBugContestState.pbStartJudging
+330:   }
+331: )
+332: 
+333: EventHandlers.add(:on_enter_map, :end_bug_contest,
+334:   proc { |_old_map_id|
+335:     pbBugContestState.pbClearIfEnded
+336:   }
+337: )
+338: 
+339: EventHandlers.add(:on_leave_map, :end_bug_contest,
+340:   proc { |new_map_id, new_map|
+341:     next if !pbInBugContest? || !pbBugContestState.pbOffLimits?(new_map_id)
+342:     # Clear bug contest if player flies/warps/teleports out of the contest
+343:     pbBugContestState.pbEnd(true)
+344:   }
+345: )
+346: 
+347: #===============================================================================
+348: #
+349: #===============================================================================
+350: EventHandlers.add(:on_calling_wild_battle, :bug_contest_battle,
+351:   proc { |pkmn, handled|
+352:     # handled is an array: [nil]. If [true] or [false], the battle has already
+353:     # been overridden (the boolean is its outcome), so don't do anything that
+354:     # would override it again
+355:     next if !handled[0].nil?
+356:     next if !pbInBugContest?
+357:     handled[0] = pbBugContestBattle(pkmn)
+358:   }
+359: )
+360: 

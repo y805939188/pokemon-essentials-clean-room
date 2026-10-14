@@ -1,0 +1,159 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/001_ChallengeGenerator_Data.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "7fb8c0682643ae974d9071f576263ae7249ff519", "sha256": "e6eed14d0d06f1d03c4e4d1d61196b6d40cab594a1858e011ba1964a59cb9153", "start_line": 181, "end_line": 338, "total_lines": 338, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:26:34.388444+00:00"}
+181:       suggestedLevel = rule.ruleset.suggestedLevel
+182:       btpokemon.each do |pk|
+183:         pkmn = pk.createPokemon(suggestedLevel, 31, nil)
+184:         party.push(pkmn) if rule.ruleset.isPokemonValid?(pkmn)
+185:       end
+186:     end
+187:   end
+188:   yield(nil)
+189:   party = pbRemoveDuplicates(party)
+190:   yield(nil)
+191:   maxteams = 600
+192:   cutoffrating = 65
+193:   toolowrating = 40
+194:   iterations = 11
+195:   iterations.times do |iter|
+196:     save_data(party, tag + ".rxdata")
+197:     yield(_INTL("Generating teams ({1} of {2})", iter + 1, iterations))
+198:     i = 0
+199:     while i < teams.length
+200:       yield(nil) if i % 10 == 0
+201:       pbReplenishBattlePokemon(party, rule)
+202:       if teams[i].rating < cutoffrating && teams[i].totalGames >= 80
+203:         teams[i] = RuledTeam.new(party, rule)
+204:       elsif teams[i].length < 2
+205:         teams[i] = RuledTeam.new(party, rule)
+206:       elsif i >= maxteams
+207:         teams.delete_at(i)
+208:       elsif teams[i].totalGames >= 250
+209:         # retire
+210:         teams[i].length.times do |j|
+211:           party.push(teams[i][j])
+212:         end
+213:         teams[i] = RuledTeam.new(party, rule)
+214:       elsif teams[i].rating < toolowrating
+215:         teams[i] = RuledTeam.new(party, rule)
+216:       end
+217:       i += 1
+218:     end
+219:     save_data(teams, tag + "_teams.rxdata")
+220:     yield(nil)
+221:     while teams.length < maxteams
+222:       yield(nil) if teams.length % 10 == 0
+223:       pbReplenishBattlePokemon(party, rule)
+224:       teams.push(RuledTeam.new(party, rule))
+225:     end
+226:     save_data(party, tag + ".rxdata")
+227:     teams = teams.sort { |a, b| b.rating <=> a.rating }
+228:     yield(_INTL("Simulating battles ({1} of {2})", iter + 1, iterations))
+229:     i = 0
+230:     loop do
+231:       changed = false
+232:       teams.length.times do |j|
+233:         yield(nil)
+234:         other = j
+235:         5.times do
+236:           other = rand(teams.length)
+237:           next if other == j
+238:         end
+239:         next if other == j
+240:         changed = true
+241:         pbRuledBattle(teams[j], teams[other], rule)
+242:       end
+243:       i += 1
+244:       gameCount = 0
+245:       teams.each { |team| gameCount += team.games }
+246:       yield(nil)
+247:       next if gameCount / teams.length < 12
+248:       teams.each { |team| team.updateRating }
+249:       break
+250:     end
+251:     teams.sort! { |a, b| b.rating <=> a.rating }
+252:     save_data(teams, tag + "_teams.rxdata")
+253:   end
+254:   party = []
+255:   yield(nil)
+256:   teams.sort! { |a, b| a.rating <=> b.rating }
+257:   teams.each do |team|
+258:     next if team.rating <= cutoffrating
+259:     team.length.times do |i|
+260:       party.push(team[i])
+261:     end
+262:   end
+263:   rule = oldrule
+264:   yield(nil)
+265:   party = pbRemoveDuplicates(party)
+266:   yield(_INTL("Writing results"))
+267:   party = pbArrangeByTier(party, rule)
+268:   yield(nil)
+269:   pbTrainerInfo(party, tag, rule) { yield(nil) }
+270:   yield(nil)
+271: end
+272: 
+273: #===============================================================================
+274: #
+275: #===============================================================================
+276: def pbWriteCup(id, rules)
+277:   return if !$DEBUG
+278:   trlists = (load_data("Data/trainer_lists.dat") rescue [])
+279:   list = []
+280:   trlists.length.times do |i|
+281:     tr = trlists[i]
+282:     if tr[5]
+283:       list.push("*" + (tr[3].sub(/\.txt$/, "")))
+284:     else
+285:       list.push((tr[3].sub(/\.txt$/, "")))
+286:     end
+287:   end
+288:   cmd = 0
+289:   if trlists.length == 0
+290:     cmd = pbMessage(_INTL("Generate Pokémon teams for this challenge?"),
+291:                     [_INTL("YES"), _INTL("NO")], 2)
+292:     case cmd
+293:     when 0
+294:       cmd = 2
+295:     when 1
+296:       cmd = 0
+297:     end
+298:   else
+299:     cmd = pbMessage(_INTL("Generate Pokémon teams for this challenge?"),
+300:                     [_INTL("NO"), _INTL("YES, USE EXISTING"), _INTL("YES, USE NEW")], 1)
+301:   end
+302:   return if cmd == 0   # No
+303:   case cmd
+304:   when 1   # Yes, use existing
+305:     cmd = pbMessage(_INTL("Choose a challenge."), list, -1)
+306:     if cmd >= 0
+307:       pbMessage(_INTL("This challenge will use the Pokémon list from {1}.", list[cmd]))
+308:       trlists.length.times do |i|
+309:         tr = trlists[i]
+310:         while !tr[5] && tr[2].include?(id)
+311:           tr[2].delete(id)
+312:         end
+313:       end
+314:       trlists[cmd][2].push(id) if !trlists[cmd][5]
+315:       save_data(trlists, "Data/trainer_lists.dat")
+316:       Graphics.update
+317:       Compiler.write_trainer_lists
+318:     end
+319:     return
+320:   when 2   # Yes, use new
+321:     return if !pbConfirmMessage(_INTL("This may take a long time. Are you sure?"))
+322:     mw = pbCreateMessageWindow
+323:     t = System.uptime
+324:     pbGenerateChallenge(rules, id) do |message|
+325:       if System.uptime - t >= 5
+326:         t += 5
+327:         Graphics.update
+328:       end
+329:       if message
+330:         pbMessageDisplay(mw, message, false)
+331:         t = System.uptime
+332:         Graphics.update
+333:       end
+334:     end
+335:     pbDisposeMessageWindow(mw)
+336:     pbMessage(_INTL("Team generation complete."))
+337:   end
+338: end

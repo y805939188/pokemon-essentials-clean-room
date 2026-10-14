@@ -1,0 +1,113 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: def findBottom(bitmap)
+5:   return 0 if !bitmap
+6:   (1..bitmap.height).each do |i|
+7:     bitmap.width.times do |j|
+8:       return bitmap.height - i if bitmap.get_pixel(j, bitmap.height - i).alpha > 0
+9:     end
+10:   end
+11:   return 0
+12: end
+13: 
+14: def pbAutoPositionAll
+15:   t = System.uptime
+16:   GameData::Species.each do |sp|
+17:     if System.uptime - t >= 5
+18:       t += 5
+19:       Graphics.update
+20:     end
+21:     metrics = GameData::SpeciesMetrics.get_species_form(sp.species, sp.form)
+22:     bitmap1 = GameData::Species.sprite_bitmap(sp.species, sp.form, nil, nil, nil, true)
+23:     bitmap2 = GameData::Species.sprite_bitmap(sp.species, sp.form)
+24:     if bitmap1&.bitmap   # Player's y
+25:       metrics.back_sprite[0] = 0
+26:       metrics.back_sprite[1] = (bitmap1.height - (findBottom(bitmap1.bitmap) + 1)) / 2
+27:     end
+28:     if bitmap2&.bitmap   # Foe's y
+29:       metrics.front_sprite[0] = 0
+30:       metrics.front_sprite[1] = (bitmap2.height - (findBottom(bitmap2.bitmap) + 1)) / 2
+31:       metrics.front_sprite[1] += 4   # Just because
+32:     end
+33:     metrics.front_sprite_altitude = 0   # Shouldn't be used
+34:     metrics.shadow_x              = 0
+35:     metrics.shadow_size           = 2
+36:     bitmap1&.dispose
+37:     bitmap2&.dispose
+38:   end
+39:   GameData::SpeciesMetrics.save
+40:   Compiler.write_pokemon_metrics
+41: end
+42: 
+43: #===============================================================================
+44: #
+45: #===============================================================================
+46: class SpritePositioner
+47:   def pbOpen
+48:     @sprites = {}
+49:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+50:     @viewport.z = 99999
+51:     battlebg   = "Graphics/Battlebacks/indoor1_bg"
+52:     playerbase = "Graphics/Battlebacks/indoor1_base0"
+53:     enemybase  = "Graphics/Battlebacks/indoor1_base1"
+54:     @sprites["battle_bg"] = AnimatedPlane.new(@viewport)
+55:     @sprites["battle_bg"].setBitmap(battlebg)
+56:     @sprites["battle_bg"].z = 0
+57:     baseX, baseY = Battle::Scene.pbBattlerPosition(0)
+58:     @sprites["base_0"] = IconSprite.new(baseX, baseY, @viewport)
+59:     @sprites["base_0"].setBitmap(playerbase)
+60:     @sprites["base_0"].x -= @sprites["base_0"].bitmap.width / 2 if @sprites["base_0"].bitmap
+61:     @sprites["base_0"].y -= @sprites["base_0"].bitmap.height if @sprites["base_0"].bitmap
+62:     @sprites["base_0"].z = 1
+63:     baseX, baseY = Battle::Scene.pbBattlerPosition(1)
+64:     @sprites["base_1"] = IconSprite.new(baseX, baseY, @viewport)
+65:     @sprites["base_1"].setBitmap(enemybase)
+66:     @sprites["base_1"].x -= @sprites["base_1"].bitmap.width / 2 if @sprites["base_1"].bitmap
+67:     @sprites["base_1"].y -= @sprites["base_1"].bitmap.height / 2 if @sprites["base_1"].bitmap
+68:     @sprites["base_1"].z = 1
+69:     @sprites["messageBox"] = IconSprite.new(0, Graphics.height - 96, @viewport)
+70:     @sprites["messageBox"].setBitmap("Graphics/UI/Debug/battle_message")
+71:     @sprites["messageBox"].z = 2
+72:     @sprites["shadow_1"] = IconSprite.new(0, 0, @viewport)
+73:     @sprites["shadow_1"].z = 3
+74:     @sprites["pokemon_0"] = PokemonSprite.new(@viewport)
+75:     @sprites["pokemon_0"].setOffset(PictureOrigin::BOTTOM)
+76:     @sprites["pokemon_0"].z = 4
+77:     @sprites["pokemon_1"] = PokemonSprite.new(@viewport)
+78:     @sprites["pokemon_1"].setOffset(PictureOrigin::BOTTOM)
+79:     @sprites["pokemon_1"].z = 4
+80:     @sprites["info"] = Window_UnformattedTextPokemon.new("")
+81:     @sprites["info"].viewport = @viewport
+82:     @sprites["info"].visible  = false
+83:     @oldSpeciesIndex = 0
+84:     @species = nil   # This cannot be a species_form
+85:     @form = 0
+86:     @metricsChanged = false
+87:     refresh
+88:     @starting = true
+89:   end
+90: 
+91:   def pbClose
+92:     if @metricsChanged && pbConfirmMessage(_INTL("Some metrics have been edited. Save changes?"))
+93:       pbSaveMetrics
+94:       @metricsChanged = false
+95:     else
+96:       GameData::SpeciesMetrics.load   # Clear all changes to metrics
+97:     end
+98:     pbFadeOutAndHide(@sprites) { update }
+99:     pbDisposeSpriteHash(@sprites)
+100:     @viewport.dispose
+101:   end
+102: 
+103:   def pbSaveMetrics
+104:     GameData::SpeciesMetrics.save
+105:     Compiler.write_pokemon_metrics
+106:   end
+107: 
+108:   def update
+109:     pbUpdateSpriteHash(@sprites)
+110:   end
+111: 
+112:   def refresh
+113:     if !@species

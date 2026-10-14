@@ -1,0 +1,282 @@
+PATH reference/pokemon-essentials/Data/Scripts/016_UI/023_UI_PurifyChamber.rb RANGE 348-628 TOTAL 1308
+348	class PurifyChamberScreen
+349	  def initialize(scene)
+350	    @scene = scene
+351	    @chamber = $PokemonGlobal.purifyChamber
+352	#    for j in 0...PurifyChamber::NUMSETS
+353	#      @chamber.debugAddShadow(j,rand(100)+1)
+354	#      @chamber[j].shadow.heart_gauge = 0
+355	#      for i in 0...PurifyChamber::SETSIZE
+356	#        @chamber.debugAddNormal(j,rand(100)+1)
+357	#      end
+358	#    end
+359	  end
+360	
+361	  def pbPlace(pkmn, position)
+362	    return false if !pkmn
+363	    if pkmn.egg?
+364	      @scene.pbDisplay(_INTL("Can't place an egg there."))
+365	      return false
+366	    end
+367	    if position == 0
+368	      if pkmn.shadowPokemon?
+369	        # Remove from storage and place in set
+370	        oldpkmn = PurifyChamberHelper.pbGetPokemon(@chamber, position)
+371	        if oldpkmn
+372	          @scene.pbShift(position, pkmn)
+373	        else
+374	          @scene.pbPlace(position, pkmn)
+375	        end
+376	        PurifyChamberHelper.pbSetPokemon(@chamber, position, pkmn)
+377	        @scene.pbRefresh
+378	      else
+379	        @scene.pbDisplay(_INTL("Only a Shadow Pokémon can go there."))
+380	        return false
+381	      end
+382	    elsif position >= 1
+383	      if pkmn.shadowPokemon?
+384	        @scene.pbDisplay(_INTL("Can't place a Shadow Pokémon there."))
+385	        return false
+386	      else
+387	        oldpkmn = PurifyChamberHelper.pbGetPokemon(@chamber, position)
+388	        if oldpkmn
+389	          @scene.pbShift(position, pkmn)
+390	        else
+391	          @scene.pbPlace(position, pkmn)
+392	        end
+393	        PurifyChamberHelper.pbSetPokemon(@chamber, position, pkmn)
+394	        @scene.pbRefresh
+395	      end
+396	    end
+397	    return true
+398	  end
+399	
+400	  def pbPlacePokemon(pos, position)
+401	    return false if !pos
+402	    pkmn = $PokemonStorage[pos[0], pos[1]]
+403	    if pbPlace(pkmn, position)
+404	      $PokemonStorage.pbDelete(pos[0], pos[1])
+405	      return true
+406	    end
+407	    return false
+408	  end
+409	
+410	  def pbOnPlace(pkmn)
+411	    set = @chamber.currentSet
+412	    if @chamber.setCount(set) == 0 && @chamber.isPurifiableIgnoreRegular?(set)
+413	      pkmn = @chamber.getShadow(set)
+414	      @scene.pbDisplay(
+415	        _INTL("This {1} is ready to open its heart. However, there must be at least one regular Pokémon in the set to perform a purification ceremony.",
+416	              pkmn.name)
+417	      )
+418	    end
+419	  end
+420	
+421	  def pbOpenSetDetail
+422	    chamber = @chamber
+423	    @scene.pbOpenSetDetail(chamber.currentSet)
+424	    heldpkmn = nil
+425	    loop do
+426	      # Commands
+427	      # array[0]==0 - a position was chosen
+428	      # array[0]==1 - a new set was chosen
+429	      # array[0]==2 - choose Pokemon command
+430	      cmd = @scene.pbSetScreen
+431	      case cmd[0]
+432	      when 0   # Place Pokemon in the set
+433	        curpkmn = PurifyChamberHelper.pbGetPokemon(@chamber, cmd[1])
+434	        if curpkmn || heldpkmn
+435	          commands = [_INTL("MOVE"), _INTL("SUMMARY"), _INTL("WITHDRAW")]
+436	          if curpkmn && heldpkmn
+437	            commands[0] = _INTL("EXCHANGE")
+438	          elsif heldpkmn
+439	            commands[0] = _INTL("PLACE")
+440	          end
+441	          cmdReplace = -1
+442	          cmdRotate = -1
+443	          if !heldpkmn && curpkmn && cmd[1] == 0 &&
+444	             @chamber[@chamber.currentSet].length > 0
+445	            commands[cmdRotate = commands.length] = _INTL("ROTATE")
+446	          end
+447	          if !heldpkmn && curpkmn
+448	            commands[cmdReplace = commands.length] = _INTL("REPLACE")
+449	          end
+450	          commands.push(_INTL("CANCEL"))
+451	          choice = @scene.pbShowCommands(
+452	            _INTL("What shall I do with this {1}?", heldpkmn ? heldpkmn.name : curpkmn.name),
+453	            commands
+454	          )
+455	          if choice == 0
+456	            if heldpkmn
+457	              if pbPlace(heldpkmn, cmd[1]) # calls place or shift as appropriate
+458	                if curpkmn
+459	                  heldpkmn = curpkmn # Pokemon was shifted
+460	                else
+461	                  pbOnPlace(heldpkmn)
+462	                  @scene.pbPositionHint(PurifyChamberHelper.adjustOnInsert(cmd[1]))
+463	                  heldpkmn = nil # Pokemon was placed
+464	                end
+465	              end
+466	            else
+467	              @scene.pbMove(cmd[1])
+468	              PurifyChamberHelper.pbSetPokemon(@chamber, cmd[1], nil)
+469	              @scene.pbRefresh
+470	              heldpkmn = curpkmn
+471	            end
+472	          elsif choice == 1
+473	            @scene.pbSummary(cmd[1], heldpkmn)
+474	          elsif choice == 2
+475	            if pbBoxesFull?
+476	              @scene.pbDisplay(_INTL("All boxes are full."))
+477	            elsif heldpkmn
+478	              @scene.pbWithdraw(cmd[1], heldpkmn)
+479	              $PokemonStorage.pbStoreCaught(heldpkmn)
+480	              heldpkmn = nil
+481	              @scene.pbRefresh
+482	            else
+483	              # Store and delete Pokemon.
+484	              @scene.pbWithdraw(cmd[1], heldpkmn)
+485	              $PokemonStorage.pbStoreCaught(curpkmn)
+486	              PurifyChamberHelper.pbSetPokemon(@chamber, cmd[1], nil)
+487	              @scene.pbRefresh
+488	            end
+489	          elsif cmdRotate >= 0 && choice == cmdRotate
+490	            count = @chamber[@chamber.currentSet].length
+491	            nextPos = @chamber[@chamber.currentSet].facing
+492	            if count > 0
+493	              @scene.pbRotate((nextPos + 1) % count)
+494	              @chamber[@chamber.currentSet].facing = (nextPos + 1) % count
+495	              @scene.pbRefresh
+496	            end
+497	          elsif cmdReplace >= 0 && choice == cmdReplace
+498	            pos = @scene.pbChoosePokemon
+499	            if pos
+500	              newpkmn = $PokemonStorage[pos[0], pos[1]]
+501	              if newpkmn
+502	                if (newpkmn.shadowPokemon?) == (curpkmn.shadowPokemon?)
+503	                  @scene.pbReplace(cmd, pos)
+504	                  PurifyChamberHelper.pbSetPokemon(@chamber, cmd[1], newpkmn)
+505	                  $PokemonStorage[pos[0], pos[1]] = curpkmn
+506	                  @scene.pbRefresh
+507	                  pbOnPlace(curpkmn)
+508	                else
+509	                  @scene.pbDisplay(_INTL("That Pokémon can't be placed there."))
+510	                end
+511	              end
+512	            end
+513	          end
+514	        else   # No current Pokemon
+515	          pos = @scene.pbChoosePokemon
+516	          if pbPlacePokemon(pos, cmd[1])
+517	            curpkmn = PurifyChamberHelper.pbGetPokemon(@chamber, cmd[1])
+518	            pbOnPlace(curpkmn)
+519	            @scene.pbPositionHint(PurifyChamberHelper.adjustOnInsert(cmd[1]))
+520	          end
+521	        end
+522	      when 1   # Change the active set
+523	        @scene.pbChangeSet(cmd[1])
+524	        chamber.currentSet = cmd[1]
+525	      when 2   # Choose a Pokemon
+526	        pos = @scene.pbChoosePokemon
+527	        pkmn = pos ? $PokemonStorage[pos[0], pos[1]] : nil
+528	        heldpkmn = pkmn if pkmn
+529	      else   # cancel
+530	        if heldpkmn
+531	          @scene.pbDisplay(_INTL("You're holding a Pokémon!"))
+532	        else
+533	          break if !@scene.pbConfirm(_INTL("Continue editing sets?"))
+534	        end
+535	      end
+536	    end
+537	    if pbCheckPurify
+538	      @scene.pbDisplay(_INTL("There is a Pokémon that is ready to open its heart!") + "\1")
+539	      @scene.pbCloseSetDetail
+540	      pbDoPurify
+541	      return false
+542	    else
+543	      @scene.pbCloseSetDetail
+544	      return true
+545	    end
+546	  end
+547	
+548	  def pbDisplay(msg)
+549	    @scene.pbDisplay(msg)
+550	  end
+551	
+552	  def pbConfirm(msg)
+553	    @scene.pbConfirm(msg)
+554	  end
+555	
+556	  def pbRefresh
+557	    @scene.pbRefresh
+558	  end
+559	
+560	  def pbCheckPurify
+561	    purifiables = []
+562	    PurifyChamber::NUMSETS.times do |set|
+563	      if @chamber.isPurifiable?(set) # if ready for purification
+564	        purifiables.push(set)
+565	      end
+566	    end
+567	    return purifiables.length > 0
+568	  end
+569	
+570	  def pbDoPurify
+571	    purifiables = []
+572	    PurifyChamber::NUMSETS.times do |set|
+573	      if @chamber.isPurifiable?(set) # if ready for purification
+574	        purifiables.push(set)
+575	      end
+576	    end
+577	    purifiables.length.times do |i|
+578	      set = purifiables[i]
+579	      @chamber.currentSet = set
+580	      @scene.pbOpenSet(set)
+581	      @scene.pbPurify
+582	      pbPurify(@chamber[set].shadow, self)
+583	      pbStorePokemon(@chamber[set].shadow)
+584	      @chamber.setShadow(set, nil) # Remove shadow Pokemon from set
+585	      if (i + 1) != purifiables.length
+586	        @scene.pbDisplay(_INTL("There is another Pokémon that is ready to open its heart!") + "\1")
+587	        if !@scene.pbConfirm(_INTL("Would you like to switch sets?"))
+588	          @scene.pbCloseSet
+589	          break
+590	        end
+591	      end
+592	      @scene.pbCloseSet
+593	    end
+594	  end
+595	
+596	  def pbStartPurify
+597	    chamber = @chamber
+598	    @scene.pbStart(chamber)
+599	    if pbCheckPurify
+600	      pbDoPurify
+601	      @scene.pbEnd
+602	      return
+603	    end
+604	    @scene.pbOpenSet(chamber.currentSet)
+605	    loop do
+606	      set = @scene.pbChooseSet
+607	      if set < 0
+608	        break if !@scene.pbConfirm(_INTL("Continue viewing holograms?"))
+609	      else
+610	        chamber.currentSet = set
+611	        cmd = @scene.pbShowCommands(_INTL("What do you want to do?"),
+612	                                    [_INTL("EDIT"), _INTL("SWITCH"), _INTL("CANCEL")])
+613	        case cmd
+614	        when 0   # edit
+615	          break if !pbOpenSetDetail
+616	        when 1   # switch
+617	          chamber.currentSet = set
+618	          newSet = @scene.pbSwitch(set)
+619	          chamber.switch(set, newSet)
+620	          chamber.currentSet = newSet
+621	          @scene.pbRefresh
+622	        end
+623	      end
+624	    end
+625	    @scene.pbCloseSet
+626	    @scene.pbEnd
+627	  end
+628	end

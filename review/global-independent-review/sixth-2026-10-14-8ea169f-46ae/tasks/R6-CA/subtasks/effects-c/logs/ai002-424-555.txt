@@ -1,0 +1,132 @@
+424: Battle::AI::Handlers::ShouldSwitch.add(:battler_is_useless,
+425:   proc { |battler, reserves, ai, battle|
+426:     next false if !ai.trainer.medium_skill?
+427:     next false if battler.turnCount < 2   # Just switched in, give it a chance
+428:     next false if battle.pbCanChooseAnyMove?(battler.index)
+429:     next false if battler.effects[PBEffects::DestinyBond] || battler.effects[PBEffects::Grudge]
+430:     if battler.effects[PBEffects::Substitute]
+431:       hidden_behind_substitute = true
+432:       ai.each_foe_battler(battler.side) do |b, i|
+433:         next if !b.check_for_move { |m| m.ignoresSubstitute?(b.battler) }
+434:         hidden_behind_substitute = false
+435:         break
+436:       end
+437:       next false if hidden_behind_substitute
+438:     end
+439:     PBDebug.log_ai("#{battler.name} wants to switch because it can't do anything")
+440:     next true
+441:   }
+442: )
+443: 
+444: #===============================================================================
+445: # Pokémon can't do anything to any foe because its ability absorbs all damage
+446: # the Pokémon can deal out.
+447: #===============================================================================
+448: Battle::AI::Handlers::ShouldSwitch.add(:foe_absorbs_all_moves_with_its_ability,
+449:   proc { |battler, reserves, ai, battle|
+450:     next false if battler.battler.turnCount < 2   # Don't switch out too quickly
+451:     next false if battler.battler.hasMoldBreaker?
+452:     # Check if battler can damage any of its foes
+453:     can_damage_foe = false
+454:     ai.each_foe_battler(battler.side) do |b, i|
+455:       if ai.trainer.high_skill? && b.rough_end_of_round_damage > 0
+456:         can_damage_foe = true   # Foe is being damaged already
+457:         break
+458:       end
+459:       # Check for battler's moves that can damage the foe (b)
+460:       battler.battler.eachMove do |move|
+461:         next if move.statusMove?
+462:         if ["IgnoreTargetAbility",
+463:             "CategoryDependsOnHigherDamageIgnoreTargetAbility"].include?(move.function_code)
+464:           can_damage_foe = true
+465:           break
+466:         end
+467:         if !ai.pokemon_can_absorb_move?(b, move, move.pbCalcType(battler.battler))
+468:           can_damage_foe = true
+469:           break
+470:         end
+471:       end
+472:       break if can_damage_foe
+473:     end
+474:     next false if can_damage_foe
+475:     # Check if a reserve could damage any foe; only switch if one could
+476:     reserve_can_damage_foe = false
+477:     reserves.each do |pkmn|
+478:       ai.each_foe_battler(battler.side) do |b, i|
+479:         # Check for reserve's moves that can damage the foe (b)
+480:         pkmn.moves.each do |move|
+481:           next if move.status_move?
+482:           if ["IgnoreTargetAbility",
+483:               "CategoryDependsOnHigherDamageIgnoreTargetAbility"].include?(move.function_code)
+484:             reserve_can_damage_foe = true
+485:             break
+486:           end
+487:           if !ai.pokemon_can_absorb_move?(b, move, move.type)
+488:             reserve_can_damage_foe = true
+489:             break
+490:           end
+491:         end
+492:         break if reserve_can_damage_foe
+493:       end
+494:       break if reserve_can_damage_foe
+495:     end
+496:     next false if !reserve_can_damage_foe
+497:     PBDebug.log_ai("#{battler.name} wants to switch because it can't damage the foe(s)")
+498:     next true
+499:   }
+500: )
+501: 
+502: #===============================================================================
+503: # Pokémon doesn't have an ability that makes it immune to a foe's move, but a
+504: # reserve does (see def pokemon_can_absorb_move?). The foe's move is chosen
+505: # randomly, or is their most powerful move if the trainer's skill level is good
+506: # enough.
+507: #===============================================================================
+508: Battle::AI::Handlers::ShouldSwitch.add(:absorb_foe_move,
+509:   proc { |battler, reserves, ai, battle|
+510:     next false if !ai.trainer.medium_skill?
+511:     # Not worth it if the battler is evasive enough
+512:     next false if battler.stages[:EVASION] >= 3
+513:     # Not worth it if abilities are being negated
+514:     next false if battle.pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+515:     # Get the foe move with the highest power (or a random damaging move)
+516:     foe_moves = []
+517:     ai.each_foe_battler(battler.side) do |b, i|
+518:       b.moves.each do |move|
+519:         next if move.statusMove?
+520:         m_power = move.power
+521:         m_power = 100 if move.is_a?(Battle::Move::OHKO)
+522:         m_type = move.pbCalcType(b.battler)
+523:         foe_moves.push([m_power, m_type, move])
+524:       end
+525:     end
+526:     next false if foe_moves.empty?
+527:     if ai.trainer.high_skill?
+528:       foe_moves.sort! { |a, b| a[0] <=> b[0] }   # Highest power move
+529:       chosen_move = foe_moves.last
+530:     else
+531:       chosen_move = foe_moves[ai.pbAIRandom(foe_moves.length)]   # Random move
+532:     end
+533:     # Get the chosen move's information
+534:     move_power = chosen_move[0]
+535:     move_type = chosen_move[1]
+536:     move = chosen_move[2]
+537:     # Don't bother if the foe's best move isn't too strong
+538:     next false if move_power < 70
+539:     # Check battler for absorbing ability
+540:     next false if ai.pokemon_can_absorb_move?(battler, move, move_type)
+541:     # battler can't absorb move; find a party Pokémon that can
+542:     if reserves.any? { |pkmn| ai.pokemon_can_absorb_move?(pkmn, move, move_type) }
+543:       next false if ai.pbAIRandom(100) < 70
+544:       PBDebug.log_ai("#{battler.name} wants to switch because it can't absorb a foe's move but a reserve can")
+545:       next true
+546:     end
+547:     next false
+548:   }
+549: )
+550: 
+551: #===============================================================================
+552: # Sudden Death rule (at the end of each round, if one side has more able Pokémon
+553: # than the other side, that side wins). Avoid fainting at all costs.
+554: # NOTE: This rule isn't used anywhere.
+555: #===============================================================================

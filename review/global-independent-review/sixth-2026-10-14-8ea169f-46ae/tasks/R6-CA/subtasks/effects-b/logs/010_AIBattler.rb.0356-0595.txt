@@ -1,0 +1,240 @@
+356:         return false
+357:       end
+358:       if b.item_active? &&
+359:          Battle::ItemEffects.triggerTrappingByTarget(b.item, battler, b.battler, @ai.battle)
+360:         return false
+361:       end
+362:     end
+363:     return true
+364:   end
+365: 
+366:   #-----------------------------------------------------------------------------
+367: 
+368:   def wants_status_problem?(new_status)
+369:     return true if new_status == :NONE
+370:     if ability_active?
+371:       case ability_id
+372:       when :GUTS
+373:         return true if ![:SLEEP, :FROZEN].include?(new_status) &&
+374:                        @ai.stat_raise_worthwhile?(self, :ATTACK, true)
+375:       when :MARVELSCALE
+376:         return true if @ai.stat_raise_worthwhile?(self, :DEFENSE, true)
+377:       when :QUICKFEET
+378:         return true if ![:SLEEP, :FROZEN].include?(new_status) &&
+379:                        @ai.stat_raise_worthwhile?(self, :SPEED, true)
+380:       when :FLAREBOOST
+381:         return true if new_status == :BURN && @ai.stat_raise_worthwhile?(self, :SPECIAL_ATTACK, true)
+382:       when :TOXICBOOST
+383:         return true if new_status == :POISON && @ai.stat_raise_worthwhile?(self, :ATTACK, true)
+384:       when :POISONHEAL
+385:         return true if new_status == :POISON
+386:       when :MAGICGUARD   # Want a harmless status problem to prevent getting a harmful one
+387:         return true if new_status == :POISON ||
+388:                        (new_status == :BURN && !@ai.stat_raise_worthwhile?(self, :ATTACK, true))
+389:       end
+390:     end
+391:     return true if new_status == :SLEEP && check_for_move { |m| m.usableWhenAsleep? }
+392:     if has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed")
+393:       return true if [:POISON, :BURN, :PARALYSIS].include?(new_status)
+394:     end
+395:     return false
+396:   end
+397: 
+398:   #-----------------------------------------------------------------------------
+399: 
+400:   # Returns a value indicating how beneficial the given ability will be to this
+401:   # battler if it has it.
+402:   # Return values are typically between -10 and +10. 0 is indifferent, positive
+403:   # values mean this battler benefits, negative values mean this battler suffers.
+404:   # NOTE: This method assumes the ability isn't being negated. The calculations
+405:   #       that call this method separately check for it being negated, because
+406:   #       they need to do something special in that case.
+407:   def wants_ability?(ability = :NONE)
+408:     ability = ability.id if !ability.is_a?(Symbol) && ability.respond_to?("id")
+409:     # Get the base ability rating
+410:     ret = 0
+411:     Battle::AI::BASE_ABILITY_RATINGS.each_pair do |val, abilities|
+412:       next if !abilities.include?(ability)
+413:       ret = val
+414:       break
+415:     end
+416:     # Modify the rating based on ability-specific contexts
+417:     if @ai.trainer.medium_skill?
+418:       ret = Battle::AI::Handlers.modify_ability_ranking(ability, ret, self, @ai)
+419:     end
+420:     return ret
+421:   end
+422: 
+423:   #-----------------------------------------------------------------------------
+424: 
+425:   # Returns a value indicating how beneficial the given item will be to this
+426:   # battler if it is holding it.
+427:   # Return values are typically between -10 and +10. 0 is indifferent, positive
+428:   # values mean this battler benefits, negative values mean this battler suffers.
+429:   # NOTE: This method assumes the item isn't being negated. The calculations
+430:   #       that call this method separately check for it being negated, because
+431:   #       they need to do something special in that case.
+432:   def wants_item?(item)
+433:     item = :NONE if !item
+434:     item = item.id if !item.is_a?(Symbol) && item.respond_to?("id")
+435:     # Get the base item rating
+436:     ret = 0
+437:     Battle::AI::BASE_ITEM_RATINGS.each_pair do |val, items|
+438:       next if !items.include?(item)
+439:       ret = val
+440:       break
+441:     end
+442:     # Modify the rating based on item-specific contexts
+443:     if @ai.trainer.medium_skill?
+444:       ret = Battle::AI::Handlers.modify_item_ranking(item, ret, self, @ai)
+445:     end
+446:     # Prefer if this battler knows Fling and it will do a lot of damage/have an
+447:     # additional (negative) effect when flung
+448:     if item != :NONE && has_move_with_function?("ThrowUserItemAtTarget")
+449:       GameData::Item.get(item).flags.each do |flag|
+450:         next if !flag[/^Fling_(\d+)$/i]
+451:         amt = $~[1].to_i
+452:         ret += 1 if amt >= 80
+453:         ret += 1 if amt >= 100
+454:         break
+455:       end
+456:       if [:FLAMEORB, :KINGSROCK, :LIGHTBALL, :POISONBARB, :RAZORFANG, :TOXICORB].include?(item)
+457:         ret += 1
+458:       end
+459:     end
+460:     # Don't prefer if this battler knows Acrobatics
+461:     if has_move_with_function?("DoublePowerIfUserHasNoItem")
+462:       ret += (item == :NONE) ? 1 : -1
+463:     end
+464:     return ret
+465:   end
+466: 
+467:   #-----------------------------------------------------------------------------
+468: 
+469:   # Items can be consumed by Stuff Cheeks, Teatime, Bug Bite/Pluck and Fling.
+470:   def get_score_change_for_consuming_item(item, try_preserving_item = false)
+471:     ret = 0
+472:     case item
+473:     when :ORANBERRY, :BERRYJUICE, :ENIGMABERRY, :SITRUSBERRY
+474:       # Healing
+475:       ret += (hp > totalhp * 0.75) ? -6 : 6
+476:       ret = ret * 3 / 2 if GameData::Item.get(item).is_berry? && has_active_ability?(:RIPEN)
+477:     when :AGUAVBERRY, :FIGYBERRY, :IAPAPABERRY, :MAGOBERRY, :WIKIBERRY
+478:       # Healing with confusion
+479:       fraction_to_heal = 8   # Gens 6 and lower
+480:       if Settings::MECHANICS_GENERATION == 7
+481:         fraction_to_heal = 2
+482:       elsif Settings::MECHANICS_GENERATION >= 8
+483:         fraction_to_heal = 3
+484:       end
+485:       ret += (hp > totalhp * (1 - (1.0 / fraction_to_heal))) ? -6 : 6
+486:       ret = ret * 3 / 2 if GameData::Item.get(item).is_berry? && has_active_ability?(:RIPEN)
+487:       if @ai.trainer.high_skill?
+488:         flavor_stat = {
+489:           :AGUAVBERRY  => :SPECIAL_DEFENSE,
+490:           :FIGYBERRY   => :ATTACK,
+491:           :IAPAPABERRY => :DEFENSE,
+492:           :MAGOBERRY   => :SPEED,
+493:           :WIKIBERRY   => :SPECIAL_ATTACK
+494:         }[item]
+495:         if @battler.nature.stat_changes.any? { |val| val[0] == flavor_stat && val[1] < 0 }
+496:           ret -= 3 if @battler.pbCanConfuseSelf?(false)
+497:         end
+498:       end
+499:     when :ASPEARBERRY, :CHERIBERRY, :CHESTOBERRY, :PECHABERRY, :RAWSTBERRY
+500:       # Status cure
+501:       cured_status = {
+502:         :ASPEAR      => :FROZEN,
+503:         :CHERIBERRY  => :PARALYSIS,
+504:         :CHESTOBERRY => :SLEEP,
+505:         :PECHABERRY  => :POISON,
+506:         :RAWSTBERRY  => :BURN
+507:       }[item]
+508:       ret += (cured_status && status == cured_status) ? 6 : -6
+509:     when :PERSIMBERRY
+510:       # Confusion cure
+511:       ret += (self.effects[PBEffects::Confusion] > 1) ? 6 : -6
+512:     when :LUMBERRY
+513:       # Any status/confusion cure
+514:       ret += (status != :NONE || self.effects[PBEffects::Confusion] > 1) ? 6 : -6
+515:     when :MENTALHERB
+516:       # Cure mental effects
+517:       if self.effects[PBEffects::Attract] >= 0 ||
+518:          self.effects[PBEffects::Taunt] > 1 ||
+519:          self.effects[PBEffects::Encore] > 1 ||
+520:          self.effects[PBEffects::Torment] ||
+521:          self.effects[PBEffects::Disable] > 1 ||
+522:          self.effects[PBEffects::HealBlock] > 1
+523:         ret += 6
+524:       else
+525:         ret -= 6
+526:       end
+527:     when :APICOTBERRY, :GANLONBERRY, :LIECHIBERRY, :PETAYABERRY, :SALACBERRY,
+528:          :KEEBERRY, :MARANGABERRY
+529:       # Stat raise
+530:       stat = {
+531:         :APICOTBERRY  => :SPECIAL_DEFENSE,
+532:         :GANLONBERRY  => :DEFENSE,
+533:         :LIECHIBERRY  => :ATTACK,
+534:         :PETAYABERRY  => :SPECIAL_ATTACK,
+535:         :SALACBERRY   => :SPEED,
+536:         :KEEBERRY     => :DEFENSE,
+537:         :MARANGABERRY => :SPECIAL_DEFENSE
+538:       }[item]
+539:       ret += (stat && @ai.stat_raise_worthwhile?(self, stat)) ? 8 : -8
+540:       ret = ret * 3 / 2 if GameData::Item.get(item).is_berry? && has_active_ability?(:RIPEN)
+541:     when :STARFBERRY
+542:       # Random stat raise
+543:       ret += 8
+544:       ret = ret * 3 / 2 if GameData::Item.get(item).is_berry? && has_active_ability?(:RIPEN)
+545:     when :WHITEHERB
+546:       # Resets lowered stats
+547:       ret += (battler.hasLoweredStatStages?) ? 8 : -8
+548:     when :MICLEBERRY
+549:       # Raises accuracy of next move
+550:       ret += (@ai.stat_raise_worthwhile?(self, :ACCURACY, true)) ? 6 : -6
+551:     when :LANSATBERRY
+552:       # Focus energy
+553:       ret += (self.effects[PBEffects::FocusEnergy] < 2) ? 6 : -6
+554:     when :LEPPABERRY
+555:       # Restore PP
+556:       ret += 6
+557:       ret = ret * 3 / 2 if GameData::Item.get(item).is_berry? && has_active_ability?(:RIPEN)
+558:     end
+559:     ret = 0 if ret < 0 && !try_preserving_item
+560:     return ret
+561:   end
+562: 
+563:   #-----------------------------------------------------------------------------
+564: 
+565:   private
+566: 
+567:   def effectiveness_of_type_against_single_battler_type(type, defend_type, user = nil)
+568:     ret = Effectiveness.calculate(type, defend_type)
+569:     if Effectiveness.ineffective_type?(type, defend_type)
+570:       # Ring Target
+571:       if has_active_item?(:RINGTARGET)
+572:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+573:       end
+574:       # Foresight
+575:       if (user&.has_active_ability?(:SCRAPPY) || self.effects[PBEffects::Foresight]) &&
+576:          defend_type == :GHOST
+577:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+578:       end
+579:       # Miracle Eye
+580:       if self.effects[PBEffects::MiracleEye] && defend_type == :DARK
+581:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+582:       end
+583:     elsif Effectiveness.super_effective_type?(type, defend_type)
+584:       # Delta Stream's weather
+585:       if battler.effectiveWeather == :StrongWinds && defend_type == :FLYING
+586:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+587:       end
+588:     end
+589:     # Grounded Flying-type Pokémon become susceptible to Ground moves
+590:     if !battler.airborne? && defend_type == :FLYING && type == :GROUND
+591:       ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+592:     end
+593:     return ret
+594:   end
+595: end

@@ -1,0 +1,232 @@
+224:     def name
+225:       return pbGetMessageFromHash(MessageTypes::SPECIES_NAMES, @real_name)
+226:     end
+227: 
+228:     # @return [String] the translated name of this form of this species
+229:     def form_name
+230:       return pbGetMessageFromHash(MessageTypes::SPECIES_FORM_NAMES, @real_form_name)
+231:     end
+232: 
+233:     # @return [String] the translated Pokédex category of this species
+234:     def category
+235:       return pbGetMessageFromHash(MessageTypes::SPECIES_CATEGORIES, @real_category)
+236:     end
+237: 
+238:     # @return [String] the translated Pokédex entry of this species
+239:     def pokedex_entry
+240:       return pbGetMessageFromHash(MessageTypes::POKEDEX_ENTRIES, @real_pokedex_entry)
+241:     end
+242: 
+243:     def default_form
+244:       @flags.each do |flag|
+245:         return $~[1].to_i if flag[/^DefaultForm_(\d+)$/i]
+246:       end
+247:       return -1
+248:     end
+249: 
+250:     def base_form
+251:       default = default_form
+252:       return (default >= 0) ? default : @form
+253:     end
+254: 
+255:     def single_gendered?
+256:       return GameData::GenderRatio.get(@gender_ratio).single_gendered?
+257:     end
+258: 
+259:     def base_stat_total
+260:       return @base_stats.values.sum
+261:     end
+262: 
+263:     def has_flag?(flag)
+264:       return @flags.any? { |f| f.downcase == flag.downcase }
+265:     end
+266: 
+267:     def apply_metrics_to_sprite(sprite, index, shadow = false)
+268:       metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+269:       metrics_data.apply_metrics_to_sprite(sprite, index, shadow)
+270:     end
+271: 
+272:     def shows_shadow?
+273:       metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+274:       return metrics_data.shows_shadow?
+275:     end
+276: 
+277:     def get_evolutions(exclude_invalid = false)
+278:       ret = []
+279:       @evolutions.each do |evo|
+280:         next if evo[3]   # Is the prevolution
+281:         next if evo[1] == :None && exclude_invalid
+282:         ret.push([evo[0], evo[1], evo[2]])   # [Species, method, parameter]
+283:       end
+284:       return ret
+285:     end
+286: 
+287:     def get_family_evolutions(exclude_invalid = true)
+288:       evos = get_evolutions(exclude_invalid)
+289:       evos = evos.sort { |a, b| GameData::Species.keys.index(a[0]) <=> GameData::Species.keys.index(b[0]) }
+290:       ret = []
+291:       evos.each do |evo|
+292:         ret.push([@species].concat(evo))   # [Prevo species, evo species, method, parameter]
+293:         evo_array = GameData::Species.get(evo[0]).get_family_evolutions(exclude_invalid)
+294:         ret.concat(evo_array) if evo_array && evo_array.length > 0
+295:       end
+296:       return ret
+297:     end
+298: 
+299:     def get_previous_species
+300:       return @species if @evolutions.length == 0
+301:       @evolutions.each { |evo| return evo[0] if evo[3] }   # Is the prevolution
+302:       return @species
+303:     end
+304: 
+305:     def get_baby_species(check_items = false, item1 = nil, item2 = nil)
+306:       ret = @species
+307:       return ret if @evolutions.length == 0
+308:       @evolutions.each do |evo|
+309:         next if !evo[3]   # Check only the prevolution
+310:         if check_items
+311:           incense = GameData::Species.get(evo[0]).incense
+312:           ret = evo[0] if !incense || item1 == incense || item2 == incense
+313:         else
+314:           ret = evo[0]   # Species of prevolution
+315:         end
+316:         break
+317:       end
+318:       ret = GameData::Species.get(ret).get_baby_species(check_items, item1, item2) if ret != @species
+319:       return ret
+320:     end
+321: 
+322:     # Returns an array of all the species in this species' evolution family.
+323:     def get_family_species
+324:       sp = get_baby_species
+325:       evos = GameData::Species.get(sp).get_family_evolutions(false)
+326:       return [sp] if evos.length == 0
+327:       return [sp].concat(evos.map { |e| e[1] }).uniq
+328:     end
+329: 
+330:     # This takes into account whether other_species is evolved.
+331:     def breeding_can_produce?(other_species)
+332:       other_family = GameData::Species.get(other_species).get_family_species
+333:       if @offspring.length > 0
+334:         return (other_family & @offspring).length > 0
+335:       end
+336:       return other_family.include?(@species)
+337:     end
+338: 
+339:     # If this species doesn't have egg moves, looks at prevolutions one at a
+340:     # time and returns theirs instead.
+341:     def get_egg_moves
+342:       return @egg_moves if !@egg_moves.empty?
+343:       prevo = get_previous_species
+344:       return GameData::Species.get_species_form(prevo, @form).get_egg_moves if prevo != @species
+345:       return @egg_moves
+346:     end
+347: 
+348:     def family_evolutions_have_method?(check_method, check_param = nil)
+349:       sp = get_baby_species
+350:       evos = GameData::Species.get(sp).get_family_evolutions
+351:       return false if evos.length == 0
+352:       evos.each do |evo|
+353:         if check_method.is_a?(Array)
+354:           next if !check_method.include?(evo[2])
+355:         elsif evo[2] != check_method
+356:           next
+357:         end
+358:         return true if check_param.nil? || evo[3] == check_param
+359:       end
+360:       return false
+361:     end
+362: 
+363:     # Used by the Moon Ball when checking if a Pokémon's evolution family
+364:     # includes an evolution that uses the Moon Stone.
+365:     def family_item_evolutions_use_item?(check_item = nil)
+366:       sp = get_baby_species
+367:       evos = GameData::Species.get(sp).get_family_evolutions
+368:       return false if !evos || evos.length == 0
+369:       evos.each do |evo|
+370:         next if GameData::Evolution.get(evo[2]).use_item_proc.nil?
+371:         return true if check_item.nil? || evo[3] == check_item
+372:       end
+373:       return false
+374:     end
+375: 
+376:     def minimum_level
+377:       return 1 if @evolutions.length == 0
+378:       @evolutions.each do |evo|
+379:         next if !evo[3]   # Check only the prevolution
+380:         prevo_data = GameData::Species.get_species_form(evo[0], base_form)
+381:         return 1 if !prevo_data.incense.nil?
+382:         prevo_min_level = prevo_data.minimum_level
+383:         evo_method_data = GameData::Evolution.get(evo[1])
+384:         return prevo_min_level if evo_method_data.level_up_proc.nil? && evo_method_data.id != :Shedinja
+385:         any_level_up = evo_method_data.any_level_up
+386:         return (any_level_up) ? prevo_min_level + 1 : evo[2]
+387:       end
+388:       return 1
+389:     end
+390: 
+391:     alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+392:     def get_property_for_PBS(key, writing_form = false)
+393:       key = "SectionName" if key == "ID"
+394:       ret = nil
+395:       if self.class.schema(writing_form).include?(key)
+396:         ret = self.send(self.class.schema(writing_form)[key][0])
+397:         ret = nil if ret == false || (ret.is_a?(Array) && ret.length == 0)
+398:       end
+399:       case key
+400:       when "SectionName"
+401:         ret = [@species, @form] if writing_form
+402:       when "FormName"
+403:         ret = nil if nil_or_empty?(ret)
+404:       when "PokedexForm"
+405:         ret = nil if ret == @form
+406:       when "UnmegaForm", "MegaMessage", "Generation"
+407:         ret = nil if ret == 0
+408:       when "BaseStats"
+409:         new_ret = []
+410:         GameData::Stat.each_main do |s|
+411:           new_ret[s.pbs_order] = ret[s.id] if s.pbs_order >= 0
+412:         end
+413:         ret = new_ret
+414:       when "EVs"
+415:         new_ret = []
+416:         GameData::Stat.each_main do |s|
+417:           new_ret.push([s.id, ret[s.id]]) if ret[s.id] > 0 && s.pbs_order >= 0
+418:         end
+419:         ret = new_ret
+420:       when "Height", "Weight"
+421:         ret = ret.to_f / 10
+422:       when "Habitat"
+423:         ret = nil if ret == :None
+424:       when "Evolutions"
+425:         ret = nil   # Want to use "Evolution" instead
+426:       when "Evolution"
+427:         if ret
+428:           ret = ret.reject { |evo| evo[3] }   # Remove prevolutions
+429:           ret.each do |evo|
+430:             param_type = GameData::Evolution.get(evo[1]).parameter
+431:             if !param_type.nil?
+432:               if param_type.is_a?(Symbol) && !GameData.const_defined?(param_type)
+433:                 evo[2] = getConstantName(param_type, evo[2])
+434:               else
+435:                 evo[2] = evo[2].to_s
+436:               end
+437:             end
+438:           end
+439:           ret.each_with_index { |evo, i| ret[i] = evo[0, 3] }
+440:           ret = nil if ret.length == 0
+441:         end
+442:       end
+443:       if writing_form && !ret.nil?
+444:         base_form = GameData::Species.get(@species)
+445:         if !["WildItemCommon", "WildItemUncommon", "WildItemRare"].include?(key) ||
+446:            (base_form.wild_item_common == @wild_item_common &&
+447:            base_form.wild_item_uncommon == @wild_item_uncommon &&
+448:            base_form.wild_item_rare == @wild_item_rare)
+449:           ret = nil if base_form.get_property_for_PBS(key) == ret
+450:         end
+451:       end
+452:       return ret
+453:     end
+454:   end
+455: end

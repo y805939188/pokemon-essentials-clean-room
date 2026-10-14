@@ -1,0 +1,220 @@
+221: # Power increases with the user's positive stat changes (ignores negative ones).
+222: # (Power Trip, Stored Power)
+223: #===============================================================================
+224: class Battle::Move::PowerHigherWithUserPositiveStatStages < Battle::Move
+225:   def pbBaseDamage(baseDmg, user, target)
+226:     mult = 1
+227:     GameData::Stat.each_battle { |s| mult += user.stages[s.id] if user.stages[s.id] > 0 }
+228:     return 20 * mult
+229:   end
+230: end
+231: 
+232: #===============================================================================
+233: # Power increases with the target's positive stat changes (ignores negative ones).
+234: # (Punishment)
+235: #===============================================================================
+236: class Battle::Move::PowerHigherWithTargetPositiveStatStages < Battle::Move
+237:   def pbBaseDamage(baseDmg, user, target)
+238:     mult = 3
+239:     GameData::Stat.each_battle { |s| mult += target.stages[s.id] if target.stages[s.id] > 0 }
+240:     return [20 * mult, 200].min
+241:   end
+242: end
+243: 
+244: #===============================================================================
+245: # Power increases the quicker the user is than the target. (Electro Ball)
+246: #===============================================================================
+247: class Battle::Move::PowerHigherWithUserFasterThanTarget < Battle::Move
+248:   def pbBaseDamage(baseDmg, user, target)
+249:     ret = 40
+250:     n = user.pbSpeed / target.pbSpeed
+251:     if n >= 4
+252:       ret = 150
+253:     elsif n >= 3
+254:       ret = 120
+255:     elsif n >= 2
+256:       ret = 80
+257:     elsif n >= 1
+258:       ret = 60
+259:     end
+260:     return ret
+261:   end
+262: end
+263: 
+264: #===============================================================================
+265: # Power increases the quicker the target is than the user. (Gyro Ball)
+266: #===============================================================================
+267: class Battle::Move::PowerHigherWithTargetFasterThanUser < Battle::Move
+268:   def pbBaseDamage(baseDmg, user, target)
+269:     return [[(25 * target.pbSpeed / user.pbSpeed).floor, 150].min, 1].max
+270:   end
+271: end
+272: 
+273: #===============================================================================
+274: # Power increases the less PP this move has. (Trump Card)
+275: #===============================================================================
+276: class Battle::Move::PowerHigherWithLessPP < Battle::Move
+277:   def pbBaseDamage(baseDmg, user, target)
+278:     dmgs = [200, 80, 60, 50, 40]
+279:     ppLeft = [@pp, dmgs.length - 1].min   # PP is reduced before the move is used
+280:     return dmgs[ppLeft]
+281:   end
+282: end
+283: 
+284: #===============================================================================
+285: # Power increases the heavier the target is. (Grass Knot, Low Kick)
+286: #===============================================================================
+287: class Battle::Move::PowerHigherWithTargetWeight < Battle::Move
+288:   def pbBaseDamage(baseDmg, user, target)
+289:     ret = 20
+290:     weight = target.pbWeight
+291:     if weight >= 2000
+292:       ret = 120
+293:     elsif weight >= 1000
+294:       ret = 100
+295:     elsif weight >= 500
+296:       ret = 80
+297:     elsif weight >= 250
+298:       ret = 60
+299:     elsif weight >= 100
+300:       ret = 40
+301:     end
+302:     return ret
+303:   end
+304: end
+305: 
+306: #===============================================================================
+307: # Power increases the heavier the user is than the target. (Heat Crash, Heavy Slam)
+308: #===============================================================================
+309: class Battle::Move::PowerHigherWithUserHeavierThanTarget < Battle::Move
+310:   def pbBaseDamage(baseDmg, user, target)
+311:     ret = 40
+312:     n = (user.pbWeight / target.pbWeight).floor
+313:     if n >= 5
+314:       ret = 120
+315:     elsif n >= 4
+316:       ret = 100
+317:     elsif n >= 3
+318:       ret = 80
+319:     elsif n >= 2
+320:       ret = 60
+321:     end
+322:     return ret
+323:   end
+324: end
+325: 
+326: #===============================================================================
+327: # Power doubles for each consecutive use. (Fury Cutter)
+328: #===============================================================================
+329: class Battle::Move::PowerHigherWithConsecutiveUse < Battle::Move
+330:   def pbChangeUsageCounters(user, specialUsage)
+331:     oldVal = user.effects[PBEffects::FuryCutter]
+332:     super
+333:     maxMult = 1
+334:     while (@power << (maxMult - 1)) < 160
+335:       maxMult += 1   # 1-4 for base damage of 20, 1-3 for base damage of 40
+336:     end
+337:     user.effects[PBEffects::FuryCutter] = (oldVal >= maxMult) ? maxMult : oldVal + 1
+338:   end
+339: 
+340:   def pbBaseDamage(baseDmg, user, target)
+341:     return baseDmg << (user.effects[PBEffects::FuryCutter] - 1)
+342:   end
+343: end
+344: 
+345: #===============================================================================
+346: # Power is multiplied by the number of consecutive rounds in which this move was
+347: # used by any Pokémon on the user's side. (Echoed Voice)
+348: #===============================================================================
+349: class Battle::Move::PowerHigherWithConsecutiveUseOnUserSide < Battle::Move
+350:   def pbChangeUsageCounters(user, specialUsage)
+351:     oldVal = user.pbOwnSide.effects[PBEffects::EchoedVoiceCounter]
+352:     super
+353:     if !user.pbOwnSide.effects[PBEffects::EchoedVoiceUsed]
+354:       user.pbOwnSide.effects[PBEffects::EchoedVoiceCounter] = (oldVal >= 5) ? 5 : oldVal + 1
+355:     end
+356:     user.pbOwnSide.effects[PBEffects::EchoedVoiceUsed] = true
+357:   end
+358: 
+359:   def pbBaseDamage(baseDmg, user, target)
+360:     return baseDmg * user.pbOwnSide.effects[PBEffects::EchoedVoiceCounter]   # 1-5
+361:   end
+362: end
+363: 
+364: #===============================================================================
+365: # Power is chosen at random. Power is doubled if the target is using Dig. Hits
+366: # some semi-invulnerable targets. (Magnitude)
+367: #===============================================================================
+368: class Battle::Move::RandomPowerDoublePowerIfTargetUnderground < Battle::Move
+369:   def hitsDiggingTargets?; return true; end
+370: 
+371:   def pbOnStartUse(user, targets)
+372:     baseDmg = [10, 30, 50, 70, 90, 110, 150]
+373:     magnitudes = [
+374:       4,
+375:       5, 5,
+376:       6, 6, 6, 6,
+377:       7, 7, 7, 7, 7, 7,
+378:       8, 8, 8, 8,
+379:       9, 9,
+380:       10
+381:     ]
+382:     magni = magnitudes[@battle.pbRandom(magnitudes.length)]
+383:     @magnitudeDmg = baseDmg[magni - 4]
+384:     @battle.pbDisplay(_INTL("Magnitude {1}!", magni))
+385:   end
+386: 
+387:   def pbBaseDamage(baseDmg, user, target)
+388:     return @magnitudeDmg
+389:   end
+390: 
+391:   def pbModifyDamage(damageMult, user, target)
+392:     damageMult *= 2 if target.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderground")
+393:     damageMult /= 2 if @battle.field.terrain == :Grassy
+394:     return damageMult
+395:   end
+396: end
+397: 
+398: #===============================================================================
+399: # Power is doubled if the target's HP is down to 1/2 or less. (Brine)
+400: #===============================================================================
+401: class Battle::Move::DoublePowerIfTargetHPLessThanHalf < Battle::Move
+402:   def pbBaseDamage(baseDmg, user, target)
+403:     baseDmg *= 2 if target.hp <= target.totalhp / 2
+404:     return baseDmg
+405:   end
+406: end
+407: 
+408: #===============================================================================
+409: # Power is doubled if the user is burned, poisoned or paralyzed. (Facade)
+410: # Burn's halving of Attack is negated (new mechanics).
+411: #===============================================================================
+412: class Battle::Move::DoublePowerIfUserPoisonedBurnedParalyzed < Battle::Move
+413:   def damageReducedByBurn?; return Settings::MECHANICS_GENERATION <= 5; end
+414: 
+415:   def pbBaseDamage(baseDmg, user, target)
+416:     baseDmg *= 2 if user.poisoned? || user.burned? || user.paralyzed?
+417:     return baseDmg
+418:   end
+419: end
+420: 
+421: #===============================================================================
+422: # Power is doubled if the target is asleep. Wakes the target up. (Wake-Up Slap)
+423: #===============================================================================
+424: class Battle::Move::DoublePowerIfTargetAsleepCureTarget < Battle::Move
+425:   def pbBaseDamage(baseDmg, user, target)
+426:     if target.asleep? &&
+427:        (target.effects[PBEffects::Substitute] == 0 || ignoresSubstitute?(user))
+428:       baseDmg *= 2
+429:     end
+430:     return baseDmg
+431:   end
+432: 
+433:   def pbEffectAfterAllHits(user, target)
+434:     return if target.fainted?
+435:     return if target.damageState.unaffected || target.damageState.substitute
+436:     return if target.status != :SLEEP
+437:     target.pbCureStatus
+438:   end
+439: end
+440: 

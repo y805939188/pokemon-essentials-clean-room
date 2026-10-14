@@ -1,0 +1,71 @@
+PATH reference/pokemon-essentials/Data/Scripts/012_Overworld/007_Overworld_DayCare.rb RANGE 21-90 TOTAL 564
+21	    def generate(mother, father)
+22	      # Determine which Pokémon is the mother and which is the father
+23	      # Ensure mother is female, if the pair contains a female
+24	      # Ensure father is male, if the pair contains a male
+25	      # Ensure father is genderless, if the pair is a genderless with Ditto
+26	      if mother.male? || father.female? || mother.genderless?
+27	        mother, father = father, mother
+28	      end
+29	      mother_data = [mother, mother.species_data.egg_groups.include?(:Ditto)]
+30	      father_data = [father, father.species_data.egg_groups.include?(:Ditto)]
+31	      # Determine which parent the egg's species is based from
+32	      species_parent = (mother_data[1]) ? father : mother
+33	      # Determine the egg's species
+34	      baby_species = determine_egg_species(species_parent.species, mother, father)
+35	      mother_data.push(mother.species_data.breeding_can_produce?(baby_species))
+36	      father_data.push(father.species_data.breeding_can_produce?(baby_species))
+37	      # Generate egg
+38	      egg = generate_basic_egg(baby_species)
+39	      # Inherit properties from parent(s)
+40	      inherit_form(egg, species_parent, mother_data, father_data)
+41	      inherit_nature(egg, mother, father)
+42	      inherit_ability(egg, mother_data, father_data)
+43	      inherit_moves(egg, mother_data, father_data)
+44	      inherit_IVs(egg, mother, father)
+45	      inherit_poke_ball(egg, mother_data, father_data)
+46	      # Calculate other properties of the egg
+47	      set_shininess(egg, mother, father)   # Masuda method and Shiny Charm
+48	      set_pokerus(egg)
+49	      # Recalculate egg's stats
+50	      egg.calc_stats
+51	      return egg
+52	    end
+53	
+54	    def determine_egg_species(parent_species, mother, father)
+55	      ret = GameData::Species.get(parent_species).get_baby_species(true, mother.item_id, father.item_id)
+56	      # Check for alternate offspring (i.e. Nidoran M/F, Volbeat/Illumise, Manaphy/Phione)
+57	      offspring = GameData::Species.get(ret).offspring
+58	      ret = offspring.sample if offspring.length > 0
+59	      return ret
+60	    end
+61	
+62	    def generate_basic_egg(species)
+63	      egg = Pokemon.new(species, Settings::EGG_LEVEL)
+64	      egg.name           = _INTL("Egg")
+65	      egg.steps_to_hatch = egg.species_data.hatch_steps
+66	      egg.obtain_text    = _INTL("Day-Care Couple")
+67	      egg.happiness      = 120
+68	      egg.form           = 0 if species == :SINISTEA
+69	      # Set regional form
+70	      new_form = MultipleForms.call("getFormOnEggCreation", egg)
+71	      egg.form = new_form if new_form
+72	      return egg
+73	    end
+74	
+75	    def inherit_form(egg, species_parent, mother, father)
+76	      # mother = [mother, mother_ditto, mother_in_family]
+77	      # father = [father, father_ditto, father_in_family]
+78	      # Inherit form from the parent that determined the egg's species
+79	      if species_parent.species_data.has_flag?("InheritFormFromMother")
+80	        egg.form = species_parent.form
+81	      end
+82	      # Inherit form from a parent holding an Ever Stone
+83	      [mother, father].each do |parent|
+84	        next if !parent[2]   # Parent isn't a related species to the egg
+85	        next if !parent[0].species_data.has_flag?("InheritFormWithEverStone")
+86	        next if !parent[0].hasItem?(:EVERSTONE)
+87	        egg.form = parent[0].form
+88	        break
+89	      end
+90	    end

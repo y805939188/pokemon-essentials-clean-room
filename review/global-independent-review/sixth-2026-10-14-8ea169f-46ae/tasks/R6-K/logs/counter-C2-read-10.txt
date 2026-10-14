@@ -1,0 +1,152 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/002_Battler_Initialize.rb RANGE 1-151 TOTAL 325
+1	class Battle::Battler
+2	  #=============================================================================
+3	  # Creating a battler
+4	  #=============================================================================
+5	  def initialize(btl, idxBattler)
+6	    @battle      = btl
+7	    @index       = idxBattler
+8	    @captured    = false
+9	    @dummy       = false
+10	    @stages      = {}
+11	    @effects     = []
+12	    @damageState = Battle::DamageState.new
+13	    pbInitBlank
+14	    pbInitEffects(false)
+15	  end
+16	
+17	  def pbInitBlank
+18	    @name           = ""
+19	    @species        = 0
+20	    @form           = 0
+21	    @level          = 0
+22	    @hp = @totalhp  = 0
+23	    @types          = []
+24	    @ability_id     = nil
+25	    @item_id        = nil
+26	    @attack = @defense = @spatk = @spdef = @speed = 0
+27	    @status         = :NONE
+28	    @statusCount    = 0
+29	    @pokemon        = nil
+30	    @pokemonIndex   = -1
+31	    @participants   = []
+32	    @moves          = []
+33	  end
+34	
+35	  # Used by Future Sight only, when Future Sight's user is no longer in battle.
+36	  def pbInitDummyPokemon(pkmn, idxParty)
+37	    raise _INTL("An egg can't be an active Pokémon.") if pkmn.egg?
+38	    @name         = pkmn.name
+39	    @species      = pkmn.species
+40	    @form         = pkmn.form
+41	    @level        = pkmn.level
+42	    @hp           = pkmn.hp
+43	    @totalhp      = pkmn.totalhp
+44	    @types        = pkmn.types
+45	    # ability and item intentionally not copied across here
+46	    @attack       = pkmn.attack
+47	    @defense      = pkmn.defense
+48	    @spatk        = pkmn.spatk
+49	    @spdef        = pkmn.spdef
+50	    @speed        = pkmn.speed
+51	    @status       = pkmn.status
+52	    @statusCount  = pkmn.statusCount
+53	    @pokemon      = pkmn
+54	    @pokemonIndex = idxParty
+55	    @participants = []
+56	    # moves intentionally not copied across here
+57	    @dummy        = true
+58	  end
+59	
+60	  def pbInitialize(pkmn, idxParty, batonPass = false)
+61	    pbInitPokemon(pkmn, idxParty)
+62	    pbInitEffects(batonPass)
+63	    @damageState.reset
+64	  end
+65	
+66	  def pbInitPokemon(pkmn, idxParty)
+67	    raise _INTL("An egg can't be an active Pokémon.") if pkmn.egg?
+68	    @name         = pkmn.name
+69	    @species      = pkmn.species
+70	    @form         = pkmn.form
+71	    @level        = pkmn.level
+72	    @hp           = pkmn.hp
+73	    @totalhp      = pkmn.totalhp
+74	    @types        = pkmn.types
+75	    @ability_id   = pkmn.ability_id
+76	    @item_id      = pkmn.item_id
+77	    @attack       = pkmn.attack
+78	    @defense      = pkmn.defense
+79	    @spatk        = pkmn.spatk
+80	    @spdef        = pkmn.spdef
+81	    @speed        = pkmn.speed
+82	    @status       = pkmn.status
+83	    @statusCount  = pkmn.statusCount
+84	    @pokemon      = pkmn
+85	    @pokemonIndex = idxParty
+86	    @participants = []   # Participants earn Exp. if this battler is defeated
+87	    @moves        = []
+88	    pkmn.moves.each_with_index do |m, i|
+89	      @moves[i] = Battle::Move.from_pokemon_move(@battle, m)
+90	    end
+91	  end
+92	
+93	  def pbInitEffects(batonPass)
+94	    if batonPass
+95	      # These effects are passed on if Baton Pass is used, but they need to be
+96	      # reapplied
+97	      @effects[PBEffects::LaserFocus] = (@effects[PBEffects::LaserFocus] > 0) ? 2 : 0
+98	      @effects[PBEffects::LockOn]     = (@effects[PBEffects::LockOn] > 0) ? 2 : 0
+99	      if @effects[PBEffects::PowerTrick]
+100	        @attack, @defense = @defense, @attack
+101	      end
+102	      # These effects are passed on if Baton Pass is used, but they need to be
+103	      # cancelled in certain circumstances anyway
+104	      @effects[PBEffects::Telekinesis] = 0 if isSpecies?(:GENGAR) && mega?
+105	      @effects[PBEffects::GastroAcid]  = false if unstoppableAbility?
+106	    else
+107	      # These effects are passed on if Baton Pass is used
+108	      GameData::Stat.each_battle { |stat| @stages[stat.id] = 0 }
+109	      @effects[PBEffects::AquaRing]          = false
+110	      @effects[PBEffects::Confusion]         = 0
+111	      @effects[PBEffects::Curse]             = false
+112	      @effects[PBEffects::Embargo]           = 0
+113	      @effects[PBEffects::FocusEnergy]       = 0
+114	      @effects[PBEffects::GastroAcid]        = false
+115	      @effects[PBEffects::HealBlock]         = 0
+116	      @effects[PBEffects::Ingrain]           = false
+117	      @effects[PBEffects::LaserFocus]        = 0
+118	      @effects[PBEffects::LeechSeed]         = -1
+119	      @effects[PBEffects::LockOn]            = 0
+120	      @effects[PBEffects::LockOnPos]         = -1
+121	      @effects[PBEffects::MagnetRise]        = 0
+122	      @effects[PBEffects::PerishSong]        = 0
+123	      @effects[PBEffects::PerishSongUser]    = -1
+124	      @effects[PBEffects::PowerTrick]        = false
+125	      @effects[PBEffects::Substitute]        = 0
+126	      @effects[PBEffects::Telekinesis]       = 0
+127	    end
+128	    @fainted                 = (@hp == 0)
+129	    @lastAttacker            = []
+130	    @lastFoeAttacker         = []
+131	    @lastHPLost              = 0
+132	    @lastHPLostFromFoe       = 0
+133	    @droppedBelowHalfHP      = false
+134	    @statsDropped            = false
+135	    @tookMoveDamageThisRound = false
+136	    @tookDamageThisRound     = false
+137	    @tookPhysicalHit         = false
+138	    @statsRaisedThisRound    = false
+139	    @statsLoweredThisRound   = false
+140	    @canRestoreIceFace       = false
+141	    @lastMoveUsed            = nil
+142	    @lastMoveUsedType        = nil
+143	    @lastRegularMoveUsed     = nil
+144	    @lastRegularMoveTarget   = -1
+145	    @lastRoundMoved          = -1
+146	    @lastMoveFailed          = false
+147	    @lastRoundMoveFailed     = false
+148	    @movesUsed               = []
+149	    @turnCount               = 0
+150	    @effects[PBEffects::Attract]             = -1
+151	    @battle.allBattlers.each do |b|   # Other battlers no longer attracted to self

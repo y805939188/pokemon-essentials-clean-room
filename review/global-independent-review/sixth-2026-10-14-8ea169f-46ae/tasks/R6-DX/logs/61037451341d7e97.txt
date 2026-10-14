@@ -1,0 +1,104 @@
+658:   def compile_encounters(*paths)
+659:     GameData::Encounter::DATA.clear
+660:     max_level = GameData::GrowthRate.max_level
+661:     paths.each do |path|
+662:       compile_pbs_file_message_start(path)
+663:       file_suffix = File.basename(path, ".txt")[GameData::Encounter::PBS_BASE_FILENAME.length + 1, path.length] || ""
+664:       encounter_hash = nil
+665:       step_chances   = nil
+666:       current_type   = nil
+667:       idx = 0
+668:       pbCompilerEachPreppedLine(path) do |line, line_no|
+669:         echo "." if idx % 100 == 0
+670:         idx += 1
+671:         Graphics.update if idx % 500 == 0
+672:         next if line.length == 0
+673:         if current_type && line[/^\d+,/]   # Species line
+674:           values = line.split(",").collect! { |v| v.strip }
+675:           if !values || values.length < 3
+676:             raise _INTL("Expected a species entry line for encounter type {1} for map {2}.",
+677:                         GameData::EncounterType.get(current_type).real_name, encounter_hash[:map]) + "\n" + FileLineData.linereport
+678:           end
+679:           values = get_csv_record(line, [nil, "vevV", nil, :Species])
+680:           values[3] = values[2] if !values[3]
+681:           if values[2] > max_level
+682:             raise _INTL("Level number {1} is not valid (max. {2}).", values[2], max_level) + "\n" + FileLineData.linereport
+683:           elsif values[3] > max_level
+684:             raise _INTL("Level number {1} is not valid (max. {2}).", values[3], max_level) + "\n" + FileLineData.linereport
+685:           elsif values[2] > values[3]
+686:             raise _INTL("Minimum level is greater than maximum level.") + "\n" + FileLineData.linereport
+687:           end
+688:           encounter_hash[:types][current_type].push(values)
+689:         elsif line[/^\[\s*(.+)\s*\]$/]   # Map ID line
+690:           values = $~[1].split(",").collect! { |v| v.strip.to_i }
+691:           values[1] = 0 if !values[1]
+692:           map_number = values[0]
+693:           map_version = values[1]
+694:           # Add map encounter's data to records
+695:           if encounter_hash
+696:             encounter_hash[:types].each_value do |slots|
+697:               next if !slots || slots.length == 0
+698:               slots.each_with_index do |slot, i|
+699:                 next if !slot
+700:                 slots.each_with_index do |other_slot, j|
+701:                   next if i == j || !other_slot
+702:                   next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]
+703:                   slot[0] += other_slot[0]
+704:                   slots[j] = nil
+705:                 end
+706:               end
+707:               slots.compact!
+708:               slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }
+709:             end
+710:             GameData::Encounter.register(encounter_hash)
+711:           end
+712:           # Raise an error if a map/version combo is used twice
+713:           key = sprintf("%s_%d", map_number, map_version).to_sym
+714:           if GameData::Encounter::DATA[key]
+715:             raise _INTL("Encounters for map '{1}' are defined twice.", map_number) + "\n" + FileLineData.linereport
+716:           end
+717:           step_chances = {}
+718:           # Construct encounter hash
+719:           encounter_hash = {
+720:             :id              => key,
+721:             :map             => map_number,
+722:             :version         => map_version,
+723:             :step_chances    => step_chances,
+724:             :types           => {},
+725:             :pbs_file_suffix => file_suffix
+726:           }
+727:           current_type = nil
+728:         elsif !encounter_hash   # File began with something other than a map ID line
+729:           raise _INTL("Expected a map number, got \"{1}\" instead.", line) + "\n" + FileLineData.linereport
+730:         else
+731:           # Check if line is an encounter method name or not
+732:           values = line.split(",").collect! { |v| v.strip }
+733:           current_type = (values[0] && !values[0].empty?) ? values[0].to_sym : nil
+734:           if current_type && GameData::EncounterType.exists?(current_type)   # Start of a new encounter method
+735:             step_chances[current_type] = values[1].to_i if values[1] && !values[1].empty?
+736:             step_chances[current_type] ||= GameData::EncounterType.get(current_type).trigger_chance
+737:             encounter_hash[:types][current_type] = []
+738:           else
+739:             raise _INTL("Undefined encounter type \"{1}\" for map '{2}'.", line, encounter_hash[:map]) + "\n" + FileLineData.linereport
+740:           end
+741:         end
+742:       end
+743:       # Add last map's encounter data to records
+744:       if encounter_hash
+745:         encounter_hash[:types].each_value do |slots|
+746:           next if !slots || slots.length == 0
+747:           slots.each_with_index do |slot, i|
+748:             next if !slot
+749:             slots.each_with_index do |other_slot, j|
+750:               next if i == j || !other_slot
+751:               next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]
+752:               slot[0] += other_slot[0]
+753:               slots[j] = nil
+754:             end
+755:           end
+756:           slots.compact!
+757:           slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }
+758:         end
+759:         GameData::Encounter.register(encounter_hash)
+760:       end
+761:       process_pbs_file_message_end

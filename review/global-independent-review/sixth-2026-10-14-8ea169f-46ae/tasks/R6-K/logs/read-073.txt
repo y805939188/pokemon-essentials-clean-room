@@ -1,0 +1,243 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/002_Files/001_FileTests.rb RANGE 243-484 TOTAL 484
+243	
+244	  def self.getSaveFileName(fileName)
+245	    File.join(getSaveFolder, fileName)
+246	  end
+247	
+248	  def self.getSaveFolder
+249	    # MKXP makes sure that this folder has been created
+250	    # once it starts. The location differs depending on
+251	    # the operating system:
+252	    # Windows: %APPDATA%
+253	    # Linux: $HOME/.local/share
+254	    # macOS (unsandboxed): $HOME/Library/Application Support
+255	    System.data_directory
+256	  end
+257	end
+258	
+259	#===============================================================================
+260	#
+261	#===============================================================================
+262	module FileTest
+263	  IMAGE_EXTENSIONS = [".png", ".gif"]   # ".jpg", ".jpeg", ".bmp",
+264	  AUDIO_EXTENSIONS = [".wav", ".ogg", ".mp3", ".midi", ".mid", ".wma"]
+265	
+266	  def self.audio_exist?(filename)
+267	    return RTP.exists?(filename, AUDIO_EXTENSIONS)
+268	  end
+269	
+270	  def self.image_exist?(filename)
+271	    return RTP.exists?(filename, IMAGE_EXTENSIONS)
+272	  end
+273	end
+274	
+275	#===============================================================================
+276	#
+277	#===============================================================================
+278	# Used to determine whether a data file exists (rather than a graphics or
+279	# audio file). Doesn't check RTP, but does check encrypted archives.
+280	# NOTE: pbGetFileChar checks anything added in MKXP's RTP setting, and matching
+281	#       mount points added through System.mount.
+282	def pbRgssExists?(filename)
+283	  return !pbGetFileChar(filename).nil? if FileTest.exist?("./Game.rgssad")
+284	  filename = canonicalize(filename)
+285	  return FileTest.exist?(filename)
+286	end
+287	
+288	# Opens an IO, even if the file is in an encrypted archive.
+289	# Doesn't check RTP for the file.
+290	# NOTE: load_data checks anything added in MKXP's RTP setting, and matching
+291	#       mount points added through System.mount.
+292	def pbRgssOpen(file, mode = nil)
+293	  # File.open("debug.txt", "ab") { |fw| fw.write([file, mode, Time.now.to_f].inspect + "\r\n") }
+294	  if !FileTest.exist?("./Game.rgssad")
+295	    if block_given?
+296	      File.open(file, mode) { |f| yield f }
+297	      return nil
+298	    else
+299	      return File.open(file, mode)
+300	    end
+301	  end
+302	  file = canonicalize(file)
+303	  Marshal.neverload = true
+304	  str = load_data(file, true)
+305	  if block_given?
+306	    StringInput.open(str) { |f| yield f }
+307	    return nil
+308	  else
+309	    return StringInput.open(str)
+310	  end
+311	end
+312	
+313	# Gets at least the first byte of a file. Doesn't check RTP, but does check
+314	# encrypted archives.
+315	def pbGetFileChar(file)
+316	  canon_file = canonicalize(file)
+317	  if !FileTest.exist?("./Game.rgssad")
+318	    return nil if !FileTest.exist?(canon_file)
+319	    return nil if file.last == "/"   # Is a directory
+320	    begin
+321	      File.open(canon_file, "rb") { |f| return f.read(1) }   # read one byte
+322	    rescue Errno::ENOENT, Errno::EINVAL, Errno::EACCES, Errno::EISDIR
+323	      return nil
+324	    end
+325	  end
+326	  str = nil
+327	  begin
+328	    str = load_data(canon_file, true)
+329	  rescue Errno::ENOENT, Errno::EINVAL, Errno::EACCES, Errno::EISDIR, RGSSError, MKXPError
+330	    str = nil
+331	  end
+332	  return str
+333	end
+334	
+335	def pbTryString(x)
+336	  ret = pbGetFileChar(x)
+337	  return nil_or_empty?(ret) ? nil : x
+338	end
+339	
+340	# Gets the contents of a file. Doesn't check RTP, but does check
+341	# encrypted archives.
+342	# NOTE: load_data will check anything added in MKXP's RTP setting, and matching
+343	#       mount points added through System.mount.
+344	def pbGetFileString(file)
+345	  file = canonicalize(file)
+346	  if !FileTest.exist?("./Game.rgssad")
+347	    return nil if !FileTest.exist?(file)
+348	    begin
+349	      File.open(file, "rb") { |f| return f.read }   # read all data
+350	    rescue Errno::ENOENT, Errno::EINVAL, Errno::EACCES
+351	      return nil
+352	    end
+353	  end
+354	  str = nil
+355	  begin
+356	    str = load_data(file, true)
+357	  rescue Errno::ENOENT, Errno::EINVAL, Errno::EACCES, RGSSError, MKXPError
+358	    str = nil
+359	  end
+360	  return str
+361	end
+362	
+363	#===============================================================================
+364	#
+365	#===============================================================================
+366	class StringInput
+367	  include Enumerable
+368	
+369	  attr_reader :lineno, :string
+370	
+371	  class << self
+372	    def new(str)
+373	      if block_given?
+374	        begin
+375	          f = super
+376	          yield f
+377	        ensure
+378	          f&.close
+379	        end
+380	      else
+381	        super
+382	      end
+383	    end
+384	    alias open new
+385	  end
+386	
+387	  def initialize(str)
+388	    @string = str
+389	    @pos = 0
+390	    @closed = false
+391	    @lineno = 0
+392	  end
+393	
+394	  def inspect
+395	    return "#<#{self.class}:#{@closed ? 'closed' : 'open'},src=#{@string[0, 30].inspect}>"
+396	  end
+397	
+398	  def close
+399	    raise IOError, "closed stream" if @closed
+400	    @pos = nil
+401	    @closed = true
+402	  end
+403	
+404	  def closed?; @closed; end
+405	
+406	  def pos
+407	    raise IOError, "closed stream" if @closed
+408	    [@pos, @string.size].min
+409	  end
+410	
+411	  alias tell pos
+412	
+413	  def rewind; seek(0); end
+414	
+415	  def pos=(value); seek(value); end
+416	
+417	  def seek(offset, whence = IO::SEEK_SET)
+418	    raise IOError, "closed stream" if @closed
+419	    case whence
+420	    when IO::SEEK_SET then @pos = offset
+421	    when IO::SEEK_CUR then @pos += offset
+422	    when IO::SEEK_END then @pos = @string.size - offset
+423	    else
+424	      raise ArgumentError, "unknown seek flag: #{whence}"
+425	    end
+426	    @pos = 0 if @pos < 0
+427	    @pos = [@pos, @string.size + 1].min
+428	    offset
+429	  end
+430	
+431	  def eof?
+432	    raise IOError, "closed stream" if @closed
+433	    @pos > @string.size
+434	  end
+435	
+436	  def each(&block)
+437	    raise IOError, "closed stream" if @closed
+438	    begin
+439	      @string.each(&block)
+440	    ensure
+441	      @pos = 0
+442	    end
+443	  end
+444	
+445	  def gets
+446	    raise IOError, "closed stream" if @closed
+447	    idx = @string.index("\n", @pos)
+448	    if idx
+449	      idx += 1  # "\n".size
+450	      line = @string[@pos...idx]
+451	      @pos = idx
+452	      @pos += 1 if @pos == @string.size
+453	    else
+454	      line = @string[@pos..-1]
+455	      @pos = @string.size + 1
+456	    end
+457	    @lineno += 1
+458	    line
+459	  end
+460	
+461	  def getc
+462	    raise IOError, "closed stream" if @closed
+463	    ch = @string[@pos]
+464	    @pos += 1
+465	    @pos += 1 if @pos == @string.size
+466	    ch
+467	  end
+468	
+469	  def read(len = nil)
+470	    raise IOError, "closed stream" if @closed
+471	    if !len
+472	      return nil if eof?
+473	      rest = @string[@pos...@string.size]
+474	      @pos = @string.size + 1
+475	      return rest
+476	    end
+477	    str = @string[@pos, len]
+478	    @pos += len
+479	    @pos += 1 if @pos == @string.size
+480	    str
+481	  end
+482	  alias read_all read
+483	  alias sysread read
+484	end

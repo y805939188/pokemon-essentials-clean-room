@@ -1,0 +1,232 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class AnimFrame
+5:   X          = 0
+6:   Y          = 1
+7:   ZOOMX      = 2
+8:   ANGLE      = 3
+9:   MIRROR     = 4
+10:   BLENDTYPE  = 5
+11:   VISIBLE    = 6
+12:   PATTERN    = 7
+13:   OPACITY    = 8
+14:   ZOOMY      = 11
+15:   COLORRED   = 12
+16:   COLORGREEN = 13
+17:   COLORBLUE  = 14
+18:   COLORALPHA = 15
+19:   TONERED    = 16
+20:   TONEGREEN  = 17
+21:   TONEBLUE   = 18
+22:   TONEGRAY   = 19
+23:   LOCKED     = 20
+24:   FLASHRED   = 21
+25:   FLASHGREEN = 22
+26:   FLASHBLUE  = 23
+27:   FLASHALPHA = 24
+28:   PRIORITY   = 25
+29:   FOCUS      = 26
+30: end
+31: 
+32: #===============================================================================
+33: #
+34: #===============================================================================
+35: def yaxisIntersect(x1, y1, x2, y2, px, py)
+36:   dx = x2 - x1
+37:   dy = y2 - y1
+38:   x = (dx == 0) ? 0.0 : (px - x1).to_f / dx
+39:   y = (dy == 0) ? 0.0 : (py - y1).to_f / dy
+40:   return [x, y]
+41: end
+42: 
+43: def repositionY(x1, y1, x2, y2, tx, ty)
+44:   dx = x2 - x1
+45:   dy = y2 - y1
+46:   x = x1 + (tx * dx.to_f)
+47:   y = y1 + (ty * dy.to_f)
+48:   return [x, y]
+49: end
+50: 
+51: def transformPoint(x1, y1, x2, y2,  # Source line
+52:                    x3, y3, x4, y4,  # Destination line
+53:                    px, py)        # Source point
+54:   ret = yaxisIntersect(x1, y1, x2, y2, px, py)
+55:   ret2 = repositionY(x3, y3, x4, y4, ret[0], ret[1])
+56:   return ret2
+57: end
+58: 
+59: def getSpriteCenter(sprite)
+60:   return [0, 0] if !sprite || sprite.disposed?
+61:   return [sprite.x, sprite.y] if !sprite.bitmap || sprite.bitmap.disposed?
+62:   centerX = sprite.src_rect.width / 2
+63:   centerY = sprite.src_rect.height / 2
+64:   offsetX = (centerX - sprite.ox) * sprite.zoom_x
+65:   offsetY = (centerY - sprite.oy) * sprite.zoom_y
+66:   return [sprite.x + offsetX, sprite.y + offsetY]
+67: end
+68: 
+69: def isReversed(src0, src1, dst0, dst1)
+70:   return false if src0 == src1
+71:   return (dst0 > dst1) if src0 < src1
+72:   return (dst0 < dst1)
+73: end
+74: 
+75: def pbCreateCel(x, y, pattern, focus = 4)
+76:   frame = []
+77:   frame[AnimFrame::X]       = x
+78:   frame[AnimFrame::Y]       = y
+79:   frame[AnimFrame::PATTERN] = pattern
+80:   frame[AnimFrame::FOCUS]   = focus   # 1=target, 2=user, 3=user and target, 4=screen
+81:   frame[AnimFrame::LOCKED]  = 0
+82:   pbResetCel(frame)
+83:   return frame
+84: end
+85: 
+86: def pbResetCel(frame)
+87:   return if !frame
+88:   frame[AnimFrame::ZOOMX]      = 100
+89:   frame[AnimFrame::ZOOMY]      = 100
+90:   frame[AnimFrame::BLENDTYPE]  = 0
+91:   frame[AnimFrame::VISIBLE]    = 1
+92:   frame[AnimFrame::ANGLE]      = 0
+93:   frame[AnimFrame::MIRROR]     = 0
+94:   frame[AnimFrame::OPACITY]    = 255
+95:   frame[AnimFrame::COLORRED]   = 0
+96:   frame[AnimFrame::COLORGREEN] = 0
+97:   frame[AnimFrame::COLORBLUE]  = 0
+98:   frame[AnimFrame::COLORALPHA] = 0
+99:   frame[AnimFrame::TONERED]    = 0
+100:   frame[AnimFrame::TONEGREEN]  = 0
+101:   frame[AnimFrame::TONEBLUE]   = 0
+102:   frame[AnimFrame::TONEGRAY]   = 0
+103:   frame[AnimFrame::FLASHRED]   = 0
+104:   frame[AnimFrame::FLASHGREEN] = 0
+105:   frame[AnimFrame::FLASHBLUE]  = 0
+106:   frame[AnimFrame::FLASHALPHA] = 0
+107:   frame[AnimFrame::PRIORITY]   = 1   # 0=back, 1=front, 2=behind focus, 3=before focus
+108: end
+109: 
+110: #===============================================================================
+111: #
+112: #===============================================================================
+113: def pbConvertRPGAnimation(animation)
+114:   pbAnim = PBAnimation.new
+115:   pbAnim.id       = animation.id
+116:   pbAnim.name     = animation.name.clone
+117:   pbAnim.graphic  = animation.animation_name
+118:   pbAnim.hue      = animation.animation_hue
+119:   pbAnim.array.clear
+120:   yOffset = 0
+121:   pbAnim.position = animation.position
+122:   yOffset = -64 if animation.position == 0
+123:   yOffset = 64 if animation.position == 2
+124:   animation.frames.length.times do |i|
+125:     frame = pbAnim.addFrame
+126:     animFrame = animation.frames[i]
+127:     animFrame.cell_max.times do |j|
+128:       data = animFrame.cell_data
+129:       if data[j, 0] == -1
+130:         frame.push(nil)
+131:         next
+132:       end
+133:       if animation.position == 3   # Screen
+134:         point = transformPoint(
+135:           -160, 80, 160, -80,
+136:           Battle::Scene::FOCUSUSER_X, Battle::Scene::FOCUSUSER_Y,
+137:           Battle::Scene::FOCUSTARGET_X, Battle::Scene::FOCUSTARGET_Y,
+138:           data[j, 1], data[j, 2]
+139:         )
+140:         cel = pbCreateCel(point[0], point[1], data[j, 0])
+141:       else
+142:         cel = pbCreateCel(data[j, 1], data[j, 2] + yOffset, data[j, 0])
+143:       end
+144:       cel[AnimFrame::ZOOMX]     = data[j, 3]
+145:       cel[AnimFrame::ZOOMY]     = data[j, 3]
+146:       cel[AnimFrame::ANGLE]     = data[j, 4]
+147:       cel[AnimFrame::MIRROR]    = data[j, 5]
+148:       cel[AnimFrame::OPACITY]   = data[j, 6]
+149:       cel[AnimFrame::BLENDTYPE] = 0
+150:       frame.push(cel)
+151:     end
+152:   end
+153:   animation.timings.each do |timing|
+154:     newTiming = PBAnimTiming.new
+155:     newTiming.frame         = timing.frame
+156:     newTiming.name          = timing.se.name
+157:     newTiming.volume        = timing.se.volume
+158:     newTiming.pitch         = timing.se.pitch
+159:     newTiming.flashScope    = timing.flash_scope
+160:     newTiming.flashColor    = timing.flash_color.clone
+161:     newTiming.flashDuration = timing.flash_duration
+162:     pbAnim.timing.push(newTiming)
+163:   end
+164:   return pbAnim
+165: end
+166: 
+167: #===============================================================================
+168: #
+169: #===============================================================================
+170: class RPG::Animation
+171:   def self.fromOther(otherAnim, id)
+172:     ret = RPG::Animation.new
+173:     ret.id             = id
+174:     ret.name           = otherAnim.name.clone
+175:     ret.animation_name = otherAnim.animation_name.clone
+176:     ret.animation_hue  = otherAnim.animation_hue
+177:     ret.position       = otherAnim.position
+178:     return ret
+179:   end
+180: 
+181:   def addSound(frame, se)
+182:     timing = RPG::Animation::Timing.new
+183:     timing.frame = frame
+184:     timing.se    = RPG::AudioFile.new(se, 100)
+185:     self.timings.push(timing)
+186:   end
+187: 
+188:   # frame is zero-based.
+189:   def addAnimation(otherAnim, frame, x, y)
+190:     if frame + otherAnim.frames.length >= self.frames.length
+191:       totalframes = frame + otherAnim.frames.length + 1
+192:       (totalframes - self.frames.length).times do
+193:         self.frames.push(RPG::Animation::Frame.new)
+194:       end
+195:     end
+196:     self.frame_max = self.frames.length
+197:     otherAnim.frame_max.times do |i|
+198:       thisframe = self.frames[frame + i]
+199:       otherframe = otherAnim.frames[i]
+200:       cellStart = thisframe.cell_max
+201:       thisframe.cell_max += otherframe.cell_max
+202:       thisframe.cell_data.resize(thisframe.cell_max, 8)
+203:       otherframe.cell_max.times do |j|
+204:         thisframe.cell_data[cellStart + j, 0] = otherframe.cell_data[j, 0]
+205:         thisframe.cell_data[cellStart + j, 1] = otherframe.cell_data[j, 1] + x
+206:         thisframe.cell_data[cellStart + j, 2] = otherframe.cell_data[j, 2] + y
+207:         thisframe.cell_data[cellStart + j, 3] = otherframe.cell_data[j, 3]
+208:         thisframe.cell_data[cellStart + j, 4] = otherframe.cell_data[j, 4]
+209:         thisframe.cell_data[cellStart + j, 5] = otherframe.cell_data[j, 5]
+210:         thisframe.cell_data[cellStart + j, 6] = otherframe.cell_data[j, 6]
+211:         thisframe.cell_data[cellStart + j, 7] = otherframe.cell_data[j, 7]
+212:       end
+213:     end
+214:     otherAnim.timings.each do |othertiming|
+215:       timing = RPG::Animation::Timing.new
+216:       timing.frame          = frame + othertiming.frame
+217:       timing.se             = RPG::AudioFile.new(othertiming.se.name.clone,
+218:                                                  othertiming.se.volume,
+219:                                                  othertiming.se.pitch)
+220:       timing.flash_scope    = othertiming.flash_scope
+221:       timing.flash_color    = othertiming.flash_color.clone
+222:       timing.flash_duration = othertiming.flash_duration
+223:       timing.condition      = othertiming.condition
+224:       self.timings.push(timing)
+225:     end
+226:     self.timings.sort! { |a, b| a.frame <=> b.frame }
+227:   end
+228: end
+229: 
+230: #===============================================================================
+231: #
+232: #===============================================================================

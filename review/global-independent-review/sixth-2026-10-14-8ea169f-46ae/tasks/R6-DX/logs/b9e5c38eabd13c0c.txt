@@ -1,0 +1,268 @@
+311:     @mapspritepos = {}
+312:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+313:     @viewport.z = 99999
+314:     @lasthitmap = -1
+315:     @lastclick = -1
+316:     @oldmousex = nil
+317:     @oldmousey = nil
+318:     @dragging = false
+319:     @dragmapid = -1
+320:     @dragOffsetX = 0
+321:     @dragOffsetY = 0
+322:     @selmapid = -1
+323:     @sprites["background"] = ColoredPlane.new(Color.new(160, 208, 240), @viewport)
+324:     @sprites["selsprite"] = SelectionSprite.new(@viewport)
+325:     @sprites["title"] = Window_UnformattedTextPokemon.newWithSize(
+326:       _INTL("D: Help"), 0, Graphics.height - 64, Graphics.width, 64, @viewport
+327:     )
+328:     @sprites["title"].z = 2
+329:     @mapinfos = pbLoadMapInfos
+330:     conns = MapFactoryHelper.getMapConnections
+331:     @mapconns = []
+332:     conns.each do |map_conns|
+333:       next if !map_conns
+334:       map_conns.each do |c|
+335:         @mapconns.push(c.clone) if @mapconns.none? { |x| x[0] == c[0] && x[3] == c[3] }
+336:       end
+337:     end
+338:     if $game_map
+339:       @currentmap = $game_map.map_id
+340:     else
+341:       @currentmap = ($data_system) ? $data_system.edit_map_id : 1
+342:     end
+343:     putSprite(@currentmap)
+344:   end
+345: 
+346:   def setTopSprite(id)
+347:     @mapsprites.each_key do |i|
+348:       @mapsprites[i].z = (i == id) ? 1 : 0
+349:     end
+350:   end
+351: 
+352:   def helpWindow
+353:     helptext = _INTL("A: Add map to canvas") + "\n"
+354:     helptext += _INTL("DEL: Delete map from canvas") + "\n"
+355:     helptext += _INTL("S: Go to another map") + "\n"
+356:     helptext += _INTL("Click to select a map") + "\n"
+357:     helptext += _INTL("Double-click: Edit map's metadata") + "\n"
+358:     helptext += _INTL("Drag map to move it") + "\n"
+359:     helptext += _INTL("Arrow keys/drag canvas: Move around canvas")
+360:     title = Window_UnformattedTextPokemon.newWithSize(
+361:       helptext, 0, 0, Graphics.width * 8 / 10, Graphics.height, @viewport
+362:     )
+363:     title.z = 2
+364:     loop do
+365:       Graphics.update
+366:       Input.update
+367:       break if Input.trigger?(Input::BACK) || Input.trigger?(Input::USE)
+368:     end
+369:     Input.update
+370:     title.dispose
+371:   end
+372: 
+373:   def getMapRect(mapid)
+374:     sprite = getMapSprite(mapid)
+375:     return nil if !sprite
+376:     return [sprite.x, sprite.y,
+377:             sprite.x + sprite.bitmap.width, sprite.y + sprite.bitmap.height]
+378:   end
+379: 
+380:   def onDoubleClick(map_id)
+381:     pbEditMapMetadata(map_id) if map_id > 0
+382:   end
+383: 
+384:   def onClick(mapid, x, y)
+385:     if @lastclick > 0 && System.uptime - @lastclick <= 0.5
+386:       onDoubleClick(mapid)
+387:       @lastclick = -1
+388:     else
+389:       @lastclick = System.uptime
+390:       if mapid >= 0
+391:         @dragging = true
+392:         @dragmapid = mapid
+393:         sprite = getMapSprite(mapid)
+394:         @sprites["selsprite"].othersprite = sprite
+395:         @selmapid = mapid
+396:         @dragOffsetX = sprite.x - x
+397:         @dragOffsetY = sprite.y - y
+398:         setTopSprite(mapid)
+399:       else
+400:         @sprites["selsprite"].othersprite = nil
+401:         @dragging = true
+402:         @dragmapid = mapid
+403:         @selmapid = -1
+404:         @dragOffsetX = x
+405:         @dragOffsetY = y
+406:         saveMapSpritePos
+407:       end
+408:     end
+409:   end
+410: 
+411:   def onRightClick(mapid, x, y)
+412: #   echoln "rightclick (#{mapid})"
+413:   end
+414: 
+415:   def onMouseUp(mapid)
+416: #   echoln "mouseup (#{mapid})"
+417:     @dragging = false if @dragging
+418:   end
+419: 
+420:   def onRightMouseUp(mapid)
+421: #   echoln "rightmouseup (#{mapid})"
+422:   end
+423: 
+424:   def onMouseOver(mapid, x, y)
+425: #   echoln "mouseover (#{mapid},#{x},#{y})"
+426:   end
+427: 
+428:   def onMouseMove(mapid, x, y)
+429: #   echoln "mousemove (#{mapid},#{x},#{y})"
+430:     if @dragging
+431:       if @dragmapid >= 0
+432:         sprite = getMapSprite(@dragmapid)
+433:         x += @dragOffsetX
+434:         y += @dragOffsetY
+435:         sprite.x = x & ~3
+436:         sprite.y = y & ~3
+437:         @sprites["title"].text = _ISPRINTF("D: Help [{1:03d}: {2:s}]", mapid, @mapinfos[@dragmapid].name)
+438:       else
+439:         xpos = x - @dragOffsetX
+440:         ypos = y - @dragOffsetY
+441:         @mapspritepos.each_key do |i|
+442:           sprite = getMapSprite(i)
+443:           sprite.x = (@mapspritepos[i][0] + xpos) & ~3
+444:           sprite.y = (@mapspritepos[i][1] + ypos) & ~3
+445:         end
+446:         @sprites["title"].text = _INTL("D: Help")
+447:       end
+448:     elsif mapid >= 0
+449:       @sprites["title"].text = _ISPRINTF("D: Help [{1:03d}: {2:s}]", mapid, @mapinfos[mapid].name)
+450:     else
+451:       @sprites["title"].text = _INTL("D: Help")
+452:     end
+453:   end
+454: 
+455:   def hittest(x, y)
+456:     @mapsprites.each_key do |i|
+457:       sx = @mapsprites[i].x
+458:       sy = @mapsprites[i].y
+459:       sr = sx + @mapsprites[i].bitmap.width
+460:       sb = sy + @mapsprites[i].bitmap.height
+461:       return i if x >= sx && x < sr && y >= sy && y < sb
+462:     end
+463:     return -1
+464:   end
+465: 
+466:   def chooseMapScreen(title, currentmap)
+467:     return pbListScreen(title, MapLister.new(currentmap))
+468:   end
+469: 
+470:   def update
+471:     mousepos = Mouse.getMousePos
+472:     if mousepos
+473:       hitmap = hittest(mousepos[0], mousepos[1])
+474:       if Input.trigger?(Input::MOUSELEFT)
+475:         onClick(hitmap, mousepos[0], mousepos[1])
+476:       elsif Input.trigger?(Input::MOUSERIGHT)
+477:         onRightClick(hitmap, mousepos[0], mousepos[1])
+478:       elsif Input.release?(Input::MOUSELEFT)
+479:         onMouseUp(hitmap)
+480:       elsif Input.release?(Input::MOUSERIGHT)
+481:         onRightMouseUp(hitmap)
+482:       else
+483:         if @lasthitmap != hitmap
+484:           onMouseOver(hitmap, mousepos[0], mousepos[1])
+485:           @lasthitmap = hitmap
+486:         end
+487:         if @oldmousex != mousepos[0] || @oldmousey != mousepos[1]
+488:           onMouseMove(hitmap, mousepos[0], mousepos[1])
+489:           @oldmousex = mousepos[0]
+490:           @oldmousey = mousepos[1]
+491:         end
+492:       end
+493:     end
+494:     if Input.press?(Input::UP)
+495:       @mapsprites.each do |i|
+496:         i[1].y += 4 if i
+497:       end
+498:     end
+499:     if Input.press?(Input::DOWN)
+500:       @mapsprites.each do |i|
+501:         i[1].y -= 4 if i
+502:       end
+503:     end
+504:     if Input.press?(Input::LEFT)
+505:       @mapsprites.each do |i|
+506:         i[1].x += 4 if i
+507:       end
+508:     end
+509:     if Input.press?(Input::RIGHT)
+510:       @mapsprites.each do |i|
+511:         i[1].x -= 4 if i
+512:       end
+513:     end
+514:     if Input.triggerex?(:A)
+515:       id = chooseMapScreen(_INTL("Add Map"), @currentmap)
+516:       if id > 0
+517:         addSprite(id)
+518:         setTopSprite(id)
+519:         @mapconns = generateConnectionData
+520:       end
+521:     elsif Input.triggerex?(:S)
+522:       id = chooseMapScreen(_INTL("Go to Map"), @currentmap)
+523:       if id > 0
+524:         @mapconns = generateConnectionData
+525:         pbDisposeSpriteHash(@mapsprites)
+526:         @mapsprites.clear
+527:         @sprites["selsprite"].othersprite = nil
+528:         @selmapid = -1
+529:         putSprite(id)
+530:         @currentmap = id
+531:       end
+532:     elsif Input.triggerex?(:DELETE)
+533:       if @mapsprites.keys.length > 1 && @selmapid >= 0
+534:         @mapsprites[@selmapid].bitmap.dispose
+535:         @mapsprites[@selmapid].dispose
+536:         @mapsprites.delete(@selmapid)
+537:         @sprites["selsprite"].othersprite = nil
+538:         @selmapid = -1
+539:       end
+540:     elsif Input.triggerex?(:D)
+541:       helpWindow
+542:     end
+543:     pbUpdateSpriteHash(@sprites)
+544:   end
+545: 
+546:   def pbMapScreenLoop
+547:     loop do
+548:       Graphics.update
+549:       Input.update
+550:       update
+551:       if Input.trigger?(Input::BACK)
+552:         if pbConfirmMessage(_INTL("Save changes?"))
+553:           serializeConnectionData
+554:           MapFactoryHelper.clear
+555:         else
+556:           GameData::Encounter.load
+557:         end
+558:         break if pbConfirmMessage(_INTL("Exit from the editor?"))
+559:       end
+560:     end
+561:   end
+562: end
+563: 
+564: #===============================================================================
+565: #
+566: #===============================================================================
+567: def pbConnectionsEditor
+568:   pbCriticalCode do
+569:     Graphics.resize_screen(Settings::SCREEN_WIDTH + 288, Settings::SCREEN_HEIGHT + 288)
+570:     pbSetResizeFactor(1)
+571:     mapscreen = MapScreenScene.new
+572:     mapscreen.mapScreen
+573:     mapscreen.pbMapScreenLoop
+574:     mapscreen.close
+575:     Graphics.resize_screen(Settings::SCREEN_WIDTH, Settings::SCREEN_HEIGHT)
+576:     pbSetResizeFactor($PokemonSystem.screensize)
+577:   end
+578: end

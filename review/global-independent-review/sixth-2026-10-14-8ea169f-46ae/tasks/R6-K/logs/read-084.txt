@@ -1,0 +1,211 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/003_Intl_Messages.rb RANGE 211-420 TOTAL 823
+211	    end
+212	  end
+213	
+214	  def normalize_value(value)
+215	    if value[/[\r\n\t\x01]|^[\[\]]/]
+216	      ret = value.dup
+217	      ret.gsub!(/\r/, "<<r>>")
+218	      ret.gsub!(/\n/, "<<n>>")
+219	      ret.gsub!(/\t/, "<<t>>")
+220	      ret.gsub!(/\[/, "<<[>>")
+221	      ret.gsub!(/\]/, "<<]>>")
+222	      ret.gsub!(/\x01/, "<<1>>")
+223	      return ret
+224	    end
+225	    return value
+226	  end
+227	
+228	  def denormalize_value(value)
+229	    if value[/<<[rnt1\[\]]>>/]
+230	      ret = value.dup
+231	      ret.gsub!(/<<1>>/, "\1")
+232	      ret.gsub!(/<<r>>/, "\r")
+233	      ret.gsub!(/<<n>>/, "\n")
+234	      ret.gsub!(/<<\[>>/, "[")
+235	      ret.gsub!(/<<\]>>/, "]")
+236	      ret.gsub!(/<<t>>/, "\t")
+237	      return ret
+238	    end
+239	    return value
+240	  end
+241	
+242	  #-----------------------------------------------------------------------------
+243	
+244	  def extract_text(language_name = "default", core_text = false, separate_map_files = false)
+245	    dir_name = sprintf("Text_%s_%s", language_name, (core_text) ? "core" : "game")
+246	    msg_window = pbCreateMessageWindow
+247	    # Get text for extraction
+248	    orig_messages = Translation.new(language_name)
+249	    if core_text
+250	      language_messages = orig_messages.core_messages
+251	      default_messages = orig_messages.default_core_messages
+252	      if !default_messages || default_messages.length == 0
+253	        pbMessageDisplay(msg_window, _INTL("The default core messages file \"messages_core.dat\" was not found."))
+254	        pbDisposeMessageWindow(msg_window)
+255	        return
+256	      end
+257	    else
+258	      language_messages = orig_messages.game_messages
+259	      default_messages = orig_messages.default_game_messages
+260	      if !default_messages || default_messages.length == 0
+261	        pbMessageDisplay(msg_window, _INTL("The default game messages file \"messages_game.dat\" was not found."))
+262	        pbDisposeMessageWindow(msg_window)
+263	        return
+264	      end
+265	    end
+266	    # Create folder for extracted text files, or delete existing text files from
+267	    # existing destination folder
+268	    if Dir.safe?(dir_name)
+269	      has_files = false
+270	      Dir.all(dir_name).each do |f|
+271	        has_files = true
+272	        break
+273	      end
+274	      if has_files && !pbConfirmMessageSerious(_INTL("Replace all text files in folder '{1}'?", dir_name))
+275	        pbDisposeMessageWindow(msg_window)
+276	        return
+277	      end
+278	      Dir.all(dir_name).each { |f| File.delete(f) }
+279	    else
+280	      Dir.create(dir_name)
+281	    end
+282	    # Create a lambda function that helps to write text files
+283	    write_header = lambda do |f, with_line|
+284	      f.write(0xEF.chr)
+285	      f.write(0xBB.chr)
+286	      f.write(0xBF.chr)
+287	      f.write("# To localize this text for a particular language, please" + "\r\n")
+288	      f.write("# translate every second line of this file." + "\r\n")
+289	      f.write("\#-------------------------------\r\n") if with_line
+290	    end
+291	    # Extract the text
+292	    pbMessageDisplay(msg_window, "\\ts[]" + _INTL("Extracting text, please wait.") + "\\wtnp[0]")
+293	    # Get all the section IDs to cycle through
+294	    max_section_id = default_messages.length
+295	    max_section_id = language_messages.length if language_messages && language_messages.length > max_section_id
+296	    max_section_id.times do |i|
+297	      section_name = getConstantName(MessageTypes, i, false)
+298	      next if !section_name
+299	      if i == MessageTypes::EVENT_TEXTS
+300	        if separate_map_files
+301	          map_infos = pbLoadMapInfos
+302	          default_messages[i].each_with_index do |map_msgs, map_id|
+303	            next if !map_msgs || map_msgs.length == 0
+304	            filename = sprintf("Map%03d", map_id)
+305	            filename += " " + map_infos[map_id].name if map_infos[map_id]
+306	            File.open(dir_name + "/" + filename + ".txt", "wb") do |f|
+307	              write_header.call(f, true)
+308	              translated_msgs = language_messages[i][map_id] if language_messages && language_messages[i]
+309	              write_section_texts_to_file(f, sprintf("Map%03d", map_id), translated_msgs, map_msgs)
+310	            end
+311	          end
+312	        else
+313	          next if !default_messages[i] || default_messages[i].length == 0
+314	          no_difference = true
+315	          default_messages[i].each do |map_msgs|
+316	            no_difference = false if map_msgs && map_msgs.length > 0
+317	            break if !map_msgs
+318	          end
+319	          next if no_difference
+320	          File.open(dir_name + "/" + section_name + ".txt", "wb") do |f|
+321	            write_header.call(f, false)
+322	            default_messages[i].each_with_index do |map_msgs, map_id|
+323	              next if !map_msgs || map_msgs.length == 0
+324	              f.write("\#-------------------------------\r\n")
+325	              translated_msgs = (language_messages && language_messages[i]) ? language_messages[i][map_id] : nil
+326	              write_section_texts_to_file(f, sprintf("Map%03d", map_id), translated_msgs, map_msgs)
+327	            end
+328	          end
+329	        end
+330	      else   # MessageTypes sections
+331	        next if !default_messages[i] || default_messages[i].length == 0
+332	        File.open(dir_name + "/" + section_name + ".txt", "wb") do |f|
+333	          write_header.call(f, true)
+334	          translated_msgs = (language_messages) ? language_messages[i] : nil
+335	          write_section_texts_to_file(f, section_name, translated_msgs, default_messages[i])
+336	        end
+337	      end
+338	    end
+339	    msg_window.textspeed = MessageConfig.pbSettingToTextSpeed($PokemonSystem.textspeed)
+340	    if core_text
+341	      pbMessageDisplay(msg_window, _INTL("All core text was extracted to files in the folder \"{1}\".", dir_name) + "\1")
+342	    else
+343	      pbMessageDisplay(msg_window, _INTL("All game text was extracted to files in the folder \"{1}\".", dir_name) + "\1")
+344	    end
+345	    pbMessageDisplay(msg_window, _INTL("To localize this text, translate every second line in those files.") + "\1")
+346	    pbMessageDisplay(msg_window, _INTL("After translating, choose \"Compile Translated Text\" in the Debug menu."))
+347	    pbDisposeMessageWindow(msg_window)
+348	  end
+349	
+350	  def write_section_texts_to_file(f, section_name, language_msgs, original_msgs = nil)
+351	    return if !original_msgs
+352	    case original_msgs
+353	    when Array
+354	      f.write("[#{section_name}]\r\n")
+355	      original_msgs.length.times do |j|
+356	        next if nil_or_empty?(original_msgs[j])
+357	        f.write("#{j}\r\n")
+358	        f.write(normalize_value(original_msgs[j]) + "\r\n")
+359	        text = (language_msgs && language_msgs[j]) ? language_msgs[j] : original_msgs[j]
+360	        f.write(normalize_value(text) + "\r\n")
+361	      end
+362	    when Hash
+363	      f.write("[#{section_name}]\r\n")
+364	      keys = original_msgs.keys
+365	      keys.each do |key|
+366	        next if nil_or_empty?(original_msgs[key])
+367	        f.write(normalize_value(key) + "\r\n")
+368	        text = (language_msgs && language_msgs[key]) ? language_msgs[key] : original_msgs[key]
+369	        f.write(normalize_value(text) + "\r\n")
+370	      end
+371	    end
+372	  end
+373	
+374	  #-----------------------------------------------------------------------------
+375	
+376	  def compile_text(dir_name, dat_filename)
+377	    msg_window = pbCreateMessageWindow
+378	    pbMessageDisplay(msg_window, "\\ts[]" + _INTL("Compiling text, please wait.") + "\\wtnp[0]")
+379	    outfile = File.open("Data/messages_" + dat_filename + ".dat", "wb")
+380	    all_text = []
+381	    begin
+382	      text_files = Dir.get("Text_" + dir_name, "*.txt")
+383	      text_files.each { |file| compile_text_from_file(file, all_text) }
+384	      Marshal.dump(all_text, outfile)
+385	    rescue
+386	      raise
+387	    ensure
+388	      outfile.close
+389	    end
+390	    msg_window.textspeed = MessageConfig.pbSettingToTextSpeed($PokemonSystem.textspeed)
+391	    pbMessageDisplay(msg_window,
+392	       _INTL("Text files in the folder \"Text_{1}\" were successfully compiled into file \"Data/messages_{2}.dat\".", dir_name, dat_filename))
+393	    pbMessageDisplay(msg_window, _INTL("You may need to close the game to see any changes to messages."))
+394	    pbDisposeMessageWindow(msg_window)
+395	  end
+396	
+397	  def compile_text_from_file(text_file, all_text)
+398	    begin
+399	      file = File.open(text_file, "rb")
+400	    rescue
+401	      raise _INTL("Can't find or open '{1}'.", text_file)
+402	    end
+403	    begin
+404	      Compiler.pbEachSection(file) do |contents, section_name|
+405	        next if contents.length == 0
+406	        # Get the section number and whether the section contains a map's event text
+407	        section_id = -1
+408	        is_map = false
+409	        if section_name.to_i != 0   # Section name is a number
+410	          section_id = section_name.to_i
+411	        elsif hasConst?(MessageTypes, section_name)   # Section name is a constant from MessageTypes
+412	          section_id = getConst(MessageTypes, section_name)
+413	        elsif section_name[/^Map(\d+)$/i]   # Section name is a map number (event text)
+414	          is_map = true
+415	          section_id = $~[1].to_i
+416	        end
+417	        raise _INTL("Invalid section name {1}", section_name) if section_id < 0
+418	        # Decide whether the section contains text stored in an ordered list (an
+419	        # array) or an ordered hash
+420	        item_length = 0

@@ -1,0 +1,410 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: def pbGetLegalMoves(species)
+5:   species_data = GameData::Species.get(species)
+6:   moves = []
+7:   return moves if !species_data
+8:   species_data.moves.each { |m| moves.push(m[1]) }
+9:   species_data.tutor_moves.each { |m| moves.push(m) }
+10:   babyspecies = species_data.get_baby_species
+11:   GameData::Species.get(babyspecies).egg_moves.each { |m| moves.push(m) }
+12:   moves |= []   # Remove duplicates
+13:   return moves
+14: end
+15: 
+16: def pbSafeCopyFile(x, y, z = nil)
+17:   if FileTest.exist?(x)
+18:     safetocopy = true
+19:     filedata = nil
+20:     if FileTest.exist?(y)
+21:       different = false
+22:       if FileTest.size(x) == FileTest.size(y)
+23:         filedata2 = ""
+24:         File.open(x, "rb") { |f| filedata  = f.read }
+25:         File.open(y, "rb") { |f| filedata2 = f.read }
+26:         different = true if filedata != filedata2
+27:       else
+28:         different = true
+29:       end
+30:       if different
+31:         safetocopy = pbConfirmMessage(_INTL("A different file named '{1}' already exists. Overwrite it?", y))
+32:       else
+33:         # No need to copy
+34:         return
+35:       end
+36:     end
+37:     if safetocopy
+38:       if !filedata
+39:         File.open(x, "rb") { |f| filedata = f.read }
+40:       end
+41:       File.open((z) ? z : y, "wb") { |f| f.write(filedata) }
+42:     end
+43:   end
+44: end
+45: 
+46: def pbAllocateAnimation(animations, name)
+47:   (1...animations.length).each do |i|
+48:     anim = animations[i]
+49:     return i if !anim
+50: #    if name && name!="" && anim.name==name
+51: #      # use animation with same name
+52: #      return i
+53: #    end
+54:     if anim.length == 1 && anim[0].length == 2 && anim.name == ""
+55:       # assume empty
+56:       return i
+57:     end
+58:   end
+59:   oldlength = animations.length
+60:   animations.resize(10)
+61:   return oldlength
+62: end
+63: 
+64: def pbMapTree
+65:   mapinfos = pbLoadMapInfos
+66:   maplevels = []
+67:   retarray = []
+68:   mapinfos.each_key do |i|
+69:     info = mapinfos[i]
+70:     level = -1
+71:     while info
+72:       info = mapinfos[info.parent_id]
+73:       level += 1
+74:     end
+75:     if level >= 0
+76:       info = mapinfos[i]
+77:       maplevels.push([i, level, info.parent_id, info.order])
+78:     end
+79:   end
+80:   maplevels.sort! do |a, b|
+81:     next a[1] <=> b[1] if a[1] != b[1] # level
+82:     next a[2] <=> b[2] if a[2] != b[2] # parent ID
+83:     next a[3] <=> b[3] # order
+84:   end
+85:   stack = []
+86:   stack.push(0, 0)
+87:   while stack.length > 0
+88:     parent = stack[stack.length - 1]
+89:     index = stack[stack.length - 2]
+90:     if index >= maplevels.length
+91:       stack.pop
+92:       stack.pop
+93:       next
+94:     end
+95:     maplevel = maplevels[index]
+96:     stack[stack.length - 2] += 1
+97:     if maplevel[2] != parent
+98:       stack.pop
+99:       stack.pop
+100:       next
+101:     end
+102:     retarray.push([maplevel[0], mapinfos[maplevel[0]].name, maplevel[1]])
+103:     (index + 1...maplevels.length).each do |i|
+104:       next if maplevels[i][2] != maplevel[0]
+105:       stack.push(i)
+106:       stack.push(maplevel[0])
+107:       break
+108:     end
+109:   end
+110:   return retarray
+111: end
+112: 
+113: #===============================================================================
+114: # List all members of a class
+115: #===============================================================================
+116: def pbChooseFromGameDataList(game_data, default = nil)
+117:   if !GameData.const_defined?(game_data.to_sym)
+118:     raise _INTL("Couldn't find class {1} in module GameData.", game_data.to_s)
+119:   end
+120:   game_data_module = GameData.const_get(game_data.to_sym)
+121:   commands = []
+122:   game_data_module.each do |data|
+123:     name = data.real_name
+124:     name = yield(data) if block_given?
+125:     next if !name
+126:     commands.push([commands.length + 1, name, data.id])
+127:   end
+128:   return pbChooseList(commands, default, nil, -1)
+129: end
+130: 
+131: # Displays a list of all Pokémon species, and returns the ID of the species
+132: # selected (or nil if the selection was canceled). "default", if specified, is
+133: # the ID of the species to initially select. Pressing Input::ACTION will toggle
+134: # the list sorting between numerical and alphabetical.
+135: def pbChooseSpeciesList(default = nil)
+136:   return pbChooseFromGameDataList(:Species, default) do |data|
+137:     next (data.form > 0) ? nil : data.real_name
+138:   end
+139: end
+140: 
+141: def pbChooseSpeciesFormList(default = nil)
+142:   return pbChooseFromGameDataList(:Species, default) do |data|
+143:     next (data.form > 0) ? sprintf("%s_%d", data.real_name, data.form) : data.real_name
+144:   end
+145: end
+146: 
+147: # Displays a list of all types, and returns the ID of the type selected (or nil
+148: # if the selection was canceled). "default", if specified, is the ID of the type
+149: # to initially select. Pressing Input::ACTION will toggle the list sorting
+150: # between numerical and alphabetical.
+151: def pbChooseTypeList(default = nil)
+152:   return pbChooseFromGameDataList(:Type, default) do |data|
+153:     next (data.pseudo_type) ? nil : data.real_name
+154:   end
+155: end
+156: 
+157: # Displays a list of all items, and returns the ID of the item selected (or nil
+158: # if the selection was canceled). "default", if specified, is the ID of the item
+159: # to initially select. Pressing Input::ACTION will toggle the list sorting
+160: # between numerical and alphabetical.
+161: def pbChooseItemList(default = nil)
+162:   return pbChooseFromGameDataList(:Item, default)
+163: end
+164: 
+165: # Displays a list of all abilities, and returns the ID of the ability selected
+166: # (or nil if the selection was canceled). "default", if specified, is the ID of
+167: # the ability to initially select. Pressing Input::ACTION will toggle the list
+168: # sorting between numerical and alphabetical.
+169: def pbChooseAbilityList(default = nil)
+170:   return pbChooseFromGameDataList(:Ability, default)
+171: end
+172: 
+173: # Displays a list of all moves, and returns the ID of the move selected (or nil
+174: # if the selection was canceled). "default", if specified, is the ID of the move
+175: # to initially select. Pressing Input::ACTION will toggle the list sorting
+176: # between numerical and alphabetical.
+177: def pbChooseMoveList(default = nil)
+178:   return pbChooseFromGameDataList(:Move, default)
+179: end
+180: 
+181: def pbChooseMoveListForSpecies(species, defaultMoveID = nil)
+182:   cmdwin = pbListWindow([], 200)
+183:   commands = []
+184:   index = 1
+185:   # Get all legal moves
+186:   legalMoves = pbGetLegalMoves(species)
+187:   legalMoves.each do |move|
+188:     move_data = GameData::Move.get(move)
+189:     commands.push([index, move_data.name, move_data.id])
+190:     index += 1
+191:   end
+192:   commands.sort! { |a, b| a[1] <=> b[1] }
+193:   moveDefault = 0
+194:   if defaultMoveID
+195:     commands.each_with_index do |item, i|
+196:       moveDefault = i if moveDefault == 0 && item[2] == defaultMoveID
+197:     end
+198:   end
+199:   # Get all moves
+200:   commands2 = []
+201:   GameData::Move.each do |move_data|
+202:     commands2.push([index, move_data.name, move_data.id])
+203:     index += 1
+204:   end
+205:   commands2.sort! { |a, b| a[1] <=> b[1] }
+206:   if defaultMoveID
+207:     commands2.each_with_index do |item, i|
+208:       moveDefault = i if moveDefault == 0 && item[2] == defaultMoveID
+209:     end
+210:   end
+211:   # Choose from all moves
+212:   commands.concat(commands2)
+213:   realcommands = []
+214:   commands.each { |cmd| realcommands.push(cmd[1]) }
+215:   ret = pbCommands2(cmdwin, realcommands, -1, moveDefault, true)
+216:   cmdwin.dispose
+217:   return (ret >= 0) ? commands[ret][2] : nil
+218: end
+219: 
+220: def pbChooseBallList(defaultMoveID = nil)
+221:   cmdwin = pbListWindow([], 200)
+222:   commands = []
+223:   moveDefault = 0
+224:   GameData::Item.each do |item_data|
+225:     commands.push([item_data.id, item_data.name]) if item_data.is_poke_ball?
+226:   end
+227:   commands.sort! { |a, b| a[1] <=> b[1] }
+228:   if defaultMoveID
+229:     commands.each_with_index do |cmd, i|
+230:       next if cmd[0] != defaultMoveID
+231:       moveDefault = i
+232:       break
+233:     end
+234:   end
+235:   realcommands = []
+236:   commands.each do |i|
+237:     realcommands.push(i[1])
+238:   end
+239:   ret = pbCommands2(cmdwin, realcommands, -1, moveDefault, true)
+240:   cmdwin.dispose
+241:   return (ret >= 0) ? commands[ret][0] : defaultMoveID
+242: end
+243: 
+244: #===============================================================================
+245: # General list methods
+246: #===============================================================================
+247: def pbCommands2(cmdwindow, commands, cmdIfCancel, defaultindex = -1, noresize = false)
+248:   cmdwindow.commands = commands
+249:   cmdwindow.index    = defaultindex if defaultindex >= 0
+250:   cmdwindow.x        = 0
+251:   cmdwindow.y        = 0
+252:   if noresize
+253:     cmdwindow.height = Graphics.height
+254:   else
+255:     cmdwindow.width  = Graphics.width / 2
+256:   end
+257:   cmdwindow.height   = Graphics.height if cmdwindow.height > Graphics.height
+258:   cmdwindow.z        = 99999
+259:   cmdwindow.visible  = true
+260:   cmdwindow.active   = true
+261:   command = 0
+262:   loop do
+263:     Graphics.update
+264:     Input.update
+265:     cmdwindow.update
+266:     if Input.trigger?(Input::BACK)
+267:       if cmdIfCancel > 0
+268:         command = cmdIfCancel - 1
+269:         break
+270:       elsif cmdIfCancel < 0
+271:         command = cmdIfCancel
+272:         break
+273:       end
+274:     elsif Input.trigger?(Input::USE)
+275:       command = cmdwindow.index
+276:       break
+277:     end
+278:   end
+279:   ret = command
+280:   cmdwindow.active = false
+281:   return ret
+282: end
+283: 
+284: def pbCommands3(cmdwindow, commands, cmdIfCancel, defaultindex = -1, noresize = false)
+285:   cmdwindow.commands = commands
+286:   cmdwindow.index    = defaultindex if defaultindex >= 0
+287:   cmdwindow.x        = 0
+288:   cmdwindow.y        = 0
+289:   if noresize
+290:     cmdwindow.height = Graphics.height
+291:   else
+292:     cmdwindow.width  = Graphics.width / 2
+293:   end
+294:   cmdwindow.height   = Graphics.height if cmdwindow.height > Graphics.height
+295:   cmdwindow.z        = 99999
+296:   cmdwindow.visible  = true
+297:   cmdwindow.active   = true
+298:   command = 0
+299:   loop do
+300:     Graphics.update
+301:     Input.update
+302:     cmdwindow.update
+303:     if Input.trigger?(Input::SPECIAL)
+304:       command = [5, cmdwindow.index]
+305:       break
+306:     elsif Input.press?(Input::ACTION)
+307:       if Input.repeat?(Input::UP)
+308:         command = [1, cmdwindow.index]
+309:         break
+310:       elsif Input.repeat?(Input::DOWN)
+311:         command = [2, cmdwindow.index]
+312:         break
+313:       elsif Input.trigger?(Input::LEFT)
+314:         command = [3, cmdwindow.index]
+315:         break
+316:       elsif Input.trigger?(Input::RIGHT)
+317:         command = [4, cmdwindow.index]
+318:         break
+319:       end
+320:     elsif Input.trigger?(Input::BACK)
+321:       if cmdIfCancel > 0
+322:         command = [0, cmdIfCancel - 1]
+323:         break
+324:       elsif cmdIfCancel < 0
+325:         command = [0, cmdIfCancel]
+326:         break
+327:       end
+328:     elsif Input.trigger?(Input::USE)
+329:       command = [0, cmdwindow.index]
+330:       break
+331:     end
+332:   end
+333:   ret = command
+334:   cmdwindow.active = false
+335:   return ret
+336: end
+337: 
+338: def pbChooseList(commands, default = 0, cancelValue = -1, sortType = 1)
+339:   cmdwin = pbListWindow([])
+340:   itemID = default
+341:   itemIndex = 0
+342:   sortMode = (sortType >= 0) ? sortType : 0   # 0=ID, 1=alphabetical
+343:   sorting = true
+344:   loop do
+345:     if sorting
+346:       case sortMode
+347:       when 0
+348:         commands.sort! { |a, b| a[0] <=> b[0] }
+349:       when 1
+350:         commands.sort! { |a, b| a[1] <=> b[1] }
+351:       end
+352:       if itemID.is_a?(Symbol)
+353:         commands.each_with_index { |command, i| itemIndex = i if command[2] == itemID }
+354:       elsif itemID && itemID > 0
+355:         commands.each_with_index { |command, i| itemIndex = i if command[0] == itemID }
+356:       end
+357:       realcommands = []
+358:       commands.each do |command|
+359:         if sortType <= 0
+360:           realcommands.push(sprintf("%03d: %s", command[0], command[1]))
+361:         else
+362:           realcommands.push(command[1])
+363:         end
+364:       end
+365:       sorting = false
+366:     end
+367:     cmd = pbCommandsSortable(cmdwin, realcommands, -1, itemIndex, (sortType < 0))
+368:     case cmd[0]
+369:     when 0   # Chose an option or cancelled
+370:       itemID = (cmd[1] < 0) ? cancelValue : (commands[cmd[1]][2] || commands[cmd[1]][0])
+371:       break
+372:     when 1   # Toggle sorting
+373:       itemID = commands[cmd[1]][2] || commands[cmd[1]][0]
+374:       sortMode = (sortMode + 1) % 2
+375:       sorting = true
+376:     end
+377:   end
+378:   cmdwin.dispose
+379:   return itemID
+380: end
+381: 
+382: def pbCommandsSortable(cmdwindow, commands, cmdIfCancel, defaultindex = -1, sortable = false)
+383:   cmdwindow.commands = commands
+384:   cmdwindow.index    = defaultindex if defaultindex >= 0
+385:   cmdwindow.x        = 0
+386:   cmdwindow.y        = 0
+387:   cmdwindow.width    = Graphics.width / 2 if cmdwindow.width < Graphics.width / 2
+388:   cmdwindow.height   = Graphics.height
+389:   cmdwindow.z        = 99999
+390:   cmdwindow.active   = true
+391:   command = 0
+392:   loop do
+393:     Graphics.update
+394:     Input.update
+395:     cmdwindow.update
+396:     if Input.trigger?(Input::ACTION) && sortable
+397:       command = [1, cmdwindow.index]
+398:       break
+399:     elsif Input.trigger?(Input::BACK)
+400:       command = [0, (cmdIfCancel > 0) ? cmdIfCancel - 1 : cmdIfCancel]
+401:       break
+402:     elsif Input.trigger?(Input::USE)
+403:       command = [0, cmdwindow.index]
+404:       break
+405:     end
+406:   end
+407:   ret = command
+408:   cmdwindow.active = false
+409:   return ret
+410: end

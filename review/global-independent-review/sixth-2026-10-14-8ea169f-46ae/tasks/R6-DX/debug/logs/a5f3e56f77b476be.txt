@@ -1,0 +1,230 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class RuledTeam
+5:   attr_accessor :team
+6: 
+7:   def initialize(party, rule)
+8:     count = rule.ruleset.suggestedNumber
+9:     @team = []
+10:     retnum = []
+11:     loop do
+12:       count.times do |i|
+13:         retnum[i] = rand(party.length)
+14:         @team[i] = party[retnum[i]]
+15:         party.delete_at(retnum[i])
+16:       end
+17:       break if rule.ruleset.isValid?(@team)
+18:     end
+19:     @totalGames = 0
+20:     @rating = PlayerRating.new
+21:     @history = MatchHistory.new(@rating)
+22:   end
+23: 
+24:   def [](i)
+25:     @team[i]
+26:   end
+27: 
+28:   def length
+29:     return @team.length
+30:   end
+31: 
+32:   def rating
+33:     @rating.winChancePercent
+34:   end
+35: 
+36:   def ratingData
+37:     @rating
+38:   end
+39: 
+40:   def ratingRaw
+41:     [@rating.rating, @rating.deviation, @rating.volatility, @rating.winChancePercent]
+42:   end
+43: 
+44:   def compare(other)
+45:     @rating.compare(other.ratingData)
+46:   end
+47: 
+48:   def totalGames
+49:     (@totalGames || 0) + self.games
+50:   end
+51: 
+52:   def addMatch(other, score)
+53:     @history.addMatch(other.ratingData, score)
+54:   end
+55: 
+56:   def games
+57:     @history.length
+58:   end
+59: 
+60:   def updateRating
+61:     @totalGames = 0 if !@totalGames
+62:     oldgames = self.games
+63:     @history.updateAndClear
+64:     newgames = self.games
+65:     @totalGames += (oldgames - newgames)
+66:   end
+67: 
+68:   def toStr
+69:     return "[" + @rating.to_i.to_s + "," + @games.to_i.to_s + "]"
+70:   end
+71: 
+72:   def load(party)
+73:     ret = []
+74:     team.length.times do |i|
+75:       ret.push(party[team[i]])
+76:     end
+77:     return ret
+78:   end
+79: end
+80: 
+81: #===============================================================================
+82: #
+83: #===============================================================================
+84: class SingleMatch
+85:   attr_reader :opponentRating
+86:   attr_reader :opponentDeviation
+87:   attr_reader :score
+88:   attr_reader :kValue
+89: 
+90:   def initialize(opponentRating, opponentDev, score, kValue = 16)
+91:     @opponentRating    = opponentRating
+92:     @opponentDeviation = opponentDev
+93:     @score             = score   # -1=draw, 0=lose, 1=win
+94:     @kValue            = kValue
+95:   end
+96: end
+97: 
+98: #===============================================================================
+99: #
+100: #===============================================================================
+101: class MatchHistory
+102:   include Enumerable
+103: 
+104:   def initialize(thisPlayer)
+105:     @matches    = []
+106:     @thisPlayer = thisPlayer
+107:   end
+108: 
+109:   def [](i)
+110:     @matches[i]
+111:   end
+112: 
+113:   def length
+114:     @matches.length
+115:   end
+116: 
+117:   def each
+118:     @matches.each { |item| yield item }
+119:   end
+120: 
+121:   def addMatch(otherPlayer, result)
+122:     # 1=I won; 0=Other player won; -1: Draw
+123:     @matches.push(SingleMatch.new(otherPlayer.rating, otherPlayer.deviation, result))
+124:   end
+125: 
+126:   def updateAndClear
+127:     @thisPlayer.update(@matches)
+128:     @matches.clear
+129:   end
+130: end
+131: 
+132: #===============================================================================
+133: #
+134: #===============================================================================
+135: class PlayerRatingElo
+136:   attr_reader :rating
+137: 
+138:   K_VALUE = 16
+139: 
+140:   def initialize
+141:     @rating          = 1600.0
+142:     @deviation       = 0
+143:     @volatility      = 0
+144:     @estimatedRating = nil
+145:   end
+146: 
+147:   def winChancePercent
+148:     return @estimatedRating if @estimatedRating
+149:     x = (1 + (10.0**((@rating - 1600.0) / 400.0)))
+150:     @estimatedRating = (x == 0 ? 1.0 : 1.0 / x)
+151:     return @estimatedRating
+152:   end
+153: 
+154:   def update(matches)
+155:     return if matches.length == 0
+156:     stake = 0
+157:     matches.length.times do
+158:       score = (match.score == -1) ? 0.5 : match.score
+159:       e = (1 + (10.0**((@rating - match.opponentRating) / 400.0)))
+160:       stake += match.kValue * (score - e)
+161:     end
+162:     @rating += stake
+163:   end
+164: end
+165: 
+166: #===============================================================================
+167: #
+168: #===============================================================================
+169: class PlayerRating
+170:   attr_reader :volatility
+171:   attr_reader :deviation
+172:   attr_reader :rating
+173: 
+174:   def initialize
+175:     @rating          = 1500.0
+176:     @deviation       = 350.0
+177:     @volatility      = 0.9
+178:     @estimatedRating = nil
+179:   end
+180: 
+181:   def winChancePercent
+182:     return @estimatedRating if @estimatedRating
+183:     if @deviation > 100
+184:       # https://www.smogon.com/forums/threads/make-sense-of-your-shoddy-battle-rating.55764/
+185:       otherRating = 1500.0
+186:       otherDeviation = 350.0
+187:       s = Math.sqrt(100_000.0 + (@deviation * @deviation) + (otherDeviation * otherDeviation))
+188:       g = 10.0**((otherRating - @rating) * 0.79 / s)
+189:       @estimatedRating = (1.0 / (1.0 + g)) * 100.0   # Percent chance that I win against opponent
+190:     else
+191:       # GLIXARE method
+192:       rds = @deviation * @deviation
+193:       sqr = Math.sqrt(15.905694331435 * (rds + 221_781.21786254))
+194:       inner = (1500.0 - @rating) * Math::PI / sqr
+195:       @estimatedRating = ((10_000.0 / (1.0 + (10.0**inner))) + 0.5) / 100.0
+196:     end
+197:     return @estimatedRating
+198:   end
+199: 
+200:   def update(matches, system = 1.2)
+201:     volatility = volatility2
+202:     deviation = deviation2
+203:     rating = rating2
+204:     if matches.length == 0
+205:       setDeviation2(Math.sqrt((deviation * deviation) + (volatility * volatility)))
+206:       return
+207:     end
+208:     g = []
+209:     e = []
+210:     score = []
+211:     matches.length.times do |i|
+212:       match = matches[i]
+213:       g[i] = getGFactor(match.opponentDeviation)
+214:       e[i] = getEFactor(rating, match.opponentRating, g[i])
+215:       score[i] = match.score
+216:     end
+217:     # Estimated variance
+218:     variance = 0.0
+219:     matches.length.times do |i|
+220:       variance += g[i] * g[i] * e[i] * (1 - e[i])
+221:     end
+222:     variance = 1.0 / variance
+223:     # Improvement sum
+224:     sum = 0.0
+225:     matches.length.times do |i|
+226:       v = score[i]
+227:       sum += g[i] * (v.to_f - e[i]) if v != -1
+228:     end
+229:     volatility = getUpdatedVolatility(volatility, deviation, variance, sum, system)
+230:     # Update deviation

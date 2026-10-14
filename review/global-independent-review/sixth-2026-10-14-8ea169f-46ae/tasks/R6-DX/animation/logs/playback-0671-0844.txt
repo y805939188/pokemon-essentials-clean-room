@@ -1,0 +1,174 @@
+671:   attr_accessor :looping
+672: 
+673:   MAX_SPRITES = 60
+674: 
+675:   def initialize(animation, user, target, scene = nil, oppMove = false, inEditor = false)
+676:     @animation     = animation
+677:     @user          = (oppMove) ? target : user   # Just used for playing user's cry
+678:     @usersprite    = (user) ? scene.sprites["pokemon_#{user.index}"] : nil
+679:     @targetsprite  = (target) ? scene.sprites["pokemon_#{target.index}"] : nil
+680:     @userbitmap    = @usersprite&.bitmap # not to be disposed
+681:     @targetbitmap  = @targetsprite&.bitmap # not to be disposed
+682:     @scene         = scene
+683:     @viewport      = scene&.viewport
+684:     @inEditor      = inEditor
+685:     @looping       = false
+686:     @animbitmap    = nil   # Animation sheet graphic
+687:     @old_frame     = -1
+688:     @frame         = -1
+689:     @timer_start   = nil
+690:     @srcLine       = nil
+691:     @dstLine       = nil
+692:     @userOrig      = getSpriteCenter(@usersprite)
+693:     @targetOrig    = getSpriteCenter(@targetsprite)
+694:     @oldbg         = []
+695:     @oldfo         = []
+696:     initializeSprites
+697:   end
+698: 
+699:   def initializeSprites
+700:     # Create animation sprites (0=user's sprite, 1=target's sprite)
+701:     @animsprites = []
+702:     @animsprites[0] = @usersprite
+703:     @animsprites[1] = @targetsprite
+704:     (2...MAX_SPRITES).each do |i|
+705:       @animsprites[i] = Sprite.new(@viewport)
+706:       @animsprites[i].bitmap  = nil
+707:       @animsprites[i].visible = false
+708:     end
+709:     # Create background colour sprite
+710:     @bgColor = ColoredPlane.new(Color.black, @viewport)
+711:     @bgColor.z       = 5
+712:     @bgColor.opacity = 0
+713:     @bgColor.refresh
+714:     # Create background graphic sprite
+715:     @bgGraphic = AnimatedPlane.new(@viewport)
+716:     @bgGraphic.setBitmap(nil)
+717:     @bgGraphic.z       = 5
+718:     @bgGraphic.opacity = 0
+719:     @bgGraphic.refresh
+720:     # Create foreground colour sprite
+721:     @foColor = ColoredPlane.new(Color.black, @viewport)
+722:     @foColor.z       = 85
+723:     @foColor.opacity = 0
+724:     @foColor.refresh
+725:     # Create foreground graphic sprite
+726:     @foGraphic = AnimatedPlane.new(@viewport)
+727:     @foGraphic.setBitmap(nil)
+728:     @foGraphic.z       = 85
+729:     @foGraphic.opacity = 0
+730:     @foGraphic.refresh
+731:   end
+732: 
+733:   def dispose
+734:     @animbitmap&.dispose
+735:     (2...MAX_SPRITES).each { |i| @animsprites[i]&.dispose }
+736:     @bgGraphic.dispose
+737:     @bgColor.dispose
+738:     @foGraphic.dispose
+739:     @foColor.dispose
+740:   end
+741: 
+742:   # Makes the original user and target sprites be uninvolved with the animation.
+743:   # The animation shows just its particles.
+744:   def discard_user_and_target_sprites
+745:     @animsprites[0] = nil
+746:     @animsprites[1] = nil
+747:   end
+748: 
+749:   def set_target_origin(x, y)
+750:     @targetOrig = [x, y]
+751:   end
+752: 
+753:   def start
+754:     @frame = 0
+755:     @timer_start = System.uptime
+756:   end
+757: 
+758:   def animDone?
+759:     return @frame < 0
+760:   end
+761: 
+762:   def setLineTransform(x1, y1, x2, y2, x3, y3, x4, y4)
+763:     @srcLine = [x1, y1, x2, y2]
+764:     @dstLine = [x3, y3, x4, y4]
+765:   end
+766: 
+767:   def update
+768:     return if @frame < 0
+769:     @frame = ((System.uptime - @timer_start) * 20).to_i
+770:     # Loop or end the animation if the animation has reached the end
+771:     if @frame >= @animation.length
+772:       if @looping
+773:         @frame %= @animation.length
+774:         @timer_start += @animation.length / 20.0
+775:       else
+776:         @frame = -1
+777:         @animbitmap&.dispose
+778:         @animbitmap = nil
+779:         return
+780:       end
+781:     end
+782:     # Load the animation's spritesheet and assign it to all the sprites
+783:     if !@animbitmap || @animbitmap.disposed?
+784:       @animbitmap = AnimatedBitmap.new("Graphics/Animations/" + @animation.graphic,
+785:                                        @animation.hue).deanimate
+786:       MAX_SPRITES.times do |i|
+787:         @animsprites[i].bitmap = @animbitmap if @animsprites[i]
+788:       end
+789:     end
+790:     # Update background and foreground graphics
+791:     @bgGraphic.update
+792:     @bgColor.update
+793:     @foGraphic.update
+794:     @foColor.update
+795:     # Update all the sprites to depict the animation's next frame
+796:     return if @frame == @old_frame
+797:     @old_frame = @frame
+798:     thisframe = @animation[@frame]
+799:     # Make all cel sprites invisible
+800:     MAX_SPRITES.times { |i| @animsprites[i].visible = false if @animsprites[i] }
+801:     # Set each cel sprite acoordingly
+802:     thisframe.length.times do |i|
+803:       cel = thisframe[i]
+804:       next if !cel
+805:       sprite = @animsprites[i]
+806:       next if !sprite
+807:       # Set cel sprite's graphic
+808:       case cel[AnimFrame::PATTERN]
+809:       when -1
+810:         sprite.bitmap = @userbitmap
+811:       when -2
+812:         sprite.bitmap = @targetbitmap
+813:       else
+814:         sprite.bitmap = @animbitmap
+815:       end
+816:       # Apply settings to the cel sprite
+817:       pbSpriteSetAnimFrame(sprite, cel, @usersprite, @targetsprite)
+818:       case cel[AnimFrame::FOCUS]
+819:       when 1   # Focused on target
+820:         sprite.x = cel[AnimFrame::X] + @targetOrig[0] - Battle::Scene::FOCUSTARGET_X
+821:         sprite.y = cel[AnimFrame::Y] + @targetOrig[1] - Battle::Scene::FOCUSTARGET_Y
+822:       when 2   # Focused on user
+823:         sprite.x = cel[AnimFrame::X] + @userOrig[0] - Battle::Scene::FOCUSUSER_X
+824:         sprite.y = cel[AnimFrame::Y] + @userOrig[1] - Battle::Scene::FOCUSUSER_Y
+825:       when 3   # Focused on user and target
+826:         next if !@srcLine || !@dstLine
+827:         point = transformPoint(@srcLine[0], @srcLine[1], @srcLine[2], @srcLine[3],
+828:                                @dstLine[0], @dstLine[1], @dstLine[2], @dstLine[3],
+829:                                sprite.x, sprite.y)
+830:         sprite.x = point[0]
+831:         sprite.y = point[1]
+832:         if isReversed(@srcLine[0], @srcLine[2], @dstLine[0], @dstLine[2]) &&
+833:            cel[AnimFrame::PATTERN] >= 0
+834:           # Reverse direction
+835:           sprite.mirror = !sprite.mirror
+836:         end
+837:       end
+838:       sprite.x += 64 if @inEditor
+839:       sprite.y += 64 if @inEditor
+840:     end
+841:     # Play timings
+842:     @animation.playTiming(@frame, @bgGraphic, @bgColor, @foGraphic, @foColor, @oldbg, @oldfo, @user)
+843:   end
+844: end

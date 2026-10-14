@@ -1,0 +1,401 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/003_UI_Pokedex_Main.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [801, 1200], "total_lines": 1302, "sha256": "922b809598a020450d15205ae19ab6752be3b8b55e18a40945fb0795609c340d", "owner": "storage", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:04.262379+00:00"}
+801:         end
+802:       end
+803:     end
+804:     # Filter by height range
+805:     if params[4] >= 0 || params[5] >= 0
+806:       minh = (params[4] < 0) ? 0 : (params[4] >= @heightCommands.length) ? 999 : @heightCommands[params[4]]
+807:       maxh = (params[5] < 0) ? 999 : (params[5] >= @heightCommands.length) ? 0 : @heightCommands[params[5]]
+808:       dexlist = dexlist.find_all do |item|
+809:         next false if !$player.owned?(item[:species])
+810:         height = item[:height]
+811:         next height >= minh && height <= maxh
+812:       end
+813:     end
+814:     # Filter by weight range
+815:     if params[6] >= 0 || params[7] >= 0
+816:       minw = (params[6] < 0) ? 0 : (params[6] >= @weightCommands.length) ? 9999 : @weightCommands[params[6]]
+817:       maxw = (params[7] < 0) ? 9999 : (params[7] >= @weightCommands.length) ? 0 : @weightCommands[params[7]]
+818:       dexlist = dexlist.find_all do |item|
+819:         next false if !$player.owned?(item[:species])
+820:         weight = item[:weight]
+821:         next weight >= minw && weight <= maxw
+822:       end
+823:     end
+824:     # Filter by color
+825:     if params[8] >= 0
+826:       scolor = @colorCommands[params[8]].id
+827:       dexlist = dexlist.find_all do |item|
+828:         next $player.seen?(item[:species]) && item[:color] == scolor
+829:       end
+830:     end
+831:     # Filter by shape
+832:     if params[9] >= 0
+833:       sshape = @shapeCommands[params[9]].id
+834:       dexlist = dexlist.find_all do |item|
+835:         next $player.seen?(item[:species]) && item[:shape] == sshape
+836:       end
+837:     end
+838:     # Remove all unseen species from the results
+839:     dexlist = dexlist.find_all { |item| next $player.seen?(item[:species]) }
+840:     case $PokemonGlobal.pokedexMode
+841:     when MODENUMERICAL then dexlist.sort! { |a, b| a[:number] <=> b[:number] }
+842:     when MODEATOZ      then dexlist.sort! { |a, b| a[:name] <=> b[:name] }
+843:     when MODEHEAVIEST  then dexlist.sort! { |a, b| b[:weight] <=> a[:weight] }
+844:     when MODELIGHTEST  then dexlist.sort! { |a, b| a[:weight] <=> b[:weight] }
+845:     when MODETALLEST   then dexlist.sort! { |a, b| b[:height] <=> a[:height] }
+846:     when MODESMALLEST  then dexlist.sort! { |a, b| a[:height] <=> b[:height] }
+847:     end
+848:     return dexlist
+849:   end
+850: 
+851:   def pbCloseSearch
+852:     oldsprites = pbFadeOutAndHide(@sprites)
+853:     oldspecies = @sprites["pokedex"].species
+854:     @searchResults = false
+855:     $PokemonGlobal.pokedexMode = MODENUMERICAL
+856:     @searchParams = [$PokemonGlobal.pokedexMode, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+857:     pbRefreshDexList($PokemonGlobal.pokedexIndex[pbGetSavePositionIndex])
+858:     @dexlist.length.times do |i|
+859:       next if @dexlist[i][:species] != oldspecies
+860:       @sprites["pokedex"].index = i
+861:       pbRefresh
+862:       break
+863:     end
+864:     $PokemonGlobal.pokedexIndex[pbGetSavePositionIndex] = @sprites["pokedex"].index
+865:     pbFadeInAndShow(@sprites, oldsprites)
+866:   end
+867: 
+868:   def pbDexEntry(index)
+869:     oldsprites = pbFadeOutAndHide(@sprites)
+870:     region = -1
+871:     if !Settings::USE_CURRENT_REGION_DEX
+872:       dexnames = Settings.pokedex_names
+873:       if dexnames[pbGetSavePositionIndex].is_a?(Array)
+874:         region = dexnames[pbGetSavePositionIndex][1]
+875:       end
+876:     end
+877:     scene = PokemonPokedexInfo_Scene.new
+878:     screen = PokemonPokedexInfoScreen.new(scene)
+879:     ret = screen.pbStartScreen(@dexlist, index, region)
+880:     if @searchResults
+881:       dexlist = pbSearchDexList(@searchParams)
+882:       @dexlist = dexlist
+883:       @sprites["pokedex"].commands = @dexlist
+884:       ret = @dexlist.length - 1 if ret >= @dexlist.length
+885:       ret = 0 if ret < 0
+886:     else
+887:       pbRefreshDexList($PokemonGlobal.pokedexIndex[pbGetSavePositionIndex])
+888:       $PokemonGlobal.pokedexIndex[pbGetSavePositionIndex] = ret
+889:     end
+890:     @sprites["pokedex"].index = ret
+891:     @sprites["pokedex"].refresh
+892:     pbRefresh
+893:     pbFadeInAndShow(@sprites, oldsprites)
+894:   end
+895: 
+896:   def pbDexSearchCommands(mode, selitems, mainindex)
+897:     cmds = [@orderCommands, @nameCommands, @typeCommands, @heightCommands,
+898:             @weightCommands, @colorCommands, @shapeCommands][mode]
+899:     cols = [2, 7, 4, 1, 1, 3, 5][mode]
+900:     ret = nil
+901:     # Set background
+902:     case mode
+903:     when 0    then @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_order")
+904:     when 1    then @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_name")
+905:     when 2
+906:       count = 0
+907:       GameData::Type.each { |t| count += 1 if !t.pseudo_type && t.id != :SHADOW }
+908:       if count == 18
+909:         @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_type_18")
+910:       else
+911:         @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_type")
+912:       end
+913:     when 3, 4 then @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_size")
+914:     when 5    then @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_color")
+915:     when 6    then @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search_shape")
+916:     end
+917:     selindex = selitems.clone
+918:     index     = selindex[0]
+919:     oldindex  = index
+920:     minmax    = 1
+921:     oldminmax = minmax
+922:     index = oldindex = selindex[minmax] if [3, 4].include?(mode)
+923:     @sprites["searchcursor"].mode   = mode
+924:     @sprites["searchcursor"].cmds   = cmds.length
+925:     @sprites["searchcursor"].minmax = minmax
+926:     @sprites["searchcursor"].index  = index
+927:     nextparam = cmds.length % 2
+928:     pbRefreshDexSearchParam(mode, cmds, selindex, index)
+929:     loop do
+930:       pbUpdate
+931:       if index != oldindex || minmax != oldminmax
+932:         @sprites["searchcursor"].minmax = minmax
+933:         @sprites["searchcursor"].index  = index
+934:         oldindex  = index
+935:         oldminmax = minmax
+936:       end
+937:       Graphics.update
+938:       Input.update
+939:       if [3, 4].include?(mode)
+940:         if Input.trigger?(Input::UP)
+941:           if index < -1   # From OK/Cancel
+942:             minmax = 0
+943:             index = selindex[minmax]
+944:           elsif minmax == 0
+945:             minmax = 1
+946:             index = selindex[minmax]
+947:           end
+948:           if index != oldindex || minmax != oldminmax
+949:             pbPlayCursorSE
+950:             pbRefreshDexSearchParam(mode, cmds, selindex, index)
+951:           end
+952:         elsif Input.trigger?(Input::DOWN)
+953:           case minmax
+954:           when 1
+955:             minmax = 0
+956:             index = selindex[minmax]
+957:           when 0
+958:             minmax = -1
+959:             index = -2
+960:           end
+961:           if index != oldindex || minmax != oldminmax
+962:             pbPlayCursorSE
+963:             pbRefreshDexSearchParam(mode, cmds, selindex, index)
+964:           end
+965:         elsif Input.repeat?(Input::LEFT)
+966:           if index == -3
+967:             index = -2
+968:           elsif index >= -1
+969:             if minmax == 1 && index == -1
+970:               index = cmds.length - 1 if selindex[0] < cmds.length - 1
+971:             elsif minmax == 1 && index == 0
+972:               index = cmds.length if selindex[0] < 0
+973:             elsif index > -1 && !(minmax == 1 && index >= cmds.length)
+974:               index -= 1 if minmax == 0 || selindex[0] <= index - 1
+975:             end
+976:           end
+977:           if index != oldindex
+978:             selindex[minmax] = index if minmax >= 0
+979:             pbPlayCursorSE
+980:             pbRefreshDexSearchParam(mode, cmds, selindex, index)
+981:           end
+982:         elsif Input.repeat?(Input::RIGHT)
+983:           if index == -2
+984:             index = -3
+985:           elsif index >= -1
+986:             if minmax == 1 && index >= cmds.length
+987:               index = 0
+988:             elsif minmax == 1 && index == cmds.length - 1
+989:               index = -1
+990:             elsif index < cmds.length && !(minmax == 1 && index < 0)
+991:               index += 1 if minmax == 1 || selindex[1] == -1 ||
+992:                             (selindex[1] < cmds.length && selindex[1] >= index + 1)
+993:             end
+994:           end
+995:           if index != oldindex
+996:             selindex[minmax] = index if minmax >= 0
+997:             pbPlayCursorSE
+998:             pbRefreshDexSearchParam(mode, cmds, selindex, index)
+999:           end
+1000:         end
+1001:       else
+1002:         if Input.trigger?(Input::UP)
+1003:           if index == -1   # From blank
+1004:             index = cmds.length - 1 - ((cmds.length - 1) % cols) - 1
+1005:           elsif index == -2   # From OK
+1006:             index = ((cmds.length - 1) / cols).floor * cols
+1007:           elsif index == -3 && mode == 0   # From Cancel
+1008:             index = cmds.length - 1
+1009:           elsif index == -3   # From Cancel
+1010:             index = -1
+1011:           elsif index >= cols
+1012:             index -= cols
+1013:           end
+1014:           pbPlayCursorSE if index != oldindex
+1015:         elsif Input.trigger?(Input::DOWN)
+1016:           if index == -1   # From blank
+1017:             index = -3
+1018:           elsif index >= 0
+1019:             if index + cols < cmds.length
+1020:               index += cols
+1021:             elsif (index / cols).floor < ((cmds.length - 1) / cols).floor
+1022:               index = (index % cols < cols / 2.0) ? cmds.length - 1 : -1
+1023:             else
+1024:               index = (index % cols < cols / 2.0) ? -2 : -3
+1025:             end
+1026:           end
+1027:           pbPlayCursorSE if index != oldindex
+1028:         elsif Input.trigger?(Input::LEFT)
+1029:           if index == -3
+1030:             index = -2
+1031:           elsif index == -1
+1032:             index = cmds.length - 1
+1033:           elsif index > 0 && index % cols != 0
+1034:             index -= 1
+1035:           end
+1036:           pbPlayCursorSE if index != oldindex
+1037:         elsif Input.trigger?(Input::RIGHT)
+1038:           if index == -2
+1039:             index = -3
+1040:           elsif index == cmds.length - 1 && mode != 0
+1041:             index = -1
+1042:           elsif index >= 0 && index % cols != cols - 1
+1043:             index += 1
+1044:           end
+1045:           pbPlayCursorSE if index != oldindex
+1046:         end
+1047:       end
+1048:       if Input.trigger?(Input::ACTION)
+1049:         index = -2
+1050:         pbPlayCursorSE if index != oldindex
+1051:       elsif Input.trigger?(Input::BACK)
+1052:         pbPlayCloseMenuSE
+1053:         ret = nil
+1054:         break
+1055:       elsif Input.trigger?(Input::USE)
+1056:         if index == -2      # OK
+1057:           pbSEPlay("GUI pokedex open")
+1058:           ret = selindex
+1059:           break
+1060:         elsif index == -3   # Cancel
+1061:           pbPlayCloseMenuSE
+1062:           ret = nil
+1063:           break
+1064:         elsif selindex != index && mode != 3 && mode != 4
+1065:           if mode == 2
+1066:             if index == -1
+1067:               nextparam = (selindex[1] >= 0) ? 1 : 0
+1068:             elsif index >= 0
+1069:               nextparam = (selindex[0] < 0) ? 0 : (selindex[1] < 0) ? 1 : nextparam
+1070:             end
+1071:             if index < 0 || selindex[(nextparam + 1) % 2] != index
+1072:               pbPlayDecisionSE
+1073:               selindex[nextparam] = index
+1074:               nextparam = (nextparam + 1) % 2
+1075:             end
+1076:           else
+1077:             pbPlayDecisionSE
+1078:             selindex[0] = index
+1079:           end
+1080:           pbRefreshDexSearchParam(mode, cmds, selindex, index)
+1081:         end
+1082:       end
+1083:     end
+1084:     Input.update
+1085:     # Set background image
+1086:     @sprites["searchbg"].setBitmap("Graphics/UI/Pokedex/bg_search")
+1087:     @sprites["searchcursor"].mode = -1
+1088:     @sprites["searchcursor"].index = mainindex
+1089:     return ret
+1090:   end
+1091: 
+1092:   def pbDexSearch
+1093:     oldsprites = pbFadeOutAndHide(@sprites)
+1094:     params = @searchParams.clone
+1095:     @orderCommands = []
+1096:     @orderCommands[MODENUMERICAL] = _INTL("Numerical")
+1097:     @orderCommands[MODEATOZ]      = _INTL("A to Z")
+1098:     @orderCommands[MODEHEAVIEST]  = _INTL("Heaviest")
+1099:     @orderCommands[MODELIGHTEST]  = _INTL("Lightest")
+1100:     @orderCommands[MODETALLEST]   = _INTL("Tallest")
+1101:     @orderCommands[MODESMALLEST]  = _INTL("Smallest")
+1102:     @nameCommands = [_INTL("A"), _INTL("B"), _INTL("C"), _INTL("D"), _INTL("E"),
+1103:                      _INTL("F"), _INTL("G"), _INTL("H"), _INTL("I"), _INTL("J"),
+1104:                      _INTL("K"), _INTL("L"), _INTL("M"), _INTL("N"), _INTL("O"),
+1105:                      _INTL("P"), _INTL("Q"), _INTL("R"), _INTL("S"), _INTL("T"),
+1106:                      _INTL("U"), _INTL("V"), _INTL("W"), _INTL("X"), _INTL("Y"),
+1107:                      _INTL("Z")]
+1108:     @typeCommands = []
+1109:     GameData::Type.each { |t| @typeCommands.push(t) if !t.pseudo_type }
+1110:     @heightCommands = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+1111:                        11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+1112:                        21, 22, 23, 24, 25, 30, 35, 40, 45, 50,
+1113:                        55, 60, 65, 70, 80, 90, 100]
+1114:     @weightCommands = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+1115:                        55, 60, 70, 80, 90, 100, 110, 120, 140, 160,
+1116:                        180, 200, 250, 300, 350, 400, 500, 600, 700, 800,
+1117:                        900, 1000, 1250, 1500, 2000, 3000, 5000]
+1118:     @colorCommands = []
+1119:     GameData::BodyColor.each { |c| @colorCommands.push(c) if c.id != :None }
+1120:     @shapeCommands = []
+1121:     GameData::BodyShape.each { |s| @shapeCommands.push(s) if s.id != :None }
+1122:     @sprites["searchbg"].visible     = true
+1123:     @sprites["overlay"].visible      = true
+1124:     @sprites["searchcursor"].visible = true
+1125:     index = 0
+1126:     oldindex = index
+1127:     @sprites["searchcursor"].mode    = -1
+1128:     @sprites["searchcursor"].index   = index
+1129:     pbRefreshDexSearch(params, index)
+1130:     pbFadeInAndShow(@sprites)
+1131:     loop do
+1132:       Graphics.update
+1133:       Input.update
+1134:       pbUpdate
+1135:       if index != oldindex
+1136:         @sprites["searchcursor"].index = index
+1137:         oldindex = index
+1138:       end
+1139:       if Input.trigger?(Input::UP)
+1140:         if index >= 7
+1141:           index = 4
+1142:         elsif index == 5
+1143:           index = 0
+1144:         elsif index > 0
+1145:           index -= 1
+1146:         end
+1147:         pbPlayCursorSE if index != oldindex
+1148:       elsif Input.trigger?(Input::DOWN)
+1149:         if [4, 6].include?(index)
+1150:           index = 8
+1151:         elsif index < 7
+1152:           index += 1
+1153:         end
+1154:         pbPlayCursorSE if index != oldindex
+1155:       elsif Input.trigger?(Input::LEFT)
+1156:         if index == 5
+1157:           index = 1
+1158:         elsif index == 6
+1159:           index = 3
+1160:         elsif index > 7
+1161:           index -= 1
+1162:         end
+1163:         pbPlayCursorSE if index != oldindex
+1164:       elsif Input.trigger?(Input::RIGHT)
+1165:         if index == 1
+1166:           index = 5
+1167:         elsif index >= 2 && index <= 4
+1168:           index = 6
+1169:         elsif [7, 8].include?(index)
+1170:           index += 1
+1171:         end
+1172:         pbPlayCursorSE if index != oldindex
+1173:       elsif Input.trigger?(Input::ACTION)
+1174:         index = 8
+1175:         pbPlayCursorSE if index != oldindex
+1176:       elsif Input.trigger?(Input::BACK)
+1177:         pbPlayCloseMenuSE
+1178:         break
+1179:       elsif Input.trigger?(Input::USE)
+1180:         pbSEPlay("GUI pokedex open") if index != 9
+1181:         case index
+1182:         when 0   # Choose sort order
+1183:           newparam = pbDexSearchCommands(0, [params[0]], index)
+1184:           params[0] = newparam[0] if newparam
+1185:           pbRefreshDexSearch(params, index)
+1186:         when 1   # Filter by name
+1187:           newparam = pbDexSearchCommands(1, [params[1]], index)
+1188:           params[1] = newparam[0] if newparam
+1189:           pbRefreshDexSearch(params, index)
+1190:         when 2   # Filter by type
+1191:           newparam = pbDexSearchCommands(2, [params[2], params[3]], index)
+1192:           if newparam
+1193:             params[2] = newparam[0]
+1194:             params[3] = newparam[1]
+1195:           end
+1196:           pbRefreshDexSearch(params, index)
+1197:         when 3   # Filter by height range
+1198:           newparam = pbDexSearchCommands(3, [params[4], params[5]], index)
+1199:           if newparam
+1200:             params[4] = newparam[0]

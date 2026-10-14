@@ -1,0 +1,224 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [318, 540], "total_lines": 706, "sha256": "81519d2fb0b6926ac2ca08f693e2f08e3800878628ba90f5a7d2a314ff1c60f4", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:24:39.103293+00:00"}
+318: class Phone
+319:   module Call
+320:     module_function
+321: 
+322:     def can_make?
+323:       return false if $game_map.metadata&.has_flag?("NoPhoneSignal")
+324:       return true
+325:     end
+326: 
+327:     # For the player initiating the call.
+328:     def can_call_contact?(contact)
+329:       return false if !contact
+330:       if !can_make?
+331:         pbMessage(_INTL("There is no phone signal here..."))
+332:         return false
+333:       end
+334:       return true if !contact.trainer?
+335:       if contact.map_id == $game_map.map_id
+336:         pbMessage(_INTL("The Trainer is close by.\nTalk to the Trainer in person!"))
+337:         return false
+338:       end
+339:       caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+340:       this_map_metadata = $game_map.metadata
+341:       if !caller_map_metadata || !caller_map_metadata.town_map_position ||
+342:          !this_map_metadata || !this_map_metadata.town_map_position ||
+343:          caller_map_metadata.town_map_position[0] != this_map_metadata.town_map_position[0]
+344:         pbMessage(_INTL("The Trainer is out of range."))
+345:         return false
+346:       end
+347:       return true
+348:     end
+349: 
+350:     # Get a random trainer contact from the region the player is currently in,
+351:     # but is not in the same map as the player.
+352:     def get_random_trainer_for_incoming_call
+353:       player_location = $game_map.metadata&.town_map_position
+354:       return nil if !player_location
+355:       player_region = player_location[0]
+356:       valid_contacts = []
+357:       $PokemonGlobal.phone.contacts.each do |contact|
+358:         next if !contact.trainer? || !contact.visible?
+359:         next if contact.map_id == $game_map.map_id ||
+360:                 pbGetMapNameFromId(contact.map_id) == $game_map.name
+361:         caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+362:         next if !caller_map_metadata || !caller_map_metadata.town_map_position
+363:         next if caller_map_metadata.town_map_position[0] != player_region
+364:         valid_contacts.push(contact)
+365:       end
+366:       return valid_contacts.sample
+367:     end
+368: 
+369:     #===========================================================================
+370: 
+371:     def make_incoming
+372:       return if !can_make?
+373:       contact = get_random_trainer_for_incoming_call
+374:       return if !contact
+375:       if contact.common_event_call?
+376:         if !pbCommonEvent(contact.common_event_id)
+377:           pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+378:                           contact.display_name, contact.common_event_id))
+379:         end
+380:       else
+381:         call = generate_trainer_dialogue(contact)
+382:         play(call, contact)
+383:       end
+384:     end
+385: 
+386:     # Phone::Contact
+387:     # Trainer type, name[, start_version]
+388:     # Name (for non-trainers)
+389:     def make_outgoing(*args)
+390:       if args[0].is_a?(Phone::Contact)
+391:         contact = args[0]
+392:       elsif args.length > 1
+393:         contact = Phone.get(true, args[0], args[1], args[2] || 0)   # Trainer
+394:       else
+395:         contact = Phone.get(false, args[0])   # Non-trainer
+396:       end
+397:       raise _INTL("Couldn't find phone contact given: {1}.", args.inspect) if !contact
+398:       return if !can_call_contact?(contact)
+399:       if contact.common_event_call?
+400:         if !pbCommonEvent(contact.common_event_id)
+401:           pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+402:                           contact.display_name, contact.common_event_id))
+403:         end
+404:       else
+405:         call = generate_trainer_dialogue(contact)
+406:         play(call, contact)
+407:       end
+408:     end
+409: 
+410:     def start_message(contact = nil)
+411:       pbMessage("......\\wt[5] ......\1")
+412:     end
+413: 
+414:     def play(dialogue, contact)
+415:       start_message(contact)
+416:       contact_pokemon_species  = get_random_contact_pokemon_species(contact)
+417:       random_encounter_species = get_random_encounter_species(contact)
+418:       contact_map_name         = get_map_name(contact)
+419:       gender_colour_text       = ""
+420:       if Settings::COLOR_PHONE_CALL_MESSAGES_BY_CONTACT_GENDER && contact.trainer?
+421:         data = GameData::TrainerType.try_get(contact.trainer_type)
+422:         if data
+423:           case data.gender
+424:           when 0 then gender_colour_text = "\\b"
+425:           when 1 then gender_colour_text = "\\r"
+426:           end
+427:         end
+428:       end
+429:       messages = dialogue.split("\\m")
+430:       messages.each_with_index do |message, i|
+431:         message.gsub!(/\\TN/, _INTL(contact.name))
+432:         message.gsub!(/\\TP/, contact_pokemon_species)
+433:         message.gsub!(/\\TE/, random_encounter_species)
+434:         message.gsub!(/\\TM/, contact_map_name)
+435:         message += "\1" if i < messages.length - 1
+436:         pbMessage(gender_colour_text + message)
+437:       end
+438:       end_message(contact)
+439:     end
+440: 
+441:     def end_message(contact = nil)
+442:       pbMessage(_INTL("Click!") + "\\wt[10]\n......\\wt[5] ......\1")
+443:     end
+444: 
+445:     #===========================================================================
+446: 
+447:     def generate_trainer_dialogue(contact)
+448:       validate contact => Phone::Contact
+449:       # Get the set of messages to be used by the contact
+450:       messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.version)
+451:       messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.start_version) if !messages
+452:       messages = GameData::PhoneMessage::DATA["default"] if !messages
+453:       # Create lambda for choosing a random message and translating it
+454:       get_random_message = lambda do |msgs|
+455:         return "" if !msgs
+456:         msg = msgs.sample
+457:         return "" if !msg
+458:         return pbGetMessageFromHash(MessageTypes::PHONE_MESSAGES, msg)
+459:       end
+460:       # Choose random greeting depending on time of day
+461:       ret = get_random_message.call(messages.intro)
+462:       time = pbGetTimeNow
+463:       if PBDayNight.isMorning?(time)
+464:         mod_call = get_random_message.call(messages.intro_morning)
+465:         ret = mod_call if !nil_or_empty?(mod_call)
+466:       elsif PBDayNight.isAfternoon?(time)
+467:         mod_call = get_random_message.call(messages.intro_afternoon)
+468:         ret = mod_call if !nil_or_empty?(mod_call)
+469:       elsif PBDayNight.isEvening?(time)
+470:         mod_call = get_random_message.call(messages.intro_evening)
+471:         ret = mod_call if !nil_or_empty?(mod_call)
+472:       end
+473:       ret += "\\m"
+474:       # Choose main message set
+475:       if Phone.rematches_enabled && contact.rematch_flag > 0
+476:         # Trainer is ready for a rematch, so tell/remind the player
+477:         case contact.rematch_flag
+478:         when 1   # Tell the player
+479:           ret += get_random_message.call(messages.battle_request)
+480:           contact.rematch_flag = 2   # Ready for rematch and told player
+481:         when 2   # Remind the player
+482:           if messages.battle_remind
+483:             ret += get_random_message.call(messages.battle_remind)
+484:           else
+485:             ret += get_random_message.call(messages.battle_request)
+486:           end
+487:         end
+488:       else
+489:         # Standard messages
+490:         if messages.body1 && messages.body2 && (!messages.body || rand(100) < 75)
+491:           # Choose random pair of body messages
+492:           ret += get_random_message.call(messages.body1)
+493:           ret += "\\m"
+494:           ret += get_random_message.call(messages.body2)
+495:         else
+496:           # Choose random full body message
+497:           ret += get_random_message.call(messages.body)
+498:         end
+499:         # Choose end message
+500:         mod_call = get_random_message.call(messages.end)
+501:         ret += "\\m" + mod_call if !nil_or_empty?(mod_call)
+502:       end
+503:       return ret
+504:     end
+505: 
+506:     def get_random_contact_pokemon_species(contact)
+507:       return "" if !contact.trainer?
+508:       version = [contact.version, contact.start_version].max
+509:       trainer_data = GameData::Trainer.try_get(contact.trainer_type, contact.name, version)
+510:       return "" if !trainer_data
+511:       pkmn = trainer_data.pokemon.sample[:species]
+512:       return GameData::Species.get(pkmn).name
+513:     end
+514: 
+515:     def get_random_encounter_species(contact)
+516:       return "" if !contact.trainer?
+517:       encounter_data = GameData::Encounter.get(contact.map_id, $PokemonGlobal.encounter_version)
+518:       return "" if !encounter_data
+519:       get_species_from_table = lambda do |encounter_table|
+520:         return nil if !encounter_table || encounter_table.length == 0
+521:         len = [encounter_table.length, 4].min   # From first 4 slots only
+522:         return encounter_table[rand(len)][1]
+523:       end
+524:       enc_tables = encounter_data.types
+525:       species = get_species_from_table.call(enc_tables[:Land])
+526:       if !species
+527:         species = get_species_from_table.call(enc_tables[:Cave])
+528:         species = get_species_from_table.call(enc_tables[:Water]) if !species
+529:       end
+530:       return "" if !species
+531:       return GameData::Species.get(species).name
+532:     end
+533: 
+534:     def get_map_name(contact)
+535:       return pbGetMapNameFromId(contact.map_id)
+536:     end
+537:   end
+538: end
+539: 
+540: #===============================================================================

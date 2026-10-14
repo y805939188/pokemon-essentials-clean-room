@@ -1,0 +1,201 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/003_Move/013_MoveEffects_SwitchingActing.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "df0a078ed56c1d9d7c102098e25ec046b31ff748", "sha256": "6d7bc4c6029243d500445124a3bb850253dada700b5c88ff826ec0cf4bf31667", "start_line": 1, "end_line": 200, "total_lines": 948, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:35:21.670704+00:00"}
+1: #===============================================================================
+2: # User flees from battle. (Teleport (Gen 7-))
+3: #===============================================================================
+4: class Battle::Move::FleeFromBattle < Battle::Move
+5:   def pbMoveFailed?(user, targets)
+6:     if !@battle.pbCanRun?(user.index) || (user.wild? && user.allAllies.length > 0)
+7:       @battle.pbDisplay(_INTL("But it failed!"))
+8:       return true
+9:     end
+10:     return false
+11:   end
+12: 
+13:   def pbEffectGeneral(user)
+14:     @battle.pbDisplay(_INTL("{1} fled from battle!", user.pbThis))
+15:     @battle.decision = 3   # Escaped
+16:   end
+17: end
+18: 
+19: #===============================================================================
+20: # User switches out. If user is a wild Pokémon, ends the battle instead.
+21: # (Teleport (Gen 8+))
+22: #===============================================================================
+23: class Battle::Move::SwitchOutUserStatusMove < Battle::Move
+24:   def pbMoveFailed?(user, targets)
+25:     if user.wild?
+26:       if !@battle.pbCanRun?(user.index) || user.allAllies.length > 0
+27:         @battle.pbDisplay(_INTL("But it failed!"))
+28:         return true
+29:       end
+30:     elsif !@battle.pbCanChooseNonActive?(user.index)
+31:       @battle.pbDisplay(_INTL("But it failed!"))
+32:       return true
+33:     end
+34:     return false
+35:   end
+36: 
+37:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers)
+38:     return if user.wild?
+39:     @battle.pbDisplay(_INTL("{1} went back to {2}!", user.pbThis,
+40:                             @battle.pbGetOwnerName(user.index)))
+41:     @battle.pbPursuit(user.index)
+42:     return if user.fainted?
+43:     newPkmn = @battle.pbGetReplacementPokemonIndex(user.index)   # Owner chooses
+44:     return if newPkmn < 0
+45:     @battle.pbRecallAndReplace(user.index, newPkmn)
+46:     @battle.pbClearChoice(user.index)   # Replacement Pokémon does nothing this round
+47:     @battle.moldBreaker = false
+48:     @battle.pbOnBattlerEnteringBattle(user.index)
+49:     switchedBattlers.push(user.index)
+50:   end
+51: 
+52:   def pbEffectGeneral(user)
+53:     if user.wild?
+54:       @battle.pbDisplay(_INTL("{1} fled from battle!", user.pbThis))
+55:       @battle.decision = 3   # Escaped
+56:     end
+57:   end
+58: end
+59: 
+60: #===============================================================================
+61: # After inflicting damage, user switches out. Ignores trapping moves.
+62: # (Flip Turn, U-turn, Volt Switch)
+63: #===============================================================================
+64: class Battle::Move::SwitchOutUserDamagingMove < Battle::Move
+65:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers)
+66:     return if user.fainted? || numHits == 0 || @battle.pbAllFainted?(user.idxOpposingSide)
+67:     targetSwitched = true
+68:     targets.each do |b|
+69:       targetSwitched = false if !switchedBattlers.include?(b.index)
+70:     end
+71:     return if targetSwitched
+72:     return if !@battle.pbCanChooseNonActive?(user.index)
+73:     @battle.pbDisplay(_INTL("{1} went back to {2}!", user.pbThis,
+74:                             @battle.pbGetOwnerName(user.index)))
+75:     @battle.pbPursuit(user.index)
+76:     return if user.fainted?
+77:     newPkmn = @battle.pbGetReplacementPokemonIndex(user.index)   # Owner chooses
+78:     return if newPkmn < 0
+79:     @battle.pbRecallAndReplace(user.index, newPkmn)
+80:     @battle.pbClearChoice(user.index)   # Replacement Pokémon does nothing this round
+81:     @battle.moldBreaker = false
+82:     @battle.pbOnBattlerEnteringBattle(user.index)
+83:     switchedBattlers.push(user.index)
+84:   end
+85: end
+86: 
+87: #===============================================================================
+88: # Decreases the target's Attack and Special Attack by 1 stage each. Then, user
+89: # switches out. Ignores trapping moves. (Parting Shot)
+90: #===============================================================================
+91: class Battle::Move::LowerTargetAtkSpAtk1SwitchOutUser < Battle::Move::TargetMultiStatDownMove
+92:   def initialize(battle, move)
+93:     super
+94:     @statDown = [:ATTACK, 1, :SPECIAL_ATTACK, 1]
+95:   end
+96: 
+97:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers)
+98:     switcher = user
+99:     targets.each do |b|
+100:       next if switchedBattlers.include?(b.index)
+101:       switcher = b if b.effects[PBEffects::MagicCoat] || b.effects[PBEffects::MagicBounce]
+102:     end
+103:     return if switcher.fainted? || numHits == 0
+104:     return if !@battle.pbCanChooseNonActive?(switcher.index)
+105:     @battle.pbDisplay(_INTL("{1} went back to {2}!", switcher.pbThis,
+106:                             @battle.pbGetOwnerName(switcher.index)))
+107:     @battle.pbPursuit(switcher.index)
+108:     return if switcher.fainted?
+109:     newPkmn = @battle.pbGetReplacementPokemonIndex(switcher.index)   # Owner chooses
+110:     return if newPkmn < 0
+111:     @battle.pbRecallAndReplace(switcher.index, newPkmn)
+112:     @battle.pbClearChoice(switcher.index)   # Replacement Pokémon does nothing this round
+113:     @battle.moldBreaker = false if switcher.index == user.index
+114:     @battle.pbOnBattlerEnteringBattle(switcher.index)
+115:     switchedBattlers.push(switcher.index)
+116:   end
+117: end
+118: 
+119: #===============================================================================
+120: # User switches out. Various effects affecting the user are passed to the
+121: # replacement. (Baton Pass)
+122: #===============================================================================
+123: class Battle::Move::SwitchOutUserPassOnEffects < Battle::Move
+124:   def pbMoveFailed?(user, targets)
+125:     if !@battle.pbCanChooseNonActive?(user.index)
+126:       @battle.pbDisplay(_INTL("But it failed!"))
+127:       return true
+128:     end
+129:     return false
+130:   end
+131: 
+132:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers)
+133:     return if user.fainted? || numHits == 0
+134:     return if !@battle.pbCanChooseNonActive?(user.index)
+135:     @battle.pbPursuit(user.index)
+136:     return if user.fainted?
+137:     newPkmn = @battle.pbGetReplacementPokemonIndex(user.index)   # Owner chooses
+138:     return if newPkmn < 0
+139:     @battle.pbRecallAndReplace(user.index, newPkmn, false, true)
+140:     @battle.pbClearChoice(user.index)   # Replacement Pokémon does nothing this round
+141:     @battle.moldBreaker = false
+142:     @battle.pbOnBattlerEnteringBattle(user.index)
+143:     switchedBattlers.push(user.index)
+144:   end
+145: end
+146: 
+147: #===============================================================================
+148: # When used against a sole wild Pokémon, makes target flee and ends the battle;
+149: # fails if target is a higher level than the user.
+150: # When used against a trainer's Pokémon, target switches out.
+151: # For status moves. (Roar, Whirlwind)
+152: #===============================================================================
+153: class Battle::Move::SwitchOutTargetStatusMove < Battle::Move
+154:   def ignoresSubstitute?(user); return true; end
+155:   def canMagicCoat?;            return true; end
+156: 
+157:   def pbFailsAgainstTarget?(user, target, show_message)
+158:     if target.hasActiveAbility?(:SUCTIONCUPS) && !@battle.moldBreaker
+159:       if show_message
+160:         @battle.pbShowAbilitySplash(target)
+161:         if Battle::Scene::USE_ABILITY_SPLASH
+162:           @battle.pbDisplay(_INTL("{1} anchors itself!", target.pbThis))
+163:         else
+164:           @battle.pbDisplay(_INTL("{1} anchors itself with {2}!", target.pbThis, target.abilityName))
+165:         end
+166:         @battle.pbHideAbilitySplash(target)
+167:       end
+168:       return true
+169:     end
+170:     if target.effects[PBEffects::Ingrain]
+171:       @battle.pbDisplay(_INTL("{1} anchored itself with its roots!", target.pbThis)) if show_message
+172:       return true
+173:     end
+174:     if target.wild? && target.allAllies.length == 0 && @battle.canRun
+175:       # End the battle
+176:       if target.level > user.level
+177:         @battle.pbDisplay(_INTL("But it failed!")) if show_message
+178:         return true
+179:       end
+180:     elsif !target.wild?
+181:       # Switch target out
+182:       canSwitch = false
+183:       @battle.eachInTeamFromBattlerIndex(target.index) do |_pkmn, i|
+184:         canSwitch = @battle.pbCanSwitchIn?(target.index, i)
+185:         break if canSwitch
+186:       end
+187:       if !canSwitch
+188:         @battle.pbDisplay(_INTL("But it failed!")) if show_message
+189:         return true
+190:       end
+191:     else
+192:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+193:       return true
+194:     end
+195:     return false
+196:   end
+197: 
+198:   def pbEffectAgainstTarget(user, target)
+199:     @battle.decision = 3 if target.wild?   # Escaped from battle
+200:   end

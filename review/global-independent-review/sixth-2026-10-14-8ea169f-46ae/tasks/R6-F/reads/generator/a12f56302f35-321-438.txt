@@ -1,0 +1,119 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/004_ChallengeGenerator_BattleSim.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "3d74238e2e7319ad487445b4e037a4167929456e", "sha256": "f4d0b0d5b456daa180655fc796a94d37efe66f291d3ebae24228e7a3d84a1e47", "start_line": 321, "end_line": 438, "total_lines": 438, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:28:01.720386+00:00"}
+321:     end
+322:     typemod = mod1 * mod2
+323:   end
+324:   typemod *= 4   # Because dealing with 2 types
+325:   return scores[0] if typemod == 0    # Ineffective
+326:   return scores[1] if typemod == 1    # Doubly not very effective
+327:   return scores[2] if typemod == 2    # Not very effective
+328:   return scores[3] if typemod == 4    # Normal effective
+329:   return scores[4] if typemod == 8    # Super effective
+330:   return scores[5] if typemod == 16   # Doubly super effective
+331:   return 0
+332: end
+333: 
+334: def pbDecideWinnerScore(party0, party1, rating)
+335:   score = 0
+336:   types1 = []
+337:   types2 = []
+338:   abilities = []
+339:   party1.length.times do |j|
+340:     types1.push(party1[j].types[0])
+341:     types2.push(party1[j].types[1] || party1[j].types[0])
+342:     abilities.push(party1[j].ability_id)
+343:   end
+344:   party0.length.times do |i|
+345:     party0[i].moves.each do |move|
+346:       next if !move
+347:       party1.length.times do |j|
+348:         score += pbDecideWinnerEffectiveness(
+349:           move.id, types1[j], types2[j], abilities[j], [-16, -8, 0, 4, 12, 20]
+350:         )
+351:       end
+352:     end
+353:     basestatsum = baseStatTotal(party0[i].species)
+354:     score += basestatsum / 10
+355:     score += 10 if party0[i].item   # Not in Battle Dome ranking
+356:   end
+357:   score += rating + rand(32)
+358:   return score
+359: end
+360: 
+361: def pbDecideWinner(party0, party1, rating0, rating1)
+362:   rating0 = (rating0 * 15.0 / 100).round
+363:   rating1 = (rating1 * 15.0 / 100).round
+364:   score0 = pbDecideWinnerScore(party0, party1, rating0)
+365:   score1 = pbDecideWinnerScore(party1, party0, rating1)
+366:   if score0 == score1
+367:     return 5 if rating0 == rating1
+368:     return (rating0 > rating1) ? 1 : 2
+369:   else
+370:     return (score0 > score1) ? 1 : 2
+371:   end
+372: end
+373: 
+374: #===============================================================================
+375: #
+376: #===============================================================================
+377: def pbRuledBattle(team1, team2, rule)
+378:   decision = 0
+379:   if rand(100) == 0
+380:     level = rule.ruleset.suggestedLevel
+381:     t_type = GameData::TrainerType.keys.first
+382:     trainer1 = NPCTrainer.new("PLAYER1", t_type)
+383:     trainer2 = NPCTrainer.new("PLAYER2", t_type)
+384:     items1 = []
+385:     items2 = []
+386:     team1.team.each_with_index do |p, i|
+387:       next if !p
+388:       if p.level != level
+389:         p.level = level
+390:         p.calc_stats
+391:       end
+392:       items1[i] = p.item_id
+393:       trainer1.party.push(p)
+394:     end
+395:     team2.team.each_with_index do |p, i|
+396:       next if !p
+397:       if p.level != level
+398:         p.level = level
+399:         p.calc_stats
+400:       end
+401:       items2[i] = p.item_id
+402:       trainer2.party.push(p)
+403:     end
+404:     scene = Battle::DebugSceneNoVisuals.new
+405:     battle = rule.createBattle(scene, trainer1, trainer2)
+406:     battle.debug = true
+407:     battle.controlPlayer = true
+408:     battle.internalBattle = false
+409:     decision = battle.pbStartBattle
+410:     team1.team.each_with_index do |p, i|
+411:       next if !p
+412:       p.heal
+413:       p.item = items1[i]
+414:     end
+415:     team2.team.each_with_index do |p, i|
+416:       next if !p
+417:       p.heal
+418:       p.item = items2[i]
+419:     end
+420:   else
+421:     party1 = []
+422:     party2 = []
+423:     team1.length.times { |i| party1.push(team1[i]) }
+424:     team2.length.times { |i| party2.push(team2[i]) }
+425:     decision = pbDecideWinner(party1, party2, team1.rating, team2.rating)
+426:   end
+427:   case decision
+428:   when 1   # Team 1 wins
+429:     team1.addMatch(team2, 1)
+430:     team2.addMatch(team1, 0)
+431:   when 2   # Team 2 wins
+432:     team1.addMatch(team2, 0)
+433:     team2.addMatch(team1, 1)
+434:   else
+435:     team1.addMatch(team2, -1)
+436:     team2.addMatch(team1, -1)
+437:   end
+438: end

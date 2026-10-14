@@ -1,0 +1,47 @@
+1: """Read-only frozen-input inventory and finite Markdown block denominator."""
+2: import collections, datetime, hashlib, json, pathlib, subprocess
+3: root = pathlib.Path(__file__).resolve().parents[1]
+4: base = root.parents[2]
+5: main = '8ea169fbd0f33f378b5d732fd6bea59e854e04a6'
+6: rcommit = '8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b'
+7: ref = base/'reference/pokemon-essentials'
+8: def git(repo, *args): return subprocess.check_output(['git','-C',str(repo),*args])
+9: def entries(repo, rev, path=None):
+10:     argv=['ls-tree','-rz','--full-tree',rev]
+11:     if path: argv += ['--',path]
+12:     for item in git(repo,*argv).split(b'\0'):
+13:         if not item: continue
+14:         info,p=item.split(b'\t',1);mode,kind,blob=info.decode().split()
+15:         if kind=='blob': yield p.decode(),blob,mode
+16: def ident(repo,rev,tree,p,blob,mode,purpose):
+17:     b=git(repo,'cat-file','blob',blob)
+18:     suffix=pathlib.Path(p).suffix.lower()
+19:     istext = suffix in {'.md','.rb','.txt','.json','.yml','.tsv','.csv','.py','.html','.url'} or p in {'LICENSE','.gitignore'}
+20:     return {'repository':str(repo),'commit':rev,'tree':tree,'path':p,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),
+21:             'git_blob':blob,'mode':mode,'type':'text' if istext else 'binary','purpose':purpose,
+22:             'lines':len(b.splitlines()) if istext else None,'reading_status':'NOT_YET_READ'}
+23: def save(name,obj): (root/'inventory'/name).write_text(json.dumps(obj,ensure_ascii=False,indent=2)+'\n')
+24: r=[ident(ref,rcommit,git(ref,'rev-parse',rcommit+'^{tree}').decode().strip(),p,blob,m,'reference_behavior_or_material') for p,blob,m in entries(ref,rcommit)]
+25: f=[ident(base,main,'1046fbb657882e84b3dfc6d017943a9edf7782e5',p,blob,m,'formal_current') for p,blob,m in entries(base,main,'deliverables/final-specification-set')]
+26: save('reference.json',r);save('formal131.json',f)
+27: allmain=[{'path':p,'git_blob':blob,'mode':m,'commit':main,'tree':'6ab3429170d2762607fbc2237014c3a160449fa1','disposition':'UNCLASSIFIED'} for p,blob,m in entries(base,main)]
+28: save('workspace-tracked.json',allmain)
+29: protected=[]
+30: for p in (base/'review/global-independent-review/third-2026-10-11-86b4d7e').rglob('*'):
+31:     if p.is_file():
+32:         b=p.read_bytes();protected.append({'path':str(p.relative_to(base)),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()})
+33: save('protected-untracked.json',protected)
+34: save('reference-extra-files.json',[str(p.relative_to(ref)) for p in ref.rglob('*') if p.is_file() and '.git' not in p.parts and str(p.relative_to(ref)) not in {x['path'] for x in r}])
+35: clauses=[]
+36: for fi,x in enumerate(f,1):
+37:     lines=git(base,'cat-file','blob',x['git_blob']).decode('utf-8-sig').splitlines(); ci=0;start=0
+38:     for i,line in enumerate(lines+[''],1):
+39:         if start and (not line.strip() or line.startswith('#') or line.startswith('|') or line.startswith('- ') or line.startswith('* ')):
+40:             ci+=1;clauses.append({'id':f'F{fi:03d}-C{ci:04d}','path':x['path'],'start_line':start,'end_line':i-1,'status':'NOT_YET_REVIEWED'});start=0
+41:         if line.strip():
+42:             if line.startswith(('#','|','- ','* ')):
+43:                 ci+=1;clauses.append({'id':f'F{fi:03d}-C{ci:04d}','path':x['path'],'start_line':i,'end_line':i,'status':'NOT_YET_REVIEWED'})
+44:             elif not start:start=i
+45: save('formal-block-denominator.json',clauses)
+46: save('initial-counts.json',{'reference_tracked_files':len(r),'formal_files':len(f),'formal_finite_blocks':len(clauses),'workspace_tracked_files':len(allmain),'protected_untracked_files':len(protected),'reference_bytes':sum(x['bytes'] for x in r),'formal_bytes':sum(x['bytes'] for x in f),'inventory_is_not_semantic_reading':True,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat()})
+47: print(json.dumps(json.loads((root/'inventory/initial-counts.json').read_text()),ensure_ascii=False))

@@ -1,0 +1,83 @@
+310:   def get_score_for_target_stat_drop(score, target, stat_changes, whole_effect = true,
+311:                                      fixed_change = false, ignore_contrary = false)
+312:     whole_effect = false if @move.damagingMove?
+313:     # Decide whether the target lowering its stat(s) is a good thing
+314:     desire_mult = -1
+315:     if target.opposes?(@user) ||
+316:        (@move.pbTarget(@user.battler).targets_foe && target.index != @user.index)
+317:       desire_mult = 1
+318:     end
+319:     # If target has Contrary, use different calculations to score the stat change
+320:     if !ignore_contrary && !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:CONTRARY)
+321:       if desire_mult > 0 && whole_effect
+322:         PBDebug.log_score_change(MOVE_USELESS_SCORE - score, "don't prefer lowering target's stats (it has Contrary)")
+323:         return MOVE_USELESS_SCORE
+324:       end
+325:       return get_score_for_target_stat_raise(score, target, stat_changes, whole_effect, fixed_change, true)
+326:     end
+327:     # Don't make score changes if the move is a damaging move and its additional
+328:     # effect (the stat drop(s)) will be negated
+329:     add_effect = @move.get_score_change_for_additional_effect(@user, target)
+330:     return score if add_effect == -999   # Additional effect will be negated
+331:     # Don't make score changes if target will faint from EOR damage
+332:     if target.rough_end_of_round_damage >= target.hp
+333:       ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+334:       PBDebug.log("     ignore stat change (target predicted to faint this round)")
+335:       return ret
+336:     end
+337:     # Don't make score changes if foes have Unaware and target can't make use of
+338:     # its lowered stat stages
+339:     foe_is_aware = false
+340:     each_foe_battler(target.side) do |b, i|
+341:       foe_is_aware = true if !b.has_active_ability?(:UNAWARE)
+342:     end
+343:     if !foe_is_aware
+344:       ret = (whole_effect) ? MOVE_USELESS_SCORE : score
+345:       PBDebug.log("     ignore stat change (target's foes have Unaware)")
+346:       return ret
+347:     end
+348:     # Figure out which stat drops can happen
+349:     real_stat_changes = []
+350:     stat_changes.each_with_index do |stat, idx|
+351:       next if idx.odd?
+352:       if !stat_drop_worthwhile?(target, stat, fixed_change)
+353:         if target.index == @user.index
+354:           PBDebug.log("     lowering the user's #{GameData::Stat.get(stat).name} isn't worthwhile")
+355:         else
+356:           PBDebug.log("     lowering the target's #{GameData::Stat.get(stat).name} isn't worthwhile")
+357:         end
+358:         next
+359:       end
+360:       # Calculate amount that stat will be lowered by
+361:       decrement = stat_changes[idx + 1]
+362:       decrement *= 2 if !fixed_change && !@battle.moldBreaker && target.has_active_ability?(:SIMPLE)
+363:       decrement = [decrement, Battle::Battler::STAT_STAGE_MAXIMUM + target.stages[stat]].min   # The actual stages lost
+364:       # Count this as a valid stat drop
+365:       real_stat_changes.push([stat, decrement]) if decrement > 0
+366:     end
+367:     # Discard move if it can't lower any stats
+368:     if real_stat_changes.length == 0
+369:       return (whole_effect) ? MOVE_USELESS_SCORE : score
+370:     end
+371:     # Make score change based on the additional effect chance
+372:     score += add_effect
+373:     # Make score changes based on the general concept of lowering stats at all
+374:     score = get_target_stat_drop_score_generic(score, target, real_stat_changes, desire_mult)
+375:     # Make score changes based on the specific changes to each stat that will be
+376:     # lowered
+377:     real_stat_changes.each do |change|
+378:       old_score = score
+379:       score = get_target_stat_drop_score_one(score, target, change[0], change[1], desire_mult)
+380:       if target.index == @user.index
+381:         PBDebug.log_score_change(score - old_score, "lowering the user's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+382:       else
+383:         PBDebug.log_score_change(score - old_score, "lowering the target's #{GameData::Stat.get(change[0]).name} by #{change[1]}")
+384:       end
+385:     end
+386:     return score
+387:   end
+388: 
+389:   #-----------------------------------------------------------------------------
+390: 
+391:   # Returns whether the target lowering the given stat will have any impact.
+392:   def stat_drop_worthwhile?(target, stat, fixed_change = false)

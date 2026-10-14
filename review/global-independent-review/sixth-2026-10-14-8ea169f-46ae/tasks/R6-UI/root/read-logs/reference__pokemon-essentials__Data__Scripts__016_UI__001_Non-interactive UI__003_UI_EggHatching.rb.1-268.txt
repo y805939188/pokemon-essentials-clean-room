@@ -1,0 +1,269 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/001_Non-interactive UI/003_UI_EggHatching.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 268], "total_lines": 268, "sha256": "becfdcdbe1f14898d3279e8e07d6ffd5de2fea6ea76e986899c923acfd2e5cb7", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:19:25.559699+00:00"}
+1: #===============================================================================
+2: # * Egg Hatch Animation - by FL (Credits will be apreciated)
+3: #                         Tweaked by Maruno
+4: #===============================================================================
+5: # This script is for Pokémon Essentials. It's an egg hatch animation that
+6: # works even with special eggs like Manaphy egg.
+7: #===============================================================================
+8: # To this script works, put it above Main and put a picture (a 5 frames
+9: # sprite sheet) with egg sprite height and 5 times the egg sprite width at
+10: # Graphics/Battlers/eggCracks.
+11: #===============================================================================
+12: class PokemonEggHatch_Scene
+13:   def pbStartScene(pokemon)
+14:     @sprites = {}
+15:     @pokemon = pokemon
+16:     @nicknamed = false
+17:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+18:     @viewport.z = 99999
+19:     # Create background image
+20:     addBackgroundOrColoredPlane(@sprites, "background", "hatch_bg",
+21:                                 Color.new(248, 248, 248), @viewport)
+22:     # Create egg sprite/Pokémon sprite
+23:     @sprites["pokemon"] = PokemonSprite.new(@viewport)
+24:     @sprites["pokemon"].setOffset(PictureOrigin::BOTTOM)
+25:     @sprites["pokemon"].x = Graphics.width / 2
+26:     @sprites["pokemon"].y = 264 + 56   # 56 to offset the egg sprite
+27:     @sprites["pokemon"].setSpeciesBitmap(@pokemon.species, @pokemon.gender,
+28:                                          @pokemon.form, @pokemon.shiny?,
+29:                                          false, false, true)   # Egg sprite
+30:     # Load egg cracks bitmap
+31:     crackfilename = GameData::Species.egg_cracks_sprite_filename(@pokemon.species, @pokemon.form)
+32:     @hatchSheet = AnimatedBitmap.new(crackfilename)
+33:     # Create egg cracks sprite
+34:     @sprites["hatch"] = Sprite.new(@viewport)
+35:     @sprites["hatch"].x = @sprites["pokemon"].x
+36:     @sprites["hatch"].y = @sprites["pokemon"].y
+37:     @sprites["hatch"].ox = @sprites["pokemon"].ox
+38:     @sprites["hatch"].oy = @sprites["pokemon"].oy
+39:     @sprites["hatch"].bitmap = @hatchSheet.bitmap
+40:     @sprites["hatch"].src_rect = Rect.new(0, 0, @hatchSheet.width / 5, @hatchSheet.height)
+41:     @sprites["hatch"].visible = false
+42:     # Create flash overlay
+43:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+44:     @sprites["overlay"].z = 200
+45:     @sprites["overlay"].bitmap = Bitmap.new(Graphics.width, Graphics.height)
+46:     @sprites["overlay"].bitmap.fill_rect(0, 0, Graphics.width, Graphics.height, Color.white)
+47:     @sprites["overlay"].opacity = 0
+48:     # Start up scene
+49:     pbFadeInAndShow(@sprites)
+50:   end
+51: 
+52:   def pbMain
+53:     pbBGMPlay("Evolution")
+54:     # Egg animation
+55:     updateScene(1.5)
+56:     pbPositionHatchMask(0)
+57:     pbSEPlay("Battle ball shake")
+58:     swingEgg(4)
+59:     updateScene(0.2)
+60:     pbPositionHatchMask(1)
+61:     pbSEPlay("Battle ball shake")
+62:     swingEgg(4)
+63:     updateScene(0.4)
+64:     pbPositionHatchMask(2)
+65:     pbSEPlay("Battle ball shake")
+66:     swingEgg(8, 2)
+67:     updateScene(0.4)
+68:     pbPositionHatchMask(3)
+69:     pbSEPlay("Battle ball shake")
+70:     swingEgg(16, 4)
+71:     updateScene(0.2)
+72:     pbPositionHatchMask(4)
+73:     pbSEPlay("Battle recall")
+74:     # Fade and change the sprite
+75:     timer_start = System.uptime
+76:     loop do
+77:       tone_val = lerp(0, 255, 0.4, timer_start, System.uptime)
+78:       @sprites["pokemon"].tone = Tone.new(tone_val, tone_val, tone_val)
+79:       @sprites["overlay"].opacity = tone_val
+80:       updateScene
+81:       break if tone_val >= 255
+82:     end
+83:     updateScene(0.75)
+84:     @sprites["pokemon"].setPokemonBitmap(@pokemon) # Pokémon sprite
+85:     @sprites["pokemon"].x = Graphics.width / 2
+86:     @sprites["pokemon"].y = 264
+87:     @pokemon.species_data.apply_metrics_to_sprite(@sprites["pokemon"], 1)
+88:     @sprites["hatch"].visible = false
+89:     timer_start = System.uptime
+90:     loop do
+91:       tone_val = lerp(255, 0, 0.4, timer_start, System.uptime)
+92:       @sprites["pokemon"].tone = Tone.new(tone_val, tone_val, tone_val)
+93:       @sprites["overlay"].opacity = tone_val
+94:       updateScene
+95:       break if tone_val <= 0
+96:     end
+97:     # Finish scene
+98:     cry_duration = GameData::Species.cry_length(@pokemon)
+99:     @pokemon.play_cry
+100:     updateScene(cry_duration + 0.1)
+101:     pbBGMStop
+102:     pbMEPlay("Evolution success")
+103:     @pokemon.name = nil
+104:     pbMessage("\\se[]" + _INTL("{1} hatched from the Egg!", @pokemon.name) + "\\wt[80]") { update }
+105:     # Record the Pokémon's species as owned in the Pokédex
+106:     was_owned = $player.owned?(@pokemon.species)
+107:     $player.pokedex.register(@pokemon)
+108:     $player.pokedex.set_owned(@pokemon.species)
+109:     $player.pokedex.set_seen_egg(@pokemon.species)
+110:     # Show Pokédex entry for new species if it hasn't been owned before
+111:     if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && !was_owned &&
+112:        $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(@pokemon.species)
+113:       pbMessage(_INTL("{1}'s data was added to the Pokédex.", @pokemon.name)) { update }
+114:       $player.pokedex.register_last_seen(@pokemon)
+115:       pbFadeOutIn do
+116:         scene = PokemonPokedexInfo_Scene.new
+117:         screen = PokemonPokedexInfoScreen.new(scene)
+118:         screen.pbDexEntry(@pokemon.species)
+119:       end
+120:     end
+121:     # Nickname the Pokémon
+122:     if $PokemonSystem.givenicknames == 0 &&
+123:        pbConfirmMessage(
+124:          _INTL("Would you like to nickname the newly hatched {1}?", @pokemon.name)
+125:        ) { update }
+126:       nickname = pbEnterPokemonName(_INTL("{1}'s nickname?", @pokemon.name),
+127:                                     0, Pokemon::MAX_NAME_SIZE, "", @pokemon, true)
+128:       @pokemon.name = nickname
+129:       @nicknamed = true
+130:     end
+131:   end
+132: 
+133:   def pbEndScene
+134:     pbFadeOutAndHide(@sprites) { update } if !@nicknamed
+135:     pbDisposeSpriteHash(@sprites)
+136:     @hatchSheet.dispose
+137:     @viewport.dispose
+138:   end
+139: 
+140:   def pbPositionHatchMask(index)
+141:     @sprites["hatch"].src_rect.x = index * @sprites["hatch"].src_rect.width
+142:   end
+143: 
+144:   def swingEgg(speed, swingTimes = 1)
+145:     @sprites["hatch"].visible = true
+146:     amplitude = 8
+147:     duration = 0.05 * amplitude / speed
+148:     targets = []
+149:     swingTimes.times do
+150:       targets.push(@sprites["pokemon"].x + amplitude)
+151:       targets.push(@sprites["pokemon"].x - amplitude)
+152:     end
+153:     targets.push(@sprites["pokemon"].x)
+154:     targets.each_with_index do |target, i|
+155:       timer_start = System.uptime
+156:       start_x = @sprites["pokemon"].x
+157:       loop do
+158:         break if i.even? && @sprites["pokemon"].x >= target
+159:         break if i.odd? && @sprites["pokemon"].x <= target
+160:         @sprites["pokemon"].x = lerp(start_x, target, duration, timer_start, System.uptime)
+161:         @sprites["hatch"].x = @sprites["pokemon"].x
+162:         updateScene
+163:       end
+164:     end
+165:     @sprites["pokemon"].x = targets[targets.length - 1]
+166:     @sprites["hatch"].x   = @sprites["pokemon"].x
+167:   end
+168: 
+169:   # Can be used for "wait" effect.
+170:   def updateScene(duration = 0.01)
+171:     timer_start = System.uptime
+172:     while System.uptime - timer_start < duration
+173:       Graphics.update
+174:       Input.update
+175:       self.update
+176:     end
+177:   end
+178: 
+179:   def update
+180:     pbUpdateSpriteHash(@sprites)
+181:   end
+182: end
+183: 
+184: #===============================================================================
+185: #
+186: #===============================================================================
+187: class PokemonEggHatchScreen
+188:   def initialize(scene)
+189:     @scene = scene
+190:   end
+191: 
+192:   def pbStartScreen(pokemon)
+193:     @scene.pbStartScene(pokemon)
+194:     @scene.pbMain
+195:     @scene.pbEndScene
+196:   end
+197: end
+198: 
+199: #===============================================================================
+200: #
+201: #===============================================================================
+202: def pbHatchAnimation(pokemon)
+203:   pbMessage(_INTL("Huh?") + "\1")
+204:   pbFadeOutInWithMusic do
+205:     scene = PokemonEggHatch_Scene.new
+206:     screen = PokemonEggHatchScreen.new(scene)
+207:     screen.pbStartScreen(pokemon)
+208:   end
+209:   return true
+210: end
+211: 
+212: def pbHatch(pokemon)
+213:   $stats.eggs_hatched += 1
+214:   speciesname = pokemon.speciesName
+215:   pokemon.name           = nil
+216:   pokemon.owner          = Pokemon::Owner.new_from_trainer($player)
+217:   pokemon.happiness      = 120
+218:   pokemon.timeEggHatched = Time.now.to_i
+219:   pokemon.obtain_method  = 1   # hatched from egg
+220:   pokemon.hatched_map    = $game_map.map_id
+221:   pokemon.record_first_moves
+222:   if !pbHatchAnimation(pokemon)
+223:     pbMessage(_INTL("Huh?") + "\1")
+224:     pbMessage(_INTL("...") + "\1")
+225:     pbMessage(_INTL("... .... .....") + "\1")
+226:     pbMessage(_INTL("{1} hatched from the Egg!", speciesname))
+227:     was_owned = $player.owned?(pokemon.species)
+228:     $player.pokedex.register(pokemon)
+229:     $player.pokedex.set_owned(pokemon.species)
+230:     $player.pokedex.set_seen_egg(pokemon.species)
+231:     # Show Pokédex entry for new species if it hasn't been owned before
+232:     if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && !was_owned &&
+233:        $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(pokemon.species)
+234:       pbMessage(_INTL("{1}'s data was added to the Pokédex.", speciesname))
+235:       $player.pokedex.register_last_seen(pokemon)
+236:       pbFadeOutIn do
+237:         scene = PokemonPokedexInfo_Scene.new
+238:         screen = PokemonPokedexInfoScreen.new(scene)
+239:         screen.pbDexEntry(pokemon.species)
+240:       end
+241:     end
+242:     # Nickname the Pokémon
+243:     if $PokemonSystem.givenicknames == 0 &&
+244:        pbConfirmMessage(_INTL("Would you like to nickname the newly hatched {1}?", speciesname))
+245:       nickname = pbEnterPokemonName(_INTL("{1}'s nickname?", speciesname),
+246:                                     0, Pokemon::MAX_NAME_SIZE, "", pokemon)
+247:       pokemon.name = nickname
+248:     end
+249:   end
+250: end
+251: 
+252: EventHandlers.add(:on_player_step_taken, :hatch_eggs,
+253:   proc {
+254:     $player.party.each do |egg|
+255:       next if egg.steps_to_hatch <= 0
+256:       egg.steps_to_hatch -= 1
+257:       $player.pokemon_party.each do |pkmn|
+258:         next if !pkmn.ability&.has_flag?("FasterEggHatching")
+259:         egg.steps_to_hatch -= 1
+260:         break
+261:       end
+262:       if egg.steps_to_hatch <= 0
+263:         egg.steps_to_hatch = 0
+264:         pbHatch(egg)
+265:       end
+266:     end
+267:   }
+268: )

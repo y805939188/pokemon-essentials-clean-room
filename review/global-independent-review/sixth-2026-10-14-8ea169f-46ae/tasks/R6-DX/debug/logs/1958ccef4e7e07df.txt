@@ -1,0 +1,212 @@
+241:     total_width = rect.width
+242:     name_width  = total_width * 80 / 100
+243:     value_width = total_width * 20 / 100
+244:     self.shadowtext(rect.x, rect.y + 8, name_width, rect.height, variable_data[:name], 0, color)
+245:     self.shadowtext(rect.x + name_width, rect.y + 8, value_width, rect.height, variable_text, 1, color)
+246:   end
+247: end
+248: 
+249: #===============================================================================
+250: #
+251: #===============================================================================
+252: class Battle::DebugSetEffects
+253:   def initialize(battle, mode, side = 0)
+254:     @battle = battle
+255:     @mode = mode
+256:     @side = side
+257:     case @mode
+258:     when :field
+259:       @variables_data = Battle::DebugVariables::FIELD_EFFECTS
+260:       @variables = @battle.field.effects
+261:     when :side
+262:       @variables_data = Battle::DebugVariables::SIDE_EFFECTS
+263:       @variables = @battle.sides[@side].effects
+264:     when :position
+265:       @variables_data = Battle::DebugVariables::POSITION_EFFECTS
+266:       @variables = @battle.positions[@side].effects
+267:     when :battler
+268:       @variables_data = Battle::DebugVariables::BATTLER_EFFECTS
+269:       @variables = @battle.battlers[@side].effects
+270:     end
+271:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+272:     @viewport.z = 99999
+273:     @window = SpriteWindow_DebugBattleFieldEffects.new(@viewport, @battle, @variables, @variables_data)
+274:     @window.active = true
+275:   end
+276: 
+277:   def dispose
+278:     @window.dispose
+279:     @viewport.dispose
+280:   end
+281: 
+282:   def choose_number(default, min, max)
+283:     params = ChooseNumberParams.new
+284:     params.setRange(min, max)
+285:     params.setDefaultValue(default)
+286:     params.setNegativesAllowed(true) if min < 0
+287:     return pbMessageChooseNumber(_INTL("Set value ({1}-{2}).", min, max), params)
+288:   end
+289: 
+290:   def choose_battler(default)
+291:     commands = [_INTL("[None]")]
+292:     cmds = [-1]
+293:     cmd = 0
+294:     @battle.battlers.each_with_index do |battler, i|
+295:       next if battler.nil?   # Position doesn't exist
+296:       name = battler.pbThis
+297:       name = "-" if battler.fainted? || nil_or_empty?(name)
+298:       commands.push(sprintf("[%d] %s", i, name))
+299:       cmds.push(i)
+300:       cmd = cmds.length - 1 if default == i
+301:     end
+302:     cmd = pbMessage("\\ts[]" + _INTL("Choose a battler/position."), commands, -1, nil, cmd)
+303:     return (cmd >= 0) ? cmds[cmd] : default
+304:   end
+305: 
+306:   def update_input_for_boolean(effect, variable_data)
+307:     if Input.trigger?(Input::USE)
+308:       pbPlayDecisionSE
+309:       @variables[effect] = !@variables[effect]
+310:       return true
+311:     elsif Input.trigger?(Input::ACTION) && @variables[effect]
+312:       pbPlayDecisionSE
+313:       @variables[effect] = false
+314:       return true
+315:     elsif Input.repeat?(Input::LEFT) && @variables[effect]
+316:       pbPlayCursorSE
+317:       @variables[effect] = false
+318:       return true
+319:     elsif Input.repeat?(Input::RIGHT) && !@variables[effect]
+320:       pbPlayCursorSE
+321:       @variables[effect] = true
+322:       return true
+323:     end
+324:     return false
+325:   end
+326: 
+327:   def update_input_for_integer(effect, default, variable_data)
+328:     true_default = (default == -2) ? -1 : default
+329:     min = variable_data[:min] || true_default
+330:     max = variable_data[:max] || 99
+331:     if Input.trigger?(Input::USE)
+332:       pbPlayDecisionSE
+333:       new_value = choose_number(@variables[effect], min, max)
+334:       if new_value != @variables[effect]
+335:         @variables[effect] = new_value
+336:         return true
+337:       end
+338:     elsif Input.trigger?(Input::ACTION) && @variables[effect] != true_default
+339:       pbPlayDecisionSE
+340:       @variables[effect] = true_default
+341:       return true
+342:     elsif Input.repeat?(Input::LEFT) && @variables[effect] > min
+343:       pbPlayCursorSE
+344:       @variables[effect] -= 1
+345:       return true
+346:     elsif Input.repeat?(Input::RIGHT) && @variables[effect] < max
+347:       pbPlayCursorSE
+348:       @variables[effect] += 1
+349:       return true
+350:     end
+351:     return false
+352:   end
+353: 
+354:   def update_input_for_battler_index(effect, variable_data)
+355:     if Input.trigger?(Input::USE)
+356:       pbPlayDecisionSE
+357:       new_value = choose_battler(@variables[effect])
+358:       if new_value != @variables[effect]
+359:         @variables[effect] = new_value
+360:         return true
+361:       end
+362:     elsif Input.trigger?(Input::ACTION) && @variables[effect] != -1
+363:       pbPlayDecisionSE
+364:       @variables[effect] = -1
+365:       return true
+366:     elsif Input.repeat?(Input::LEFT)
+367:       if @variables[effect] > -1
+368:         pbPlayCursorSE
+369:         loop do
+370:           @variables[effect] -= 1
+371:           break if @variables[effect] == -1 || @battle.battlers[@variables[effect]]
+372:         end
+373:         return true
+374:       end
+375:     elsif Input.repeat?(Input::RIGHT)
+376:       if @variables[effect] < @battle.battlers.length - 1
+377:         pbPlayCursorSE
+378:         loop do
+379:           @variables[effect] += 1
+380:           break if @battle.battlers[@variables[effect]]
+381:         end
+382:         return true
+383:       end
+384:     end
+385:     return false
+386:   end
+387: 
+388:   def update_input_for_move(effect, variable_data)
+389:     if Input.trigger?(Input::USE)
+390:       pbPlayDecisionSE
+391:       new_value = pbChooseMoveList(@variables[effect])
+392:       if new_value && new_value != @variables[effect]
+393:         @variables[effect] = new_value
+394:         return true
+395:       end
+396:     elsif Input.trigger?(Input::ACTION) && @variables[effect]
+397:       pbPlayDecisionSE
+398:       @variables[effect] = nil
+399:       return true
+400:     end
+401:     return false
+402:   end
+403: 
+404:   def update_input_for_item(effect, variable_data)
+405:     if Input.trigger?(Input::USE)
+406:       pbPlayDecisionSE
+407:       new_value = pbChooseItemList(@variables[effect])
+408:       if new_value && new_value != @variables[effect]
+409:         @variables[effect] = new_value
+410:         return true
+411:       end
+412:     elsif Input.trigger?(Input::ACTION) && @variables[effect]
+413:       pbPlayDecisionSE
+414:       @variables[effect] = nil
+415:       return true
+416:     end
+417:     return false
+418:   end
+419: 
+420:   def update
+421:     loop do
+422:       Graphics.update
+423:       Input.update
+424:       @window.update
+425:       if Input.trigger?(Input::BACK)
+426:         pbPlayCancelSE
+427:         break
+428:       end
+429:       index = @window.index
+430:       effect = @variables_data.keys[index]
+431:       variable_data = @variables_data[effect]
+432:       if variable_data[:default] == false
+433:         @window.refresh if update_input_for_boolean(effect, variable_data)
+434:       elsif [0, 1, -2].include?(variable_data[:default])
+435:         @window.refresh if update_input_for_integer(effect, variable_data[:default], variable_data)
+436:       elsif variable_data[:default] == -1
+437:         @window.refresh if update_input_for_battler_index(effect, variable_data)
+438:       elsif variable_data[:default].nil?
+439:         case variable_data[:type]
+440:         when :move
+441:           @window.refresh if update_input_for_move(effect, variable_data)
+442:         when :item
+443:           @window.refresh if update_input_for_item(effect, variable_data)
+444:         else
+445:           raise "Unknown kind of variable!"
+446:         end
+447:       else
+448:         raise "Unknown kind of variable!"
+449:       end
+450:     end
+451:   end
+452: end

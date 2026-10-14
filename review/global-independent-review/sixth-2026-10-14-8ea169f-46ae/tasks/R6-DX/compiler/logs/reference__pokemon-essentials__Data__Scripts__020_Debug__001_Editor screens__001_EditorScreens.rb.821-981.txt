@@ -1,0 +1,161 @@
+821: #===============================================================================
+822: def pbItemEditor
+823:   properties = GameData::Item.editor_properties
+824:   pbListScreenBlock(_INTL("Items"), ItemLister.new(0, true)) do |button, item|
+825:     if item
+826:       case button
+827:       when Input::ACTION
+828:         if item.is_a?(Symbol) && pbConfirmMessageSerious(_INTL("Delete this item?"))
+829:           GameData::Item::DATA.delete(item)
+830:           GameData::Item.save
+831:           Compiler.write_items
+832:           pbMessage(_INTL("The item was deleted."))
+833:         end
+834:       when Input::USE
+835:         if item.is_a?(Symbol)
+836:           itm = GameData::Item.get(item)
+837:           data = []
+838:           properties.each do |prop|
+839:             val = itm.get_property_for_PBS(prop[0])
+840:             val = prop[1].defaultValue if val.nil? && prop[1].respond_to?(:defaultValue)
+841:             data.push(val)
+842:           end
+843:           if pbPropertyList(itm.id.to_s, data, properties, true)
+844:             # Construct item hash
+845:             schema = GameData::Item.schema
+846:             item_hash = {}
+847:             properties.each_with_index do |prop, i|
+848:               case prop[0]
+849:               when "ID"
+850:                 item_hash[schema["SectionName"][0]] = data[i]
+851:               else
+852:                 item_hash[schema[prop[0]][0]] = data[i]
+853:               end
+854:             end
+855:             item_hash[:pbs_file_suffix] = itm.pbs_file_suffix
+856:             # Add item's data to records
+857:             GameData::Item.register(item_hash)
+858:             GameData::Item.save
+859:             Compiler.write_items
+860:           end
+861:         else   # Add a new item
+862:           pbItemEditorNew(nil)
+863:         end
+864:       end
+865:     end
+866:   end
+867: end
+868: 
+869: def pbItemEditorNew(default_name)
+870:   # Choose a name
+871:   name = pbMessageFreeText(_INTL("Please enter the item's name."),
+872:                            (default_name) ? default_name.gsub(/_+/, " ") : "", false, 30)
+873:   if nil_or_empty?(name)
+874:     return if !default_name
+875:     name = default_name
+876:   end
+877:   # Generate an ID based on the item name
+878:   id = name.gsub(/é/, "e")
+879:   id = id.gsub(/[^A-Za-z0-9_]/, "")
+880:   id = id.upcase
+881:   if id.length == 0
+882:     id = sprintf("ITEM_%03d", GameData::Item.count)
+883:   elsif !id[0, 1][/[A-Z]/]
+884:     id = "ITEM_" + id
+885:   end
+886:   if GameData::Item.exists?(id)
+887:     (1..100).each do |i|
+888:       trial_id = sprintf("%s_%d", id, i)
+889:       next if GameData::Item.exists?(trial_id)
+890:       id = trial_id
+891:       break
+892:     end
+893:   end
+894:   if GameData::Item.exists?(id)
+895:     pbMessage(_INTL("Failed to create the item. Choose a different name."))
+896:     return
+897:   end
+898:   # Choose a pocket
+899:   pocket = PocketProperty.set("", 0)
+900:   return if pocket == 0
+901:   # Choose a price
+902:   price = LimitProperty.new(999_999).set(_INTL("Purchase price"), -1)
+903:   return if price == -1
+904:   # Choose a description
+905:   description = StringProperty.set(_INTL("Description"), "")
+906:   # Construct item hash
+907:   item_hash = {
+908:     :id          => id.to_sym,
+909:     :name        => name,
+910:     :name_plural => name + "s",
+911:     :pocket      => pocket,
+912:     :price       => price,
+913:     :description => description
+914:   }
+915:   # Add item's data to records
+916:   GameData::Item.register(item_hash)
+917:   GameData::Item.save
+918:   Compiler.write_items
+919:   pbMessage(_INTL("The item {1} was created (ID: {2}).", name, id.to_s))
+920:   pbMessage(_INTL("Put the item's graphic ({1}.png) in Graphics/Items, or it will be blank.", id.to_s))
+921: end
+922: 
+923: #===============================================================================
+924: # Pokémon species editor
+925: #===============================================================================
+926: def pbPokemonEditor
+927:   properties = GameData::Species.editor_properties
+928:   pbListScreenBlock(_INTL("Pokémon species"), SpeciesLister.new(0, false)) do |button, species|
+929:     if species
+930:       case button
+931:       when Input::ACTION
+932:         if species.is_a?(Symbol) && pbConfirmMessageSerious(_INTL("Delete this species?"))
+933:           GameData::Species::DATA.delete(species)
+934:           GameData::Species.save
+935:           Compiler.write_pokemon
+936:           pbMessage(_INTL("The species was deleted."))
+937:         end
+938:       when Input::USE
+939:         if species.is_a?(Symbol)
+940:           spec = GameData::Species.get(species)
+941:           data = []
+942:           properties.each do |prop|
+943:             val = spec.get_property_for_PBS(prop[0])
+944:             val = prop[1].defaultValue if val.nil? && prop[1].respond_to?(:defaultValue)
+945:             val = (val * 10).round if ["Height", "Weight"].include?(prop[0])
+946:             data.push(val)
+947:           end
+948:           # Edit the properties
+949:           if pbPropertyList(spec.id.to_s, data, properties, true)
+950:             # Construct species hash
+951:             schema = GameData::Species.schema
+952:             species_hash = {}
+953:             properties.each_with_index do |prop, i|
+954:               data[i] = data[i].to_f / 10 if ["Height", "Weight"].include?(prop[0])
+955:               case prop[0]
+956:               when "ID"
+957:                 species_hash[schema["SectionName"][0]] = data[i]
+958:               else
+959:                 species_hash[schema[prop[0]][0]] = data[i]
+960:               end
+961:             end
+962:             species_hash[:pbs_file_suffix] = spec.pbs_file_suffix
+963:             # Sanitise data
+964:             Compiler.validate_compiled_pokemon(species_hash)
+965:             species_hash[:evolutions].each do |evo|
+966:               param_type = GameData::Evolution.get(evo[1]).parameter
+967:               if param_type.nil?
+968:                 evo[2] = nil
+969:               elsif param_type == Integer
+970:                 evo[2] = Compiler.cast_csv_value(evo[2], "u")
+971:               elsif param_type != String
+972:                 evo[2] = Compiler.cast_csv_value(evo[2], "e", param_type)
+973:               end
+974:             end
+975:             # Add species' data to records
+976:             GameData::Species.register(species_hash)
+977:             GameData::Species.save
+978:             Compiler.write_pokemon
+979:             pbMessage(_INTL("Data saved."))
+980:           end
+981:         else

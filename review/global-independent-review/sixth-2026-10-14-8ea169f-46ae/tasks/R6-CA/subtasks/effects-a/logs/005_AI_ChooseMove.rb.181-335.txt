@@ -1,0 +1,155 @@
+181:     return true if !@user.battler.asleep? && @move.move.usableWhenAsleep?
+182:     # NOTE: Truanting is not considered, because if it is, a Pokémon with Truant
+183:     #       will want to switch due to terrible moves every other round (because
+184:     #       all of its moves will fail), and this is disruptive and shouldn't be
+185:     #       how such Pokémon behave.
+186:     # Primal weather
+187:     return true if @battle.pbWeather == :HeavyRain && @move.rough_type == :FIRE
+188:     return true if @battle.pbWeather == :HarshSun && @move.rough_type == :WATER
+189:     # Move effect-specific checks
+190:     return true if Battle::AI::Handlers.move_will_fail?(@move.function_code, @move, @user, self, @battle)
+191:     return false
+192:   end
+193: 
+194:   # Returns whether the move will definitely fail against the target (assuming
+195:   # no battle conditions change between now and using the move).
+196:   def pbPredictMoveFailureAgainstTarget
+197:     # Move effect-specific checks
+198:     return true if Battle::AI::Handlers.move_will_fail_against_target?(@move.function_code, @move, @user, @target, self, @battle)
+199:     # Immunity to priority moves because of Psychic Terrain
+200:     return true if @battle.field.terrain == :Psychic && @target.battler.affectedByTerrain? &&
+201:                    @target.opposes?(@user) && @move.rough_priority(@user) > 0
+202:     # Immunity because of ability
+203:     return true if @move.move.pbImmunityByAbility(@user.battler, @target.battler, false)
+204:     # Immunity because of Dazzling/Queenly Majesty
+205:     if @move.rough_priority(@user) > 0 && @target.opposes?(@user)
+206:       each_same_side_battler(@target.side) do |b, i|
+207:         return true if b.has_active_ability?([:DAZZLING, :QUEENLYMAJESTY])
+208:       end
+209:     end
+210:     # Type immunity
+211:     calc_type = @move.rough_type
+212:     typeMod = @move.move.pbCalcTypeMod(calc_type, @user.battler, @target.battler)
+213:     return true if @move.move.pbDamagingMove? && Effectiveness.ineffective?(typeMod)
+214:     # Dark-type immunity to moves made faster by Prankster
+215:     return true if Settings::MECHANICS_GENERATION >= 7 && @move.statusMove? &&
+216:                    @user.has_active_ability?(:PRANKSTER) && @target.has_type?(:DARK) && @target.opposes?(@user)
+217:     # Airborne-based immunity to Ground moves
+218:     return true if @move.damagingMove? && calc_type == :GROUND &&
+219:                    @target.battler.airborne? && !@move.move.hitsFlyingTargets?
+220:     # Immunity to powder-based moves
+221:     return true if @move.move.powderMove? && !@target.battler.affectedByPowder?
+222:     # Substitute
+223:     return true if @target.effects[PBEffects::Substitute] > 0 && @move.statusMove? &&
+224:                    !@move.move.ignoresSubstitute?(@user.battler) && @user.index != @target.index
+225:     return false
+226:   end
+227: 
+228:   #-----------------------------------------------------------------------------
+229: 
+230:   # Get a score for the given move being used against the given target.
+231:   # Assumes def set_up_move_check has previously been called.
+232:   def pbGetMoveScore(targets = nil)
+233:     # Get the base score for the move
+234:     score = MOVE_BASE_SCORE
+235:     # Scores for each target in turn
+236:     if targets
+237:       # Reset the base score for the move (each target will add its own score)
+238:       score = 0
+239:       affected_targets = 0
+240:       # Get a score for the move against each target in turn
+241:       orig_move = @move.move   # In case move is Mirror Move and changes depending on the target
+242:       targets.each do |target|
+243:         set_up_move_check(orig_move)
+244:         set_up_move_check_target(target)
+245:         t_score = pbGetMoveScoreAgainstTarget
+246:         next if t_score < 0
+247:         score += t_score
+248:         affected_targets += 1
+249:       end
+250:       # Set the default score if no targets were affected
+251:       if affected_targets == 0
+252:         score = (@trainer.has_skill_flag?("PredictMoveFailure")) ? MOVE_USELESS_SCORE : MOVE_BASE_SCORE
+253:       end
+254:       # Score based on how many targets were affected
+255:       if affected_targets == 0 && @trainer.has_skill_flag?("PredictMoveFailure")
+256:         if !@move.move.worksWithNoTargets?
+257:           PBDebug.log_score_change(MOVE_FAIL_SCORE - MOVE_BASE_SCORE, "move will fail")
+258:           return MOVE_FAIL_SCORE
+259:         end
+260:       else
+261:         score /= affected_targets if affected_targets > 1   # Average the score against multiple targets
+262:         # Bonus for affecting multiple targets
+263:         if @trainer.has_skill_flag?("PreferMultiTargetMoves") && affected_targets > 1
+264:           old_score = score
+265:           score += (affected_targets - 1) * 10
+266:           PBDebug.log_score_change(score - old_score, "affects multiple battlers")
+267:         end
+268:       end
+269:     end
+270:     # If we're here, the move either has no targets or at least one target will
+271:     # be affected (or the move is usable even if no targets are affected, e.g.
+272:     # Self-Destruct)
+273:     if @trainer.has_skill_flag?("ScoreMoves")
+274:       # Modify the score according to the move's effect
+275:       old_score = score
+276:       score = Battle::AI::Handlers.apply_move_effect_score(@move.function_code,
+277:          score, @move, @user, self, @battle)
+278:       PBDebug.log_score_change(score - old_score, "function code modifier (generic)")
+279:       # Modify the score according to various other effects
+280:       score = Battle::AI::Handlers.apply_general_move_score_modifiers(
+281:         score, @move, @user, self, @battle)
+282:     end
+283:     score = score.to_i
+284:     score = 0 if score < 0
+285:     return score
+286:   end
+287: 
+288:   #-----------------------------------------------------------------------------
+289: 
+290:   # Returns the score of @move being used against @target. A return value of -1
+291:   # means the move will fail or do nothing against the target.
+292:   # Assumes def set_up_move_check and def set_up_move_check_target have
+293:   # previously been called.
+294:   def pbGetMoveScoreAgainstTarget
+295:     # Predict whether the move will fail against the target
+296:     if @trainer.has_skill_flag?("PredictMoveFailure") && pbPredictMoveFailureAgainstTarget
+297:       PBDebug.log("     move will not affect #{@target.name}")
+298:       return -1
+299:     end
+300:     # Score the move
+301:     score = MOVE_BASE_SCORE
+302:     if @trainer.has_skill_flag?("ScoreMoves")
+303:       # Modify the score according to the move's effect against the target
+304:       old_score = score
+305:       score = Battle::AI::Handlers.apply_move_effect_against_target_score(@move.function_code,
+306:          MOVE_BASE_SCORE, @move, @user, @target, self, @battle)
+307:       PBDebug.log_score_change(score - old_score, "function code modifier (against target)")
+308:       # Modify the score according to various other effects against the target
+309:       score = Battle::AI::Handlers.apply_general_move_against_target_score_modifiers(
+310:         score, @move, @user, @target, self, @battle)
+311:     end
+312:     # Add the score against the target to the overall score
+313:     target_data = @move.pbTarget(@user.battler)
+314:     if target_data.targets_foe && !@target.opposes?(@user) && @target.index != @user.index
+315:       if score == MOVE_USELESS_SCORE
+316:         PBDebug.log("     move is useless against #{@target.name}")
+317:         return -1
+318:       end
+319:       old_score = score
+320:       score = ((1.85 * MOVE_BASE_SCORE) - score).to_i
+321:       PBDebug.log_score_change(score - old_score, "score inverted (move targets ally but can target foe)")
+322:     end
+323:     return score
+324:   end
+325: 
+326:   #-----------------------------------------------------------------------------
+327: 
+328:   # Make the final choice of which move to use depending on the calculated
+329:   # scores for each move. Moves with higher scores are more likely to be chosen.
+330:   def pbChooseMove(choices)
+331:     user_battler = @user.battler
+332:     # If no moves can be chosen, auto-choose a move or Struggle
+333:     if choices.length == 0
+334:       @battle.pbAutoChooseMove(user_battler.index)
+335:       PBDebug.log_ai("#{@user.name} will auto-use a move or Struggle")

@@ -1,0 +1,161 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/004_ChallengeGenerator_BattleSim.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "3d74238e2e7319ad487445b4e037a4167929456e", "sha256": "f4d0b0d5b456daa180655fc796a94d37efe66f291d3ebae24228e7a3d84a1e47", "start_line": 1, "end_line": 160, "total_lines": 438, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:27:37.508768+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class RuledTeam
+5:   attr_accessor :team
+6: 
+7:   def initialize(party, rule)
+8:     count = rule.ruleset.suggestedNumber
+9:     @team = []
+10:     retnum = []
+11:     loop do
+12:       count.times do |i|
+13:         retnum[i] = rand(party.length)
+14:         @team[i] = party[retnum[i]]
+15:         party.delete_at(retnum[i])
+16:       end
+17:       break if rule.ruleset.isValid?(@team)
+18:     end
+19:     @totalGames = 0
+20:     @rating = PlayerRating.new
+21:     @history = MatchHistory.new(@rating)
+22:   end
+23: 
+24:   def [](i)
+25:     @team[i]
+26:   end
+27: 
+28:   def length
+29:     return @team.length
+30:   end
+31: 
+32:   def rating
+33:     @rating.winChancePercent
+34:   end
+35: 
+36:   def ratingData
+37:     @rating
+38:   end
+39: 
+40:   def ratingRaw
+41:     [@rating.rating, @rating.deviation, @rating.volatility, @rating.winChancePercent]
+42:   end
+43: 
+44:   def compare(other)
+45:     @rating.compare(other.ratingData)
+46:   end
+47: 
+48:   def totalGames
+49:     (@totalGames || 0) + self.games
+50:   end
+51: 
+52:   def addMatch(other, score)
+53:     @history.addMatch(other.ratingData, score)
+54:   end
+55: 
+56:   def games
+57:     @history.length
+58:   end
+59: 
+60:   def updateRating
+61:     @totalGames = 0 if !@totalGames
+62:     oldgames = self.games
+63:     @history.updateAndClear
+64:     newgames = self.games
+65:     @totalGames += (oldgames - newgames)
+66:   end
+67: 
+68:   def toStr
+69:     return "[" + @rating.to_i.to_s + "," + @games.to_i.to_s + "]"
+70:   end
+71: 
+72:   def load(party)
+73:     ret = []
+74:     team.length.times do |i|
+75:       ret.push(party[team[i]])
+76:     end
+77:     return ret
+78:   end
+79: end
+80: 
+81: #===============================================================================
+82: #
+83: #===============================================================================
+84: class SingleMatch
+85:   attr_reader :opponentRating
+86:   attr_reader :opponentDeviation
+87:   attr_reader :score
+88:   attr_reader :kValue
+89: 
+90:   def initialize(opponentRating, opponentDev, score, kValue = 16)
+91:     @opponentRating    = opponentRating
+92:     @opponentDeviation = opponentDev
+93:     @score             = score   # -1=draw, 0=lose, 1=win
+94:     @kValue            = kValue
+95:   end
+96: end
+97: 
+98: #===============================================================================
+99: #
+100: #===============================================================================
+101: class MatchHistory
+102:   include Enumerable
+103: 
+104:   def initialize(thisPlayer)
+105:     @matches    = []
+106:     @thisPlayer = thisPlayer
+107:   end
+108: 
+109:   def [](i)
+110:     @matches[i]
+111:   end
+112: 
+113:   def length
+114:     @matches.length
+115:   end
+116: 
+117:   def each
+118:     @matches.each { |item| yield item }
+119:   end
+120: 
+121:   def addMatch(otherPlayer, result)
+122:     # 1=I won; 0=Other player won; -1: Draw
+123:     @matches.push(SingleMatch.new(otherPlayer.rating, otherPlayer.deviation, result))
+124:   end
+125: 
+126:   def updateAndClear
+127:     @thisPlayer.update(@matches)
+128:     @matches.clear
+129:   end
+130: end
+131: 
+132: #===============================================================================
+133: #
+134: #===============================================================================
+135: class PlayerRatingElo
+136:   attr_reader :rating
+137: 
+138:   K_VALUE = 16
+139: 
+140:   def initialize
+141:     @rating          = 1600.0
+142:     @deviation       = 0
+143:     @volatility      = 0
+144:     @estimatedRating = nil
+145:   end
+146: 
+147:   def winChancePercent
+148:     return @estimatedRating if @estimatedRating
+149:     x = (1 + (10.0**((@rating - 1600.0) / 400.0)))
+150:     @estimatedRating = (x == 0 ? 1.0 : 1.0 / x)
+151:     return @estimatedRating
+152:   end
+153: 
+154:   def update(matches)
+155:     return if matches.length == 0
+156:     stake = 0
+157:     matches.length.times do
+158:       score = (match.score == -1) ? 0.5 : match.score
+159:       e = (1 + (10.0**((@rating - match.opponentRating) / 400.0)))
+160:       stake += match.kValue * (score - e)

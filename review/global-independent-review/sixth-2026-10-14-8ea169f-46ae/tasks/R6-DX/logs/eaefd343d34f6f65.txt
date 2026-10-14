@@ -1,0 +1,310 @@
+1: #===============================================================================
+2: # Miniature game map drawing
+3: #===============================================================================
+4: class MapSprite
+5:   def initialize(map, viewport = nil)
+6:     @sprite = Sprite.new(viewport)
+7:     @sprite.bitmap = createMinimap(map)
+8:     @sprite.x = (Graphics.width / 2) - (@sprite.bitmap.width / 2)
+9:     @sprite.y = (Graphics.height / 2) - (@sprite.bitmap.height / 2)
+10:   end
+11: 
+12:   def dispose
+13:     @sprite.bitmap.dispose
+14:     @sprite.dispose
+15:   end
+16: 
+17:   def z=(value)
+18:     @sprite.z = value
+19:   end
+20: 
+21:   def getXY
+22:     return nil if !Input.trigger?(Input::MOUSELEFT)
+23:     mouse = Mouse.getMousePos(true)
+24:     return nil if !mouse
+25:     if mouse[0] < @sprite.x || mouse[0] >= @sprite.x + @sprite.bitmap.width
+26:       return nil
+27:     end
+28:     if mouse[1] < @sprite.y || mouse[1] >= @sprite.y + @sprite.bitmap.height
+29:       return nil
+30:     end
+31:     x = mouse[0] - @sprite.x
+32:     y = mouse[1] - @sprite.y
+33:     return [x / 4, y / 4]
+34:   end
+35: end
+36: 
+37: #===============================================================================
+38: #
+39: #===============================================================================
+40: class SelectionSprite < Sprite
+41:   def initialize(viewport = nil)
+42:     @sprite = Sprite.new(viewport)
+43:     @sprite.bitmap = nil
+44:     @sprite.z = 2
+45:     @othersprite = nil
+46:   end
+47: 
+48:   def disposed?
+49:     return @sprite.disposed?
+50:   end
+51: 
+52:   def dispose
+53:     @sprite.bitmap&.dispose
+54:     @othersprite = nil
+55:     @sprite.dispose
+56:   end
+57: 
+58:   def othersprite=(value)
+59:     @othersprite = value
+60:     if @othersprite && !@othersprite.disposed? &&
+61:        @othersprite.bitmap && !@othersprite.bitmap.disposed?
+62:       @sprite.bitmap = pbDoEnsureBitmap(
+63:         @sprite.bitmap, @othersprite.bitmap.width, @othersprite.bitmap.height
+64:       )
+65:       red = Color.new(255, 0, 0)
+66:       @sprite.bitmap.clear
+67:       @sprite.bitmap.fill_rect(0, 0, @othersprite.bitmap.width, 2, red)
+68:       @sprite.bitmap.fill_rect(0, @othersprite.bitmap.height - 2,
+69:                                @othersprite.bitmap.width, 2, red)
+70:       @sprite.bitmap.fill_rect(0, 0, 2, @othersprite.bitmap.height, red)
+71:       @sprite.bitmap.fill_rect(@othersprite.bitmap.width - 2, 0, 2,
+72:                                @othersprite.bitmap.height, red)
+73:     end
+74:   end
+75: 
+76:   def update
+77:     if @othersprite && !@othersprite.disposed?
+78:       @sprite.visible = @othersprite.visible
+79:       @sprite.x = @othersprite.x
+80:       @sprite.y = @othersprite.y
+81:     else
+82:       @sprite.visible = false
+83:     end
+84:   end
+85: end
+86: 
+87: #===============================================================================
+88: #
+89: #===============================================================================
+90: class RegionMapSprite
+91:   def initialize(map, viewport = nil)
+92:     @sprite = Sprite.new(viewport)
+93:     @sprite.bitmap = createRegionMap(map)
+94:     @sprite.x = (Graphics.width / 2) - (@sprite.bitmap.width / 2)
+95:     @sprite.y = (Graphics.height / 2) - (@sprite.bitmap.height / 2)
+96:   end
+97: 
+98:   def dispose
+99:     @sprite.bitmap.dispose
+100:     @sprite.dispose
+101:   end
+102: 
+103:   def z=(value)
+104:     @sprite.z = value
+105:   end
+106: 
+107:   def createRegionMap(map)
+108:     town_map = GameData::TownMap.get(map)
+109:     bitmap = AnimatedBitmap.new("Graphics/UI/Town Map/#{town_map.filename}").deanimate
+110:     retbitmap = Bitmap.new(bitmap.width / 2, bitmap.height / 2)
+111:     retbitmap.stretch_blt(
+112:       Rect.new(0, 0, bitmap.width / 2, bitmap.height / 2),
+113:       bitmap,
+114:       Rect.new(0, 0, bitmap.width, bitmap.height)
+115:     )
+116:     bitmap.dispose
+117:     return retbitmap
+118:   end
+119: 
+120:   def getXY
+121:     return nil if !Input.trigger?(Input::MOUSELEFT)
+122:     mouse = Mouse.getMousePos(true)
+123:     return nil if !mouse
+124:     if mouse[0] < @sprite.x || mouse[0] >= @sprite.x + @sprite.bitmap.width
+125:       return nil
+126:     end
+127:     if mouse[1] < @sprite.y || mouse[1] >= @sprite.y + @sprite.bitmap.height
+128:       return nil
+129:     end
+130:     x = mouse[0] - @sprite.x
+131:     y = mouse[1] - @sprite.y
+132:     return [x / 8, y / 8]
+133:   end
+134: end
+135: 
+136: #===============================================================================
+137: # Visual Editor (map connections)
+138: #===============================================================================
+139: class MapScreenScene
+140:   def getMapSprite(id)
+141:     if !@mapsprites[id]
+142:       @mapsprites[id] = Sprite.new(@viewport)
+143:       @mapsprites[id].z = 0
+144:       @mapsprites[id].bitmap = nil
+145:     end
+146:     if !@mapsprites[id].bitmap || @mapsprites[id].bitmap.disposed?
+147:       @mapsprites[id].bitmap = createMinimap(id)
+148:     end
+149:     return @mapsprites[id]
+150:   end
+151: 
+152:   def close
+153:     pbDisposeSpriteHash(@sprites)
+154:     pbDisposeSpriteHash(@mapsprites)
+155:     @viewport.dispose
+156:   end
+157: 
+158:   def setMapSpritePos(id, x, y)
+159:     sprite = getMapSprite(id)
+160:     sprite.x = x
+161:     sprite.y = y
+162:     sprite.visible = true
+163:   end
+164: 
+165:   def putNeighbors(id, sprites)
+166:     conns = @mapconns
+167:     mapsprite = getMapSprite(id)
+168:     dispx = mapsprite.x
+169:     dispy = mapsprite.y
+170:     conns.each do |conn|
+171:       if conn[0] == id
+172:         b = sprites.any? { |i| i == conn[3] }
+173:         if !b
+174:           x = ((conn[1] - conn[4]) * 4) + dispx
+175:           y = ((conn[2] - conn[5]) * 4) + dispy
+176:           setMapSpritePos(conn[3], x, y)
+177:           sprites.push(conn[3])
+178:           putNeighbors(conn[3], sprites)
+179:         end
+180:       elsif conn[3] == id
+181:         b = sprites.any? { |i| i == conn[0] }
+182:         if !b
+183:           x = ((conn[4] - conn[1]) * 4) + dispx
+184:           y = ((conn[5] - conn[2]) * 4) + dispy
+185:           setMapSpritePos(conn[0], x, y)
+186:           sprites.push(conn[3])
+187:           putNeighbors(conn[0], sprites)
+188:         end
+189:       end
+190:     end
+191:   end
+192: 
+193:   def hasConnections?(conns, id)
+194:     conns.each do |conn|
+195:       return true if conn[0] == id || conn[3] == id
+196:     end
+197:     return false
+198:   end
+199: 
+200:   def connectionsSymmetric?(conn1, conn2)
+201:     if conn1[0] == conn2[0]
+202:       # Equality
+203:       return false if conn1[1] != conn2[1]
+204:       return false if conn1[2] != conn2[2]
+205:       return false if conn1[3] != conn2[3]
+206:       return false if conn1[4] != conn2[4]
+207:       return false if conn1[5] != conn2[5]
+208:       return true
+209:     elsif conn1[0] == conn2[3]
+210:       # Symmetry
+211:       return false if conn1[1] != -conn2[1]
+212:       return false if conn1[2] != -conn2[2]
+213:       return false if conn1[3] != conn2[0]
+214:       return false if conn1[4] != -conn2[4]
+215:       return false if conn1[5] != -conn2[5]
+216:       return true
+217:     end
+218:     return false
+219:   end
+220: 
+221:   def removeOldConnections(ret, mapid)
+222:     ret.delete_if { |conn| conn[0] == mapid || conn[3] == mapid }
+223:   end
+224: 
+225:   # Returns the maps within _keys_ that are directly connected to this map, _map_.
+226:   def getDirectConnections(keys, map)
+227:     thissprite = getMapSprite(map)
+228:     thisdims = MapFactoryHelper.getMapDims(map)
+229:     ret = []
+230:     keys.each do |i|
+231:       next if i == map
+232:       othersprite = getMapSprite(i)
+233:       otherdims = MapFactoryHelper.getMapDims(i)
+234:       x1 = (thissprite.x - othersprite.x) / 4
+235:       y1 = (thissprite.y - othersprite.y) / 4
+236:       if x1 == otherdims[0] || x1 == -thisdims[0] ||
+237:          y1 == otherdims[1] || y1 == -thisdims[1]
+238:         ret.push(i)
+239:       end
+240:     end
+241:     # If no direct connections, add an indirect connection
+242:     if ret.length == 0
+243:       key = (map == keys[0]) ? keys[1] : keys[0]
+244:       ret.push(key)
+245:     end
+246:     return ret
+247:   end
+248: 
+249:   def generateConnectionData
+250:     ret = []
+251:     # Create a clone of current map connection
+252:     @mapconns.each do |conn|
+253:       ret.push(conn.clone)
+254:     end
+255:     keys = @mapsprites.keys
+256:     return ret if keys.length < 2
+257:     # Remove all connections containing any sprites on the canvas from the array
+258:     keys.each do |i|
+259:       removeOldConnections(ret, i)
+260:     end
+261:     # Rebuild connections
+262:     keys.each do |i|
+263:       refs = getDirectConnections(keys, i)
+264:       refs.each do |refmap|
+265:         othersprite = getMapSprite(i)
+266:         refsprite = getMapSprite(refmap)
+267:         c1 = (refsprite.x - othersprite.x) / 4
+268:         c2 = (refsprite.y - othersprite.y) / 4
+269:         conn = [refmap, 0, 0, i, c1, c2]
+270:         j = 0
+271:         while j < ret.length && !connectionsSymmetric?(ret[j], conn)
+272:           j += 1
+273:         end
+274:         ret.push(conn) if j == ret.length
+275:       end
+276:     end
+277:     return ret
+278:   end
+279: 
+280:   def serializeConnectionData
+281:     conndata = generateConnectionData
+282:     save_data(conndata, "Data/map_connections.dat")
+283:     Compiler.write_connections
+284:     @mapconns = conndata
+285:   end
+286: 
+287:   def putSprite(id)
+288:     addSprite(id)
+289:     putNeighbors(id, [])
+290:   end
+291: 
+292:   def addSprite(id)
+293:     mapsprite = getMapSprite(id)
+294:     x = (Graphics.width - mapsprite.bitmap.width) / 2
+295:     y = (Graphics.height - mapsprite.bitmap.height) / 2
+296:     mapsprite.x = x.to_i & ~3
+297:     mapsprite.y = y.to_i & ~3
+298:   end
+299: 
+300:   def saveMapSpritePos
+301:     @mapspritepos.clear
+302:     @mapsprites.each_key do |i|
+303:       s = @mapsprites[i]
+304:       @mapspritepos[i] = [s.x, s.y] if s && !s.disposed?
+305:     end
+306:   end
+307: 
+308:   def mapScreen
+309:     @sprites = {}
+310:     @mapsprites = {}

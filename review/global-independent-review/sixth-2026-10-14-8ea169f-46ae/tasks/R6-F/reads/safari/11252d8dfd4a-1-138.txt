@@ -1,0 +1,139 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld visuals/003_Overworld_MapTransitionAnims.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "9ee9320e2dc070b3be592fc697c77f7887c04a4e", "sha256": "ceaa2136249a857c2cbfe31caa2f0a75a60b1c3a8a611db184de166a32c416b8", "start_line": 1, "end_line": 138, "total_lines": 138, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:15.402463+00:00"}
+1: #===============================================================================
+2: # Entering/exiting cave animations
+3: #===============================================================================
+4: def pbCaveEntranceEx(exiting)
+5:   # Create bitmap
+6:   sprite = BitmapSprite.new(Graphics.width, Graphics.height)
+7:   sprite.z = 100000
+8:   # Define values used for the animation
+9:   duration = 0.4
+10:   totalBands = 15
+11:   bandheight = ((Graphics.height / 2.0) - 10) / totalBands
+12:   bandwidth  = ((Graphics.width / 2.0) - 12) / totalBands
+13:   start_gray = (exiting) ? 0 : 255
+14:   end_gray = (exiting) ? 255 : 0
+15:   # Create initial array of band colors (black if exiting, white if entering)
+16:   grays = Array.new(totalBands) { |i| start_gray }
+17:   # Animate bands changing color
+18:   timer_start = System.uptime
+19:   until System.uptime - timer_start >= duration
+20:     x = 0
+21:     y = 0
+22:     # Calculate color of each band
+23:     totalBands.times do |k|
+24:       grays[k] = lerp(start_gray, end_gray, duration, timer_start + (k * duration / totalBands), System.uptime)
+25:     end
+26:     # Draw gray rectangles
+27:     rectwidth  = Graphics.width
+28:     rectheight = Graphics.height
+29:     totalBands.times do |i|
+30:       currentGray = grays[i]
+31:       sprite.bitmap.fill_rect(Rect.new(x, y, rectwidth, rectheight),
+32:                               Color.new(currentGray, currentGray, currentGray))
+33:       x += bandwidth
+34:       y += bandheight
+35:       rectwidth  -= bandwidth * 2
+36:       rectheight -= bandheight * 2
+37:     end
+38:     Graphics.update
+39:     Input.update
+40:   end
+41:   # Set the tone at end of band animation
+42:   if exiting
+43:     pbToneChangeAll(Tone.new(255, 255, 255), 0)
+44:   else
+45:     pbToneChangeAll(Tone.new(-255, -255, -255), 0)
+46:   end
+47:   # Animate fade to white (if exiting) or black (if entering)
+48:   timer_start = System.uptime
+49:   loop do
+50:     sprite.color = Color.new(end_gray, end_gray, end_gray,
+51:                              lerp(0, 255, duration, timer_start, System.uptime))
+52:     Graphics.update
+53:     Input.update
+54:     break if sprite.color.alpha >= 255
+55:   end
+56:   # Set the tone at end of fading animation
+57:   pbToneChangeAll(Tone.new(0, 0, 0), 8)
+58:   # Pause briefly
+59:   timer_start = System.uptime
+60:   until System.uptime - timer_start >= 0.1
+61:     Graphics.update
+62:     Input.update
+63:   end
+64:   sprite.dispose
+65: end
+66: 
+67: def pbCaveEntrance
+68:   pbSetEscapePoint
+69:   pbCaveEntranceEx(false)
+70: end
+71: 
+72: def pbCaveExit
+73:   pbEraseEscapePoint
+74:   pbCaveEntranceEx(true)
+75: end
+76: 
+77: #===============================================================================
+78: # Blacking out animation
+79: #===============================================================================
+80: def pbStartOver(gameover = false)
+81:   if pbInBugContest?
+82:     pbBugContestStartOver
+83:     return
+84:   end
+85:   $stats.blacked_out_count += 1
+86:   $player.heal_party
+87:   if $PokemonGlobal.pokecenterMapId && $PokemonGlobal.pokecenterMapId >= 0
+88:     if gameover
+89:       pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+90:                 _INTL("After the unfortunate defeat, you scurry back to a Pokémon Center."))
+91:     else
+92:       pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+93:                 _INTL("You scurry back to a Pokémon Center, protecting your exhausted Pokémon from any further harm..."))
+94:     end
+95:     pbCancelVehicles
+96:     Followers.clear
+97:     $game_switches[Settings::STARTING_OVER_SWITCH] = true
+98:     $game_temp.player_new_map_id    = $PokemonGlobal.pokecenterMapId
+99:     $game_temp.player_new_x         = $PokemonGlobal.pokecenterX
+100:     $game_temp.player_new_y         = $PokemonGlobal.pokecenterY
+101:     $game_temp.player_new_direction = $PokemonGlobal.pokecenterDirection
+102:     pbDismountBike
+103:     $scene.transfer_player if $scene.is_a?(Scene_Map)
+104:     $game_map.refresh
+105:   else
+106:     homedata = GameData::PlayerMetadata.get($player.character_ID)&.home
+107:     homedata = GameData::Metadata.get.home if !homedata
+108:     if homedata && !pbRgssExists?(sprintf("Data/Map%03d.rxdata", homedata[0]))
+109:       if $DEBUG
+110:         pbMessage(_ISPRINTF("Can't find the map 'Map{1:03d}' in the Data folder. The game will resume at the player's position.", homedata[0]))
+111:       end
+112:       $player.heal_party
+113:       return
+114:     end
+115:     if gameover
+116:       pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+117:                 _INTL("After the unfortunate defeat, you scurry back home."))
+118:     else
+119:       pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+120:                 _INTL("You scurry back home, protecting your exhausted Pokémon from any further harm..."))
+121:     end
+122:     if homedata
+123:       pbCancelVehicles
+124:       Followers.clear
+125:       $game_switches[Settings::STARTING_OVER_SWITCH] = true
+126:       $game_temp.player_new_map_id    = homedata[0]
+127:       $game_temp.player_new_x         = homedata[1]
+128:       $game_temp.player_new_y         = homedata[2]
+129:       $game_temp.player_new_direction = homedata[3]
+130:       pbDismountBike
+131:       $scene.transfer_player if $scene.is_a?(Scene_Map)
+132:       $game_map.refresh
+133:     else
+134:       $player.heal_party
+135:     end
+136:   end
+137:   pbEraseEscapePoint
+138: end

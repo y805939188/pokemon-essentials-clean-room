@@ -1,0 +1,176 @@
+201:         #       is holding an item, it probably does.
+202:         if battle.field.effects[PBEffects::MagicRoom] > 0
+203:           # NOTE: Same as b.item_active? but ignoring the Magic Room part.
+204:           next if b.effects[PBEffects::Embargo] > 0
+205:           next if battle.corrosiveGas[b.index % 2][b.party_index]
+206:           next if b.has_active_ability?(:KLUTZ)
+207:         else
+208:           next if !b.item_active?
+209:         end
+210:       end
+211:       # Rate b's held item and add it to total_want
+212:       any_held_items = true
+213:       want = b.wants_item?(b.item_id)
+214:       total_want += (b.opposes?(user)) ? want : -want
+215:     end
+216:     # Alter score
+217:     next Battle::AI::MOVE_USELESS_SCORE if !any_held_items
+218:     if battle.field.effects[PBEffects::MagicRoom] > 0
+219:       next Battle::AI::MOVE_USELESS_SCORE if total_want >= 0
+220:       score -= [total_want, -5].max * 4   # Will enable items, prefer if allies affected more
+221:     else
+222:       next Battle::AI::MOVE_USELESS_SCORE if total_want <= 0
+223:       score += [total_want, 5].min * 4   # Will disable items, prefer if foes affected more
+224:     end
+225:     next score
+226:   }
+227: )
+228: 
+229: #===============================================================================
+230: #
+231: #===============================================================================
+232: Battle::AI::Handlers::MoveFailureCheck.add("UserConsumeBerryRaiseDefense2",
+233:   proc { |move, user, ai, battle|
+234:     item = user.item
+235:     next !item || !item.is_berry? || !user.item_active?
+236:   }
+237: )
+238: Battle::AI::Handlers::MoveEffectScore.add("UserConsumeBerryRaiseDefense2",
+239:   proc { |score, move, user, ai, battle|
+240:     # Score for raising the user's stat
+241:     stat_raise_score = Battle::AI::Handlers.apply_move_effect_score("RaiseUserDefense2",
+242:        0, move, user, ai, battle)
+243:     score += stat_raise_score if stat_raise_score != Battle::AI::MOVE_USELESS_SCORE
+244:     # Score for the consumed berry's effect
+245:     score += user.get_score_change_for_consuming_item(user.item_id, true)
+246:     # Score for other results of consuming the berry
+247:     if ai.trainer.medium_skill?
+248:       # Prefer if user will heal itself with Cheek Pouch
+249:       score += 8 if user.battler.canHeal? && user.hp < user.totalhp / 2 &&
+250:                     user.has_active_ability?(:CHEEKPOUCH)
+251:       # Prefer if target can recover the consumed berry
+252:       score += 8 if user.has_active_ability?(:HARVEST) ||
+253:                     user.has_move_with_function?("RestoreUserConsumedItem")
+254:       # Prefer if user couldn't normally consume the berry
+255:       score += 5 if !user.battler.canConsumeBerry?
+256:       # Prefer if user will become able to use Belch
+257:       score += 5 if !user.battler.belched? && user.has_move_with_function?("FailsIfUserNotConsumedBerry")
+258:       # Prefer if user will benefit from not having an item
+259:       score += 5 if user.has_active_ability?(:UNBURDEN)
+260:     end
+261:     next score
+262:   }
+263: )
+264: 
+265: #===============================================================================
+266: #
+267: #===============================================================================
+268: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("AllBattlersConsumeBerry",
+269:   proc { |move, user, target, ai, battle|
+270:     next !target.item || !target.item.is_berry? || target.battler.semiInvulnerable?
+271:   }
+272: )
+273: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("AllBattlersConsumeBerry",
+274:   proc { |score, move, user, target, ai, battle|
+275:     # Score for the consumed berry's effect
+276:     score_change = target.get_score_change_for_consuming_item(target.item_id, !target.opposes?(user))
+277:     # Score for other results of consuming the berry
+278:     if ai.trainer.medium_skill?
+279:       # Prefer if target will heal itself with Cheek Pouch
+280:       score_change += 8 if target.battler.canHeal? && target.hp < target.totalhp / 2 &&
+281:                            target.has_active_ability?(:CHEEKPOUCH)
+282:       # Prefer if target can recover the consumed berry
+283:       score_change += 8 if target.has_active_ability?(:HARVEST) ||
+284:                            target.has_move_with_function?("RestoreUserConsumedItem")
+285:       # Prefer if target couldn't normally consume the berry
+286:       score_change += 5 if !target.battler.canConsumeBerry?
+287:       # Prefer if target will become able to use Belch
+288:       score_change += 5 if !target.battler.belched? && target.has_move_with_function?("FailsIfUserNotConsumedBerry")
+289:       # Prefer if target will benefit from not having an item
+290:       score_change += 5 if target.has_active_ability?(:UNBURDEN)
+291:     end
+292:     score += (target.opposes?(user)) ? -score_change : score_change
+293:     next score
+294:   }
+295: )
+296: 
+297: #===============================================================================
+298: #
+299: #===============================================================================
+300: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserConsumeTargetBerry",
+301:   proc { |score, move, user, target, ai, battle|
+302:     next score if !target.item || !target.item.is_berry?
+303:     next score if user.battler.unlosableItem?(target.item)
+304:     next score if target.effects[PBEffects::Substitute] > 0
+305:     next score if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+306:     # Score the user gaining the item's effect
+307:     score += user.get_score_change_for_consuming_item(target.item_id)
+308:     # Score for other results of consuming the berry
+309:     if ai.trainer.medium_skill?
+310:       # Prefer if user will heal itself with Cheek Pouch
+311:       score += 8 if user.battler.canHeal? && user.hp < user.totalhp / 2 &&
+312:                     user.has_active_ability?(:CHEEKPOUCH)
+313:       # Prefer if user will become able to use Belch
+314:       score += 5 if !user.battler.belched? && user.has_move_with_function?("FailsIfUserNotConsumedBerry")
+315:       # Don't prefer if target will benefit from not having an item
+316:       score -= 5 if target.has_active_ability?(:UNBURDEN)
+317:     end
+318:     # Score the target no longer having the item
+319:     item_preference = target.wants_item?(target.item_id)
+320:     no_item_preference = target.wants_item?(:NONE)
+321:     score -= (no_item_preference - item_preference) * 3
+322:     next score
+323:   }
+324: )
+325: 
+326: #===============================================================================
+327: #
+328: #===============================================================================
+329: Battle::AI::Handlers::MoveFailureCheck.add("ThrowUserItemAtTarget",
+330:   proc { |move, user, ai, battle|
+331:     item = user.item
+332:     next true if !item || !user.item_active? || user.battler.unlosableItem?(item)
+333:     next true if item.is_berry? && !user.battler.canConsumeBerry?
+334:     next true if item.flags.none? { |f| f[/^Fling_/i] }
+335:     next false
+336:   }
+337: )
+338: Battle::AI::Handlers::MoveBasePower.add("ThrowUserItemAtTarget",
+339:   proc { |power, move, user, target, ai, battle|
+340:     next move.move.pbBaseDamage(power, user.battler, target.battler)
+341:   }
+342: )
+343: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("ThrowUserItemAtTarget",
+344:   proc { |score, move, user, target, ai, battle|
+345:     case user.item_id
+346:     when :POISONBARB, :TOXICORB
+347:       score = Battle::AI::Handlers.apply_move_effect_against_target_score("PoisonTarget",
+348:          score, move, user, target, ai, battle)
+349:     when :FLAMEORB
+350:       score = Battle::AI::Handlers.apply_move_effect_against_target_score("BurnTarget",
+351:          score, move, user, target, ai, battle)
+352:     when :LIGHTBALL
+353:       score = Battle::AI::Handlers.apply_move_effect_against_target_score("ParalyzeTarget",
+354:          score, move, user, target, ai, battle)
+355:     when :KINGSROCK, :RAZORFANG
+356:       score = Battle::AI::Handlers.apply_move_effect_against_target_score("FlinchTarget",
+357:          score, move, user, target, ai, battle)
+358:     else
+359:       score -= target.get_score_change_for_consuming_item(user.item_id)
+360:     end
+361:     # Score for other results of consuming the berry
+362:     if ai.trainer.medium_skill?
+363:       # Don't prefer if target will become able to use Belch
+364:       score -= 5 if user.item.is_berry? && !target.battler.belched? &&
+365:                     target.has_move_with_function?("FailsIfUserNotConsumedBerry")
+366:       # Prefer if user will benefit from not having an item
+367:       score += 5 if user.has_active_ability?(:UNBURDEN)
+368:     end
+369:     # Prefer if the user doesn't want its held item/don't prefer if it wants to
+370:     # keep its held item
+371:     item_preference = user.wants_item?(user.item_id)
+372:     no_item_preference = user.wants_item?(:NONE)
+373:     score += (no_item_preference - item_preference) * 2
+374:     next score
+375:   }
+376: )

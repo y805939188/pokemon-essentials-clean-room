@@ -1,0 +1,100 @@
+1: #===============================================================================
+2: # Methods that determine the duration of an audio file.
+3: #===============================================================================
+4: def getOggPage(file)
+5:   fgetdw = proc { |f|
+6:     (f.eof? ? 0 : (f.read(4).unpack("V")[0] || 0))
+7:   }
+8:   dw = fgetdw.call(file)
+9:   return nil if dw != 0x5367674F
+10:   header = file.read(22)
+11:   bodysize = 0
+12:   hdrbodysize = (file.read(1)[0].ord rescue 0)
+13:   hdrbodysize.times do
+14:     bodysize += (file.read(1)[0].ord rescue 0)
+15:   end
+16:   ret = [header, file.pos, bodysize, file.pos + bodysize]
+17:   return ret
+18: end
+19: 
+20: # internal function
+21: def oggfiletime(file)
+22:   fgetdw = proc { |f|
+23:     (f.eof? ? 0 : (f.read(4).unpack("V")[0] || 0))
+24:   }
+25:   pages = []
+26:   page = nil
+27:   loop do
+28:     page = getOggPage(file)
+29:     break if !page
+30:     pages.push(page)
+31:     file.pos = page[3]
+32:   end
+33:   return -1 if pages.length == 0
+34:   curserial = nil
+35:   i = -1
+36:   pcmlengths = []
+37:   rates = []
+38:   pages.each do |pg|
+39:     header = pg[0]
+40:     serial = header[10, 4].unpack("V")
+41:     frame = header[2, 8].unpack("C*")
+42:     frameno = frame[7]
+43:     frameno = (frameno << 8) | frame[6]
+44:     frameno = (frameno << 8) | frame[5]
+45:     frameno = (frameno << 8) | frame[4]
+46:     frameno = (frameno << 8) | frame[3]
+47:     frameno = (frameno << 8) | frame[2]
+48:     frameno = (frameno << 8) | frame[1]
+49:     frameno = (frameno << 8) | frame[0]
+50:     if serial != curserial
+51:       curserial = serial
+52:       file.pos = pg[1]
+53:       packtype = (file.read(1)[0].ord rescue 0)
+54:       string = file.read(6)
+55:       return -1 if string != "vorbis"
+56:       return -1 if packtype != 1
+57:       i += 1
+58:       version = fgetdw.call(file)
+59:       return -1 if version != 0
+60:       rates[i] = fgetdw.call(file)
+61:     end
+62:     pcmlengths[i] = frameno
+63:   end
+64:   ret = 0.0
+65:   pcmlengths.each_with_index { |length, j| ret += length.to_f / rates[j] }
+66:   return ret * 256.0
+67: end
+68: 
+69: # Gets the length of an audio file in seconds. Supports WAV, MP3, and OGG files.
+70: def getPlayTime(filename)
+71:   if FileTest.exist?(filename)
+72:     return [getPlayTime2(filename), 0].max
+73:   elsif FileTest.exist?(filename + ".wav")
+74:     return [getPlayTime2(filename + ".wav"), 0].max
+75:   elsif FileTest.exist?(filename + ".mp3")
+76:     return [getPlayTime2(filename + ".mp3"), 0].max
+77:   elsif FileTest.exist?(filename + ".ogg")
+78:     return [getPlayTime2(filename + ".ogg"), 0].max
+79:   end
+80:   return 0
+81: end
+82: 
+83: def getPlayTime2(filename)
+84:   return -1 if !FileTest.exist?(filename)
+85:   time = -1
+86:   fgetdw = proc { |file|
+87:     (file.eof? ? 0 : (file.read(4).unpack("V")[0] || 0))
+88:   }
+89:   fgetw = proc { |file|
+90:     (file.eof? ? 0 : (file.read(2).unpack("v")[0] || 0))
+91:   }
+92:   File.open(filename, "rb") do |file|
+93:     file.pos = 0
+94:     fdw = fgetdw.call(file)
+95:     case fdw
+96:     when 0x46464952   # "RIFF"
+97:       filesize = fgetdw.call(file)
+98:       wave = fgetdw.call(file)
+99:       return -1 if wave != 0x45564157   # "WAVE"
+100:       fmt = fgetdw.call(file)

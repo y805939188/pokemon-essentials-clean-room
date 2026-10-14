@@ -1,0 +1,150 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/006_Battle_ActionUseItem.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "9fafeea89590e2ecdf7f438d8ea91188af8d7fe8", "sha256": "f9fd7c8000d0383e9bd6db8b4fbc8ee8f97d4ecb0700ff2fe7d4c38ee83a7a8b", "start_line": 1, "end_line": 149, "total_lines": 149, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:32:47.827782+00:00"}
+1: class Battle
+2:   #=============================================================================
+3:   # Choosing to use an item
+4:   #=============================================================================
+5:   def pbCanUseItemOnPokemon?(item, pkmn, battler, scene, showMessages = true)
+6:     if !pkmn || pkmn.egg?
+7:       scene.pbDisplay(_INTL("It won't have any effect.")) if showMessages
+8:       return false
+9:     end
+10:     # Embargo
+11:     if battler && battler.effects[PBEffects::Embargo] > 0
+12:       if showMessages
+13:         scene.pbDisplay(_INTL("Embargo's effect prevents the item's use on {1}!",
+14:                               battler.pbThis(true)))
+15:       end
+16:       return false
+17:     end
+18:     # Hyper Mode and non-Scents
+19:     if pkmn.hyper_mode && !GameData::Item.get(item)&.is_scent?
+20:       scene.pbDisplay(_INTL("It won't have any effect.")) if showMessages
+21:       return false
+22:     end
+23:     return true
+24:   end
+25: 
+26:   # NOTE: Using a Poké Ball consumes all your actions for the round. The method
+27:   #       below is one half of making this happen; the other half is in the
+28:   #       ItemHandlers::CanUseInBattle for Poké Balls.
+29:   def pbItemUsesAllActions?(item)
+30:     return true if GameData::Item.get(item).is_poke_ball?
+31:     return false
+32:   end
+33: 
+34:   def pbRegisterItem(idxBattler, item, idxTarget = nil, idxMove = nil)
+35:     # Register for use of item on a Pokémon in the party
+36:     @choices[idxBattler][0] = :UseItem
+37:     @choices[idxBattler][1] = item        # ID of item to be used
+38:     @choices[idxBattler][2] = idxTarget   # Party index of Pokémon to use item on
+39:     @choices[idxBattler][3] = idxMove     # Index of move to recharge (Ethers)
+40:     # Delete the item from the Bag. If it turns out it will have no effect, it
+41:     # will be re-added to the Bag later.
+42:     pbConsumeItemInBag(item, idxBattler)
+43:     return true
+44:   end
+45: 
+46:   #=============================================================================
+47:   # Using an item
+48:   #=============================================================================
+49:   def pbConsumeItemInBag(item, idxBattler)
+50:     return if !item
+51:     return if !GameData::Item.get(item).consumed_after_use?
+52:     if pbOwnedByPlayer?(idxBattler)
+53:       if !$bag.remove(item)
+54:         raise _INTL("Tried to consume item that wasn't in the Bag somehow.")
+55:       end
+56:     else
+57:       items = pbGetOwnerItems(idxBattler)
+58:       items.delete_at(items.index(item)) if items
+59:     end
+60:   end
+61: 
+62:   def pbReturnUnusedItemToBag(item, idxBattler)
+63:     return if !item
+64:     return if !GameData::Item.get(item).consumed_after_use?
+65:     if pbOwnedByPlayer?(idxBattler)
+66:       if $bag&.can_add?(item)
+67:         $bag.add(item)
+68:       else
+69:         raise _INTL("Couldn't return unused item to Bag somehow.")
+70:       end
+71:     else
+72:       items = pbGetOwnerItems(idxBattler)
+73:       items&.push(item)
+74:     end
+75:   end
+76: 
+77:   def pbUseItemMessage(item, trainerName)
+78:     itemName = GameData::Item.get(item).portion_name
+79:     if itemName.starts_with_vowel?
+80:       pbDisplayBrief(_INTL("{1} used an {2}.", trainerName, itemName))
+81:     else
+82:       pbDisplayBrief(_INTL("{1} used a {2}.", trainerName, itemName))
+83:     end
+84:   end
+85: 
+86:   # Uses an item on a Pokémon in the trainer's party.
+87:   def pbUseItemOnPokemon(item, idxParty, userBattler)
+88:     trainerName = pbGetOwnerName(userBattler.index)
+89:     pbUseItemMessage(item, trainerName)
+90:     pkmn = pbParty(userBattler.index)[idxParty]
+91:     battler = pbFindBattler(idxParty, userBattler.index)
+92:     ch = @choices[userBattler.index]
+93:     if ItemHandlers.triggerCanUseInBattle(item, pkmn, battler, ch[3], true, self, @scene, false)
+94:       ItemHandlers.triggerBattleUseOnPokemon(item, pkmn, battler, ch, @scene)
+95:       ch[1] = nil   # Delete item from choice
+96:       return
+97:     end
+98:     pbDisplay(_INTL("But it had no effect!"))
+99:     # Return unused item to Bag
+100:     pbReturnUnusedItemToBag(item, userBattler.index)
+101:   end
+102: 
+103:   # Uses an item on a Pokémon in battle that belongs to the trainer.
+104:   def pbUseItemOnBattler(item, idxParty, userBattler)
+105:     trainerName = pbGetOwnerName(userBattler.index)
+106:     pbUseItemMessage(item, trainerName)
+107:     battler = pbFindBattler(idxParty, userBattler.index)
+108:     ch = @choices[userBattler.index]
+109:     if battler
+110:       if ItemHandlers.triggerCanUseInBattle(item, battler.pokemon, battler, ch[3], true, self, @scene, false)
+111:         ItemHandlers.triggerBattleUseOnBattler(item, battler, @scene)
+112:         ch[1] = nil   # Delete item from choice
+113:         battler.pbItemOnStatDropped
+114:         return
+115:       else
+116:         pbDisplay(_INTL("But it had no effect!"))
+117:       end
+118:     else
+119:       pbDisplay(_INTL("But it's not where this item can be used!"))
+120:     end
+121:     # Return unused item to Bag
+122:     pbReturnUnusedItemToBag(item, userBattler.index)
+123:   end
+124: 
+125:   # Uses a Poké Ball in battle directly.
+126:   def pbUsePokeBallInBattle(item, idxBattler, userBattler)
+127:     idxBattler = userBattler.index if idxBattler < 0
+128:     battler = @battlers[idxBattler]
+129:     ItemHandlers.triggerUseInBattle(item, battler, self)
+130:     @choices[userBattler.index][1] = nil   # Delete item from choice
+131:   end
+132: 
+133:   # Uses an item in battle directly.
+134:   def pbUseItemInBattle(item, idxBattler, userBattler)
+135:     trainerName = pbGetOwnerName(userBattler.index)
+136:     pbUseItemMessage(item, trainerName)
+137:     battler = (idxBattler < 0) ? userBattler : @battlers[idxBattler]
+138:     pkmn = battler.pokemon
+139:     ch = @choices[userBattler.index]
+140:     if ItemHandlers.triggerCanUseInBattle(item, pkmn, battler, ch[3], true, self, @scene, false)
+141:       ItemHandlers.triggerUseInBattle(item, battler, self)
+142:       ch[1] = nil   # Delete item from choice
+143:       return
+144:     end
+145:     pbDisplay(_INTL("But it had no effect!"))
+146:     # Return unused item to Bag
+147:     pbReturnUnusedItemToBag(item, userBattler.index)
+148:   end
+149: end

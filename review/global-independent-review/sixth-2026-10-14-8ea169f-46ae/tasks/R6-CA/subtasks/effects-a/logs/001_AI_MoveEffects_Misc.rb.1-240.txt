@@ -1,0 +1,240 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: # None
+5: 
+6: #===============================================================================
+7: #
+8: #===============================================================================
+9: Battle::AI::Handlers::MoveEffectScore.add("DoesNothingCongratulations",
+10:   proc { |score, move, user, ai, battle|
+11:     next Battle::AI::MOVE_USELESS_SCORE
+12:   }
+13: )
+14: 
+15: #===============================================================================
+16: #
+17: #===============================================================================
+18: Battle::AI::Handlers::MoveEffectScore.copy("DoesNothingCongratulations",
+19:                                            "DoesNothingFailsIfNoAlly")
+20: 
+21: #===============================================================================
+22: #
+23: #===============================================================================
+24: Battle::AI::Handlers::MoveEffectScore.copy("DoesNothingCongratulations",
+25:                                            "DoesNothingUnusableInGravity")
+26: 
+27: #===============================================================================
+28: #
+29: #===============================================================================
+30: # AddMoneyGainedFromBattle
+31: 
+32: #===============================================================================
+33: #
+34: #===============================================================================
+35: Battle::AI::Handlers::MoveEffectScore.copy("DoesNothingCongratulations",
+36:                                            "DoubleMoneyGainedFromBattle")
+37: 
+38: #===============================================================================
+39: #
+40: #===============================================================================
+41: Battle::AI::Handlers::MoveFailureCheck.add("FailsIfNotUserFirstTurn",
+42:   proc { |move, user, ai, battle|
+43:     next user.turnCount > 0
+44:   }
+45: )
+46: Battle::AI::Handlers::MoveEffectScore.add("FailsIfNotUserFirstTurn",
+47:   proc { |score, move, user, ai, battle|
+48:     next score + 25   # Use it or lose it
+49:   }
+50: )
+51: 
+52: #===============================================================================
+53: #
+54: #===============================================================================
+55: Battle::AI::Handlers::MoveFailureCheck.add("FailsIfUserHasUnusedMove",
+56:   proc { |move, user, ai, battle|
+57:     has_another_move = false
+58:     has_unused_move = false
+59:     user.battler.eachMove do |m|
+60:       next if m.id == move.id
+61:       has_another_move = true
+62:       next if user.battler.movesUsed.include?(m.id)
+63:       has_unused_move = true
+64:       break
+65:     end
+66:     next !has_another_move || has_unused_move
+67:   }
+68: )
+69: 
+70: #===============================================================================
+71: #
+72: #===============================================================================
+73: Battle::AI::Handlers::MoveFailureCheck.add("FailsIfUserNotConsumedBerry",
+74:   proc { |move, user, ai, battle|
+75:     next !user.battler.belched?
+76:   }
+77: )
+78: 
+79: #===============================================================================
+80: #
+81: #===============================================================================
+82: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("FailsIfTargetHasNoItem",
+83:   proc { |move, user, target, ai, battle|
+84:     next !target.item || !target.item_active?
+85:   }
+86: )
+87: 
+88: #===============================================================================
+89: #
+90: #===============================================================================
+91: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("FailsUnlessTargetSharesTypeWithUser",
+92:   proc { |move, user, target, ai, battle|
+93:     user_types = user.pbTypes(true)
+94:     target_types = target.pbTypes(true)
+95:     next (user_types & target_types).empty?
+96:   }
+97: )
+98: 
+99: #===============================================================================
+100: #
+101: #===============================================================================
+102: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("FailsIfUserDamagedThisTurn",
+103:   proc { |score, move, user, target, ai, battle|
+104:     # Check whether user is faster than its foe(s) and could use this move
+105:     user_faster_count = 0
+106:     foe_faster_count = 0
+107:     ai.each_foe_battler(user.side) do |b, i|
+108:       if user.faster_than?(b)
+109:         user_faster_count += 1
+110:       else
+111:         foe_faster_count += 1
+112:       end
+113:     end
+114:     next Battle::AI::MOVE_USELESS_SCORE if user_faster_count == 0
+115:     score += 15 if foe_faster_count == 0
+116:     # Effects that make the target unlikely to act before the user
+117:     if ai.trainer.high_skill?
+118:       if !target.can_attack?
+119:         score += 15
+120:       elsif target.effects[PBEffects::Confusion] > 1 ||
+121:             target.effects[PBEffects::Attract] == user.index
+122:         score += 10
+123:       elsif target.battler.paralyzed?
+124:         score += 5
+125:       end
+126:     end
+127:     # Don't risk using this move if target is weak
+128:     if ai.trainer.has_skill_flag?("HPAware")
+129:       score -= 10 if target.hp <= target.totalhp / 2
+130:       score -= 10 if target.hp <= target.totalhp / 4
+131:     end
+132:     next score
+133:   }
+134: )
+135: 
+136: #===============================================================================
+137: #
+138: #===============================================================================
+139: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("FailsIfTargetActed",
+140:   proc { |score, move, user, target, ai, battle|
+141:     # Check whether user is faster than the target and could use this move
+142:     next Battle::AI::MOVE_USELESS_SCORE if target.faster_than?(user)
+143:     # Check whether the target has any damaging moves it could use
+144:     next Battle::AI::MOVE_USELESS_SCORE if !target.check_for_move { |m| m.damagingMove? }
+145:     # Don't risk using this move if target is weak
+146:     if ai.trainer.has_skill_flag?("HPAware")
+147:       score -= 10 if target.hp <= target.totalhp / 2
+148:       score -= 10 if target.hp <= target.totalhp / 4
+149:     end
+150:     next score
+151:   }
+152: )
+153: 
+154: #===============================================================================
+155: #
+156: #===============================================================================
+157: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("CrashDamageIfFailsUnusableInGravity",
+158:   proc { |score, move, user, target, ai, battle|
+159:     if user.battler.takesIndirectDamage?
+160:       score -= (0.6 * (100 - move.rough_accuracy)).to_i   # -0 (100%) to -60 (1%)
+161:     end
+162:     next score
+163:   }
+164: )
+165: 
+166: #===============================================================================
+167: #
+168: #===============================================================================
+169: Battle::AI::Handlers::MoveFailureCheck.add("StartSunWeather",
+170:   proc { |move, user, ai, battle|
+171:     next [:HarshSun, :HeavyRain, :StrongWinds, move.move.weatherType].include?(battle.field.weather)
+172:   }
+173: )
+174: Battle::AI::Handlers::MoveEffectScore.add("StartSunWeather",
+175:   proc { |score, move, user, ai, battle|
+176:     next Battle::AI::MOVE_USELESS_SCORE if battle.pbCheckGlobalAbility(:AIRLOCK) ||
+177:                                            battle.pbCheckGlobalAbility(:CLOUDNINE)
+178:     # Not worth it at lower HP
+179:     if ai.trainer.has_skill_flag?("HPAware")
+180:       score -= 10 if user.hp < user.totalhp / 2
+181:     end
+182:     if ai.trainer.high_skill? && battle.field.weather != :None
+183:       score -= ai.get_score_for_weather(battle.field.weather, user)
+184:     end
+185:     score += ai.get_score_for_weather(:Sun, user, true)
+186:     next score
+187:   }
+188: )
+189: 
+190: #===============================================================================
+191: #
+192: #===============================================================================
+193: Battle::AI::Handlers::MoveFailureCheck.copy("StartSunWeather",
+194:                                             "StartRainWeather")
+195: Battle::AI::Handlers::MoveEffectScore.add("StartRainWeather",
+196:   proc { |score, move, user, ai, battle|
+197:     next Battle::AI::MOVE_USELESS_SCORE if battle.pbCheckGlobalAbility(:AIRLOCK) ||
+198:                                            battle.pbCheckGlobalAbility(:CLOUDNINE)
+199:     # Not worth it at lower HP
+200:     if ai.trainer.has_skill_flag?("HPAware")
+201:       score -= 10 if user.hp < user.totalhp / 2
+202:     end
+203:     if ai.trainer.high_skill? && battle.field.weather != :None
+204:       score -= ai.get_score_for_weather(battle.field.weather, user)
+205:     end
+206:     score += ai.get_score_for_weather(:Rain, user, true)
+207:     next score
+208:   }
+209: )
+210: 
+211: #===============================================================================
+212: #
+213: #===============================================================================
+214: Battle::AI::Handlers::MoveFailureCheck.copy("StartSunWeather",
+215:                                             "StartSandstormWeather")
+216: Battle::AI::Handlers::MoveEffectScore.add("StartSandstormWeather",
+217:   proc { |score, move, user, ai, battle|
+218:     next Battle::AI::MOVE_USELESS_SCORE if battle.pbCheckGlobalAbility(:AIRLOCK) ||
+219:                                            battle.pbCheckGlobalAbility(:CLOUDNINE)
+220:     # Not worth it at lower HP
+221:     if ai.trainer.has_skill_flag?("HPAware")
+222:       score -= 10 if user.hp < user.totalhp / 2
+223:     end
+224:     if ai.trainer.high_skill? && battle.field.weather != :None
+225:       score -= ai.get_score_for_weather(battle.field.weather, user)
+226:     end
+227:     score += ai.get_score_for_weather(:Sandstorm, user, true)
+228:     next score
+229:   }
+230: )
+231: 
+232: #===============================================================================
+233: #
+234: #===============================================================================
+235: Battle::AI::Handlers::MoveFailureCheck.copy("StartSunWeather",
+236:                                             "StartHailWeather")
+237: Battle::AI::Handlers::MoveEffectScore.add("StartHailWeather",
+238:   proc { |score, move, user, ai, battle|
+239:     next Battle::AI::MOVE_USELESS_SCORE if battle.pbCheckGlobalAbility(:AIRLOCK) ||
+240:                                            battle.pbCheckGlobalAbility(:CLOUDNINE)

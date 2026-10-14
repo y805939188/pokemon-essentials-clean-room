@@ -1,0 +1,243 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/002_Files/001_FileTests.rb RANGE 1-242 TOTAL 484
+1	#===============================================================================
+2	#  Reads files of certain format from a directory
+3	#===============================================================================
+4	class Dir
+5	  # Reads all files in a directory
+6	  def self.get(dir, filters = "*", full = true)
+7	    files = []
+8	    filters = [filters] if !filters.is_a?(Array)
+9	    self.chdir(dir) do
+10	      filters.each do |filter|
+11	        self.glob(filter) { |f| files.push(full ? (dir + "/" + f) : f) }
+12	      end
+13	    end
+14	    return files.sort
+15	  end
+16	
+17	  # Generates entire file/folder tree from a certain directory
+18	  def self.all(dir, filters = "*", full = true)
+19	    # sets variables for starting
+20	    files = []
+21	    subfolders = []
+22	    self.get(dir, filters, full).each do |file|
+23	      # engages in recursion to read the entire file tree
+24	      if self.safe?(file)   # Is a directory
+25	        subfolders += self.all(file, filters, full)
+26	      else   # Is a file
+27	        files += [file]
+28	      end
+29	    end
+30	    # returns all found files
+31	    return files + subfolders
+32	  end
+33	
+34	  # Checks for existing directory
+35	  def self.safe?(dir)
+36	    return FileTest.directory?(dir)
+37	  end
+38	
+39	  # Creates all the required directories for filename path
+40	  def self.create(path)
+41	    path.gsub!("\\", "/")   # Windows compatibility
+42	    # get path tree
+43	    dirs = path.split("/")
+44	    full = ""
+45	    dirs.each do |dir|
+46	      full += dir + "/"
+47	      # creates directories
+48	      self.mkdir(full) if !self.safe?(full)
+49	    end
+50	  end
+51	
+52	  # Generates entire folder tree from a certain directory
+53	  def self.all_dirs(dir)
+54	    # sets variables for starting
+55	    dirs = []
+56	    self.get(dir, "*", true).each do |file|
+57	      # engages in recursion to read the entire folder tree
+58	      dirs += self.all_dirs(file) if self.safe?(file)
+59	    end
+60	    # returns all found directories
+61	    return dirs.length > 0 ? (dirs + [dir]) : [dir]
+62	  end
+63	
+64	  # Deletes all the files in a directory and all the sub directories (allows for non-empty dirs)
+65	  def self.delete_all(dir)
+66	    # delete all files in dir
+67	    self.all(dir).each { |f| File.delete(f) }
+68	    # delete all dirs in dir
+69	    self.all_dirs(dir).each { |f| Dir.delete(f) }
+70	  end
+71	end
+72	
+73	#===============================================================================
+74	# Checking for files and directories
+75	#===============================================================================
+76	# Works around a problem with FileTest.directory if directory contains accent marks
+77	# @deprecated This method is slated to be removed in v22.
+78	def safeIsDirectory?(f)
+79	  Deprecation.warn_method("safeIsDirectory?(f)", "v22", "FileTest.directory?(f)")
+80	  return FileTest.directory?(f)
+81	end
+82	
+83	# @deprecated This method is slated to be removed in v22.
+84	def safeExists?(f)
+85	  Deprecation.warn_method("safeExists?(f)", "v22", "FileTest.exist?(f)")
+86	  return FileTest.exist?(f)
+87	end
+88	
+89	# Similar to "Dir.glob", but designed to work around a problem with accessing
+90	# files if a path contains accent marks.
+91	# "dir" is the directory path, "wildcard" is the filename pattern to match.
+92	def safeGlob(dir, wildcard)
+93	  ret = []
+94	  afterChdir = false
+95	  begin
+96	    Dir.chdir(dir) do
+97	      afterChdir = true
+98	      Dir.glob(wildcard) { |f| ret.push(dir + "/" + f) }
+99	    end
+100	  rescue Errno::ENOENT
+101	    raise if afterChdir
+102	  end
+103	  if block_given?
+104	    ret.each { |f| yield(f) }
+105	  end
+106	  return (block_given?) ? nil : ret
+107	end
+108	
+109	def pbResolveAudioSE(file)
+110	  return nil if !file
+111	  if RTP.exists?("Audio/SE/" + file, ["", ".wav", ".ogg", ".mp3", ".wma"])
+112	    return RTP.getPath("Audio/SE/" + file, ["", ".wav", ".ogg", ".mp3", ".wma"])
+113	  end
+114	  return nil
+115	end
+116	
+117	# Finds the real path for an image file.  This includes paths in encrypted
+118	# archives.  Returns nil if the path can't be found.
+119	def pbResolveBitmap(x)
+120	  return nil if !x
+121	  noext = x.gsub(/\.(bmp|png|gif|jpg|jpeg)$/, "")
+122	  filename = nil
+123	#  RTP.eachPathFor(x) { |path|
+124	#    filename = pbTryString(path) if !filename
+125	#    filename = pbTryString(path + ".gif") if !filename
+126	#  }
+127	  RTP.eachPathFor(noext) do |path|
+128	    filename = pbTryString(path + ".png") if !filename
+129	    filename = pbTryString(path + ".gif") if !filename
+130	#    filename = pbTryString(path + ".jpg") if !filename
+131	#    filename = pbTryString(path + ".jpeg") if !filename
+132	#    filename = pbTryString(path + ".bmp") if !filename
+133	  end
+134	  return filename
+135	end
+136	
+137	# Finds the real path for an image file.  This includes paths in encrypted
+138	# archives.  Returns _x_ if the path can't be found.
+139	def pbBitmapName(x)
+140	  ret = pbResolveBitmap(x)
+141	  return (ret) ? ret : x
+142	end
+143	
+144	def strsplit(str, re)
+145	  ret = []
+146	  tstr = str
+147	  while re =~ tstr
+148	    ret[ret.length] = $~.pre_match
+149	    tstr = $~.post_match
+150	  end
+151	  ret[ret.length] = tstr if ret.length
+152	  return ret
+153	end
+154	
+155	def canonicalize(c)
+156	  csplit = strsplit(c, /[\/\\]/)
+157	  pos = -1
+158	  ret = []
+159	  retstr = ""
+160	  csplit.each do |x|
+161	    if x == ".."
+162	      if pos >= 0
+163	        ret.delete_at(pos)
+164	        pos -= 1
+165	      end
+166	    elsif x != "."
+167	      ret.push(x)
+168	      pos += 1
+169	    end
+170	  end
+171	  ret.length.times do |i|
+172	    retstr += "/" if i > 0
+173	    retstr += ret[i]
+174	  end
+175	  return retstr
+176	end
+177	
+178	#===============================================================================
+179	#
+180	#===============================================================================
+181	module RTP
+182	  @rtpPaths = nil
+183	
+184	  def self.exists?(filename, extensions = [])
+185	    return false if nil_or_empty?(filename)
+186	    eachPathFor(filename) do |path|
+187	      return true if FileTest.exist?(path)
+188	      extensions.each do |ext|
+189	        return true if FileTest.exist?(path + ext)
+190	      end
+191	    end
+192	    return false
+193	  end
+194	
+195	  def self.getImagePath(filename)
+196	    return self.getPath(filename, ["", ".png", ".gif"])   # ".jpg", ".jpeg", ".bmp"
+197	  end
+198	
+199	  def self.getAudioPath(filename)
+200	    return self.getPath(filename, ["", ".wav", ".ogg", ".mp3", ".midi", ".mid", ".wma"])
+201	  end
+202	
+203	  def self.getPath(filename, extensions = [])
+204	    return filename if nil_or_empty?(filename)
+205	    eachPathFor(filename) do |path|
+206	      return path if FileTest.exist?(path)
+207	      extensions.each do |ext|
+208	        file = path + ext
+209	        return file if FileTest.exist?(file)
+210	      end
+211	    end
+212	    return filename
+213	  end
+214	
+215	  # Gets the absolute RGSS paths for the given file name
+216	  def self.eachPathFor(filename)
+217	    return if !filename
+218	    if filename[/^[A-Za-z]\:[\/\\]/] || filename[/^[\/\\]/]
+219	      # filename is already absolute
+220	      yield filename
+221	    else
+222	      # relative path
+223	      RTP.eachPath do |path|
+224	        if path == "./"
+225	          yield filename
+226	        else
+227	          yield path + filename
+228	        end
+229	      end
+230	    end
+231	  end
+232	
+233	  # Gets all RGSS search paths.
+234	  # This function basically does nothing now, because
+235	  # the passage of time and introduction of MKXP make
+236	  # it useless, but leaving it for compatibility
+237	  # reasons
+238	  def self.eachPath
+239	    # XXX: Use "." instead of Dir.pwd because of problems retrieving files if
+240	    # the current directory contains an accent mark
+241	    yield ".".gsub(/[\/\\]/, "/").gsub(/[\/\\]$/, "") + "/"
+242	  end

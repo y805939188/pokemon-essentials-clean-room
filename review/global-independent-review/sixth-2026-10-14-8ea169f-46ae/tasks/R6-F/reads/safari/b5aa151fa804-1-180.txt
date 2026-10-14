@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/002_Overworld_BattleIntroAnim.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "7d81522370e0c361ab220263f5c71cc8840ad747", "sha256": "18d40fcc186b278bfb62a6934bb075606ad17cae127f8ae35fc41c5ce3d84a27", "start_line": 1, "end_line": 180, "total_lines": 432, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:38:06.543941+00:00"}
+1: #===============================================================================
+2: # Registers special battle transition animations which may be used instead of
+3: # the default ones. There are examples below of how to register them.
+4: #
+5: # The register call has 4 arguments:
+6: #    1) The name of the animation. Typically unused, but helps to identify the
+7: #       registration code for a particular animation if necessary.
+8: #    2) The animation's priority. If multiple special animations could trigger
+9: #       for the same battle, the one with the highest priority number is used.
+10: #    3) A condition proc which decides whether the animation should trigger.
+11: #    4) The animation itself. Could be a bunch of code, or a call to, say,
+12: #       pbCommonEvent(20) or something else. By the end of the animation, the
+13: #       screen should be black.
+14: # Note that you can get an image of the current game screen with
+15: # Graphics.snap_to_bitmap.
+16: #===============================================================================
+17: module SpecialBattleIntroAnimations
+18:   # [name, priority number, "trigger if" proc, animation proc]
+19:   @@anims = []
+20: 
+21:   def self.register(name, priority, condition, hash)
+22:     @@anims.push([name, priority, condition, hash])
+23:   end
+24: 
+25:   def self.remove(name)
+26:     @@anims.delete_if { |anim| anim[0] == name }
+27:   end
+28: 
+29:   def self.each
+30:     ret = @@anims.sort { |a, b| b[1] <=> a[1] }
+31:     ret.each { |anim| yield anim[0], anim[1], anim[2], anim[3] }
+32:   end
+33: 
+34:   def self.has?(name)
+35:     return @@anims.any? { |anim| anim[0] == name }
+36:   end
+37: 
+38:   def self.get(name)
+39:     @@anims.each { |anim| return anim if anim[0] == name }
+40:     return nil
+41:   end
+42: end
+43: 
+44: #===============================================================================
+45: # Battle intro animation
+46: #===============================================================================
+47: class Game_Temp
+48:   attr_accessor :transition_animation_data
+49: end
+50: 
+51: def pbSceneStandby
+52:   $scene.disposeSpritesets if $scene.is_a?(Scene_Map)
+53:   RPG::Cache.clear
+54:   Graphics.frame_reset
+55:   yield
+56:   $scene.createSpritesets if $scene.is_a?(Scene_Map)
+57: end
+58: 
+59: def pbBattleAnimation(bgm = nil, battletype = 0, foe = nil)
+60:   $game_temp.in_battle = true
+61:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+62:   viewport.z = 99999
+63:   # Set up audio
+64:   playingBGS = nil
+65:   playingBGM = nil
+66:   if $game_system.is_a?(Game_System)
+67:     playingBGS = $game_system.getPlayingBGS
+68:     playingBGM = $game_system.getPlayingBGM
+69:     $game_system.bgm_pause
+70:     $game_system.bgs_pause
+71:     if $game_temp.memorized_bgm
+72:       playingBGM = $game_temp.memorized_bgm
+73:       $game_system.bgm_position = $game_temp.memorized_bgm_position
+74:     end
+75:   end
+76:   # Play battle music
+77:   bgm = pbGetWildBattleBGM([]) if !bgm
+78:   pbBGMPlay(bgm)
+79:   # Determine location of battle
+80:   location = 0   # 0=outside, 1=inside, 2=cave, 3=water
+81:   if $PokemonGlobal.surfing || $PokemonGlobal.diving
+82:     location = 3
+83:   elsif $game_temp.encounter_type &&
+84:         GameData::EncounterType.get($game_temp.encounter_type).type == :fishing
+85:     location = 3
+86:   elsif $PokemonEncounters.has_cave_encounters?
+87:     location = 2
+88:   elsif !$game_map.metadata&.outdoor_map
+89:     location = 1
+90:   end
+91:   # Check for custom battle intro animations
+92:   handled = false
+93:   SpecialBattleIntroAnimations.each do |name, priority, condition, animation|
+94:     next if !condition.call(battletype, foe, location)
+95:     animation.call(viewport, battletype, foe, location)
+96:     handled = true
+97:     break
+98:   end
+99:   # Default battle intro animation
+100:   if !handled
+101:     # Determine which animation is played
+102:     anim = ""
+103:     if PBDayNight.isDay?
+104:       case battletype
+105:       when 0, 2   # Wild, double wild
+106:         anim = ["SnakeSquares", "DiagonalBubbleTL", "DiagonalBubbleBR", "RisingSplash"][location]
+107:       when 1      # Trainer
+108:         anim = ["TwoBallPass", "ThreeBallDown", "BallDown", "WavyThreeBallUp"][location]
+109:       when 3      # Double trainer
+110:         anim = "FourBallBurst"
+111:       end
+112:     else
+113:       case battletype
+114:       when 0, 2   # Wild, double wild
+115:         anim = ["SnakeSquares", "DiagonalBubbleBR", "DiagonalBubbleBR", "RisingSplash"][location]
+116:       when 1      # Trainer
+117:         anim = ["SpinBallSplit", "BallDown", "BallDown", "WavySpinBall"][location]
+118:       when 3      # Double trainer
+119:         anim = "FourBallBurst"
+120:       end
+121:     end
+122:     pbBattleAnimationCore(anim, viewport, location)
+123:   end
+124:   pbPushFade
+125:   # Yield to the battle scene
+126:   yield if block_given?
+127:   # After the battle
+128:   pbPopFade
+129:   if $game_system.is_a?(Game_System)
+130:     $game_system.bgm_resume(playingBGM)
+131:     $game_system.bgs_resume(playingBGS)
+132:   end
+133:   $game_temp.memorized_bgm            = nil
+134:   $game_temp.memorized_bgm_position   = 0
+135:   $PokemonGlobal.nextBattleBGM        = nil
+136:   $PokemonGlobal.nextBattleVictoryBGM = nil
+137:   $PokemonGlobal.nextBattleCaptureME  = nil
+138:   $PokemonGlobal.nextBattleBack       = nil
+139:   $PokemonEncounters.reset_step_count
+140:   # Fade back to the overworld in 0.4 seconds
+141:   viewport.color = Color.black
+142:   timer_start = System.uptime
+143:   loop do
+144:     Graphics.update
+145:     Input.update
+146:     pbUpdateSceneMap
+147:     viewport.color.alpha = 255 * (1 - ((System.uptime - timer_start) / 0.4))
+148:     break if viewport.color.alpha <= 0
+149:   end
+150:   viewport.dispose
+151:   $game_temp.in_battle = false
+152: end
+153: 
+154: def pbBattleAnimationCore(anim, viewport, location, num_flashes = 2)
+155:   # Initial screen flashing
+156:   if num_flashes > 0
+157:     c = (location == 2 || PBDayNight.isNight?) ? 0 : 255   # Dark=black, light=white
+158:     viewport.color = Color.new(c, c, c)   # Fade to black/white a few times
+159:     half_flash_time = 0.2   # seconds
+160:     num_flashes.times do   # 2 flashes
+161:       fade_out = false
+162:       timer_start = System.uptime
+163:       loop do
+164:         if fade_out
+165:           viewport.color.alpha = lerp(255, 0, half_flash_time, timer_start, System.uptime)
+166:         else
+167:           viewport.color.alpha = lerp(0, 255, half_flash_time, timer_start, System.uptime)
+168:         end
+169:         Graphics.update
+170:         pbUpdateSceneMap
+171:         break if fade_out && viewport.color.alpha <= 0
+172:         if !fade_out && viewport.color.alpha >= 255
+173:           fade_out = true
+174:           timer_start = System.uptime
+175:         end
+176:       end
+177:     end
+178:   end
+179:   # Take screenshot of game, for use in some animations
+180:   $game_temp.background_bitmap&.dispose

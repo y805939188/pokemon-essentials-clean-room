@@ -1,0 +1,98 @@
+1287: class Battle::Move::TypeDependsOnUserIVs < Battle::Move
+1288:   def pbBaseType(user)
+1289:     hp = pbHiddenPower(user.pokemon)
+1290:     return hp[0]
+1291:   end
+1292: 
+1293:   def pbBaseDamage(baseDmg, user, target)
+1294:     return super if Settings::MECHANICS_GENERATION >= 6
+1295:     hp = pbHiddenPower(user.pokemon)
+1296:     return hp[1]
+1297:   end
+1298: end
+1299: 
+1300: # NOTE: This allows Hidden Power to be Fairy-type (if you have that type in your
+1301: #       game). I don't care that the official games don't work like that.
+1302: def pbHiddenPower(pkmn)
+1303:   iv = pkmn.iv
+1304:   idxType = 0
+1305:   power = 60
+1306:   types = []
+1307:   GameData::Type.each do |t|
+1308:     types[t.icon_position] ||= []
+1309:     types[t.icon_position].push(t.id) if !t.pseudo_type && ![:NORMAL, :SHADOW].include?(t.id)
+1310:   end
+1311:   types.flatten!.compact!
+1312:   idxType |= (iv[:HP] & 1)
+1313:   idxType |= (iv[:ATTACK] & 1) << 1
+1314:   idxType |= (iv[:DEFENSE] & 1) << 2
+1315:   idxType |= (iv[:SPEED] & 1) << 3
+1316:   idxType |= (iv[:SPECIAL_ATTACK] & 1) << 4
+1317:   idxType |= (iv[:SPECIAL_DEFENSE] & 1) << 5
+1318:   idxType = (types.length - 1) * idxType / 63
+1319:   type = types[idxType]
+1320:   if Settings::MECHANICS_GENERATION <= 5
+1321:     powerMin = 30
+1322:     powerMax = 70
+1323:     power |= (iv[:HP] & 2) >> 1
+1324:     power |= (iv[:ATTACK] & 2)
+1325:     power |= (iv[:DEFENSE] & 2) << 1
+1326:     power |= (iv[:SPEED] & 2) << 2
+1327:     power |= (iv[:SPECIAL_ATTACK] & 2) << 3
+1328:     power |= (iv[:SPECIAL_DEFENSE] & 2) << 4
+1329:     power = powerMin + ((powerMax - powerMin) * power / 63)
+1330:   end
+1331:   return [type, power]
+1332: end
+1333: 
+1334: #===============================================================================
+1335: # Power and type depend on the user's held berry. Destroys the berry.
+1336: # (Natural Gift)
+1337: #===============================================================================
+1338: class Battle::Move::TypeAndPowerDependOnUserBerry < Battle::Move
+1339:   def pbMoveFailed?(user, targets)
+1340:     # NOTE: Unnerve does not stop a Pokémon using this move.
+1341:     item = user.item
+1342:     if !item || !item.is_berry? || !user.itemActive? ||
+1343:        item.flags.none? { |f| f[/^NaturalGift_/i] }
+1344:       @battle.pbDisplay(_INTL("But it failed!"))
+1345:       return true
+1346:     end
+1347:     return false
+1348:   end
+1349: 
+1350:   def pbBaseType(user)
+1351:     ret = :NORMAL
+1352:     item = user.item
+1353:     if item
+1354:       item.flags.each do |flag|
+1355:         next if !flag[/^NaturalGift_(\w+)_(?:\d+)$/i]
+1356:         typ = $~[1].to_sym
+1357:         ret = typ if GameData::Type.exists?(typ)
+1358:         break
+1359:       end
+1360:     end
+1361:     return ret
+1362:   end
+1363: 
+1364:   def pbBaseDamage(baseDmg, user, target)
+1365:     if user.item.id
+1366:       GameData::Item.get(user.item.id).flags.each do |flag|
+1367:         return [$~[1].to_i, 10].max if flag[/^NaturalGift_(?:\w+)_(\d+)$/i]
+1368:       end
+1369:     end
+1370:     return 1
+1371:   end
+1372: 
+1373:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers)
+1374:     # NOTE: The item is consumed even if this move was Protected against or it
+1375:     #       missed. The item is not consumed if the target was switched out by
+1376:     #       an effect like a target's Red Card.
+1377:     # NOTE: There is no item consumption animation.
+1378:     user.pbConsumeItem(true, true, false) if user.item
+1379:   end
+1380: end
+1381: 
+1382: #===============================================================================
+1383: # Type depends on the user's held Plate. (Judgment)
+1384: #===============================================================================

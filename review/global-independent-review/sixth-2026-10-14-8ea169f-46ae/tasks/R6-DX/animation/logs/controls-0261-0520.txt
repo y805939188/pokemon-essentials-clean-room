@@ -1,0 +1,260 @@
+261:       chars.each { |char| @text += char }
+262:       @cursor += 1
+263:       @cursor_timer_start = System.uptime
+264:       @cursor_shown = true
+265:       self.changed = true
+266:       self.invalidate
+267:     end
+268: 
+269:     def delete
+270:       chars = self.text.scan(/./m)
+271:       chars.delete_at(@cursor - 1)
+272:       @text = ""
+273:       chars.each { |char| @text += char }
+274:       @cursor -= 1
+275:       @cursor_timer_start = System.uptime
+276:       @cursor_shown = true
+277:       self.changed = true
+278:       self.invalidate
+279:     end
+280: 
+281:     def update
+282:       cursor_to_show = ((System.uptime - @cursor_timer_start) / 0.35).to_i.even?
+283:       self.changed = false
+284:       if cursor_to_show != @cursor_shown
+285:         @cursor_shown = cursor_to_show
+286:         self.invalidate
+287:       end
+288:       # Moving cursor
+289:       if Input.triggerex?(:LEFT) || Input.repeatex?(:LEFT)
+290:         if @cursor > 0
+291:           @cursor -= 1
+292:           @cursor_timer_start = System.uptime
+293:           @cursor_shown = true
+294:           self.invalidate
+295:         end
+296:         return
+297:       end
+298:       if Input.triggerex?(:RIGHT) || Input.repeatex?(:RIGHT)
+299:         if @cursor < self.text.scan(/./m).length
+300:           @cursor += 1
+301:           @cursor_timer_start = System.uptime
+302:           @cursor_shown = true
+303:           self.invalidate
+304:         end
+305:         return
+306:       end
+307:       # Backspace
+308:       if Input.triggerex?(:BACKSPACE) || Input.repeatex?(:BACKSPACE) ||
+309:          Input.triggerex?(:DELETE) || Input.repeatex?(:DELETE)
+310:         self.delete if @cursor > 0
+311:         return
+312:       end
+313:       # Letter & Number keys
+314:       Input.gets.each_char { |c| insert(c) }
+315:     end
+316: 
+317:     def refresh
+318:       bitmap = self.bitmap
+319:       x = self.x
+320:       y = self.y
+321:       width = self.width
+322:       height = self.height
+323:       color = Color.new(120, 120, 120)
+324:       bitmap.font.color = color
+325:       bitmap.fill_rect(x, y, width, height, Color.new(0, 0, 0, 0))
+326:       size = bitmap.text_size(self.label).width
+327:       shadowtext(bitmap, x, y, size, height, self.label)
+328:       x += size
+329:       width -= size
+330:       outline_x = x
+331:       outline_y = y
+332:       # Draw background
+333:       if @captured
+334:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(120, 120, 120, 80))
+335:       else
+336:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(0, 0, 0, 0))
+337:       end
+338:       # Draw text
+339:       x += 4
+340:       textscan = self.text.scan(/./m)
+341:       scanlength = textscan.length
+342:       @cursor = scanlength if @cursor > scanlength
+343:       @cursor = 0 if @cursor < 0
+344:       startpos = @cursor
+345:       fromcursor = 0
+346:       while startpos > 0
+347:         c = textscan[startpos - 1]
+348:         fromcursor += bitmap.text_size(c).width
+349:         break if fromcursor > width - 4
+350:         startpos -= 1
+351:       end
+352:       (startpos...scanlength).each do |i|
+353:         c = textscan[i]
+354:         textwidth = bitmap.text_size(c).width
+355:         next if c == "\n"
+356:         # Draw text
+357:         shadowtext(bitmap, x, y, textwidth + 4, 32, c)
+358:         # Draw cursor if necessary
+359:         if i == @cursor && @cursor_shown
+360:           bitmap.fill_rect(x, y + 4, 2, 24, Color.new(120, 120, 120))
+361:         end
+362:         # Add x to drawn text width
+363:         x += textwidth
+364:       end
+365:       if textscan.length == @cursor && @cursor_shown
+366:         bitmap.fill_rect(x, y + 4, 2, 24, Color.new(120, 120, 120))
+367:       end
+368:       # Draw outline
+369:       bitmap.fill_rect(outline_x + 1, outline_y + 1, width - 2, 1, color)
+370:       bitmap.fill_rect(outline_x + 1, outline_y + 1, 1, height - 2, color)
+371:       bitmap.fill_rect(outline_x + 1, outline_y + height - 2, width - 2, 1, color)
+372:       bitmap.fill_rect(outline_x + width - 2, outline_y + 1, 1, height - 2, color)
+373:       # Return the control's clickable area
+374:       ret = Rect.new(x + 1, y + 1, width - 2, height - 2)
+375:       return ret
+376:     end
+377:   end
+378: 
+379:   #=============================================================================
+380:   #
+381:   #=============================================================================
+382:   class Slider < UIControl
+383:     attr_reader :minvalue
+384:     attr_reader :maxvalue
+385:     attr_reader :curvalue
+386:     attr_accessor :label
+387: 
+388:     def curvalue=(value)
+389:       @curvalue = value
+390:       @curvalue = self.minvalue if self.minvalue && @curvalue < self.minvalue
+391:       @curvalue = self.maxvalue if self.maxvalue && @curvalue > self.maxvalue
+392:       self.invalidate
+393:     end
+394: 
+395:     def minvalue=(value)
+396:       @minvalue = value
+397:       @curvalue = self.minvalue if self.minvalue && @curvalue < self.minvalue
+398:       @curvalue = self.maxvalue if self.maxvalue && @curvalue > self.maxvalue
+399:       self.invalidate
+400:     end
+401: 
+402:     def maxvalue=(value)
+403:       @maxvalue = value
+404:       @curvalue = self.minvalue if self.minvalue && @curvalue < self.minvalue
+405:       @curvalue = self.maxvalue if self.maxvalue && @curvalue > self.maxvalue
+406:       self.invalidate
+407:     end
+408: 
+409:     def initialize(label, minvalue, maxvalue, curval)
+410:       super(label)
+411:       @minvalue = minvalue
+412:       @maxvalue = maxvalue
+413:       @curvalue = curval
+414:       @label = label
+415:       @leftarrow = Rect.new(0, 0, 0, 0)
+416:       @rightarrow = Rect.new(0, 0, 0, 0)
+417:       self.minvalue = minvalue
+418:       self.maxvalue = maxvalue
+419:       self.curvalue = curval
+420:     end
+421: 
+422:     def update
+423:       mousepos = Mouse.getMousePos
+424:       self.changed = false
+425:       if self.minvalue < self.maxvalue && self.curvalue < self.minvalue
+426:         self.curvalue = self.minvalue
+427:       end
+428:       return false if self.disabled
+429:       return false if !Input.repeat?(Input::MOUSELEFT)
+430:       return false if !mousepos
+431:       left = toAbsoluteRect(@leftarrow)
+432:       right = toAbsoluteRect(@rightarrow)
+433:       oldvalue = self.curvalue
+434:       repeattime = Input.time?(Input::MOUSELEFT)
+435:       # Left arrow
+436:       if left.contains?(mousepos[0], mousepos[1])
+437:         if repeattime > 3.0
+438:           self.curvalue -= 10
+439:         elsif repeattime > 1.5
+440:           self.curvalue -= 5
+441:         else
+442:           self.curvalue -= 1
+443:         end
+444:         self.curvalue = self.curvalue.floor
+445:         self.changed = (self.curvalue != oldvalue)
+446:         self.invalidate
+447:       end
+448:       # Right arrow
+449:       if right.contains?(mousepos[0], mousepos[1])
+450:         if repeattime > 3.0
+451:           self.curvalue += 10
+452:         elsif repeattime > 1.5
+453:           self.curvalue += 5
+454:         else
+455:           self.curvalue += 1
+456:         end
+457:         self.curvalue = self.curvalue.floor
+458:         self.changed = (self.curvalue != oldvalue)
+459:         self.invalidate
+460:       end
+461:     end
+462: 
+463:     def refresh
+464:       bitmap = self.bitmap
+465:       x = self.x
+466:       y = self.y
+467:       width = self.width
+468:       height = self.height
+469:       color = Color.new(120, 120, 120)
+470:       bitmap.fill_rect(x, y, width, height, Color.new(0, 0, 0, 0))
+471:       size = bitmap.text_size(self.label).width
+472:       leftarrows = bitmap.text_size(" <<")
+473:       numbers = bitmap.text_size(" XXXX ").width
+474:       rightarrows = bitmap.text_size(">> ")
+475:       bitmap.font.color = color
+476:       shadowtext(bitmap, x, y, size, height, self.label)
+477:       x += size
+478:       shadowtext(bitmap, x, y, leftarrows.width, height, " <<",
+479:                  self.disabled || self.curvalue == self.minvalue)
+480:       @leftarrow = Rect.new(x, y, leftarrows.width, height)
+481:       x += leftarrows.width
+482:       if !self.disabled
+483:         bitmap.font.color = color
+484:         shadowtext(bitmap, x, y, numbers, height, " #{self.curvalue} ", false, 1)
+485:       end
+486:       x += numbers
+487:       shadowtext(bitmap, x, y, rightarrows.width, height, ">> ",
+488:                  self.disabled || self.curvalue == self.maxvalue)
+489:       @rightarrow = Rect.new(x, y, rightarrows.width, height)
+490:     end
+491:   end
+492: 
+493:   #=============================================================================
+494:   #
+495:   #=============================================================================
+496:   class OptionalSlider < Slider
+497:     def initialize(label, minvalue, maxvalue, curvalue)
+498:       @slider = Slider.new(label, minvalue, maxvalue, curvalue)
+499:       @checkbox = Checkbox.new("")
+500:     end
+501: 
+502:     def curvalue
+503:       return @checkbox.checked ? @slider.curvalue : nil
+504:     end
+505: 
+506:     def curvalue=(value)
+507:       slider.curvalue = value
+508:     end
+509: 
+510:     def checked
+511:       return @checkbox.checked
+512:     end
+513: 
+514:     def checked=(value)
+515:       @checkbox.checked = value
+516:     end
+517: 
+518:     def invalid?
+519:       return @slider.invalid? || @checkbox.invalid?
+520:     end

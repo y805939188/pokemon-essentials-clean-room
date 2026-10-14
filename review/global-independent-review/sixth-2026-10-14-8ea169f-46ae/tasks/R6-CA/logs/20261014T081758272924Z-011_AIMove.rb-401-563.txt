@@ -1,0 +1,163 @@
+401:                     Settings::MECHANICS_GENERATION >= 6
+402:     end
+403:     # Get base accuracy
+404:     baseAcc = self.accuracy
+405:     return 100 if baseAcc == 0
+406:     # Get the move's type
+407:     type = rough_type
+408:     # Calculate all modifier effects
+409:     modifiers = {}
+410:     modifiers[:base_accuracy]  = baseAcc
+411:     modifiers[:accuracy_stage] = user.stages[:ACCURACY]
+412:     modifiers[:evasion_stage]  = target.stages[:EVASION]
+413:     modifiers[:accuracy_multiplier] = 1.0
+414:     modifiers[:evasion_multiplier]  = 1.0
+415:     apply_rough_accuracy_modifiers(user, target, type, modifiers)
+416:     # Check if move certainly misses/can't miss
+417:     return 0 if modifiers[:base_accuracy] < 0
+418:     return 100 if modifiers[:base_accuracy] == 0
+419:     # Calculation
+420:     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+421:     accStage = [[modifiers[:accuracy_stage], -max_stage].max, max_stage].min + max_stage
+422:     evaStage = [[modifiers[:evasion_stage], -max_stage].max, max_stage].min + max_stage
+423:     stageMul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+424:     stageDiv = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+425:     accuracy = 100.0 * stageMul[accStage] / stageDiv[accStage]
+426:     evasion  = 100.0 * stageMul[evaStage] / stageDiv[evaStage]
+427:     accuracy = (accuracy * modifiers[:accuracy_multiplier]).round
+428:     evasion  = (evasion  * modifiers[:evasion_multiplier]).round
+429:     evasion = 1 if evasion < 1
+430:     return modifiers[:base_accuracy] * accuracy / evasion
+431:   end
+432: 
+433:   def apply_rough_accuracy_modifiers(user, target, calc_type, modifiers)
+434:     user_battler = user.battler
+435:     target_battler = target.battler
+436:     # Ability effects that alter accuracy calculation
+437:     if user.ability_active?
+438:       Battle::AbilityEffects.triggerAccuracyCalcFromUser(
+439:         user.ability, modifiers, user_battler, target_battler, @move, calc_type
+440:       )
+441:     end
+442:     user_battler.allAllies.each do |b|
+443:       next if !b.abilityActive?
+444:       Battle::AbilityEffects.triggerAccuracyCalcFromAlly(
+445:         b.ability, modifiers, user_battler, target_battler, @move, calc_type
+446:       )
+447:     end
+448:     if !@ai.battle.moldBreaker && target.ability_active?
+449:       Battle::AbilityEffects.triggerAccuracyCalcFromTarget(
+450:         target.ability, modifiers, user_battler, target_battler, @move, calc_type
+451:       )
+452:     end
+453:     # Item effects that alter accuracy calculation
+454:     if user.item_active?
+455:       if user.item == :ZOOMLENS
+456:         if rough_priority(user) <= 0
+457:           modifiers[:accuracy_multiplier] *= 1.2 if target.faster_than?(user)
+458:         end
+459:       else
+460:         Battle::ItemEffects.triggerAccuracyCalcFromUser(
+461:           user.item, modifiers, user_battler, target_battler, @move, calc_type
+462:         )
+463:       end
+464:     end
+465:     if target.item_active?
+466:       Battle::ItemEffects.triggerAccuracyCalcFromTarget(
+467:         target.item, modifiers, user_battler, target_battler, @move, calc_type
+468:       )
+469:     end
+470:     # Other effects, inc. ones that set accuracy_multiplier or evasion_stage to specific values
+471:     if @ai.battle.field.effects[PBEffects::Gravity] > 0
+472:       modifiers[:accuracy_multiplier] *= 5 / 3.0
+473:     end
+474:     if @ai.trainer.medium_skill?
+475:       if user.effects[PBEffects::MicleBerry]
+476:         modifiers[:accuracy_multiplier] *= 1.2
+477:       end
+478:       modifiers[:evasion_stage] = 0 if target.effects[PBEffects::Foresight] && modifiers[:evasion_stage] > 0
+479:       modifiers[:evasion_stage] = 0 if target.effects[PBEffects::MiracleEye] && modifiers[:evasion_stage] > 0
+480:     end
+481:     # "AI-specific calculations below"
+482:     modifiers[:evasion_stage] = 0 if function_code == "IgnoreTargetDefSpDefEvaStatStages"   # Chip Away
+483:     if @ai.trainer.medium_skill?
+484:       modifiers[:base_accuracy] = 0 if user.effects[PBEffects::LockOn] > 0 &&
+485:                                        user.effects[PBEffects::LockOnPos] == target.index
+486:     end
+487:     if @ai.trainer.medium_skill?
+488:       case function_code
+489:       when "BadPoisonTarget"
+490:         modifiers[:base_accuracy] = 0 if Settings::MORE_TYPE_EFFECTS &&
+491:                                          @move.statusMove? && user.has_type?(:POISON)
+492:       end
+493:     end
+494:   end
+495: 
+496:   #-----------------------------------------------------------------------------
+497: 
+498:   # Full critical hit chance calculation (returns the determined critical hit
+499:   # stage).
+500:   def rough_critical_hit_stage
+501:     user = @ai.user
+502:     user_battler = user.battler
+503:     target = @ai.target
+504:     target_battler = target.battler
+505:     return -1 if target_battler.pbOwnSide.effects[PBEffects::LuckyChant] > 0
+506:     crit_stage = 0
+507:     # Ability effects that alter critical hit rate
+508:     if user.ability_active?
+509:       crit_stage = Battle::AbilityEffects.triggerCriticalCalcFromUser(user_battler.ability,
+510:          user_battler, target_battler, crit_stage)
+511:       return -1 if crit_stage < 0
+512:     end
+513:     if !@ai.battle.moldBreaker && target.ability_active?
+514:       crit_stage = Battle::AbilityEffects.triggerCriticalCalcFromTarget(target_battler.ability,
+515:          user_battler, target_battler, crit_stage)
+516:       return -1 if crit_stage < 0
+517:     end
+518:     # Item effects that alter critical hit rate
+519:     if user.item_active?
+520:       crit_stage = Battle::ItemEffects.triggerCriticalCalcFromUser(user_battler.item,
+521:          user_battler, target_battler, crit_stage)
+522:       return -1 if crit_stage < 0
+523:     end
+524:     if target.item_active?
+525:       crit_stage = Battle::ItemEffects.triggerCriticalCalcFromTarget(user_battler.item,
+526:          user_battler, target_battler, crit_stage)
+527:       return -1 if crit_stage < 0
+528:     end
+529:     # Other effects
+530:     case @move.pbCritialOverride(user_battler, target_battler)
+531:     when 1  then return 99
+532:     when -1 then return -1
+533:     end
+534:     return 99 if crit_stage > 50   # Merciless
+535:     return 99 if user_battler.effects[PBEffects::LaserFocus] > 0
+536:     crit_stage += 1 if @move.highCriticalRate?
+537:     crit_stage += user_battler.effects[PBEffects::FocusEnergy]
+538:     crit_stage += 1 if user_battler.inHyperMode? && @move.type == :SHADOW
+539:     crit_stage = [crit_stage, Battle::Move::CRITICAL_HIT_RATIOS.length - 1].min
+540:     return crit_stage
+541:   end
+542: 
+543:   #-----------------------------------------------------------------------------
+544: 
+545:   # Return values:
+546:   #   0: Regular additional effect chance or isn't an additional effect
+547:   #   -999: Additional effect will be negated
+548:   #   Other: Amount to add to a move's score
+549:   def get_score_change_for_additional_effect(user, target = nil)
+550:     # Doesn't have an additional effect
+551:     return 0 if @move.addlEffect == 0
+552:     # Additional effect will be negated
+553:     return -999 if user.has_active_ability?(:SHEERFORCE)
+554:     return -999 if target && user.index != target.index &&
+555:                    target.has_active_ability?(:SHIELDDUST) && !@ai.battle.moldBreaker
+556:     # Prefer if the additional effect will have an increased chance of working
+557:     return 5 if @move.addlEffect < 100 &&
+558:                 (Settings::MECHANICS_GENERATION >= 6 || function_code != "EffectDependsOnEnvironment") &&
+559:                 (user.has_active_ability?(:SERENEGRACE) || user.pbOwnSide.effects[PBEffects::Rainbow] > 0)
+560:     # No change to score
+561:     return 0
+562:   end
+563: end

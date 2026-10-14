@@ -1,0 +1,290 @@
+261:     pbMessage(_INTL("Credits can be skipped when played in future.")) if $PokemonGlobal.creditsPlayed
+262:     pbMessage(_INTL("Credits cannot be skipped when next played.")) if !$PokemonGlobal.creditsPlayed
+263:   }
+264: })
+265: 
+266: #===============================================================================
+267: # Battle options
+268: #===============================================================================
+269: MenuHandlers.add(:debug_menu, :battle_menu, {
+270:   "name"        => _INTL("Battle options..."),
+271:   "parent"      => :main,
+272:   "description" => _INTL("Start battles, reset this map's trainers, ready rematches, edit roamers, etc."),
+273:   "always_show" => false
+274: })
+275: 
+276: MenuHandlers.add(:debug_menu, :test_wild_battle, {
+277:   "name"        => _INTL("Test wild battle"),
+278:   "parent"      => :battle_menu,
+279:   "description" => _INTL("Start a single battle against a wild Pokémon. You choose the species/level."),
+280:   "effect"      => proc {
+281:     species = pbChooseSpeciesList
+282:     if species
+283:       params = ChooseNumberParams.new
+284:       params.setRange(1, GameData::GrowthRate.max_level)
+285:       params.setInitialValue(5)
+286:       params.setCancelValue(0)
+287:       level = pbMessageChooseNumber(_INTL("Set the wild {1}'s level.",
+288:                                           GameData::Species.get(species).name), params)
+289:       if level > 0
+290:         $game_temp.encounter_type = nil
+291:         setBattleRule("canLose")
+292:         WildBattle.start(species, level)
+293:       end
+294:     end
+295:     next false
+296:   }
+297: })
+298: 
+299: MenuHandlers.add(:debug_menu, :test_wild_battle_advanced, {
+300:   "name"        => _INTL("Test wild battle advanced"),
+301:   "parent"      => :battle_menu,
+302:   "description" => _INTL("Start a battle against 1 or more wild Pokémon. Battle size is your choice."),
+303:   "effect"      => proc {
+304:     pkmn = []
+305:     size0 = 1
+306:     pkmnCmd = 0
+307:     loop do
+308:       pkmnCmds = []
+309:       pkmn.each { |p| pkmnCmds.push(sprintf("%s Lv.%d", p.name, p.level)) }
+310:       pkmnCmds.push(_INTL("[Add Pokémon]"))
+311:       pkmnCmds.push(_INTL("[Set player side size]"))
+312:       pkmnCmds.push(_INTL("[Start {1}v{2} battle]", size0, pkmn.length))
+313:       pkmnCmd = pbShowCommands(nil, pkmnCmds, -1, pkmnCmd)
+314:       break if pkmnCmd < 0
+315:       if pkmnCmd == pkmnCmds.length - 1      # Start battle
+316:         if pkmn.length == 0
+317:           pbMessage(_INTL("No Pokémon were chosen, cannot start battle."))
+318:           next
+319:         end
+320:         setBattleRule(sprintf("%dv%d", size0, pkmn.length))
+321:         setBattleRule("canLose")
+322:         $game_temp.encounter_type = nil
+323:         WildBattle.start(*pkmn)
+324:         break
+325:       elsif pkmnCmd == pkmnCmds.length - 2   # Set player side size
+326:         if !pbCanDoubleBattle?
+327:           pbMessage(_INTL("You only have one Pokémon."))
+328:           next
+329:         end
+330:         maxVal = (pbCanTripleBattle?) ? 3 : 2
+331:         params = ChooseNumberParams.new
+332:         params.setRange(1, maxVal)
+333:         params.setInitialValue(size0)
+334:         params.setCancelValue(0)
+335:         newSize = pbMessageChooseNumber(
+336:           _INTL("Choose the number of battlers on the player's side (max. {1}).", maxVal), params
+337:         )
+338:         size0 = newSize if newSize > 0
+339:       elsif pkmnCmd == pkmnCmds.length - 3   # Add Pokémon
+340:         species = pbChooseSpeciesList
+341:         if species
+342:           params = ChooseNumberParams.new
+343:           params.setRange(1, GameData::GrowthRate.max_level)
+344:           params.setInitialValue(5)
+345:           params.setCancelValue(0)
+346:           level = pbMessageChooseNumber(_INTL("Set the wild {1}'s level.",
+347:                                               GameData::Species.get(species).name), params)
+348:           if level > 0
+349:             pkmn.push(pbGenerateWildPokemon(species, level))
+350:             size0 = pkmn.length
+351:           end
+352:         end
+353:       else                                   # Edit a Pokémon
+354:         if pbConfirmMessage(_INTL("Change this Pokémon?"))
+355:           scr = PokemonDebugPartyScreen.new
+356:           scr.pbPokemonDebug(pkmn[pkmnCmd], -1, nil, true)
+357:           scr.pbEndScreen
+358:         elsif pbConfirmMessage(_INTL("Delete this Pokémon?"))
+359:           pkmn.delete_at(pkmnCmd)
+360:           size0 = [pkmn.length, 1].max
+361:         end
+362:       end
+363:     end
+364:     next false
+365:   }
+366: })
+367: 
+368: MenuHandlers.add(:debug_menu, :test_trainer_battle, {
+369:   "name"        => _INTL("Test trainer battle"),
+370:   "parent"      => :battle_menu,
+371:   "description" => _INTL("Start a single battle against a trainer of your choice."),
+372:   "effect"      => proc {
+373:     trainerdata = pbListScreen(_INTL("SINGLE TRAINER"), TrainerBattleLister.new(0, false))
+374:     if trainerdata
+375:       setBattleRule("canLose")
+376:       TrainerBattle.start(trainerdata[0], trainerdata[1], trainerdata[2])
+377:     end
+378:     next false
+379:   }
+380: })
+381: 
+382: MenuHandlers.add(:debug_menu, :test_trainer_battle_advanced, {
+383:   "name"        => _INTL("Test trainer battle advanced"),
+384:   "parent"      => :battle_menu,
+385:   "description" => _INTL("Start a battle against 1 or more trainers with a battle size of your choice."),
+386:   "effect"      => proc {
+387:     trainers = []
+388:     size0 = 1
+389:     size1 = 1
+390:     trainerCmd = 0
+391:     loop do
+392:       trainerCmds = []
+393:       trainers.each { |t| trainerCmds.push(sprintf("%s x%d", t[1].full_name, t[1].party_count)) }
+394:       trainerCmds.push(_INTL("[Add trainer]"))
+395:       trainerCmds.push(_INTL("[Set player side size]"))
+396:       trainerCmds.push(_INTL("[Set opponent side size]"))
+397:       trainerCmds.push(_INTL("[Start {1}v{2} battle]", size0, size1))
+398:       trainerCmd = pbShowCommands(nil, trainerCmds, -1, trainerCmd)
+399:       break if trainerCmd < 0
+400:       if trainerCmd == trainerCmds.length - 1      # Start battle
+401:         if trainers.length == 0
+402:           pbMessage(_INTL("No trainers were chosen, cannot start battle."))
+403:           next
+404:         elsif size1 < trainers.length
+405:           pbMessage(_INTL("Opposing side size is invalid. It should be at least {1}.", trainers.length))
+406:           next
+407:         elsif size1 > trainers.length && trainers[0][1].party_count == 1
+408:           pbMessage(
+409:             _INTL("Opposing side size cannot be {1}, as that requires the first trainer to have 2 or more Pokémon, which they don't.",
+410:                   size1)
+411:           )
+412:           next
+413:         end
+414:         setBattleRule(sprintf("%dv%d", size0, size1))
+415:         setBattleRule("canLose")
+416:         battleArgs = []
+417:         trainers.each { |t| battleArgs.push(t[1]) }
+418:         TrainerBattle.start(*battleArgs)
+419:         break
+420:       elsif trainerCmd == trainerCmds.length - 2   # Set opponent side size
+421:         if trainers.length == 0 || (trainers.length == 1 && trainers[0][1].party_count == 1)
+422:           pbMessage(_INTL("No trainers were chosen or trainer only has one Pokémon."))
+423:           next
+424:         end
+425:         maxVal = 2
+426:         maxVal = 3 if trainers.length >= 3 ||
+427:                       (trainers.length == 2 && trainers[0][1].party_count >= 2) ||
+428:                       trainers[0][1].party_count >= 3
+429:         params = ChooseNumberParams.new
+430:         params.setRange(1, maxVal)
+431:         params.setInitialValue(size1)
+432:         params.setCancelValue(0)
+433:         newSize = pbMessageChooseNumber(
+434:           _INTL("Choose the number of battlers on the opponent's side (max. {1}).", maxVal), params
+435:         )
+436:         size1 = newSize if newSize > 0
+437:       elsif trainerCmd == trainerCmds.length - 3   # Set player side size
+438:         if !pbCanDoubleBattle?
+439:           pbMessage(_INTL("You only have one Pokémon."))
+440:           next
+441:         end
+442:         maxVal = (pbCanTripleBattle?) ? 3 : 2
+443:         params = ChooseNumberParams.new
+444:         params.setRange(1, maxVal)
+445:         params.setInitialValue(size0)
+446:         params.setCancelValue(0)
+447:         newSize = pbMessageChooseNumber(
+448:           _INTL("Choose the number of battlers on the player's side (max. {1}).", maxVal), params
+449:         )
+450:         size0 = newSize if newSize > 0
+451:       elsif trainerCmd == trainerCmds.length - 4   # Add trainer
+452:         trainerdata = pbListScreen(_INTL("CHOOSE A TRAINER"), TrainerBattleLister.new(0, false))
+453:         if trainerdata
+454:           tr = pbLoadTrainer(trainerdata[0], trainerdata[1], trainerdata[2])
+455:           EventHandlers.trigger(:on_trainer_load, tr)
+456:           trainers.push([0, tr])
+457:           size0 = trainers.length
+458:           size1 = trainers.length
+459:         end
+460:       else                                         # Edit a trainer
+461:         if pbConfirmMessage(_INTL("Change this trainer?"))
+462:           trainerdata = pbListScreen(_INTL("CHOOSE A TRAINER"),
+463:                                      TrainerBattleLister.new(trainers[trainerCmd][0], false))
+464:           if trainerdata
+465:             tr = pbLoadTrainer(trainerdata[0], trainerdata[1], trainerdata[2])
+466:             EventHandlers.trigger(:on_trainer_load, tr)
+467:             trainers[trainerCmd] = [0, tr]
+468:           end
+469:         elsif pbConfirmMessage(_INTL("Delete this trainer?"))
+470:           trainers.delete_at(trainerCmd)
+471:           size0 = [trainers.length, 1].max
+472:           size1 = [trainers.length, 1].max
+473:         end
+474:       end
+475:     end
+476:     next false
+477:   }
+478: })
+479: 
+480: MenuHandlers.add(:debug_menu, :encounter_version, {
+481:   "name"        => _INTL("Set wild encounters version"),
+482:   "parent"      => :battle_menu,
+483:   "description" => _INTL("Choose which version of wild encounters should be used."),
+484:   "effect"      => proc {
+485:     params = ChooseNumberParams.new
+486:     params.setRange(0, 99)
+487:     params.setInitialValue($PokemonGlobal.encounter_version)
+488:     params.setCancelValue(-1)
+489:     value = pbMessageChooseNumber(_INTL("Set encounters version to which value?"), params)
+490:     $PokemonGlobal.encounter_version = value if value >= 0
+491:   }
+492: })
+493: 
+494: MenuHandlers.add(:debug_menu, :roamers, {
+495:   "name"        => _INTL("Roaming Pokémon"),
+496:   "parent"      => :battle_menu,
+497:   "description" => _INTL("Toggle and edit all roaming Pokémon."),
+498:   "effect"      => proc {
+499:     pbDebugRoamers
+500:   }
+501: })
+502: 
+503: MenuHandlers.add(:debug_menu, :reset_trainers, {
+504:   "name"        => _INTL("Reset map's trainers"),
+505:   "parent"      => :battle_menu,
+506:   "description" => _INTL("Turn off Self Switches A and B for all events with \"Trainer\" in their name."),
+507:   "effect"      => proc {
+508:     if $game_map
+509:       $game_map.events.each_value do |event|
+510:         if event.name[/trainer/i]
+511:           $game_self_switches[[$game_map.map_id, event.id, "A"]] = false
+512:           $game_self_switches[[$game_map.map_id, event.id, "B"]] = false
+513:         end
+514:       end
+515:       $game_map.need_refresh = true
+516:       pbMessage(_INTL("All Trainers on this map were reset."))
+517:     else
+518:       pbMessage(_INTL("This command can't be used here."))
+519:     end
+520:   }
+521: })
+522: 
+523: MenuHandlers.add(:debug_menu, :toggle_exp_all, {
+524:   "name"        => _INTL("Toggle Exp. All's effect"),
+525:   "parent"      => :battle_menu,
+526:   "description" => _INTL("Toggle Exp. All's effect of giving Exp. to non-participants."),
+527:   "effect"      => proc {
+528:     $player.has_exp_all = !$player.has_exp_all
+529:     pbMessage(_INTL("Enabled Exp. All's effect.")) if $player.has_exp_all
+530:     pbMessage(_INTL("Disabled Exp. All's effect.")) if !$player.has_exp_all
+531:   }
+532: })
+533: 
+534: MenuHandlers.add(:debug_menu, :toggle_logging, {
+535:   "name"        => _INTL("Toggle logging of battle messages"),
+536:   "parent"      => :battle_menu,
+537:   "description" => _INTL("Record debug logs for battles in Data/debuglog.txt."),
+538:   "effect"      => proc {
+539:     $INTERNAL = !$INTERNAL
+540:     pbMessage(_INTL("Debug logs for battles will be made in the Data folder.")) if $INTERNAL
+541:     pbMessage(_INTL("Debug logs for battles will not be made.")) if !$INTERNAL
+542:   }
+543: })
+544: 
+545: #===============================================================================
+546: # Pokémon options
+547: #===============================================================================
+548: MenuHandlers.add(:debug_menu, :pokemon_menu, {
+549:   "name"        => _INTL("Pokémon options..."),
+550:   "parent"      => :main,

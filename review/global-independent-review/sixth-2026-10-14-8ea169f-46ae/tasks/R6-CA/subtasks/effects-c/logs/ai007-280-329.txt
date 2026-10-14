@@ -1,0 +1,50 @@
+280: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:predicted_accuracy,
+281:   proc { |score, move, user, target, ai, battle|
+282:     acc = move.rough_accuracy.to_i
+283:     if acc < 90
+284:       old_score = score
+285:       score -= (0.25 * (100 - acc)).to_i   # -2 (89%) to -24 (1%)
+286:       PBDebug.log_score_change(score - old_score, "accuracy (predicted #{acc}%)")
+287:     end
+288:     next score
+289:   }
+290: )
+291: 
+292: #===============================================================================
+293: # Adjust score based on how much damage it can deal.
+294: # Prefer the move even more if it's predicted to do enough damage to KO the
+295: # target.
+296: #===============================================================================
+297: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:predicted_damage,
+298:   proc { |score, move, user, target, ai, battle|
+299:     if move.damagingMove?
+300:       dmg = move.rough_damage
+301:       old_score = score
+302:       if target.effects[PBEffects::Substitute] > 0
+303:         target_hp = target.effects[PBEffects::Substitute]
+304:         score += ([15.0 * dmg / target.effects[PBEffects::Substitute], 20].min).to_i
+305:         PBDebug.log_score_change(score - old_score, "damaging move (predicted damage #{dmg} = #{100 * dmg / target.hp}% of target's Substitute)")
+306:       else
+307:         score += ([25.0 * dmg / target.hp, 30].min).to_i
+308:         PBDebug.log_score_change(score - old_score, "damaging move (predicted damage #{dmg} = #{100 * dmg / target.hp}% of target's HP)")
+309:         if ai.trainer.has_skill_flag?("HPAware") && dmg > target.hp * 1.1   # Predicted to KO the target
+310:           old_score = score
+311:           score += 10
+312:           PBDebug.log_score_change(score - old_score, "predicted to KO the target")
+313:           if move.move.multiHitMove? && target.hp == target.totalhp &&
+314:              (target.has_active_ability?(:STURDY) || target.has_active_item?(:FOCUSSASH))
+315:             old_score = score
+316:             score += 8
+317:             PBDebug.log_score_change(score - old_score, "predicted to overcome the target's Sturdy/Focus Sash")
+318:           end
+319:         end
+320:       end
+321:     end
+322:     next score
+323:   }
+324: )
+325: 
+326: #===============================================================================
+327: # Prefer flinching external effects (note that move effects which cause
+328: # flinching are dealt with in the function code part of score calculation).
+329: #===============================================================================

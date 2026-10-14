@@ -1,0 +1,251 @@
+1501:             script = list[i].parameters[1]
+1502:             changed = true if replace_old_battle_scripts(event, list, i)
+1503:             if script[trainerMoneyRE]   # Compares $player.money with a value
+1504:               # Checking money directly
+1505:               operator = $1
+1506:               amount   = $2.to_i
+1507:               case operator
+1508:               when "<"
+1509:                 params[0] = 7   # gold
+1510:                 params[2] = 1
+1511:                 params[1] = amount - 1
+1512:                 changed = true
+1513:               when "<="
+1514:                 params[0] = 7   # gold
+1515:                 params[2] = 1
+1516:                 params[1] = amount
+1517:                 changed = true
+1518:               when ">"
+1519:                 params[0] = 7   # gold
+1520:                 params[2] = 0
+1521:                 params[1] = amount + 1
+1522:                 changed = true
+1523:               when ">="
+1524:                 params[0] = 7   # gold
+1525:                 params[2] = 0
+1526:                 params[1] = amount
+1527:                 changed = true
+1528:               end
+1529:             elsif script[itemBallRE] && i > 0   # Contains pbItemBall after another command
+1530:               # Using pbItemBall on non-item events, change it
+1531:               list[i].parameters[1] = script.sub(/pbItemBall/, "pbReceiveItem")
+1532:               changed = true
+1533:             elsif script[/^\s*(TrainerBattle.start)/]
+1534:               # Check if trainer battle conditional branch is empty
+1535:               j = i + 1
+1536:               isempty = true
+1537:               elseIndex = -1
+1538:               # Check if page is empty
+1539:               while j < page.list.length
+1540:                 if list[j].indent <= list[i].indent
+1541:                   if list[j].code == 411   # Else
+1542:                     elseIndex = j
+1543:                   else
+1544:                     break   # Reached end of Conditional Branch
+1545:                   end
+1546:                 end
+1547:                 if list[j].code != 0 && list[j].code != 411   # Else
+1548:                   isempty = false
+1549:                   break
+1550:                 end
+1551:                 j += 1
+1552:               end
+1553:               if isempty
+1554:                 if elseIndex >= 0
+1555:                   list.insert(
+1556:                     elseIndex + 1,
+1557:                     RPG::EventCommand.new(115, list[i].indent + 1, [])   # Exit Event Processing
+1558:                   )
+1559:                 else
+1560:                   list.insert(
+1561:                     i + 1,
+1562:                     RPG::EventCommand.new(0, list[i].indent + 1, []),    # Empty Event
+1563:                     RPG::EventCommand.new(411, list[i].indent, []),      # Else
+1564:                     RPG::EventCommand.new(115, list[i].indent + 1, [])   # Exit Event Processing
+1565:                   )
+1566:                 end
+1567:                 changed = true
+1568:               end
+1569:             end
+1570:           end
+1571:         end
+1572:         i += 1
+1573:       end
+1574:     end
+1575:     return (changed) ? event : nil
+1576:   end
+1577: 
+1578:   #=============================================================================
+1579:   # Convert events used as counters into proper counters.
+1580:   #=============================================================================
+1581:   # Checks if the event has just 1 page, which has no conditions and no commands
+1582:   # and whose movement type is "Fixed".
+1583:   def plain_event?(event)
+1584:     return false unless event
+1585:     return false if event.pages.length > 1
+1586:     return false if event.pages[0].move_type != 0
+1587:     return false if event.pages[0].condition.switch1_valid ||
+1588:                     event.pages[0].condition.switch2_valid ||
+1589:                     event.pages[0].condition.variable_valid ||
+1590:                     event.pages[0].condition.self_switch_valid
+1591:     return true if event.pages[0].list.length <= 1
+1592:     return false
+1593:   end
+1594: 
+1595:   # Checks if the event has just 1 page, which has no conditions and whose
+1596:   # movement type is "Fixed". Then checks if there are no commands, or it looks
+1597:   # like a simple Mart or a Poké Center nurse event.
+1598:   def plain_event_or_mart?(event)
+1599:     return false unless event
+1600:     return false if event.pages.length > 1
+1601:     return false if event.pages[0].move_type != 0
+1602:     return false if event.pages[0].condition.switch1_valid ||
+1603:                     event.pages[0].condition.switch2_valid ||
+1604:                     event.pages[0].condition.variable_valid ||
+1605:                     event.pages[0].condition.self_switch_valid
+1606:     # No commands in the event
+1607:     return true if event.pages[0].list.length <= 1
+1608:     # pbPokemonMart events
+1609:     return true if event.pages[0].list.length <= 12 &&
+1610:                    event.pages[0].graphic.character_name != "" &&   # Has charset
+1611:                    event.pages[0].list[0].code == 355 &&   # First line is Script
+1612:                    event.pages[0].list[0].parameters[0][/^pbPokemonMart/]
+1613:     # pbSetPokemonCenter events
+1614:     return true if event.pages[0].list.length > 8 &&
+1615:                    event.pages[0].graphic.character_name != "" &&   # Has charset
+1616:                    event.pages[0].list[0].code == 355 &&   # First line is Script
+1617:                    event.pages[0].list[0].parameters[0][/^pbSetPokemonCenter/]
+1618:     return false
+1619:   end
+1620: 
+1621:   # Given two events that are next to each other, decides whether otherEvent is
+1622:   # likely to be a "counter event", i.e. is placed on a tile with the Counter
+1623:   # flag, or is on a non-passable tile between two passable tiles (e.g. a desk)
+1624:   # where one of those two tiles is occupied by thisEvent.
+1625:   def likely_counter?(thisEvent, otherEvent, mapID, mapData)
+1626:     # Check whether otherEvent is on a counter tile
+1627:     return true if mapData.isCounterTile?(mapID, otherEvent.x, otherEvent.y)
+1628:     # Check whether otherEvent is between an event with a graphic (e.g. an NPC)
+1629:     # and a spot where the player can be
+1630:     yonderX = otherEvent.x + (otherEvent.x - thisEvent.x)
+1631:     yonderY = otherEvent.y + (otherEvent.y - thisEvent.y)
+1632:     return thisEvent.pages[0].graphic.character_name != "" &&    # Has charset
+1633:            otherEvent.pages[0].graphic.character_name == "" &&   # Has no charset
+1634:            otherEvent.pages[0].trigger == 0 &&                   # Action trigger
+1635:            mapData.isPassable?(mapID, thisEvent.x, thisEvent.y) &&
+1636:            !mapData.isPassable?(mapID, otherEvent.x, otherEvent.y) &&
+1637:            mapData.isPassable?(mapID, yonderX, yonderY)
+1638:   end
+1639: 
+1640:   # Checks all events in the given map to see if any look like they've been
+1641:   # placed on a desk with an NPC behind it, where the event on the desk is the
+1642:   # actual interaction with the NPC. In other words, it's not making proper use
+1643:   # of the counter flag (which lets the player interact with an event on the
+1644:   # other side of counter tiles).
+1645:   # Any events found to be like this have their contents merged into the NPC
+1646:   # event and the counter event itself is deleted. The tile below the counter
+1647:   # event gets its counter flag set (if it isn't already).
+1648:   def check_counters(map, mapID, mapData)
+1649:     toDelete = []
+1650:     changed = false
+1651:     map.events.each_key do |key|
+1652:       event = map.events[key]
+1653:       next if !plain_event_or_mart?(event)
+1654:       # Found an event that is empty or looks like a simple Mart or a Poké
+1655:       # Center nurse. Check adjacent events to see if they are "counter events".
+1656:       neighbors = []
+1657:       neighbors.push(mapData.getEventFromXY(mapID, event.x, event.y - 1))
+1658:       neighbors.push(mapData.getEventFromXY(mapID, event.x, event.y + 1))
+1659:       neighbors.push(mapData.getEventFromXY(mapID, event.x - 1, event.y))
+1660:       neighbors.push(mapData.getEventFromXY(mapID, event.x + 1, event.y))
+1661:       neighbors.compact!
+1662:       neighbors.each do |otherEvent|
+1663:         next if plain_event?(otherEvent)   # Blank/cosmetic-only event
+1664:         next if !likely_counter?(event, otherEvent, mapID, mapData)
+1665:         # Found an adjacent event that looks like it's supposed to be a counter.
+1666:         # Set the counter flag of the tile beneath the counter event, copy the
+1667:         # counter event's pages to the NPC event, and delete the counter event.
+1668:         mapData.setCounterTile(mapID, otherEvent.x, otherEvent.y)
+1669:         savedPage = event.pages[0]
+1670:         event.pages = otherEvent.pages
+1671:         apply_pages(savedPage, event.pages)   # Apply NPC's visuals to new event pages
+1672:         toDelete.push(otherEvent.id)
+1673:         changed = true
+1674:       end
+1675:     end
+1676:     toDelete.each { |key| map.events.delete(key) }
+1677:     return changed
+1678:   end
+1679: 
+1680:   #=============================================================================
+1681:   # Main compiler method for events
+1682:   #=============================================================================
+1683:   def compile_trainer_events(_mustcompile)
+1684:     mapData = MapData.new
+1685:     t = System.uptime
+1686:     Graphics.update
+1687:     trainerChecker = TrainerChecker.new
+1688:     change_record = []
+1689:     Console.echo_li(_INTL("Processing {1} maps...", mapData.mapinfos.keys.length))
+1690:     idx = 0
+1691:     mapData.mapinfos.keys.sort.each do |id|
+1692:       echo "." if idx % 100 == 0
+1693:       idx += 1
+1694:       Graphics.update if idx % 500 == 0
+1695:       changed = false
+1696:       map = mapData.getMap(id)
+1697:       next if !map || !mapData.mapinfos[id]
+1698:       map.events.each_key do |key|
+1699:         if System.uptime - t >= 5
+1700:           t += 5
+1701:           Graphics.update
+1702:         end
+1703:         newevent = convert_to_trainer_event(map.events[key], trainerChecker)
+1704:         if newevent
+1705:           map.events[key] = newevent
+1706:           changed = true
+1707:         end
+1708:         newevent = convert_to_item_event(map.events[key])
+1709:         if newevent
+1710:           map.events[key] = newevent
+1711:           changed = true
+1712:         end
+1713:         changed = true if fix_event_name(map.events[key])
+1714:         changed = true if fix_event_scripts(map.events[key])
+1715:         newevent = fix_event_use(map.events[key], id, mapData)
+1716:         if newevent
+1717:           map.events[key] = newevent
+1718:           changed = true
+1719:         end
+1720:       end
+1721:       if System.uptime - t >= 5
+1722:         t += 5
+1723:         Graphics.update
+1724:       end
+1725:       changed = true if check_counters(map, id, mapData)
+1726:       if changed
+1727:         mapData.saveMap(id)
+1728:         mapData.saveTilesets
+1729:         change_record.push(_INTL("Map {1}: '{2}' was modified and saved.", id, mapData.mapinfos[id].name))
+1730:       end
+1731:     end
+1732:     Console.echo_done(true)
+1733:     change_record.each { |msg| Console.echo_warn(msg) }
+1734:     changed = false
+1735:     Graphics.update
+1736:     commonEvents = load_data("Data/CommonEvents.rxdata")
+1737:     Console.echo_li(_INTL("Processing common events..."))
+1738:     commonEvents.length.times do |key|
+1739:       newevent = fix_event_use(commonEvents[key], 0, mapData)
+1740:       if newevent
+1741:         commonEvents[key] = newevent
+1742:         changed = true
+1743:       end
+1744:     end
+1745:     save_data(commonEvents, "Data/CommonEvents.rxdata") if changed
+1746:     Console.echo_done(true)
+1747:     if change_record.length > 0 || changed
+1748:       Console.echo_warn(_INTL("RMXP data was altered. Close RMXP now to ensure changes are applied."))
+1749:     end
+1750:   end
+1751: end

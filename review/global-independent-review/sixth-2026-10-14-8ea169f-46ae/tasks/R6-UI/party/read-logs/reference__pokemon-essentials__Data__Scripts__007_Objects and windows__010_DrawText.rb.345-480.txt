@@ -1,0 +1,137 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/007_Objects and windows/010_DrawText.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [345, 480], "total_lines": 1151, "sha256": "b935f12a5b14a3e2ddba50302b8ea02cdfdfc1f657987b46b12322ac32e431f8", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:25:46.474087+00:00"}
+345: def getFormattedText(bitmap, xDst, yDst, widthDst, heightDst, text, lineheight = 32,
+346:                      newlineBreaks = true, explicitBreaksOnly = false,
+347:                      collapseAlignments = false)
+348:   dummybitmap = nil
+349:   if !bitmap || bitmap.disposed?   # allows function to be called with nil bitmap
+350:     dummybitmap = Bitmap.new(1, 1)
+351:     bitmap = dummybitmap
+352:     return
+353:   end
+354:   if !bitmap || bitmap.disposed? || widthDst <= 0 || heightDst == 0 || text.length == 0
+355:     return []
+356:   end
+357:   textchunks = []
+358:   controls = []
+359: #  oldtext = text
+360:   while text[FORMATREGEXP]
+361:     textchunks.push($~.pre_match)
+362:     if $~[3]
+363:       controls.push([$~[2].downcase, $~[4], -1, $~[1] == "/"])
+364:     else
+365:       controls.push([$~[2].downcase, "", -1, $~[1] == "/"])
+366:     end
+367:     text = $~.post_match
+368:   end
+369:   if controls.length == 0
+370:     ret = getFormattedTextFast(bitmap, xDst, yDst, widthDst, heightDst, text, lineheight,
+371:                                newlineBreaks, explicitBreaksOnly)
+372:     dummybitmap&.dispose
+373:     return ret
+374:   end
+375:   x = y = 0
+376:   characters = []
+377:   charactersInternal = []
+378: #  realtext = nil
+379: #  realtextStart = ""
+380: #  if !explicitBreaksOnly && textchunks.join.length == 0
+381: #    # All commands occurred at the beginning of the text string
+382: #    realtext = (newlineBreaks) ? text : text.gsub(/\n/, " ")
+383: #    realtextStart = oldtext[0, oldtext.length - realtext.length]
+384: #  end
+385:   textchunks.push(text)
+386:   textchunks.each { |chunk| fmtReplaceEscapes(chunk) }
+387:   textlen = 0
+388:   controls.each_with_index do |control, i|
+389:     textlen += textchunks[i].scan(/./m).length
+390:     control[2] = textlen
+391:   end
+392:   text = textchunks.join
+393:   textchars = text.scan(/./m)
+394:   colorstack = []
+395:   boldcount = 0
+396:   italiccount = 0
+397:   outlinecount = 0
+398:   underlinecount = 0
+399:   strikecount = 0
+400:   rightalign = 0
+401:   outline2count = 0
+402:   opacitystack = []
+403:   oldfont = bitmap.font.clone
+404:   defaultfontname = bitmap.font.name
+405:   defaultfontsize = bitmap.font.size
+406:   fontsize = defaultfontsize
+407:   fontnamestack = []
+408:   fontsizestack = []
+409:   defaultcolors = [oldfont.color.clone, nil]
+410:   if defaultfontname.is_a?(Array)
+411:     defaultfontname = defaultfontname.find { |i| Font.exist?(i) } || "Arial"
+412:   elsif !Font.exist?(defaultfontname)
+413:     defaultfontname = "Arial"
+414:   end
+415:   defaultfontname = defaultfontname.clone
+416:   fontname = defaultfontname
+417:   alignstack = []
+418:   lastword = [0, 0] # position of last word
+419:   hadspace = false
+420:   hadnonspace = false
+421:   havenl = false
+422:   position = 0
+423:   while position < textchars.length
+424:     nextline = 0
+425:     graphic = nil
+426:     graphicX = 0
+427:     graphicY = 4
+428:     graphicWidth = nil
+429:     graphicHeight = nil
+430:     graphicRect = nil
+431:     controls.length.times do |i|
+432:       next if !controls[i] || controls[i][2] != position
+433:       control = controls[i][0]
+434:       param = controls[i][1]
+435:       endtag = controls[i][3]
+436:       case control
+437:       when "c"
+438:         if endtag
+439:           colorstack.pop
+440:         else
+441:           color = Color.new_from_rgb(param)
+442:           colorstack.push([color, nil])
+443:         end
+444:       when "c2"
+445:         if endtag
+446:           colorstack.pop
+447:         else
+448:           base = Color.new_from_rgb(param[0, 4])
+449:           shadow = Color.new_from_rgb(param[4, 4])
+450:           colorstack.push([base, shadow])
+451:         end
+452:       when "c3"
+453:         if endtag
+454:           colorstack.pop
+455:         else
+456:           param = param.split(",")
+457:           # get pure colors unaffected by opacity
+458:           oldColors = getLastParam(colorstack, defaultcolors)
+459:           base = (param[0] && param[0] != "") ? Color.new_from_rgb(param[0]) : oldColors[0]
+460:           shadow = (param[1] && param[1] != "") ? Color.new_from_rgb(param[1]) : oldColors[1]
+461:           colorstack.push([base, shadow])
+462:         end
+463:       when "o"
+464:         if endtag
+465:           opacitystack.pop
+466:         else
+467:           opacitystack.push(param.sub(/\s+$/, "").to_i)
+468:         end
+469:       when "b"
+470:         boldcount += (endtag ? -1 : 1)
+471:       when "i"
+472:         italiccount += (endtag ? -1 : 1)
+473:       when "u"
+474:         underlinecount += (endtag ? -1 : 1)
+475:       when "s"
+476:         strikecount += (endtag ? -1 : 1)
+477:       when "outln"
+478:         outlinecount += (endtag ? -1 : 1)
+479:       when "outln2"
+480:         outline2count += (endtag ? -1 : 1)

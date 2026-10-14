@@ -1,0 +1,205 @@
+411:       each_foe_battler(target.side) do |b, i|
+412:         return true if b.check_for_move { |m| m.specialMove?(m.type) &&
+413:                                               m.function_code != "UseTargetDefenseInsteadOfTargetSpDef" }
+414:       end
+415:       return false
+416:     when :SPEED
+417:       moves_that_prefer_high_speed = [
+418:         "PowerHigherWithUserFasterThanTarget",
+419:         "PowerHigherWithUserPositiveStatStages"
+420:       ]
+421:       if !target.has_move_with_function?(*moves_that_prefer_high_speed)
+422:         meaningful = false
+423:         target_speed = target.rough_stat(:SPEED)
+424:         each_foe_battler(target.side) do |b, i|
+425:           b_speed = b.rough_stat(:SPEED)
+426:           meaningful = true if target_speed > b_speed && target_speed < b_speed * 2.5
+427:           break if meaningful
+428:         end
+429:         return false if !meaningful
+430:       end
+431:     when :ACCURACY
+432:       meaningful = false
+433:       target.battler.moves.each do |m|
+434:         meaningful = true if m.accuracy > 0 && !m.is_a?(Battle::Move::OHKO)
+435:         break if meaningful
+436:       end
+437:       return false if !meaningful
+438:     when :EVASION
+439:     end
+440:     return true
+441:   end
+442: 
+443:   #-----------------------------------------------------------------------------
+444: 
+445:   # Make score changes based on the general concept of lowering stats at all.
+446:   def get_target_stat_drop_score_generic(score, target, stat_changes, desire_mult = 1)
+447:     total_decrement = stat_changes.sum { |change| change[1] }
+448:     # Prefer if move is a status move and it's the user's first/second turn
+449:     if @user.turnCount < 2 && @move.statusMove?
+450:       score += total_decrement * desire_mult * 5
+451:     end
+452:     if @trainer.has_skill_flag?("HPAware")
+453:       # Prefer if user is at high HP, don't prefer if user is at low HP
+454:       if target.index != @user.index
+455:         score += total_decrement * desire_mult * ((100 * @user.hp / @user.totalhp) - 50) / 8   # +6 to -6 per stage
+456:       end
+457:       # Prefer if target is at high HP, don't prefer if target is at low HP
+458:       score += total_decrement * desire_mult * ((100 * target.hp / target.totalhp) - 50) / 8   # +6 to -6 per stage
+459:     end
+460:     # Don't prefer if target has an ability that triggers upon stat loss
+461:     # (Competitive, Defiant)
+462:     if target.opposes?(@user) && Battle::AbilityEffects::OnStatLoss[target.ability]
+463:       score -= 10
+464:     end
+465:     return score
+466:   end
+467: 
+468:   # Make score changes based on the lowering of a specific stat.
+469:   def get_target_stat_drop_score_one(score, target, stat, decrement, desire_mult = 1)
+470:     # Figure out how much the stat will actually change by
+471:     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+472:     stage_mul = Battle::Battler::STAT_STAGE_MULTIPLIERS
+473:     stage_div = Battle::Battler::STAT_STAGE_DIVISORS
+474:     if [:ACCURACY, :EVASION].include?(stat)
+475:       stage_mul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+476:       stage_div = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+477:     end
+478:     old_stage = target.stages[stat]
+479:     new_stage = old_stage - decrement
+480:     dec_mult = (stage_mul[old_stage + max_stage].to_f * stage_div[new_stage + max_stage]) / (stage_div[old_stage + max_stage] * stage_mul[new_stage + max_stage])
+481:     dec_mult -= 1
+482:     dec_mult *= desire_mult
+483:     # Stat-based score changes
+484:     case stat
+485:     when :ATTACK
+486:       # Modify score depending on current stat stage
+487:       # More strongly prefer if the target has no special moves
+488:       if old_stage <= -2 && decrement == 1
+489:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+490:       else
+491:         has_special_moves = target.check_for_move { |m| m.specialMove?(m.type) }
+492:         dec = (has_special_moves) ? 8 : 12
+493:         score += dec * dec_mult
+494:       end
+495:     when :DEFENSE
+496:       # Modify score depending on current stat stage
+497:       if old_stage <= -2 && decrement == 1
+498:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+499:       else
+500:         score += 10 * dec_mult
+501:       end
+502:     when :SPECIAL_ATTACK
+503:       # Modify score depending on current stat stage
+504:       # More strongly prefer if the target has no physical moves
+505:       if old_stage <= -2 && decrement == 1
+506:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+507:       else
+508:         has_physical_moves = target.check_for_move { |m| m.physicalMove?(m.type) &&
+509:                                                          m.function_code != "UseUserDefenseInsteadOfUserAttack" &&
+510:                                                          m.function_code != "UseTargetAttackInsteadOfUserAttack" }
+511:         dec = (has_physical_moves) ? 8 : 12
+512:         score += dec * dec_mult
+513:       end
+514:     when :SPECIAL_DEFENSE
+515:       # Modify score depending on current stat stage
+516:       if old_stage <= -2 && decrement == 1
+517:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+518:       else
+519:         score += 10 * dec_mult
+520:       end
+521:     when :SPEED
+522:       # Prefer if target is faster than an ally
+523:       target_speed = target.rough_stat(:SPEED)
+524:       each_foe_battler(target.side) do |b, i|
+525:         b_speed = b.rough_stat(:SPEED)
+526:         next if target_speed < b_speed   # Target is already slower than foe b
+527:         next if target_speed > b_speed * 2.5   # Much too fast to reasonably be overtaken
+528:         if target_speed < b_speed * 2 / (decrement + 2)
+529:           score += 15 * dec_mult   # Target will become slower than foe b
+530:         else
+531:           score += 8 * dec_mult
+532:         end
+533:         break
+534:       end
+535:       # Prefer if any ally has Electro Ball
+536:       each_foe_battler(target.side) do |b, i|
+537:         next if !b.has_move_with_function?("PowerHigherWithUserFasterThanTarget")
+538:         score += 5 * dec_mult
+539:       end
+540:       # Don't prefer if target has Speed Boost (will be gaining Speed anyway)
+541:       if target.has_active_ability?(:SPEEDBOOST)
+542:         score -= 15 * ((target.opposes?(@user)) ? 1 : desire_mult)
+543:       end
+544:     when :ACCURACY
+545:       # Modify score depending on current stat stage
+546:       if old_stage <= -2 && decrement == 1
+547:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+548:       else
+549:         score += 10 * dec_mult
+550:       end
+551:     when :EVASION
+552:       # Modify score depending on current stat stage
+553:       if old_stage <= -2 && decrement == 1
+554:         score -= 10 * ((target.opposes?(@user)) ? 1 : desire_mult)
+555:       else
+556:         score += 10 * dec_mult
+557:       end
+558:     end
+559:     # Prefer if target has Stored Power
+560:     if target.has_move_with_function?("PowerHigherWithUserPositiveStatStages")
+561:       score += 5 * decrement * desire_mult
+562:     end
+563:     # Don't prefer if any foe has Punishment
+564:     each_foe_battler(target.side) do |b, i|
+565:       next if !b.has_move_with_function?("PowerHigherWithTargetPositiveStatStages")
+566:       score -= 5 * decrement * desire_mult
+567:     end
+568:     return score
+569:   end
+570: 
+571:   #-----------------------------------------------------------------------------
+572: 
+573:   def get_score_for_weather(weather, move_user, starting = false)
+574:     return 0 if @battle.pbCheckGlobalAbility(:AIRLOCK) ||
+575:                 @battle.pbCheckGlobalAbility(:CLOUDNINE)
+576:     ret = 0
+577:     if starting
+578:       weather_extender = {
+579:         :Sun       => :HEATROCK,
+580:         :Rain      => :DAMPROCK,
+581:         :Sandstorm => :SMOOTHROCK,
+582:         :Hail      => :ICYROCK
+583:       }[weather]
+584:       ret += 4 if weather_extender && move_user.has_active_item?(weather_extender)
+585:     end
+586:     each_battler do |b, i|
+587:       # Check each battler for weather-specific effects
+588:       case weather
+589:       when :Sun
+590:         # Check for Fire/Water moves
+591:         if b.has_damaging_move_of_type?(:FIRE)
+592:           ret += (b.opposes?(move_user)) ? -10 : 10
+593:         end
+594:         if b.has_damaging_move_of_type?(:WATER)
+595:           ret += (b.opposes?(move_user)) ? 10 : -10
+596:         end
+597:         # Check for moves that freeze
+598:         if b.has_move_with_function?("FreezeTarget", "FreezeFlinchTarget") ||
+599:            (b.has_move_with_function?("EffectDependsOnEnvironment") &&
+600:            [:Snow, :Ice].include?(@battle.environment))
+601:           ret += (b.opposes?(move_user)) ? 5 : -5
+602:         end
+603:       when :Rain
+604:         # Check for Fire/Water moves
+605:         if b.has_damaging_move_of_type?(:WATER)
+606:           ret += (b.opposes?(move_user)) ? -10 : 10
+607:         end
+608:         if b.has_damaging_move_of_type?(:FIRE)
+609:           ret += (b.opposes?(move_user)) ? 10 : -10
+610:         end
+611:       when :Sandstorm
+612:         # Check for battlers affected by sandstorm's effects
+613:         if b.battler.takesSandstormDamage?   # End of round damage
+614:           ret += (b.opposes?(move_user)) ? 10 : -10
+615:         end

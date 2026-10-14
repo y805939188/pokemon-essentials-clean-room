@@ -1,0 +1,210 @@
+211: #===============================================================================
+212: #
+213: #===============================================================================
+214: Battle::AI::Handlers::MoveEffectScore.add("DoublePowerAfterFusionFlare",
+215:   proc { |score, move, user, ai, battle|
+216:     # Prefer if an ally knows Fusion Flare
+217:     ai.each_ally(user.index) do |b, i|
+218:       score += 10 if b.has_move_with_function?("DoublePowerAfterFusionBolt")
+219:     end
+220:     next score
+221:   }
+222: )
+223: 
+224: #===============================================================================
+225: #
+226: #===============================================================================
+227: Battle::AI::Handlers::MoveEffectScore.add("DoublePowerAfterFusionBolt",
+228:   proc { |score, move, user, ai, battle|
+229:     # Prefer if an ally knows Fusion Bolt
+230:     ai.each_ally(user.index) do |b, i|
+231:       score += 10 if b.has_move_with_function?("DoublePowerAfterFusionFlare")
+232:     end
+233:     next score
+234:   }
+235: )
+236: 
+237: #===============================================================================
+238: #
+239: #===============================================================================
+240: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("PowerUpAllyMove",
+241:   proc { |move, user, target, ai, battle|
+242:     next target.effects[PBEffects::HelpingHand]
+243:   }
+244: )
+245: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("PowerUpAllyMove",
+246:   proc { |score, move, user, target, ai, battle|
+247:     next Battle::AI::MOVE_USELESS_SCORE if !target.check_for_move { |m| m.damagingMove? }
+248:     next score + 5
+249:   }
+250: )
+251: 
+252: #===============================================================================
+253: #
+254: #===============================================================================
+255: Battle::AI::Handlers::MoveBasePower.add("CounterPhysicalDamage",
+256:   proc { |power, move, user, target, ai, battle|
+257:     next 60   # Representative value
+258:   }
+259: )
+260: Battle::AI::Handlers::MoveEffectScore.add("CounterPhysicalDamage",
+261:   proc { |score, move, user, ai, battle|
+262:     has_physical_move = false
+263:     ai.each_foe_battler(user.side) do |b, i|
+264:       next if !b.can_attack?
+265:       next if !b.check_for_move { |m| m.physicalMove?(m.type) &&
+266:                                       (user.effects[PBEffects::Substitute] == 0 ||
+267:                                        m.ignoresSubstitute?(b.battler)) }
+268:       has_physical_move = true
+269:       # Prefer if foe has a higher Attack than Special Attack
+270:       score += 5 if b.rough_stat(:ATTACK) > b.rough_stat(:SPECIAL_ATTACK)
+271:       # Prefer if the last move the foe used was physical
+272:       if ai.trainer.medium_skill? && b.battler.lastMoveUsed
+273:         score += 8 if GameData::Move.try_get(b.battler.lastMoveUsed)&.physical?
+274:       end
+275:       # Prefer if the foe is taunted into using a damaging move
+276:       score += 5 if b.effects[PBEffects::Taunt] > 0
+277:     end
+278:     # Useless if no foes have a physical move to counter
+279:     next Battle::AI::MOVE_USELESS_SCORE if !has_physical_move
+280:     next score
+281:   }
+282: )
+283: 
+284: #===============================================================================
+285: #
+286: #===============================================================================
+287: Battle::AI::Handlers::MoveBasePower.add("CounterSpecialDamage",
+288:   proc { |power, move, user, target, ai, battle|
+289:     next 60   # Representative value
+290:   }
+291: )
+292: Battle::AI::Handlers::MoveEffectScore.add("CounterSpecialDamage",
+293:   proc { |score, move, user, ai, battle|
+294:     has_special_move = false
+295:     ai.each_foe_battler(user.side) do |b, i|
+296:       next if !b.can_attack?
+297:       next if !b.check_for_move { |m| m.specialMove?(m.type) &&
+298:                                       (user.effects[PBEffects::Substitute] == 0 ||
+299:                                        m.ignoresSubstitute?(b.battler)) }
+300:       has_special_move = true
+301:       # Prefer if foe has a higher Special Attack than Attack
+302:       score += 5 if b.rough_stat(:SPECIAL_ATTACK) > b.rough_stat(:ATTACK)
+303:       # Prefer if the last move the foe used was special
+304:       if ai.trainer.medium_skill? && b.battler.lastMoveUsed
+305:         score += 8 if GameData::Move.try_get(b.battler.lastMoveUsed)&.special?
+306:       end
+307:       # Prefer if the foe is taunted into using a damaging move
+308:       score += 5 if b.effects[PBEffects::Taunt] > 0
+309:     end
+310:     # Useless if no foes have a special move to counter
+311:     next Battle::AI::MOVE_USELESS_SCORE if !has_special_move
+312:     next score
+313:   }
+314: )
+315: 
+316: #===============================================================================
+317: #
+318: #===============================================================================
+319: Battle::AI::Handlers::MoveBasePower.add("CounterDamagePlusHalf",
+320:   proc { |power, move, user, target, ai, battle|
+321:     next 60   # Representative value
+322:   }
+323: )
+324: Battle::AI::Handlers::MoveEffectScore.add("CounterDamagePlusHalf",
+325:   proc { |score, move, user, ai, battle|
+326:     has_damaging_move = false
+327:     ai.each_foe_battler(user.side) do |b, i|
+328:       next if !b.can_attack? || user.faster_than?(b)
+329:       next if !b.check_for_move { |m| m.damagingMove? &&
+330:                                       (user.effects[PBEffects::Substitute] == 0 ||
+331:                                        m.ignoresSubstitute?(b.battler)) }
+332:       has_damaging_move = true
+333:       # Prefer if the last move the foe used was damaging
+334:       if ai.trainer.medium_skill? && b.battler.lastMoveUsed
+335:         score += 8 if GameData::Move.try_get(b.battler.lastMoveUsed)&.damaging?
+336:       end
+337:       # Prefer if the foe is taunted into using a damaging move
+338:       score += 5 if b.effects[PBEffects::Taunt] > 0
+339:     end
+340:     # Useless if no foes have a damaging move to counter
+341:     next Battle::AI::MOVE_USELESS_SCORE if !has_damaging_move
+342:     next score
+343:   }
+344: )
+345: 
+346: #===============================================================================
+347: #
+348: #===============================================================================
+349: Battle::AI::Handlers::MoveFailureCheck.add("UserAddStockpileRaiseDefSpDef1",
+350:   proc { |move, user, ai, battle|
+351:     next user.effects[PBEffects::Stockpile] >= 3
+352:   }
+353: )
+354: Battle::AI::Handlers::MoveEffectScore.add("UserAddStockpileRaiseDefSpDef1",
+355:   proc { |score, move, user, ai, battle|
+356:     score = ai.get_score_for_target_stat_raise(score, user, [:DEFENSE, 1, :SPECIAL_DEFENSE, 1], false)
+357:     # More preferable if user also has Spit Up/Swallow
+358:     if user.battler.pbHasMoveFunction?("PowerDependsOnUserStockpile",
+359:                                        "HealUserDependingOnUserStockpile")
+360:       score += [10, 10, 8, 5][user.effects[PBEffects::Stockpile]]
+361:     end
+362:     next score
+363:   }
+364: )
+365: 
+366: #===============================================================================
+367: # NOTE: Don't worry about the stat drops caused by losing the stockpile, because
+368: #       if these moves are known, they want to be used.
+369: #===============================================================================
+370: Battle::AI::Handlers::MoveFailureCheck.add("PowerDependsOnUserStockpile",
+371:   proc { |move, user, ai, battle|
+372:     next user.effects[PBEffects::Stockpile] == 0
+373:   }
+374: )
+375: Battle::AI::Handlers::MoveBasePower.add("PowerDependsOnUserStockpile",
+376:   proc { |power, move, user, target, ai, battle|
+377:     next move.move.pbBaseDamage(power, user.battler, target.battler)
+378:   }
+379: )
+380: Battle::AI::Handlers::MoveEffectScore.add("PowerDependsOnUserStockpile",
+381:   proc { |score, move, user, ai, battle|
+382:     # Slightly prefer to hold out for another Stockpile to make this move stronger
+383:     score -= 5 if user.effects[PBEffects::Stockpile] < 2
+384:     next score
+385:   }
+386: )
+387: 
+388: #===============================================================================
+389: # NOTE: Don't worry about the stat drops caused by losing the stockpile, because
+390: #       if these moves are known, they want to be used.
+391: #===============================================================================
+392: Battle::AI::Handlers::MoveFailureCheck.add("HealUserDependingOnUserStockpile",
+393:   proc { |move, user, ai, battle|
+394:     next true if user.effects[PBEffects::Stockpile] == 0
+395:     next true if !user.battler.canHeal? &&
+396:                  user.effects[PBEffects::StockpileDef] == 0 &&
+397:                  user.effects[PBEffects::StockpileSpDef] == 0
+398:     next false
+399:   }
+400: )
+401: Battle::AI::Handlers::MoveEffectScore.add("HealUserDependingOnUserStockpile",
+402:   proc { |score, move, user, ai, battle|
+403:     next Battle::AI::MOVE_USELESS_SCORE if !user.battler.canHeal?
+404:     # Consider how much HP will be restored
+405:     if ai.trainer.has_skill_flag?("HPAware")
+406:       next score - 10 if user.hp >= user.totalhp * 0.5
+407:       score += 20 * (user.totalhp - user.hp) / user.totalhp   # +10 to +20
+408:     end
+409:     # Slightly prefer to hold out for another Stockpile to make this move stronger
+410:     score -= 5 if user.effects[PBEffects::Stockpile] < 2
+411:     next score
+412:   }
+413: )
+414: 
+415: #===============================================================================
+416: #
+417: #===============================================================================
+418: Battle::AI::Handlers::MoveEffectScore.add("GrassPledge",
+419:   proc { |score, move, user, ai, battle|
+420:     # Prefer if an ally knows a different Pledge move

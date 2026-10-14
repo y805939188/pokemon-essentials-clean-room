@@ -1,0 +1,230 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: def pbDefaultMap
+5:   return $game_map.map_id if $game_map
+6:   return $data_system.edit_map_id if $data_system
+7:   return 0
+8: end
+9: 
+10: def pbWarpToMap
+11:   mapid = pbListScreen(_INTL("WARP TO MAP"), MapLister.new(pbDefaultMap))
+12:   if mapid > 0
+13:     map = Game_Map.new
+14:     map.setup(mapid)
+15:     success = false
+16:     x = 0
+17:     y = 0
+18:     100.times do
+19:       x = rand(map.width)
+20:       y = rand(map.height)
+21:       next if !map.passableStrict?(x, y, 0, $game_player)
+22:       blocked = false
+23:       map.events.each_value do |event|
+24:         if event.at_coordinate?(x, y) && !event.through && event.character_name != ""
+25:           blocked = true
+26:         end
+27:       end
+28:       next if blocked
+29:       success = true
+30:       break
+31:     end
+32:     if !success
+33:       x = rand(map.width)
+34:       y = rand(map.height)
+35:     end
+36:     return [mapid, x, y]
+37:   end
+38:   return nil
+39: end
+40: 
+41: #===============================================================================
+42: # Debug Variables screen
+43: #===============================================================================
+44: class SpriteWindow_DebugVariables < Window_DrawableCommand
+45:   attr_reader :mode
+46: 
+47:   def initialize(viewport)
+48:     super(0, 0, Graphics.width, Graphics.height, viewport)
+49:   end
+50: 
+51:   def itemCount
+52:     return (@mode == 0) ? $data_system.switches.size - 1 : $data_system.variables.size - 1
+53:   end
+54: 
+55:   def mode=(mode)
+56:     @mode = mode
+57:     refresh
+58:   end
+59: 
+60:   def shadowtext(x, y, w, h, t, align = 0, colors = 0)
+61:     width = self.contents.text_size(t).width
+62:     case align
+63:     when 1   # Right aligned
+64:       x += (w - width)
+65:     when 2   # Centre aligned
+66:       x += (w / 2) - (width / 2)
+67:     end
+68:     y += 8   # TEXT OFFSET
+69:     base = Color.new(96, 96, 96)
+70:     case colors
+71:     when 1   # Red
+72:       base = Color.new(168, 48, 56)
+73:     when 2   # Green
+74:       base = Color.new(0, 144, 0)
+75:     end
+76:     pbDrawShadowText(self.contents, x, y, [width, w].max, h, t, base, Color.new(208, 208, 200))
+77:   end
+78: 
+79:   def drawItem(index, _count, rect)
+80:     pbSetNarrowFont(self.contents)
+81:     colors = 0
+82:     codeswitch = false
+83:     if @mode == 0
+84:       name = $data_system.switches[index + 1]
+85:       codeswitch = (name[/^s\:/])
+86:       if codeswitch
+87:         code = $~.post_match
+88:         code_parts = code.split(/[(\[=<>. ]/)
+89:         code_parts[0].strip!
+90:         code_parts[0].gsub!(/^\s*!/, "")
+91:         val = nil
+92:         if code_parts[0][0][/[a-z]/i]
+93:           if code_parts[0][0].upcase == code_parts[0][0] &&
+94:              (Kernel.const_defined?(code_parts[0]) rescue false)
+95:             val = (eval(code) rescue nil)   # Code starts with a class/method name
+96:           elsif code_parts[0][0].downcase == code_parts[0][0] &&
+97:                 !(Interpreter.method_defined?(code_parts[0].to_sym) rescue false) &&
+98:                 !(Game_Event.method_defined?(code_parts[0].to_sym) rescue false)
+99:             val = (eval(code) rescue nil)   # Code starts with a method name (that isn't in Interpreter/Game_Event)
+100:           end
+101:         else
+102:           # Code doesn't start with a letter, probably $, just evaluate it
+103:           val = (eval(code) rescue nil)
+104:         end
+105:       else
+106:         val = $game_switches[index + 1]
+107:       end
+108:       if val.nil?
+109:         status = "[-]"
+110:         colors = 0
+111:         codeswitch = true
+112:       elsif val   # true
+113:         status = "[ON]"
+114:         colors = 2
+115:       else   # false
+116:         status = "[OFF]"
+117:         colors = 1
+118:       end
+119:     else
+120:       name = $data_system.variables[index + 1]
+121:       status = $game_variables[index + 1].to_s
+122:       status = "\"__\"" if nil_or_empty?(status)
+123:     end
+124:     name ||= ""
+125:     id_text = sprintf("%04d:", index + 1)
+126:     rect = drawCursor(index, rect)
+127:     totalWidth = rect.width
+128:     idWidth     = totalWidth * 15 / 100
+129:     nameWidth   = totalWidth * 65 / 100
+130:     statusWidth = totalWidth * 20 / 100
+131:     self.shadowtext(rect.x, rect.y, idWidth, rect.height, id_text)
+132:     self.shadowtext(rect.x + idWidth, rect.y, nameWidth, rect.height, name, 0, (codeswitch) ? 1 : 0)
+133:     self.shadowtext(rect.x + idWidth + nameWidth, rect.y, statusWidth, rect.height, status, 1, colors)
+134:   end
+135: end
+136: 
+137: #===============================================================================
+138: #
+139: #===============================================================================
+140: def pbDebugSetVariable(id, diff)
+141:   $game_variables[id] = 0 if $game_variables[id].nil?
+142:   if $game_variables[id].is_a?(Numeric)
+143:     pbPlayCursorSE
+144:     $game_variables[id] = [$game_variables[id] + diff, 99_999_999].min
+145:     $game_variables[id] = [$game_variables[id], -99_999_999].max
+146:     $game_map.need_refresh = true
+147:   end
+148: end
+149: 
+150: def pbDebugVariableScreen(id)
+151:   case $game_variables[id]
+152:   when Numeric
+153:     value = $game_variables[id]
+154:     params = ChooseNumberParams.new
+155:     params.setDefaultValue(value)
+156:     params.setMaxDigits(8)
+157:     params.setNegativesAllowed(true)
+158:     value = pbMessageChooseNumber(_INTL("Set variable {1}.", id), params)
+159:     $game_variables[id] = [value, 99_999_999].min
+160:     $game_variables[id] = [$game_variables[id], -99_999_999].max
+161:     $game_map.need_refresh = true
+162:   when String
+163:     value = pbMessageFreeText(_INTL("Set variable {1}.", id),
+164:                               $game_variables[id], false, 250, Graphics.width)
+165:     $game_variables[id] = value
+166:     $game_map.need_refresh = true
+167:   end
+168: end
+169: 
+170: def pbDebugVariables(mode)
+171:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+172:   viewport.z = 99999
+173:   sprites = {}
+174:   sprites["right_window"] = SpriteWindow_DebugVariables.new(viewport)
+175:   right_window = sprites["right_window"]
+176:   right_window.mode     = mode
+177:   right_window.active   = true
+178:   loop do
+179:     Graphics.update
+180:     Input.update
+181:     pbUpdateSpriteHash(sprites)
+182:     if Input.trigger?(Input::BACK)
+183:       pbPlayCancelSE
+184:       break
+185:     end
+186:     current_id = right_window.index + 1
+187:     case mode
+188:     when 0   # Switches
+189:       if Input.trigger?(Input::USE)
+190:         pbPlayDecisionSE
+191:         $game_switches[current_id] = !$game_switches[current_id]
+192:         right_window.refresh
+193:         $game_map.need_refresh = true
+194:       end
+195:     when 1   # Variables
+196:       if Input.repeat?(Input::LEFT)
+197:         pbDebugSetVariable(current_id, -1)
+198:         right_window.refresh
+199:       elsif Input.repeat?(Input::RIGHT)
+200:         pbDebugSetVariable(current_id, 1)
+201:         right_window.refresh
+202:       elsif Input.trigger?(Input::ACTION)
+203:         case $game_variables[current_id]
+204:         when 0
+205:           $game_variables[current_id] = ""
+206:         when ""
+207:           $game_variables[current_id] = 0
+208:         else
+209:           case $game_variables[current_id]
+210:           when Numeric
+211:             $game_variables[current_id] = 0
+212:           when String
+213:             $game_variables[current_id] = ""
+214:           end
+215:         end
+216:         right_window.refresh
+217:         $game_map.need_refresh = true
+218:       elsif Input.trigger?(Input::USE)
+219:         pbPlayDecisionSE
+220:         pbDebugVariableScreen(current_id)
+221:         right_window.refresh
+222:       end
+223:     end
+224:   end
+225:   pbDisposeSpriteHash(sprites)
+226:   viewport.dispose
+227: end
+228: 
+229: #===============================================================================
+230: # Debug Day Care screen

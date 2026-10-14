@@ -1,0 +1,240 @@
+961:       score += 7
+962:       # Prefer if this move will deal damage
+963:       if b.battler.affectedByContactEffect? && b.check_for_move { |m| m.contactMove? }
+964:         score += 5
+965:       end
+966:       # Prefer if the foe is in the middle of using a two turn attack
+967:       score += 15 if b.effects[PBEffects::TwoTurnAttack] &&
+968:                      GameData::Move.get(b.effects[PBEffects::TwoTurnAttack]).flags.any? { |f| f[/^CanProtect$/i] }
+969:       # Prefer if foe takes EOR damage, don't prefer if they have EOR healing
+970:       b_eor_damage = b.rough_end_of_round_damage
+971:       if b_eor_damage > 0
+972:         score += 8
+973:       elsif b_eor_damage < 0
+974:         score -= 8
+975:       end
+976:     end
+977:     next Battle::AI::MOVE_USELESS_SCORE if useless
+978:     # Prefer if the user has EOR healing, don't prefer if they take EOR damage
+979:     user_eor_damage = user.rough_end_of_round_damage
+980:     if user_eor_damage >= user.hp
+981:       next Battle::AI::MOVE_USELESS_SCORE
+982:     elsif user_eor_damage > 0
+983:       score -= 8
+984:     elsif user_eor_damage < 0
+985:       score += 8
+986:     end
+987:     # Don't prefer if the user used a protection move last turn, making this one
+988:     # less likely to work
+989:     score -= (user.effects[PBEffects::ProtectRate] - 1) * ((Settings::MECHANICS_GENERATION >= 6) ? 15 : 10)
+990:     next score
+991:   }
+992: )
+993: 
+994: #===============================================================================
+995: #
+996: #===============================================================================
+997: Battle::AI::Handlers::MoveFailureCheck.add("ProtectUserSideFromDamagingMovesIfUserFirstTurn",
+998:   proc { |move, user, ai, battle|
+999:     next user.turnCount > 0
+1000:   }
+1001: )
+1002: Battle::AI::Handlers::MoveEffectScore.add("ProtectUserSideFromDamagingMovesIfUserFirstTurn",
+1003:   proc { |score, move, user, ai, battle|
+1004:     # Score changes for each foe
+1005:     useless = true
+1006:     ai.each_foe_battler(user.side) do |b, i|
+1007:       next if !b.can_attack?
+1008:       next if !b.check_for_move { |m| m.damagingMove? && m.canProtectAgainst? }
+1009:       next if b.has_active_ability?(:UNSEENFIST) && b.check_for_move { |m| m.contactMove? }
+1010:       useless = false
+1011:       # General preference
+1012:       score += 7
+1013:       # Prefer if the foe is in the middle of using a two turn attack
+1014:       score += 15 if b.effects[PBEffects::TwoTurnAttack] &&
+1015:                      GameData::Move.get(b.effects[PBEffects::TwoTurnAttack]).flags.any? { |f| f[/^CanProtect$/i] }
+1016:       # Prefer if foe takes EOR damage, don't prefer if they have EOR healing
+1017:       b_eor_damage = b.rough_end_of_round_damage
+1018:       if b_eor_damage > 0
+1019:         score += 8
+1020:       elsif b_eor_damage < 0
+1021:         score -= 8
+1022:       end
+1023:     end
+1024:     next Battle::AI::MOVE_USELESS_SCORE if useless
+1025:     # Prefer if the user has EOR healing, don't prefer if they take EOR damage
+1026:     user_eor_damage = user.rough_end_of_round_damage
+1027:     if user_eor_damage >= user.hp
+1028:       next Battle::AI::MOVE_USELESS_SCORE
+1029:     elsif user_eor_damage > 0
+1030:       score -= 8
+1031:     elsif user_eor_damage < 0
+1032:       score += 8
+1033:     end
+1034:     # Use it or lose it
+1035:     score += 25
+1036:     next score
+1037:   }
+1038: )
+1039: 
+1040: #===============================================================================
+1041: #
+1042: #===============================================================================
+1043: Battle::AI::Handlers::MoveFailureCheck.add("ProtectUserSideFromStatusMoves",
+1044:   proc { |move, user, ai, battle|
+1045:     next user.pbOwnSide.effects[PBEffects::CraftyShield]
+1046:   }
+1047: )
+1048: Battle::AI::Handlers::MoveEffectScore.add("ProtectUserSideFromStatusMoves",
+1049:   proc { |score, move, user, ai, battle|
+1050:     # Score changes for each foe
+1051:     useless = true
+1052:     ai.each_foe_battler(user.side) do |b, i|
+1053:       next if !b.can_attack?
+1054:       next if !b.check_for_move { |m| m.statusMove? && m.pbTarget(b.battler).targets_foe &&
+1055:                                       !m.pbTarget(b.battler).targets_all }
+1056:       useless = false
+1057:       # General preference
+1058:       score += 5
+1059:       # Prefer if foe takes EOR damage, don't prefer if they have EOR healing
+1060:       b_eor_damage = b.rough_end_of_round_damage
+1061:       if b_eor_damage > 0
+1062:         score += 8
+1063:       elsif b_eor_damage < 0
+1064:         score -= 8
+1065:       end
+1066:     end
+1067:     next Battle::AI::MOVE_USELESS_SCORE if useless
+1068:     # Prefer if the user has EOR healing, don't prefer if they take EOR damage
+1069:     user_eor_damage = user.rough_end_of_round_damage
+1070:     if user_eor_damage >= user.hp
+1071:       next Battle::AI::MOVE_USELESS_SCORE
+1072:     elsif user_eor_damage > 0
+1073:       score -= 8
+1074:     elsif user_eor_damage < 0
+1075:       score += 8
+1076:     end
+1077:     next score
+1078:   }
+1079: )
+1080: 
+1081: #===============================================================================
+1082: #
+1083: #===============================================================================
+1084: Battle::AI::Handlers::MoveFailureCheck.add("ProtectUserSideFromPriorityMoves",
+1085:   proc { |move, user, ai, battle|
+1086:     next user.pbOwnSide.effects[PBEffects::QuickGuard]
+1087:   }
+1088: )
+1089: Battle::AI::Handlers::MoveEffectScore.add("ProtectUserSideFromPriorityMoves",
+1090:   proc { |score, move, user, ai, battle|
+1091:     # Useless if the success chance is 25% or lower
+1092:     next Battle::AI::MOVE_USELESS_SCORE if user.effects[PBEffects::ProtectRate] >= 4
+1093:     # Score changes for each foe
+1094:     useless = true
+1095:     ai.each_foe_battler(user.side) do |b, i|
+1096:       next if !b.can_attack?
+1097:       next if !b.check_for_move { |m| m.pbPriority(b.battler) > 0 && m.canProtectAgainst? }
+1098:       useless = false
+1099:       # General preference
+1100:       score += 7
+1101:       # Prefer if foe takes EOR damage, don't prefer if they have EOR healing
+1102:       b_eor_damage = b.rough_end_of_round_damage
+1103:       if b_eor_damage > 0
+1104:         score += 8
+1105:       elsif b_eor_damage < 0
+1106:         score -= 8
+1107:       end
+1108:     end
+1109:     next Battle::AI::MOVE_USELESS_SCORE if useless
+1110:     # Prefer if the user has EOR healing, don't prefer if they take EOR damage
+1111:     user_eor_damage = user.rough_end_of_round_damage
+1112:     if user_eor_damage >= user.hp
+1113:       next Battle::AI::MOVE_USELESS_SCORE
+1114:     elsif user_eor_damage > 0
+1115:       score -= 8
+1116:     elsif user_eor_damage < 0
+1117:       score += 8
+1118:     end
+1119:     # Don't prefer if the user used a protection move last turn, making this one
+1120:     # less likely to work
+1121:     score -= (user.effects[PBEffects::ProtectRate] - 1) * ((Settings::MECHANICS_GENERATION >= 6) ? 15 : 10)
+1122:     next score
+1123:   }
+1124: )
+1125: 
+1126: #===============================================================================
+1127: #
+1128: #===============================================================================
+1129: Battle::AI::Handlers::MoveFailureCheck.add("ProtectUserSideFromMultiTargetDamagingMoves",
+1130:   proc { |move, user, ai, battle|
+1131:     next user.pbOwnSide.effects[PBEffects::WideGuard]
+1132:   }
+1133: )
+1134: Battle::AI::Handlers::MoveEffectScore.add("ProtectUserSideFromMultiTargetDamagingMoves",
+1135:   proc { |score, move, user, ai, battle|
+1136:     # Useless if the success chance is 25% or lower
+1137:     next Battle::AI::MOVE_USELESS_SCORE if user.effects[PBEffects::ProtectRate] >= 4
+1138:     # Score changes for each foe
+1139:     useless = true
+1140:     ai.each_battler do |b, i|
+1141:       next if b.index == user.index || !b.can_attack?
+1142:       next if !b.check_for_move { |m| (Settings::MECHANICS_GENERATION >= 7 || move.damagingMove?) &&
+1143:                                       m.pbTarget(b.battler).num_targets > 1 }
+1144:       useless = false
+1145:       # General preference
+1146:       score += 7
+1147:       # Prefer if foe takes EOR damage, don't prefer if they have EOR healing
+1148:       b_eor_damage = b.rough_end_of_round_damage
+1149:       if b_eor_damage > 0
+1150:         score += (b.opposes?(user)) ? 8 : -8
+1151:       elsif b_eor_damage < 0
+1152:         score -= (b.opposes?(user)) ? 8 : -8
+1153:       end
+1154:     end
+1155:     next Battle::AI::MOVE_USELESS_SCORE if useless
+1156:     # Prefer if the user has EOR healing, don't prefer if they take EOR damage
+1157:     user_eor_damage = user.rough_end_of_round_damage
+1158:     if user_eor_damage >= user.hp
+1159:       next Battle::AI::MOVE_USELESS_SCORE
+1160:     elsif user_eor_damage > 0
+1161:       score -= 8
+1162:     elsif user_eor_damage < 0
+1163:       score += 8
+1164:     end
+1165:     # Don't prefer if the user used a protection move last turn, making this one
+1166:     # less likely to work
+1167:     score -= (user.effects[PBEffects::ProtectRate] - 1) * ((Settings::MECHANICS_GENERATION >= 6) ? 15 : 10)
+1168:     next score
+1169:   }
+1170: )
+1171: 
+1172: #===============================================================================
+1173: #
+1174: #===============================================================================
+1175: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("RemoveProtections",
+1176:   proc { |score, move, user, target, ai, battle|
+1177:     if target.check_for_move { |m| (m.is_a?(Battle::Move::ProtectMove) ||
+1178:                                     m.is_a?(Battle::Move::ProtectUserSideFromStatusMoves) ||
+1179:                                     m.is_a?(Battle::Move::ProtectUserSideFromDamagingMovesIfUserFirstTurn)) &&
+1180:                                    !m.is_a?(Battle::Move::UserEnduresFaintingThisTurn) }
+1181:       score += 7
+1182:     end
+1183:     next score
+1184:   }
+1185: )
+1186: 
+1187: #===============================================================================
+1188: #
+1189: #===============================================================================
+1190: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("RemoveProtectionsBypassSubstitute",
+1191:                                                         "RemoveProtections")
+1192: 
+1193: #===============================================================================
+1194: #
+1195: #===============================================================================
+1196: Battle::AI::Handlers::MoveFailureCheck.add("HoopaRemoveProtectionsBypassSubstituteLowerUserDef1",
+1197:   proc { |move, user, ai, battle|
+1198:     next !user.battler.isSpecies?(:HOOPA) || user.battler.form != 1
+1199:   }
+1200: )

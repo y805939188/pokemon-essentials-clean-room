@@ -1,0 +1,220 @@
+441:     found_special_move = false
+442:     ai.each_foe_battler(user.side) do |b, i|
+443:       next if !b.check_for_move { |m| m.specialMove?(m.type) }
+444:       found_special_move = true
+445:       break
+446:     end
+447:     score += 10 if !found_special_move
+448:     # Generally not worth using
+449:     next score - 10
+450:   }
+451: )
+452: 
+453: #===============================================================================
+454: #
+455: #===============================================================================
+456: Battle::AI::Handlers::MoveEffectScore.add("UsedAfterAllyRoundWithDoublePower",
+457:   proc { |score, move, user, ai, battle|
+458:     # No score change if no allies know this move
+459:     ally_has_move = false
+460:     ai.each_same_side_battler(user.side) do |b, i|
+461:       next if !b.has_move_with_function?(move.function_code)
+462:       ally_has_move = true
+463:       break
+464:     end
+465:     next score if !ally_has_move
+466:     # Prefer for the sake of doubling in power
+467:     score += 10
+468:     next score
+469:   }
+470: )
+471: 
+472: #===============================================================================
+473: #
+474: #===============================================================================
+475: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetActsNext",
+476:   proc { |score, move, user, target, ai, battle|
+477:     # Useless if the target is a foe
+478:     next Battle::AI::MOVE_USELESS_SCORE if target.opposes?(user)
+479:     # Compare the speeds of all battlers
+480:     speeds = []
+481:     ai.each_battler { |b, i| speeds.push([i, b.rough_stat(:SPEED)]) }
+482:     if battle.field.effects[PBEffects::TrickRoom] > 0
+483:       speeds.sort! { |a, b| a[1] <=> b[1] }
+484:     else
+485:       speeds.sort! { |a, b| b[1] <=> a[1] }
+486:     end
+487:     idx_user = speeds.index { |ele| ele[0] == user.index }
+488:     idx_target = speeds.index { |ele| ele[0] == target.index }
+489:     # Useless if the target is faster than the user
+490:     next Battle::AI::MOVE_USELESS_SCORE if idx_target < idx_user
+491:     # Useless if the target will move next anyway
+492:     next Battle::AI::MOVE_USELESS_SCORE if idx_target - idx_user <= 1
+493:     # Generally not worth using
+494:     # NOTE: Because this move can be used against a foe but is being used on an
+495:     #       ally (since we're here in this code), this move's score will be
+496:     #       inverted later. A higher score here means this move will be less
+497:     #       preferred, which is the result we want.
+498:     next score + 10
+499:   }
+500: )
+501: 
+502: #===============================================================================
+503: #
+504: #===============================================================================
+505: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetActsLast",
+506:   proc { |score, move, user, target, ai, battle|
+507:     # Useless if the target is an ally
+508:     next Battle::AI::MOVE_USELESS_SCORE if !target.opposes?(user)
+509:     # Useless if the user has no ally (the point of this move is to let the ally
+510:     # get in a hit before the foe)
+511:     has_ally = false
+512:     ai.each_ally(user.index) { |b, i| has_ally = true if b.can_attack? }
+513:     next Battle::AI::MOVE_USELESS_SCORE if !has_ally
+514:     # Compare the speeds of all battlers
+515:     speeds = []
+516:     ai.each_battler { |b, i| speeds.push([i, b.rough_stat(:SPEED)]) }
+517:     if battle.field.effects[PBEffects::TrickRoom] > 0
+518:       speeds.sort! { |a, b| a[1] <=> b[1] }
+519:     else
+520:       speeds.sort! { |a, b| b[1] <=> a[1] }
+521:     end
+522:     idx_user = speeds.index { |ele| ele[0] == user.index }
+523:     idx_target = speeds.index { |ele| ele[0] == target.index }
+524:     idx_slowest_ally = -1
+525:     speeds.each_with_index { |ele, i| idx_slowest_ally = i if user.index.even? == ele[0].even? }
+526:     # Useless if the target is faster than the user
+527:     next Battle::AI::MOVE_USELESS_SCORE if idx_target < idx_user
+528:     # Useless if the target will move last anyway
+529:     next Battle::AI::MOVE_USELESS_SCORE if idx_target == speeds.length - 1
+530:     # Useless if the slowest ally is faster than the target
+531:     next Battle::AI::MOVE_USELESS_SCORE if idx_slowest_ally < idx_target
+532:     # Generally not worth using
+533:     next score - 10
+534:   }
+535: )
+536: 
+537: #===============================================================================
+538: #
+539: #===============================================================================
+540: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TargetUsesItsLastUsedMoveAgain",
+541:   proc { |move, user, target, ai, battle|
+542:     next target.battler.usingMultiTurnAttack?
+543:   }
+544: )
+545: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetUsesItsLastUsedMoveAgain",
+546:   proc { |score, move, user, target, ai, battle|
+547:     # We don't ever want to make a foe act again
+548:     next Battle::AI::MOVE_USELESS_SCORE if target.opposes?(user)
+549:     # Useless if target will act before the user, as we don't know what move
+550:     # will be instructed
+551:     next Battle::AI::MOVE_USELESS_SCORE if target.faster_than?(user)
+552:     next Battle::AI::MOVE_USELESS_SCORE if !target.battler.lastRegularMoveUsed
+553:     mov = nil
+554:     target.battler.eachMove do |m|
+555:       mov = m if m.id == target.battler.lastRegularMoveUsed
+556:       break if mov
+557:     end
+558:     next Battle::AI::MOVE_USELESS_SCORE if mov.nil? || (mov.pp == 0 && mov.total_pp > 0)
+559:     next Battle::AI::MOVE_USELESS_SCORE if move.move.moveBlacklist.include?(mov.function_code)
+560:     # Without lots of code here to determine good/bad moves, using this move is
+561:     # likely to just be a waste of a turn
+562:     # NOTE: Because this move can be used against a foe but is being used on an
+563:     #       ally (since we're here in this code), this move's score will be
+564:     #       inverted later. A higher score here means this move will be less
+565:     #       preferred, which is the result we want.
+566:     score += 10
+567:     next score
+568:   }
+569: )
+570: 
+571: #===============================================================================
+572: #
+573: #===============================================================================
+574: Battle::AI::Handlers::MoveEffectScore.add("StartSlowerBattlersActFirst",
+575:   proc { |score, move, user, ai, battle|
+576:     # Get the speeds of all battlers
+577:     ally_speeds = []
+578:     foe_speeds = []
+579:     ai.each_battler do |b, i|
+580:       if b.opposes?(user)
+581:         foe_speeds.push(b.rough_stat(:SPEED))
+582:         foe_speeds.last *= 2 if user.pbOpposingSide.effects[PBEffects::Tailwind] > 1
+583:         foe_speeds.last /= 2 if user.pbOpposingSide.effects[PBEffects::Swamp] > 1
+584:       else
+585:         ally_speeds.push(b.rough_stat(:SPEED))
+586:         ally_speeds.last *= 2 if user.pbOwnSide.effects[PBEffects::Tailwind] > 1
+587:         ally_speeds.last /= 2 if user.pbOwnSide.effects[PBEffects::Swamp] > 1
+588:       end
+589:     end
+590:     # Just in case a side has no battlers
+591:     next Battle::AI::MOVE_USELESS_SCORE if ally_speeds.length == 0 || foe_speeds.length == 0
+592:     # Invert the speeds if Trick Room applies (and will last longer than this round)
+593:     if battle.field.effects[PBEffects::TrickRoom] > 1
+594:       foe_speeds.map! { |val| 100_000 - val }    # 100_000 is higher than speed can
+595:       ally_speeds.map! { |val| 100_000 - val }   # possibly be; only order matters
+596:     end
+597:     # Score based on the relative speeds
+598:     next Battle::AI::MOVE_USELESS_SCORE if ally_speeds.min > foe_speeds.max
+599:     if foe_speeds.min > ally_speeds.max
+600:       score += 20
+601:     elsif ally_speeds.sum / ally_speeds.length < foe_speeds.sum / foe_speeds.length
+602:       score += 10
+603:     else
+604:       score -= 10
+605:     end
+606:     next score
+607:   }
+608: )
+609: 
+610: #===============================================================================
+611: #
+612: #===============================================================================
+613: # HigherPriorityInGrassyTerrain
+614: 
+615: #===============================================================================
+616: #
+617: #===============================================================================
+618: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("LowerPPOfTargetLastMoveBy3",
+619:   proc { |score, move, user, target, ai, battle|
+620:     add_effect = move.get_score_change_for_additional_effect(user, target)
+621:     next score if add_effect == -999   # Additional effect will be negated
+622:     if user.faster_than?(target)
+623:       last_move = target.battler.pbGetMoveWithID(target.battler.lastRegularMoveUsed)
+624:       if last_move && last_move.total_pp > 0
+625:         score += add_effect
+626:         next score + 20 if last_move.pp <= 3   # Will fully deplete the move's PP
+627:         next score + 10 if last_move.pp <= 5
+628:         next score - 10 if last_move.pp > 9   # Too much PP left to make a difference
+629:       end
+630:     end
+631:     next score   # Don't know which move it will affect; treat as just a damaging move
+632:   }
+633: )
+634: 
+635: #===============================================================================
+636: #
+637: #===============================================================================
+638: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("LowerPPOfTargetLastMoveBy4",
+639:   proc { |move, user, target, ai, battle|
+640:     next !target.check_for_move { |m| m.id == target.battler.lastRegularMoveUsed }
+641:   }
+642: )
+643: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("LowerPPOfTargetLastMoveBy4",
+644:   proc { |score, move, user, target, ai, battle|
+645:     if user.faster_than?(target)
+646:       last_move = target.battler.pbGetMoveWithID(target.battler.lastRegularMoveUsed)
+647:       next score + 20 if last_move.pp <= 4   # Will fully deplete the move's PP
+648:       next score + 10 if last_move.pp <= 6
+649:       next score - 10 if last_move.pp > 10   # Too much PP left to make a difference
+650:     end
+651:     next score - 10   # Don't know which move it will affect; don't prefer
+652:   }
+653: )
+654: 
+655: #===============================================================================
+656: #
+657: #===============================================================================
+658: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("DisableTargetLastMoveUsed",
+659:   proc { |move, user, target, ai, battle|
+660:     next true if target.effects[PBEffects::Disable] > 0 || !target.battler.lastRegularMoveUsed

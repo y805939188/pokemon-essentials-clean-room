@@ -1,0 +1,195 @@
+PATH reference/pokemon-essentials/Data/Scripts/015_Trainers and player/001_Trainer.rb RANGE 1-194 TOTAL 194
+1	#===============================================================================
+2	# Basic trainer class (use a child class rather than this one)
+3	#===============================================================================
+4	class Trainer
+5	  attr_accessor :trainer_type
+6	  attr_accessor :name
+7	  attr_accessor :id
+8	  attr_accessor :language
+9	  attr_accessor :party
+10	
+11	  def inspect
+12	    str = super.chop
+13	    party_str = @party.map { |p| p.species_data.species }.inspect
+14	    str << sprintf(" %s @party=%s>", self.full_name, party_str)
+15	    return str
+16	  end
+17	
+18	  def full_name
+19	    return @name if has_flag?("NoName")
+20	    return "#{trainer_type_name} #{@name}"
+21	  end
+22	
+23	  #=============================================================================
+24	
+25	  # Portion of the ID which is visible on the Trainer Card
+26	  def public_ID(id = nil)
+27	    return id ? id & 0xFFFF : @id & 0xFFFF
+28	  end
+29	
+30	  # Other portion of the ID
+31	  def secret_ID(id = nil)
+32	    return id ? id >> 16 : @id >> 16
+33	  end
+34	
+35	  # Random ID other than this Trainer's ID
+36	  def make_foreign_ID
+37	    loop do
+38	      ret = rand(2**16) | (rand(2**16) << 16)
+39	      return ret if ret != @id
+40	    end
+41	    return 0
+42	  end
+43	
+44	  #=============================================================================
+45	
+46	  def trainer_type_name; return GameData::TrainerType.get(self.trainer_type).name;            end
+47	  def base_money;        return GameData::TrainerType.get(self.trainer_type).base_money;      end
+48	  def gender;            return GameData::TrainerType.get(self.trainer_type).gender;          end
+49	  def male?;             return GameData::TrainerType.get(self.trainer_type).male?;           end
+50	  def female?;           return GameData::TrainerType.get(self.trainer_type).female?;         end
+51	  def skill_level;       return GameData::TrainerType.get(self.trainer_type).skill_level;     end
+52	  def flags;             return GameData::TrainerType.get(self.trainer_type).flags;           end
+53	  def has_flag?(flag);   return GameData::TrainerType.get(self.trainer_type).has_flag?(flag); end
+54	
+55	  #=============================================================================
+56	
+57	  def pokemon_party
+58	    return @party.find_all { |p| p && !p.egg? }
+59	  end
+60	
+61	  def able_party
+62	    return @party.find_all { |p| p && !p.egg? && !p.fainted? }
+63	  end
+64	
+65	  def party_count
+66	    return @party.length
+67	  end
+68	
+69	  def pokemon_count
+70	    ret = 0
+71	    @party.each { |p| ret += 1 if p && !p.egg? }
+72	    return ret
+73	  end
+74	
+75	  def able_pokemon_count
+76	    ret = 0
+77	    @party.each { |p| ret += 1 if p && !p.egg? && !p.fainted? }
+78	    return ret
+79	  end
+80	
+81	  def party_full?
+82	    return party_count >= Settings::MAX_PARTY_SIZE
+83	  end
+84	
+85	  # Returns true if there are no usable Pokémon in the player's party.
+86	  def all_fainted?
+87	    return able_pokemon_count == 0
+88	  end
+89	
+90	  def first_party
+91	    return @party[0]
+92	  end
+93	
+94	  def first_pokemon
+95	    return pokemon_party[0]
+96	  end
+97	
+98	  def first_able_pokemon
+99	    return able_party[0]
+100	  end
+101	
+102	  def last_party
+103	    return (@party.length > 0) ? @party[@party.length - 1] : nil
+104	  end
+105	
+106	  def last_pokemon
+107	    p = pokemon_party
+108	    return (p.length > 0) ? p[p.length - 1] : nil
+109	  end
+110	
+111	  def last_able_pokemon
+112	    p = able_party
+113	    return (p.length > 0) ? p[p.length - 1] : nil
+114	  end
+115	
+116	  def remove_pokemon_at_index(index)
+117	    return false if index < 0 || index >= party_count
+118	    have_able = false
+119	    @party.each_with_index do |pkmn, i|
+120	      have_able = true if i != index && pkmn.able?
+121	      break if have_able
+122	    end
+123	    return false if !have_able
+124	    @party.delete_at(index)
+125	    return true
+126	  end
+127	
+128	  # Checks whether the trainer would still have an unfainted Pokémon if the
+129	  # Pokémon given by _index_ were removed from the party.
+130	  def has_other_able_pokemon?(index)
+131	    @party.each_with_index { |pkmn, i| return true if i != index && pkmn.able? }
+132	    return false
+133	  end
+134	
+135	  # Returns true if there is a Pokémon of the given species in the trainer's
+136	  # party. You may also specify a particular form it should be.
+137	  def has_species?(species, form = -1)
+138	    return pokemon_party.any? { |p| p&.isSpecies?(species) && (form < 0 || p.form == form) }
+139	  end
+140	
+141	  # Returns whether there is a fatefully met Pokémon of the given species in the
+142	  # trainer's party.
+143	  def has_fateful_species?(species)
+144	    return pokemon_party.any? { |p| p&.isSpecies?(species) && p.obtain_method == 4 }
+145	  end
+146	
+147	  # Returns whether there is a Pokémon with the given type in the trainer's
+148	  # party.
+149	  def has_pokemon_of_type?(type)
+150	    return false if !GameData::Type.exists?(type)
+151	    type = GameData::Type.get(type).id
+152	    return pokemon_party.any? { |p| p&.hasType?(type) }
+153	  end
+154	
+155	  # Checks whether any Pokémon in the party knows the given move, and returns
+156	  # the first Pokémon it finds with that move, or nil if no Pokémon has that move.
+157	  def get_pokemon_with_move(move)
+158	    pokemon_party.each { |pkmn| return pkmn if pkmn.hasMove?(move) }
+159	    return nil
+160	  end
+161	
+162	  # Fully heal all Pokémon in the party.
+163	  def heal_party
+164	    @party.each { |pkmn| pkmn.heal }
+165	  end
+166	
+167	  #=============================================================================
+168	
+169	  def initialize(name, trainer_type)
+170	    @trainer_type = GameData::TrainerType.get(trainer_type).id
+171	    @name         = name
+172	    @id           = rand(2**16) | (rand(2**16) << 16)
+173	    @language     = pbGetLanguage
+174	    @party        = []
+175	  end
+176	end
+177	
+178	#===============================================================================
+179	# Trainer class for NPC trainers
+180	#===============================================================================
+181	class NPCTrainer < Trainer
+182	  attr_accessor :version
+183	  attr_accessor :items
+184	  attr_accessor :lose_text
+185	  attr_accessor :win_text
+186	
+187	  def initialize(name, trainer_type, version = 0)
+188	    super(name, trainer_type)
+189	    @version   = version
+190	    @items     = []
+191	    @lose_text = nil
+192	    @win_text  = nil
+193	  end
+194	end

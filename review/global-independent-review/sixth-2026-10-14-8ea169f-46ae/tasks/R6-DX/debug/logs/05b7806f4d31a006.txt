@@ -1,0 +1,205 @@
+221:           refresh = false
+222:         end
+223:         Graphics.update
+224:         Input.update
+225:         if Input.trigger?(Input::BACK)
+226:           parent = commands.getParent
+227:           if parent
+228:             pbPlayCancelSE
+229:             commands.currentList = parent[0]
+230:             cmdwindow.commands = commands.list
+231:             cmdwindow.index = parent[1]
+232:             refresh = true
+233:           else
+234:             ret = -1
+235:             break
+236:           end
+237:         elsif Input.trigger?(Input::USE)
+238:           ret = cmdwindow.index
+239:           break
+240:         end
+241:       end
+242:       break if ret < 0
+243:       cmd = commands.getCommand(ret)
+244:       if commands.hasSubMenu?(cmd)
+245:         pbPlayDecisionSE
+246:         commands.currentList = cmd
+247:         cmdwindow.commands = commands.list
+248:         cmdwindow.index = 0
+249:         refresh = true
+250:       else
+251:         MenuHandlers.call(:battle_debug_menu, cmd, "effect", battle)
+252:       end
+253:     end
+254:     pbPlayCloseMenuSE
+255:     pbDisposeMessageWindow(sprites["textbox"])
+256:     pbDisposeSpriteHash(sprites)
+257:     viewport.dispose
+258:   end
+259: 
+260:   def pbBattleDebugBattlerInfo(battler)
+261:     ret = ""
+262:     return ret if battler.nil?
+263:     # Battler index, name
+264:     ret += sprintf("[%d] %s", battler.index, battler.pbThis)
+265:     ret += "\n"
+266:     # Species
+267:     ret += _INTL("Species: {1}", GameData::Species.get(battler.species).name)
+268:     ret += "\n"
+269:     # Form number
+270:     ret += _INTL("Form: {1}", battler.form)
+271:     ret += "\n"
+272:     # Level, gender, shininess
+273:     ret += _INTL("Level {1}, {2}", battler.level,
+274:                  (battler.pokemon.male?) ? "♂" : (battler.pokemon.female?) ? "♀" : _INTL("genderless"))
+275:     ret += ", " + _INTL("shiny") if battler.pokemon.shiny?
+276:     ret += "\n"
+277:     # HP
+278:     ret += _INTL("HP: {1}/{2} ({3}%)", battler.hp, battler.totalhp, (100.0 * battler.hp / battler.totalhp).to_i)
+279:     ret += "\n"
+280:     # Status
+281:     ret += _INTL("Status: {1}", GameData::Status.get(battler.status).name)
+282:     case battler.status
+283:     when :SLEEP
+284:       ret += " " + _INTL("({1} rounds left)", battler.statusCount)
+285:     when :POISON
+286:       if battler.statusCount > 0
+287:         ret += " " + _INTL("(toxic, {1}/16)", battler.effects[PBEffects::Toxic])
+288:       end
+289:     end
+290:     ret += "\n"
+291:     # Stat stages
+292:     stages = []
+293:     GameData::Stat.each_battle do |stat|
+294:       next if battler.stages[stat.id] == 0
+295:       stage_text = ""
+296:       stage_text += "+" if battler.stages[stat.id] > 0
+297:       stage_text += battler.stages[stat.id].to_s
+298:       stage_text += " " + stat.name_brief
+299:       stages.push(stage_text)
+300:     end
+301:     ret += _INTL("Stat stages: {1}", (stages.empty?) ? "-" : stages.join(", "))
+302:     ret += "\n"
+303:     # Ability
+304:     ret += _INTL("Ability: {1}", (battler.ability) ? battler.abilityName : "-")
+305:     ret += "\n"
+306:     # Held item
+307:     ret += _INTL("Item: {1}", (battler.item) ? battler.itemName : "-")
+308:     return ret
+309:   end
+310: 
+311:   def pbBattleDebugPokemonInfo(pkmn)
+312:     ret = ""
+313:     return ret if pkmn.nil?
+314:     sp_data = pkmn.species_data
+315:     # Name, species
+316:     ret += sprintf("%s (%s)", pkmn.name, sp_data.name)
+317:     ret += "\n"
+318:     # Form number
+319:     ret += _INTL("Form: {1}", sp_data.form)
+320:     ret += "\n"
+321:     # Level, gender, shininess
+322:     ret += _INTL("Level {1}, {2}", pkmn.level,
+323:                  (pkmn.male?) ? "♂" : (pkmn.female?) ? "♀" : _INTL("genderless"))
+324:     ret += ", " + _INTL("shiny") if pkmn.shiny?
+325:     ret += "\n"
+326:     # HP
+327:     ret += _INTL("HP: {1}/{2} ({3}%)", pkmn.hp, pkmn.totalhp, (100.0 * pkmn.hp / pkmn.totalhp).to_i)
+328:     ret += "\n"
+329:     # Status
+330:     ret += _INTL("Status: {1}", GameData::Status.get(pkmn.status).name)
+331:     case pkmn.status
+332:     when :SLEEP
+333:       ret += " " + _INTL("({1} rounds left)", pkmn.statusCount)
+334:     when :POISON
+335:       ret += " " + _INTL("(toxic)") if pkmn.statusCount > 0
+336:     end
+337:     ret += "\n"
+338:     # Ability
+339:     ret += _INTL("Ability: {1}", pkmn.ability&.name || "-")
+340:     ret += "\n"
+341:     # Held item
+342:     ret += _INTL("Item: {1}", pkmn.item&.name || "-")
+343:     return ret
+344:   end
+345: 
+346:   def pbBattlePokemonDebug(pkmn, battler = nil)
+347:     # Get all commands
+348:     commands = CommandMenuList.new
+349:     MenuHandlers.each_available(:battle_pokemon_debug_menu) do |option, hash, name|
+350:       next if battler && hash["usage"] == :pokemon
+351:       next if !battler && hash["usage"] == :battler
+352:       commands.add(option, hash, name)
+353:     end
+354:     # Setup windows
+355:     viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+356:     viewport.z = 99999
+357:     sprites = {}
+358:     sprites["infowindow"] = Window_AdvancedTextPokemon.new("")
+359:     infowindow = sprites["infowindow"]
+360:     infowindow.x        = 0
+361:     infowindow.y        = 0
+362:     infowindow.width    = Graphics.width / 2
+363:     infowindow.height   = Graphics.height
+364:     infowindow.viewport = viewport
+365:     infowindow.visible  = true
+366:     sprites["dummywindow"] = Window_AdvancedTextPokemon.new("")
+367:     sprites["dummywindow"].y = Graphics.height
+368:     sprites["dummywindow"].width = Graphics.width
+369:     sprites["dummywindow"].height = 0
+370:     # Main loop
+371:     need_refresh = true
+372:     cmd = 0
+373:     loop do
+374:       if need_refresh
+375:         if battler
+376:           sprites["infowindow"].text = pbBattleDebugBattlerInfo(battler)
+377:         else
+378:           sprites["infowindow"].text = pbBattleDebugPokemonInfo(pkmn)
+379:         end
+380:         need_refresh = false
+381:       end
+382:       # Choose a command
+383:       cmd = Kernel.pbShowCommands(sprites["dummywindow"], commands.list, -1, cmd)
+384:       if cmd < 0   # Cancel
+385:         parent = commands.getParent
+386:         if parent   # Go up a level
+387:           commands.currentList = parent[0]
+388:           cmd = parent[1]
+389:         else   # Exit
+390:           break
+391:         end
+392:       else
+393:         real_cmd = commands.getCommand(cmd)
+394:         if commands.hasSubMenu?(real_cmd)
+395:           commands.currentList = real_cmd
+396:           cmd = 0
+397:         else
+398:           MenuHandlers.call(:battle_pokemon_debug_menu, real_cmd, "effect", pkmn, battler, self)
+399:           need_refresh = true
+400:         end
+401:       end
+402:     end
+403:     pbDisposeSpriteHash(sprites)
+404:     viewport.dispose
+405:   end
+406: end
+407: 
+408: #===============================================================================
+409: #
+410: #===============================================================================
+411: class PokemonPartyScreen
+412:   include PokemonDebugMixin
+413: end
+414: 
+415: class PokemonStorageScreen
+416:   include PokemonDebugMixin
+417: end
+418: 
+419: class PokemonDebugPartyScreen
+420:   include PokemonDebugMixin
+421: end
+422: 
+423: class Battle
+424:   include Battle::DebugMixin
+425: end

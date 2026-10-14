@@ -1,0 +1,299 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/004_Scene_PlayAnimations.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 298], "total_lines": 579, "sha256": "ae97c79199a514f951cd96727e6a52d4163fc30ebbd6d5771db4fb165a420f2a", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:31:34.093232+00:00"}
+1: class Battle::Scene
+2:   #=============================================================================
+3:   # Animates the battle intro
+4:   #=============================================================================
+5:   def pbBattleIntroAnimation
+6:     # Make everything appear
+7:     introAnim = Animation::Intro.new(@sprites, @viewport, @battle)
+8:     loop do
+9:       introAnim.update
+10:       pbUpdate
+11:       break if introAnim.animDone?
+12:     end
+13:     introAnim.dispose
+14:     # Post-appearance activities
+15:     # Trainer battle: get ready to show the party lineups (they are brought
+16:     # on-screen by a separate animation)
+17:     if @battle.trainerBattle?
+18:       # NOTE: Here is where you'd make trainer sprites animate if they had an
+19:       #       entrance animation. Be sure to set it up like a Pokémon entrance
+20:       #       animation, i.e. add them to @animations so that they can play out
+21:       #       while party lineups appear and messages show.
+22:       pbShowPartyLineup(0, true)
+23:       pbShowPartyLineup(1, true)
+24:       return
+25:     end
+26:     # Wild battle: play wild Pokémon's intro animations (including cry), show
+27:     # data box(es), return the wild Pokémon's sprite(s) to normal colour, show
+28:     # shiny animation(s)
+29:     # Set up data box animation
+30:     @battle.sideSizes[1].times do |i|
+31:       idxBattler = (2 * i) + 1
+32:       next if !@battle.battlers[idxBattler]
+33:       dataBoxAnim = Animation::DataBoxAppear.new(@sprites, @viewport, idxBattler)
+34:       @animations.push(dataBoxAnim)
+35:     end
+36:     # Set up wild Pokémon returning to normal colour and playing intro
+37:     # animations (including cry)
+38:     @animations.push(Animation::Intro2.new(@sprites, @viewport, @battle.sideSizes[1]))
+39:     # Play all the animations
+40:     while inPartyAnimation?
+41:       pbUpdate
+42:     end
+43:     # Show shiny animation for wild Pokémon
+44:     if @battle.showAnims
+45:       @battle.sideSizes[1].times do |i|
+46:         idxBattler = (2 * i) + 1
+47:         next if !@battle.battlers[idxBattler] || !@battle.battlers[idxBattler].shiny?
+48:         if Settings::SUPER_SHINY && @battle.battlers[idxBattler].super_shiny?
+49:           pbCommonAnimation("SuperShiny", @battle.battlers[idxBattler])
+50:         else
+51:           pbCommonAnimation("Shiny", @battle.battlers[idxBattler])
+52:         end
+53:       end
+54:     end
+55:   end
+56: 
+57:   #=============================================================================
+58:   # Animates a party lineup appearing for the given side
+59:   #=============================================================================
+60:   def pbShowPartyLineup(side, fullAnim = false)
+61:     @animations.push(
+62:       Animation::LineupAppear.new(@sprites, @viewport, side,
+63:                                   @battle.pbParty(side), @battle.pbPartyStarts(side),
+64:                                   fullAnim)
+65:     )
+66:     return if fullAnim
+67:     while inPartyAnimation?
+68:       pbUpdate
+69:     end
+70:   end
+71: 
+72:   #=============================================================================
+73:   # Animates an opposing trainer sliding in from off-screen. Will animate a
+74:   # previous trainer that is already on-screen slide off first. Used at the end
+75:   # of battle.
+76:   #=============================================================================
+77:   def pbShowOpponent(idxTrainer)
+78:     # Set up trainer appearing animation
+79:     appearAnim = Animation::TrainerAppear.new(@sprites, @viewport, idxTrainer)
+80:     @animations.push(appearAnim)
+81:     # Play the animation
+82:     while inPartyAnimation?
+83:       pbUpdate
+84:     end
+85:   end
+86: 
+87:   #=============================================================================
+88:   # Animates a trainer's sprite and party lineup hiding (if they are visible).
+89:   # Animates a Pokémon being sent out into battle, then plays the shiny
+90:   # animation for it if relevant.
+91:   # sendOuts is an array; each element is itself an array: [idxBattler,pkmn]
+92:   #=============================================================================
+93:   def pbSendOutBattlers(sendOuts, startBattle = false)
+94:     return if sendOuts.length == 0
+95:     # If party balls are still appearing, wait for them to finish showing up, as
+96:     # the FadeAnimation will make them disappear.
+97:     while inPartyAnimation?
+98:       pbUpdate
+99:     end
+100:     @briefMessage = false
+101:     # Make all trainers and party lineups disappear (player-side trainers may
+102:     # animate throwing a Poké Ball)
+103:     if @battle.opposes?(sendOuts[0][0])
+104:       fadeAnim = Animation::TrainerFade.new(@sprites, @viewport, startBattle)
+105:     else
+106:       fadeAnim = Animation::PlayerFade.new(@sprites, @viewport, startBattle)
+107:     end
+108:     # For each battler being sent out, set the battler's sprite and create two
+109:     # animations (the Poké Ball moving and battler appearing from it, and its
+110:     # data box appearing)
+111:     sendOutAnims = []
+112:     sendOuts.each_with_index do |b, i|
+113:       pkmn = @battle.battlers[b[0]].effects[PBEffects::Illusion] || b[1]
+114:       pbChangePokemon(b[0], pkmn)
+115:       pbRefresh
+116:       if @battle.opposes?(b[0])
+117:         sendOutAnim = Animation::PokeballTrainerSendOut.new(
+118:           @sprites, @viewport, @battle.pbGetOwnerIndexFromBattlerIndex(b[0]) + 1,
+119:           @battle.battlers[b[0]], startBattle, i
+120:         )
+121:       else
+122:         sendOutAnim = Animation::PokeballPlayerSendOut.new(
+123:           @sprites, @viewport, @battle.pbGetOwnerIndexFromBattlerIndex(b[0]) + 1,
+124:           @battle.battlers[b[0]], startBattle, i
+125:         )
+126:       end
+127:       dataBoxAnim = Animation::DataBoxAppear.new(@sprites, @viewport, b[0])
+128:       sendOutAnims.push([sendOutAnim, dataBoxAnim, false])
+129:     end
+130:     # Play all animations
+131:     loop do
+132:       fadeAnim.update
+133:       sendOutAnims.each do |a|
+134:         next if a[2]
+135:         a[0].update
+136:         a[1].update if a[0].animDone?
+137:         a[2] = true if a[1].animDone?
+138:       end
+139:       pbUpdate
+140:       break if !inPartyAnimation? && sendOutAnims.none? { |a| !a[2] }
+141:     end
+142:     fadeAnim.dispose
+143:     sendOutAnims.each do |a|
+144:       a[0].dispose
+145:       a[1].dispose
+146:     end
+147:     # Play shininess animations for shiny Pokémon
+148:     sendOuts.each do |b|
+149:       next if !@battle.showAnims || !@battle.battlers[b[0]].shiny?
+150:       if Settings::SUPER_SHINY && @battle.battlers[b[0]].super_shiny?
+151:         pbCommonAnimation("SuperShiny", @battle.battlers[b[0]])
+152:       else
+153:         pbCommonAnimation("Shiny", @battle.battlers[b[0]])
+154:       end
+155:     end
+156:   end
+157: 
+158:   #=============================================================================
+159:   # Animates a Pokémon being recalled into its Poké Ball and its data box hiding
+160:   #=============================================================================
+161:   def pbRecall(idxBattler)
+162:     @briefMessage = false
+163:     # Recall animation
+164:     recallAnim = Animation::BattlerRecall.new(@sprites, @viewport, @battle.battlers[idxBattler])
+165:     loop do
+166:       recallAnim&.update
+167:       pbUpdate
+168:       break if recallAnim.animDone?
+169:     end
+170:     recallAnim.dispose
+171:     # Data box disappear animation
+172:     dataBoxAnim = Animation::DataBoxDisappear.new(@sprites, @viewport, idxBattler)
+173:     loop do
+174:       dataBoxAnim.update
+175:       pbUpdate
+176:       break if dataBoxAnim.animDone?
+177:     end
+178:     dataBoxAnim.dispose
+179:   end
+180: 
+181:   #=============================================================================
+182:   # Ability splash bar animations
+183:   #=============================================================================
+184:   def pbShowAbilitySplash(battler)
+185:     return if !USE_ABILITY_SPLASH
+186:     side = battler.index % 2
+187:     pbHideAbilitySplash(battler) if @sprites["abilityBar_#{side}"].visible
+188:     @sprites["abilityBar_#{side}"].battler = battler
+189:     abilitySplashAnim = Animation::AbilitySplashAppear.new(@sprites, @viewport, side)
+190:     loop do
+191:       abilitySplashAnim.update
+192:       pbUpdate
+193:       break if abilitySplashAnim.animDone?
+194:     end
+195:     abilitySplashAnim.dispose
+196:   end
+197: 
+198:   def pbHideAbilitySplash(battler)
+199:     return if !USE_ABILITY_SPLASH
+200:     side = battler.index % 2
+201:     return if !@sprites["abilityBar_#{side}"].visible
+202:     abilitySplashAnim = Animation::AbilitySplashDisappear.new(@sprites, @viewport, side)
+203:     loop do
+204:       abilitySplashAnim.update
+205:       pbUpdate
+206:       break if abilitySplashAnim.animDone?
+207:     end
+208:     abilitySplashAnim.dispose
+209:   end
+210: 
+211:   def pbReplaceAbilitySplash(battler)
+212:     return if !USE_ABILITY_SPLASH
+213:     pbShowAbilitySplash(battler)
+214:   end
+215: 
+216:   #=============================================================================
+217:   # HP change animations
+218:   #=============================================================================
+219:   # Shows a HP-changing common animation and animates a data box's HP bar.
+220:   # Called by def pbReduceHP, def pbRecoverHP.
+221:   def pbHPChanged(battler, oldHP, showAnim = false)
+222:     @briefMessage = false
+223:     if battler.hp > oldHP
+224:       pbCommonAnimation("HealthUp", battler) if showAnim && @battle.showAnims
+225:     elsif battler.hp < oldHP
+226:       pbCommonAnimation("HealthDown", battler) if showAnim && @battle.showAnims
+227:     end
+228:     @sprites["dataBox_#{battler.index}"].animate_hp(oldHP, battler.hp)
+229:     while @sprites["dataBox_#{battler.index}"].animating_hp?
+230:       pbUpdate
+231:     end
+232:   end
+233: 
+234:   def pbDamageAnimation(battler, effectiveness = 0)
+235:     @briefMessage = false
+236:     # Damage animation
+237:     damageAnim = Animation::BattlerDamage.new(@sprites, @viewport, battler.index, effectiveness)
+238:     loop do
+239:       damageAnim.update
+240:       pbUpdate
+241:       break if damageAnim.animDone?
+242:     end
+243:     damageAnim.dispose
+244:   end
+245: 
+246:   # Animates battlers flashing and data boxes' HP bars because of damage taken
+247:   # by an attack. targets is an array, which are all animated simultaneously.
+248:   # Each element in targets is also an array: [battler, old HP, effectiveness]
+249:   def pbHitAndHPLossAnimation(targets)
+250:     @briefMessage = false
+251:     # Set up animations
+252:     damageAnims = []
+253:     targets.each do |t|
+254:       anim = Animation::BattlerDamage.new(@sprites, @viewport, t[0].index, t[2])
+255:       damageAnims.push(anim)
+256:       @sprites["dataBox_#{t[0].index}"].animate_hp(t[1], t[0].hp)
+257:     end
+258:     # Update loop
+259:     loop do
+260:       damageAnims.each { |a| a.update }
+261:       pbUpdate
+262:       allDone = true
+263:       targets.each do |t|
+264:         next if !@sprites["dataBox_#{t[0].index}"].animating_hp?
+265:         allDone = false
+266:         break
+267:       end
+268:       next if !allDone
+269:       damageAnims.each do |a|
+270:         next if a.animDone?
+271:         allDone = false
+272:         break
+273:       end
+274:       next if !allDone
+275:       break
+276:     end
+277:     damageAnims.each { |a| a.dispose }
+278:   end
+279: 
+280:   #=============================================================================
+281:   # Animates a data box's Exp bar
+282:   #=============================================================================
+283:   def pbEXPBar(battler, startExp, endExp, tempExp1, tempExp2)
+284:     return if !battler || endExp == startExp
+285:     startExpLevel = tempExp1 - startExp
+286:     endExpLevel   = tempExp2 - startExp
+287:     expRange      = endExp - startExp
+288:     dataBox = @sprites["dataBox_#{battler.index}"]
+289:     dataBox.animate_exp(startExpLevel, endExpLevel, expRange)
+290:     while dataBox.animating_exp?
+291:       pbUpdate
+292:     end
+293:   end
+294: 
+295:   #=============================================================================
+296:   # Shows stats windows upon a Pokémon levelling up
+297:   #=============================================================================
+298:   def pbLevelUp(pkmn, _battler, oldTotalHP, oldAttack, oldDefense, oldSpAtk, oldSpDef, oldSpeed)

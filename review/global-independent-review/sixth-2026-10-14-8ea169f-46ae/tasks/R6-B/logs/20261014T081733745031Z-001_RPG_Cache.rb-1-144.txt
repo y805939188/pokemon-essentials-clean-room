@@ -1,0 +1,144 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Hangup < Exception; end
+5: 
+6: #===============================================================================
+7: #
+8: #===============================================================================
+9: module RPG
+10:   module Cache
+11:     def self.debug
+12:       t = Time.now
+13:       filename = t.strftime("%H %M %S.%L.txt")
+14:       File.open("cache_" + filename, "wb") do |f|
+15:         @cache.each do |key, value|
+16:           if !value
+17:             f.write("#{key} (nil)\r\n")
+18:           elsif value.disposed?
+19:             f.write("#{key} (disposed)\r\n")
+20:           else
+21:             f.write("#{key} (#{value.refcount}, #{value.width}x#{value.height})\r\n")
+22:           end
+23:         end
+24:       end
+25:     end
+26: 
+27:     def self.setKey(key, obj)
+28:       @cache[key] = obj
+29:     end
+30: 
+31:     def self.fromCache(i)
+32:       return nil if !@cache.include?(i)
+33:       obj = @cache[i]
+34:       return nil if obj&.disposed?
+35:       return obj
+36:     end
+37: 
+38:     def self.load_bitmap(folder_name, filename, hue = 0)
+39:       path = folder_name + filename
+40:       cached = true
+41:       ret = fromCache(path)
+42:       if !ret
+43:         if filename == ""
+44:           ret = BitmapWrapper.new(32, 32)
+45:         else
+46:           ret = BitmapWrapper.new(path)
+47:         end
+48:         @cache[path] = ret
+49:         cached = false
+50:       end
+51:       if hue == 0
+52:         ret.addRef if cached
+53:         return ret
+54:       end
+55:       key = [path, hue]
+56:       ret2 = fromCache(key)
+57:       if ret2
+58:         ret2.addRef
+59:       else
+60:         ret2 = ret.copy
+61:         ret2.hue_change(hue)
+62:         @cache[key] = ret2
+63:       end
+64:       return ret2
+65:     end
+66: 
+67:     def self.tileEx(filename, tile_id, hue, width = 1, height = 1)
+68:       key = [filename, tile_id, hue, width, height]
+69:       ret = fromCache(key)
+70:       if ret
+71:         ret.addRef
+72:       else
+73:         ret = BitmapWrapper.new(32 * width, 32 * height)
+74:         x = ((tile_id - 384) % 8) * 32
+75:         y = (((tile_id - 384) / 8) - height + 1) * 32
+76:         tileset = yield(filename)
+77:         ret.blt(0, 0, tileset, Rect.new(x, y, 32 * width, 32 * height))
+78:         tileset.dispose
+79:         ret.hue_change(hue) if hue != 0
+80:         @cache[key] = ret
+81:       end
+82:       return ret
+83:     end
+84: 
+85:     def self.tile(filename, tile_id, hue)
+86:       return self.tileEx(filename, tile_id, hue) { |f| self.tileset(f) }
+87:     end
+88: 
+89:     def self.transition(filename)
+90:       self.load_bitmap("Graphics/Transitions/", filename)
+91:     end
+92: 
+93:     def self.ui(filename)
+94:       self.load_bitmap("Graphics/UI/", filename)
+95:     end
+96: 
+97:     def self.retain(folder_name, filename = "", hue = 0)
+98:       path = folder_name + filename
+99:       ret = fromCache(path)
+100:       if hue > 0
+101:         key = [path, hue]
+102:         ret2 = fromCache(key)
+103:         if ret2
+104:           ret2.never_dispose = true
+105:           return
+106:         end
+107:       end
+108:       ret.never_dispose = true if ret
+109:     end
+110:   end
+111: end
+112: 
+113: #===============================================================================
+114: #
+115: #===============================================================================
+116: class BitmapWrapper < Bitmap
+117:   attr_reader   :refcount
+118:   attr_accessor :never_dispose
+119: 
+120:   def dispose
+121:     return if self.disposed?
+122:     @refcount -= 1
+123:     super if @refcount <= 0 && !never_dispose
+124:   end
+125: 
+126:   def initialize(*arg)
+127:     super
+128:     @refcount = 1
+129:   end
+130: 
+131:   def resetRef
+132:     @refcount = 1
+133:   end
+134: 
+135:   def copy
+136:     bm = self.clone
+137:     bm.resetRef
+138:     return bm
+139:   end
+140: 
+141:   def addRef
+142:     @refcount += 1
+143:   end
+144: end

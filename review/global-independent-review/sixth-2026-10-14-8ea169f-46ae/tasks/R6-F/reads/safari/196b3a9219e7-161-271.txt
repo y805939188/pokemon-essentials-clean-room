@@ -1,0 +1,112 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "4466b0d904549962a5c9f866804d98250b139b87", "sha256": "3242b22c2719ced91097e69060488024b7ee1368152f3266cda1c37fcf33b4a3", "start_line": 161, "end_line": 271, "total_lines": 271, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:31:39.218679+00:00"}
+161:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+162:     when 3
+163:       pbDisplay(_INTL("Gah! It was so close, too!"))
+164:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+165:     when 4
+166:       pbDisplayBrief(_INTL("Gotcha! {1} was caught!", pkmn.name))
+167:       @scene.pbThrowSuccess   # Play capture success jingle
+168:       pbRemoveFromParty(battler.index, battler.pokemonIndex)
+169:       # Gain Exp
+170:       if Settings::GAIN_EXP_FOR_CAPTURE
+171:         battler.captured = true
+172:         pbGainExp
+173:         battler.captured = false
+174:       end
+175:       battler.pbReset
+176:       if pbAllFainted?(battler.index)
+177:         @decision = (trainerBattle?) ? 1 : 4   # Battle ended by win/capture
+178:       end
+179:       # Modify the Pokémon's properties because of the capture
+180:       if GameData::Item.get(ball).is_snag_ball?
+181:         pkmn.owner = Pokemon::Owner.new_from_trainer(pbPlayer)
+182:       end
+183:       Battle::PokeBallEffects.onCatch(ball, self, pkmn)
+184:       pkmn.poke_ball = ball
+185:       pkmn.makeUnmega if pkmn.mega?
+186:       pkmn.makeUnprimal
+187:       pkmn.update_shadow_moves if pkmn.shadowPokemon?
+188:       pkmn.record_first_moves
+189:       # Reset form
+190:       pkmn.forced_form = nil if MultipleForms.hasFunction?(pkmn.species, "getForm")
+191:       @peer.pbOnLeavingBattle(self, pkmn, true, true)
+192:       # Make the Poké Ball and data box disappear
+193:       @scene.pbHideCaptureBall(idxBattler)
+194:       # Save the Pokémon for storage at the end of battle
+195:       @caughtPokemon.push(pkmn)
+196:     end
+197:     if numShakes != 4
+198:       @first_poke_ball = ball if !@poke_ball_failed
+199:       @poke_ball_failed = true
+200:     end
+201:   end
+202: 
+203:   #=============================================================================
+204:   # Calculate how many shakes a thrown Poké Ball will make (4 = capture)
+205:   #=============================================================================
+206:   def pbCaptureCalc(pkmn, battler, catch_rate, ball)
+207:     return 4 if $DEBUG && Input.press?(Input::CTRL)
+208:     # Get a catch rate if one wasn't provided
+209:     catch_rate = pkmn.species_data.catch_rate if !catch_rate
+210:     # Modify catch_rate depending on the Poké Ball's effect
+211:     if !pkmn.species_data.has_flag?("UltraBeast") || ball == :BEASTBALL
+212:       catch_rate = Battle::PokeBallEffects.modifyCatchRate(ball, catch_rate, self, battler)
+213:     else
+214:       catch_rate /= 10
+215:     end
+216:     # First half of the shakes calculation
+217:     a = battler.totalhp
+218:     b = battler.hp
+219:     x = (((3 * a) - (2 * b)) * catch_rate.to_f) / (3 * a)
+220:     # Calculation modifiers
+221:     if battler.status == :SLEEP || battler.status == :FROZEN
+222:       x *= 2.5
+223:     elsif battler.status != :NONE
+224:       x *= 1.5
+225:     end
+226:     x = x.floor
+227:     x = 1 if x < 1
+228:     # Definite capture, no need to perform randomness checks
+229:     return 4 if x >= 255 || Battle::PokeBallEffects.isUnconditional?(ball, self, battler)
+230:     # Second half of the shakes calculation
+231:     y = (65_536 / ((255.0 / x)**0.1875)).floor
+232:     # Critical capture check
+233:     if Settings::ENABLE_CRITICAL_CAPTURES
+234:       dex_modifier = 0
+235:       numOwned = $player.pokedex.owned_count
+236:       if numOwned > 600
+237:         dex_modifier = 5
+238:       elsif numOwned > 450
+239:         dex_modifier = 4
+240:       elsif numOwned > 300
+241:         dex_modifier = 3
+242:       elsif numOwned > 150
+243:         dex_modifier = 2
+244:       elsif numOwned > 30
+245:         dex_modifier = 1
+246:       end
+247:       dex_modifier *= 2 if $bag.has?(:CATCHINGCHARM)
+248:       c = x * dex_modifier / 12
+249:       # Calculate the number of shakes
+250:       if c > 0 && pbRandom(256) < c
+251:         @criticalCapture = true
+252:         return 4 if pbRandom(65_536) < y
+253:         return 0
+254:       end
+255:     end
+256:     # Calculate the number of shakes
+257:     numShakes = 0
+258:     4.times do |i|
+259:       break if numShakes < i
+260:       numShakes += 1 if pbRandom(65_536) < y
+261:     end
+262:     return numShakes
+263:   end
+264: end
+265: 
+266: #===============================================================================
+267: #
+268: #===============================================================================
+269: class Battle
+270:   include Battle::CatchAndStoreMixin
+271: end

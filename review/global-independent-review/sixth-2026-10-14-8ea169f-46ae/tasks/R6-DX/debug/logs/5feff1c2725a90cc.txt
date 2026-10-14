@@ -1,0 +1,141 @@
+1: module GameData
+2:   class Type
+3:     attr_reader :id
+4:     attr_reader :real_name
+5:     attr_reader :icon_position   # Where this type's icon is within types.png
+6:     attr_reader :special_type
+7:     attr_reader :pseudo_type
+8:     attr_reader :weaknesses
+9:     attr_reader :resistances
+10:     attr_reader :immunities
+11:     attr_reader :flags
+12:     attr_reader :pbs_file_suffix
+13: 
+14:     DATA = {}
+15:     DATA_FILENAME = "types.dat"
+16:     PBS_BASE_FILENAME = "types"
+17: 
+18:     SCHEMA = {
+19:       "SectionName"   => [:id,            "m"],
+20:       "Name"          => [:real_name,     "s"],
+21:       "IconPosition"  => [:icon_position, "u"],
+22:       "IsSpecialType" => [:special_type,  "b"],
+23:       "IsPseudoType"  => [:pseudo_type,   "b"],
+24:       "Weaknesses"    => [:weaknesses,    "*m"],
+25:       "Resistances"   => [:resistances,   "*m"],
+26:       "Immunities"    => [:immunities,    "*m"],
+27:       "Flags"         => [:flags,         "*s"]
+28:     }
+29: 
+30:     extend ClassMethodsSymbols
+31:     include InstanceMethods
+32: 
+33:     def initialize(hash)
+34:       @id              = hash[:id]
+35:       @real_name       = hash[:real_name]       || "Unnamed"
+36:       @icon_position   = hash[:icon_position]   || 0
+37:       @special_type    = hash[:special_type]    || false
+38:       @pseudo_type     = hash[:pseudo_type]     || false
+39:       @weaknesses      = hash[:weaknesses]      || []
+40:       @weaknesses      = [@weaknesses] if !@weaknesses.is_a?(Array)
+41:       @resistances     = hash[:resistances]     || []
+42:       @resistances     = [@resistances] if !@resistances.is_a?(Array)
+43:       @immunities      = hash[:immunities]      || []
+44:       @immunities      = [@immunities] if !@immunities.is_a?(Array)
+45:       @flags           = hash[:flags]           || []
+46:       @pbs_file_suffix = hash[:pbs_file_suffix] || ""
+47:     end
+48: 
+49:     # @return [String] the translated name of this item
+50:     def name
+51:       return pbGetMessageFromHash(MessageTypes::TYPE_NAMES, @real_name)
+52:     end
+53: 
+54:     def physical?; return !@special_type; end
+55:     def special?;  return @special_type; end
+56: 
+57:     def has_flag?(flag)
+58:       return @flags.any? { |f| f.downcase == flag.downcase }
+59:     end
+60: 
+61:     def effectiveness(other_type)
+62:       return Effectiveness::NORMAL_EFFECTIVE if !other_type
+63:       return Effectiveness::SUPER_EFFECTIVE if @weaknesses.include?(other_type)
+64:       return Effectiveness::NOT_VERY_EFFECTIVE if @resistances.include?(other_type)
+65:       return Effectiveness::INEFFECTIVE if @immunities.include?(other_type)
+66:       return Effectiveness::NORMAL_EFFECTIVE
+67:     end
+68:   end
+69: end
+70: 
+71: #===============================================================================
+72: 
+73: module Effectiveness
+74:   INEFFECTIVE                   = 0
+75:   NOT_VERY_EFFECTIVE            = 1
+76:   NORMAL_EFFECTIVE              = 2
+77:   SUPER_EFFECTIVE               = 4
+78:   INEFFECTIVE_MULTIPLIER        = INEFFECTIVE.to_f / NORMAL_EFFECTIVE
+79:   NOT_VERY_EFFECTIVE_MULTIPLIER = NOT_VERY_EFFECTIVE.to_f / NORMAL_EFFECTIVE
+80:   NORMAL_EFFECTIVE_MULTIPLIER   = 1.0
+81:   SUPER_EFFECTIVE_MULTIPLIER    = SUPER_EFFECTIVE.to_f / NORMAL_EFFECTIVE
+82: 
+83:   module_function
+84: 
+85:   def ineffective?(value)
+86:     return value == INEFFECTIVE_MULTIPLIER
+87:   end
+88: 
+89:   def not_very_effective?(value)
+90:     return value > INEFFECTIVE_MULTIPLIER && value < NORMAL_EFFECTIVE_MULTIPLIER
+91:   end
+92: 
+93:   def resistant?(value)
+94:     return value < NORMAL_EFFECTIVE_MULTIPLIER
+95:   end
+96: 
+97:   def normal?(value)
+98:     return value == NORMAL_EFFECTIVE_MULTIPLIER
+99:   end
+100: 
+101:   def super_effective?(value)
+102:     return value > NORMAL_EFFECTIVE_MULTIPLIER
+103:   end
+104: 
+105:   def ineffective_type?(attack_type, *defend_types)
+106:     value = calculate(attack_type, *defend_types)
+107:     return ineffective?(value)
+108:   end
+109: 
+110:   def not_very_effective_type?(attack_type, *defend_types)
+111:     value = calculate(attack_type, *defend_types)
+112:     return not_very_effective?(value)
+113:   end
+114: 
+115:   def resistant_type?(attack_type, *defend_types)
+116:     value = calculate(attack_type, *defend_types)
+117:     return resistant?(value)
+118:   end
+119: 
+120:   def normal_type?(attack_type, *defend_types)
+121:     value = calculate(attack_type, *defend_types)
+122:     return normal?(value)
+123:   end
+124: 
+125:   def super_effective_type?(attack_type, *defend_types)
+126:     value = calculate(attack_type, *defend_types)
+127:     return super_effective?(value)
+128:   end
+129: 
+130:   def get_type_effectiveness(attack_type, defend_type)
+131:     return GameData::Type.get(defend_type).effectiveness(attack_type)
+132:   end
+133: 
+134:   def calculate(attack_type, *defend_types)
+135:     ret = NORMAL_EFFECTIVE_MULTIPLIER
+136:     defend_types.each do |type|
+137:       ret *= get_type_effectiveness(attack_type, type) / NORMAL_EFFECTIVE.to_f
+138:     end
+139:     return ret
+140:   end
+141: end

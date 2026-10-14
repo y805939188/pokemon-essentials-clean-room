@@ -1,0 +1,401 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/006_UI_Summary.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 400], "total_lines": 1400, "sha256": "085e02ff7b581917f95e652672d5a01e156b62a11f38b3f20593de9e7be28389", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:17:53.817855+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class MoveSelectionSprite < Sprite
+5:   attr_reader :preselected
+6:   attr_reader :index
+7: 
+8:   def initialize(viewport = nil, fifthmove = false)
+9:     super(viewport)
+10:     @movesel = AnimatedBitmap.new("Graphics/UI/Summary/cursor_move")
+11:     @frame = 0
+12:     @index = 0
+13:     @fifthmove = fifthmove
+14:     @preselected = false
+15:     @updating = false
+16:     refresh
+17:   end
+18: 
+19:   def dispose
+20:     @movesel.dispose
+21:     super
+22:   end
+23: 
+24:   def index=(value)
+25:     @index = value
+26:     refresh
+27:   end
+28: 
+29:   def preselected=(value)
+30:     @preselected = value
+31:     refresh
+32:   end
+33: 
+34:   def refresh
+35:     w = @movesel.width
+36:     h = @movesel.height / 2
+37:     self.x = 240
+38:     self.y = 92 + (self.index * 64)
+39:     self.y -= 76 if @fifthmove
+40:     self.y += 20 if @fifthmove && self.index == Pokemon::MAX_MOVES   # Add a gap
+41:     self.bitmap = @movesel.bitmap
+42:     if self.preselected
+43:       self.src_rect.set(0, h, w, h)
+44:     else
+45:       self.src_rect.set(0, 0, w, h)
+46:     end
+47:   end
+48: 
+49:   def update
+50:     @updating = true
+51:     super
+52:     @movesel.update
+53:     @updating = false
+54:     refresh
+55:   end
+56: end
+57: 
+58: #===============================================================================
+59: #
+60: #===============================================================================
+61: class RibbonSelectionSprite < MoveSelectionSprite
+62:   def initialize(viewport = nil)
+63:     super(viewport)
+64:     @movesel = AnimatedBitmap.new("Graphics/UI/Summary/cursor_ribbon")
+65:     @frame = 0
+66:     @index = 0
+67:     @preselected = false
+68:     @updating = false
+69:     @spriteVisible = true
+70:     refresh
+71:   end
+72: 
+73:   def visible=(value)
+74:     super
+75:     @spriteVisible = value if !@updating
+76:   end
+77: 
+78:   def refresh
+79:     w = @movesel.width
+80:     h = @movesel.height / 2
+81:     self.x = 228 + ((self.index % 4) * 68)
+82:     self.y = 76 + ((self.index / 4).floor * 68)
+83:     self.bitmap = @movesel.bitmap
+84:     if self.preselected
+85:       self.src_rect.set(0, h, w, h)
+86:     else
+87:       self.src_rect.set(0, 0, w, h)
+88:     end
+89:   end
+90: 
+91:   def update
+92:     @updating = true
+93:     super
+94:     self.visible = @spriteVisible && @index >= 0 && @index < 12
+95:     @movesel.update
+96:     @updating = false
+97:     refresh
+98:   end
+99: end
+100: 
+101: #===============================================================================
+102: #
+103: #===============================================================================
+104: class PokemonSummary_Scene
+105:   MARK_WIDTH  = 16
+106:   MARK_HEIGHT = 16
+107:   # Colors used for messages in this scene
+108:   RED_TEXT_BASE     = Color.new(248, 56, 32)
+109:   RED_TEXT_SHADOW   = Color.new(224, 152, 144)
+110:   BLACK_TEXT_BASE   = Color.new(64, 64, 64)
+111:   BLACK_TEXT_SHADOW = Color.new(176, 176, 176)
+112: 
+113:   def pbUpdate
+114:     pbUpdateSpriteHash(@sprites)
+115:   end
+116: 
+117:   def pbStartScene(party, partyindex, inbattle = false)
+118:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+119:     @viewport.z = 99999
+120:     @party      = party
+121:     @partyindex = partyindex
+122:     @pokemon    = @party[@partyindex]
+123:     @inbattle   = inbattle
+124:     @page = 1
+125:     @typebitmap    = AnimatedBitmap.new(_INTL("Graphics/UI/types"))
+126:     @markingbitmap = AnimatedBitmap.new("Graphics/UI/Summary/markings")
+127:     @sprites = {}
+128:     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+129:     @sprites["pokemon"] = PokemonSprite.new(@viewport)
+130:     @sprites["pokemon"].setOffset(PictureOrigin::CENTER)
+131:     @sprites["pokemon"].x = 104
+132:     @sprites["pokemon"].y = 206
+133:     @sprites["pokemon"].setPokemonBitmap(@pokemon)
+134:     @sprites["pokeicon"] = PokemonIconSprite.new(@pokemon, @viewport)
+135:     @sprites["pokeicon"].setOffset(PictureOrigin::CENTER)
+136:     @sprites["pokeicon"].x       = 46
+137:     @sprites["pokeicon"].y       = 92
+138:     @sprites["pokeicon"].visible = false
+139:     @sprites["itemicon"] = ItemIconSprite.new(30, 320, @pokemon.item_id, @viewport)
+140:     @sprites["itemicon"].blankzero = true
+141:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+142:     pbSetSystemFont(@sprites["overlay"].bitmap)
+143:     @sprites["movepresel"] = MoveSelectionSprite.new(@viewport)
+144:     @sprites["movepresel"].visible     = false
+145:     @sprites["movepresel"].preselected = true
+146:     @sprites["movesel"] = MoveSelectionSprite.new(@viewport)
+147:     @sprites["movesel"].visible = false
+148:     @sprites["ribbonpresel"] = RibbonSelectionSprite.new(@viewport)
+149:     @sprites["ribbonpresel"].visible     = false
+150:     @sprites["ribbonpresel"].preselected = true
+151:     @sprites["ribbonsel"] = RibbonSelectionSprite.new(@viewport)
+152:     @sprites["ribbonsel"].visible = false
+153:     @sprites["uparrow"] = AnimatedSprite.new("Graphics/UI/up_arrow", 8, 28, 40, 2, @viewport)
+154:     @sprites["uparrow"].x = 350
+155:     @sprites["uparrow"].y = 56
+156:     @sprites["uparrow"].play
+157:     @sprites["uparrow"].visible = false
+158:     @sprites["downarrow"] = AnimatedSprite.new("Graphics/UI/down_arrow", 8, 28, 40, 2, @viewport)
+159:     @sprites["downarrow"].x = 350
+160:     @sprites["downarrow"].y = 260
+161:     @sprites["downarrow"].play
+162:     @sprites["downarrow"].visible = false
+163:     @sprites["markingbg"] = IconSprite.new(260, 88, @viewport)
+164:     @sprites["markingbg"].setBitmap("Graphics/UI/Summary/overlay_marking")
+165:     @sprites["markingbg"].visible = false
+166:     @sprites["markingoverlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+167:     @sprites["markingoverlay"].visible = false
+168:     pbSetSystemFont(@sprites["markingoverlay"].bitmap)
+169:     @sprites["markingsel"] = IconSprite.new(0, 0, @viewport)
+170:     @sprites["markingsel"].setBitmap("Graphics/UI/Summary/cursor_marking")
+171:     @sprites["markingsel"].src_rect.height = @sprites["markingsel"].bitmap.height / 2
+172:     @sprites["markingsel"].visible = false
+173:     @sprites["messagebox"] = Window_AdvancedTextPokemon.new("")
+174:     @sprites["messagebox"].viewport       = @viewport
+175:     @sprites["messagebox"].visible        = false
+176:     @sprites["messagebox"].letterbyletter = true
+177:     pbBottomLeftLines(@sprites["messagebox"], 2)
+178:     @nationalDexList = [:NONE]
+179:     GameData::Species.each_species { |s| @nationalDexList.push(s.species) }
+180:     drawPage(@page)
+181:     pbFadeInAndShow(@sprites) { pbUpdate }
+182:   end
+183: 
+184:   def pbStartForgetScene(party, partyindex, move_to_learn)
+185:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+186:     @viewport.z = 99999
+187:     @party      = party
+188:     @partyindex = partyindex
+189:     @pokemon    = @party[@partyindex]
+190:     @page = 4
+191:     @typebitmap = AnimatedBitmap.new(_INTL("Graphics/UI/types"))
+192:     @sprites = {}
+193:     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+194:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+195:     pbSetSystemFont(@sprites["overlay"].bitmap)
+196:     @sprites["pokeicon"] = PokemonIconSprite.new(@pokemon, @viewport)
+197:     @sprites["pokeicon"].setOffset(PictureOrigin::CENTER)
+198:     @sprites["pokeicon"].x       = 46
+199:     @sprites["pokeicon"].y       = 92
+200:     @sprites["movesel"] = MoveSelectionSprite.new(@viewport, !move_to_learn.nil?)
+201:     @sprites["movesel"].visible = false
+202:     @sprites["movesel"].visible = true
+203:     @sprites["movesel"].index   = 0
+204:     new_move = (move_to_learn) ? Pokemon::Move.new(move_to_learn) : nil
+205:     drawSelectedMove(new_move, @pokemon.moves[0])
+206:     pbFadeInAndShow(@sprites)
+207:   end
+208: 
+209:   def pbEndScene
+210:     pbFadeOutAndHide(@sprites) { pbUpdate }
+211:     pbDisposeSpriteHash(@sprites)
+212:     @typebitmap.dispose
+213:     @markingbitmap&.dispose
+214:     @viewport.dispose
+215:   end
+216: 
+217:   def pbDisplay(text)
+218:     @sprites["messagebox"].text = text
+219:     @sprites["messagebox"].visible = true
+220:     pbPlayDecisionSE
+221:     loop do
+222:       Graphics.update
+223:       Input.update
+224:       pbUpdate
+225:       if @sprites["messagebox"].busy?
+226:         if Input.trigger?(Input::USE)
+227:           pbPlayDecisionSE if @sprites["messagebox"].pausing?
+228:           @sprites["messagebox"].resume
+229:         end
+230:       elsif Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+231:         break
+232:       end
+233:     end
+234:     @sprites["messagebox"].visible = false
+235:   end
+236: 
+237:   def pbConfirm(text)
+238:     ret = -1
+239:     @sprites["messagebox"].text    = text
+240:     @sprites["messagebox"].visible = true
+241:     using(cmdwindow = Window_CommandPokemon.new([_INTL("Yes"), _INTL("No")])) do
+242:       cmdwindow.z       = @viewport.z + 1
+243:       cmdwindow.visible = false
+244:       pbBottomRight(cmdwindow)
+245:       cmdwindow.y -= @sprites["messagebox"].height
+246:       loop do
+247:         Graphics.update
+248:         Input.update
+249:         cmdwindow.visible = true if !@sprites["messagebox"].busy?
+250:         cmdwindow.update
+251:         pbUpdate
+252:         if !@sprites["messagebox"].busy?
+253:           if Input.trigger?(Input::BACK)
+254:             ret = false
+255:             break
+256:           elsif Input.trigger?(Input::USE) && @sprites["messagebox"].resume
+257:             ret = (cmdwindow.index == 0)
+258:             break
+259:           end
+260:         end
+261:       end
+262:     end
+263:     @sprites["messagebox"].visible = false
+264:     return ret
+265:   end
+266: 
+267:   def pbShowCommands(commands, index = 0)
+268:     ret = -1
+269:     using(cmdwindow = Window_CommandPokemon.new(commands)) do
+270:       cmdwindow.z = @viewport.z + 1
+271:       cmdwindow.index = index
+272:       pbBottomRight(cmdwindow)
+273:       loop do
+274:         Graphics.update
+275:         Input.update
+276:         cmdwindow.update
+277:         pbUpdate
+278:         if Input.trigger?(Input::BACK)
+279:           pbPlayCancelSE
+280:           ret = -1
+281:           break
+282:         elsif Input.trigger?(Input::USE)
+283:           pbPlayDecisionSE
+284:           ret = cmdwindow.index
+285:           break
+286:         end
+287:       end
+288:     end
+289:     return ret
+290:   end
+291: 
+292:   def drawMarkings(bitmap, x, y)
+293:     mark_variants = @markingbitmap.bitmap.height / MARK_HEIGHT
+294:     markings = @pokemon.markings
+295:     markrect = Rect.new(0, 0, MARK_WIDTH, MARK_HEIGHT)
+296:     (@markingbitmap.bitmap.width / MARK_WIDTH).times do |i|
+297:       markrect.x = i * MARK_WIDTH
+298:       markrect.y = [(markings[i] || 0), mark_variants - 1].min * MARK_HEIGHT
+299:       bitmap.blt(x + (i * MARK_WIDTH), y, @markingbitmap.bitmap, markrect)
+300:     end
+301:   end
+302: 
+303:   def drawPage(page)
+304:     if @pokemon.egg?
+305:       drawPageOneEgg
+306:       return
+307:     end
+308:     @sprites["pokemon"].setPokemonBitmap(@pokemon)
+309:     @sprites["pokeicon"].pokemon = @pokemon
+310:     @sprites["itemicon"].item = @pokemon.item_id
+311:     overlay = @sprites["overlay"].bitmap
+312:     overlay.clear
+313:     base   = Color.new(248, 248, 248)
+314:     shadow = Color.new(104, 104, 104)
+315:     # Set background image
+316:     @sprites["background"].setBitmap("Graphics/UI/Summary/bg_#{page}")
+317:     imagepos = []
+318:     # Show the Poké Ball containing the Pokémon
+319:     ballimage = sprintf("Graphics/UI/Summary/icon_ball_%s", @pokemon.poke_ball)
+320:     imagepos.push([ballimage, 14, 60])
+321:     # Show status/fainted/Pokérus infected icon
+322:     status = -1
+323:     if @pokemon.fainted?
+324:       status = GameData::Status.count - 1
+325:     elsif @pokemon.status != :NONE
+326:       status = GameData::Status.get(@pokemon.status).icon_position
+327:     elsif @pokemon.pokerusStage == 1
+328:       status = GameData::Status.count
+329:     end
+330:     if status >= 0
+331:       imagepos.push([_INTL("Graphics/UI/statuses"), 124, 100, 0, 16 * status, 44, 16])
+332:     end
+333:     # Show Pokérus cured icon
+334:     if @pokemon.pokerusStage == 2
+335:       imagepos.push(["Graphics/UI/Summary/icon_pokerus", 176, 100])
+336:     end
+337:     # Show shininess star
+338:     imagepos.push(["Graphics/UI/shiny", 2, 134]) if @pokemon.shiny?
+339:     # Draw all images
+340:     pbDrawImagePositions(overlay, imagepos)
+341:     # Write various bits of text
+342:     pagename = [_INTL("INFO"),
+343:                 _INTL("TRAINER MEMO"),
+344:                 _INTL("SKILLS"),
+345:                 _INTL("MOVES"),
+346:                 _INTL("RIBBONS")][page - 1]
+347:     textpos = [
+348:       [pagename, 26, 22, :left, base, shadow],
+349:       [@pokemon.name, 46, 68, :left, base, shadow],
+350:       [@pokemon.level.to_s, 46, 98, :left, Color.new(64, 64, 64), Color.new(176, 176, 176)],
+351:       [_INTL("Item"), 66, 324, :left, base, shadow]
+352:     ]
+353:     # Write the held item's name
+354:     if @pokemon.hasItem?
+355:       textpos.push([@pokemon.item.name, 16, 358, :left, Color.new(64, 64, 64), Color.new(176, 176, 176)])
+356:     else
+357:       textpos.push([_INTL("None"), 16, 358, :left, Color.new(192, 200, 208), Color.new(208, 216, 224)])
+358:     end
+359:     # Write the gender symbol
+360:     if @pokemon.male?
+361:       textpos.push([_INTL("♂"), 178, 68, :left, Color.new(24, 112, 216), Color.new(136, 168, 208)])
+362:     elsif @pokemon.female?
+363:       textpos.push([_INTL("♀"), 178, 68, :left, Color.new(248, 56, 32), Color.new(224, 152, 144)])
+364:     end
+365:     # Draw all text
+366:     pbDrawTextPositions(overlay, textpos)
+367:     # Draw the Pokémon's markings
+368:     drawMarkings(overlay, 84, 292)
+369:     # Draw page-specific information
+370:     case page
+371:     when 1 then drawPageOne
+372:     when 2 then drawPageTwo
+373:     when 3 then drawPageThree
+374:     when 4 then drawPageFour
+375:     when 5 then drawPageFive
+376:     end
+377:   end
+378: 
+379:   def drawPageOne
+380:     overlay = @sprites["overlay"].bitmap
+381:     base   = Color.new(248, 248, 248)
+382:     shadow = Color.new(104, 104, 104)
+383:     dexNumBase   = (@pokemon.shiny?) ? Color.new(248, 56, 32) : Color.new(64, 64, 64)
+384:     dexNumShadow = (@pokemon.shiny?) ? Color.new(224, 152, 144) : Color.new(176, 176, 176)
+385:     # If a Shadow Pokémon, draw the heart gauge area and bar
+386:     if @pokemon.shadowPokemon?
+387:       shadowfract = @pokemon.heart_gauge.to_f / @pokemon.max_gauge_size
+388:       imagepos = [
+389:         ["Graphics/UI/Summary/overlay_shadow", 224, 240],
+390:         ["Graphics/UI/Summary/overlay_shadowbar", 242, 280, 0, 0, (shadowfract * 248).floor, -1]
+391:       ]
+392:       pbDrawImagePositions(overlay, imagepos)
+393:     end
+394:     # Write various bits of text
+395:     textpos = [
+396:       [_INTL("Dex No."), 238, 86, :left, base, shadow],
+397:       [_INTL("Species"), 238, 118, :left, base, shadow],
+398:       [@pokemon.speciesName, 435, 118, :center, Color.new(64, 64, 64), Color.new(176, 176, 176)],
+399:       [_INTL("Type"), 238, 150, :left, base, shadow],
+400:       [_INTL("OT"), 238, 182, :left, base, shadow],

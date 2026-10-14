@@ -1,0 +1,129 @@
+201:   }
+202: )
+203: 
+204: #===============================================================================
+205: # Don't prefer Fire-type moves if target knows Powder and is faster than the
+206: # user.
+207: #===============================================================================
+208: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:target_can_powder_fire_moves,
+209:   proc { |score, move, user, target, ai, battle|
+210:     if ai.trainer.high_skill? && move.rough_type == :FIRE &&
+211:        target.has_move_with_function?("TargetNextFireMoveDamagesTarget") &&
+212:        target.faster_than?(user)
+213:       old_score = score
+214:       score -= 5   # Only 5 because we're not sure target will use Powder
+215:       PBDebug.log_score_change(score - old_score, "target knows Powder and could negate Fire moves")
+216:     end
+217:     next score
+218:   }
+219: )
+220: 
+221: #===============================================================================
+222: # Don't prefer moves if target knows a move that can make them Electric-type,
+223: # and if target is unaffected by Electric moves.
+224: #===============================================================================
+225: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:target_can_make_moves_Electric_and_be_immune,
+226:   proc { |score, move, user, target, ai, battle|
+227:     next score if !ai.trainer.high_skill?
+228:     next score if !target.has_move_with_function?("TargetMovesBecomeElectric") &&
+229:                   !(move.rough_type == :NORMAL && target.has_move_with_function?("NormalMovesBecomeElectric"))
+230:     next score if !ai.pokemon_can_absorb_move?(target, move, :ELECTRIC) &&
+231:                   !Effectiveness.ineffective?(target.effectiveness_of_type_against_battler(:ELECTRIC, user))
+232:     priority = move.rough_priority(user)
+233:     if priority > 0 || (priority == 0 && target.faster_than?(user))   # Target goes first
+234:       old_score = score
+235:       score -= 5   # Only 5 because we're not sure target will use Electrify/Ion Deluge
+236:       PBDebug.log_score_change(score - old_score, "target knows Electrify/Ion Deluge and is immune to Electric moves")
+237:     end
+238:     next score
+239:   }
+240: )
+241: 
+242: #===============================================================================
+243: # Don't prefer attacking the target if they'd be semi-invulnerable.
+244: #===============================================================================
+245: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:target_semi_invulnerable,
+246:   proc { |score, move, user, target, ai, battle|
+247:     if ai.trainer.medium_skill? && move.rough_accuracy > 0 &&
+248:        (target.battler.semiInvulnerable? || target.effects[PBEffects::SkyDrop] >= 0)
+249:       next score if user.has_active_ability?(:NOGUARD) || target.has_active_ability?(:NOGUARD)
+250:       priority = move.rough_priority(user)
+251:       if priority > 0 || (priority == 0 && user.faster_than?(target))   # User goes first
+252:         miss = true
+253:         if ai.trainer.high_skill?
+254:           # Knows what can get past semi-invulnerability
+255:           if target.effects[PBEffects::SkyDrop] >= 0 ||
+256:              target.battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableInSky",
+257:                                              "TwoTurnAttackInvulnerableInSkyParalyzeTarget",
+258:                                              "TwoTurnAttackInvulnerableInSkyTargetCannotAct")
+259:             miss = false if move.move.hitsFlyingTargets?
+260:           elsif target.battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderground")
+261:             miss = false if move.move.hitsDiggingTargets?
+262:           elsif target.battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderwater")
+263:             miss = false if move.move.hitsDivingTargets?
+264:           end
+265:         end
+266:         if miss
+267:           old_score = score
+268:           score = Battle::AI::MOVE_USELESS_SCORE
+269:           PBDebug.log_score_change(score - old_score, "target is semi-invulnerable")
+270:         end
+271:       end
+272:     end
+273:     next score
+274:   }
+275: )
+276: 
+277: #===============================================================================
+278: # Account for accuracy of move.
+279: #===============================================================================
+280: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:predicted_accuracy,
+281:   proc { |score, move, user, target, ai, battle|
+282:     acc = move.rough_accuracy.to_i
+283:     if acc < 90
+284:       old_score = score
+285:       score -= (0.25 * (100 - acc)).to_i   # -2 (89%) to -24 (1%)
+286:       PBDebug.log_score_change(score - old_score, "accuracy (predicted #{acc}%)")
+287:     end
+288:     next score
+289:   }
+290: )
+291: 
+292: #===============================================================================
+293: # Adjust score based on how much damage it can deal.
+294: # Prefer the move even more if it's predicted to do enough damage to KO the
+295: # target.
+296: #===============================================================================
+297: Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:predicted_damage,
+298:   proc { |score, move, user, target, ai, battle|
+299:     if move.damagingMove?
+300:       dmg = move.rough_damage
+301:       old_score = score
+302:       if target.effects[PBEffects::Substitute] > 0
+303:         target_hp = target.effects[PBEffects::Substitute]
+304:         score += ([15.0 * dmg / target.effects[PBEffects::Substitute], 20].min).to_i
+305:         PBDebug.log_score_change(score - old_score, "damaging move (predicted damage #{dmg} = #{100 * dmg / target.hp}% of target's Substitute)")
+306:       else
+307:         score += ([25.0 * dmg / target.hp, 30].min).to_i
+308:         PBDebug.log_score_change(score - old_score, "damaging move (predicted damage #{dmg} = #{100 * dmg / target.hp}% of target's HP)")
+309:         if ai.trainer.has_skill_flag?("HPAware") && dmg > target.hp * 1.1   # Predicted to KO the target
+310:           old_score = score
+311:           score += 10
+312:           PBDebug.log_score_change(score - old_score, "predicted to KO the target")
+313:           if move.move.multiHitMove? && target.hp == target.totalhp &&
+314:              (target.has_active_ability?(:STURDY) || target.has_active_item?(:FOCUSSASH))
+315:             old_score = score
+316:             score += 8
+317:             PBDebug.log_score_change(score - old_score, "predicted to overcome the target's Sturdy/Focus Sash")
+318:           end
+319:         end
+320:       end
+321:     end
+322:     next score
+323:   }
+324: )
+325: 
+326: #===============================================================================
+327: # Prefer flinching external effects (note that move effects which cause
+328: # flinching are dealt with in the function code part of score calculation).
+329: #===============================================================================

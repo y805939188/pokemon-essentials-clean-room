@@ -1,0 +1,148 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/003_Game processing/002_Scene_Map.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [90, 236], "total_lines": 252, "sha256": "e0cee293c8febda5df6acfe083fa372886a52d4d507484c709b44466e5939e1a", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:32:48.311340+00:00"}
+90:     $game_map.update
+91:     disposeSpritesets
+92:     RPG::Cache.clear
+93:     createSpritesets
+94:     if $game_temp.transition_processing
+95:       $game_temp.transition_processing = false
+96:       Graphics.transition
+97:     end
+98:     $game_map.autoplay
+99:     Graphics.frame_reset
+100:     Input.update
+101:   end
+102: 
+103:   def call_menu
+104:     $game_temp.menu_calling = false
+105:     $game_temp.in_menu = true
+106:     $game_player.straighten
+107:     $game_map.update
+108:     sscene = PokemonPauseMenu_Scene.new
+109:     sscreen = PokemonPauseMenu.new(sscene)
+110:     sscreen.pbStartPokemonMenu
+111:     $game_temp.in_menu = false
+112:   end
+113: 
+114:   def call_debug
+115:     $game_temp.debug_calling = false
+116:     pbPlayDecisionSE
+117:     $game_player.straighten
+118:     pbFadeOutIn { pbDebugMenu }
+119:   end
+120: 
+121:   def miniupdate
+122:     $game_temp.in_mini_update = true
+123:     loop do
+124:       $game_player.update
+125:       updateMaps
+126:       $game_system.update
+127:       $game_screen.update
+128:       break if !$game_temp.player_transferring
+129:       transfer_player(false)
+130:       break if $game_temp.transition_processing
+131:     end
+132:     updateSpritesets
+133:     $game_temp.in_mini_update = false
+134:   end
+135: 
+136:   def updateMaps
+137:     $map_factory.maps.each do |map|
+138:       map.update
+139:     end
+140:     $map_factory.updateMaps(self)
+141:   end
+142: 
+143:   def updateSpritesets(refresh = false)
+144:     @spritesets = {} if !@spritesets
+145:     $map_factory.maps.each do |map|
+146:       @spritesets[map.map_id] = Spriteset_Map.new(map) if !@spritesets[map.map_id]
+147:     end
+148:     keys = @spritesets.keys.clone
+149:     keys.each do |i|
+150:       if $map_factory.hasMap?(i)
+151:         @spritesets[i].update
+152:       else
+153:         @spritesets[i]&.dispose
+154:         @spritesets[i] = nil
+155:         @spritesets.delete(i)
+156:       end
+157:     end
+158:     @spritesetGlobal.update
+159:     pbDayNightTint(@map_renderer)
+160:     @map_renderer.refresh if refresh
+161:     @map_renderer.update
+162:     EventHandlers.trigger(:on_frame_update)
+163:   end
+164: 
+165:   def update
+166:     loop do
+167:       pbMapInterpreter.update
+168:       $game_player.update
+169:       updateMaps
+170:       $game_system.update
+171:       $game_screen.update
+172:       break if !$game_temp.player_transferring
+173:       transfer_player(false)
+174:       break if $game_temp.transition_processing
+175:     end
+176:     updateSpritesets
+177:     if $game_temp.title_screen_calling
+178:       SaveData.mark_values_as_unloaded
+179:       $scene = pbCallTitle
+180:       return
+181:     end
+182:     if $game_temp.transition_processing
+183:       $game_temp.transition_processing = false
+184:       if $game_temp.transition_name == ""
+185:         Graphics.transition
+186:       else
+187:         Graphics.transition(40, "Graphics/Transitions/" + $game_temp.transition_name)
+188:       end
+189:     end
+190:     return if $game_temp.message_window_showing
+191:     if !pbMapInterpreterRunning? && !$PokemonGlobal.forced_movement?
+192:       if Input.trigger?(Input::USE)
+193:         $game_temp.interact_calling = true
+194:       elsif Input.trigger?(Input::ACTION)
+195:         if !$game_system.menu_disabled && !$game_player.moving?
+196:           $game_temp.menu_calling = true
+197:           $game_temp.menu_beep = true
+198:         end
+199:       elsif Input.trigger?(Input::SPECIAL)
+200:         $game_temp.ready_menu_calling = true if !$game_player.moving?
+201:       elsif Input.press?(Input::F9)
+202:         $game_temp.debug_calling = true if $DEBUG
+203:       end
+204:     end
+205:     if !$game_player.moving?
+206:       if $game_temp.menu_calling
+207:         call_menu
+208:       elsif $game_temp.debug_calling
+209:         call_debug
+210:       elsif $game_temp.ready_menu_calling
+211:         $game_temp.ready_menu_calling = false
+212:         $game_player.straighten
+213:         pbUseKeyItem
+214:       elsif $game_temp.interact_calling
+215:         $game_temp.interact_calling = false
+216:         triggered = false
+217:         # Try to trigger an event the player is standing on, and one in front of
+218:         # the player
+219:         if !$game_temp.in_mini_update
+220:           triggered ||= $game_player.check_event_trigger_here([0])
+221:           triggered ||= $game_player.check_event_trigger_there([0, 2]) if !triggered
+222:         end
+223:         # Try to trigger an interaction with a tile
+224:         if !triggered
+225:           $game_player.straighten
+226:           EventHandlers.trigger(:on_player_interact)
+227:         end
+228:       end
+229:     end
+230:   end
+231: 
+232:   def main
+233:     createSpritesets
+234:     Graphics.transition
+235:     loop do
+236:       Graphics.update

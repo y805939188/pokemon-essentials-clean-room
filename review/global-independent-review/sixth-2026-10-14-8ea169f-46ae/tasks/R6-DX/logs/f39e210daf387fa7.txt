@@ -1,0 +1,176 @@
+523: 
+524:   def initialize(viewport, sideSize, index, battleAnimations)
+525:     super(viewport)
+526:     @pkmn             = nil
+527:     @sideSize         = sideSize
+528:     @index            = index
+529:     @battleAnimations = battleAnimations
+530:     # @selected: 0 = not selected, 1 = choosing action bobbing for this Pokémon,
+531:     #            2 = flashing when targeted
+532:     @selected         = 0
+533:     @updating         = false
+534:     @spriteX          = 0   # Actual x coordinate
+535:     @spriteY          = 0   # Actual y coordinate
+536:     @spriteXExtra     = 0   # Offset due to "bobbing" animation
+537:     @spriteYExtra     = 0   # Offset due to "bobbing" animation
+538:     @_iconBitmap      = nil
+539:     self.visible      = false
+540:   end
+541: 
+542:   def dispose
+543:     @_iconBitmap&.dispose
+544:     @_iconBitmap = nil
+545:     self.bitmap = nil if !self.disposed?
+546:     super
+547:   end
+548: 
+549:   def x; return @spriteX; end
+550:   def y; return @spriteY; end
+551: 
+552:   def x=(value)
+553:     @spriteX = value
+554:     super(value + @spriteXExtra)
+555:   end
+556: 
+557:   def y=(value)
+558:     @spriteY = value
+559:     super(value + @spriteYExtra)
+560:   end
+561: 
+562:   def width;  return (self.bitmap) ? self.bitmap.width : 0;  end
+563:   def height; return (self.bitmap) ? self.bitmap.height : 0; end
+564: 
+565:   def visible=(value)
+566:     @spriteVisible = value if !@updating   # For selection/targeting flashing
+567:     super
+568:   end
+569: 
+570:   # Set sprite's origin to bottom middle
+571:   def pbSetOrigin
+572:     return if !@_iconBitmap
+573:     self.ox = @_iconBitmap.width / 2
+574:     self.oy = @_iconBitmap.height
+575:   end
+576: 
+577:   def pbSetPosition
+578:     return if !@_iconBitmap
+579:     pbSetOrigin
+580:     if @index.even?
+581:       self.z = 50 + (5 * @index / 2)
+582:     else
+583:       self.z = 50 - (5 * (@index + 1) / 2)
+584:     end
+585:     # Set original position
+586:     p = Battle::Scene.pbBattlerPosition(@index, @sideSize)
+587:     @spriteX = p[0]
+588:     @spriteY = p[1]
+589:     # Apply metrics
+590:     @pkmn.species_data.apply_metrics_to_sprite(self, @index)
+591:   end
+592: 
+593:   def setPokemonBitmap(pkmn, back = false)
+594:     @pkmn = pkmn
+595:     @_iconBitmap&.dispose
+596:     @_iconBitmap = GameData::Species.sprite_bitmap_from_pokemon(@pkmn, back)
+597:     self.bitmap = (@_iconBitmap) ? @_iconBitmap.bitmap : nil
+598:     pbSetPosition
+599:   end
+600: 
+601:   # This method plays the battle entrance animation of a Pokémon. By default
+602:   # this is just playing the Pokémon's cry, but you can expand on it. The
+603:   # recommendation is to create a PictureEx animation and push it into
+604:   # the @battleAnimations array.
+605:   def pbPlayIntroAnimation(pictureEx = nil)
+606:     @pkmn&.play_cry
+607:   end
+608: 
+609:   def update
+610:     return if !@_iconBitmap
+611:     @updating = true
+612:     # Update bitmap
+613:     @_iconBitmap.update
+614:     self.bitmap = @_iconBitmap.bitmap
+615:     # Pokémon sprite bobbing while Pokémon is selected
+616:     @spriteYExtra = 0
+617:     if @selected == 1 && COMMAND_BOBBING_DURATION    # When choosing commands for this Pokémon
+618:       bob_delta = System.uptime % COMMAND_BOBBING_DURATION   # 0-COMMAND_BOBBING_DURATION
+619:       bob_frame = (4 * bob_delta / COMMAND_BOBBING_DURATION).floor
+620:       case bob_frame
+621:       when 1 then @spriteYExtra = 2
+622:       when 3 then @spriteYExtra = -2
+623:       end
+624:     end
+625:     self.x       = self.x
+626:     self.y       = self.y
+627:     self.visible = @spriteVisible
+628:     # Pokémon sprite blinking when targeted
+629:     if @selected == 2 && @spriteVisible && TARGET_BLINKING_DURATION
+630:       blink_delta = System.uptime % TARGET_BLINKING_DURATION   # 0-TARGET_BLINKING_DURATION
+631:       blink_frame = (3 * blink_delta / TARGET_BLINKING_DURATION).floor
+632:       self.visible = (blink_frame != 0)
+633:     end
+634:     @updating = false
+635:   end
+636: end
+637: 
+638: #===============================================================================
+639: # Shadow sprite for Pokémon (used in battle)
+640: #===============================================================================
+641: class Battle::Scene::BattlerShadowSprite < RPG::Sprite
+642:   attr_reader   :pkmn
+643:   attr_accessor :index
+644:   attr_accessor :selected
+645: 
+646:   def initialize(viewport, sideSize, index)
+647:     super(viewport)
+648:     @pkmn        = nil
+649:     @sideSize    = sideSize
+650:     @index       = index
+651:     @_iconBitmap = nil
+652:     self.visible = false
+653:   end
+654: 
+655:   def dispose
+656:     @_iconBitmap&.dispose
+657:     @_iconBitmap = nil
+658:     self.bitmap = nil if !self.disposed?
+659:     super
+660:   end
+661: 
+662:   def width;  return (self.bitmap) ? self.bitmap.width : 0;  end
+663:   def height; return (self.bitmap) ? self.bitmap.height : 0; end
+664: 
+665:   # Set sprite's origin to centre
+666:   def pbSetOrigin
+667:     return if !@_iconBitmap
+668:     self.ox = @_iconBitmap.width / 2
+669:     self.oy = @_iconBitmap.height / 2
+670:   end
+671: 
+672:   def pbSetPosition
+673:     return if !@_iconBitmap
+674:     pbSetOrigin
+675:     self.z = 3
+676:     # Set original position
+677:     p = Battle::Scene.pbBattlerPosition(@index, @sideSize)
+678:     self.x = p[0]
+679:     self.y = p[1]
+680:     # Apply metrics
+681:     @pkmn.species_data.apply_metrics_to_sprite(self, @index, true)
+682:   end
+683: 
+684:   def setPokemonBitmap(pkmn)
+685:     @pkmn = pkmn
+686:     @_iconBitmap&.dispose
+687:     @_iconBitmap = GameData::Species.shadow_bitmap_from_pokemon(@pkmn)
+688:     self.bitmap = (@_iconBitmap) ? @_iconBitmap.bitmap : nil
+689:     pbSetPosition
+690:   end
+691: 
+692:   def update
+693:     return if !@_iconBitmap
+694:     # Update bitmap
+695:     @_iconBitmap.update
+696:     self.bitmap = @_iconBitmap.bitmap
+697:   end
+698: end

@@ -1,0 +1,147 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/004_Game classes/005_Game_MapFactory.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "0657b0f2d3a35e68fe8d1add1b855a167c3f7575", "sha256": "e130e1ed82d0dcac68cf0d3f75c0f141f22bc404a05993fb7e186a6008f61163", "start_line": 361, "end_line": 506, "total_lines": 506, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:34:23.835284+00:00"}
+361:   def updateMapsInternal
+362:     return if $game_player.moving?
+363:     if !MapFactoryHelper.hasConnections?($game_map.map_id)
+364:       return if @maps.length == 1
+365:       @maps.delete_if { |map| map.map_id != $game_map.map_id }
+366:       @mapIndex = getMapIndex($game_map.map_id)
+367:       return
+368:     end
+369:     old_num_maps = @maps.length
+370:     @maps.delete_if { |map| !MapFactoryHelper.mapsConnected?($game_map.map_id, map.map_id) }
+371:     @mapIndex = getMapIndex($game_map.map_id) if @maps.length != old_num_maps
+372:     setMapsInRange
+373:     old_num_maps = @maps.length
+374:     @maps.delete_if { |map| !MapFactoryHelper.mapInRange?(map) }
+375:     @mapIndex = getMapIndex($game_map.map_id) if @maps.length != old_num_maps
+376:   end
+377: end
+378: 
+379: #===============================================================================
+380: # Map Factory Helper (stores map connection and size data and calculations
+381: # involving them)
+382: #===============================================================================
+383: module MapFactoryHelper
+384:   @@MapConnections = nil
+385:   @@MapDims        = nil
+386: 
+387:   def self.clear
+388:     @@MapConnections = nil
+389:     @@MapDims        = nil
+390:   end
+391: 
+392:   def self.getMapConnections
+393:     if !@@MapConnections
+394:       @@MapConnections = []
+395:       conns = load_data("Data/map_connections.dat")
+396:       conns.each do |conn|
+397:         # Ensure both maps in a connection are valid
+398:         dimensions = getMapDims(conn[0])
+399:         next if dimensions[0] == 0 || dimensions[1] == 0
+400:         dimensions = getMapDims(conn[3])
+401:         next if dimensions[0] == 0 || dimensions[1] == 0
+402:         # Convert first map's edge and coordinate to pair of coordinates
+403:         edge = getMapEdge(conn[0], conn[1])
+404:         case conn[1]
+405:         when "N", "S"
+406:           conn[1] = conn[2]
+407:           conn[2] = edge
+408:         when "E", "W"
+409:           conn[1] = edge
+410:         end
+411:         # Convert second map's edge and coordinate to pair of coordinates
+412:         edge = getMapEdge(conn[3], conn[4])
+413:         case conn[4]
+414:         when "N", "S"
+415:           conn[4] = conn[5]
+416:           conn[5] = edge
+417:         when "E", "W"
+418:           conn[4] = edge
+419:         end
+420:         # Add connection to arrays for both maps
+421:         @@MapConnections[conn[0]] = [] if !@@MapConnections[conn[0]]
+422:         @@MapConnections[conn[0]].push(conn)
+423:         @@MapConnections[conn[3]] = [] if !@@MapConnections[conn[3]]
+424:         @@MapConnections[conn[3]].push(conn)
+425:       end
+426:     end
+427:     return @@MapConnections
+428:   end
+429: 
+430:   def self.hasConnections?(id)
+431:     conns = MapFactoryHelper.getMapConnections
+432:     return conns[id] ? true : false
+433:   end
+434: 
+435:   def self.mapsConnected?(id1, id2)
+436:     MapFactoryHelper.eachConnectionForMap(id1) do |conn|
+437:       return true if conn[0] == id2 || conn[3] == id2
+438:     end
+439:     return false
+440:   end
+441: 
+442:   def self.eachConnectionForMap(id)
+443:     conns = MapFactoryHelper.getMapConnections
+444:     return if !conns[id]
+445:     conns[id].each { |conn| yield conn }
+446:   end
+447: 
+448:   # Gets the height and width of the map with id
+449:   def self.getMapDims(id)
+450:     # Create cache if doesn't exist
+451:     @@MapDims = [] if !@@MapDims
+452:     # Add map to cache if can't be found
+453:     if !@@MapDims[id]
+454:       begin
+455:         map = load_data(sprintf("Data/Map%03d.rxdata", id))
+456:         @@MapDims[id] = [map.width, map.height]
+457:       rescue
+458:         @@MapDims[id] = [0, 0]
+459:       end
+460:     end
+461:     # Return map in cache
+462:     return @@MapDims[id]
+463:   end
+464: 
+465:   # Returns the X or Y coordinate of an edge on the map with id.
+466:   # Considers the special strings "N","W","E","S"
+467:   def self.getMapEdge(id, edge)
+468:     return 0 if ["N", "W"].include?(edge)
+469:     dims = getMapDims(id)   # Get dimensions
+470:     return dims[0] if edge == "E"
+471:     return dims[1] if edge == "S"
+472:     return dims[0]   # real dimension (use width)
+473:   end
+474: 
+475:   def self.mapInRange?(map)
+476:     range = 6   # Number of tiles
+477:     dispx = map.display_x
+478:     dispy = map.display_y
+479:     return false if dispx >= (map.width + range) * Game_Map::REAL_RES_X
+480:     return false if dispy >= (map.height + range) * Game_Map::REAL_RES_Y
+481:     return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+482:     return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+483:     return true
+484:   end
+485: 
+486:   def self.mapInRangeById?(id, dispx, dispy)
+487:     range = 6   # Number of tiles
+488:     dims = MapFactoryHelper.getMapDims(id)
+489:     return false if dispx >= (dims[0] + range) * Game_Map::REAL_RES_X
+490:     return false if dispy >= (dims[1] + range) * Game_Map::REAL_RES_Y
+491:     return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+492:     return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+493:     return true
+494:   end
+495: end
+496: 
+497: #===============================================================================
+498: #
+499: #===============================================================================
+500: # Unused
+501: def updateTilesets
+502:   maps = $map_factory.maps
+503:   maps.each do |map|
+504:     map&.updateTileset
+505:   end
+506: end

@@ -1,0 +1,101 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 663, "end_line": 762, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:47:57.647445+00:00"}
+663:       # Animate the hit flashing and HP bar changes
+664:       move.pbAnimateHitAndHPLost(user, targets)
+665:     end
+666:     # Self-Destruct/Explosion's damaging and fainting of user
+667:     move.pbSelfKO(user) if hitNum == 0
+668:     user.pbFaint if user.fainted?
+669:     if move.pbDamagingMove?
+670:       targets.each do |b|
+671:         next if b.damageState.unaffected
+672:         # NOTE: This method is also used for the OHKO special message.
+673:         move.pbHitEffectivenessMessages(user, b, targets.length)
+674:         # Record data about the hit for various effects' purposes
+675:         move.pbRecordDamageLost(user, b)
+676:       end
+677:       # Close Combat/Superpower's stat-lowering, Flame Burst's splash damage,
+678:       # and Incinerate's berry destruction
+679:       targets.each do |b|
+680:         next if b.damageState.unaffected
+681:         move.pbEffectWhenDealingDamage(user, b)
+682:       end
+683:       # Ability/item effects such as Static/Rocky Helmet, and Grudge, etc.
+684:       targets.each do |b|
+685:         next if b.damageState.unaffected
+686:         pbEffectsOnMakingHit(move, user, b)
+687:       end
+688:       # Disguise/Endure/Sturdy/Focus Sash/Focus Band messages
+689:       targets.each do |b|
+690:         next if b.damageState.unaffected
+691:         move.pbEndureKOMessage(b)
+692:       end
+693:       # HP-healing held items (checks all battlers rather than just targets
+694:       # because Flame Burst's splash damage affects non-targets)
+695:       @battle.pbPriority(true).each do |b|
+696:         next if move.preventsBattlerConsumingHealingBerry?(b, targets)
+697:         b.pbItemHPHealCheck
+698:       end
+699:       # Animate battlers fainting (checks all battlers rather than just targets
+700:       # because Flame Burst's splash damage affects non-targets)
+701:       @battle.pbPriority(true).each { |b| b.pbFaint if b&.fainted? }
+702:     end
+703:     @battle.pbJudgeCheckpoint(user, move)
+704:     # Main effect (recoil/drain, etc.)
+705:     targets.each do |b|
+706:       next if b.damageState.unaffected
+707:       move.pbEffectAgainstTarget(user, b)
+708:     end
+709:     move.pbEffectGeneral(user)
+710:     targets.each { |b| b.pbFaint if b&.fainted? }
+711:     user.pbFaint if user.fainted?
+712:     # Additional effect
+713:     if !user.hasActiveAbility?(:SHEERFORCE)
+714:       targets.each do |b|
+715:         next if b.damageState.calcDamage == 0
+716:         chance = move.pbAdditionalEffectChance(user, b)
+717:         next if chance <= 0
+718:         move.pbAdditionalEffect(user, b) if @battle.pbRandom(100) < chance
+719:       end
+720:     end
+721:     # Make the target flinch (because of an item/ability)
+722:     targets.each do |b|
+723:       next if b.fainted?
+724:       next if b.damageState.calcDamage == 0 || b.damageState.substitute
+725:       chance = move.pbFlinchChance(user, b)
+726:       next if chance <= 0
+727:       if @battle.pbRandom(100) < chance
+728:         PBDebug.log("[Item/ability triggered] #{user.pbThis}'s King's Rock/Razor Fang or Stench")
+729:         b.pbFlinch(user)
+730:       end
+731:     end
+732:     # Message for and consuming of type-weakening berries
+733:     # NOTE: The "consume held item" animation for type-weakening berries occurs
+734:     #       during pbCalcDamage above (before the move's animation), but the
+735:     #       message about it only shows here.
+736:     targets.each do |b|
+737:       next if b.damageState.unaffected
+738:       next if !b.damageState.berryWeakened
+739:       @battle.pbDisplay(_INTL("The {1} weakened the damage to {2}!", b.itemName, b.pbThis(true)))
+740:       b.pbConsumeItem
+741:     end
+742:     # Steam Engine (goes here because it should be after stat changes caused by
+743:     # the move)
+744:     if [:FIRE, :WATER].include?(move.calcType)
+745:       targets.each do |b|
+746:         next if b.damageState.unaffected
+747:         next if b.damageState.calcDamage == 0 || b.damageState.substitute
+748:         next if !b.hasActiveAbility?(:STEAMENGINE)
+749:         b.pbRaiseStatStageByAbility(:SPEED, 6, b) if b.pbCanRaiseStatStage?(:SPEED, b)
+750:       end
+751:     end
+752:     # Fainting
+753:     targets.each { |b| b.pbFaint if b&.fainted? }
+754:     user.pbFaint if user.fainted?
+755:     # Dragon Darts' second half of attack
+756:     if move.pbRepeatHit? && hitNum == 0 &&
+757:        targets.any? { |b| !b.fainted? && !b.damageState.unaffected }
+758:       pbProcessMoveHit(move, user, all_targets, 1, skipAccuracyCheck)
+759:     end
+760:     return true
+761:   end
+762: end

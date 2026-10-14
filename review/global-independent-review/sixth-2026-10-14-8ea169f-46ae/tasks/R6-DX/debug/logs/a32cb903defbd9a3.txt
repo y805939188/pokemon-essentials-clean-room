@@ -1,0 +1,71 @@
+1615:                    event.pages[0].graphic.character_name != "" &&   # Has charset
+1616:                    event.pages[0].list[0].code == 355 &&   # First line is Script
+1617:                    event.pages[0].list[0].parameters[0][/^pbSetPokemonCenter/]
+1618:     return false
+1619:   end
+1620: 
+1621:   # Given two events that are next to each other, decides whether otherEvent is
+1622:   # likely to be a "counter event", i.e. is placed on a tile with the Counter
+1623:   # flag, or is on a non-passable tile between two passable tiles (e.g. a desk)
+1624:   # where one of those two tiles is occupied by thisEvent.
+1625:   def likely_counter?(thisEvent, otherEvent, mapID, mapData)
+1626:     # Check whether otherEvent is on a counter tile
+1627:     return true if mapData.isCounterTile?(mapID, otherEvent.x, otherEvent.y)
+1628:     # Check whether otherEvent is between an event with a graphic (e.g. an NPC)
+1629:     # and a spot where the player can be
+1630:     yonderX = otherEvent.x + (otherEvent.x - thisEvent.x)
+1631:     yonderY = otherEvent.y + (otherEvent.y - thisEvent.y)
+1632:     return thisEvent.pages[0].graphic.character_name != "" &&    # Has charset
+1633:            otherEvent.pages[0].graphic.character_name == "" &&   # Has no charset
+1634:            otherEvent.pages[0].trigger == 0 &&                   # Action trigger
+1635:            mapData.isPassable?(mapID, thisEvent.x, thisEvent.y) &&
+1636:            !mapData.isPassable?(mapID, otherEvent.x, otherEvent.y) &&
+1637:            mapData.isPassable?(mapID, yonderX, yonderY)
+1638:   end
+1639: 
+1640:   # Checks all events in the given map to see if any look like they've been
+1641:   # placed on a desk with an NPC behind it, where the event on the desk is the
+1642:   # actual interaction with the NPC. In other words, it's not making proper use
+1643:   # of the counter flag (which lets the player interact with an event on the
+1644:   # other side of counter tiles).
+1645:   # Any events found to be like this have their contents merged into the NPC
+1646:   # event and the counter event itself is deleted. The tile below the counter
+1647:   # event gets its counter flag set (if it isn't already).
+1648:   def check_counters(map, mapID, mapData)
+1649:     toDelete = []
+1650:     changed = false
+1651:     map.events.each_key do |key|
+1652:       event = map.events[key]
+1653:       next if !plain_event_or_mart?(event)
+1654:       # Found an event that is empty or looks like a simple Mart or a Poké
+1655:       # Center nurse. Check adjacent events to see if they are "counter events".
+1656:       neighbors = []
+1657:       neighbors.push(mapData.getEventFromXY(mapID, event.x, event.y - 1))
+1658:       neighbors.push(mapData.getEventFromXY(mapID, event.x, event.y + 1))
+1659:       neighbors.push(mapData.getEventFromXY(mapID, event.x - 1, event.y))
+1660:       neighbors.push(mapData.getEventFromXY(mapID, event.x + 1, event.y))
+1661:       neighbors.compact!
+1662:       neighbors.each do |otherEvent|
+1663:         next if plain_event?(otherEvent)   # Blank/cosmetic-only event
+1664:         next if !likely_counter?(event, otherEvent, mapID, mapData)
+1665:         # Found an adjacent event that looks like it's supposed to be a counter.
+1666:         # Set the counter flag of the tile beneath the counter event, copy the
+1667:         # counter event's pages to the NPC event, and delete the counter event.
+1668:         mapData.setCounterTile(mapID, otherEvent.x, otherEvent.y)
+1669:         savedPage = event.pages[0]
+1670:         event.pages = otherEvent.pages
+1671:         apply_pages(savedPage, event.pages)   # Apply NPC's visuals to new event pages
+1672:         toDelete.push(otherEvent.id)
+1673:         changed = true
+1674:       end
+1675:     end
+1676:     toDelete.each { |key| map.events.delete(key) }
+1677:     return changed
+1678:   end
+1679: 
+1680:   #=============================================================================
+1681:   # Main compiler method for events
+1682:   #=============================================================================
+1683:   def compile_trainer_events(_mustcompile)
+1684:     mapData = MapData.new
+1685:     t = System.uptime

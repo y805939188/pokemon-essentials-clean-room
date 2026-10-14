@@ -1,0 +1,220 @@
+221:       score -= 15
+222:     end
+223:     # Consider the target's end of round damage/healing
+224:     eor_damage = target.rough_end_of_round_damage
+225:     score -= 15 if eor_damage > 0
+226:     score += 15 if eor_damage < 0
+227:     # Prefer if the target's side has entry hazards on it
+228:     score += 10 if target.pbOwnSide.effects[PBEffects::Spikes] > 0
+229:     score += 10 if target.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+230:     score += 10 if target.pbOwnSide.effects[PBEffects::StealthRock]
+231:     next score
+232:   }
+233: )
+234: 
+235: #===============================================================================
+236: #
+237: #===============================================================================
+238: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("BindTarget",
+239:   proc { |score, move, user, target, ai, battle|
+240:     next score if target.effects[PBEffects::Trapping] > 0
+241:     next score if target.effects[PBEffects::Substitute] > 0
+242:     # Prefer if the user has a Binding Band or Grip Claw (because why have it if
+243:     # you don't want to use it?)
+244:     score += 5 if user.has_active_item?([:BINDINGBAND, :GRIPCLAW])
+245:     # Target will take damage at the end of each round from the binding
+246:     score += 10 if target.battler.takesIndirectDamage?
+247:     # Check whether the target will be trapped in battle by the binding
+248:     if target.can_become_trapped?
+249:       score += 8   # Prefer if the target will become trapped by this move
+250:       eor_damage = target.rough_end_of_round_damage
+251:       if eor_damage > 0
+252:         # Prefer if the target will take damage at the end of each round on top
+253:         # of binding damage
+254:         score += 10
+255:       elsif eor_damage < 0
+256:         # Don't prefer if the target will heal itself at the end of each round
+257:         score -= 10
+258:       end
+259:       # Prefer if the target has been Perish Songed
+260:       score += 15 if target.effects[PBEffects::PerishSong] > 0
+261:     end
+262:     # Don't prefer if the target can remove the binding (and the binding has an
+263:     # effect)
+264:     if target.can_become_trapped? || target.battler.takesIndirectDamage?
+265:       if ai.trainer.medium_skill? &&
+266:          target.has_move_with_function?("RemoveUserBindingAndEntryHazards")
+267:         score -= 10
+268:       end
+269:     end
+270:     next score
+271:   }
+272: )
+273: 
+274: #===============================================================================
+275: #
+276: #===============================================================================
+277: Battle::AI::Handlers::MoveBasePower.add("BindTargetDoublePowerIfTargetUnderwater",
+278:   proc { |power, move, user, target, ai, battle|
+279:     next move.move.pbModifyDamage(power, user.battler, target.battler)
+280:   }
+281: )
+282: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("BindTarget",
+283:                                                         "BindTargetDoublePowerIfTargetUnderwater")
+284: 
+285: #===============================================================================
+286: #
+287: #===============================================================================
+288: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TrapTargetInBattle",
+289:   proc { |move, user, target, ai, battle|
+290:     next false if move.damagingMove?
+291:     next true if target.effects[PBEffects::MeanLook] >= 0
+292:     next true if Settings::MORE_TYPE_EFFECTS && target.has_type?(:GHOST)
+293:     next false
+294:   }
+295: )
+296: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TrapTargetInBattle",
+297:   proc { |score, move, user, target, ai, battle|
+298:     if !target.can_become_trapped? || !battle.pbCanChooseNonActive?(target.index)
+299:       next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+300:     end
+301:     # Not worth trapping if target will faint this round anyway
+302:     eor_damage = target.rough_end_of_round_damage
+303:     if eor_damage >= target.hp
+304:       next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+305:     end
+306:     # Not worth trapping if target can remove the binding
+307:     if ai.trainer.medium_skill? &&
+308:        target.has_move_with_function?("RemoveUserBindingAndEntryHazards")
+309:       next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+310:     end
+311:     # Score for being an additional effect
+312:     add_effect = move.get_score_change_for_additional_effect(user, target)
+313:     next score if add_effect == -999   # Additional effect will be negated
+314:     score += add_effect
+315:     # Score for target becoming trapped in battle
+316:     if target.effects[PBEffects::PerishSong] > 0 ||
+317:        target.effects[PBEffects::Attract] >= 0 ||
+318:        target.effects[PBEffects::Confusion] > 0 ||
+319:        eor_damage > 0
+320:       score += 15
+321:     end
+322:     next score
+323:   }
+324: )
+325: 
+326: #===============================================================================
+327: #
+328: #===============================================================================
+329: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.copy("TrapTargetInBattle",
+330:                                                          "TrapTargetInBattleMainEffect")
+331: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("TrapTargetInBattle",
+332:                                                         "TrapTargetInBattleMainEffect")
+333: 
+334: #===============================================================================
+335: #
+336: #===============================================================================
+337: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TrapTargetInBattleLowerTargetDefSpDef1EachTurn",
+338:   proc { |move, user, target, ai, battle|
+339:     next false if move.damagingMove?
+340:     next true if target.effects[PBEffects::Octolock] >= 0
+341:     next true if Settings::MORE_TYPE_EFFECTS && target.has_type?(:GHOST)
+342:     next false
+343:   }
+344: )
+345: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TrapTargetInBattleLowerTargetDefSpDef1EachTurn",
+346:   proc { |score, move, user, target, ai, battle|
+347:     # Score for stat drop
+348:     score = ai.get_score_for_target_stat_drop(score, target, [:DEFENSE, 1, :SPECIAL_DEFENSE, 1], false)
+349:     # Score for target becoming trapped in battle
+350:     if target.can_become_trapped? && battle.pbCanChooseNonActive?(target.index)
+351:       # Not worth trapping if target will faint this round anyway
+352:       eor_damage = target.rough_end_of_round_damage
+353:       if eor_damage >= target.hp
+354:         next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+355:       end
+356:       # Not worth trapping if target can remove the binding
+357:       if target.has_move_with_function?("RemoveUserBindingAndEntryHazards")
+358:         next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+359:       end
+360:       # Score for target becoming trapped in battle
+361:       if target.effects[PBEffects::PerishSong] > 0 ||
+362:          target.effects[PBEffects::Attract] >= 0 ||
+363:          target.effects[PBEffects::Confusion] > 0 ||
+364:          eor_damage > 0
+365:         score += 15
+366:       end
+367:     end
+368:     next score
+369:   }
+370: )
+371: 
+372: #===============================================================================
+373: #
+374: #===============================================================================
+375: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TrapUserAndTargetInBattle",
+376:   proc { |score, move, user, target, ai, battle|
+377:     # NOTE: Don't worry about scoring for the user also becoming trapped in
+378:     #       battle, because it knows this move and accepts what it's getting
+379:     #       itself into.
+380:     if target.can_become_trapped? && battle.pbCanChooseNonActive?(target.index)
+381:       # Not worth trapping if target will faint this round anyway
+382:       eor_damage = target.rough_end_of_round_damage
+383:       if eor_damage >= target.hp
+384:         next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+385:       end
+386:       # Not worth trapping if target can remove the binding
+387:       if ai.trainer.medium_skill? &&
+388:          target.has_move_with_function?("RemoveUserBindingAndEntryHazards")
+389:         next (move.damagingMove?) ? score : Battle::AI::MOVE_USELESS_SCORE
+390:       end
+391:       # Score for target becoming trapped in battle
+392:       if target.effects[PBEffects::PerishSong] > 0 ||
+393:          target.effects[PBEffects::Attract] >= 0 ||
+394:          target.effects[PBEffects::Confusion] > 0 ||
+395:          eor_damage > 0
+396:         score += 15
+397:       end
+398:     end
+399:     next score
+400:   }
+401: )
+402: 
+403: #===============================================================================
+404: #
+405: #===============================================================================
+406: Battle::AI::Handlers::MoveFailureCheck.add("TrapAllBattlersInBattleForOneTurn",
+407:   proc { |move, user, ai, battle|
+408:     next battle.field.effects[PBEffects::FairyLock] > 0
+409:   }
+410: )
+411: Battle::AI::Handlers::MoveEffectScore.add("TrapAllBattlersInBattleForOneTurn",
+412:   proc { |score, move, user, ai, battle|
+413:     # Trapping for just one turn isn't so significant, so generally don't prefer
+414:     next score - 10
+415:   }
+416: )
+417: 
+418: #===============================================================================
+419: #
+420: #===============================================================================
+421: # PursueSwitchingFoe
+422: 
+423: #===============================================================================
+424: #
+425: #===============================================================================
+426: Battle::AI::Handlers::MoveFailureCheck.add("UsedAfterUserTakesPhysicalDamage",
+427:   proc { |move, user, ai, battle|
+428:     found_physical_move = false
+429:     ai.each_foe_battler(user.side) do |b, i|
+430:       next if !b.check_for_move { |m| m.physicalMove?(m.type) }
+431:       found_physical_move = true
+432:       break
+433:     end
+434:     next !found_physical_move
+435:   }
+436: )
+437: Battle::AI::Handlers::MoveEffectScore.add("UsedAfterUserTakesPhysicalDamage",
+438:   proc { |score, move, user, ai, battle|
+439:     next Battle::AI::MOVE_USELESS_SCORE if user.effects[PBEffects::Substitute] > 0
+440:     # Prefer if foes don't know any special moves

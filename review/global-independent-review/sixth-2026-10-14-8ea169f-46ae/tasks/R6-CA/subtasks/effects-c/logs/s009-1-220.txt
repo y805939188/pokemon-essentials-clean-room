@@ -1,0 +1,220 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: Battle::AI::Handlers::MoveFailureCheck.add("FleeFromBattle",
+5:   proc { |move, user, ai, battle|
+6:     next !battle.pbCanRun?(user.index) || (user.wild? && user.battler.allAllies.length > 0)
+7:   }
+8: )
+9: Battle::AI::Handlers::MoveEffectScore.add("FleeFromBattle",
+10:   proc { |score, move, user, ai, battle|
+11:     # Generally don't prefer (don't want to end the battle too easily)
+12:     next score - 20
+13:   }
+14: )
+15: 
+16: #===============================================================================
+17: #
+18: #===============================================================================
+19: Battle::AI::Handlers::MoveFailureCheck.add("SwitchOutUserStatusMove",
+20:   proc { |move, user, ai, battle|
+21:     if user.wild?
+22:       next !battle.pbCanRun?(user.index) || user.battler.allAllies.length > 0
+23:     end
+24:     next !battle.pbCanChooseNonActive?(user.index)
+25:   }
+26: )
+27: Battle::AI::Handlers::MoveEffectScore.add("SwitchOutUserStatusMove",
+28:   proc { |score, move, user, ai, battle|
+29:     # Wild Pokémon run from battle - generally don't prefer (don't want to end the battle too easily)
+30:     next score - 20 if user.wild?
+31:     # Trainer-owned Pokémon switch out
+32:     if ai.trainer.has_skill_flag?("ReserveLastPokemon") && battle.pbTeamAbleNonActiveCount(user.index) == 1
+33:       next Battle::AI::MOVE_USELESS_SCORE   # Don't switch in ace
+34:     end
+35:     # Prefer if the user switching out will lose a negative effect
+36:     score += 20 if user.effects[PBEffects::PerishSong] > 0
+37:     score += 10 if user.effects[PBEffects::Confusion] > 1
+38:     score += 10 if user.effects[PBEffects::Attract] >= 0
+39:     # Consider the user's stat stages
+40:     if user.stages.any? { |key, val| val >= 2 }
+41:       score -= 15
+42:     elsif user.stages.any? { |key, val| val < 0 }
+43:       score += 10
+44:     end
+45:     # Consider the user's end of round damage/healing
+46:     eor_damage = user.rough_end_of_round_damage
+47:     score += 15 if eor_damage > 0
+48:     score -= 15 if eor_damage < 0
+49:     # Prefer if the user doesn't have any damaging moves
+50:     score += 10 if !user.check_for_move { |m| m.damagingMove? }
+51:     # Don't prefer if the user's side has entry hazards on it
+52:     score -= 10 if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+53:     score -= 10 if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+54:     score -= 10 if user.pbOwnSide.effects[PBEffects::StealthRock]
+55:     next score
+56:   }
+57: )
+58: 
+59: #===============================================================================
+60: #
+61: #===============================================================================
+62: Battle::AI::Handlers::MoveEffectScore.add("SwitchOutUserDamagingMove",
+63:   proc { |score, move, user, ai, battle|
+64:     next score if !battle.pbCanChooseNonActive?(user.index)
+65:     # Don't want to switch in ace
+66:     score -= 20 if ai.trainer.has_skill_flag?("ReserveLastPokemon") &&
+67:                    battle.pbTeamAbleNonActiveCount(user.index) == 1
+68:     # Prefer if the user switching out will lose a negative effect
+69:     score += 20 if user.effects[PBEffects::PerishSong] > 0
+70:     score += 10 if user.effects[PBEffects::Confusion] > 1
+71:     score += 10 if user.effects[PBEffects::Attract] >= 0
+72:     # Consider the user's stat stages
+73:     if user.stages.any? { |key, val| val >= 2 }
+74:       score -= 15
+75:     elsif user.stages.any? { |key, val| val < 0 }
+76:       score += 10
+77:     end
+78:     # Consider the user's end of round damage/healing
+79:     eor_damage = user.rough_end_of_round_damage
+80:     score += 15 if eor_damage > 0
+81:     score -= 15 if eor_damage < 0
+82:     # Don't prefer if the user's side has entry hazards on it
+83:     score -= 10 if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+84:     score -= 10 if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+85:     score -= 10 if user.pbOwnSide.effects[PBEffects::StealthRock]
+86:     next score
+87:   }
+88: )
+89: 
+90: #===============================================================================
+91: #
+92: #===============================================================================
+93: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("LowerTargetAtkSpAtk1SwitchOutUser",
+94:   proc { |move, user, target, ai, battle|
+95:     will_fail = true
+96:     (move.move.statDown.length / 2).times do |i|
+97:       next if !target.battler.pbCanLowerStatStage?(move.move.statDown[i * 2], user.battler, move.move)
+98:       will_fail = false
+99:       break
+100:     end
+101:     next will_fail
+102:   }
+103: )
+104: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("LowerTargetAtkSpAtk1SwitchOutUser",
+105:   proc { |score, move, user, target, ai, battle|
+106:     next ai.get_score_for_target_stat_drop(score, target, move.move.statDown, false)
+107:   }
+108: )
+109: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("SwitchOutUserDamagingMove",
+110:                                                         "LowerTargetAtkSpAtk1SwitchOutUser")
+111: 
+112: #===============================================================================
+113: #
+114: #===============================================================================
+115: Battle::AI::Handlers::MoveFailureCheck.add("SwitchOutUserPassOnEffects",
+116:   proc { |move, user, ai, battle|
+117:     next !battle.pbCanChooseNonActive?(user.index)
+118:   }
+119: )
+120: Battle::AI::Handlers::MoveEffectScore.add("SwitchOutUserPassOnEffects",
+121:   proc { |score, move, user, ai, battle|
+122:     # Don't want to switch in ace
+123:     score -= 20 if ai.trainer.has_skill_flag?("ReserveLastPokemon") &&
+124:                    battle.pbTeamAbleNonActiveCount(user.index) == 1
+125:     # Don't prefer if the user will pass on a negative effect
+126:     score -= 10 if user.effects[PBEffects::Confusion] > 1
+127:     score -= 15 if user.effects[PBEffects::Curse]
+128:     score -= 10 if user.effects[PBEffects::Embargo] > 1
+129:     score -= 15 if user.effects[PBEffects::GastroAcid]
+130:     score -= 10 if user.effects[PBEffects::HealBlock] > 1
+131:     score -= 10 if user.effects[PBEffects::LeechSeed] >= 0
+132:     score -= 20 if user.effects[PBEffects::PerishSong] > 0
+133:     # Prefer if the user will pass on a positive effect
+134:     score += 10 if user.effects[PBEffects::AquaRing]
+135:     score += 10 if user.effects[PBEffects::FocusEnergy] > 0
+136:     score += 10 if user.effects[PBEffects::Ingrain]
+137:     score += 8 if user.effects[PBEffects::MagnetRise] > 1
+138:     score += 10 if user.effects[PBEffects::Substitute] > 0
+139:     # Consider the user's stat stages
+140:     if user.stages.any? { |key, val| val >= 4 }
+141:       score += 25
+142:     elsif user.stages.any? { |key, val| val >= 2 }
+143:       score += 15
+144:     elsif user.stages.any? { |key, val| val < 0 }
+145:       score -= 15
+146:     end
+147:     # Consider the user's end of round damage/healing
+148:     eor_damage = user.rough_end_of_round_damage
+149:     score += 15 if eor_damage > 0
+150:     score -= 15 if eor_damage < 0
+151:     # Prefer if the user doesn't have any damaging moves
+152:     score += 15 if !user.check_for_move { |m| m.damagingMove? }
+153:     # Don't prefer if the user's side has entry hazards on it
+154:     score -= 10 if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+155:     score -= 10 if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+156:     score -= 10 if user.pbOwnSide.effects[PBEffects::StealthRock]
+157:     next score
+158:   }
+159: )
+160: 
+161: #===============================================================================
+162: #
+163: #===============================================================================
+164: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("SwitchOutTargetStatusMove",
+165:   proc { |move, user, target, ai, battle|
+166:     next move.move.pbFailsAgainstTarget?(user.battler, target.battler, false)
+167:   }
+168: )
+169: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("SwitchOutTargetStatusMove",
+170:   proc { |score, move, user, target, ai, battle|
+171:     # Ends the battle - generally don't prefer (don't want to end the battle too easily)
+172:     next score - 10 if target.wild?
+173:     # Switches the target out
+174:     next Battle::AI::MOVE_USELESS_SCORE if target.effects[PBEffects::PerishSong] > 0
+175:     # Don't prefer if target is at low HP and could be knocked out instead
+176:     if ai.trainer.has_skill_flag?("HPAware")
+177:       score -= 10 if target.hp <= target.totalhp / 3
+178:     end
+179:     # Consider the target's stat stages
+180:     if target.stages.any? { |key, val| val >= 2 }
+181:       score += 15
+182:     elsif target.stages.any? { |key, val| val < 0 }
+183:       score -= 15
+184:     end
+185:     # Consider the target's end of round damage/healing
+186:     eor_damage = target.rough_end_of_round_damage
+187:     score -= 15 if eor_damage > 0
+188:     score += 15 if eor_damage < 0
+189:     # Prefer if the target's side has entry hazards on it
+190:     score += 10 if target.pbOwnSide.effects[PBEffects::Spikes] > 0
+191:     score += 10 if target.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+192:     score += 10 if target.pbOwnSide.effects[PBEffects::StealthRock]
+193:     next score
+194:   }
+195: )
+196: 
+197: #===============================================================================
+198: #
+199: #===============================================================================
+200: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("SwitchOutTargetDamagingMove",
+201:   proc { |score, move, user, target, ai, battle|
+202:     next score if target.wild?
+203:     # No score modification if the target can't be made to switch out
+204:     next score if !battle.moldBreaker && target.has_active_ability?(:SUCTIONCUPS)
+205:     next score if target.effects[PBEffects::Ingrain]
+206:     # No score modification if the target can't be replaced
+207:     can_switch = false
+208:     battle.eachInTeamFromBattlerIndex(target.index) do |_pkmn, i|
+209:       can_switch = battle.pbCanSwitchIn?(target.index, i)
+210:       break if can_switch
+211:     end
+212:     next score if !can_switch
+213:     # Not score modification if the target has a Substitute
+214:     next score if target.effects[PBEffects::Substitute] > 0
+215:     # Don't want to switch out the target if it will faint from Perish Song
+216:     score -= 20 if target.effects[PBEffects::PerishSong] > 0
+217:     # Consider the target's stat stages
+218:     if target.stages.any? { |key, val| val >= 2 }
+219:       score += 15
+220:     elsif target.stages.any? { |key, val| val < 0 }

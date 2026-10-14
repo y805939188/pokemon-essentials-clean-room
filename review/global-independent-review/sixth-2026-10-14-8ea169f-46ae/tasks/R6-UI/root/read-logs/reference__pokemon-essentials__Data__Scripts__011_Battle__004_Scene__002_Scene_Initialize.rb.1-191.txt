@@ -1,0 +1,192 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/002_Scene_Initialize.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 191], "total_lines": 191, "sha256": "8a5b2d9973937ec15ee6c1a2727fb65b02d8a6c00eba3706645f44deadf5b296", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:29:02.057690+00:00"}
+1: class Battle::Scene
+2:   #=============================================================================
+3:   # Create the battle scene and its elements
+4:   #=============================================================================
+5:   def initialize
+6:     @battle     = nil
+7:     @abortable  = false
+8:     @aborted    = false
+9:     @battleEnd  = false
+10:     @animations = []
+11:   end
+12: 
+13:   # Called whenever the battle begins.
+14:   def pbStartBattle(battle)
+15:     @battle   = battle
+16:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+17:     @viewport.z = 99999
+18:     @lastCmd  = Array.new(@battle.battlers.length, 0)
+19:     @lastMove = Array.new(@battle.battlers.length, 0)
+20:     pbInitSprites
+21:     pbBattleIntroAnimation
+22:   end
+23: 
+24:   def pbInitSprites
+25:     @sprites = {}
+26:     # The background image and each side's base graphic
+27:     pbCreateBackdropSprites
+28:     # Create message box graphic
+29:     messageBox = pbAddSprite("messageBox", 0, Graphics.height - 96,
+30:                              "Graphics/UI/Battle/overlay_message", @viewport)
+31:     messageBox.z = 195
+32:     # Create message window (displays the message)
+33:     msgWindow = Window_AdvancedTextPokemon.newWithSize(
+34:       "", 16, Graphics.height - 96 + 2, Graphics.width - 32, 96, @viewport
+35:     )
+36:     msgWindow.z              = 200
+37:     msgWindow.opacity        = 0
+38:     msgWindow.baseColor      = MESSAGE_BASE_COLOR
+39:     msgWindow.shadowColor    = MESSAGE_SHADOW_COLOR
+40:     msgWindow.letterbyletter = true
+41:     @sprites["messageWindow"] = msgWindow
+42:     # Create command window
+43:     @sprites["commandWindow"] = CommandMenu.new(@viewport, 200)
+44:     # Create fight window
+45:     @sprites["fightWindow"] = FightMenu.new(@viewport, 200)
+46:     # Create targeting window
+47:     @sprites["targetWindow"] = TargetMenu.new(@viewport, 200, @battle.sideSizes)
+48:     pbShowWindow(MESSAGE_BOX)
+49:     # The party lineup graphics (bar and balls) for both sides
+50:     2.times do |side|
+51:       partyBar = pbAddSprite("partyBar_#{side}", 0, 0,
+52:                              "Graphics/UI/Battle/overlay_lineup", @viewport)
+53:       partyBar.z       = 120
+54:       partyBar.mirror  = true if side == 0   # Player's lineup bar only
+55:       partyBar.visible = false
+56:       NUM_BALLS.times do |i|
+57:         ball = pbAddSprite("partyBall_#{side}_#{i}", 0, 0, nil, @viewport)
+58:         ball.z       = 121
+59:         ball.visible = false
+60:       end
+61:       # Ability splash bars
+62:       if USE_ABILITY_SPLASH
+63:         @sprites["abilityBar_#{side}"] = AbilitySplashBar.new(side, @viewport)
+64:       end
+65:     end
+66:     # Player's and partner trainer's back sprite
+67:     @battle.player.each_with_index do |p, i|
+68:       pbCreateTrainerBackSprite(i, p.trainer_type, @battle.player.length)
+69:     end
+70:     # Opposing trainer(s) sprites
+71:     if @battle.trainerBattle?
+72:       @battle.opponent.each_with_index do |p, i|
+73:         pbCreateTrainerFrontSprite(i, p.trainer_type, @battle.opponent.length)
+74:       end
+75:     end
+76:     # Data boxes and Pokémon sprites
+77:     @battle.battlers.each_with_index do |b, i|
+78:       next if !b
+79:       @sprites["dataBox_#{i}"] = PokemonDataBox.new(b, @battle.pbSideSize(i), @viewport)
+80:       pbCreatePokemonSprite(i)
+81:     end
+82:     # Wild battle, so set up the Pokémon sprite(s) accordingly
+83:     if @battle.wildBattle?
+84:       @battle.pbParty(1).each_with_index do |pkmn, i|
+85:         index = (i * 2) + 1
+86:         pbChangePokemon(index, pkmn)
+87:         pkmnSprite = @sprites["pokemon_#{index}"]
+88:         pkmnSprite.tone    = Tone.new(-80, -80, -80)
+89:         pkmnSprite.visible = true
+90:       end
+91:     end
+92:   end
+93: 
+94:   def pbCreateBackdropSprites
+95:     case @battle.time
+96:     when 1 then time = "eve"
+97:     when 2 then time = "night"
+98:     end
+99:     # Put everything together into backdrop, bases and message bar filenames
+100:     backdropFilename = @battle.backdrop
+101:     baseFilename = @battle.backdrop
+102:     baseFilename = sprintf("%s_%s", baseFilename, @battle.backdropBase) if @battle.backdropBase
+103:     messageFilename = @battle.backdrop
+104:     if time
+105:       trialName = sprintf("%s_%s", backdropFilename, time)
+106:       if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_bg", trialName))
+107:         backdropFilename = trialName
+108:       end
+109:       trialName = sprintf("%s_%s", baseFilename, time)
+110:       if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", trialName))
+111:         baseFilename = trialName
+112:       end
+113:       trialName = sprintf("%s_%s", messageFilename, time)
+114:       if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_message", trialName))
+115:         messageFilename = trialName
+116:       end
+117:     end
+118:     if !pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", baseFilename)) &&
+119:        @battle.backdropBase
+120:       baseFilename = @battle.backdropBase
+121:       if time
+122:         trialName = sprintf("%s_%s", baseFilename, time)
+123:         if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", trialName))
+124:           baseFilename = trialName
+125:         end
+126:       end
+127:     end
+128:     # Finalise filenames
+129:     battleBG   = "Graphics/Battlebacks/" + backdropFilename + "_bg"
+130:     playerBase = "Graphics/Battlebacks/" + baseFilename + "_base0"
+131:     enemyBase  = "Graphics/Battlebacks/" + baseFilename + "_base1"
+132:     messageBG  = "Graphics/Battlebacks/" + messageFilename + "_message"
+133:     # Apply graphics
+134:     bg = pbAddSprite("battle_bg", 0, 0, battleBG, @viewport)
+135:     bg.z = 0
+136:     bg = pbAddSprite("battle_bg2", -Graphics.width, 0, battleBG, @viewport)
+137:     bg.z      = 0
+138:     bg.mirror = true
+139:     2.times do |side|
+140:       baseX, baseY = Battle::Scene.pbBattlerPosition(side)
+141:       base = pbAddSprite("base_#{side}", baseX, baseY,
+142:                          (side == 0) ? playerBase : enemyBase, @viewport)
+143:       base.z = 1
+144:       if base.bitmap
+145:         base.ox = base.bitmap.width / 2
+146:         base.oy = (side == 0) ? base.bitmap.height : base.bitmap.height / 2
+147:       end
+148:     end
+149:     cmdBarBG = pbAddSprite("cmdBar_bg", 0, Graphics.height - 96, messageBG, @viewport)
+150:     cmdBarBG.z = 180
+151:   end
+152: 
+153:   def pbCreateTrainerBackSprite(idxTrainer, trainerType, numTrainers = 1)
+154:     if idxTrainer == 0   # Player's sprite
+155:       trainerFile = GameData::TrainerType.player_back_sprite_filename(trainerType)
+156:     else   # Partner trainer's sprite
+157:       trainerFile = GameData::TrainerType.back_sprite_filename(trainerType)
+158:     end
+159:     spriteX, spriteY = Battle::Scene.pbTrainerPosition(0, idxTrainer, numTrainers)
+160:     trainer = pbAddSprite("player_#{idxTrainer + 1}", spriteX, spriteY, trainerFile, @viewport)
+161:     return if !trainer.bitmap
+162:     # Alter position of sprite
+163:     trainer.z = 80 + idxTrainer
+164:     if trainer.bitmap.width > trainer.bitmap.height * 2
+165:       trainer.src_rect.x     = 0
+166:       trainer.src_rect.width = trainer.bitmap.width / 5
+167:     end
+168:     trainer.ox = trainer.src_rect.width / 2
+169:     trainer.oy = trainer.bitmap.height
+170:   end
+171: 
+172:   def pbCreateTrainerFrontSprite(idxTrainer, trainerType, numTrainers = 1)
+173:     trainerFile = GameData::TrainerType.front_sprite_filename(trainerType)
+174:     spriteX, spriteY = Battle::Scene.pbTrainerPosition(1, idxTrainer, numTrainers)
+175:     trainer = pbAddSprite("trainer_#{idxTrainer + 1}", spriteX, spriteY, trainerFile, @viewport)
+176:     return if !trainer.bitmap
+177:     # Alter position of sprite
+178:     trainer.z  = 7 + idxTrainer
+179:     trainer.ox = trainer.src_rect.width / 2
+180:     trainer.oy = trainer.bitmap.height
+181:   end
+182: 
+183:   def pbCreatePokemonSprite(idxBattler)
+184:     sideSize = @battle.pbSideSize(idxBattler)
+185:     batSprite = BattlerSprite.new(@viewport, sideSize, idxBattler, @animations)
+186:     @sprites["pokemon_#{idxBattler}"] = batSprite
+187:     shaSprite = BattlerShadowSprite.new(@viewport, sideSize, idxBattler)
+188:     shaSprite.visible = false
+189:     @sprites["shadow_#{idxBattler}"] = shaSprite
+190:   end
+191: end

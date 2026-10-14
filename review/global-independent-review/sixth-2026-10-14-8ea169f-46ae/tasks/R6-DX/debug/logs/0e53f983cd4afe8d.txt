@@ -1,0 +1,141 @@
+1040: class GameDataPoolProperty
+1041:   def initialize(game_data, allow_multiple = true, auto_sort = false)
+1042:     if !GameData.const_defined?(game_data.to_sym)
+1043:       raise _INTL("Couldn't find class {1} in module GameData.", game_data.to_s)
+1044:     end
+1045:     @game_data = game_data
+1046:     @game_data_module = GameData.const_get(game_data.to_sym)
+1047:     @allow_multiple = allow_multiple
+1048:     @auto_sort = auto_sort   # Alphabetically
+1049:   end
+1050: 
+1051:   def set(setting_name, old_setting)
+1052:     ret = old_setting
+1053:     old_setting.uniq! if !@allow_multiple
+1054:     old_setting.sort! if @auto_sort
+1055:     # Get all values already in the pool
+1056:     values = []
+1057:     values.push([nil, _INTL("[ADD VALUE]")])   # Value ID, name
+1058:     old_setting.each do |value|
+1059:       values.push([value, @game_data_module.get(value).real_name])
+1060:     end
+1061:     # Set things up
+1062:     command_window = pbListWindow([], 200)
+1063:     cmd = [0, 0]   # [input type, list index] (input type: 0=select, 1=swap up, 2=swap down)
+1064:     commands = []
+1065:     need_refresh = true
+1066:     # Edit value pool
+1067:     loop do
+1068:       if need_refresh
+1069:         if @auto_sort
+1070:           values.sort! { |a, b| (a[0].nil?) ? -1 : b[0].nil? ? 1 : a[1] <=> b[1] }
+1071:         end
+1072:         commands = values.map { |entry| entry[1] }
+1073:         need_refresh = false
+1074:       end
+1075:       # Choose a value
+1076:       cmd = pbCommands3(command_window, commands, -1, cmd[1], true)
+1077:       case cmd[0]   # 0=selected/cancelled, 1=pressed Action+Up, 2=pressed Action+Down
+1078:       when 1   # Swap value up
+1079:         if cmd[1] > 0 && cmd[1] < values.length - 1
+1080:           values[cmd[1] + 1], values[cmd[1]] = values[cmd[1]], values[cmd[1] + 1]
+1081:           need_refresh = true
+1082:         end
+1083:       when 2   # Swap value down
+1084:         if cmd[1] > 1
+1085:           values[cmd[1] - 1], values[cmd[1]] = values[cmd[1]], values[cmd[1] - 1]
+1086:           need_refresh = true
+1087:         end
+1088:       when 0
+1089:         if cmd[1] >= 0   # Chose an entry
+1090:           entry = values[cmd[1]]
+1091:           if entry[0].nil?   # Add new value
+1092:             new_value = pbChooseFromGameDataList(@game_data)
+1093:             if new_value
+1094:               if !@allow_multiple && values.any? { |val| val[0] == new_value }
+1095:                 cmd[1] = values.index { |val| val[0] == new_value }
+1096:                 next
+1097:               end
+1098:               values.push([new_value, @game_data_module.get(new_value).real_name])
+1099:               need_refresh = true
+1100:             end
+1101:           else   # Edit existing value
+1102:             case pbMessage("\\ts[]" + _INTL("Do what with this value?"),
+1103:                            [_INTL("Change value"), _INTL("Delete"), _INTL("Cancel")], 3)
+1104:             when 0   # Change value
+1105:               new_value = pbChooseFromGameDataList(@game_data, entry[0])
+1106:               if new_value && new_value != entry[0]
+1107:                 if !@allow_multiple && values.any? { |val| val[0] == new_value }
+1108:                   values.delete_at(cmd[1])
+1109:                   cmd[1] = values.index { |val| val[0] == new_value }
+1110:                   need_refresh = true
+1111:                   next
+1112:                 end
+1113:                 entry[0] = new_value
+1114:                 entry[1] = @game_data_module.get(new_value).real_name
+1115:                 if @auto_sort
+1116:                   values.sort! { |a, b| a[1] <=> b[1] }
+1117:                   cmd[1] = values.index { |val| val[0] == new_value }
+1118:                 end
+1119:                 need_refresh = true
+1120:               end
+1121:             when 1   # Delete
+1122:               values.delete_at(cmd[1])
+1123:               cmd[1] = [cmd[1], values.length - 1].min
+1124:               need_refresh = true
+1125:             end
+1126:           end
+1127:         else   # Cancel/quit
+1128:           case pbMessage(_INTL("Apply changes?"),
+1129:                          [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+1130:           when 0
+1131:             values.shift   # Remove the "add value" option
+1132:             values.length.times do |i|
+1133:               values[i] = values[i][0]
+1134:             end
+1135:             values.compact!
+1136:             ret = values
+1137:             break
+1138:           when 1
+1139:             break
+1140:           end
+1141:         end
+1142:       end
+1143:     end
+1144:     command_window.dispose
+1145:     return ret
+1146:   end
+1147: 
+1148:   def defaultValue
+1149:     return []
+1150:   end
+1151: 
+1152:   def format(value)
+1153:     return value.map { |val| @game_data_module.get(val).real_name }.join(",")
+1154:   end
+1155: end
+1156: 
+1157: #===============================================================================
+1158: #
+1159: #===============================================================================
+1160: class EggMovesProperty < GameDataPoolProperty
+1161:   def initialize
+1162:     super(:Move, false, true)
+1163:   end
+1164: end
+1165: 
+1166: #===============================================================================
+1167: #
+1168: #===============================================================================
+1169: class EggGroupsProperty < GameDataPoolProperty
+1170:   def initialize
+1171:     super(:EggGroup, false, false)
+1172:   end
+1173: end
+1174: 
+1175: #===============================================================================
+1176: #
+1177: #===============================================================================
+1178: class AbilitiesProperty < GameDataPoolProperty
+1179:   def initialize
+1180:     super(:Ability, false, false)

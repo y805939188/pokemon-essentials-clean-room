@@ -1,0 +1,230 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/002_Battle Frontier rules/004_Challenge_LevelAdjustment.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "5948bc2d8551d2e67bf4049f06334f724eed0d7a", "sha256": "430ef83b8dc83a5ae0a731e8927fbea4a86956d8beee70a8d939338f399342fd", "start_line": 1, "end_line": 229, "total_lines": 229, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:28:38.008326+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class LevelAdjustment
+5:   BOTH_TEAMS           = 0
+6:   ENEMY_TEAM           = 1
+7:   MY_TEAM              = 2
+8:   BOTH_TEAMS_DIFFERENT = 3
+9: 
+10:   def initialize(adjustment)
+11:     @adjustment = adjustment
+12:   end
+13: 
+14:   def type
+15:     @adjustment
+16:   end
+17: 
+18:   def self.getNullAdjustment(thisTeam, _otherTeam)
+19:     ret = []
+20:     thisTeam.each_with_index { |pkmn, i| ret[i] = pkmn.level }
+21:     return ret
+22:   end
+23: 
+24:   def getAdjustment(thisTeam, otherTeam)
+25:     return self.getNullAdjustment(thisTeam, otherTeam)
+26:   end
+27: 
+28:   def getOldExp(team1, _team2)
+29:     ret = []
+30:     team1.each_with_index { |pkmn, i| ret[i] = pkmn.exp }
+31:     return ret
+32:   end
+33: 
+34:   def unadjustLevels(team1, team2, adjustments)
+35:     team1.each_with_index do |pkmn, i|
+36:       next if !adjustments[0][i] || pkmn.exp == adjustments[0][i]
+37:       pkmn.exp = adjustments[0][i]
+38:       pkmn.calc_stats
+39:     end
+40:     team2.each_with_index do |pkmn, i|
+41:       next if !adjustments[1][i] || pkmn.exp == adjustments[1][i]
+42:       pkmn.exp = adjustments[1][i]
+43:       pkmn.calc_stats
+44:     end
+45:   end
+46: 
+47:   def adjustLevels(team1, team2)
+48:     adj1 = nil
+49:     adj2 = nil
+50:     ret = [getOldExp(team1, team2), getOldExp(team2, team1)]
+51:     case @adjustment
+52:     when BOTH_TEAMS
+53:       adj1 = getAdjustment(team1, team2)
+54:       adj2 = getAdjustment(team2, team1)
+55:     when MY_TEAM
+56:       adj1 = getAdjustment(team1, team2)
+57:     when ENEMY_TEAM
+58:       adj2 = getAdjustment(team2, team1)
+59:     when BOTH_TEAMS_DIFFERENT
+60:       adj1 = getMyAdjustment(team1, team2)
+61:       adj2 = getTheirAdjustment(team2, team1)
+62:     end
+63:     if adj1
+64:       team1.each_with_index do |pkmn, i|
+65:         next if pkmn.level == adj1[i]
+66:         pkmn.level = adj1[i]
+67:         pkmn.calc_stats
+68:       end
+69:     end
+70:     if adj2
+71:       team2.each_with_index do |pkmn, i|
+72:         next if pkmn.level == adj2[i]
+73:         pkmn.level = adj2[i]
+74:         pkmn.calc_stats
+75:       end
+76:     end
+77:     return ret
+78:   end
+79: end
+80: 
+81: #===============================================================================
+82: #
+83: #===============================================================================
+84: class FixedLevelAdjustment < LevelAdjustment
+85:   def initialize(level)
+86:     super(LevelAdjustment::BOTH_TEAMS)
+87:     @level = level.clamp(1, GameData::GrowthRate.max_level)
+88:   end
+89: 
+90:   def getAdjustment(thisTeam, _otherTeam)
+91:     ret = []
+92:     thisTeam.each_with_index { |pkmn, i| ret[i] = @level }
+93:     return ret
+94:   end
+95: end
+96: 
+97: #===============================================================================
+98: #
+99: #===============================================================================
+100: class TotalLevelAdjustment < LevelAdjustment
+101:   def initialize(minLevel, maxLevel, totalLevel)
+102:     super(LevelAdjustment::ENEMY_TEAM)
+103:     @minLevel = minLevel.clamp(1, GameData::GrowthRate.max_level)
+104:     @maxLevel = maxLevel.clamp(1, GameData::GrowthRate.max_level)
+105:     @totalLevel = totalLevel
+106:   end
+107: 
+108:   def getAdjustment(thisTeam, _otherTeam)
+109:     ret = []
+110:     total = 0
+111:     thisTeam.each_with_index do |pkmn, i|
+112:       ret[i] = @minLevel
+113:       total += @minLevel
+114:     end
+115:     loop do
+116:       work = false
+117:       thisTeam.each_with_index do |pkmn, i|
+118:         next if ret[i] >= @maxLevel || total >= @totalLevel
+119:         ret[i] += 1
+120:         total += 1
+121:         work = true
+122:       end
+123:       break if !work
+124:     end
+125:     return ret
+126:   end
+127: end
+128: 
+129: #===============================================================================
+130: #
+131: #===============================================================================
+132: class CombinedLevelAdjustment < LevelAdjustment
+133:   def initialize(my, their)
+134:     super(LevelAdjustment::BOTH_TEAMS_DIFFERENT)
+135:     @my    = my
+136:     @their = their
+137:   end
+138: 
+139:   def getMyAdjustment(myTeam, theirTeam)
+140:     return @my.getAdjustment(myTeam, theirTeam) if @my
+141:     return LevelAdjustment.getNullAdjustment(myTeam, theirTeam)
+142:   end
+143: 
+144:   def getTheirAdjustment(theirTeam, myTeam)
+145:     return @their.getAdjustment(theirTeam, myTeam) if @their
+146:     return LevelAdjustment.getNullAdjustment(theirTeam, myTeam)
+147:   end
+148: end
+149: 
+150: #===============================================================================
+151: #
+152: #===============================================================================
+153: class SinglePlayerCappedLevelAdjustment < CombinedLevelAdjustment
+154:   def initialize(level)
+155:     super(CappedLevelAdjustment.new(level), FixedLevelAdjustment.new(level))
+156:   end
+157: end
+158: 
+159: #===============================================================================
+160: #
+161: #===============================================================================
+162: class CappedLevelAdjustment < LevelAdjustment
+163:   def initialize(level)
+164:     super(LevelAdjustment::BOTH_TEAMS)
+165:     @level = level.clamp(1, GameData::GrowthRate.max_level)
+166:   end
+167: 
+168:   def getAdjustment(thisTeam, _otherTeam)
+169:     ret = []
+170:     thisTeam.each_with_index { |pkmn, i| ret[i] = [pkmn.level, @level].min }
+171:     return ret
+172:   end
+173: end
+174: 
+175: #===============================================================================
+176: # Unused
+177: #===============================================================================
+178: class LevelBalanceAdjustment < LevelAdjustment
+179:   def initialize(minLevel)
+180:     super(LevelAdjustment::BOTH_TEAMS)
+181:     @minLevel = minLevel
+182:   end
+183: 
+184:   def getAdjustment(thisTeam, _otherTeam)
+185:     ret = []
+186:     thisTeam.each_with_index do |pkmn, i|
+187:       ret[i] = (113 - (pbBaseStatTotal(pkmn.species) * 0.072)).round
+188:     end
+189:     return ret
+190:   end
+191: end
+192: 
+193: #===============================================================================
+194: #
+195: #===============================================================================
+196: class EnemyLevelAdjustment < LevelAdjustment
+197:   def initialize(level)
+198:     super(LevelAdjustment::ENEMY_TEAM)
+199:     @level = level.clamp(1, GameData::GrowthRate.max_level)
+200:   end
+201: 
+202:   def getAdjustment(thisTeam, _otherTeam)
+203:     ret = []
+204:     thisTeam.each_with_index { |pkmn, i| ret[i] = @level }
+205:     return ret
+206:   end
+207: end
+208: 
+209: #===============================================================================
+210: #
+211: #===============================================================================
+212: class OpenLevelAdjustment < LevelAdjustment
+213:   def initialize(minLevel = 1)
+214:     super(LevelAdjustment::ENEMY_TEAM)
+215:     @minLevel = minLevel
+216:   end
+217: 
+218:   def getAdjustment(thisTeam, otherTeam)
+219:     maxLevel = 1
+220:     otherTeam.each do |pkmn|
+221:       level = pkmn.level
+222:       maxLevel = level if maxLevel < level
+223:     end
+224:     maxLevel = @minLevel if maxLevel < @minLevel
+225:     ret = []
+226:     thisTeam.each_with_index { |pkmn, i| ret[i] = maxLevel }
+227:     return ret
+228:   end
+229: end

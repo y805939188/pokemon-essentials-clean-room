@@ -1,0 +1,272 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/010_UI_Phone.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 271], "total_lines": 271, "sha256": "7ff4e5e90fbdd9eb4656a6c016ae9c7d8a3de1d640b97b7a082b1424831cb06c", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:30.516502+00:00"}
+1: #===============================================================================
+2: # Phone list of contacts
+3: #===============================================================================
+4: class Window_PhoneList < Window_CommandPokemon
+5:   attr_accessor :switching
+6: 
+7:   def drawCursor(index, rect)
+8:     if self.index == index
+9:       selarrow = AnimatedBitmap.new("Graphics/UI/Phone/cursor")
+10:       pbCopyBitmap(self.contents, selarrow.bitmap, rect.x, rect.y + 2)
+11:     end
+12:     return Rect.new(rect.x + 28, rect.y + 8, rect.width - 16, rect.height)
+13:   end
+14: 
+15:   def drawItem(index, count, rect)
+16:     return if index >= self.top_row + self.page_item_max
+17:     if self.index == index && @switching
+18:       rect = drawCursor(index, rect)
+19:       pbDrawShadowText(self.contents, rect.x, rect.y + (self.contents.text_offset_y || 0),
+20:                        rect.width, rect.height, @commands[index], Color.new(224, 0, 0), Color.new(224, 144, 144))
+21:     else
+22:       super
+23:     end
+24:     drawCursor(index - 1, itemRect(index - 1))
+25:   end
+26: end
+27: 
+28: #===============================================================================
+29: #
+30: #===============================================================================
+31: class PokemonPhone_Scene
+32:   def pbStartScene
+33:     @sprites = {}
+34:     # Create viewport
+35:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+36:     @viewport.z = 99999
+37:     # Background
+38:     addBackgroundPlane(@sprites, "bg", "Phone/bg", @viewport)
+39:     # List of contacts
+40:     @sprites["list"] = Window_PhoneList.newEmpty(152, 32, Graphics.width - 142, Graphics.height - 80, @viewport)
+41:     @sprites["list"].windowskin = nil
+42:     # Rematch readiness icons
+43:     if Phone.rematches_enabled
+44:       @sprites["list"].page_item_max.times do |i|
+45:         @sprites["rematch_#{i}"] = IconSprite.new(468, 62 + (i * 32), @viewport)
+46:       end
+47:     end
+48:     # Phone signal icon
+49:     @sprites["signal"] = IconSprite.new(Graphics.width - 32, 0, @viewport)
+50:     if Phone::Call.can_make?
+51:       @sprites["signal"].setBitmap("Graphics/UI/Phone/icon_signal")
+52:     else
+53:       @sprites["signal"].setBitmap("Graphics/UI/Phone/icon_nosignal")
+54:     end
+55:     # Title text
+56:     @sprites["header"] = Window_UnformattedTextPokemon.newWithSize(
+57:       _INTL("Phone"), 2, -18, 128, 64, @viewport
+58:     )
+59:     @sprites["header"].baseColor   = Color.new(248, 248, 248)
+60:     @sprites["header"].shadowColor = Color.black
+61:     @sprites["header"].windowskin = nil
+62:     # Info text about all contacts
+63:     @sprites["info"] = Window_AdvancedTextPokemon.newWithSize("", -8, 224, 180, 160, @viewport)
+64:     @sprites["info"].windowskin = nil
+65:     # Portrait of contact
+66:     @sprites["icon"] = IconSprite.new(70, 102, @viewport)
+67:     # Contact's location text
+68:     @sprites["bottom"] = Window_AdvancedTextPokemon.newWithSize(
+69:       "", 162, Graphics.height - 64, Graphics.width - 158, 64, @viewport
+70:     )
+71:     @sprites["bottom"].windowskin = nil
+72:     # Start scene
+73:     pbRefreshList
+74:     pbFadeInAndShow(@sprites) { pbUpdate }
+75:   end
+76: 
+77:   def pbRefreshList
+78:     @contacts = []
+79:     $PokemonGlobal.phone.contacts.each do |contact|
+80:       @contacts.push(contact) if contact.visible?
+81:     end
+82:     # Create list of commands (display names of contacts) and count rematches
+83:     commands = []
+84:     rematch_count = 0
+85:     @contacts.each do |contact|
+86:       commands.push(contact.display_name)
+87:       rematch_count += 1 if contact.can_rematch?
+88:     end
+89:     # Set list's commands
+90:     @sprites["list"].commands = commands
+91:     @sprites["list"].index = commands.length - 1 if @sprites["list"].index >= commands.length
+92:     if @sprites["list"].top_row > @sprites["list"].itemCount - @sprites["list"].page_item_max
+93:       @sprites["list"].top_row = @sprites["list"].itemCount - @sprites["list"].page_item_max
+94:     end
+95:     # Set info text
+96:     infotext = _INTL("Registered") + "<br>"
+97:     infotext += "<r>" + @sprites["list"].commands.length.to_s + "<br>"
+98:     infotext += _INTL("Waiting for a rematch") + "<r>" + rematch_count.to_s
+99:     @sprites["info"].text = infotext
+100:     pbRefreshScreen
+101:   end
+102: 
+103:   def pbRefreshScreen
+104:     @sprites["list"].refresh
+105:     # Redraw rematch readiness icons
+106:     if @sprites["rematch_0"]
+107:       @sprites["list"].page_item_max.times do |i|
+108:         @sprites["rematch_#{i}"].clearBitmaps
+109:         j = i + @sprites["list"].top_item
+110:         if j < @contacts.length && @contacts[j].can_rematch?
+111:           @sprites["rematch_#{i}"].setBitmap("Graphics/UI/Phone/icon_rematch")
+112:         end
+113:       end
+114:     end
+115:     # Get the selected contact
+116:     contact = @contacts[@sprites["list"].index]
+117:     if contact
+118:       # Redraw contact's portrait
+119:       if contact.trainer?
+120:         filename = GameData::TrainerType.charset_filename(contact.trainer_type)
+121:       else
+122:         filename = sprintf("Graphics/Characters/phone%03d", contact.common_event_id)
+123:       end
+124:       @sprites["icon"].setBitmap(filename)
+125:       charwidth  = @sprites["icon"].bitmap.width
+126:       charheight = @sprites["icon"].bitmap.height
+127:       @sprites["icon"].x        = 86 - (charwidth / 8)
+128:       @sprites["icon"].y        = 134 - (charheight / 8)
+129:       @sprites["icon"].src_rect = Rect.new(0, 0, charwidth / 4, charheight / 4)
+130:       # Redraw contact's location text
+131:       map_name = (contact.map_id > 0) ? pbGetMapNameFromId(contact.map_id) : ""
+132:       @sprites["bottom"].text = "<ac>" + map_name
+133:     else
+134:       @sprites["icon"].setBitmap(nil)
+135:       @sprites["bottom"].text = ""
+136:     end
+137:   end
+138: 
+139:   def pbChooseContact
+140:     pbActivateWindow(@sprites, "list") do
+141:       index = -1
+142:       switch_index = -1
+143:       loop do
+144:         Graphics.update
+145:         Input.update
+146:         pbUpdateSpriteHash(@sprites)
+147:         # Cursor moved, update display
+148:         if @sprites["list"].index != index
+149:           if switch_index >= 0
+150:             real_contacts = $PokemonGlobal.phone.contacts
+151:             real_contacts.insert(@sprites["list"].index, real_contacts.delete_at(index))
+152:             pbRefreshList
+153:           else
+154:             pbRefreshScreen
+155:           end
+156:         end
+157:         index = @sprites["list"].index
+158:         # Get inputs
+159:         if switch_index >= 0
+160:           if Input.trigger?(Input::ACTION) ||
+161:              Input.trigger?(Input::USE)
+162:             pbPlayDecisionSE
+163:             @sprites["list"].switching = false
+164:             switch_index = -1
+165:             pbRefreshScreen
+166:           elsif Input.trigger?(Input::BACK)
+167:             pbPlayCancelSE
+168:             real_contacts = $PokemonGlobal.phone.contacts
+169:             real_contacts.insert(switch_index, real_contacts.delete_at(@sprites["list"].index))
+170:             @sprites["list"].index = switch_index
+171:             @sprites["list"].switching = false
+172:             switch_index = -1
+173:             pbRefreshList
+174:           end
+175:         else
+176:           if Input.trigger?(Input::ACTION)
+177:             switch_index = @sprites["list"].index
+178:             @sprites["list"].switching = true
+179:             pbRefreshScreen
+180:           elsif Input.trigger?(Input::BACK)
+181:             pbPlayCloseMenuSE
+182:             return nil
+183:           elsif Input.trigger?(Input::USE)
+184:             return @contacts[index] if index >= 0
+185:           end
+186:         end
+187:       end
+188:     end
+189:   end
+190: 
+191:   def pbEndScene
+192:     pbFadeOutAndHide(@sprites) { pbUpdate }
+193:     pbDisposeSpriteHash(@sprites)
+194:     @viewport.dispose
+195:   end
+196: 
+197:   def pbUpdate
+198:     pbUpdateSpriteHash(@sprites)
+199:   end
+200: end
+201: 
+202: #===============================================================================
+203: #
+204: #===============================================================================
+205: class PokemonPhoneScreen
+206:   def initialize(scene)
+207:     @scene = scene
+208:   end
+209: 
+210:   def pbStartScreen
+211:     if $PokemonGlobal.phone.contacts.none? { |con| con.visible? }
+212:       pbMessage(_INTL("There are no phone numbers stored."))
+213:       return
+214:     end
+215:     @scene.pbStartScene
+216:     loop do
+217:       contact = @scene.pbChooseContact
+218:       break if !contact
+219:       commands = []
+220:       commands.push(_INTL("Call"))
+221:       commands.push(_INTL("Delete")) if contact.can_hide?
+222:       commands.push(_INTL("Sort Contacts"))
+223:       commands.push(_INTL("Cancel"))
+224:       cmd = pbShowCommands(nil, commands, -1)
+225:       cmd += 1 if cmd >= 1 && !contact.can_hide?
+226:       case cmd
+227:       when 0   # Call
+228:         Phone::Call.make_outgoing(contact)
+229:       when 1   # Delete
+230:         name = contact.display_name
+231:         if pbConfirmMessage(_INTL("Are you sure you want to delete {1} from your phone?", name))
+232:           contact.visible = false
+233:           $PokemonGlobal.phone.sort_contacts
+234:           @scene.pbRefreshList
+235:           pbMessage(_INTL("{1} was deleted from your phone contacts.", name))
+236:           if $PokemonGlobal.phone.contacts.none? { |con| con.visible? }
+237:             pbMessage(_INTL("There are no phone numbers stored."))
+238:             break
+239:           end
+240:         end
+241:       when 2   # Sort Contacts
+242:         case pbMessage(_INTL("How do you want to sort the contacts?"),
+243:                        [_INTL("By name"),
+244:                         _INTL("By Trainer type"),
+245:                         _INTL("Special contacts first"),
+246:                         _INTL("Cancel")], -1, nil, 0)
+247:         when 0   # By name
+248:           $PokemonGlobal.phone.contacts.sort! { |a, b| a.name <=> b.name }
+249:           $PokemonGlobal.phone.sort_contacts
+250:           @scene.pbRefreshList
+251:         when 1   # By trainer type
+252:           $PokemonGlobal.phone.contacts.sort! { |a, b| a.display_name <=> b.display_name }
+253:           $PokemonGlobal.phone.sort_contacts
+254:           @scene.pbRefreshList
+255:         when 2   # Special contacts first
+256:           new_contacts = []
+257:           2.times do |i|
+258:             $PokemonGlobal.phone.contacts.each do |con|
+259:               next if (i == 0 && con.trainer?) || (i == 1 && !con.trainer?)
+260:               new_contacts.push(con)
+261:             end
+262:           end
+263:           $PokemonGlobal.phone.contacts = new_contacts
+264:           $PokemonGlobal.phone.sort_contacts
+265:           @scene.pbRefreshList
+266:         end
+267:       end
+268:     end
+269:     @scene.pbEndScene
+270:   end
+271: end

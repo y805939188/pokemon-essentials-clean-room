@@ -1,0 +1,250 @@
+1: module BattleAnimationEditor
+2:   module_function
+3: 
+4:   #=============================================================================
+5:   # Controls
+6:   #=============================================================================
+7:   class Window_Menu < Window_CommandPokemon
+8:     def initialize(commands, x, y)
+9:       tempbitmap = Bitmap.new(32, 32)
+10:       w = 0
+11:       commands.each do |i|
+12:         width = tempbitmap.text_size(i).width
+13:         w = width if w < width
+14:       end
+15:       w += 16 + self.borderX
+16:       super(commands, w)
+17:       h = [commands.length * 32, 480].min
+18:       h += self.borderY
+19:       right = [x + w, 640].min
+20:       bottom = [y + h, 480].min
+21:       left = right - w
+22:       top = bottom - h
+23:       self.x = left
+24:       self.y = top
+25:       self.width = w
+26:       self.height = h
+27:       tempbitmap.dispose
+28:     end
+29: 
+30:     def hittest
+31:       mousepos = Mouse.getMousePos
+32:       return -1 if !mousepos
+33:       toprow = self.top_row
+34:       (toprow...toprow + @item_max).each do |i|
+35:         rc = Rect.new(0, 32 * (i - toprow), self.contents.width, 32)
+36:         rc.x += self.x + self.leftEdge
+37:         rc.y += self.y + self.topEdge
+38:         return i if rc.contains?(mousepos[0], mousepos[1])
+39:       end
+40:       return -1
+41:     end
+42:   end
+43: 
+44:   #=============================================================================
+45:   # Clipboard
+46:   #=============================================================================
+47:   module Clipboard
+48:     @data = nil
+49:     @typekey = ""
+50: 
+51:     def self.data
+52:       return nil if !@data
+53:       return Marshal.load(@data)
+54:     end
+55: 
+56:     def self.typekey
+57:       return @typekey
+58:     end
+59: 
+60:     def self.setData(data, key)
+61:       @data = Marshal.dump(data)
+62:       @typekey = key
+63:     end
+64:   end
+65: 
+66:   #=============================================================================
+67:   #
+68:   #=============================================================================
+69:   def pbTrackPopupMenu(commands)
+70:     mousepos = Mouse.getMousePos
+71:     return -1 if !mousepos
+72:     menuwindow = Window_Menu.new(commands, mousepos[0], mousepos[1])
+73:     menuwindow.z = 99999
+74:     loop do
+75:       Graphics.update
+76:       Input.update
+77:       menuwindow.update
+78:       hit = menuwindow.hittest
+79:       menuwindow.index = hit if hit >= 0
+80:       if Input.trigger?(Input::MOUSELEFT) || Input.trigger?(Input::MOUSERIGHT)   # Left or right button
+81:         menuwindow.dispose
+82:         return hit
+83:       end
+84:       if Input.trigger?(Input::USE)
+85:         hit = menuwindow.index
+86:         menuwindow.dispose
+87:         return hit
+88:       end
+89:       if Input.trigger?(Input::BACK)   # Escape
+90:         break
+91:       end
+92:     end
+93:     menuwindow.dispose
+94:     return -1
+95:   end
+96: 
+97:   #=============================================================================
+98:   # Sprite sheet scrolling bar
+99:   #=============================================================================
+100:   class AnimationWindow < Sprite
+101:     attr_reader :animbitmap
+102:     attr_reader :start
+103:     attr_reader :selected
+104: 
+105:     NUMFRAMES = 5
+106: 
+107:     def initialize(x, y, width, height, viewport = nil)
+108:       super(viewport)
+109:       @animbitmap = nil
+110:       @arrows = AnimatedBitmap.new("Graphics/UI/Debug/anim_editor_arrows")
+111:       self.x = x
+112:       self.y = y
+113:       @start = 0
+114:       @selected = 0
+115:       @contents = Bitmap.new(width, height)
+116:       self.bitmap = @contents
+117:       refresh
+118:     end
+119: 
+120:     def animbitmap=(val)
+121:       @animbitmap = val
+122:       @start = 0
+123:       refresh
+124:     end
+125: 
+126:     def selected=(val)
+127:       @selected = val
+128:       refresh
+129:     end
+130: 
+131:     def dispose
+132:       @contents.dispose
+133:       @arrows.dispose
+134:       @start = 0
+135:       @selected = 0
+136:       @changed = false
+137:       super
+138:     end
+139: 
+140:     def drawrect(bm, x, y, width, height, color)
+141:       bm.fill_rect(x, y, width, 1, color)
+142:       bm.fill_rect(x, y + height - 1, width, 1, color)
+143:       bm.fill_rect(x, y, 1, height, color)
+144:       bm.fill_rect(x + width - 1, y, 1, height, color)
+145:     end
+146: 
+147:     def drawborder(bm, x, y, width, height, color)
+148:       bm.fill_rect(x, y, width, 2, color)
+149:       bm.fill_rect(x, y + height - 2, width, 2, color)
+150:       bm.fill_rect(x, y, 2, height, color)
+151:       bm.fill_rect(x + width - 2, y, 2, height, color)
+152:     end
+153: 
+154:     def refresh
+155:       arrowwidth = @arrows.bitmap.width / 2
+156:       @contents.clear
+157:       @contents.fill_rect(0, 0, @contents.width, @contents.height, Color.new(180, 180, 180))
+158:       @contents.blt(0, 0, @arrows.bitmap, Rect.new(0, 0, arrowwidth, 96))
+159:       @contents.blt(arrowwidth + (NUMFRAMES * 96), 0, @arrows.bitmap,
+160:                     Rect.new(arrowwidth, 0, arrowwidth, 96))
+161:       havebitmap = (self.animbitmap && !self.animbitmap.disposed?)
+162:       if havebitmap
+163:         rect = Rect.new(0, 0, 0, 0)
+164:         rectdst = Rect.new(0, 0, 0, 0)
+165:         x = arrowwidth
+166:         NUMFRAMES.times do |i|
+167:           j = i + @start
+168:           rect.set((j % 5) * 192, (j / 5) * 192, 192, 192)
+169:           rectdst.set(x, 0, 96, 96)
+170:           @contents.stretch_blt(rectdst, self.animbitmap, rect)
+171:           x += 96
+172:         end
+173:       end
+174:       NUMFRAMES.times do |i|
+175:         drawrect(@contents, arrowwidth + (i * 96), 0, 96, 96, Color.new(100, 100, 100))
+176:         if @start + i == @selected && havebitmap
+177:           drawborder(@contents, arrowwidth + (i * 96), 0, 96, 96, Color.new(255, 0, 0))
+178:         end
+179:       end
+180:     end
+181: 
+182:     def changed?
+183:       return @changed
+184:     end
+185: 
+186:     def update
+187:       mousepos = Mouse.getMousePos
+188:       @changed = false
+189:       return if !Input.repeat?(Input::MOUSELEFT)
+190:       return if !mousepos
+191:       return if !self.animbitmap
+192:       arrowwidth = @arrows.bitmap.width / 2
+193:       maxindex = (self.animbitmap.height / 192) * 5
+194:       left = Rect.new(0, 0, arrowwidth, 96)
+195:       right = Rect.new(arrowwidth + (NUMFRAMES * 96), 0, arrowwidth, 96)
+196:       left.x += self.x
+197:       left.y += self.y
+198:       right.x += self.x
+199:       right.y += self.y
+200:       swatchrects = []
+201:       repeattime = Input.time?(Input::MOUSELEFT)
+202:       NUMFRAMES.times do |i|
+203:         swatchrects.push(Rect.new(arrowwidth + (i * 96) + self.x, self.y, 96, 96))
+204:       end
+205:       NUMFRAMES.times do |i|
+206:         next if !swatchrects[i].contains?(mousepos[0], mousepos[1])
+207:         @selected = @start + i
+208:         @changed = true
+209:         refresh
+210:         return
+211:       end
+212:       # Left arrow
+213:       if left.contains?(mousepos[0], mousepos[1])
+214:         if repeattime > 0.75
+215:           @start -= 3
+216:         else
+217:           @start -= 1
+218:         end
+219:         @start = 0 if @start < 0
+220:         refresh
+221:       end
+222:       # Right arrow
+223:       if right.contains?(mousepos[0], mousepos[1])
+224:         if repeattime > 0.75
+225:           @start += 3
+226:         else
+227:           @start += 1
+228:         end
+229:         @start = maxindex if @start >= maxindex
+230:         refresh
+231:       end
+232:     end
+233:   end
+234: 
+235:   #=============================================================================
+236:   #
+237:   #=============================================================================
+238:   class CanvasAnimationWindow < AnimationWindow
+239:     def animbitmap
+240:       return @canvas.animbitmap
+241:     end
+242: 
+243:     def initialize(canvas, x, y, width, height, viewport = nil)
+244:       @canvas = canvas
+245:       super(x, y, width, height, viewport)
+246:     end
+247:   end
+248: 
+249:   #=============================================================================
+250:   # Cel sprite

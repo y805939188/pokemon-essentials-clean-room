@@ -1,0 +1,193 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/009_Scenes/002_EventScene.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 192], "total_lines": 192, "sha256": "0dd25c3f06047c55c3c311a82b6b3efe5ec33da361d038f744a72bae9143446e", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:27:19.007111+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class PictureSprite < Sprite
+5:   def initialize(viewport, picture)
+6:     super(viewport)
+7:     @picture = picture
+8:     @pictureBitmap = nil
+9:     @customBitmap = nil
+10:     @customBitmapIsBitmap = true
+11:     @hue = 0
+12:     update
+13:   end
+14: 
+15:   def dispose
+16:     @pictureBitmap&.dispose
+17:     super
+18:   end
+19: 
+20:   # Doesn't free the bitmap
+21:   def setCustomBitmap(bitmap)
+22:     @customBitmap = bitmap
+23:     @customBitmapIsBitmap = @customBitmap.is_a?(Bitmap)
+24:   end
+25: 
+26:   def update
+27:     super
+28:     @pictureBitmap&.update
+29:     # If picture file name is different from current one
+30:     if @customBitmap && @picture.name == ""
+31:       self.bitmap = (@customBitmapIsBitmap) ? @customBitmap : @customBitmap.bitmap
+32:     elsif @picture_name != @picture.name || @picture.hue.to_i != @hue.to_i
+33:       # Remember file name to instance variables
+34:       @picture_name = @picture.name
+35:       @hue = @picture.hue.to_i
+36:       # If file name is not empty
+37:       if @picture_name == ""
+38:         @pictureBitmap&.dispose
+39:         @pictureBitmap = nil
+40:         self.visible = false
+41:         return
+42:       end
+43:       # Get picture graphic
+44:       @pictureBitmap&.dispose
+45:       @pictureBitmap = AnimatedBitmap.new(@picture_name, @hue)
+46:       self.bitmap = (@pictureBitmap) ? @pictureBitmap.bitmap : nil
+47:     elsif @picture_name == ""
+48:       # Set sprite to invisible
+49:       self.visible = false
+50:       return
+51:     end
+52:     setPictureSprite(self, @picture)
+53:   end
+54: end
+55: 
+56: def pbTextBitmap(text, maxwidth = Graphics.width)
+57:   tmp = Bitmap.new(maxwidth, Graphics.height)
+58:   pbSetSystemFont(tmp)
+59:   drawFormattedTextEx(tmp, 0, 4, maxwidth, text, Color.new(248, 248, 248), Color.new(168, 184, 184))
+60:   return tmp
+61: end
+62: 
+63: #===============================================================================
+64: #
+65: #===============================================================================
+66: class EventScene
+67:   attr_accessor :onCTrigger, :onBTrigger, :onUpdate
+68: 
+69:   def initialize(viewport = nil)
+70:     @viewport       = viewport
+71:     @onCTrigger     = Event.new
+72:     @onBTrigger     = Event.new
+73:     @onUpdate       = Event.new
+74:     @pictures       = []
+75:     @picturesprites = []
+76:     @usersprites    = []
+77:     @disposed       = false
+78:   end
+79: 
+80:   def dispose
+81:     return if disposed?
+82:     @picturesprites.each { |sprite| sprite.dispose }
+83:     @usersprites.each { |sprite| sprite.dispose }
+84:     @onCTrigger.clear
+85:     @onBTrigger.clear
+86:     @onUpdate.clear
+87:     @pictures.clear
+88:     @picturesprites.clear
+89:     @usersprites.clear
+90:     @disposed = true
+91:   end
+92: 
+93:   def disposed?
+94:     return @disposed
+95:   end
+96: 
+97:   def addBitmap(x, y, bitmap)
+98:     # _bitmap_ can be a Bitmap or an AnimatedBitmap
+99:     # (update method isn't called if it's animated)
+100:     # EventScene doesn't take ownership of the passed-in bitmap
+101:     num = @pictures.length
+102:     picture = PictureEx.new(num)
+103:     picture.setXY(0, x, y)
+104:     picture.setVisible(0, true)
+105:     @pictures[num] = picture
+106:     @picturesprites[num] = PictureSprite.new(@viewport, picture)
+107:     @picturesprites[num].setCustomBitmap(bitmap)
+108:     return picture
+109:   end
+110: 
+111:   def addLabel(x, y, width, text)
+112:     addBitmap(x, y, pbTextBitmap(text, width))
+113:   end
+114: 
+115:   def addImage(x, y, name)
+116:     num = @pictures.length
+117:     picture = PictureEx.new(num)
+118:     picture.name = name
+119:     picture.setXY(0, x, y)
+120:     picture.setVisible(0, true)
+121:     @pictures[num] = picture
+122:     @picturesprites[num] = PictureSprite.new(@viewport, picture)
+123:     return picture
+124:   end
+125: 
+126:   def addUserSprite(sprite)
+127:     @usersprites.push(sprite)
+128:   end
+129: 
+130:   def getPicture(num)
+131:     return @pictures[num]
+132:   end
+133: 
+134:   # ticks is in 1/20ths of a second.
+135:   def wait(ticks)
+136:     return if ticks <= 0
+137:     timer_start = System.uptime
+138:     loop do
+139:       update
+140:       break if System.uptime - timer_start >= ticks / 20.0
+141:     end
+142:   end
+143: 
+144:   # extra_ticks is in 1/20ths of a second.
+145:   def pictureWait(extra_ticks = 0)
+146:     loop do
+147:       hasRunning = false
+148:       @pictures.each { |pic| hasRunning = true if pic.running? }
+149:       break if !hasRunning
+150:       update
+151:     end
+152:     wait(extra_ticks)
+153:   end
+154: 
+155:   def update
+156:     return if disposed?
+157:     Graphics.update
+158:     Input.update
+159:     @pictures.each { |picture| picture.update }
+160:     @picturesprites.each { |sprite| sprite.update }
+161:     @usersprites.each do |sprite|
+162:       next if !sprite || sprite.disposed? || !sprite.is_a?(Sprite)
+163:       sprite.update
+164:     end
+165:     @usersprites.delete_if { |sprite| sprite.disposed? }
+166:     @onUpdate.trigger(self)
+167:     if Input.trigger?(Input::BACK)
+168:       @onBTrigger.trigger(self)
+169:     elsif Input.trigger?(Input::USE)
+170:       @onCTrigger.trigger(self)
+171:     end
+172:   end
+173: 
+174:   def main
+175:     loop do
+176:       update
+177:       break if disposed?
+178:     end
+179:   end
+180: end
+181: 
+182: #===============================================================================
+183: #
+184: #===============================================================================
+185: def pbEventScreen(cls)
+186:   pbFadeOutIn do
+187:     viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+188:     viewport.z = 99999
+189:     PBDebug.logonerr { cls.new(viewport).main }
+190:     viewport.dispose
+191:   end
+192: end

@@ -1,0 +1,205 @@
+1: #===============================================================================
+2: # Hits twice.
+3: #===============================================================================
+4: class Battle::Move::HitTwoTimes < Battle::Move
+5:   def multiHitMove?;            return true; end
+6:   def pbNumHits(user, targets); return 2;    end
+7: end
+8: 
+9: #===============================================================================
+10: # Hits twice. May poison the target on each hit. (Twineedle)
+11: #===============================================================================
+12: class Battle::Move::HitTwoTimesPoisonTarget < Battle::Move::PoisonTarget
+13:   def multiHitMove?;            return true; end
+14:   def pbNumHits(user, targets); return 2;    end
+15: end
+16: 
+17: #===============================================================================
+18: # Hits twice. Causes the target to flinch. (Double Iron Bash)
+19: #===============================================================================
+20: class Battle::Move::HitTwoTimesFlinchTarget < Battle::Move::FlinchTarget
+21:   def multiHitMove?;            return true; end
+22:   def pbNumHits(user, targets); return 2;    end
+23: end
+24: 
+25: #===============================================================================
+26: # Hits in 2 volleys. The second volley targets the original target's ally if it
+27: # has one (that can be targeted), or the original target if not. A battler
+28: # cannot be targeted if it is is immune to or protected from this move somehow,
+29: # or if this move will miss it. (Dragon Darts)
+30: # NOTE: This move sometimes shows a different failure message compared to the
+31: #       official games. This is because of the order in which failure checks are
+32: #       done (all checks for each target in turn, versus all targets for each
+33: #       check in turn). This is considered unimportant, and since correcting it
+34: #       would involve extensive code rewrites, it is being ignored.
+35: #===============================================================================
+36: class Battle::Move::HitTwoTimesTargetThenTargetAlly < Battle::Move
+37:   def pbNumHits(user, targets); return 1;    end
+38:   def pbRepeatHit?;             return true; end
+39: 
+40:   def pbModifyTargets(targets, user)
+41:     return if targets.length != 1
+42:     choices = []
+43:     targets[0].allAllies.each { |b| user.pbAddTarget(choices, user, b, self) }
+44:     return if choices.length == 0
+45:     idxChoice = (choices.length > 1) ? @battle.pbRandom(choices.length) : 0
+46:     user.pbAddTarget(targets, user, choices[idxChoice], self, !pbTarget(user).can_choose_distant_target?)
+47:   end
+48: 
+49:   def pbShowFailMessages?(targets)
+50:     if targets.length > 1
+51:       valid_targets = targets.select { |b| !b.fainted? && !b.damageState.unaffected }
+52:       return valid_targets.length <= 1
+53:     end
+54:     return super
+55:   end
+56: 
+57:   def pbDesignateTargetsForHit(targets, hitNum)
+58:     valid_targets = []
+59:     targets.each { |b| valid_targets.push(b) if !b.damageState.unaffected }
+60:     return [valid_targets[1]] if valid_targets[1] && hitNum == 1
+61:     return [valid_targets[0]]
+62:   end
+63: end
+64: 
+65: #===============================================================================
+66: # Hits 3 times. Power is multiplied by the hit number. (Triple Kick)
+67: # An accuracy check is performed for each hit.
+68: #===============================================================================
+69: class Battle::Move::HitThreeTimesPowersUpWithEachHit < Battle::Move
+70:   def multiHitMove?;            return true; end
+71:   def pbNumHits(user, targets); return 3;    end
+72: 
+73:   def successCheckPerHit?
+74:     return @accCheckPerHit
+75:   end
+76: 
+77:   def pbOnStartUse(user, targets)
+78:     @calcBaseDmg = 0
+79:     @accCheckPerHit = !user.hasActiveAbility?(:SKILLLINK)
+80:   end
+81: 
+82:   def pbBaseDamage(baseDmg, user, target)
+83:     @calcBaseDmg += baseDmg
+84:     return @calcBaseDmg
+85:   end
+86: end
+87: 
+88: #===============================================================================
+89: # Hits 3 times in a row. If each hit could be a critical hit, it will definitely
+90: # be a critical hit. (Surging Strikes)
+91: #===============================================================================
+92: class Battle::Move::HitThreeTimesAlwaysCriticalHit < Battle::Move
+93:   def multiHitMove?;                   return true; end
+94:   def pbNumHits(user, targets);        return 3;    end
+95:   def pbCritialOverride(user, target); return 1;    end
+96: end
+97: 
+98: #===============================================================================
+99: # Hits 2-5 times.
+100: #===============================================================================
+101: class Battle::Move::HitTwoToFiveTimes < Battle::Move
+102:   def multiHitMove?; return true; end
+103: 
+104:   def pbNumHits(user, targets)
+105:     hitChances = [
+106:       2, 2, 2, 2, 2, 2, 2,
+107:       3, 3, 3, 3, 3, 3, 3,
+108:       4, 4, 4,
+109:       5, 5, 5
+110:     ]
+111:     r = @battle.pbRandom(hitChances.length)
+112:     r = hitChances.length - 1 if user.hasActiveAbility?(:SKILLLINK)
+113:     return hitChances[r]
+114:   end
+115: end
+116: 
+117: #===============================================================================
+118: # Hits 2-5 times. If the user is Ash Greninja, powers up and hits 3 times.
+119: # (Water Shuriken)
+120: #===============================================================================
+121: class Battle::Move::HitTwoToFiveTimesOrThreeForAshGreninja < Battle::Move::HitTwoToFiveTimes
+122:   def pbNumHits(user, targets)
+123:     return 3 if user.isSpecies?(:GRENINJA) && user.form == 2
+124:     return super
+125:   end
+126: 
+127:   def pbBaseDamage(baseDmg, user, target)
+128:     return 20 if user.isSpecies?(:GRENINJA) && user.form == 2
+129:     return super
+130:   end
+131: end
+132: 
+133: #===============================================================================
+134: # Hits 2-5 times in a row. If the move does not fail, increases the user's Speed
+135: # by 1 stage and decreases the user's Defense by 1 stage. (Scale Shot)
+136: #===============================================================================
+137: class Battle::Move::HitTwoToFiveTimesRaiseUserSpd1LowerUserDef1 < Battle::Move::HitTwoToFiveTimes
+138:   def pbEffectAfterAllHits(user, target)
+139:     return if target.damageState.unaffected
+140:     if user.pbCanLowerStatStage?(:DEFENSE, user, self)
+141:       user.pbLowerStatStage(:DEFENSE, 1, user)
+142:     end
+143:     if user.pbCanRaiseStatStage?(:SPEED, user, self)
+144:       user.pbRaiseStatStage(:SPEED, 1, user)
+145:     end
+146:   end
+147: end
+148: 
+149: #===============================================================================
+150: # Hits X times, where X is the number of non-user unfainted status-free Pokémon
+151: # in the user's party (not including partner trainers). Fails if X is 0.
+152: # Base power of each hit depends on the base Attack stat for the species of that
+153: # hit's participant. (Beat Up)
+154: #===============================================================================
+155: class Battle::Move::HitOncePerUserTeamMember < Battle::Move
+156:   def multiHitMove?; return true; end
+157: 
+158:   def pbMoveFailed?(user, targets)
+159:     @beatUpList = []
+160:     @battle.eachInTeamFromBattlerIndex(user.index) do |pkmn, i|
+161:       next if !pkmn.able? || pkmn.status != :NONE
+162:       @beatUpList.push(i)
+163:     end
+164:     if @beatUpList.length == 0
+165:       @battle.pbDisplay(_INTL("But it failed!"))
+166:       return true
+167:     end
+168:     return false
+169:   end
+170: 
+171:   def pbNumHits(user, targets)
+172:     return @beatUpList.length
+173:   end
+174: 
+175:   def pbBaseDamage(baseDmg, user, target)
+176:     i = @beatUpList.shift   # First element in array, and removes it from array
+177:     atk = @battle.pbParty(user.index)[i].baseStats[:ATTACK]
+178:     return 5 + (atk / 10)
+179:   end
+180: end
+181: 
+182: #===============================================================================
+183: # Attacks first turn, skips second turn (if successful).
+184: #===============================================================================
+185: class Battle::Move::AttackAndSkipNextTurn < Battle::Move
+186:   def pbEffectGeneral(user)
+187:     user.effects[PBEffects::HyperBeam] = 2
+188:     user.currentMove = @id
+189:   end
+190: end
+191: 
+192: #===============================================================================
+193: # Two turn attack. Skips first turn, attacks second turn. (Razor Wind)
+194: #===============================================================================
+195: class Battle::Move::TwoTurnAttack < Battle::Move::TwoTurnMove
+196:   def pbChargingTurnMessage(user, targets)
+197:     @battle.pbDisplay(_INTL("{1} whipped up a whirlwind!", user.pbThis))
+198:   end
+199: end
+200: 
+201: #===============================================================================
+202: # Two turn attack. Skips first turn, attacks second turn. (Solar Beam, Solar Blade)
+203: # Power halved in all weather except sunshine. In sunshine, takes 1 turn instead.
+204: #===============================================================================
+205: class Battle::Move::TwoTurnAttackOneTurnInSun < Battle::Move::TwoTurnMove

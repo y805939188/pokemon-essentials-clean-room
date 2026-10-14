@@ -1,0 +1,158 @@
+311:             rd=self.stream('#US');n,p=compressed(rd,token&0xffffff);raw=rd.span(p,n);return raw[:-1].decode('utf-16-le') if n else ''
+312:         if not token:return 'nil'
+313:         r=self.by_token.get(token);require(r is not None,f'unknown token {token:x}')
+314:         tid=token>>24
+315:         if tid in (1,2):return (r.get('Namespace','')+'.'+r['Name']).lstrip('.')
+316:         if tid in (4,6):return r.get('declaring_type','')+'::'+r['Name']
+317:         if tid==10:return self.label(r['Class_token'])+'::'+r['Name']
+318:         if tid==27:return self.signature(r['Signature'],'type')
+319:         return SCHEMA[tid][0]+':'+str(token&0xffffff)
+320:     def signature(self,ix,kind=None):
+321:         rd=Reader(self.blob(ix));p=0
+322:         def number():
+323:             nonlocal p
+324:             v,p=compressed(rd,p);return v
+325:         def typ():
+326:             nonlocal p
+327:             t=number();base={1:'void',2:'bool',3:'char',4:'i1',5:'u1',6:'i2',7:'u2',8:'i4',9:'u4',10:'i8',11:'u8',12:'r4',13:'r8',14:'string',22:'typedref',24:'native_int',25:'native_uint',28:'object'}
+328:             if t in base:return base[t]
+329:             if t in (15,16,29,69):return {15:'pointer',16:'byref',29:'array',69:'pinned'}[t]+'<'+str(typ())+'>'
+330:             if t in (17,18):
+331:                 coded=number();return self.label(([2,1,27][coded&3]<<24)|(coded>>2))
+332:             if t in (19,30):return ('T' if t==19 else 'M')+str(number())
+333:             if t==21:
+334:                 head=typ();n=number();return str(head)+'<'+','.join(str(typ()) for _ in range(n))+'>'
+335:             if t in (31,32):
+336:                 modifier=number();return f'modifier({modifier}) '+str(typ())
+337:             raise ValueError(f'unsupported signature type {t}')
+338:         if kind=='type':result=typ()
+339:         else:
+340:             call=number()
+341:             if call==6:result={'field':typ()}
+342:             elif call==7:result={'locals':[typ() for _ in range(number())]}
+343:             else:
+344:                 generic=number() if call&16 else 0;count=number();ret=typ();args=[typ() for _ in range(count)]
+345:                 result={'calling_convention':call,'generic_parameters':generic,'return':ret,'args':args}
+346:         require(p==len(rd.b),'unconsumed signature bytes');return result
+347:     def ledger(self):
+348:         blobrows=[]
+349:         for ix,uses in sorted(self.blobrefs.items()):
+350:             row={'offset':ix,'consumers':uses,'sha256':sha(self.blob(ix)),'bytes':len(self.blob(ix))}
+351:             if ix and any(u.endswith(':Signature') or u.startswith('Property:') for u in uses):
+352:                 row['decoded']=self.signature(ix,'type' if uses[0].startswith('TypeSpec:') else None)
+353:             else:row['data_hex']=self.blob(ix).hex()
+354:             blobrows.append(row)
+355:         strings=[];rd=self.stream('#Strings');p=1
+356:         while p<len(rd.b):
+357:             end=rd.b.find(b'\0',p);require(end>=0,'strings tail');s=rd.b[p:end].decode('utf8')
+358:             if s:strings.append({'offset':p,'value':s})
+359:             p=end+1
+360:         us=[];rd=self.stream('#US');p=1
+361:         while p<len(rd.b):
+362:             at=p;n,p=compressed(rd,p)
+363:             if n:
+364:                 raw=rd.span(p,n);us.append({'offset':at,'value':safe_literal(raw[:-1].decode('utf-16-le')),'terminal_flag':raw[-1]});p+=n
+365:         rd=self.stream('#Blob');p=1;all_blobs=[]
+366:         while p<len(rd.b):
+367:             at=p;n,p=compressed(rd,p);raw=rd.span(p,n);p+=n
+368:             all_blobs.append({'offset':at,'size':n,'sha256':sha(raw),'consumers':self.blobrefs.get(at,[]),'padding':n==0})
+369:         for r in self.tables[12]:
+370:             r['attribute_constructor']=self.label(r['Type_token']);raw=self.blob(r['Value'])
+371:             if 'DebuggableAttribute' in r['attribute_constructor']:
+372:                 r['decoded_value']={'prolog':int.from_bytes(raw[:2],'little'),'flags':int.from_bytes(raw[2:6],'little'),'named_count':int.from_bytes(raw[6:8],'little')}
+373:             elif 'CompilationRelaxationsAttribute' in r['attribute_constructor']:
+374:                 require(len(raw)==8,'compilation attribute length')
+375:                 r['decoded_value']={'prolog':int.from_bytes(raw[:2],'little'),'relaxations_flags':int.from_bytes(raw[2:6],'little'),'named_count':int.from_bytes(raw[6:8],'little')}
+376:             elif 'RuntimeCompatibilityAttribute' in r['attribute_constructor']:
+377:                 r['decoded_value']={'prolog':int.from_bytes(raw[:2],'little'),'named_count':int.from_bytes(raw[2:4],'little'),'named_boolean_property':'WrapNonExceptionThrows','value':bool(raw[-1])}
+378:         bodies=[]
+379:         for m in self.tables[6]:
+380:             body=decode_body(self,m);m['signature_decoded']=self.signature(m['Signature']);bodies.append(body)
+381:         return {'header':self.header,'streams':self.streams,'table_counts':{SCHEMA[k][0]:v for k,v in self.counts.items()},
+382:             'tables':{SCHEMA[k][0]:v for k,v in self.tables.items()},'strings':strings,'user_strings':us,'blobs':blobrows,'all_blob_heap_records':all_blobs,
+383:             'GUIDs':[str(uuid.UUID(bytes_le=self.stream('#GUID').span(i,16))) for i in range(0,self.stream('#GUID').b.__len__(),16)],'methods':bodies}
+384: 
+385: # ECMA CIL opcode identities and operand widths, no execution engine.
+386: OPS={}
+387: def op(code,name,operand=''):OPS[code]=(name,operand)
+388: for i,n in enumerate('nop break ldarg.0 ldarg.1 ldarg.2 ldarg.3 ldloc.0 ldloc.1 ldloc.2 ldloc.3 stloc.0 stloc.1 stloc.2 stloc.3'.split()):op(i,n)
+389: for i,n in enumerate('ldarg.s ldarga.s starg.s ldloc.s ldloca.s stloc.s'.split(),14):op(i,n,'B')
+390: for i,n in enumerate('ldnull ldc.i4.m1 ldc.i4.0 ldc.i4.1 ldc.i4.2 ldc.i4.3 ldc.i4.4 ldc.i4.5 ldc.i4.6 ldc.i4.7 ldc.i4.8'.split(),20):op(i,n)
+391: for code,name,operand in [(31,'ldc.i4.s','b'),(32,'ldc.i4','i'),(33,'ldc.i8','q'),(34,'ldc.r4','f'),(35,'ldc.r8','d'),(37,'dup',''),(38,'pop',''),(39,'jmp','T'),(40,'call','T'),(41,'calli','T'),(42,'ret','')]:op(code,name,operand)
+392: branches='br brfalse brtrue beq bge bgt ble blt bne.un bge.un bgt.un ble.un blt.un'.split()
+393: for i,n in enumerate(branches):op(43+i,n+'.s','r1');op(56+i,n,'r4')
+394: op(69,'switch','switch')
+395: for i,n in enumerate('ldind.i1 ldind.u1 ldind.i2 ldind.u2 ldind.i4 ldind.u4 ldind.i8 ldind.i ldind.r4 ldind.r8 ldind.ref stind.ref stind.i1 stind.i2 stind.i4 stind.i8 stind.r4 stind.r8 add sub mul div div.un rem rem.un and or xor shl shr shr.un neg not conv.i1 conv.i2 conv.i4 conv.i8 conv.r4 conv.r8 conv.u4 conv.u8'.split(),70):op(i,n)
+396: for code,name in {0x6f:'callvirt',0x70:'cpobj',0x71:'ldobj',0x72:'ldstr',0x73:'newobj',0x74:'castclass',0x75:'isinst',0x79:'unbox',0x7b:'ldfld',0x7c:'ldflda',0x7d:'stfld',0x7e:'ldsfld',0x7f:'ldsflda',0x80:'stsfld',0x81:'stobj',0x8c:'box',0x8d:'newarr',0x8f:'ldelema',0xa3:'ldelem',0xa4:'stelem',0xa5:'unbox.any',0xc2:'refanyval',0xc6:'mkrefany',0xd0:'ldtoken'}.items():op(code,name,'T')
+397: op(0x76,'conv.r.un');op(0x7a,'throw');op(0x8e,'ldlen')
+398: for i,n in enumerate('ldelem.i1 ldelem.u1 ldelem.i2 ldelem.u2 ldelem.i4 ldelem.u4 ldelem.i8 ldelem.i ldelem.r4 ldelem.r8 ldelem.ref stelem.i stelem.i1 stelem.i2 stelem.i4 stelem.i8 stelem.r4 stelem.r8 stelem.ref'.split(),0x90):op(i,n)
+399: for c,n in {0xd1:'conv.u2',0xd2:'conv.u1',0xd3:'conv.i',0xd4:'conv.ovf.i',0xd5:'conv.ovf.u',0xd6:'add.ovf',0xd7:'add.ovf.un',0xd8:'mul.ovf',0xd9:'mul.ovf.un',0xda:'sub.ovf',0xdb:'sub.ovf.un',0xdc:'endfinally',0xdf:'stind.i',0xe0:'conv.u'}.items():op(c,n)
+400: op(0xdd,'leave','r4');op(0xde,'leave.s','r1')
+401: for i,n in enumerate('arglist ceq cgt cgt.un clt clt.un'.split()):op(0xfe00+i,n)
+402: op(0xfe06,'ldftn','T');op(0xfe07,'ldvirtftn','T')
+403: for i,n in enumerate('ldarg ldarga starg ldloc ldloca stloc'.split(),9):op(0xfe00+i,n,'H')
+404: for c,n in {0xfe0f:'localloc',0xfe11:'endfilter',0xfe13:'volatile.',0xfe14:'tail.',0xfe17:'cpblk',0xfe18:'initblk',0xfe1a:'rethrow',0xfe1d:'refanytype',0xfe1e:'readonly.'}.items():op(c,n)
+405: op(0xfe12,'unaligned.','B');op(0xfe15,'initobj','T');op(0xfe16,'constrained.','T');op(0xfe1c,'sizeof','T')
+406: 
+407: def decode_body(cli,m,inspect=False):
+408:     pe=cli.pe;p=pe.offset(m['RVA']);first=pe.span(p,1)[0];sections=[]
+409:     if first&3==2:hs=1;sz=first>>2;maxstack=8;localsig=0;flags=2
+410:     else:
+411:         flags,maxstack,sz,localsig=pe.unpack('<HHII',p);hs=(flags>>12)*4;require(flags&3==3 and hs>=12,'fat method header')
+412:     code=Reader(pe.span(p+hs,sz));q=0;instructions=[];starts=[]
+413:     while q<sz:
+414:         at=q;v=code.span(q,1)[0];q+=1
+415:         if v==254:v=(v<<8)|code.span(q,1)[0];q+=1
+416:         require(v in OPS,f'unknown opcode {v:x} at method {m["row"]}:{at:x}')
+417:         name,typ=OPS[v];operand=None;label=None
+418:         if typ=='T':operand=code.unpack('<I',q)[0];q+=4;label=cli.label(operand)
+419:         elif typ in ('r1','r4'):
+420:             d=code.unpack('<b' if typ=='r1' else '<i',q)[0];q+=int(typ[1:]);operand=q+d
+421:         elif typ=='switch':
+422:             count=code.unpack('<I',q)[0];q+=4;require(count<=sz//4,'switch count');base=q+4*count
+423:             operand=[base+code.unpack('<i',q+4*i)[0] for i in range(count)];q=base
+424:         elif typ:operand=code.unpack('<'+typ,q)[0];q+=struct.calcsize('<'+typ)
+425:         starts.append(at);instructions.append({'offset':at,'op':name,'operand':operand,'label':label,'operand_kind':typ})
+426:     require(q==sz,'method byte accounting')
+427:     for ins in instructions:
+428:         targets=ins['operand'] if ins['operand_kind']=='switch' else [ins['operand']] if ins['operand_kind'].startswith('r') else []
+429:         require(all(t in starts for t in targets),'branch target not instruction')
+430:     if flags&8:
+431:         a=(p+hs+sz+3)&~3
+432:         while True:
+433:             k=pe.span(a,1)[0];fat=bool(k&64);n=int.from_bytes(pe.span(a+1,3),'little') if fat else pe.span(a+1,1)[0]
+434:             require(k&1 and n>=4 and (n-4)%(24 if fat else 12)==0,'method extra section')
+435:             for j in range((n-4)//(24 if fat else 12)):
+436:                 v=pe.unpack('<IIIIII' if fat else '<HHBHBI',a+4+j*(24 if fat else 12))
+437:                 fl,ts,tl,hs2,hl,tok=v
+438:                 require(ts in starts and hs2 in starts and ts+tl<=sz and hs2+hl<=sz,'EH bounds')
+439:                 sections.append({'flags':fl,'try':[ts,ts+tl],'handler':[hs2,hs2+hl],'catch_type':cli.label(tok) if fl==0 else None,'filter_offset':tok if fl==1 else None})
+440:             a=(a+n+3)&~3
+441:             if not k&128:break
+442:     if inspect:
+443:         print(json.dumps({'method':m,'locals':cli.signature(cli.by_token[localsig]['Signature']) if localsig else [],'exceptions':sections},ensure_ascii=False))
+444:         for ins in instructions:print(f'{ins["offset"]:04x} {ins["op"]} {ins["label"] if ins["label"] is not None else ins["operand"] if ins["operand"] is not None else ""}')
+445:     calls=[{'il_offset':x['offset'],'operation':x['op'],'target':x['label']} for x in instructions if x['op'] in ('call','callvirt','newobj','ldftn')]
+446:     return {'method_token':m['token'],'name':cli.label(m['token']),'file_offset':p,'code_size':sz,'sha256':sha(code.b),
+447:         'instruction_count':len(instructions),'op_histogram':dict(collections.Counter(x['op'] for x in instructions)),
+448:         'all_instruction_bytes_decoded':True,'branches_valid':True,'exception_clauses':sections,'calls':calls,
+449:         'string_references':[{'il_offset':x['offset'],'value':safe_literal(x['label'])} for x in instructions if x['op']=='ldstr'],
+450:         'locals':cli.signature(cli.by_token[localsig]['Signature']) if localsig else [],'max_stack_header':maxstack,
+451:         'not_claimed':'No execution, stack-verification proof, framework dependency implementation or rendering result.'}
+452: 
+453: def main():
+454:     if len(sys.argv)==3 and sys.argv[1]=='--inspect-il':
+455:         cli=CLI(PE((ROOT/'animmaker.exe').read_bytes()));decode_body(cli,cli.tables[6][int(sys.argv[2])-1],True);return
+456:     results=[]
+457:     for name in ('Game.exe','animmaker.exe','extendtext.exe','x64-msvcrt-ruby310.dll','zlib1.dll'):
+458:         data=(ROOT/name).read_bytes();pe=PE(data)
+459:         row={'path':name,'bytes':len(data),'sha256':sha(data),**pe.meta,'imports':pe.imports(),'exports':pe.exports(),'coff_symbols':pe.coff_symbols(),
+460:             'resources':pe.resources(),'debug_records':pe.debug(),'string_scan':scan_strings(pe),'embedded_readable':embedded_readable_inventory(pe)}
+461:         if pe.dirs[14][0]:
+462:             cli=CLI(pe);row['CLI']=cli.ledger()
+463:         results.append(row)
+464:     save('binary-interface-audit.json',{'records':results,'execution_status':'DATA_ONLY_NO_REFERENCE_LOADING'})
+465:     print(json.dumps([{'path':x['path'],'imports':sum(len(d['symbols']) for d in x['imports']),'exports':len(x['exports']),
+466:         'resources':len(x['resources']),'selected_strings':len(x['string_scan']['selected']),'CLI_methods':len(x.get('CLI',{}).get('methods',[]))} for x in results]))
+467: 
+468: if __name__=='__main__':main()

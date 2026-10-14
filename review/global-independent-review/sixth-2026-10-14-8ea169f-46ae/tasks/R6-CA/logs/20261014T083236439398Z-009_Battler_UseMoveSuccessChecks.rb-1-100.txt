@@ -1,0 +1,100 @@
+1: class Battle::Battler
+2:   #=============================================================================
+3:   # Decide whether the trainer is allowed to tell the Pokémon to use the given
+4:   # move. Called when choosing a command for the round.
+5:   # Also called when processing the Pokémon's action, because these effects also
+6:   # prevent Pokémon action. Relevant because these effects can become active
+7:   # earlier in the same round (after choosing the command but before using the
+8:   # move) or an unusable move may be called by another move such as Metronome.
+9:   #=============================================================================
+10:   def pbCanChooseMove?(move, commandPhase, showMessages = true, specialUsage = false)
+11:     # Disable
+12:     if @effects[PBEffects::DisableMove] == move.id && !specialUsage
+13:       if showMessages
+14:         msg = _INTL("{1}'s {2} is disabled!", pbThis, move.name)
+15:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+16:       end
+17:       return false
+18:     end
+19:     # Heal Block
+20:     if @effects[PBEffects::HealBlock] > 0 && move.healingMove?
+21:       if showMessages
+22:         msg = _INTL("{1} can't use {2} because of Heal Block!", pbThis, move.name)
+23:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+24:       end
+25:       return false
+26:     end
+27:     # Gravity
+28:     if @battle.field.effects[PBEffects::Gravity] > 0 && move.unusableInGravity?
+29:       if showMessages
+30:         msg = _INTL("{1} can't use {2} because of gravity!", pbThis, move.name)
+31:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+32:       end
+33:       return false
+34:     end
+35:     # Throat Chop
+36:     if @effects[PBEffects::ThroatChop] > 0 && move.soundMove?
+37:       if showMessages
+38:         msg = _INTL("{1} can't use {2} because of Throat Chop!", pbThis, move.name)
+39:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+40:       end
+41:       return false
+42:     end
+43:     # Choice Band/Gorilla Tactics
+44:     @effects[PBEffects::ChoiceBand] = nil if !pbHasMove?(@effects[PBEffects::ChoiceBand])
+45:     if @effects[PBEffects::ChoiceBand] && move.id != @effects[PBEffects::ChoiceBand]
+46:       choiced_move = GameData::Move.try_get(@effects[PBEffects::ChoiceBand])
+47:       if choiced_move
+48:         if hasActiveItem?([:CHOICEBAND, :CHOICESPECS, :CHOICESCARF])
+49:           if showMessages
+50:             msg = _INTL("The {1} only allows the use of {2}!", itemName, choiced_move.name)
+51:             (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+52:           end
+53:           return false
+54:         elsif hasActiveAbility?(:GORILLATACTICS)
+55:           if showMessages
+56:             msg = _INTL("{1} can only use {2}!", pbThis, choiced_move.name)
+57:             (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+58:           end
+59:           return false
+60:         end
+61:       end
+62:     end
+63:     # Taunt
+64:     if @effects[PBEffects::Taunt] > 0 && move.statusMove? && !specialUsage
+65:       if showMessages
+66:         msg = _INTL("{1} can't use {2} after the taunt!", pbThis, move.name)
+67:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+68:       end
+69:       return false
+70:     end
+71:     # Torment
+72:     if @effects[PBEffects::Torment] && !@effects[PBEffects::Instructed] && !specialUsage &&
+73:        @lastMoveUsed && move.id == @lastMoveUsed && move.id != @battle.struggle.id
+74:       if showMessages
+75:         msg = _INTL("{1} can't use the same move twice in a row due to the torment!", pbThis)
+76:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+77:       end
+78:       return false
+79:     end
+80:     # Imprison
+81:     if @battle.allOtherSideBattlers(@index).any? { |b| b.effects[PBEffects::Imprison] && b.pbHasMove?(move.id) }
+82:       if showMessages
+83:         msg = _INTL("{1} can't use its sealed {2}!", pbThis, move.name)
+84:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+85:       end
+86:       return false
+87:     end
+88:     # Assault Vest (prevents choosing status moves but doesn't prevent
+89:     # executing them)
+90:     if hasActiveItem?(:ASSAULTVEST) && move.statusMove? && move.function_code != "UseMoveTargetIsAboutToUse" && commandPhase
+91:       if showMessages
+92:         msg = _INTL("The effects of the {1} prevent status moves from being used!", itemName)
+93:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+94:       end
+95:       return false
+96:     end
+97:     # Belch
+98:     return false if !move.pbCanChooseMove?(self, commandPhase, showMessages)
+99:     return true
+100:   end

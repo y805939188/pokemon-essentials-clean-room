@@ -1,0 +1,144 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [571, 713], "total_lines": 1227, "sha256": "3a7f233156f09a6d2e3729bdaa9d1962bfa946aaaa7403042aaea5dcdcdf8cb4", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:21:33.084679+00:00"}
+571:   # @return [Boolean] whether the Pokémon is holding the specified item or
+572:   #   an item at all
+573:   def hasItem?(check_item = nil)
+574:     return !@item.nil? if check_item.nil?
+575:     held_item = self.item
+576:     return held_item && held_item == check_item
+577:   end
+578: 
+579:   # @return [Array<Array<Symbol>>] the items this species can be found holding in the wild
+580:   def wildHoldItems
+581:     sp_data = species_data
+582:     return [sp_data.wild_item_common, sp_data.wild_item_uncommon, sp_data.wild_item_rare]
+583:   end
+584: 
+585:   # @return [Mail, nil] mail held by this Pokémon (nil if there is none)
+586:   def mail
+587:     @mail = nil if @mail && (!@mail.item || !hasItem?(@mail.item))
+588:     return @mail
+589:   end
+590: 
+591:   # If mail is a Mail object, gives that mail to this Pokémon. If nil is given,
+592:   # removes the held mail.
+593:   # @param mail [Mail, nil] mail to be held by this Pokémon
+594:   def mail=(mail)
+595:     if !mail.nil? && !mail.is_a?(Mail)
+596:       raise ArgumentError, _INTL("Invalid value {1} given", mail.inspect)
+597:     end
+598:     @mail = mail
+599:   end
+600: 
+601:   #=============================================================================
+602:   # Moves
+603:   #=============================================================================
+604: 
+605:   # @return [Integer] the number of moves known by the Pokémon
+606:   def numMoves
+607:     return @moves.length
+608:   end
+609: 
+610:   # @param move_id [Symbol, String, GameData::Move] ID of the move to check
+611:   # @return [Boolean] whether the Pokémon knows the given move
+612:   def hasMove?(move_id)
+613:     move_data = GameData::Move.try_get(move_id)
+614:     return false if !move_data
+615:     return @moves.any? { |m| m.id == move_data.id }
+616:   end
+617: 
+618:   # Returns the list of moves this Pokémon can learn by levelling up.
+619:   # @return [Array<Array<Integer,Symbol>>] this Pokémon's move list, where every element is [level, move ID]
+620:   def getMoveList
+621:     return species_data.moves
+622:   end
+623: 
+624:   # Sets this Pokémon's movelist to the default movelist it originally had.
+625:   def reset_moves
+626:     this_level = self.level
+627:     # Find all level-up moves that self could have learned
+628:     moveset = self.getMoveList
+629:     knowable_moves = []
+630:     moveset.each { |m| knowable_moves.push(m[1]) if m[0] <= this_level }
+631:     # Remove duplicates (retaining the latest copy of each move)
+632:     knowable_moves = knowable_moves.reverse
+633:     knowable_moves |= []
+634:     knowable_moves = knowable_moves.reverse
+635:     # Add all moves
+636:     @moves.clear
+637:     first_move_index = knowable_moves.length - MAX_MOVES
+638:     first_move_index = 0 if first_move_index < 0
+639:     (first_move_index...knowable_moves.length).each do |i|
+640:       @moves.push(Pokemon::Move.new(knowable_moves[i]))
+641:     end
+642:   end
+643: 
+644:   # Silently learns the given move. Will erase the first known move if it has to.
+645:   # @param move_id [Symbol, String, GameData::Move] ID of the move to learn
+646:   def learn_move(move_id)
+647:     move_data = GameData::Move.try_get(move_id)
+648:     return if !move_data
+649:     # Check if self already knows the move; if so, move it to the end of the array
+650:     @moves.each_with_index do |m, i|
+651:       next if m.id != move_data.id
+652:       @moves.push(m)
+653:       @moves.delete_at(i)
+654:       return
+655:     end
+656:     # Move is not already known; learn it
+657:     @moves.push(Pokemon::Move.new(move_data.id))
+658:     # Delete the first known move if self now knows more moves than it should
+659:     @moves.shift if numMoves > MAX_MOVES
+660:   end
+661: 
+662:   # Deletes the given move from the Pokémon.
+663:   # @param move_id [Symbol, String, GameData::Move] ID of the move to delete
+664:   def forget_move(move_id)
+665:     move_data = GameData::Move.try_get(move_id)
+666:     return if !move_data
+667:     @moves.delete_if { |m| m.id == move_data.id }
+668:   end
+669: 
+670:   # Deletes the move at the given index from the Pokémon.
+671:   # @param index [Integer] index of the move to be deleted
+672:   def forget_move_at_index(index)
+673:     @moves.delete_at(index)
+674:   end
+675: 
+676:   # Deletes all moves from the Pokémon.
+677:   def forget_all_moves
+678:     @moves.clear
+679:   end
+680: 
+681:   # Copies currently known moves into a separate array, for Move Relearner.
+682:   def record_first_moves
+683:     clear_first_moves
+684:     @moves.each { |m| @first_moves.push(m.id) }
+685:   end
+686: 
+687:   # Adds a move to this Pokémon's first moves.
+688:   # @param move_id [Symbol, String, GameData::Move] ID of the move to add
+689:   def add_first_move(move_id)
+690:     move_data = GameData::Move.try_get(move_id)
+691:     @first_moves.push(move_data.id) if move_data && !@first_moves.include?(move_data.id)
+692:   end
+693: 
+694:   # Removes a move from this Pokémon's first moves.
+695:   # @param move_id [Symbol, String, GameData::Move] ID of the move to remove
+696:   def remove_first_move(move_id)
+697:     move_data = GameData::Move.try_get(move_id)
+698:     @first_moves.delete(move_data.id) if move_data
+699:   end
+700: 
+701:   # Clears this Pokémon's first moves.
+702:   def clear_first_moves
+703:     @first_moves.clear
+704:   end
+705: 
+706:   # @param move_id [Symbol, String, GameData::Move] ID of the move to check
+707:   # @return [Boolean] whether the Pokémon is compatible with the given move
+708:   def compatible_with_move?(move_id)
+709:     move_data = GameData::Move.try_get(move_id)
+710:     return false if !move_data
+711:     return true if species_data.tutor_moves.include?(move_data.id)
+712:     return true if getMoveList.any? { |m| m[1] == move_data.id }
+713:     return true if species_data.get_egg_moves.include?(move_data.id)

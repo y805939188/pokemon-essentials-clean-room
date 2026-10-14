@@ -1,0 +1,111 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/009_Battle_CommandPhase.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "9f38551f88dfb95dc6c1a4e31e2ed968019032b6", "sha256": "779d5de9e804d8e97950ec69a437157d6802d977812e00eb2a9ba78146f5a9d6", "start_line": 1, "end_line": 110, "total_lines": 265, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:47:36.723717+00:00"}
+1: class Battle
+2:   #=============================================================================
+3:   # Clear commands
+4:   #=============================================================================
+5:   def pbClearChoice(idxBattler)
+6:     @choices[idxBattler] = [] if !@choices[idxBattler]
+7:     @choices[idxBattler][0] = :None
+8:     @choices[idxBattler][1] = 0
+9:     @choices[idxBattler][2] = nil
+10:     @choices[idxBattler][3] = -1
+11:   end
+12: 
+13:   def pbCancelChoice(idxBattler)
+14:     # If idxBattler's choice was to use an item, return that item to the Bag
+15:     if @choices[idxBattler][0] == :UseItem
+16:       item = @choices[idxBattler][1]
+17:       pbReturnUnusedItemToBag(item, idxBattler) if item
+18:     end
+19:     # If idxBattler chose to Mega Evolve, cancel it
+20:     pbUnregisterMegaEvolution(idxBattler)
+21:     # Clear idxBattler's choice
+22:     pbClearChoice(idxBattler)
+23:   end
+24: 
+25:   #=============================================================================
+26:   # Use main command menu (Fight/Pokémon/Bag/Run)
+27:   #=============================================================================
+28:   def pbCommandMenu(idxBattler, firstAction)
+29:     return @scene.pbCommandMenu(idxBattler, firstAction)
+30:   end
+31: 
+32:   #=============================================================================
+33:   # Check whether actions can be taken
+34:   #=============================================================================
+35:   def pbCanShowCommands?(idxBattler)
+36:     battler = @battlers[idxBattler]
+37:     return false if !battler || battler.fainted?
+38:     return false if battler.usingMultiTurnAttack?
+39:     return true
+40:   end
+41: 
+42:   def pbCanShowFightMenu?(idxBattler)
+43:     battler = @battlers[idxBattler]
+44:     # Encore
+45:     return false if battler.effects[PBEffects::Encore] > 0
+46:     # No moves that can be chosen (will Struggle instead)
+47:     usable = false
+48:     battler.eachMoveWithIndex do |_m, i|
+49:       next if !pbCanChooseMove?(idxBattler, i, false)
+50:       usable = true
+51:       break
+52:     end
+53:     return usable
+54:   end
+55: 
+56:   #=============================================================================
+57:   # Use sub-menus to choose an action, and register it if is allowed
+58:   #=============================================================================
+59:   # Returns true if a choice was made, false if cancelled.
+60:   def pbFightMenu(idxBattler)
+61:     # Auto-use Encored move or no moves choosable, so auto-use Struggle
+62:     return pbAutoChooseMove(idxBattler) if !pbCanShowFightMenu?(idxBattler)
+63:     # Battle Palace only
+64:     return true if pbAutoFightMenu(idxBattler)
+65:     # Regular move selection
+66:     ret = false
+67:     @scene.pbFightMenu(idxBattler, pbCanMegaEvolve?(idxBattler)) do |cmd|
+68:       case cmd
+69:       when -1   # Cancel
+70:       when -2   # Toggle Mega Evolution
+71:         pbToggleRegisteredMegaEvolution(idxBattler)
+72:         next false
+73:       when -3   # Shift
+74:         pbUnregisterMegaEvolution(idxBattler)
+75:         pbRegisterShift(idxBattler)
+76:         ret = true
+77:       else      # Chose a move to use
+78:         next false if cmd < 0 || !@battlers[idxBattler].moves[cmd] ||
+79:                       !@battlers[idxBattler].moves[cmd].id
+80:         next false if !pbRegisterMove(idxBattler, cmd)
+81:         next false if !singleBattle? &&
+82:                       !pbChooseTarget(@battlers[idxBattler], @battlers[idxBattler].moves[cmd])
+83:         ret = true
+84:       end
+85:       next true
+86:     end
+87:     return ret
+88:   end
+89: 
+90:   def pbAutoFightMenu(idxBattler); return false; end
+91: 
+92:   def pbChooseTarget(battler, move)
+93:     target_data = move.pbTarget(battler)
+94:     idxTarget = @scene.pbChooseTarget(battler.index, target_data)
+95:     return false if idxTarget < 0
+96:     pbRegisterTarget(battler.index, idxTarget)
+97:     return true
+98:   end
+99: 
+100:   def pbItemMenu(idxBattler, firstAction)
+101:     if !@internalBattle
+102:       pbDisplay(_INTL("Items can't be used here."))
+103:       return false
+104:     end
+105:     ret = false
+106:     @scene.pbItemMenu(idxBattler, firstAction) do |item, useType, idxPkmn, idxMove, itemScene|
+107:       next false if !item
+108:       battler = pkmn = nil
+109:       case useType
+110:       when 1, 2   # Use on Pokémon/Pokémon's move

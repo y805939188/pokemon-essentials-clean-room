@@ -1,0 +1,300 @@
+301:     ret = ""
+302:     str.sub!(/^\s*/, "")
+303:     if str[0, 1] == "\""
+304:       str[0, 1] = ""
+305:       escaped = false
+306:       fieldbytes = 0
+307:       str.scan(/./) do |s|
+308:         fieldbytes += s.length
+309:         break if s == "\"" && !escaped
+310:         if s == "\\" && !escaped
+311:           escaped = true
+312:         else
+313:           ret += s
+314:           escaped = false
+315:         end
+316:       end
+317:       str[0, fieldbytes] = ""
+318:       if !str[/^\s*,/] && !str[/^\s*$/]
+319:         raise _INTL("Invalid quoted field (in: {1}).", str) + "\n" + FileLineData.linereport
+320:       end
+321:       str[0, str.length] = $~.post_match
+322:     else
+323:       if str[/,/]
+324:         str[0, str.length] = $~.post_match
+325:         ret = $~.pre_match
+326:       else
+327:         ret = str.clone
+328:         str[0, str.length] = ""
+329:       end
+330:       ret.gsub!(/\s+$/, "")
+331:     end
+332:     return ret
+333:   end
+334: 
+335:   # Unused
+336:   def csvBoolean!(str, _line = -1)
+337:     field = csvfield!(str)
+338:     return true if field[/^(?:1|TRUE|YES|Y)$/i]
+339:     return false if field[/^(?:0|FALSE|NO|N)$/i]
+340:     raise _INTL("Field '{1}' is not a Boolean value (true, false, 1, 0).", field) + "\n" + FileLineData.linereport
+341:   end
+342: 
+343:   # Unused
+344:   def csvInt!(str, _line = -1)
+345:     ret = csvfield!(str)
+346:     if !ret[/^\-?\d+$/]
+347:       raise _INTL("Field '{1}' is not an integer.", ret) + "\n" + FileLineData.linereport
+348:     end
+349:     return ret.to_i
+350:   end
+351: 
+352:   # Unused
+353:   def csvPosInt!(str, _line = -1)
+354:     ret = csvfield!(str)
+355:     if !ret[/^\d+$/]
+356:       raise _INTL("Field '{1}' is not a positive integer.", ret) + "\n" + FileLineData.linereport
+357:     end
+358:     return ret.to_i
+359:   end
+360: 
+361:   # Unused
+362:   def csvFloat!(str, _line = -1)
+363:     ret = csvfield!(str)
+364:     return Float(ret) rescue raise _INTL("Field '{1}' is not a number.", ret) + "\n" + FileLineData.linereport
+365:   end
+366: 
+367:   # Unused
+368:   def csvEnumField!(value, enumer, _key, _section)
+369:     ret = csvfield!(value)
+370:     return checkEnumField(ret, enumer)
+371:   end
+372: 
+373:   # Unused
+374:   def csvEnumFieldOrInt!(value, enumer, _key, _section)
+375:     ret = csvfield!(value)
+376:     return ret.to_i if ret[/\-?\d+/]
+377:     return checkEnumField(ret, enumer)
+378:   end
+379: 
+380:   # Turns a value (a string) into another data type as determined by the given
+381:   # schema.
+382:   # @param value [String]
+383:   # @param schema [String]
+384:   def cast_csv_value(value, schema, enumer = nil)
+385:     case schema.downcase
+386:     when "i"   # Integer
+387:       if !value || !value[/^\-?\d+$/]
+388:         raise _INTL("Field '{1}' is not an integer.", value) + "\n" + FileLineData.linereport
+389:       end
+390:       return value.to_i
+391:     when "u"   # Positive integer or zero
+392:       if !value || !value[/^\d+$/]
+393:         raise _INTL("Field '{1}' is not a positive integer or 0.", value) + "\n" + FileLineData.linereport
+394:       end
+395:       return value.to_i
+396:     when "v"   # Positive integer
+397:       if !value || !value[/^\d+$/]
+398:         raise _INTL("Field '{1}' is not a positive integer.", value) + "\n" + FileLineData.linereport
+399:       end
+400:       if value.to_i == 0
+401:         raise _INTL("Field '{1}' must be greater than 0.", value) + "\n" + FileLineData.linereport
+402:       end
+403:       return value.to_i
+404:     when "x"   # Hexadecimal number
+405:       if !value || !value[/^[A-F0-9]+$/i]
+406:         raise _INTL("Field '{1}' is not a hexadecimal number.", value) + "\n" + FileLineData.linereport
+407:       end
+408:       return value.hex
+409:     when "f"   # Floating point number
+410:       if !value || !value[/^\-?^\d*\.?\d*$/]
+411:         raise _INTL("Field '{1}' is not a number.", value) + "\n" + FileLineData.linereport
+412:       end
+413:       return value.to_f
+414:     when "b"   # Boolean
+415:       return true if value && value[/^(?:1|TRUE|YES|Y)$/i]
+416:       return false if value && value[/^(?:0|FALSE|NO|N)$/i]
+417:       raise _INTL("Field '{1}' is not a Boolean value (true, false, 1, 0).", value) + "\n" + FileLineData.linereport
+418:     when "n"   # Name
+419:       if !value || !value[/^(?![0-9])\w+$/]
+420:         raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+421:       end
+422:     when "s"   # String
+423:     when "q"   # Unformatted text
+424:     when "m"   # Symbol
+425:       if !value || !value[/^(?![0-9])\w+$/]
+426:         raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+427:       end
+428:       return value.to_sym
+429:     when "e"   # Enumerable
+430:       return checkEnumField(value, enumer)
+431:     when "y"   # Enumerable or integer
+432:       return value.to_i if value && value[/^\-?\d+$/]
+433:       return checkEnumField(value, enumer)
+434:     end
+435:     return value
+436:   end
+437: 
+438:   def checkEnumField(ret, enumer)
+439:     case enumer
+440:     when Module
+441:       begin
+442:         if nil_or_empty?(ret) || !enumer.const_defined?(ret)
+443:           raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+444:         end
+445:       rescue NameError
+446:         raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+447:       end
+448:       return enumer.const_get(ret.to_sym)
+449:     when Symbol, String
+450:       if !Kernel.const_defined?(enumer.to_sym) && GameData.const_defined?(enumer.to_sym)
+451:         enumer = GameData.const_get(enumer.to_sym)
+452:         begin
+453:           if nil_or_empty?(ret) || !enumer.exists?(ret.to_sym)
+454:             raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+455:           end
+456:         rescue NameError
+457:           raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+458:         end
+459:         return ret.to_sym
+460:       end
+461:       enumer = Object.const_get(enumer.to_sym)
+462:       begin
+463:         if nil_or_empty?(ret) || !enumer.const_defined?(ret)
+464:           raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+465:         end
+466:       rescue NameError
+467:         raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+468:       end
+469:       return enumer.const_get(ret.to_sym)
+470:     when Array
+471:       idx = (nil_or_empty?(ret)) ? -1 : findIndex(enumer) { |item| ret == item }
+472:       if idx < 0
+473:         raise _INTL("Undefined value {1} (expected one of: {2}).", ret, enumer.inspect) + "\n" + FileLineData.linereport
+474:       end
+475:       return idx
+476:     when Hash
+477:       value = (nil_or_empty?(ret)) ? nil : enumer[ret]
+478:       if value.nil?
+479:         raise _INTL("Undefined value {1} (expected one of: {2}).", ret, enumer.keys.inspect) + "\n" + FileLineData.linereport
+480:       end
+481:       return value
+482:     end
+483:     raise _INTL("Enumeration not defined.") + "\n" + FileLineData.linereport
+484:   end
+485: 
+486:   # Unused
+487:   def checkEnumFieldOrNil(ret, enumer)
+488:     case enumer
+489:     when Module
+490:       return nil if nil_or_empty?(ret) || !(enumer.const_defined?(ret) rescue false)
+491:       return enumer.const_get(ret.to_sym)
+492:     when Symbol, String
+493:       if GameData.const_defined?(enumer.to_sym)
+494:         enumer = GameData.const_get(enumer.to_sym)
+495:         return nil if nil_or_empty?(ret) || !enumer.exists?(ret.to_sym)
+496:         return ret.to_sym
+497:       end
+498:       enumer = Object.const_get(enumer.to_sym)
+499:       return nil if nil_or_empty?(ret) || !(enumer.const_defined?(ret) rescue false)
+500:       return enumer.const_get(ret.to_sym)
+501:     when Array
+502:       idx = findIndex(enumer) { |item| ret == item }
+503:       return nil if idx < 0
+504:       return idx
+505:     when Hash
+506:       return enumer[ret]
+507:     end
+508:     return nil
+509:   end
+510: 
+511:   #=============================================================================
+512:   # Convert a string to values using a schema
+513:   #=============================================================================
+514:   # Unused
+515:   # @deprecated This method is slated to be removed in v22.
+516:   def pbGetCsvRecord(rec, lineno, schema)
+517:     Deprecation.warn_method("pbGetCsvRecord", "v22", "get_csv_record")
+518:     record = []
+519:     repeat = false
+520:     schema_length = schema[1].length
+521:     start = 0
+522:     case schema[1][0, 1]
+523:     when "*"
+524:       repeat = true
+525:       start = 1
+526:     when "^"
+527:       start = 1
+528:       schema_length -= 1
+529:     end
+530:     subarrays = repeat && schema[1].length > 2
+531:     loop do
+532:       subrecord = []
+533:       (start...schema[1].length).each do |i|
+534:         chr = schema[1][i, 1]
+535:         case chr
+536:         when "i"   # Integer
+537:           subrecord.push(csvInt!(rec, lineno))
+538:         when "I"   # Optional integer
+539:           field = csvfield!(rec)
+540:           if nil_or_empty?(field)
+541:             subrecord.push(nil)
+542:           elsif !field[/^\-?\d+$/]
+543:             raise _INTL("Field '{1}' is not an integer.", field) + "\n" + FileLineData.linereport
+544:           else
+545:             subrecord.push(field.to_i)
+546:           end
+547:         when "u"   # Positive integer or zero
+548:           subrecord.push(csvPosInt!(rec, lineno))
+549:         when "U"   # Optional positive integer or zero
+550:           field = csvfield!(rec)
+551:           if nil_or_empty?(field)
+552:             subrecord.push(nil)
+553:           elsif !field[/^\d+$/]
+554:             raise _INTL("Field '{1}' must be 0 or greater.", field) + "\n" + FileLineData.linereport
+555:           else
+556:             subrecord.push(field.to_i)
+557:           end
+558:         when "v"   # Positive integer
+559:           field = csvPosInt!(rec, lineno)
+560:           raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport if field == 0
+561:           subrecord.push(field)
+562:         when "V"   # Optional positive integer
+563:           field = csvfield!(rec)
+564:           if nil_or_empty?(field)
+565:             subrecord.push(nil)
+566:           elsif !field[/^\d+$/]
+567:             raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport
+568:           elsif field.to_i == 0
+569:             raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport
+570:           else
+571:             subrecord.push(field.to_i)
+572:           end
+573:         when "x"   # Hexadecimal number
+574:           field = csvfield!(rec)
+575:           if !field[/^[A-Fa-f0-9]+$/]
+576:             raise _INTL("Field '{1}' is not a hexadecimal number.", field) + "\n" + FileLineData.linereport
+577:           end
+578:           subrecord.push(field.hex)
+579:         when "X"   # Optional hexadecimal number
+580:           field = csvfield!(rec)
+581:           if nil_or_empty?(field)
+582:             subrecord.push(nil)
+583:           elsif !field[/^[A-Fa-f0-9]+$/]
+584:             raise _INTL("Field '{1}' is not a hexadecimal number.", field) + "\n" + FileLineData.linereport
+585:           else
+586:             subrecord.push(field.hex)
+587:           end
+588:         when "f"   # Floating point number
+589:           subrecord.push(csvFloat!(rec, lineno))
+590:         when "F"   # Optional floating point number
+591:           field = csvfield!(rec)
+592:           if nil_or_empty?(field)
+593:             subrecord.push(nil)
+594:           elsif !field[/^\-?^\d*\.?\d*$/]
+595:             raise _INTL("Field '{1}' is not a floating point number.", field) + "\n" + FileLineData.linereport
+596:           else
+597:             subrecord.push(field.to_f)
+598:           end
+599:         when "b"   # Boolean
+600:           subrecord.push(csvBoolean!(rec, lineno))

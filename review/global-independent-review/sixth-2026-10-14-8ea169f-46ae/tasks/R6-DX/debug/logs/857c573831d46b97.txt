@@ -1,0 +1,290 @@
+551:   "description" => _INTL("Heal the party, give Pokémon, fill/empty PC storage, etc."),
+552:   "always_show" => false
+553: })
+554: 
+555: MenuHandlers.add(:debug_menu, :heal_party, {
+556:   "name"        => _INTL("Heal party"),
+557:   "parent"      => :pokemon_menu,
+558:   "description" => _INTL("Fully heal the HP/status/PP of all Pokémon in the party."),
+559:   "effect"      => proc {
+560:     $player.party.each { |pkmn| pkmn.heal }
+561:     pbMessage(_INTL("Your Pokémon were fully healed."))
+562:   }
+563: })
+564: 
+565: MenuHandlers.add(:debug_menu, :add_pokemon, {
+566:   "name"        => _INTL("Add Pokémon"),
+567:   "parent"      => :pokemon_menu,
+568:   "description" => _INTL("Give yourself a Pokémon of a chosen species/level. Goes to PC if party is full."),
+569:   "effect"      => proc {
+570:     species = pbChooseSpeciesList
+571:     if species
+572:       params = ChooseNumberParams.new
+573:       params.setRange(1, GameData::GrowthRate.max_level)
+574:       params.setInitialValue(5)
+575:       params.setCancelValue(0)
+576:       level = pbMessageChooseNumber(_INTL("Set the Pokémon's level."), params)
+577:       if level > 0
+578:         goes_to_party = !$player.party_full?
+579:         if pbAddPokemonSilent(species, level)
+580:           if goes_to_party
+581:             pbMessage(_INTL("Added {1} to party.", GameData::Species.get(species).name))
+582:           else
+583:             pbMessage(_INTL("Added {1} to Pokémon storage.", GameData::Species.get(species).name))
+584:           end
+585:         else
+586:           pbMessage(_INTL("Couldn't add Pokémon because party and storage are full."))
+587:         end
+588:       end
+589:     end
+590:   }
+591: })
+592: 
+593: MenuHandlers.add(:debug_menu, :fill_boxes, {
+594:   "name"        => _INTL("Fill storage boxes"),
+595:   "parent"      => :pokemon_menu,
+596:   "description" => _INTL("Puts one Pokémon of each species (at Level 50) in storage."),
+597:   "effect"      => proc {
+598:     added = 0
+599:     box_qty = $PokemonStorage.maxPokemon(0)
+600:     completed = true
+601:     GameData::Species.each do |species_data|
+602:       sp = species_data.species
+603:       f = species_data.form
+604:       # Record each form of each species as seen and owned
+605:       if f == 0
+606:         if species_data.single_gendered?
+607:           g = (species_data.gender_ratio == :AlwaysFemale) ? 1 : 0
+608:           $player.pokedex.register(sp, g, f, 0, false)
+609:           $player.pokedex.register(sp, g, f, 1, false)
+610:         else   # Both male and female
+611:           $player.pokedex.register(sp, 0, f, 0, false)
+612:           $player.pokedex.register(sp, 0, f, 1, false)
+613:           $player.pokedex.register(sp, 1, f, 0, false)
+614:           $player.pokedex.register(sp, 1, f, 1, false)
+615:         end
+616:         $player.pokedex.set_owned(sp, false)
+617:       elsif species_data.real_form_name && !species_data.real_form_name.empty?
+618:         g = (species_data.gender_ratio == :AlwaysFemale) ? 1 : 0
+619:         $player.pokedex.register(sp, g, f, 0, false)
+620:         $player.pokedex.register(sp, g, f, 1, false)
+621:       end
+622:       # Add Pokémon (if form 0, i.e. one of each species)
+623:       next if f != 0
+624:       if added >= Settings::NUM_STORAGE_BOXES * box_qty
+625:         completed = false
+626:         next
+627:       end
+628:       added += 1
+629:       $PokemonStorage[(added - 1) / box_qty, (added - 1) % box_qty] = Pokemon.new(sp, 50)
+630:     end
+631:     $player.pokedex.refresh_accessible_dexes
+632:     pbMessage(_INTL("Storage boxes were filled with one Pokémon of each species."))
+633:     if !completed
+634:       pbMessage(_INTL("Note: The number of storage spaces ({1} boxes of {2}) is less than the number of species.",
+635:                       Settings::NUM_STORAGE_BOXES, box_qty))
+636:     end
+637:   }
+638: })
+639: 
+640: MenuHandlers.add(:debug_menu, :clear_boxes, {
+641:   "name"        => _INTL("Clear storage boxes"),
+642:   "parent"      => :pokemon_menu,
+643:   "description" => _INTL("Remove all Pokémon in storage."),
+644:   "effect"      => proc {
+645:     $PokemonStorage.maxBoxes.times do |i|
+646:       $PokemonStorage.maxPokemon(i).times do |j|
+647:         $PokemonStorage[i, j] = nil
+648:       end
+649:     end
+650:     pbMessage(_INTL("The storage boxes were cleared."))
+651:   }
+652: })
+653: 
+654: MenuHandlers.add(:debug_menu, :give_demo_party, {
+655:   "name"        => _INTL("Give demo party"),
+656:   "parent"      => :pokemon_menu,
+657:   "description" => _INTL("Give yourself 6 preset Pokémon. They overwrite the current party."),
+658:   "effect"      => proc {
+659:     party = []
+660:     species = [:PIKACHU, :PIDGEOTTO, :KADABRA, :GYARADOS, :DIGLETT, :CHANSEY]
+661:     species.each { |id| party.push(id) if GameData::Species.exists?(id) }
+662:     $player.party.clear
+663:     # Generate Pokémon of each species at level 20
+664:     party.each do |spec|
+665:       pkmn = Pokemon.new(spec, 20)
+666:       $player.party.push(pkmn)
+667:       $player.pokedex.register(pkmn)
+668:       $player.pokedex.set_owned(spec)
+669:       case spec
+670:       when :PIDGEOTTO
+671:         pkmn.learn_move(:FLY)
+672:       when :KADABRA
+673:         pkmn.learn_move(:FLASH)
+674:         pkmn.learn_move(:TELEPORT)
+675:       when :GYARADOS
+676:         pkmn.learn_move(:SURF)
+677:         pkmn.learn_move(:DIVE)
+678:         pkmn.learn_move(:WATERFALL)
+679:       when :DIGLETT
+680:         pkmn.learn_move(:DIG)
+681:         pkmn.learn_move(:CUT)
+682:         pkmn.learn_move(:HEADBUTT)
+683:         pkmn.learn_move(:ROCKSMASH)
+684:       when :CHANSEY
+685:         pkmn.learn_move(:SOFTBOILED)
+686:         pkmn.learn_move(:STRENGTH)
+687:         pkmn.learn_move(:SWEETSCENT)
+688:       end
+689:       pkmn.record_first_moves
+690:     end
+691:     pbMessage(_INTL("Filled party with demo Pokémon."))
+692:   }
+693: })
+694: 
+695: MenuHandlers.add(:debug_menu, :quick_hatch_party_eggs, {
+696:   "name"        => _INTL("Quick hatch all party eggs"),
+697:   "parent"      => :pokemon_menu,
+698:   "description" => _INTL("Make all eggs in the party require just one more step to hatch."),
+699:   "effect"      => proc {
+700:     $player.party.each { |pkmn| pkmn.steps_to_hatch = 1 if pkmn.egg? }
+701:     pbMessage(_INTL("All eggs in your party now require one step to hatch."))
+702:   }
+703: })
+704: 
+705: MenuHandlers.add(:debug_menu, :open_storage, {
+706:   "name"        => _INTL("Access Pokémon storage"),
+707:   "parent"      => :pokemon_menu,
+708:   "description" => _INTL("Opens the Pokémon storage boxes in Organize Boxes mode."),
+709:   "effect"      => proc {
+710:     pbFadeOutIn do
+711:       scene = PokemonStorageScene.new
+712:       screen = PokemonStorageScreen.new(scene, $PokemonStorage)
+713:       screen.pbStartScreen(0)
+714:     end
+715:   }
+716: })
+717: 
+718: #===============================================================================
+719: # Shadow Pokémon options
+720: #===============================================================================
+721: MenuHandlers.add(:debug_menu, :shadow_pokemon_menu, {
+722:   "name"        => _INTL("Shadow Pokémon options..."),
+723:   "parent"      => :pokemon_menu,
+724:   "description" => _INTL("Snag Machine and purification."),
+725:   "always_show" => false
+726: })
+727: 
+728: MenuHandlers.add(:debug_menu, :toggle_snag_machine, {
+729:   "name"        => _INTL("Toggle Snag Machine"),
+730:   "parent"      => :shadow_pokemon_menu,
+731:   "description" => _INTL("Toggle all Poké Balls being able to catch Shadow Pokémon."),
+732:   "effect"      => proc {
+733:     $player.has_snag_machine = !$player.has_snag_machine
+734:     pbMessage(_INTL("Gave the Snag Machine.")) if $player.has_snag_machine
+735:     pbMessage(_INTL("Lost the Snag Machine.")) if !$player.has_snag_machine
+736:   }
+737: })
+738: 
+739: MenuHandlers.add(:debug_menu, :toggle_purify_chamber_access, {
+740:   "name"        => _INTL("Toggle Purify Chamber access"),
+741:   "parent"      => :shadow_pokemon_menu,
+742:   "description" => _INTL("Toggle access to the Purify Chamber via the PC."),
+743:   "effect"      => proc {
+744:     $player.seen_purify_chamber = !$player.seen_purify_chamber
+745:     pbMessage(_INTL("The Purify Chamber is accessible.")) if $player.seen_purify_chamber
+746:     pbMessage(_INTL("The Purify Chamber is not accessible.")) if !$player.seen_purify_chamber
+747:   }
+748: })
+749: 
+750: MenuHandlers.add(:debug_menu, :purify_chamber, {
+751:   "name"        => _INTL("Use Purify Chamber"),
+752:   "parent"      => :shadow_pokemon_menu,
+753:   "description" => _INTL("Open the Purify Chamber for Shadow Pokémon purification."),
+754:   "effect"      => proc {
+755:     pbPurifyChamber
+756:   }
+757: })
+758: 
+759: MenuHandlers.add(:debug_menu, :relic_stone, {
+760:   "name"        => _INTL("Use Relic Stone"),
+761:   "parent"      => :shadow_pokemon_menu,
+762:   "description" => _INTL("Choose a Shadow Pokémon to show to the Relic Stone for purification."),
+763:   "effect"      => proc {
+764:     pbRelicStone
+765:   }
+766: })
+767: 
+768: #===============================================================================
+769: # Item options
+770: #===============================================================================
+771: MenuHandlers.add(:debug_menu, :items_menu, {
+772:   "name"        => _INTL("Item options..."),
+773:   "parent"      => :main,
+774:   "description" => _INTL("Give and take items."),
+775:   "always_show" => false
+776: })
+777: 
+778: MenuHandlers.add(:debug_menu, :add_item, {
+779:   "name"        => _INTL("Add item"),
+780:   "parent"      => :items_menu,
+781:   "description" => _INTL("Choose an item and a quantity of it to add to the Bag."),
+782:   "effect"      => proc {
+783:     pbListScreenBlock(_INTL("ADD ITEM"), ItemLister.new) do |button, item|
+784:       if button == Input::USE && item
+785:         params = ChooseNumberParams.new
+786:         params.setRange(1, Settings::BAG_MAX_PER_SLOT)
+787:         params.setInitialValue(1)
+788:         params.setCancelValue(0)
+789:         qty = pbMessageChooseNumber(_INTL("Add how many {1}?",
+790:                                           GameData::Item.get(item).name_plural), params)
+791:         if qty > 0
+792:           $bag.add(item, qty)
+793:           pbMessage(_INTL("Gave {1}x {2}.", qty, GameData::Item.get(item).name))
+794:         end
+795:       end
+796:     end
+797:   }
+798: })
+799: 
+800: MenuHandlers.add(:debug_menu, :fill_bag, {
+801:   "name"        => _INTL("Fill Bag"),
+802:   "parent"      => :items_menu,
+803:   "description" => _INTL("Empties the Bag and then fills it with a certain number of every item."),
+804:   "effect"      => proc {
+805:     params = ChooseNumberParams.new
+806:     params.setRange(1, Settings::BAG_MAX_PER_SLOT)
+807:     params.setInitialValue(1)
+808:     params.setCancelValue(0)
+809:     qty = pbMessageChooseNumber(_INTL("Choose the number of items."), params)
+810:     if qty > 0
+811:       $bag.clear
+812:       # NOTE: This doesn't simply use $bag.add for every item in turn, because
+813:       #       that's really slow when done in bulk.
+814:       pocket_sizes = Settings::BAG_MAX_POCKET_SIZE
+815:       bag = $bag.pockets   # Called here so that it only rearranges itself once
+816:       GameData::Item.each do |i|
+817:         next if !pocket_sizes[i.pocket - 1] || pocket_sizes[i.pocket - 1] == 0
+818:         next if pocket_sizes[i.pocket - 1] > 0 && bag[i.pocket].length >= pocket_sizes[i.pocket - 1]
+819:         item_qty = (i.is_important?) ? 1 : qty
+820:         bag[i.pocket].push([i.id, item_qty])
+821:       end
+822:       # NOTE: Auto-sorting pockets don't need to be sorted afterwards, because
+823:       #       items are added in the same order they would be sorted into.
+824:       pbMessage(_INTL("The Bag was filled with {1} of each item.", qty))
+825:     end
+826:   }
+827: })
+828: 
+829: MenuHandlers.add(:debug_menu, :empty_bag, {
+830:   "name"        => _INTL("Empty Bag"),
+831:   "parent"      => :items_menu,
+832:   "description" => _INTL("Remove all items from the Bag."),
+833:   "effect"      => proc {
+834:     $bag.clear
+835:     pbMessage(_INTL("The Bag was cleared."))
+836:   }
+837: })
+838: 
+839: #===============================================================================
+840: # Player options

@@ -1,0 +1,290 @@
+1: #===============================================================================
+2: # HP/Status options
+3: #===============================================================================
+4: MenuHandlers.add(:battle_pokemon_debug_menu, :hp_status_menu, {
+5:   "name"   => _INTL("HP/status..."),
+6:   "parent" => :main,
+7:   "usage"  => :both
+8: })
+9: 
+10: MenuHandlers.add(:battle_pokemon_debug_menu, :set_hp, {
+11:   "name"   => _INTL("Set HP"),
+12:   "parent" => :hp_status_menu,
+13:   "usage"  => :both,
+14:   "effect" => proc { |pkmn, battler, battle|
+15:     if pkmn.egg?
+16:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+17:       next
+18:     elsif battler && pkmn.totalhp == 1
+19:       pbMessage("\\ts[]" + _INTL("Can't change HP, {1}'s maximum HP is 1 and it's in battle.", pkmn.name))
+20:       next
+21:     end
+22:     min_hp = (battler) ? 1 : 0
+23:     params = ChooseNumberParams.new
+24:     params.setRange(min_hp, pkmn.totalhp)
+25:     params.setDefaultValue(pkmn.hp)
+26:     new_hp = pbMessageChooseNumber(
+27:       "\\ts[]" + _INTL("Set {1}'s HP ({2}-{3}).", (battler) ? battler.pbThis(true) : pkmn.name, min_hp, pkmn.totalhp),
+28:       params
+29:     )
+30:     next if new_hp == pkmn.hp
+31:     (battler || pkmn).hp = new_hp
+32:   }
+33: })
+34: 
+35: MenuHandlers.add(:battle_pokemon_debug_menu, :set_status, {
+36:   "name"   => _INTL("Set status"),
+37:   "parent" => :hp_status_menu,
+38:   "usage"  => :both,
+39:   "effect" => proc { |pkmn, battler, battle|
+40:     if pkmn.egg?
+41:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+42:       next
+43:     elsif pkmn.hp <= 0
+44:       pbMessage("\\ts[]" + _INTL("{1} is fainted, can't change status.", pkmn.name))
+45:       next
+46:     end
+47:     cmd = 0
+48:     commands = [_INTL("[Cure]")]
+49:     ids = [:NONE]
+50:     GameData::Status.each do |s|
+51:       next if s.id == :NONE
+52:       commands.push(_INTL("Set {1}", s.name))
+53:       ids.push(s.id)
+54:     end
+55:     loop do
+56:       msg = _INTL("Current status: {1}", GameData::Status.get(pkmn.status).name)
+57:       if pkmn.status == :SLEEP
+58:         msg += " " + _INTL("(turns: {1})", pkmn.statusCount)
+59:       elsif pkmn.status == :POISON && pkmn.statusCount > 0
+60:         if battler
+61:           msg += " " + _INTL("(toxic, count: {1})", battler.effects[PBEffects::Toxic])
+62:         else
+63:           msg += " " + _INTL("(toxic)")
+64:         end
+65:       end
+66:       cmd = pbMessage("\\ts[]" + msg, commands, -1, nil, cmd)
+67:       break if cmd < 0
+68:       case cmd
+69:       when 0   # Cure
+70:         if battler
+71:           battler.status = :NONE
+72:         else
+73:           pkmn.heal_status
+74:         end
+75:       else   # Give status problem
+76:         pkmn_name = (battler) ? battler.pbThis(true) : pkmn.name
+77:         case ids[cmd]
+78:         when :SLEEP
+79:           params = ChooseNumberParams.new
+80:           params.setRange(0, 99)
+81:           params.setDefaultValue((pkmn.status == :SLEEP) ? pkmn.statusCount : 3)
+82:           params.setCancelValue(-1)
+83:           count = pbMessageChooseNumber("\\ts[]" + _INTL("Set {1}'s sleep count (0-99).", pkmn_name), params)
+84:           next if count < 0
+85:           (battler || pkmn).statusCount = count
+86:         when :POISON
+87:           if pbConfirmMessage("\\ts[]" + _INTL("Make {1} badly poisoned (toxic)?", pkmn_name))
+88:             if battler
+89:               params = ChooseNumberParams.new
+90:               params.setRange(0, 16)
+91:               params.setDefaultValue(battler.effects[PBEffects::Toxic])
+92:               params.setCancelValue(-1)
+93:               count = pbMessageChooseNumber(
+94:                 "\\ts[]" + _INTL("Set {1}'s toxic count (0-16).", pkmn_name), params
+95:               )
+96:               next if count < 0
+97:               battler.statusCount = 1
+98:               battler.effects[PBEffects::Toxic] = count
+99:             else
+100:               pkmn.statusCount = 1
+101:             end
+102:           else
+103:             (battler || pkmn).statusCount = 0
+104:           end
+105:         end
+106:         (battler || pkmn).status = ids[cmd]
+107:       end
+108:     end
+109:   }
+110: })
+111: 
+112: MenuHandlers.add(:battle_pokemon_debug_menu, :full_heal, {
+113:   "name"   => _INTL("Heal HP and status"),
+114:   "parent" => :hp_status_menu,
+115:   "usage"  => :both,
+116:   "effect" => proc { |pkmn, battler, battle|
+117:     if pkmn.egg?
+118:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+119:       next
+120:     end
+121:     if battler
+122:       battler.hp = battler.totalhp
+123:       battler.status = :NONE
+124:     else
+125:       pkmn.heal_HP
+126:       pkmn.heal_status
+127:     end
+128:   }
+129: })
+130: 
+131: #===============================================================================
+132: # Level/stats options
+133: #===============================================================================
+134: MenuHandlers.add(:battle_pokemon_debug_menu, :level_stats, {
+135:   "name"   => _INTL("Stats/level..."),
+136:   "parent" => :main,
+137:   "usage"  => :both
+138: })
+139: 
+140: MenuHandlers.add(:battle_pokemon_debug_menu, :set_stat_stages, {
+141:   "name"   => _INTL("Set stat stages"),
+142:   "parent" => :level_stats,
+143:   "usage"  => :battler,
+144:   "effect" => proc { |pkmn, battler, battle|
+145:     if pkmn.egg?
+146:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+147:       next
+148:     end
+149:     cmd = 0
+150:     loop do
+151:       commands = []
+152:       stat_ids = []
+153:       GameData::Stat.each_battle do |stat|
+154:         command_name = stat.name + ": "
+155:         command_name += "+" if battler.stages[stat.id] > 0
+156:         command_name += battler.stages[stat.id].to_s
+157:         commands.push(command_name)
+158:         stat_ids.push(stat.id)
+159:       end
+160:       commands.push(_INTL("[Reset all]"))
+161:       cmd = pbMessage("\\ts[]" + _INTL("Choose a stat stage to change."), commands, -1, nil, cmd)
+162:       break if cmd < 0
+163:       if cmd < stat_ids.length   # Set a stat
+164:         params = ChooseNumberParams.new
+165:         params.setRange(-Battle::Battler::STAT_STAGE_MAXIMUM, Battle::Battler::STAT_STAGE_MAXIMUM)
+166:         params.setNegativesAllowed(true)
+167:         params.setDefaultValue(battler.stages[stat_ids[cmd]])
+168:         value = pbMessageChooseNumber(
+169:           "\\ts[]" + _INTL("Set the stage for {1}.", GameData::Stat.get(stat_ids[cmd]).name), params
+170:         )
+171:         battler.stages[stat_ids[cmd]] = value
+172:       else   # Reset all stats
+173:         GameData::Stat.each_battle { |stat| battler.stages[stat.id] = 0 }
+174:       end
+175:     end
+176:   }
+177: })
+178: 
+179: MenuHandlers.add(:battle_pokemon_debug_menu, :set_stat_values, {
+180:   "name"   => _INTL("Set stat values"),
+181:   "parent" => :level_stats,
+182:   "usage"  => :battler,
+183:   "effect" => proc { |pkmn, battler, battle|
+184:     if pkmn.egg?
+185:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+186:       next
+187:     end
+188:     stat_ids = []
+189:     stat_vals = []
+190:     GameData::Stat.each_main_battle do |stat|
+191:       stat_ids.push(stat.id)
+192:       case stat.id
+193:       when :ATTACK          then stat_vals.push(battler.attack)
+194:       when :DEFENSE         then stat_vals.push(battler.defense)
+195:       when :SPECIAL_ATTACK  then stat_vals.push(battler.spatk)
+196:       when :SPECIAL_DEFENSE then stat_vals.push(battler.spdef)
+197:       when :SPEED           then stat_vals.push(battler.speed)
+198:       else                       stat_vals.push(1)
+199:       end
+200:     end
+201:     cmd = 0
+202:     loop do
+203:       commands = []
+204:       GameData::Stat.each_main_battle do |stat|
+205:         command_name = stat.name + ": " + stat_vals[stat_ids.index(stat.id)].to_s
+206:         commands.push(command_name)
+207:       end
+208:       commands.push(_INTL("[Reset all]"))
+209:       cmd = pbMessage("\\ts[]" + _INTL("Choose a stat value to change."), commands, -1, nil, cmd)
+210:       break if cmd < 0
+211:       if cmd < stat_ids.length   # Set a stat
+212:         params = ChooseNumberParams.new
+213:         params.setRange(1, 9999)
+214:         params.setDefaultValue(stat_vals[cmd])
+215:         value = pbMessageChooseNumber(
+216:           "\\ts[]" + _INTL("Set the value for {1}.", GameData::Stat.get(stat_ids[cmd]).name), params
+217:         )
+218:         case stat_ids[cmd]
+219:         when :ATTACK          then battler.attack  = value
+220:         when :DEFENSE         then battler.defense = value
+221:         when :SPECIAL_ATTACK  then battler.spatk   = value
+222:         when :SPECIAL_DEFENSE then battler.spdef   = value
+223:         when :SPEED           then battler.speed   = value
+224:         end
+225:         stat_vals[cmd] = value
+226:       else   # Reset all stat values
+227:         battler.pbUpdate
+228:         GameData::Stat.each_main_battle do |stat|
+229:           case stat.id
+230:           when :ATTACK          then stat_vals[stat_ids.index(stat.id)] = battler.attack
+231:           when :DEFENSE         then stat_vals[stat_ids.index(stat.id)] = battler.defense
+232:           when :SPECIAL_ATTACK  then stat_vals[stat_ids.index(stat.id)] = battler.spatk
+233:           when :SPECIAL_DEFENSE then stat_vals[stat_ids.index(stat.id)] = battler.spdef
+234:           when :SPEED           then stat_vals[stat_ids.index(stat.id)] = battler.speed
+235:           else                       stat_vals[stat_ids.index(stat.id)] = 1
+236:           end
+237:         end
+238:       end
+239:     end
+240:   }
+241: })
+242: 
+243: MenuHandlers.add(:battle_pokemon_debug_menu, :set_level, {
+244:   "name"   => _INTL("Set level"),
+245:   "parent" => :level_stats,
+246:   "usage"  => :both,
+247:   "effect" => proc { |pkmn, battler, battle|
+248:     if pkmn.egg?
+249:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+250:       next
+251:     end
+252:     params = ChooseNumberParams.new
+253:     params.setRange(1, GameData::GrowthRate.max_level)
+254:     params.setDefaultValue(pkmn.level)
+255:     level = pbMessageChooseNumber(
+256:       "\\ts[]" + _INTL("Set the Pokémon's level (max. {1}).", params.maxNumber), params
+257:     )
+258:     if level != pkmn.level
+259:       pkmn.level = level
+260:       pkmn.calc_stats
+261:       battler&.pbUpdate
+262:     end
+263:   }
+264: })
+265: 
+266: MenuHandlers.add(:battle_pokemon_debug_menu, :set_exp, {
+267:   "name"   => _INTL("Set Exp"),
+268:   "parent" => :level_stats,
+269:   "usage"  => :both,
+270:   "effect" => proc { |pkmn, battler, battle|
+271:     if pkmn.egg?
+272:       pbMessage("\\ts[]" + _INTL("{1} is an egg.", pkmn.name))
+273:       next
+274:     end
+275:     min_exp = pkmn.growth_rate.minimum_exp_for_level(pkmn.level)
+276:     max_exp = pkmn.growth_rate.minimum_exp_for_level(pkmn.level + 1)
+277:     if min_exp == max_exp
+278:       pbMessage("\\ts[]" + _INTL("{1} is at the maximum level.", pkmn.name))
+279:       next
+280:     end
+281:     params = ChooseNumberParams.new
+282:     params.setRange(min_exp, max_exp - 1)
+283:     params.setDefaultValue(pkmn.exp)
+284:     new_exp = pbMessageChooseNumber(
+285:       "\\ts[]" + _INTL("Set the Pokémon's Exp (range {1}-{2}).", min_exp, max_exp - 1), params
+286:     )
+287:     pkmn.exp = new_exp if new_exp != pkmn.exp
+288:   }
+289: })
+290: 

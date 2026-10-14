@@ -1,0 +1,181 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/001_ChallengeGenerator_Data.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "7fb8c0682643ae974d9071f576263ae7249ff519", "sha256": "e6eed14d0d06f1d03c4e4d1d61196b6d40cab594a1858e011ba1964a59cb9153", "start_line": 1, "end_line": 180, "total_lines": 338, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:26:22.643668+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class BaseStatRestriction
+5:   def initialize(mn, mx)
+6:     @mn = mn
+7:     @mx = mx
+8:   end
+9: 
+10:   def isValid?(pkmn)
+11:     bst = baseStatTotal(pkmn.species)
+12:     return bst >= @mn && bst <= @mx
+13:   end
+14: end
+15: 
+16: #===============================================================================
+17: #
+18: #===============================================================================
+19: class NonlegendaryRestriction
+20:   def isValid?(pkmn)
+21:     return true if !pkmn.genderless?
+22:     return false if pkmn.species_data.egg_groups.include?(:Undiscovered)
+23:     return true
+24:   end
+25: end
+26: 
+27: #===============================================================================
+28: #
+29: #===============================================================================
+30: class InverseRestriction
+31:   def initialize(r)
+32:     @r = r
+33:   end
+34: 
+35:   def isValid?(pkmn)
+36:     return !@r.isValid?(pkmn)
+37:   end
+38: end
+39: 
+40: #===============================================================================
+41: #
+42: #===============================================================================
+43: # [3/10]
+44: # 0-266 - 0-500
+45: # [106]
+46: # 267-372 - 380-500
+47: # [95]
+48: # 373-467 - 400-555 (nonlegendary)
+49: # 468-563 - 400-555 (nonlegendary)
+50: # 564-659 - 400-555 (nonlegendary)
+51: # 660-755 - 400-555 (nonlegendary)
+52: # 756-799 - 580-600 [legendary] (compat1==15 or compat2==15, genderbyte=255)
+53: # 800-849 - 500-
+54: # 850-881 - 580-
+55: 
+56: def withRestr(_rule, minbs, maxbs, legendary)
+57:   ret = PokemonChallengeRules.new.addPokemonRule(BaseStatRestriction.new(minbs, maxbs))
+58:   case legendary
+59:   when 0
+60:     ret.addPokemonRule(NonlegendaryRestriction.new)
+61:   when 1
+62:     ret.addPokemonRule(InverseRestriction.new(NonlegendaryRestriction.new))
+63:   end
+64:   return ret
+65: end
+66: 
+67: def pbArrangeByTier(pokemonlist, rule)
+68:   tiers = [
+69:     withRestr(rule,   0, 500, 0),
+70:     withRestr(rule, 380, 500, 0),
+71:     withRestr(rule, 400, 555, 0),
+72:     withRestr(rule, 400, 555, 0),
+73:     withRestr(rule, 400, 555, 0),
+74:     withRestr(rule, 400, 555, 0),
+75:     withRestr(rule, 580, 680, 1),
+76:     withRestr(rule, 500, 680, 0),
+77:     withRestr(rule, 580, 680, 2)
+78:   ]
+79:   tierPokemon = []
+80:   tiers.length.times do
+81:     tierPokemon.push([])
+82:   end
+83:   # Sort each Pokémon into tiers. Which tier a Pokémon is put in deoends on the
+84:   # Pokémon's position within pokemonlist (later = higher tier). pokemonlist is
+85:   # already roughly arranged by rank from weakest to strongest.
+86:   pokemonlist.length.times do |i|
+87:     next if !rule.ruleset.isPokemonValid?(pokemonlist[i])
+88:     validtiers = []
+89:     tiers.length.times do |j|
+90:       validtiers.push(j) if tiers[j].ruleset.isPokemonValid?(pokemonlist[i])
+91:     end
+92:     if validtiers.length > 0
+93:       vt = validtiers.length * i / pokemonlist.length
+94:       tierPokemon[validtiers[vt]].push(pokemonlist[i])
+95:     end
+96:   end
+97:   # Now for each tier, sort the Pokemon in that tier by their BST (lowest first).
+98:   ret = []
+99:   tiers.length.times do |i|
+100:     tierPokemon[i].sort! do |a, b|
+101:       bstA = baseStatTotal(a.species)
+102:       bstB = baseStatTotal(b.species)
+103:       (bstA == bstB) ? a.species <=> b.species : bstA <=> bstB
+104:     end
+105:     ret.concat(tierPokemon[i])
+106:   end
+107:   return ret
+108: end
+109: 
+110: #===============================================================================
+111: #
+112: #===============================================================================
+113: def pbReplenishBattlePokemon(party, rule)
+114:   while party.length < 20
+115:     pkmn = pbRandomPokemonFromRule(rule, nil)
+116:     found = false
+117:     party.each do |pk|
+118:       next if !isBattlePokemonDuplicate(pkmn, pk)
+119:       found = true
+120:       break
+121:     end
+122:     party.push(pkmn) if !found
+123:   end
+124: end
+125: 
+126: def isBattlePokemonDuplicate(pk, pk2)
+127:   return false if pk.species != pk2.species
+128:   moves1 = []
+129:   moves2 = []
+130:   Pokemon::MAX_MOVES.times do |i|
+131:     moves1.push((pk.moves[i]) ? pk.moves[i].id : nil)
+132:     moves2.push((pk2.moves[i]) ? pk2.moves[i].id : nil)
+133:   end
+134:   moves1.compact.sort
+135:   moves2.compact.sort
+136:   # Accept as same if moves are same and there are MAX_MOVES number of moves each
+137:   return true if moves1 == moves2 && moves1.length == Pokemon::MAX_MOVES
+138:   same_evs = true
+139:   GameData::Stat.each_main { |s| same_evs = false if pk.ev[s.id] != pk2.ev[s.id] }
+140:   return pk.item_id == pk2.item_id && pk.nature_id == pk2.nature_id && same_evs
+141: end
+142: 
+143: def pbRemoveDuplicates(party)
+144:   ret = []
+145:   party.each do |pk|
+146:     found = false
+147:     count = 0
+148:     firstIndex = -1
+149:     ret.length.times do |i|
+150:       pk2 = ret[i]
+151:       if isBattlePokemonDuplicate(pk, pk2)
+152:         found = true
+153:         break
+154:       end
+155:       if pk.species == pk2.species
+156:         firstIndex = i if count == 0
+157:         count += 1
+158:       end
+159:     end
+160:     if !found
+161:       ret.delete_at(firstIndex) if count >= 10
+162:       ret.push(pk)
+163:     end
+164:   end
+165:   return ret
+166: end
+167: 
+168: #===============================================================================
+169: #
+170: #===============================================================================
+171: def pbGenerateChallenge(rule, tag)
+172:   oldrule = rule
+173:   yield(_INTL("Preparing to generate teams"))
+174:   rule = rule.copy.setNumber(2)
+175:   yield(nil)
+176:   party = load_data(tag + ".rxdata") rescue []
+177:   teams = load_data(tag + "_teams.rxdata") rescue []
+178:   if teams.length < 10
+179:     btpokemon = pbGetBTPokemon(tag)
+180:     if btpokemon && btpokemon.length != 0

@@ -1,0 +1,351 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/023_UI_PurifyChamber.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 350], "total_lines": 1308, "sha256": "84b1ef76c669575d606c1200f678d58c35912f02873764233595419c2110509d", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:20:02.726269+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Player < Trainer
+5:   attr_accessor :has_snag_machine
+6:   attr_accessor :seen_purify_chamber
+7: 
+8:   alias __shadowPkmn__initialize initialize unless private_method_defined?(:__shadowPkmn__initialize)
+9:   def initialize(name, trainer_type)
+10:     __shadowPkmn__initialize(name, trainer_type)
+11:     @has_snag_machine    = false
+12:     @seen_purify_chamber = false
+13:   end
+14: end
+15: 
+16: class PokemonGlobalMetadata
+17:   attr_writer :purifyChamber
+18: 
+19:   def purifyChamber
+20:     @purifyChamber = PurifyChamber.new if !@purifyChamber
+21:     return @purifyChamber
+22:   end
+23: end
+24: 
+25: #===============================================================================
+26: # General purpose utilities
+27: #===============================================================================
+28: def pbDrawGauge(bitmap, rect, color, value, maxValue)
+29:   return if !bitmap
+30:   bitmap.fill_rect(rect.x, rect.y, rect.width, rect.height, Color.black)
+31:   width = (maxValue <= 0) ? 0 : (rect.width - 4) * value / maxValue
+32:   if rect.width >= 4 && rect.height >= 4
+33:     bitmap.fill_rect(rect.x + 2, rect.y + 2, rect.width - 4, rect.height - 4, Color.new(248, 248, 248))
+34:     bitmap.fill_rect(rect.x + 2, rect.y + 2, width, rect.height - 4, color)
+35:   end
+36: end
+37: 
+38: # angle is in degrees.
+39: def calcPoint(x, y, distance, angle)
+40:   angle -= (angle / 360.0).floor * 360   # normalize
+41:   angle = (angle / 360.0) * (2 * Math::PI)   # convert to radians
+42:   angle = -angle % (2 * Math::PI)   # normalize radians
+43:   point = [distance * Math.cos(angle), distance * Math.sin(angle)]
+44:   point[0] += x
+45:   point[1] += y
+46:   return point
+47: end
+48: 
+49: #===============================================================================
+50: #
+51: #===============================================================================
+52: class PurifyChamberSet
+53:   attr_reader :shadow   # The Shadow Pokémon in the middle
+54:   attr_reader :facing   # Index in list of Pokémon the Shadow Pokémon is facing
+55: 
+56:   def partialSum(x)
+57:     return ((x * x) + x) / 2   # pattern: 1, 3, 6, 10, 15, 21, 28, ...
+58:   end
+59: 
+60:   def length
+61:     return @list.length
+62:   end
+63: 
+64:   def initialize
+65:     @list = []
+66:     @facing = 0
+67:   end
+68: 
+69:   def facing=(value)
+70:     @facing = value if value >= 0 && value < @list.length
+71:   end
+72: 
+73:   def shadow=(value)
+74:     @shadow = value if value.nil? || value.shadowPokemon?
+75:   end
+76: 
+77:   # Main component is tempo
+78:   # Boosted if center has advantage over facing Pokemon
+79:   # Boosted based on number of best circles
+80:   def flow
+81:     ret = 0
+82:     return 0 if !@shadow
+83:     @list.length.times do |i|
+84:       ret += (PurifyChamberSet.isSuperEffective(@list[i], @list[(i + 1) % @list.length])) ? 1 : 0
+85:     end
+86:     if @list[@facing]
+87:       ret += PurifyChamberSet.isSuperEffective(@shadow, @list[@facing]) ? 1 : 0
+88:     end
+89:     return ret + (@list.length / 2)
+90:   end
+91: 
+92:   def shadowAffinity
+93:     return 0 if @facing < 0 || @facing >= @list.length || !@shadow
+94:     return (PurifyChamberSet.isSuperEffective(@shadow, @list[@facing])) ? 2 : 1
+95:   end
+96: 
+97:   def affinity(i)
+98:     return 0 if i < 0 || i >= @list.length
+99:     return (PurifyChamberSet.isSuperEffective(@list[i], @list[(i + 1) % @list.length])) ? 2 : 1
+100:   end
+101: 
+102:   # Tempo refers to the type advantages of each Pokemon in a certain set in a
+103:   # clockwise direction. Tempo also depends on the number of Pokemon in the set
+104:   def tempo
+105:     ret = 0
+106:     @list.length.times do |i|
+107:       ret += (PurifyChamberSet.isSuperEffective(@list[i], @list[(i + 1) % @list.length])) ? 1 : 0
+108:     end
+109:     return partialSum(@list.length) + ret
+110:   end
+111: 
+112:   def list
+113:     return @list.clone
+114:   end
+115: 
+116:   def [](index)
+117:     return @list[index]
+118:   end
+119: 
+120:   def insertAfter(index, value)
+121:     return if self.length >= PurifyChamber::SETSIZE
+122:     return if index < 0 || index >= PurifyChamber::SETSIZE
+123:     unless value&.shadowPokemon?
+124:       @list.insert(index + 1, value)
+125:       @list.compact!
+126:       @facing += 1 if @facing > index && value
+127:       @facing = [[@facing, @list.length - 1].min, 0].max
+128:     end
+129:   end
+130: 
+131:   def insertAt(index, value)
+132:     return if index < 0 || index >= PurifyChamber::SETSIZE
+133:     unless value&.shadowPokemon?
+134:       @list[index] = value
+135:       @list.compact!
+136:       @facing = [[@facing, @list.length - 1].min, 0].max
+137:     end
+138:   end
+139: 
+140:   # Purify Chamber treats Normal/Normal matchup as super effective
+141:   def self.typeAdvantage(type1, type2)
+142:     return true if type1 == :NORMAL && type2 == :NORMAL
+143:     return Effectiveness.super_effective_type?(type1, type2)
+144:   end
+145: 
+146:   def self.isSuperEffective(pkmn1, pkmn2)
+147:     pkmn1.types.each do |type1|
+148:       pkmn2.types.each do |type2|
+149:         return true if typeAdvantage(type1, type2)
+150:       end
+151:     end
+152:     return false
+153:   end
+154: end
+155: 
+156: #===============================================================================
+157: #
+158: #===============================================================================
+159: class PurifyChamber
+160:   attr_reader :sets
+161:   attr_reader :currentSet
+162: 
+163:   NUMSETS = 9
+164:   SETSIZE = 4
+165: 
+166:   # Calculates the maximum possible tempo.
+167:   def self.maximumTempo
+168:     x = SETSIZE + 1
+169:     return (((x * x) + x) / 2) - 1
+170:   end
+171: 
+172:   def initialize
+173:     @sets = []
+174:     @currentSet = 0
+175:     NUMSETS.times { |i| @sets[i] = PurifyChamberSet.new }
+176:   end
+177: 
+178:   def currentSet=(value)
+179:     @currentSet = value if value >= 0 && value < NUMSETS
+180:   end
+181: 
+182:   # Number of regular Pokemon in a set
+183:   def setCount(set)
+184:     return @sets[set].length
+185:   end
+186: 
+187:   def setList(set)
+188:     return [] if set < 0 || set >= NUMSETS
+189:     return @sets[set].list
+190:   end
+191: 
+192:   # For speeding up purification.
+193:   def chamberFlow(chamber)
+194:     return 0 if chamber < 0 || chamber >= NUMSETS
+195:     return @sets[chamber].flow
+196:   end
+197: 
+198:   def getShadow(chamber)
+199:     return nil if chamber < 0 || chamber >= NUMSETS
+200:     return @sets[chamber].shadow
+201:   end
+202: 
+203:   # Allow only Shadow Pokemon.
+204:   def setShadow(chamber, value)
+205:     return if chamber < 0 || chamber >= NUMSETS
+206:     @sets[chamber].shadow = value
+207:   end
+208: 
+209:   def switch(set1, set2)
+210:     return if set1 < 0 || set1 >= NUMSETS
+211:     return if set2 < 0 || set2 >= NUMSETS
+212:     s = @sets[set1]
+213:     @sets[set1] = @sets[set2]
+214:     @sets[set2] = s
+215:   end
+216: 
+217:   def insertAfter(set, index, value)
+218:     return if set < 0 || set >= NUMSETS
+219:     @sets[set].insertAfter(index, value)
+220:   end
+221: 
+222:   def insertAt(set, index, value)
+223:     return if set < 0 || set >= NUMSETS
+224:     @sets[set].insertAt(index, value)
+225:   end
+226: 
+227:   def [](chamber, slot = nil)
+228:     return @sets[chamber] if slot.nil?
+229:     return nil if chamber < 0 || chamber >= NUMSETS
+230:     return nil if slot < 0 || slot >= SETSIZE
+231:     return @sets[chamber][slot]
+232:   end
+233: 
+234:   def isPurifiableIgnoreRegular?(set)
+235:     shadow = getShadow(set)
+236:     return false if !shadow
+237:     return false if shadow.heart_gauge != 0
+238:     # Define an exception for Lugia
+239:     if shadow.isSpecies?(:LUGIA)
+240:       maxtempo = PurifyChamber.maximumTempo
+241:       NUMSETS.times do |i|
+242:         return false if @sets[i].tempo != maxtempo
+243:       end
+244:     end
+245:     return true
+246:   end
+247: 
+248:   def isPurifiable?(set)
+249:     isPurifiableIgnoreRegular?(set) && setCount(set) > 0
+250:   end
+251: 
+252:   # Called upon each step taken in the overworld
+253:   def update
+254:     NUMSETS.times do |set|
+255:       next if !@sets[set].shadow || @sets[set].shadow.heart_gauge <= 0
+256:       # If a Shadow Pokemon and a regular Pokemon are on the same set
+257:       flow = self.chamberFlow(set)
+258:       @sets[set].shadow.adjustHeart(-flow)
+259:       next if !isPurifiable?(set)
+260:       pbMessage(_INTL("Your {1} in the Purify Chamber is ready for purification!",
+261:                       @sets[set].shadow.name))
+262:     end
+263:   end
+264: 
+265:   def debugAddShadow(set, species)
+266:     pkmn = Pokemon.new(species, 1)
+267:     pkmn.makeShadow
+268:     setShadow(set, pkmn)
+269:   end
+270: 
+271:   def debugAddNormal(set, species)
+272:     pkmn = Pokemon.new(species, 1)
+273:     insertAfter(set, setCount(set), pkmn)
+274:   end
+275: 
+276:   def debugAdd(set, shadow, type1, type2 = nil)
+277:     pkmn = PseudoPokemon.new(shadow, type1, type2 || type1)
+278:     if pkmn.shadowPokemon?
+279:       self.setShadow(set, pkmn)
+280:     else
+281:       self.insertAfter(set, setCount(set), pkmn)
+282:     end
+283:   end
+284: end
+285: 
+286: #===============================================================================
+287: #
+288: #===============================================================================
+289: module PurifyChamberHelper
+290:   def self.pbGetPokemon2(chamber, set, position)
+291:     if position == 0
+292:       return chamber.getShadow(set)
+293:     elsif position > 0
+294:       position -= 1
+295:       if position.even?
+296:         return chamber[set, position / 2]
+297:       else # In between two indices
+298:         return nil
+299:       end
+300:     end
+301:     return nil
+302:   end
+303: 
+304:   def self.pbGetPokemon(chamber, position)
+305:     if position == 0
+306:       return chamber.getShadow(chamber.currentSet)
+307:     elsif position > 0
+308:       position -= 1
+309:       if position.even?
+310:         return chamber[chamber.currentSet, position / 2]
+311:       else # In between two indices
+312:         return nil
+313:       end
+314:     end
+315:     return nil
+316:   end
+317: 
+318:   def self.adjustOnInsert(position)
+319:     if position > 0
+320:       position -= 1
+321:       oldpos = position / 2
+322:       if position.even?
+323:         return position + 1
+324:       else
+325:         return ((oldpos + 1) * 2) + 1
+326:       end
+327:     end
+328:     return position
+329:   end
+330: 
+331:   def self.pbSetPokemon(chamber, position, value)
+332:     if position == 0
+333:       chamber.setShadow(chamber.currentSet, value)
+334:     elsif position > 0
+335:       position -= 1
+336:       if position.even?
+337:         chamber.insertAt(chamber.currentSet, position / 2, value)
+338:       else # In between two indices
+339:         chamber.insertAfter(chamber.currentSet, position / 2, value)
+340:       end
+341:     end
+342:   end
+343: end
+344: 
+345: #===============================================================================
+346: #
+347: #===============================================================================
+348: class PurifyChamberScreen
+349:   def initialize(scene)
+350:     @scene = scene

@@ -1,0 +1,113 @@
+551: # Battle animations import/export
+552: #===============================================================================
+553: def pbExportAllAnimations
+554:   begin
+555:     Dir.mkdir("Animations") rescue nil
+556:     animations = pbLoadBattleAnimations
+557:     if animations
+558:       msgwindow = pbCreateMessageWindow
+559:       animations.each do |anim|
+560:         next if !anim || anim.length == 0 || anim.name == ""
+561:         pbMessageDisplay(msgwindow, anim.name, false)
+562:         Graphics.update
+563:         safename = anim.name.gsub(/\W/, "_")
+564:         Dir.mkdir("Animations/#{safename}") rescue nil
+565:         File.open("Animations/#{safename}/#{safename}.anm", "wb") do |f|
+566:           f.write(BattleAnimationEditor.dumpBase64Anim(anim))
+567:         end
+568:         if anim.graphic && anim.graphic != ""
+569:           graphicname = RTP.getImagePath("Graphics/Animations/" + anim.graphic)
+570:           pbSafeCopyFile(graphicname, "Animations/#{safename}/" + File.basename(graphicname))
+571:         end
+572:         anim.timing.each do |timing|
+573:           if !timing.timingType || timing.timingType == 0
+574:             if timing.name && timing.name != ""
+575:               audioName = RTP.getAudioPath("Audio/SE/Anim/" + timing.name)
+576:               pbSafeCopyFile(audioName, "Animations/#{safename}/" + File.basename(audioName))
+577:             end
+578:           elsif timing.timingType == 1 || timing.timingType == 3
+579:             if timing.name && timing.name != ""
+580:               graphicname = RTP.getImagePath("Graphics/Animations/" + timing.name)
+581:               pbSafeCopyFile(graphicname, "Animations/#{safename}/" + File.basename(graphicname))
+582:             end
+583:           end
+584:         end
+585:       end
+586:       pbDisposeMessageWindow(msgwindow)
+587:       pbMessage(_INTL("All animations were extracted and saved to the Animations folder."))
+588:     else
+589:       pbMessage(_INTL("There are no animations to export."))
+590:     end
+591:   rescue
+592:     p $!.message, $!.backtrace
+593:     pbMessage(_INTL("The export failed."))
+594:   end
+595: end
+596: 
+597: def pbImportAllAnimations
+598:   animationFolders = []
+599:   if FileTest.directory?("Animations")
+600:     Dir.foreach("Animations") do |fb|
+601:       f = "Animations/" + fb
+602:       animationFolders.push(f) if FileTest.directory?(f) && fb != "." && fb != ".."
+603:     end
+604:   end
+605:   if animationFolders.length == 0
+606:     pbMessage(_INTL("There are no animations to import. Put each animation in a folder within the Animations folder."))
+607:   else
+608:     msgwindow = pbCreateMessageWindow
+609:     animations = pbLoadBattleAnimations
+610:     animations = PBAnimations.new if !animations
+611:     animationFolders.each do |folder|
+612:       pbMessageDisplay(msgwindow, folder, false)
+613:       Graphics.update
+614:       audios = []
+615:       files = Dir.glob(folder + "/*.*")
+616:       ["wav", "ogg", "mp3", "midi", "mid", "wma"].each do |ext|
+617:         upext = ext.upcase
+618:         audios.concat(files.find_all { |f| f[f.length - 3, 3] == ext })
+619:         audios.concat(files.find_all { |f| f[f.length - 3, 3] == upext })
+620:       end
+621:       audios.each do |audio|
+622:         pbSafeCopyFile(audio, RTP.getAudioPath("Audio/SE/Anim/" + File.basename(audio)), "Audio/SE/Anim/" + File.basename(audio))
+623:       end
+624:       images = []
+625:       ["png", "gif"].each do |ext|   # jpg jpeg bmp
+626:         upext = ext.upcase
+627:         images.concat(files.find_all { |f| f[f.length - 3, 3] == ext })
+628:         images.concat(files.find_all { |f| f[f.length - 3, 3] == upext })
+629:       end
+630:       images.each do |image|
+631:         pbSafeCopyFile(image, RTP.getImagePath("Graphics/Animations/" + File.basename(image)), "Graphics/Animations/" + File.basename(image))
+632:       end
+633:       Dir.glob(folder + "/*.anm") do |f|
+634:         textdata = BattleAnimationEditor.loadBase64Anim(IO.read(f)) rescue nil
+635:         if textdata.is_a?(PBAnimation)
+636:           index = pbAllocateAnimation(animations, textdata.name)
+637:           missingFiles = []
+638:           textdata.name = File.basename(folder) if textdata.name == ""
+639:           textdata.id = -1   # This is not an RPG Maker XP animation
+640:           BattleAnimationEditor.pbConvertAnimToNewFormat(textdata)
+641:           if textdata.graphic && textdata.graphic != "" &&
+642:              !FileTest.exist?(folder + "/" + textdata.graphic) &&
+643:              !FileTest.image_exist?("Graphics/Animations/" + textdata.graphic)
+644:             textdata.graphic = ""
+645:             missingFiles.push(textdata.graphic)
+646:           end
+647:           textdata.timing.each do |timing|
+648:             next if !timing.name || timing.name == "" ||
+649:                     FileTest.exist?(folder + "/" + timing.name) ||
+650:                     FileTest.audio_exist?("Audio/SE/Anim/" + timing.name)
+651:             timing.name = ""
+652:             missingFiles.push(timing.name)
+653:           end
+654:           animations[index] = textdata
+655:         end
+656:       end
+657:     end
+658:     save_data(animations, "Data/PkmnAnimations.rxdata")
+659:     $game_temp.battle_animations_data = nil
+660:     pbDisposeMessageWindow(msgwindow)
+661:     pbMessage(_INTL("All animations were imported."))
+662:   end
+663: end

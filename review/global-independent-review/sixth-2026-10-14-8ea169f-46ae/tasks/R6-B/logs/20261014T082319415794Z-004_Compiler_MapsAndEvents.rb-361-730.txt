@@ -1,0 +1,370 @@
+361:         raise "Tileset data for tileset number #{map.tileset_id} used on map #{mapID} was not found. " +
+362:               "The tileset was likely deleted, but one or more maps still use it."
+363:       end
+364:     end
+365: 
+366:     def isPassable?(mapID, x, y)
+367:       map = getMap(mapID)
+368:       return false if !map
+369:       return false if x < 0 || x >= map.width || y < 0 || y >= map.height
+370:       passages   = getTilesetPassages(map, mapID)
+371:       priorities = getTilesetPriorities(map, mapID)
+372:       [2, 1, 0].each do |i|
+373:         tile_id = map.data[x, y, i]
+374:         return false if tile_id.nil?
+375:         passage = passages[tile_id]
+376:         if !passage
+377:           raise "The tile used on map #{mapID} at coordinates (#{x}, #{y}) on layer #{i + 1} doesn't exist in the tileset. " +
+378:                 "It should be deleted to prevent errors."
+379:         end
+380:         return false if passage & 0x0f == 0x0f
+381:         return true if priorities[tile_id] == 0
+382:       end
+383:       return true
+384:     end
+385: 
+386:     def isCounterTile?(mapID, x, y)
+387:       map = getMap(mapID)
+388:       return false if !map
+389:       passages = getTilesetPassages(map, mapID)
+390:       [2, 1, 0].each do |i|
+391:         tile_id = map.data[x, y, i]
+392:         return false if tile_id.nil?
+393:         passage = passages[tile_id]
+394:         if !passage
+395:           raise "The tile used on map #{mapID} at coordinates (#{x}, #{y}) on layer #{i + 1} doesn't exist in the tileset. " +
+396:                 "It should be deleted to prevent errors."
+397:         end
+398:         return true if passage & 0x80 == 0x80
+399:       end
+400:       return false
+401:     end
+402: 
+403:     def setCounterTile(mapID, x, y)
+404:       map = getMap(mapID)
+405:       return if !map
+406:       passages = getTilesetPassages(map, mapID)
+407:       [2, 1, 0].each do |i|
+408:         tile_id = map.data[x, y, i]
+409:         next if tile_id == 0
+410:         passages[tile_id] |= 0x80
+411:         break
+412:       end
+413:     end
+414: 
+415:     def registerSwitch(switch)
+416:       return @registeredSwitches[switch] if @registeredSwitches[switch]
+417:       (1..5000).each do |id|
+418:         name = @system.switches[id]
+419:         next if name && name != "" && name != switch
+420:         @system.switches[id] = switch
+421:         @registeredSwitches[switch] = id
+422:         return id
+423:       end
+424:       return 1
+425:     end
+426: 
+427:     def saveMap(mapID)
+428:       save_data(getMap(mapID), mapFilename(mapID)) rescue nil
+429:     end
+430: 
+431:     def saveTilesets
+432:       save_data(@tilesets, "Data/Tilesets.rxdata")
+433:       save_data(@system, "Data/System.rxdata")
+434:     end
+435:   end
+436: 
+437:   #=============================================================================
+438:   #
+439:   #=============================================================================
+440:   class TrainerChecker
+441:     def initialize
+442:       @dontaskagain = false
+443:     end
+444: 
+445:     def pbTrainerTypeCheck(trainer_type)
+446:       return if !$DEBUG || @dontaskagain
+447:       return if GameData::TrainerType.exists?(trainer_type)
+448:       if pbConfirmMessage(_INTL("Add new trainer type {1}?", trainer_type.to_s))
+449:         pbTrainerTypeEditorNew(trainer_type.to_s)
+450:       end
+451:     end
+452: 
+453:     def pbTrainerBattleCheck(tr_type, tr_name, tr_version)
+454:       return if !$DEBUG || @dontaskagain
+455:       # Check for existence of trainer type
+456:       pbTrainerTypeCheck(tr_type)
+457:       return if !GameData::TrainerType.exists?(tr_type)
+458:       tr_type = GameData::TrainerType.get(tr_type).id
+459:       # Check for existence of trainer
+460:       return if GameData::Trainer.exists?(tr_type, tr_name, tr_version)
+461:       # Add new trainer
+462:       cmd = pbMissingTrainer(tr_type, tr_name, tr_version)
+463:       if cmd == 2
+464:         @dontaskagain = true
+465:         Graphics.update
+466:       end
+467:     end
+468:   end
+469: 
+470:   #=============================================================================
+471:   # Convert trainer comments to trainer event.
+472:   #=============================================================================
+473:   def convert_to_trainer_event(event, trainerChecker)
+474:     return nil if !event || event.pages.length == 0
+475:     list = event.pages[0].list
+476:     return nil if list.length < 2
+477:     commands = []
+478:     isFirstCommand = false
+479:     # Find all the trainer comments in the event
+480:     list.length.times do |i|
+481:       next if list[i].code != 108   # Comment (first line)
+482:       command = list[i].parameters[0]
+483:       ((i + 1)...list.length).each do |j|
+484:         break if list[j].code != 408   # Comment (continuation line)
+485:         command += "\r\n" + list[j].parameters[0]
+486:       end
+487:       if command[/^(Battle\:|Type\:|Name\:|BattleID\:|DoubleBattle\:|Backdrop\:|EndSpeech\:|Outcome\:|Continue\:|EndBattle\:|EndIfSwitch\:|VanishIfSwitch\:|RegSpeech\:)/i]
+488:         commands.push(command)
+489:         isFirstCommand = true if i == 0
+490:       end
+491:     end
+492:     return nil if commands.length == 0
+493:     # Found trainer comments; create a new Event object to replace this event
+494:     ret = RPG::Event.new(event.x, event.y)
+495:     ret.name = event.name
+496:     ret.id   = event.id
+497:     firstpage = Marshal.load(Marshal.dump(event.pages[0]))   # Copy event's first page
+498:     firstpage.trigger = 2   # On event touch
+499:     firstpage.list    = []   # Clear page's commands
+500:     # Rename the event if there's nothing above the trainer comments
+501:     if isFirstCommand
+502:       if !event.name[/trainer/i]
+503:         ret.name = "Trainer(3)"
+504:       elsif event.name[/^\s*trainer\s*\((\d+)\)\s*$/i]
+505:         ret.name = "Trainer(#{$1})"
+506:       end
+507:     end
+508:     # Compile the trainer comments
+509:     rewriteComments = false   # You can change this
+510:     battles        = []
+511:     trtype         = nil
+512:     trname         = nil
+513:     battleid       = 0
+514:     doublebattle   = false
+515:     backdrop       = nil
+516:     outcome        = 0
+517:     continue       = false
+518:     endbattles     = []
+519:     endifswitch    = []
+520:     vanishifswitch = []
+521:     regspeech      = nil
+522:     common_event   = 0
+523:     commands.each do |command|
+524:       if command[/^Battle\:\s*([\s\S]+)$/i]
+525:         battles.push($~[1])
+526:         push_comment(firstpage.list, command) if rewriteComments
+527:       elsif command[/^Type\:\s*([\s\S]+)$/i]
+528:         trtype = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+529:         push_comment(firstpage.list, command) if rewriteComments
+530:       elsif command[/^Name\:\s*([\s\S]+)$/i]
+531:         trname = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+532:         push_comment(firstpage.list, command) if rewriteComments
+533:       elsif command[/^BattleID\:\s*(\d+)$/i]
+534:         battleid = $~[1].to_i
+535:         push_comment(firstpage.list, command) if rewriteComments
+536:       elsif command[/^DoubleBattle\:\s*([\s\S]+)$/i]
+537:         value = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+538:         doublebattle = true if value.upcase == "TRUE" || value.upcase == "YES"
+539:         push_comment(firstpage.list, command) if rewriteComments
+540:       elsif command[/^Continue\:\s*([\s\S]+)$/i]
+541:         value = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+542:         continue = true if value.upcase == "TRUE" || value.upcase == "YES"
+543:         push_comment(firstpage.list, command) if rewriteComments
+544:       elsif command[/^EndIfSwitch\:\s*([\s\S]+)$/i]
+545:         endifswitch.push(($~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")).to_i)
+546:         push_comment(firstpage.list, command) if rewriteComments
+547:       elsif command[/^VanishIfSwitch\:\s*([\s\S]+)$/i]
+548:         vanishifswitch.push(($~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")).to_i)
+549:         push_comment(firstpage.list, command) if rewriteComments
+550:       elsif command[/^Backdrop\:\s*([\s\S]+)$/i]
+551:         backdrop = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+552:         push_comment(firstpage.list, command) if rewriteComments
+553:       elsif command[/^Outcome\:\s*(\d+)$/i]
+554:         outcome = $~[1].to_i
+555:         push_comment(firstpage.list, command) if rewriteComments
+556:       elsif command[/^EndBattle\:\s*([\s\S]+)$/i]
+557:         endbattles.push($~[1].gsub(/^\s+/, "").gsub(/\s+$/, ""))
+558:         push_comment(firstpage.list, command) if rewriteComments
+559:       elsif command[/^RegSpeech\:\s*([\s\S]+)$/i]
+560:         regspeech = $~[1].gsub(/^\s+/, "").gsub(/\s+$/, "")
+561:         push_comment(firstpage.list, command) if rewriteComments
+562:       elsif command[/^CommonEvent\:\s*(\d+)$/i]
+563:         common_event = $~[1].to_i
+564:         push_comment(firstpage.list, command) if rewriteComments
+565:       end
+566:     end
+567:     return nil if battles.length <= 0
+568:     endbattles.push("...") if endbattles.length == 0
+569:     # Run trainer check now, except in editor
+570:     trainerChecker.pbTrainerBattleCheck(trtype, trname, battleid)
+571:     # Set the event's charset to one depending on the trainer type if the event
+572:     # doesn't have a charset
+573:     if firstpage.graphic.character_name == "" && GameData::TrainerType.exists?(trtype)
+574:       trainerid = GameData::TrainerType.get(trtype).id
+575:       filename = GameData::TrainerType.charset_filename_brief(trainerid)
+576:       if FileTest.image_exist?("Graphics/Characters/" + filename)
+577:         firstpage.graphic.character_name = filename
+578:       end
+579:     end
+580:     # Create strings that will be used repeatedly
+581:     safetrcombo = sprintf(":%s, \"%s\"", trtype, safequote(trname))   # :YOUNGSTER, "Joey"
+582:     brieftrcombo = safetrcombo
+583:     safetrcombo = sprintf("%s, %d", safetrcombo, battleid) if battleid > 0   # :YOUNGSTER, "Joey", 1
+584:     introplay   = sprintf("pbTrainerIntro(:%s)", trtype)
+585:     # Write first page
+586:     push_script(firstpage.list, introplay)   # pbTrainerIntro
+587:     push_script(firstpage.list, "pbNoticePlayer(get_self)")
+588:     push_text(firstpage.list, battles[0])
+589:     if battles.length > 1   # Has rematches
+590:       if battleid > 0
+591:         push_script(firstpage.list, sprintf("pbTrainerCheck(%s, %d, %d)", brieftrcombo, battles.length, battleid))
+592:       else
+593:         push_script(firstpage.list, sprintf("pbTrainerCheck(%s, %d)", brieftrcombo, battles.length))
+594:       end
+595:     end
+596:     push_script(firstpage.list, "setBattleRule(\"double\")") if doublebattle
+597:     push_script(firstpage.list, sprintf("setBattleRule(\n  \"backdrop\", \"%s\"\n)", safequote(backdrop))) if backdrop
+598:     push_script(firstpage.list, sprintf("setBattleRule(\"outcomeVar\", %d)", outcome)) if outcome > 1
+599:     push_script(firstpage.list, "setBattleRule(\"canLose\")") if continue
+600:     battleString = sprintf("TrainerBattle.start(%s)", safetrcombo)
+601:     push_branch(firstpage.list, battleString)
+602:     if battles.length > 1   # Has rematches
+603:       push_branch(firstpage.list, sprintf("Phone.can_add?(%s)", safetrcombo), 1)
+604:       push_text(firstpage.list, regspeech, 2)
+605:       push_choices(firstpage.list, ["Yes", "No"], 2, 2)
+606:       push_choice(firstpage.list, 0, "Yes", 3)
+607:       if common_event > 0
+608:         if battleid > 0
+609:           push_script(firstpage.list, sprintf("Phone.add(get_self,\n  %s, %d, %d, %d\n)",
+610:                                               brieftrcombo, battles.length, battleid, common_event), 3)
+611:         else
+612:           push_script(firstpage.list, sprintf("Phone.add(get_self,\n  %s, %d, nil, %d\n)",
+613:                                               brieftrcombo, battles.length, common_event), 3)
+614:         end
+615:       else
+616:         if battleid > 0
+617:           push_script(firstpage.list, sprintf("Phone.add(get_self,\n  %s, %d, %d\n)",
+618:                                               brieftrcombo, battles.length, battleid), 3)
+619:         else
+620:           push_script(firstpage.list, sprintf("Phone.add(get_self,\n  %s, %d\n)",
+621:                                               brieftrcombo, battles.length), 3)
+622:         end
+623:       end
+624:       push_choice(firstpage.list, 1, "No", 3)
+625:       push_choices_end(firstpage.list, 3)
+626:       push_branch_end(firstpage.list, 2)
+627:     end
+628:     push_self_switch(firstpage.list, "A", true, 1)
+629:     push_self_switch(firstpage.list, "B", true, 1) if battles.length > 1
+630:     push_branch_end(firstpage.list, 1)
+631:     push_script(firstpage.list, "pbTrainerEnd", 0)
+632:     push_end(firstpage.list)
+633:     # Copy first page to last page and make changes to its properties
+634:     lastpage = Marshal.load(Marshal.dump(firstpage))
+635:     lastpage.trigger   = 0   # On action
+636:     lastpage.list      = []   # Clear page's commands
+637:     lastpage.condition = firstpage.condition.clone
+638:     lastpage.condition.self_switch_valid = true
+639:     lastpage.condition.self_switch_ch    = "A"
+640:     # Copy last page to rematch page
+641:     rematchpage = Marshal.load(Marshal.dump(lastpage))
+642:     rematchpage.list      = lastpage.list.clone   # Copy the last page's commands
+643:     rematchpage.condition = lastpage.condition.clone
+644:     rematchpage.condition.self_switch_valid = true
+645:     rematchpage.condition.self_switch_ch    = "B"
+646:     # Write rematch page
+647:     push_script(rematchpage.list, introplay, 0)   # pbTrainerIntro
+648:     if battles.length == 2
+649:       push_text(rematchpage.list, battles[1], 0)
+650:     else
+651:       (1...battles.length).each do |i|
+652:         # Run trainer check now, except in editor
+653:         trainerChecker.pbTrainerBattleCheck(trtype, trname, battleid + i)
+654:         case i
+655:         when 1
+656:           push_branch(rematchpage.list, sprintf("Phone.variant(%s) <= %d", safetrcombo, i))
+657:         when battles.length - 1
+658:           push_branch(rematchpage.list, sprintf("Phone.variant(%s) >= %d", safetrcombo, i))
+659:         else
+660:           push_branch(rematchpage.list, sprintf("Phone.variant(%s) == %d", safetrcombo, i))
+661:         end
+662:         push_text(rematchpage.list, battles[i], 1)
+663:         push_branch_end(rematchpage.list, 1)
+664:       end
+665:     end
+666:     push_script(rematchpage.list, "setBattleRule(\"double\")", 1) if doublebattle
+667:     push_script(rematchpage.list, sprintf("setBattleRule(\n  \"backdrop\", %s\n)", safequote(backdrop)), 1) if backdrop
+668:     push_script(rematchpage.list, sprintf("setBattleRule(\"outcomeVar\", %d)", outcome), 1) if outcome > 1
+669:     push_script(rematchpage.list, "setBattleRule(\"canLose\")", 1) if continue
+670:     battleString = sprintf("Phone.battle(%s)", safetrcombo)
+671:     push_branch(rematchpage.list, battleString, 0)
+672:     push_script(rematchpage.list, sprintf("Phone.reset_after_win(\n  %s\n)", safetrcombo), 1)
+673:     push_self_switch(rematchpage.list, "A", true, 1)
+674:     push_script(rematchpage.list, "pbTrainerEnd", 1)
+675:     push_branch_end(rematchpage.list, 1)
+676:     push_end(rematchpage.list)
+677:     # Write last page
+678:     if endbattles.length > 0
+679:       if battles.length == 1
+680:         push_text(lastpage.list, endbattles[0], 0)
+681:       else
+682:         (0...battles.length).each do |i|
+683:           if i == battles.length - 1
+684:             push_branch(lastpage.list, sprintf("Phone.variant(%s) >= %d", safetrcombo, i))
+685:           else
+686:             push_branch(lastpage.list, sprintf("Phone.variant(%s) == %d", safetrcombo, i))
+687:           end
+688:           ebattle = (endbattles[i]) ? endbattles[i] : endbattles[endbattles.length - 1]
+689:           push_text(lastpage.list, ebattle, 1)
+690:           push_branch_end(lastpage.list, 1)
+691:         end
+692:       end
+693:     end
+694:     if battles.length > 1
+695:       push_branch(lastpage.list, sprintf("Phone.can_add?(%s)", safetrcombo), 0)
+696:       push_text(lastpage.list, regspeech, 1)
+697:       push_choices(lastpage.list, ["Yes", "No"], 2, 1)
+698:       push_choice(lastpage.list, 0, "Yes", 2)
+699:       if common_event > 0
+700:         if battleid > 0
+701:           push_script(lastpage.list, sprintf("Phone.add(get_self,\n  %s, %d, %d, %d\n)",
+702:                                              brieftrcombo, battles.length, battleid, common_event), 2)
+703:         else
+704:           push_script(lastpage.list, sprintf("Phone.add(get_self,\n  %s, %d, nil, %d\n)",
+705:                                              brieftrcombo, battles.length, common_event), 2)
+706:         end
+707:       else
+708:         if battleid > 0
+709:           push_script(lastpage.list, sprintf("Phone.add(get_self,\n  %s, %d, %d\n)",
+710:                                              brieftrcombo, battles.length, battleid), 2)
+711:         else
+712:           push_script(lastpage.list, sprintf("Phone.add(get_self,\n  %s, %d\n)",
+713:                                              brieftrcombo, battles.length), 2)
+714:         end
+715:       end
+716:       push_choice(lastpage.list, 1, "No", 2)
+717:       push_choices_end(lastpage.list, 2)
+718:       push_branch_end(lastpage.list, 1)
+719:     end
+720:     push_end(lastpage.list)
+721:     # Add pages to the new event
+722:     if battles.length == 1   # Only one battle
+723:       ret.pages = [firstpage, lastpage]
+724:     else   # Has rematches
+725:       ret.pages = [firstpage, rematchpage, lastpage]
+726:     end
+727:     # Copy last page to endIfSwitch page
+728:     endifswitch.each do |endswitch|
+729:       endIfSwitchPage = Marshal.load(Marshal.dump(lastpage))
+730:       endIfSwitchPage.condition = lastpage.condition.clone

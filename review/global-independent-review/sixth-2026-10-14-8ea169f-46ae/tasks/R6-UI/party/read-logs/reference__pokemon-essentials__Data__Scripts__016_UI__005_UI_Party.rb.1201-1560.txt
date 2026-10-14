@@ -1,0 +1,361 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/005_UI_Party.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1201, 1560], "total_lines": 1560, "sha256": "6717a61c57d70ea534e7f6d1e76af05dd0ba725494ff75973691d126aba3ef6d", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:17:39.721176+00:00"}
+1201:     return ret
+1202:   end
+1203: 
+1204:   def pbPokemonScreen
+1205:     can_access_storage = false
+1206:     if ($player.has_box_link || $bag.has?(:POKEMONBOXLINK)) &&
+1207:        !$game_switches[Settings::DISABLE_BOX_LINK_SWITCH] &&
+1208:        !$game_map.metadata&.has_flag?("DisableBoxLink")
+1209:       can_access_storage = true
+1210:     end
+1211:     @scene.pbStartScene(@party,
+1212:                         (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."),
+1213:                         nil, false, can_access_storage)
+1214:     # Main loop
+1215:     loop do
+1216:       # Choose a Pokémon or cancel or press Action to quick switch
+1217:       @scene.pbSetHelpText((@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+1218:       party_idx = @scene.pbChoosePokemon(false, -1, 1)
+1219:       break if (party_idx.is_a?(Numeric) && party_idx < 0) || (party_idx.is_a?(Array) && party_idx[1] < 0)
+1220:       # Quick switch
+1221:       if party_idx.is_a?(Array) && party_idx[0] == 1   # Switch
+1222:         @scene.pbSetHelpText(_INTL("Move to where?"))
+1223:         old_party_idx = party_idx[1]
+1224:         party_idx = @scene.pbChoosePokemon(true, -1, 2)
+1225:         pbSwitch(old_party_idx, party_idx) if party_idx >= 0 && party_idx != old_party_idx
+1226:         next
+1227:       end
+1228:       # Chose a Pokémon
+1229:       pkmn = @party[party_idx]
+1230:       # Get all commands
+1231:       command_list = []
+1232:       commands = []
+1233:       MenuHandlers.each_available(:party_menu, self, @party, party_idx) do |option, hash, name|
+1234:         command_list.push(name)
+1235:         commands.push(hash)
+1236:       end
+1237:       command_list.push(_INTL("Cancel"))
+1238:       # Add field move commands
+1239:       if !pkmn.egg?
+1240:         insert_index = ($DEBUG) ? 2 : 1
+1241:         pkmn.moves.each_with_index do |move, i|
+1242:           next if !HiddenMoveHandlers.hasHandler(move.id) &&
+1243:                   ![:MILKDRINK, :SOFTBOILED].include?(move.id)
+1244:           command_list.insert(insert_index, [move.name, 1])
+1245:           commands.insert(insert_index, i)
+1246:           insert_index += 1
+1247:         end
+1248:       end
+1249:       # Choose a menu option
+1250:       choice = @scene.pbShowCommands(_INTL("Do what with {1}?", pkmn.name), command_list)
+1251:       next if choice < 0 || choice >= commands.length
+1252:       # Effect of chosen menu option
+1253:       case commands[choice]
+1254:       when Hash   # Option defined via a MenuHandler below
+1255:         commands[choice]["effect"].call(self, @party, party_idx)
+1256:       when Integer   # Hidden move's index
+1257:         move = pkmn.moves[commands[choice]]
+1258:         if [:MILKDRINK, :SOFTBOILED].include?(move.id)
+1259:           amt = [(pkmn.totalhp / 5).floor, 1].max
+1260:           if pkmn.hp <= amt
+1261:             pbDisplay(_INTL("Not enough HP..."))
+1262:             next
+1263:           end
+1264:           @scene.pbSetHelpText(_INTL("Use on which Pokémon?"))
+1265:           old_party_idx = party_idx
+1266:           loop do
+1267:             @scene.pbPreSelect(old_party_idx)
+1268:             party_idx = @scene.pbChoosePokemon(true, party_idx)
+1269:             break if party_idx < 0
+1270:             newpkmn = @party[party_idx]
+1271:             movename = move.name
+1272:             if party_idx == old_party_idx
+1273:               pbDisplay(_INTL("{1} can't use {2} on itself!", pkmn.name, movename))
+1274:             elsif newpkmn.egg?
+1275:               pbDisplay(_INTL("{1} can't be used on an Egg!", movename))
+1276:             elsif newpkmn.fainted? || newpkmn.hp == newpkmn.totalhp
+1277:               pbDisplay(_INTL("{1} can't be used on that Pokémon.", movename))
+1278:             else
+1279:               pkmn.hp -= amt
+1280:               hpgain = pbItemRestoreHP(newpkmn, amt)
+1281:               @scene.pbDisplay(_INTL("{1}'s HP was restored by {2} points.", newpkmn.name, hpgain))
+1282:               pbRefresh
+1283:             end
+1284:             break if pkmn.hp <= amt
+1285:           end
+1286:           @scene.pbSelect(old_party_idx)
+1287:           pbRefresh
+1288:         elsif pbCanUseHiddenMove?(pkmn, move.id)
+1289:           if pbConfirmUseHiddenMove(pkmn, move.id)
+1290:             @scene.pbEndScene
+1291:             if move.id == :FLY
+1292:               scene = PokemonRegionMap_Scene.new(-1, false)
+1293:               screen = PokemonRegionMapScreen.new(scene)
+1294:               ret = screen.pbStartFlyScreen
+1295:               if ret
+1296:                 $game_temp.fly_destination = ret
+1297:                 return [pkmn, move.id]
+1298:               end
+1299:               @scene.pbStartScene(
+1300:                 @party, (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel.")
+1301:               )
+1302:               next
+1303:             end
+1304:             return [pkmn, move.id]
+1305:           end
+1306:         end
+1307:       end
+1308:     end
+1309:     @scene.pbEndScene
+1310:     return nil
+1311:   end
+1312: end
+1313: 
+1314: #===============================================================================
+1315: # Party screen menu commands.
+1316: # Note that field moves are inserted into the list of commands after the first
+1317: # command, which is usually "Summary". If playing in Debug mode, they are
+1318: # inserted after the second command instead, which is usually "Debug". See
+1319: # insert_index above if you need to change this.
+1320: #===============================================================================
+1321: MenuHandlers.add(:party_menu, :summary, {
+1322:   "name"      => _INTL("Summary"),
+1323:   "order"     => 10,
+1324:   "effect"    => proc { |screen, party, party_idx|
+1325:     screen.scene.pbSummary(party_idx) do
+1326:       screen.scene.pbSetHelpText((party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+1327:     end
+1328:   }
+1329: })
+1330: 
+1331: MenuHandlers.add(:party_menu, :debug, {
+1332:   "name"      => _INTL("Debug"),
+1333:   "order"     => 20,
+1334:   "condition" => proc { |screen, party, party_idx| next $DEBUG },
+1335:   "effect"    => proc { |screen, party, party_idx|
+1336:     screen.pbPokemonDebug(party[party_idx], party_idx)
+1337:   }
+1338: })
+1339: 
+1340: MenuHandlers.add(:party_menu, :switch, {
+1341:   "name"      => _INTL("Switch"),
+1342:   "order"     => 30,
+1343:   "condition" => proc { |screen, party, party_idx| next party.length > 1 },
+1344:   "effect"    => proc { |screen, party, party_idx|
+1345:     screen.scene.pbSetHelpText(_INTL("Move to where?"))
+1346:     old_party_idx = party_idx
+1347:     party_idx = screen.scene.pbChoosePokemon(true)
+1348:     screen.pbSwitch(old_party_idx, party_idx) if party_idx >= 0 && party_idx != old_party_idx
+1349:   }
+1350: })
+1351: 
+1352: MenuHandlers.add(:party_menu, :mail, {
+1353:   "name"      => _INTL("Mail"),
+1354:   "order"     => 40,
+1355:   "condition" => proc { |screen, party, party_idx| next !party[party_idx].egg? && party[party_idx].mail },
+1356:   "effect"    => proc { |screen, party, party_idx|
+1357:     pkmn = party[party_idx]
+1358:     command = screen.scene.pbShowCommands(_INTL("Do what with the mail?"),
+1359:                                           [_INTL("Read"), _INTL("Take"), _INTL("Cancel")])
+1360:     case command
+1361:     when 0   # Read
+1362:       pbFadeOutIn do
+1363:         pbDisplayMail(pkmn.mail, pkmn)
+1364:         screen.scene.pbSetHelpText((party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+1365:       end
+1366:     when 1   # Take
+1367:       if pbTakeItemFromPokemon(pkmn, screen)
+1368:         screen.pbRefreshSingle(party_idx)
+1369:       end
+1370:     end
+1371:   }
+1372: })
+1373: 
+1374: MenuHandlers.add(:party_menu, :item, {
+1375:   "name"      => _INTL("Item"),
+1376:   "order"     => 50,
+1377:   "condition" => proc { |screen, party, party_idx| next !party[party_idx].egg? && !party[party_idx].mail },
+1378:   "effect"    => proc { |screen, party, party_idx|
+1379:     # Get all commands
+1380:     command_list = []
+1381:     commands = []
+1382:     MenuHandlers.each_available(:party_menu_item, screen, party, party_idx) do |option, hash, name|
+1383:       command_list.push(name)
+1384:       commands.push(hash)
+1385:     end
+1386:     command_list.push(_INTL("Cancel"))
+1387:     # Choose a menu option
+1388:     choice = screen.scene.pbShowCommands(_INTL("Do what with an item?"), command_list)
+1389:     next if choice < 0 || choice >= commands.length
+1390:     commands[choice]["effect"].call(screen, party, party_idx)
+1391:   }
+1392: })
+1393: 
+1394: MenuHandlers.add(:party_menu_item, :use, {
+1395:   "name"      => _INTL("Use"),
+1396:   "order"     => 10,
+1397:   "effect"    => proc { |screen, party, party_idx|
+1398:     pkmn = party[party_idx]
+1399:     item = screen.scene.pbUseItem($bag, pkmn) do
+1400:       screen.scene.pbSetHelpText((party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+1401:     end
+1402:     next if !item
+1403:     pbUseItemOnPokemon(item, pkmn, screen)
+1404:     screen.pbRefreshSingle(party_idx)
+1405:   }
+1406: })
+1407: 
+1408: MenuHandlers.add(:party_menu_item, :give, {
+1409:   "name"      => _INTL("Give"),
+1410:   "order"     => 20,
+1411:   "effect"    => proc { |screen, party, party_idx|
+1412:     pkmn = party[party_idx]
+1413:     item = screen.scene.pbChooseItem($bag) do
+1414:       screen.scene.pbSetHelpText((party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+1415:     end
+1416:     next if !item || !pbGiveItemToPokemon(item, pkmn, screen, party_idx)
+1417:     screen.pbRefreshSingle(party_idx)
+1418:   }
+1419: })
+1420: 
+1421: MenuHandlers.add(:party_menu_item, :take, {
+1422:   "name"      => _INTL("Take"),
+1423:   "order"     => 30,
+1424:   "condition" => proc { |screen, party, party_idx| next party[party_idx].hasItem? },
+1425:   "effect"    => proc { |screen, party, party_idx|
+1426:     pkmn = party[party_idx]
+1427:     next if !pbTakeItemFromPokemon(pkmn, screen)
+1428:     screen.pbRefreshSingle(party_idx)
+1429:   }
+1430: })
+1431: 
+1432: MenuHandlers.add(:party_menu_item, :move, {
+1433:   "name"      => _INTL("Move"),
+1434:   "order"     => 40,
+1435:   "condition" => proc { |screen, party, party_idx| next party[party_idx].hasItem? && !party[party_idx].item.is_mail? },
+1436:   "effect"    => proc { |screen, party, party_idx|
+1437:     pkmn = party[party_idx]
+1438:     item = pkmn.item
+1439:     itemname = item.name
+1440:     portionitemname = item.portion_name
+1441:     screen.scene.pbSetHelpText(_INTL("Move {1} to where?", itemname))
+1442:     old_party_idx = party_idx
+1443:     moved = false
+1444:     loop do
+1445:       screen.scene.pbPreSelect(old_party_idx)
+1446:       party_idx = screen.scene.pbChoosePokemon(true, party_idx)
+1447:       break if party_idx < 0
+1448:       newpkmn = party[party_idx]
+1449:       break if party_idx == old_party_idx
+1450:       if newpkmn.egg?
+1451:         screen.pbDisplay(_INTL("Eggs can't hold items."))
+1452:         next
+1453:       elsif !newpkmn.hasItem?
+1454:         newpkmn.item = item
+1455:         pkmn.item = nil
+1456:         screen.scene.pbClearSwitching
+1457:         screen.pbRefresh
+1458:         screen.pbDisplay(_INTL("{1} was given the {2} to hold.", newpkmn.name, portionitemname))
+1459:         moved = true
+1460:         break
+1461:       elsif newpkmn.item.is_mail?
+1462:         screen.pbDisplay(_INTL("{1}'s mail must be removed before giving it an item.", newpkmn.name))
+1463:         next
+1464:       end
+1465:       # New Pokémon is also holding an item; ask what to do with it
+1466:       newitem = newpkmn.item
+1467:       newitemname = newitem.portion_name
+1468:       if newitemname.starts_with_vowel?
+1469:         screen.pbDisplay(_INTL("{1} is already holding an {2}.", newpkmn.name, newitemname) + "\1")
+1470:       else
+1471:         screen.pbDisplay(_INTL("{1} is already holding a {2}.", newpkmn.name, newitemname) + "\1")
+1472:       end
+1473:       next if !screen.pbConfirm(_INTL("Would you like to switch the two items?"))
+1474:       newpkmn.item = item
+1475:       pkmn.item = newitem
+1476:       screen.scene.pbClearSwitching
+1477:       screen.pbRefresh
+1478:       screen.pbDisplay(_INTL("{1} was given the {2} to hold.", newpkmn.name, portionitemname) + "\1")
+1479:       screen.pbDisplay(_INTL("{1} was given the {2} to hold.", pkmn.name, newitemname))
+1480:       moved = true
+1481:       break
+1482:     end
+1483:     screen.scene.pbSelect(old_party_idx) if !moved
+1484:   }
+1485: })
+1486: 
+1487: #===============================================================================
+1488: # Open the party screen
+1489: #===============================================================================
+1490: def pbPokemonScreen
+1491:   pbFadeOutIn do
+1492:     sscene = PokemonParty_Scene.new
+1493:     sscreen = PokemonPartyScreen.new(sscene, $player.party)
+1494:     sscreen.pbPokemonScreen
+1495:   end
+1496: end
+1497: 
+1498: #===============================================================================
+1499: # Choose a Pokémon in the party
+1500: #===============================================================================
+1501: # Choose a Pokémon/egg from the party.
+1502: # Stores result in variable _variableNumber_ and the chosen Pokémon's name in
+1503: # variable _nameVarNumber_; result is -1 if no Pokémon was chosen
+1504: def pbChoosePokemon(variableNumber, nameVarNumber, ableProc = nil, allowIneligible = false)
+1505:   chosen = 0
+1506:   pbFadeOutIn do
+1507:     scene = PokemonParty_Scene.new
+1508:     screen = PokemonPartyScreen.new(scene, $player.party)
+1509:     if ableProc
+1510:       chosen = screen.pbChooseAblePokemon(ableProc, allowIneligible)
+1511:     else
+1512:       screen.pbStartScene(_INTL("Choose a Pokémon."), false)
+1513:       chosen = screen.pbChoosePokemon
+1514:       screen.pbEndScene
+1515:     end
+1516:   end
+1517:   pbSet(variableNumber, chosen)
+1518:   if chosen >= 0
+1519:     pbSet(nameVarNumber, $player.party[chosen].name)
+1520:   else
+1521:     pbSet(nameVarNumber, "")
+1522:   end
+1523: end
+1524: 
+1525: def pbChooseNonEggPokemon(variableNumber, nameVarNumber)
+1526:   pbChoosePokemon(variableNumber, nameVarNumber, proc { |pkmn| !pkmn.egg? })
+1527: end
+1528: 
+1529: def pbChooseAblePokemon(variableNumber, nameVarNumber)
+1530:   pbChoosePokemon(variableNumber, nameVarNumber, proc { |pkmn| !pkmn.egg? && pkmn.hp > 0 })
+1531: end
+1532: 
+1533: # Same as pbChoosePokemon, but prevents choosing an egg or a Shadow Pokémon.
+1534: def pbChooseTradablePokemon(variableNumber, nameVarNumber, ableProc = nil, allowIneligible = false)
+1535:   chosen = 0
+1536:   pbFadeOutIn do
+1537:     scene = PokemonParty_Scene.new
+1538:     screen = PokemonPartyScreen.new(scene, $player.party)
+1539:     if ableProc
+1540:       chosen = screen.pbChooseTradablePokemon(ableProc, allowIneligible)
+1541:     else
+1542:       screen.pbStartScene(_INTL("Choose a Pokémon."), false)
+1543:       chosen = screen.pbChoosePokemon
+1544:       screen.pbEndScene
+1545:     end
+1546:   end
+1547:   pbSet(variableNumber, chosen)
+1548:   if chosen >= 0
+1549:     pbSet(nameVarNumber, $player.party[chosen].name)
+1550:   else
+1551:     pbSet(nameVarNumber, "")
+1552:   end
+1553: end
+1554: 
+1555: def pbChoosePokemonForTrade(variableNumber, nameVarNumber, wanted)
+1556:   wanted = GameData::Species.get(wanted).species
+1557:   pbChooseTradablePokemon(variableNumber, nameVarNumber, proc { |pkmn|
+1558:     next pkmn.species == wanted
+1559:   })
+1560: end

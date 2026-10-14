@@ -1,0 +1,420 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/001_Battle_Scene.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 419], "total_lines": 419, "sha256": "a744f0eb4d040372c7219c0ccd8502cd957f109b536d83513ccdcc54587721a8", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:28:13.503605+00:00"}
+1: # Battle scene (the visuals of the battle)
+2: class Battle::Scene
+3:   attr_accessor :abortable   # For non-interactive battles, can quit immediately
+4:   attr_reader   :viewport
+5:   attr_reader   :sprites
+6: 
+7:   USE_ABILITY_SPLASH   = (Settings::MECHANICS_GENERATION >= 5)
+8:   MESSAGE_PAUSE_TIME   = 1.0   # In seconds
+9:   # Text colors
+10:   MESSAGE_BASE_COLOR   = Color.new(80, 80, 88)
+11:   MESSAGE_SHADOW_COLOR = Color.new(160, 160, 168)
+12:   # The number of party balls to show in each side's lineup.
+13:   NUM_BALLS            = Settings::MAX_PARTY_SIZE
+14:   # Centre bottom of the player's side base graphic
+15:   PLAYER_BASE_X        = 128
+16:   PLAYER_BASE_Y        = Settings::SCREEN_HEIGHT - 80
+17:   # Centre middle of the foe's side base graphic
+18:   FOE_BASE_X           = Settings::SCREEN_WIDTH - 128
+19:   FOE_BASE_Y           = (Settings::SCREEN_HEIGHT * 3 / 4) - 112
+20:   # Default focal points of user and target in animations - do not change!
+21:   # Is the centre middle of each sprite
+22:   FOCUSUSER_X          = 128
+23:   FOCUSUSER_Y          = 224
+24:   FOCUSTARGET_X        = 384
+25:   FOCUSTARGET_Y        = 96
+26:   # Menu types
+27:   BLANK                = 0
+28:   MESSAGE_BOX          = 1
+29:   COMMAND_BOX          = 2
+30:   FIGHT_BOX            = 3
+31:   TARGET_BOX           = 4
+32: 
+33:   # Returns where the centre bottom of a battler's sprite should be, given its
+34:   # index and the number of battlers on its side, assuming the battler has
+35:   # metrics of 0 (those are added later).
+36:   def self.pbBattlerPosition(index, sideSize = 1)
+37:     # Start at the centre of the base for the appropriate side
+38:     if (index & 1) == 0
+39:       ret = [PLAYER_BASE_X, PLAYER_BASE_Y]
+40:     else
+41:       ret = [FOE_BASE_X, FOE_BASE_Y]
+42:     end
+43:     # Shift depending on index (no shifting needed for sideSize of 1)
+44:     case sideSize
+45:     when 2
+46:       ret[0] += [-48, 48, 32, -32][index]
+47:       ret[1] += [  0,  0, 16, -16][index]
+48:     when 3
+49:       ret[0] += [-80, 80,  0,  0, 80, -80][index]
+50:       ret[1] += [  0,  0,  8, -8, 16, -16][index]
+51:     end
+52:     return ret
+53:   end
+54: 
+55:   # Returns where the centre bottom of a trainer's sprite should be, given its
+56:   # side (0/1), index and the number of trainers on its side.
+57:   def self.pbTrainerPosition(side, index = 0, sideSize = 1)
+58:     # Start at the centre of the base for the appropriate side
+59:     if side == 0
+60:       ret = [PLAYER_BASE_X, PLAYER_BASE_Y - 16]
+61:     else
+62:       ret = [FOE_BASE_X, FOE_BASE_Y + 6]
+63:     end
+64:     # Shift depending on index (no shifting needed for sideSize of 1)
+65:     case sideSize
+66:     when 2
+67:       ret[0] += [-48, 48, 32, -32][(2 * index) + side]
+68:       ret[1] += [  0,  0,  0, -16][(2 * index) + side]
+69:     when 3
+70:       ret[0] += [-80, 80,  0,  0, 80, -80][(2 * index) + side]
+71:       ret[1] += [  0,  0,  0, -8,  0, -16][(2 * index) + side]
+72:     end
+73:     return ret
+74:   end
+75: 
+76:   #=============================================================================
+77:   # Updating and refreshing
+78:   #=============================================================================
+79:   def pbUpdate(cw = nil)
+80:     pbGraphicsUpdate
+81:     pbInputUpdate
+82:     pbFrameUpdate(cw)
+83:   end
+84: 
+85:   def pbGraphicsUpdate
+86:     # Update lineup animations
+87:     if @animations.length > 0
+88:       shouldCompact = false
+89:       @animations.each_with_index do |a, i|
+90:         a.update
+91:         next if !a.animDone?
+92:         a.dispose
+93:         @animations[i] = nil
+94:         shouldCompact = true
+95:       end
+96:       @animations.compact! if shouldCompact
+97:     end
+98:     # Update other graphics
+99:     @sprites["battle_bg"].update if @sprites["battle_bg"].respond_to?("update")
+100:     Graphics.update
+101:   end
+102: 
+103:   def pbInputUpdate
+104:     Input.update
+105:     if Input.trigger?(Input::BACK) && @abortable && !@aborted
+106:       @aborted = true
+107:       @battle.pbAbort
+108:     end
+109:   end
+110: 
+111:   def pbFrameUpdate(cw = nil)
+112:     cw&.update
+113:     @battle.battlers.each_with_index do |b, i|
+114:       next if !b
+115:       @sprites["dataBox_#{i}"]&.update
+116:       @sprites["pokemon_#{i}"]&.update
+117:       @sprites["shadow_#{i}"]&.update
+118:     end
+119:   end
+120: 
+121:   def pbRefresh
+122:     @battle.battlers.each_with_index do |b, i|
+123:       next if !b
+124:       @sprites["dataBox_#{i}"]&.refresh
+125:     end
+126:   end
+127: 
+128:   def pbRefreshOne(idxBattler)
+129:     @sprites["dataBox_#{idxBattler}"]&.refresh
+130:   end
+131: 
+132:   def pbRefreshEverything
+133:     pbCreateBackdropSprites
+134:     @battle.battlers.each_with_index do |battler, i|
+135:       next if !battler
+136:       pbChangePokemon(i, @sprites["pokemon_#{i}"].pkmn)
+137:       @sprites["dataBox_#{i}"].initializeDataBoxGraphic(@battle.pbSideSize(i))
+138:       @sprites["dataBox_#{i}"].refresh
+139:     end
+140:   end
+141: 
+142:   #=============================================================================
+143:   # Party lineup
+144:   #=============================================================================
+145:   # Returns whether the party line-ups are currently coming on-screen
+146:   def inPartyAnimation?
+147:     return @animations.length > 0
+148:   end
+149: 
+150:   #=============================================================================
+151:   # Window displays
+152:   #=============================================================================
+153:   def pbShowWindow(windowType)
+154:     # NOTE: If you are not using fancy graphics for the command/fight menus, you
+155:     #       will need to make "messageBox" also visible if the windowtype if
+156:     #       COMMAND_BOX/FIGHT_BOX respectively.
+157:     @sprites["messageBox"].visible    = (windowType == MESSAGE_BOX)
+158:     @sprites["messageWindow"].visible = (windowType == MESSAGE_BOX)
+159:     @sprites["commandWindow"].visible = (windowType == COMMAND_BOX)
+160:     @sprites["fightWindow"].visible   = (windowType == FIGHT_BOX)
+161:     @sprites["targetWindow"].visible  = (windowType == TARGET_BOX)
+162:   end
+163: 
+164:   # This is for the end of brief messages, which have been lingering on-screen
+165:   # while other things happened. This is only called when another message wants
+166:   # to be shown, and makes the brief message linger for one more second first.
+167:   # Some animations skip this extra second by setting @briefMessage to false
+168:   # despite not having any other messages to show.
+169:   def pbWaitMessage
+170:     return if !@briefMessage
+171:     pbShowWindow(MESSAGE_BOX)
+172:     cw = @sprites["messageWindow"]
+173:     timer_start = System.uptime
+174:     while System.uptime - timer_start < MESSAGE_PAUSE_TIME
+175:       pbUpdate(cw)
+176:     end
+177:     cw.text    = ""
+178:     cw.visible = false
+179:     @briefMessage = false
+180:   end
+181: 
+182:   # NOTE: A regular message is displayed for 1 second after it fully appears (or
+183:   #       less if Back/Use is pressed). Disappears automatically after that time.
+184:   def pbDisplayMessage(msg, brief = false)
+185:     pbWaitMessage
+186:     pbShowWindow(MESSAGE_BOX)
+187:     cw = @sprites["messageWindow"]
+188:     cw.setText(msg)
+189:     PBDebug.log_message(msg)
+190:     yielded = false
+191:     timer_start = nil
+192:     loop do
+193:       pbUpdate(cw)
+194:       if !cw.busy?
+195:         if !yielded
+196:           yield if block_given?   # For playing SE as soon as the message is all shown
+197:           yielded = true
+198:         end
+199:         if brief
+200:           # NOTE: A brief message lingers on-screen while other things happen. A
+201:           #       regular message has to end before the game can continue.
+202:           @briefMessage = true
+203:           break
+204:         end
+205:         timer_start = System.uptime if !timer_start
+206:         if System.uptime - timer_start >= MESSAGE_PAUSE_TIME   # Autoclose after 1 second
+207:           cw.text = ""
+208:           cw.visible = false
+209:           break
+210:         end
+211:       end
+212:       if Input.trigger?(Input::BACK) || Input.trigger?(Input::USE) || @abortable
+213:         if cw.busy?
+214:           pbPlayDecisionSE if cw.pausing? && !@abortable
+215:           cw.skipAhead
+216:         elsif !@abortable
+217:           cw.text = ""
+218:           cw.visible = false
+219:           break
+220:         end
+221:       end
+222:     end
+223:   end
+224:   alias pbDisplay pbDisplayMessage
+225: 
+226:   # NOTE: A paused message has the arrow in the bottom corner indicating there
+227:   #       is another message immediately afterward. It is displayed for 3
+228:   #       seconds after it fully appears (or less if B/C is pressed) and
+229:   #       disappears automatically after that time, except at the end of battle.
+230:   def pbDisplayPausedMessage(msg)
+231:     pbWaitMessage
+232:     pbShowWindow(MESSAGE_BOX)
+233:     cw = @sprites["messageWindow"]
+234:     cw.text = msg + "\1"
+235:     PBDebug.log_message(msg)
+236:     yielded = false
+237:     timer_start = nil
+238:     loop do
+239:       pbUpdate(cw)
+240:       if !cw.busy?
+241:         if !yielded
+242:           yield if block_given?   # For playing SE as soon as the message is all shown
+243:           yielded = true
+244:         end
+245:         if !@battleEnd
+246:           timer_start = System.uptime if !timer_start
+247:           if System.uptime - timer_start >= MESSAGE_PAUSE_TIME * 3   # Autoclose after 3 seconds
+248:             cw.text = ""
+249:             cw.visible = false
+250:             break
+251:           end
+252:         end
+253:       end
+254:       if Input.trigger?(Input::BACK) || Input.trigger?(Input::USE) || @abortable
+255:         if cw.busy?
+256:           pbPlayDecisionSE if cw.pausing? && !@abortable
+257:           cw.skipAhead
+258:         elsif !@abortable
+259:           cw.text = ""
+260:           pbPlayDecisionSE
+261:           break
+262:         end
+263:       end
+264:     end
+265:   end
+266: 
+267:   def pbDisplayConfirmMessage(msg)
+268:     return pbShowCommands(msg, [_INTL("Yes"), _INTL("No")], 1) == 0
+269:   end
+270: 
+271:   def pbShowCommands(msg, commands, defaultValue)
+272:     pbWaitMessage
+273:     pbShowWindow(MESSAGE_BOX)
+274:     dw = @sprites["messageWindow"]
+275:     dw.text = msg
+276:     cw = Window_CommandPokemon.new(commands)
+277:     cw.height   = Graphics.height - dw.height if cw.height > Graphics.height - dw.height
+278:     cw.x        = Graphics.width - cw.width
+279:     cw.y        = Graphics.height - cw.height - dw.height
+280:     cw.z        = dw.z + 1
+281:     cw.index    = 0
+282:     cw.viewport = @viewport
+283:     PBDebug.log_message(msg)
+284:     loop do
+285:       cw.visible = (!dw.busy?)
+286:       pbUpdate(cw)
+287:       dw.update
+288:       if Input.trigger?(Input::BACK) && defaultValue >= 0
+289:         if dw.busy?
+290:           pbPlayDecisionSE if dw.pausing?
+291:           dw.resume
+292:         else
+293:           cw.dispose
+294:           dw.text = ""
+295:           return defaultValue
+296:         end
+297:       elsif Input.trigger?(Input::USE)
+298:         if dw.busy?
+299:           pbPlayDecisionSE if dw.pausing?
+300:           dw.resume
+301:         else
+302:           cw.dispose
+303:           dw.text = ""
+304:           return cw.index
+305:         end
+306:       end
+307:     end
+308:   end
+309: 
+310:   #=============================================================================
+311:   # Sprites
+312:   #=============================================================================
+313:   def pbAddSprite(id, x, y, filename, viewport)
+314:     sprite = @sprites[id] || IconSprite.new(x, y, viewport)
+315:     if filename
+316:       sprite.setBitmap(filename) rescue nil
+317:     end
+318:     @sprites[id] = sprite
+319:     return sprite
+320:   end
+321: 
+322:   def pbAddPlane(id, filename, viewport)
+323:     sprite = AnimatedPlane.new(viewport)
+324:     if filename
+325:       sprite.setBitmap(filename)
+326:     end
+327:     @sprites[id] = sprite
+328:     return sprite
+329:   end
+330: 
+331:   def pbDisposeSprites
+332:     pbDisposeSpriteHash(@sprites)
+333:   end
+334: 
+335:   # Used by Ally Switch.
+336:   def pbSwapBattlerSprites(idxA, idxB)
+337:     @sprites["pokemon_#{idxA}"], @sprites["pokemon_#{idxB}"] = @sprites["pokemon_#{idxB}"], @sprites["pokemon_#{idxA}"]
+338:     @sprites["shadow_#{idxA}"], @sprites["shadow_#{idxB}"] = @sprites["shadow_#{idxB}"], @sprites["shadow_#{idxA}"]
+339:     @lastCmd[idxA], @lastCmd[idxB] = @lastCmd[idxB], @lastCmd[idxA]
+340:     @lastMove[idxA], @lastMove[idxB] = @lastMove[idxB], @lastMove[idxA]
+341:     [idxA, idxB].each do |i|
+342:       @sprites["pokemon_#{i}"].index = i
+343:       @sprites["pokemon_#{i}"].pbSetPosition
+344:       @sprites["shadow_#{i}"].index = i
+345:       @sprites["shadow_#{i}"].pbSetPosition
+346:       @sprites["dataBox_#{i}"].battler = @battle.battlers[i]
+347:     end
+348:     pbRefresh
+349:   end
+350: 
+351:   #=============================================================================
+352:   # Phases
+353:   #=============================================================================
+354:   def pbBeginCommandPhase
+355:     @sprites["messageWindow"].text = ""
+356:   end
+357: 
+358:   def pbBeginAttackPhase
+359:     pbSelectBattler(-1)
+360:     pbShowWindow(MESSAGE_BOX)
+361:   end
+362: 
+363:   def pbBeginEndOfRoundPhase; end
+364: 
+365:   def pbEndBattle(_result)
+366:     @abortable = false
+367:     pbShowWindow(BLANK)
+368:     # Fade out all sprites
+369:     pbBGMFade(1.0)
+370:     pbFadeOutAndHide(@sprites)
+371:     pbDisposeSprites
+372:   end
+373: 
+374:   #=============================================================================
+375:   #
+376:   #=============================================================================
+377:   def pbSelectBattler(idxBattler, selectMode = 1)
+378:     numWindows = @battle.sideSizes.max * 2
+379:     numWindows.times do |i|
+380:       sel = (idxBattler.is_a?(Array)) ? !idxBattler[i].nil? : i == idxBattler
+381:       selVal = (sel) ? selectMode : 0
+382:       @sprites["dataBox_#{i}"].selected = selVal if @sprites["dataBox_#{i}"]
+383:       @sprites["pokemon_#{i}"].selected = selVal if @sprites["pokemon_#{i}"]
+384:     end
+385:   end
+386: 
+387:   def pbChangePokemon(idxBattler, pkmn)
+388:     idxBattler = idxBattler.index if idxBattler.respond_to?("index")
+389:     pkmnSprite   = @sprites["pokemon_#{idxBattler}"]
+390:     shadowSprite = @sprites["shadow_#{idxBattler}"]
+391:     back = !@battle.opposes?(idxBattler)
+392:     pkmnSprite.setPokemonBitmap(pkmn, back)
+393:     shadowSprite.setPokemonBitmap(pkmn)
+394:     # Set visibility of battler's shadow
+395:     shadowSprite.visible = pkmn.species_data.shows_shadow? if shadowSprite && !back
+396:   end
+397: 
+398:   def pbResetCommandsIndex(idxBattler)
+399:     @lastCmd[idxBattler] = 0
+400:     @lastMove[idxBattler] = 0
+401:   end
+402: 
+403:   #=============================================================================
+404:   #
+405:   #=============================================================================
+406:   # This method is called when the player wins a wild Pokémon battle.
+407:   # This method can change the battle's music for example.
+408:   def pbWildBattleSuccess
+409:     @battleEnd = true
+410:     pbBGMPlay(pbGetWildVictoryBGM)
+411:   end
+412: 
+413:   # This method is called when the player wins a trainer battle.
+414:   # This method can change the battle's music for example.
+415:   def pbTrainerBattleSuccess
+416:     @battleEnd = true
+417:     pbBGMPlay(pbGetTrainerVictoryBGM(@battle.opponent))
+418:   end
+419: end

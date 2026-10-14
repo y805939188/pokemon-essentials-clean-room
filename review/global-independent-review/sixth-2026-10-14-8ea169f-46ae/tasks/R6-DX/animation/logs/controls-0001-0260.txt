@@ -1,0 +1,260 @@
+1: module BattleAnimationEditor
+2:   #=============================================================================
+3:   #
+4:   #=============================================================================
+5:   module ShadowText
+6:     def shadowtext(bitmap, x, y, w, h, t, disabled = false, align = 0)
+7:       width = bitmap.text_size(t).width
+8:       case align
+9:       when 2
+10:         x += (w - width)
+11:       when 1
+12:         x += (w / 2) - (width / 2)
+13:       end
+14:       pbDrawShadowText(bitmap, x, y + 6, w, h, t,
+15:                        disabled ? Color.new(208, 208, 200) : Color.new(96, 96, 96),
+16:                        Color.new(208, 208, 200))
+17:     end
+18:   end
+19: 
+20:   #=============================================================================
+21:   #
+22:   #=============================================================================
+23:   class UIControl
+24:     include ShadowText
+25:     attr_accessor :bitmap
+26:     attr_accessor :label
+27:     attr_accessor :x
+28:     attr_accessor :y
+29:     attr_accessor :width
+30:     attr_accessor :height
+31:     attr_accessor :changed
+32:     attr_accessor :parent
+33:     attr_accessor :disabled
+34: 
+35:     def text
+36:       return self.label
+37:     end
+38: 
+39:     def text=(value)
+40:       self.label = value
+41:     end
+42: 
+43:     def initialize(label)
+44:       @label = label
+45:       @x = 0
+46:       @y = 0
+47:       @width = 0
+48:       @height = 0
+49:       @changed = false
+50:       @disabled = false
+51:       @invalid = true
+52:     end
+53: 
+54:     def toAbsoluteRect(rc)
+55:       return Rect.new(rc.x + self.parentX, rc.y + self.parentY, rc.width, rc.height)
+56:     end
+57: 
+58:     def parentX
+59:       return 0 if !self.parent
+60:       return self.parent.x + self.parent.leftEdge if self.parent.is_a?(SpriteWindow)
+61:       return self.parent.x + 16 if self.parent.is_a?(Window)
+62:       return self.parent.x
+63:     end
+64: 
+65:     def parentY
+66:       return 0 if !self.parent
+67:       return self.parent.y + self.parent.topEdge if self.parent.is_a?(SpriteWindow)
+68:       return self.parent.y + 16 if self.parent.is_a?(Window)
+69:       return self.parent.y
+70:     end
+71: 
+72:     def invalid?
+73:       return @invalid
+74:     end
+75: 
+76:     # Marks that the control must be redrawn to reflect current logic.
+77:     def invalidate
+78:       @invalid = true
+79:     end
+80: 
+81:     # Updates the logic on the control, invalidating it if necessary.
+82:     def update; end
+83: 
+84:     # Redraws the control.
+85:     def refresh; end
+86: 
+87:     # Makes the control no longer invalid.
+88:     def validate
+89:       @invalid = false
+90:     end
+91: 
+92:     # Redraws the control only if it is invalid.
+93:     def repaint
+94:       return if !self.invalid?
+95:       self.refresh
+96:       self.validate
+97:     end
+98:   end
+99: 
+100:   #=============================================================================
+101:   #
+102:   #=============================================================================
+103:   class Label < UIControl
+104:     def text=(value)
+105:       self.label = value
+106:       refresh
+107:     end
+108: 
+109:     def refresh
+110:       bitmap = self.bitmap
+111:       bitmap.fill_rect(self.x, self.y, self.width, self.height, Color.new(0, 0, 0, 0))
+112:       size = bitmap.text_size(self.label).width
+113:       shadowtext(bitmap, self.x + 4, self.y, size, self.height, self.label, @disabled)
+114:     end
+115:   end
+116: 
+117:   #=============================================================================
+118:   #
+119:   #=============================================================================
+120:   class Button < UIControl
+121:     attr_accessor :label
+122: 
+123:     def initialize(label)
+124:       super
+125:       @captured = false
+126:       @label = label
+127:     end
+128: 
+129:     def update
+130:       mousepos = Mouse.getMousePos
+131:       self.changed = false
+132:       return if !mousepos
+133:       rect = Rect.new(self.x + 1, self.y + 1, self.width - 2, self.height - 2)
+134:       rect = toAbsoluteRect(rect)
+135:       if Input.trigger?(Input::MOUSELEFT) &&
+136:          rect.contains?(mousepos[0], mousepos[1]) && !@captured
+137:         @captured = true
+138:         self.invalidate
+139:       end
+140:       if Input.release?(Input::MOUSELEFT) && @captured
+141:         self.changed = true if rect.contains?(mousepos[0], mousepos[1])
+142:         @captured = false
+143:         self.invalidate
+144:       end
+145:     end
+146: 
+147:     def refresh
+148:       bitmap = self.bitmap
+149:       x = self.x
+150:       y = self.y
+151:       width = self.width
+152:       height = self.height
+153:       # Draw background
+154:       if @captured
+155:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(120, 120, 120, 80))
+156:       else
+157:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(0, 0, 0, 0))
+158:       end
+159:       # Draw text
+160:       size = bitmap.text_size(self.label).width
+161:       shadowtext(bitmap, x + 4, y, size, height, self.label, @disabled)
+162:       # Draw outline
+163:       color = Color.new(120, 120, 120)
+164:       bitmap.fill_rect(x + 1, y + 1, width - 2, 1, color)
+165:       bitmap.fill_rect(x + 1, y + 1, 1, height - 2, color)
+166:       bitmap.fill_rect(x + 1, y + height - 2, width - 2, 1, color)
+167:       bitmap.fill_rect(x + width - 2, y + 1, 1, height - 2, color)
+168:       # Return the control's clickable area
+169:       ret = Rect.new(x + 1, y + 1, width - 2, height - 2)
+170:       return ret
+171:     end
+172:   end
+173: 
+174:   #=============================================================================
+175:   #
+176:   #=============================================================================
+177:   class Checkbox < Button
+178:     attr_reader :checked
+179: 
+180:     def curvalue
+181:       return self.checked
+182:     end
+183: 
+184:     def curvalue=(value)
+185:       self.checked = value
+186:     end
+187: 
+188:     def checked=(value)
+189:       @checked = value
+190:       invalidate
+191:     end
+192: 
+193:     def initialize(label)
+194:       super
+195:       @checked = false
+196:     end
+197: 
+198:     def update
+199:       super
+200:       if self.changed
+201:         @checked = !@checked
+202:         self.invalidate
+203:       end
+204:     end
+205: 
+206:     def refresh
+207:       bitmap = self.bitmap
+208:       x = self.x
+209:       y = self.y
+210:       width = [self.width, 32].min
+211:       height = [self.height, 32].min
+212:       # Draw background
+213:       bitmap.fill_rect(x + 2, y + 2, self.width - 4, self.height - 4, Color.new(0, 0, 0, 0))
+214:       if @captured
+215:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(120, 120, 120, 80))
+216:       else
+217:         bitmap.fill_rect(x + 2, y + 2, width - 4, height - 4, Color.new(0, 0, 0, 0))
+218:       end
+219:       # Draw text
+220:       shadowtext(bitmap, x, y, 32, 32, "X", @disabled, 1) if self.checked
+221:       size = bitmap.text_size(self.label).width
+222:       shadowtext(bitmap, x + 36, y, size, height, self.label, @disabled)
+223:       # Draw outline
+224:       color = Color.new(120, 120, 120)
+225:       bitmap.fill_rect(x + 1, y + 1, width - 2, 1, color)
+226:       bitmap.fill_rect(x + 1, y + 1, 1, height - 2, color)
+227:       bitmap.fill_rect(x + 1, y + height - 2, width - 2, 1, color)
+228:       bitmap.fill_rect(x + width - 2, y + 1, 1, height - 2, color)
+229:       # Return the control's clickable area
+230:       ret = Rect.new(x + 1, y + 1, width - 2, height - 2)
+231:       return ret
+232:     end
+233:   end
+234: 
+235:   #=============================================================================
+236:   #
+237:   #=============================================================================
+238:   class TextField < UIControl
+239:     attr_accessor :label
+240:     attr_reader :text
+241: 
+242:     def text=(value)
+243:       @text = value
+244:       @cursor_shown = true
+245:       self.invalidate
+246:     end
+247: 
+248:     def initialize(label, text)
+249:       super(label)
+250:       @cursor_timer_start = System.uptime
+251:       @cursor_shown = true
+252:       @label = label
+253:       @text = text
+254:       @cursor = text.scan(/./m).length
+255:     end
+256: 
+257:     def insert(ch)
+258:       chars = self.text.scan(/./m)
+259:       chars.insert(@cursor, ch)
+260:       @text = ""

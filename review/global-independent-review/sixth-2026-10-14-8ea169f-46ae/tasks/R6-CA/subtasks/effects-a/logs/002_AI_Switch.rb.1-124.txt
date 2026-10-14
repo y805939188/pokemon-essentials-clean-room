@@ -1,0 +1,124 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class Battle::AI
+5:   # Called by the AI's def pbDefaultChooseEnemyCommand, and by def pbChooseMove
+6:   # if the only moves known are bad ones (the latter forces a switch if
+7:   # possible). Also aliased by the Battle Palace and Battle Arena.
+8:   def pbChooseToSwitchOut(terrible_moves = false)
+9:     return false if !@battle.canSwitch   # Battle rule
+10:     return false if @user.wild?
+11:     return false if !@battle.pbCanSwitchOut?(@user.index)
+12:     # Don't switch if all foes are unable to do anything, e.g. resting after
+13:     # Hyper Beam, will Truant (i.e. free turn)
+14:     if @trainer.high_skill?
+15:       foe_can_act = false
+16:       each_foe_battler(@user.side) do |b, i|
+17:         next if !b.can_attack?
+18:         foe_can_act = true
+19:         break
+20:       end
+21:       return false if !foe_can_act
+22:     end
+23:     # Various calculations to decide whether to switch
+24:     if terrible_moves
+25:       PBDebug.log_ai("#{@user.name} is being forced to switch out")
+26:     else
+27:       return false if !@trainer.has_skill_flag?("ConsiderSwitching")
+28:       reserves = get_non_active_party_pokemon(@user.index)
+29:       return false if reserves.empty?
+30:       should_switch = Battle::AI::Handlers.should_switch?(@user, reserves, self, @battle)
+31:       if should_switch && @trainer.medium_skill?
+32:         should_switch = false if Battle::AI::Handlers.should_not_switch?(@user, reserves, self, @battle)
+33:       end
+34:       return false if !should_switch
+35:     end
+36:     # Want to switch; find the best replacement Pokémon
+37:     idxParty = choose_best_replacement_pokemon(@user.index, terrible_moves)
+38:     if idxParty < 0   # No good replacement Pokémon found
+39:       PBDebug.log("   => no good replacement Pokémon, will not switch after all")
+40:       return false
+41:     end
+42:     # Prefer using Baton Pass instead of switching
+43:     baton_pass = -1
+44:     @user.battler.eachMoveWithIndex do |m, i|
+45:       next if m.function_code != "SwitchOutUserPassOnEffects"   # Baton Pass
+46:       next if !@battle.pbCanChooseMove?(@user.index, i, false)
+47:       baton_pass = i
+48:       break
+49:     end
+50:     if baton_pass >= 0 && @battle.pbRegisterMove(@user.index, baton_pass, false)
+51:       PBDebug.log("   => will use Baton Pass to switch out")
+52:       return true
+53:     elsif @battle.pbRegisterSwitch(@user.index, idxParty)
+54:       PBDebug.log("   => will switch with #{@battle.pbParty(@user.index)[idxParty].name}")
+55:       return true
+56:     end
+57:     return false
+58:   end
+59: 
+60:   def get_non_active_party_pokemon(idxBattler)
+61:     ret = []
+62:     @battle.pbParty(idxBattler).each_with_index do |pkmn, i|
+63:       ret.push(pkmn) if @battle.pbCanSwitchIn?(idxBattler, i)
+64:     end
+65:     return ret
+66:   end
+67: 
+68:   #-----------------------------------------------------------------------------
+69: 
+70:   def choose_best_replacement_pokemon(idxBattler, terrible_moves = false)
+71:     # Get all possible replacement Pokémon
+72:     party = @battle.pbParty(idxBattler)
+73:     idxPartyStart, idxPartyEnd = @battle.pbTeamIndexRangeFromBattlerIndex(idxBattler)
+74:     reserves = []
+75:     party.each_with_index do |_pkmn, i|
+76:       next if !@battle.pbCanSwitchIn?(idxBattler, i)
+77:       if !terrible_moves   # Not terrible_moves means choosing an action for the round
+78:         ally_will_switch_with_i = false
+79:         @battle.allSameSideBattlers(idxBattler).each do |b|
+80:           next if @battle.choices[b.index][0] != :SwitchOut || @battle.choices[b.index][1] != i
+81:           ally_will_switch_with_i = true
+82:           break
+83:         end
+84:         next if ally_will_switch_with_i
+85:       end
+86:       # Ignore ace if possible
+87:       if @trainer.has_skill_flag?("ReserveLastPokemon") && i == idxPartyEnd - 1
+88:         next if !terrible_moves || reserves.length > 0
+89:       end
+90:       reserves.push([i, 100])
+91:       break if @trainer.has_skill_flag?("UsePokemonInOrder") && reserves.length > 0
+92:     end
+93:     return -1 if reserves.length == 0
+94:     # Rate each possible replacement Pokémon
+95:     reserves.each_with_index do |reserve, i|
+96:       reserves[i][1] = rate_replacement_pokemon(idxBattler, party[reserve[0]], reserve[1])
+97:     end
+98:     reserves.sort! { |a, b| b[1] <=> a[1] }   # Sort from highest to lowest rated
+99:     # Don't bother choosing to switch if all replacements are poorly rated
+100:     if @trainer.high_skill? && !terrible_moves
+101:       return -1 if reserves[0][1] < 100   # If best replacement rated at <100, don't switch
+102:     end
+103:     # Return the party index of the best rated replacement Pokémon
+104:     return reserves[0][0]
+105:   end
+106: 
+107:   def rate_replacement_pokemon(idxBattler, pkmn, score)
+108:     pkmn_types = pkmn.types
+109:     entry_hazard_damage = calculate_entry_hazard_damage(pkmn, idxBattler & 1)
+110:     if entry_hazard_damage >= pkmn.hp
+111:       score -= 50   # pkmn will just faint
+112:     elsif entry_hazard_damage > 0
+113:       score -= 50 * entry_hazard_damage / pkmn.hp
+114:     end
+115:     if !pkmn.hasItem?(:HEAVYDUTYBOOTS) && !pokemon_airborne?(pkmn)
+116:       # Toxic Spikes
+117:       if @user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+118:         score -= 20 if pokemon_can_be_poisoned?(pkmn)
+119:       end
+120:       # Sticky Web
+121:       if @user.pbOwnSide.effects[PBEffects::StickyWeb]
+122:         score -= 15
+123:       end
+124:     end

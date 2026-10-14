@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/008_Other battle types/001_SafariBattle.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "91d69682f07e9679a0e9c83c3162c281f63b8b1a", "sha256": "2f7267ec090a62b21ed71df1dc54464128de429f445ce5ce2f79d4561c09cb45", "start_line": 181, "end_line": 360, "total_lines": 502, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:27:24.315691+00:00"}
+181:     ball.setZ(0, batSprite.z + 1)
+182:     # Trainer animation
+183:     if traSprite.bitmap.width >= traSprite.bitmap.height * 2
+184:       ballStartX, ballStartY = trainerThrowingFrames(ball, trainer, traSprite)
+185:     end
+186:     delay = ball.totalDuration   # 0 or 7
+187:     # Bait arc animation
+188:     ball.setSE(delay, "Battle throw")
+189:     createBallTrajectory(ball, delay, 12,
+190:                          ballStartX, ballStartY, ballMidX, ballMidY, ballEndX, ballEndY)
+191:     ball.setZ(9, batSprite.z + 1)
+192:     delay = ball.totalDuration
+193:     ball.setSE(delay, "Battle damage weak")
+194:     ball.moveOpacity(delay + 2, 2, 0)
+195:     ball.setVisible(delay + 4, false)
+196:     # Set up anger sprite
+197:     anger = addNewSprite(ballEndX - 42, ballEndY - 36,
+198:                          "Graphics/Battle animations/safari_anger", PictureOrigin::CENTER)
+199:     anger.setVisible(0, false)
+200:     anger.setZ(0, batSprite.z + 1)
+201:     # Show anger appearing
+202:     delay = ball.totalDuration + 5
+203:     2.times do
+204:       anger.setSE(delay, "Player jump")
+205:       anger.setVisible(delay, true)
+206:       anger.moveZoom(delay, 3, 130)
+207:       anger.moveZoom(delay + 3, 3, 100)
+208:       anger.setVisible(delay + 6, false)
+209:       anger.setDelta(delay + 6, 96, -16)
+210:       delay = anger.totalDuration + 3
+211:     end
+212:   end
+213: end
+214: 
+215: #===============================================================================
+216: # Safari Zone battle scene (the visuals of the battle)
+217: #===============================================================================
+218: class Battle::Scene
+219:   def pbSafariStart
+220:     @briefMessage = false
+221:     @sprites["dataBox_0"] = SafariDataBox.new(@battle, @viewport)
+222:     dataBoxAnim = Animation::DataBoxAppear.new(@sprites, @viewport, 0)
+223:     loop do
+224:       dataBoxAnim.update
+225:       pbUpdate
+226:       break if dataBoxAnim.animDone?
+227:     end
+228:     dataBoxAnim.dispose
+229:     pbRefresh
+230:   end
+231: 
+232:   def pbSafariCommandMenu(index)
+233:     pbCommandMenuEx(index,
+234:                     [_INTL("What will\n{1} throw?", @battle.pbPlayer.name),
+235:                      _INTL("Ball"),
+236:                      _INTL("Bait"),
+237:                      _INTL("Rock"),
+238:                      _INTL("Run")], 3)
+239:   end
+240: 
+241:   def pbThrowBait
+242:     @briefMessage = false
+243:     baitAnim = Animation::ThrowBait.new(@sprites, @viewport, @battle.battlers[1])
+244:     loop do
+245:       baitAnim.update
+246:       pbUpdate
+247:       break if baitAnim.animDone?
+248:     end
+249:     baitAnim.dispose
+250:   end
+251: 
+252:   def pbThrowRock
+253:     @briefMessage = false
+254:     rockAnim = Animation::ThrowRock.new(@sprites, @viewport, @battle.battlers[1])
+255:     loop do
+256:       rockAnim.update
+257:       pbUpdate
+258:       break if rockAnim.animDone?
+259:     end
+260:     rockAnim.dispose
+261:   end
+262: 
+263:   alias __safari__pbThrowSuccess pbThrowSuccess unless method_defined?(:__safari__pbThrowSuccess)
+264: 
+265:   def pbThrowSuccess
+266:     __safari__pbThrowSuccess
+267:     pbWildBattleSuccess if @battle.is_a?(SafariBattle)
+268:   end
+269: end
+270: 
+271: #===============================================================================
+272: # Safari Zone battle class
+273: #===============================================================================
+274: class SafariBattle
+275:   attr_reader   :battlers         # Array of fake battler objects
+276:   attr_accessor :sideSizes        # Array of number of battlers per side
+277:   attr_accessor :backdrop         # Filename fragment used for background graphics
+278:   attr_accessor :backdropBase     # Filename fragment used for base graphics
+279:   attr_accessor :time             # Time of day (0=day, 1=eve, 2=night)
+280:   attr_accessor :environment      # Battle surroundings (for mechanics purposes)
+281:   attr_reader   :weather
+282:   attr_reader   :player
+283:   attr_accessor :party2
+284:   attr_accessor :canRun           # True if player can run from battle
+285:   attr_accessor :canLose          # True if player won't black out if they lose
+286:   attr_accessor :switchStyle      # Switch/Set "battle style" option
+287:   attr_accessor :showAnims        # "Battle scene" option (show anims)
+288:   attr_accessor :expGain          # Whether Pokémon can gain Exp/EVs
+289:   attr_accessor :moneyGain        # Whether the player can gain/lose money
+290:   attr_accessor :rules
+291:   attr_accessor :ballCount
+292: 
+293:   include Battle::CatchAndStoreMixin
+294: 
+295:   def pbRandom(x); return rand(x); end
+296: 
+297:   #-----------------------------------------------------------------------------
+298:   # Initialize the battle class
+299:   #-----------------------------------------------------------------------------
+300:   def initialize(scene, player, party2)
+301:     @scene         = scene
+302:     @peer          = Battle::Peer.new
+303:     @backdrop      = ""
+304:     @backdropBase  = nil
+305:     @time          = 0
+306:     @environment   = :None   # e.g. Tall grass, cave, still water
+307:     @weather       = :None
+308:     @decision      = 0
+309:     @caughtPokemon = []
+310:     @player        = [player]
+311:     @party2        = party2
+312:     @sideSizes     = [1, 1]
+313:     @battlers      = [Battle::FakeBattler.new(self, 0),
+314:                       Battle::FakeBattler.new(self, 1)]
+315:     @rules         = {}
+316:     @ballCount     = 0
+317:   end
+318: 
+319:   def disablePokeBalls=(value); end
+320:   def sendToBoxes=(value); end
+321:   def defaultWeather=(value); @weather = value; end
+322:   def defaultTerrain=(value); end
+323: 
+324:   #-----------------------------------------------------------------------------
+325:   # Information about the type and size of the battle
+326:   #-----------------------------------------------------------------------------
+327:   def wildBattle?;    return true;  end
+328:   def trainerBattle?; return false; end
+329: 
+330:   def setBattleMode(mode); end
+331: 
+332:   def pbSideSize(index)
+333:     return @sideSizes[index % 2]
+334:   end
+335: 
+336:   #-----------------------------------------------------------------------------
+337:   # Trainers and owner-related
+338:   #-----------------------------------------------------------------------------
+339:   def pbPlayer; return @player[0]; end
+340:   def opponent; return nil;        end
+341: 
+342:   def pbGetOwnerFromBattlerIndex(idxBattler); return pbPlayer; end
+343: 
+344:   def pbSetSeen(battler)
+345:     return if !battler || !@internalBattle
+346:     if battler.is_a?(Battle::Battler)
+347:       pbPlayer.pokedex.register(battler.displaySpecies, battler.displayGender,
+348:                                 battler.displayForm, battler.shiny?)
+349:     else
+350:       pbPlayer.pokedex.register(battler)
+351:     end
+352:   end
+353: 
+354:   def pbSetCaught(battler)
+355:     return if !battler || !@internalBattle
+356:     if battler.is_a?(Battle::Battler)
+357:       pbPlayer.pokedex.register_caught(battler.displaySpecies)
+358:     else
+359:       pbPlayer.pokedex.register_caught(battler.species)
+360:     end

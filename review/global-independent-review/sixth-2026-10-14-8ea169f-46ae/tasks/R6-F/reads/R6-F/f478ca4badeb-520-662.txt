@@ -1,0 +1,144 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 520, "end_line": 662, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:47:36.723786+00:00"}
+520:     pbEndTurn(choice)
+521:     # Instruct
+522:     @battle.allBattlers.each do |b|
+523:       next if !b.effects[PBEffects::Instruct] || !b.lastMoveUsed
+524:       b.effects[PBEffects::Instruct] = false
+525:       idxMove = -1
+526:       b.eachMoveWithIndex { |m, i| idxMove = i if m.id == b.lastMoveUsed }
+527:       next if idxMove < 0
+528:       oldLastRoundMoved = b.lastRoundMoved
+529:       @battle.pbDisplay(_INTL("{1} used the move instructed by {2}!", b.pbThis, user.pbThis(true)))
+530:       b.effects[PBEffects::Instructed] = true
+531:       if b.pbCanChooseMove?(b.moves[idxMove], false)
+532:         PBDebug.logonerr do
+533:           b.pbUseMoveSimple(b.lastMoveUsed, b.lastRegularMoveTarget, idxMove, false)
+534:         end
+535:         b.lastRoundMoved = oldLastRoundMoved
+536:         @battle.pbJudge
+537:         return if @battle.decision > 0
+538:       end
+539:       b.effects[PBEffects::Instructed] = false
+540:     end
+541:     # Dancer
+542:     if !@effects[PBEffects::Dancer] && !user.lastMoveFailed && realNumHits > 0 &&
+543:        !move.snatched && magicCoater < 0 && @battle.pbCheckGlobalAbility(:DANCER) &&
+544:        move.danceMove?
+545:       dancers = []
+546:       @battle.pbPriority(true).each do |b|
+547:         dancers.push(b) if b.index != user.index && b.hasActiveAbility?(:DANCER)
+548:       end
+549:       while dancers.length > 0
+550:         nextUser = dancers.pop
+551:         oldLastRoundMoved = nextUser.lastRoundMoved
+552:         # NOTE: Petal Dance being used because of Dancer shouldn't lock the
+553:         #       Dancer into using that move, and shouldn't contribute to its
+554:         #       turn counter if it's already locked into Petal Dance.
+555:         oldOutrage = nextUser.effects[PBEffects::Outrage]
+556:         nextUser.effects[PBEffects::Outrage] += 1 if nextUser.effects[PBEffects::Outrage] > 0
+557:         oldCurrentMove = nextUser.currentMove
+558:         preTarget = choice[3]
+559:         preTarget = user.index if nextUser.opposes?(user) || !nextUser.opposes?(preTarget)
+560:         @battle.pbShowAbilitySplash(nextUser, true)
+561:         @battle.pbHideAbilitySplash(nextUser)
+562:         if !Battle::Scene::USE_ABILITY_SPLASH
+563:           @battle.pbDisplay(_INTL("{1} kept the dance going with {2}!",
+564:                                   nextUser.pbThis, nextUser.abilityName))
+565:         end
+566:         nextUser.effects[PBEffects::Dancer] = true
+567:         if nextUser.pbCanChooseMove?(move, false)
+568:           PBDebug.logonerr { nextUser.pbUseMoveSimple(move.id, preTarget) }
+569:           nextUser.lastRoundMoved = oldLastRoundMoved
+570:           nextUser.effects[PBEffects::Outrage] = oldOutrage
+571:           nextUser.currentMove = oldCurrentMove
+572:           @battle.pbJudge
+573:           return if @battle.decision > 0
+574:         end
+575:         nextUser.effects[PBEffects::Dancer] = false
+576:       end
+577:     end
+578:   end
+579: 
+580:   #=============================================================================
+581:   # Attack a single target
+582:   #=============================================================================
+583:   def pbProcessMoveHit(move, user, targets, hitNum, skipAccuracyCheck)
+584:     return false if user.fainted?
+585:     # For two-turn attacks being used in a single turn
+586:     move.pbInitialEffect(user, targets, hitNum)
+587:     numTargets = 0   # Number of targets that are affected by this hit
+588:     # Count a hit for Parental Bond (if it applies)
+589:     user.effects[PBEffects::ParentalBond] -= 1 if user.effects[PBEffects::ParentalBond] > 0
+590:     # Accuracy check (accuracy/evasion calc)
+591:     if hitNum == 0 || move.successCheckPerHit?
+592:       targets.each do |b|
+593:         b.damageState.missed = false
+594:         next if b.damageState.unaffected
+595:         if pbSuccessCheckPerHit(move, user, b, skipAccuracyCheck)
+596:           numTargets += 1
+597:         else
+598:           b.damageState.missed     = true
+599:           b.damageState.unaffected = true
+600:         end
+601:       end
+602:       # If failed against all targets
+603:       if targets.length > 0 && numTargets == 0 && !move.worksWithNoTargets?
+604:         targets.each do |b|
+605:           next if !b.damageState.missed || b.damageState.magicCoat
+606:           pbMissMessage(move, user, b)
+607:           if user.itemActive?
+608:             Battle::ItemEffects.triggerOnMissingTarget(user.item, user, b, move, hitNum, @battle)
+609:           end
+610:           break if move.pbRepeatHit?   # Dragon Darts only shows one failure message
+611:         end
+612:         move.pbCrashDamage(user)
+613:         user.pbItemHPHealCheck
+614:         pbCancelMoves
+615:         return false
+616:       end
+617:     end
+618:     # If we get here, this hit will happen and do something
+619:     all_targets = targets
+620:     targets = move.pbDesignateTargetsForHit(targets, hitNum)   # For Dragon Darts
+621:     targets.each { |b| b.damageState.resetPerHit }
+622:     #---------------------------------------------------------------------------
+623:     # Calculate damage to deal
+624:     if move.pbDamagingMove?
+625:       targets.each do |b|
+626:         next if b.damageState.unaffected
+627:         # Check whether Substitute/Disguise will absorb the damage
+628:         move.pbCheckDamageAbsorption(user, b)
+629:         # Calculate the damage against b
+630:         # pbCalcDamage shows the "eat berry" animation for SE-weakening
+631:         # berries, although the message about it comes after the additional
+632:         # effect below
+633:         move.pbCalcDamage(user, b, targets.length)   # Stored in damageState.calcDamage
+634:         # Lessen damage dealt because of False Swipe/Endure/etc.
+635:         move.pbReduceDamage(user, b)   # Stored in damageState.hpLost
+636:       end
+637:     end
+638:     # Show move animation (for this hit)
+639:     move.pbShowAnimation(move.id, user, targets, hitNum)
+640:     # Type-boosting Gem consume animation/message
+641:     if user.effects[PBEffects::GemConsumed] && hitNum == 0
+642:       # NOTE: The consume animation and message for Gems are shown now, but the
+643:       #       actual removal of the item happens in def pbEffectsAfterMove.
+644:       @battle.pbCommonAnimation("UseItem", user)
+645:       @battle.pbDisplay(_INTL("The {1} strengthened {2}'s power!",
+646:                               GameData::Item.get(user.effects[PBEffects::GemConsumed]).name, move.name))
+647:     end
+648:     # Messages about missed target(s) (relevant for multi-target moves only)
+649:     if !move.pbRepeatHit?
+650:       targets.each do |b|
+651:         next if !b.damageState.missed
+652:         pbMissMessage(move, user, b)
+653:         if user.itemActive?
+654:           Battle::ItemEffects.triggerOnMissingTarget(user.item, user, b, move, hitNum, @battle)
+655:         end
+656:       end
+657:     end
+658:     # Deal the damage (to all allies first simultaneously, then all foes
+659:     # simultaneously)
+660:     if move.pbDamagingMove?
+661:       # This just changes the HP amounts and does nothing else
+662:       targets.each { |b| move.pbInflictHPDamage(b) if !b.damageState.unaffected }

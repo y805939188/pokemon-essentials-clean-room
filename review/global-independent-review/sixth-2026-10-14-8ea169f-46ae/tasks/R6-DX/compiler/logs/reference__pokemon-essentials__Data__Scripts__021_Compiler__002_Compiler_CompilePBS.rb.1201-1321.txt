@@ -1,0 +1,121 @@
+1201: 
+1202:   def validate_compiled_dungeon_tileset(hash)
+1203:   end
+1204: 
+1205:   def validate_all_compiled_dungeon_tilesets
+1206:   end
+1207: 
+1208:   #=============================================================================
+1209:   # Compile dungeon parameters data
+1210:   #=============================================================================
+1211:   def compile_dungeon_parameters(*paths)
+1212:     compile_PBS_file_generic(GameData::DungeonParameters, *paths) do |final_validate, hash|
+1213:       (final_validate) ? validate_all_compiled_dungeon_parameters : validate_compiled_dungeon_parameters(hash)
+1214:     end
+1215:   end
+1216: 
+1217:   def validate_compiled_dungeon_parameters(hash)
+1218:     # Split area and version into their own values, generate compound ID from them
+1219:     hash[:area] = hash[:id][0]
+1220:     hash[:version] = hash[:id][1] || 0
+1221:     if hash[:version] == 0
+1222:       hash[:id] = hash[:area]
+1223:     else
+1224:       hash[:id] = sprintf("%s_%d", hash[:area].to_s, hash[:version]).to_sym
+1225:     end
+1226:     if GameData::DungeonParameters.exists?(hash[:id])
+1227:       raise _INTL("Version {1} of dungeon area {2} is defined twice.", hash[:version], hash[:area]) + "\n" + FileLineData.linereport
+1228:     end
+1229:   end
+1230: 
+1231:   def validate_all_compiled_dungeon_parameters
+1232:   end
+1233: 
+1234:   #=============================================================================
+1235:   # Compile phone messages
+1236:   #=============================================================================
+1237:   def compile_phone(*paths)
+1238:     compile_PBS_file_generic(GameData::PhoneMessage, *paths) do |final_validate, hash|
+1239:       (final_validate) ? validate_all_compiled_phone_contacts : validate_compiled_phone_contact(hash)
+1240:     end
+1241:   end
+1242: 
+1243:   def validate_compiled_phone_contact(hash)
+1244:     # Split trainer type/name/version into their own values, generate compound ID from them
+1245:     if hash[:id].strip.downcase == "default"
+1246:       hash[:id] = "default"
+1247:       hash[:trainer_type] = hash[:id]
+1248:     else
+1249:       line_data = get_csv_record(hash[:id], [nil, "esU", :TrainerType])
+1250:       hash[:trainer_type] = line_data[0]
+1251:       hash[:real_name] = line_data[1]
+1252:       hash[:version] = line_data[2] || 0
+1253:       hash[:id] = [hash[:trainer_type], hash[:real_name], hash[:version]]
+1254:     end
+1255:   end
+1256: 
+1257:   def validate_all_compiled_phone_contacts
+1258:     # Get all phone messages for translating
+1259:     messages = []
+1260:     GameData::PhoneMessage.each do |contact|
+1261:       [:intro, :intro_morning, :intro_afternoon, :intro_evening, :body, :body1,
+1262:        :body2, :battle_request, :battle_remind, :end].each do |msg_type|
+1263:         msgs = contact.send(msg_type)
+1264:         next if !msgs || msgs.length == 0
+1265:         msgs.each { |msg| messages.push(msg) }
+1266:       end
+1267:     end
+1268:     MessageTypes.setMessagesAsHash(MessageTypes::PHONE_MESSAGES, messages)
+1269:   end
+1270: 
+1271:   #=============================================================================
+1272:   # Compile battle animations
+1273:   #=============================================================================
+1274:   def compile_animations
+1275:     Console.echo_li(_INTL("Compiling animations..."))
+1276:     begin
+1277:       pbanims = load_data("Data/PkmnAnimations.rxdata")
+1278:     rescue
+1279:       pbanims = PBAnimations.new
+1280:     end
+1281:     changed = false
+1282:     move2anim = [{}, {}]
+1283: #    anims = load_data("Data/Animations.rxdata")
+1284: #    for anim in anims
+1285: #      next if !anim || anim.frames.length == 1
+1286: #      found = false
+1287: #      for i in 0...pbanims.length
+1288: #        if pbanims[i] && pbanims[i].id == anim.id
+1289: #          found = true if pbanims[i].array.length > 1
+1290: #          break
+1291: #        end
+1292: #      end
+1293: #      pbanims[anim.id] = pbConvertRPGAnimation(anim) if !found
+1294: #    end
+1295:     idx = 0
+1296:     pbanims.length.times do |i|
+1297:       echo "." if idx % 100 == 0
+1298:       Graphics.update if idx % 500 == 0
+1299:       idx += 1
+1300:       next if !pbanims[i]
+1301:       if pbanims[i].name[/^OppMove\:\s*(.*)$/]
+1302:         if GameData::Move.exists?($~[1])
+1303:           moveid = GameData::Move.get($~[1]).id
+1304:           changed = true if !move2anim[0][moveid] || move2anim[1][moveid] != i
+1305:           move2anim[1][moveid] = i
+1306:         end
+1307:       elsif pbanims[i].name[/^Move\:\s*(.*)$/]
+1308:         if GameData::Move.exists?($~[1])
+1309:           moveid = GameData::Move.get($~[1]).id
+1310:           changed = true if !move2anim[0][moveid] || move2anim[0][moveid] != i
+1311:           move2anim[0][moveid] = i
+1312:         end
+1313:       end
+1314:     end
+1315:     if changed
+1316:       save_data(move2anim, "Data/move2anim.dat")
+1317:       save_data(pbanims, "Data/PkmnAnimations.rxdata")
+1318:     end
+1319:     process_pbs_file_message_end
+1320:   end
+1321: end

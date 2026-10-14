@@ -1,0 +1,225 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/003_Scene_ChooseCommands.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [251, 474], "total_lines": 474, "sha256": "ea7052b2f316cebd26157d3c0fd25935ccff32b6677fa0c54be81c99ad5ce40d", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:28:31.140412+00:00"}
+251:         end
+252:         # Fade out and hide Bag screen
+253:         itemScene.pbFadeOutScene
+254:         # Get player's party
+255:         party    = @battle.pbParty(idxBattler)
+256:         partyPos = @battle.pbPartyOrder(idxBattler)
+257:         partyStart, _partyEnd = @battle.pbTeamIndexRangeFromBattlerIndex(idxBattler)
+258:         modParty = @battle.pbPlayerDisplayParty(idxBattler)
+259:         # Start party screen
+260:         pkmnScene = PokemonParty_Scene.new
+261:         pkmnScreen = PokemonPartyScreen.new(pkmnScene, modParty)
+262:         pkmnScreen.pbStartScene(_INTL("Use on which Pokémon?"), @battle.pbNumPositions(0, 0))
+263:         idxParty = -1
+264:         # Loop while in party screen
+265:         loop do
+266:           # Select a Pokémon
+267:           pkmnScene.pbSetHelpText(_INTL("Use on which Pokémon?"))
+268:           idxParty = pkmnScreen.pbChoosePokemon
+269:           break if idxParty < 0
+270:           idxPartyRet = -1
+271:           partyPos.each_with_index do |pos, i|
+272:             next if pos != idxParty + partyStart
+273:             idxPartyRet = i
+274:             break
+275:           end
+276:           next if idxPartyRet < 0
+277:           pkmn = party[idxPartyRet]
+278:           next if !pkmn || pkmn.egg?
+279:           idxMove = -1
+280:           if useType == 2   # Use on Pokémon's move
+281:             idxMove = pkmnScreen.pbChooseMove(pkmn, _INTL("Restore which move?"))
+282:             next if idxMove < 0
+283:           end
+284:           break if yield item.id, useType, idxPartyRet, idxMove, pkmnScene
+285:         end
+286:         pkmnScene.pbEndScene
+287:         break if idxParty >= 0
+288:         # Cancelled choosing a Pokémon; show the Bag screen again
+289:         itemScene.pbFadeInScene
+290:       when 4   # Use on opposing battler (Poké Balls)
+291:         idxTarget = -1
+292:         if @battle.pbOpposingBattlerCount(idxBattler) == 1
+293:           @battle.allOtherSideBattlers(idxBattler).each { |b| idxTarget = b.index }
+294:           break if yield item.id, useType, idxTarget, -1, itemScene
+295:         else
+296:           wasTargeting = true
+297:           # Fade out and hide Bag screen
+298:           itemScene.pbFadeOutScene
+299:           # Fade in and show the battle screen, choosing a target
+300:           tempVisibleSprites = visibleSprites.clone
+301:           tempVisibleSprites["commandWindow"] = false
+302:           tempVisibleSprites["targetWindow"]  = true
+303:           idxTarget = pbChooseTarget(idxBattler, GameData::Target.get(:Foe), tempVisibleSprites)
+304:           if idxTarget >= 0
+305:             break if yield item.id, useType, idxTarget, -1, self
+306:           end
+307:           # Target invalid/cancelled choosing a target; show the Bag screen again
+308:           wasTargeting = false
+309:           pbFadeOutAndHide(@sprites)
+310:           itemScene.pbFadeInScene
+311:         end
+312:       when 5   # Use with no target
+313:         break if yield item.id, useType, idxBattler, -1, itemScene
+314:       end
+315:     end
+316:     @bagLastPocket = $bag.last_viewed_pocket
+317:     @bagChoices    = $bag.last_pocket_selections.clone
+318:     $bag.last_viewed_pocket     = oldLastPocket
+319:     $bag.last_pocket_selections = oldChoices
+320:     # Close Bag screen
+321:     itemScene.pbEndScene
+322:     # Fade back into battle screen (if not already showing it)
+323:     pbFadeInAndShow(@sprites, visibleSprites) if !wasTargeting
+324:   end
+325: 
+326:   #=============================================================================
+327:   # The player chooses a target battler for a move/item (non-single battles only)
+328:   #=============================================================================
+329:   # Returns an array containing battler names to display when choosing a move's
+330:   # target.
+331:   # nil means can't select that position, "" means can select that position but
+332:   # there is no battler there, otherwise is a battler's name.
+333:   def pbCreateTargetTexts(idxBattler, target_data)
+334:     texts = Array.new(@battle.battlers.length) do |i|
+335:       next nil if !@battle.battlers[i]
+336:       showName = false
+337:       # NOTE: Targets listed here are ones with num_targets of 0, plus
+338:       #       RandomNearFoe which should look like it targets the user. All
+339:       #       other targets are handled by the "else" part.
+340:       case target_data.id
+341:       when :None, :User, :RandomNearFoe
+342:         showName = (i == idxBattler)
+343:       when :UserSide
+344:         showName = !@battle.opposes?(i, idxBattler)
+345:       when :FoeSide
+346:         showName = @battle.opposes?(i, idxBattler)
+347:       when :BothSides
+348:         showName = true
+349:       else
+350:         showName = @battle.pbMoveCanTarget?(idxBattler, i, target_data)
+351:       end
+352:       next nil if !showName
+353:       next (@battle.battlers[i].fainted?) ? "" : @battle.battlers[i].name
+354:     end
+355:     return texts
+356:   end
+357: 
+358:   # Returns the initial position of the cursor when choosing a target for a move
+359:   # in a non-single battle.
+360:   def pbFirstTarget(idxBattler, target_data)
+361:     case target_data.id
+362:     when :NearAlly
+363:       @battle.allSameSideBattlers(idxBattler).each do |b|
+364:         next if b.index == idxBattler || !@battle.nearBattlers?(b, idxBattler)
+365:         next if b.fainted?
+366:         return b.index
+367:       end
+368:       @battle.allSameSideBattlers(idxBattler).each do |b|
+369:         next if b.index == idxBattler || !@battle.nearBattlers?(b, idxBattler)
+370:         return b.index
+371:       end
+372:     when :NearFoe, :NearOther
+373:       indices = @battle.pbGetOpposingIndicesInOrder(idxBattler)
+374:       indices.each { |i| return i if @battle.nearBattlers?(i, idxBattler) && !@battle.battlers[i].fainted? }
+375:       indices.each { |i| return i if @battle.nearBattlers?(i, idxBattler) }
+376:     when :Foe, :Other
+377:       indices = @battle.pbGetOpposingIndicesInOrder(idxBattler)
+378:       indices.each { |i| return i if !@battle.battlers[i].fainted? }
+379:       return indices.first if !indices.empty?
+380:     end
+381:     return idxBattler   # Target the user initially
+382:   end
+383: 
+384:   def pbChooseTarget(idxBattler, target_data, visibleSprites = nil)
+385:     pbShowWindow(TARGET_BOX)
+386:     cw = @sprites["targetWindow"]
+387:     # Create an array of battler names (only valid targets are named)
+388:     texts = pbCreateTargetTexts(idxBattler, target_data)
+389:     # Determine mode based on target_data
+390:     mode = (target_data.num_targets == 1) ? 0 : 1
+391:     cw.setDetails(texts, mode)
+392:     cw.index = pbFirstTarget(idxBattler, target_data)
+393:     pbSelectBattler((mode == 0) ? cw.index : texts, 2)   # Select initial battler/data box
+394:     pbFadeInAndShow(@sprites, visibleSprites) if visibleSprites
+395:     ret = -1
+396:     loop do
+397:       oldIndex = cw.index
+398:       pbUpdate(cw)
+399:       # Update selected command
+400:       if mode == 0   # Choosing just one target, can change index
+401:         if Input.trigger?(Input::LEFT) || Input.trigger?(Input::RIGHT)
+402:           inc = (cw.index.even?) ? -2 : 2
+403:           inc *= -1 if Input.trigger?(Input::RIGHT)
+404:           indexLength = @battle.sideSizes[cw.index % 2] * 2
+405:           newIndex = cw.index
+406:           loop do
+407:             newIndex += inc
+408:             break if newIndex < 0 || newIndex >= indexLength
+409:             next if texts[newIndex].nil?
+410:             cw.index = newIndex
+411:             break
+412:           end
+413:         elsif (Input.trigger?(Input::UP) && cw.index.even?) ||
+414:               (Input.trigger?(Input::DOWN) && cw.index.odd?)
+415:           tryIndex = @battle.pbGetOpposingIndicesInOrder(cw.index)
+416:           tryIndex.each do |idxBattlerTry|
+417:             next if texts[idxBattlerTry].nil?
+418:             cw.index = idxBattlerTry
+419:             break
+420:           end
+421:         end
+422:         if cw.index != oldIndex
+423:           pbPlayCursorSE
+424:           pbSelectBattler(cw.index, 2)   # Select the new battler/data box
+425:         end
+426:       end
+427:       if Input.trigger?(Input::USE)   # Confirm
+428:         ret = cw.index
+429:         pbPlayDecisionSE
+430:         break
+431:       elsif Input.trigger?(Input::BACK)   # Cancel
+432:         ret = -1
+433:         pbPlayCancelSE
+434:         break
+435:       end
+436:     end
+437:     pbSelectBattler(-1)   # Deselect all battlers/data boxes
+438:     return ret
+439:   end
+440: 
+441:   #=============================================================================
+442:   # Opens a Pokémon's summary screen to try to learn a new move
+443:   #=============================================================================
+444:   # Called whenever a Pokémon should forget a move. It should return -1 if the
+445:   # selection is canceled, or 0 to 3 to indicate the move to forget. It should
+446:   # not allow HM moves to be forgotten.
+447:   def pbForgetMove(pkmn, moveToLearn)
+448:     ret = -1
+449:     pbFadeOutIn do
+450:       scene = PokemonSummary_Scene.new
+451:       screen = PokemonSummaryScreen.new(scene)
+452:       ret = screen.pbStartForgetScreen([pkmn], 0, moveToLearn)
+453:     end
+454:     return ret
+455:   end
+456: 
+457:   #=============================================================================
+458:   # Opens the nicknaming screen for a newly caught Pokémon
+459:   #=============================================================================
+460:   def pbNameEntry(helpText, pkmn)
+461:     return pbEnterPokemonName(helpText, 0, Pokemon::MAX_NAME_SIZE, "", pkmn)
+462:   end
+463: 
+464:   #=============================================================================
+465:   # Shows the Pokédex entry screen for a newly caught Pokémon
+466:   #=============================================================================
+467:   def pbShowPokedex(species)
+468:     pbFadeOutIn do
+469:       scene = PokemonPokedexInfo_Scene.new
+470:       screen = PokemonPokedexInfoScreen.new(scene)
+471:       screen.pbDexEntry(species)
+472:     end
+473:   end
+474: end

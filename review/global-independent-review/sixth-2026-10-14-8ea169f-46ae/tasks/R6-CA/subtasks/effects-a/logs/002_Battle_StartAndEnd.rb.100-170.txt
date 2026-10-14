@@ -1,0 +1,71 @@
+100:         @sideSizes[side] = newSize
+101:       end
+102:       PBDebug.log("Trying #{@sideSizes[0]}v#{@sideSizes[1]} battle instead")
+103:     end
+104:   end
+105: 
+106:   #=============================================================================
+107:   # Set up all battlers
+108:   #=============================================================================
+109:   def pbCreateBattler(idxBattler, pkmn, idxParty)
+110:     if !@battlers[idxBattler].nil?
+111:       raise _INTL("Battler index {1} already exists", idxBattler)
+112:     end
+113:     @battlers[idxBattler] = Battler.new(self, idxBattler)
+114:     @positions[idxBattler] = ActivePosition.new
+115:     pbClearChoice(idxBattler)
+116:     @successStates[idxBattler] = SuccessState.new
+117:     @battlers[idxBattler].pbInitialize(pkmn, idxParty)
+118:   end
+119: 
+120:   def pbSetUpSides
+121:     ret = [[], []]
+122:     2.times do |side|
+123:       # Set up wild Pokémon
+124:       if side == 1 && wildBattle?
+125:         pbParty(1).each_with_index do |pkmn, idxPkmn|
+126:           pbCreateBattler((2 * idxPkmn) + side, pkmn, idxPkmn)
+127:           # Changes the Pokémon's form upon entering battle (if it should)
+128:           @peer.pbOnEnteringBattle(self, @battlers[(2 * idxPkmn) + side], pkmn, true)
+129:           pbSetSeen(@battlers[(2 * idxPkmn) + side])
+130:           @usedInBattle[side][idxPkmn] = true
+131:         end
+132:         next
+133:       end
+134:       # Set up player's Pokémon and trainers' Pokémon
+135:       trainer = (side == 0) ? @player : @opponent
+136:       requireds = []
+137:       # Find out how many Pokémon each trainer on side needs to have
+138:       @sideSizes[side].times do |i|
+139:         idxTrainer = pbGetOwnerIndexFromBattlerIndex((i * 2) + side)
+140:         requireds[idxTrainer] = 0 if requireds[idxTrainer].nil?
+141:         requireds[idxTrainer] += 1
+142:       end
+143:       # For each trainer in turn, find the needed number of Pokémon for them to
+144:       # send out, and initialize them
+145:       battlerNumber = 0
+146:       partyOrder = pbPartyOrder(side)
+147:       starts = pbPartyStarts(side)
+148:       trainer.each_with_index do |_t, idxTrainer|
+149:         ret[side][idxTrainer] = []
+150:         eachInTeam(side, idxTrainer) do |pkmn, idxPkmn|
+151:           next if !pkmn.able?
+152:           idxBattler = (2 * battlerNumber) + side
+153:           pbCreateBattler(idxBattler, pkmn, idxPkmn)
+154:           ret[side][idxTrainer].push(idxBattler)
+155:           if idxPkmn != starts[idxTrainer] + battlerNumber
+156:             idxOther = starts[idxTrainer] + battlerNumber
+157:             partyOrder[idxPkmn], partyOrder[idxOther] = partyOrder[idxOther], partyOrder[idxPkmn]
+158:           end
+159:           battlerNumber += 1
+160:           break if ret[side][idxTrainer].length >= requireds[idxTrainer]
+161:         end
+162:       end
+163:     end
+164:     return ret
+165:   end
+166: 
+167:   #=============================================================================
+168:   # Send out all battlers at the start of battle
+169:   #=============================================================================
+170:   def pbStartBattleSendOut(sendOuts)

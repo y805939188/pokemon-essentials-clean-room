@@ -1,0 +1,156 @@
+161:         if tables[h][-1]['values'][0]!=expected:note('terminal_name',table=h,value=tables[h][-1]['values'][0])
+162:     for t in ('pmod','imod','pgen','igen'):
+163:         if any(tables[t][-1]['values']):note('nonzero_ignored_terminal',table=t,values=tables[t][-1]['values'])
+164:     zones={}; headers={}
+165:     for h,b,g,m,sel,target,idxfield in [('phdr','pbag','pgen','pmod',41,'inst',3),('inst','ibag','igen','imod',53,'shdr',1)]:
+166:         hr,br,gr,mr=(tables[x] for x in (h,b,g,m))
+167:         require(hr[0]['values'][idxfield]==0 and br[0]['values']==[0,0],'unowned leading records')
+168:         require(hr[-1]['values'][idxfield]==len(br)-1,'header terminal index')
+169:         require(br[-1]['values']==[len(gr)-1,len(mr)-1],'bag terminal index')
+170:         require(all(x['values'][idxfield]<=y['values'][idxfield] for x,y in zip(hr,hr[1:])),'header monotonicity')
+171:         require(all(all(i<=j for i,j in zip(x['values'],y['values'])) for x,y in zip(br,br[1:])),'bag monotonicity')
+172:         headers[h]=[]
+173:         for x,y in zip(hr,hr[1:]):
+174:             owned=[]; start,end=x['values'][idxfield],y['values'][idxfield]
+175:             require(start<end,'empty owner')
+176:             for bi in range(start,end):
+177:                 row=br[bi]; ga,ma=row['values']; gz,mz=br[bi+1]['values']; gs=gr[ga:gz]; ms=mr[ma:mz]
+178:                 ops=[v['op'] for v in gs]; glob=sel not in ops
+179:                 require(not glob or bi==start,'global zone must be first')
+180:                 require(glob or ops[-1]==sel,'selector final')
+181:                 require(len(ops)==len(set(ops)),'duplicate op')
+182:                 for j,op in enumerate(ops):
+183:                     require(op!=43 or j==0,'key order')
+184:                     require(op!=44 or all(v==43 for v in ops[:j]),'velocity order')
+185:                 for grr in gs:
+186:                     grr['consumers'].append(row['id'])
+187:                     if grr['op'] in (43,44):require(0<=grr['value'][0]<=grr['value'][1]<=127,'range')
+188:                 for mrr in ms:mrr['consumers'].append(row['id'])
+189:                 require(len({tuple(v['values'][i] for i in (0,1,3)) for v in ms})==len(ms),'duplicate modulators')
+190:                 row['consumers'].append(x['id']); row.update(global_zone=glob,generator_ids=[v['id'] for v in gs],modulator_ids=[v['id'] for v in ms])
+191:                 if not glob:
+192:                     ti=gs[-1]['value'];require(0<=ti<len(tables[target])-1,'target index')
+193:                     row['target']=f'{target}:{ti}';tables[target][ti]['consumers'].append(row['id'])
+194:                 zones[row['id']]=row;owned.append(row['id'])
+195:             x['zones']=owned;headers[h].append(x)
+196:     a,n=bypath['sdta/smpl'];require(n%2==0,'odd PCM bytes');pcm=array.array('h',rd.span(a,n))
+197:     if sys.byteorder!='little':pcm.byteswap()
+198:     total=len(pcm)
+199:     def pcm_summary(lo,hi):
+200:         vals=pcm[lo:hi]
+201:         return {'points':len(vals),'sha256':sha(rd.span(a+2*lo,2*(hi-lo))),
+202:             'min':min(vals,default=None),'max':max(vals,default=None),
+203:             'sum':sum(vals),'sum_of_squares':sum(v*v for v in vals),
+204:             'zero_points':vals.count(0),'clipped_extreme_points':vals.count(-32768)+vals.count(32767)}
+205:     for r in tables['shdr'][:-1]:
+206:         nm,s,e,ls,le,rate,pitch,corr,link,typ=r['values'];require(0<=s<e<=total,'sample bounds')
+207:         require(s<=ls<le<=e,'sample loop bounds')
+208:         require(typ==1,'this fixed audit expects mono samples; do not silently skip stereo/ROM')
+209:         require(400<=rate<=50000 and (pitch<=127 or pitch==255),'sample pitch/rate')
+210:         r.update(pcm=pcm_summary(s,e),bounds={'start':s,'end_exclusive':e,'loop_start':ls,'loop_end_exclusive':le},rate_hz=rate,
+211:             root_key=pitch,pitch_correction_cents=corr,link_semantics='ignored_for_mono',sample_type='mono',
+212:             duration_at_original_rate_seconds=(e-s)/rate,
+213:             portability={'min_48_points':e-s>=48,'loop_min_32_points':le-ls>=32,'loop_pre_8':ls-s>=8,'loop_post_8':e-le>=8,
+214:                 'matching_8_point_loop_neighborhood':pcm[ls-4:ls+4]==pcm[le-4:le+4],
+215:                 'following_46_zero':e+46<=total and all(v==0 for v in pcm[e:e+46]),
+216:                 'following_46_available':min(46,total-e),'following_46_nonzero':sum(v!=0 for v in pcm[e:e+46])})
+217:     require('sdta/sm24' not in bypath,'unexpected 24-bit extension')
+218:     def zone_values(z):return {tables[z['id'][:1]+'gen'][int(k.split(':')[1])]['op']:tables[z['id'][:1]+'gen'][int(k.split(':')[1])]['value'] for k in z['generator_ids']}
+219:     def effective_zone(h,z):
+220:         first=zones[h['zones'][0]]; inherited=zone_values(first) if first['global_zone'] else {}
+221:         return {**inherited,**zone_values(z)}
+222:     def mod_identity(v):return tuple(v[i] for i in (0,1,3))
+223:     defaults=[{'id':'format_default:'+str(i),'values':list(x),'source':mod_source(x[0]),'destination':GEN_NAMES[x[1]] if isinstance(x[1],int) else x[1],'amount_source':mod_source(x[3])} for i,x in enumerate(DEFAULT_MODS)]
+224:     links=[]
+225:     for p in headers['phdr']:
+226:         for zid in p['zones']:
+227:             pz=zones[zid]
+228:             if pz['global_zone']:continue
+229:             pv=effective_zone(p,pz);i=tables['inst'][pv[41]]
+230:             for izid in i['zones']:
+231:                 iz=zones[izid]
+232:                 if iz['global_zone']:continue
+233:                 iv=effective_zone(i,iz); s=tables['shdr'][iv[53]];values={**DEFAULTS,**iv}
+234:                 for op,v in pv.items():
+235:                     if op in (41,43,44):continue
+236:                     if op not in INSTRUMENT_ONLY:values[op]=values.get(op,0)+v
+237:                 kr=[max(pv.get(43,[0,127])[0],iv.get(43,[0,127])[0]),min(pv.get(43,[0,127])[1],iv.get(43,[0,127])[1])]
+238:                 vr=[max(pv.get(44,[0,127])[0],iv.get(44,[0,127])[0]),min(pv.get(44,[0,127])[1],iv.get(44,[0,127])[1])]
+239:                 values[43]=kr;values[44]=vr
+240:                 _,ss,se,ls,le,*_=s['values']
+241:                 addr=[ss+values[0]+32768*values[4],se+values[1]+32768*values[12],ls+values[2]+32768*values[45],le+values[3]+32768*values[50]]
+242:                 looping=values[54]&3
+243:                 require(looping in (0,1,3) and values[54] in (0,1,3),'sample mode reserved bits')
+244:                 require(0<=addr[0]<addr[1]<=total,'effective sample bounds')
+245:                 require(not looping or addr[0]<=addr[2]<addr[3]<=addr[1],'effective loop bounds')
+246:                 mods={mod_identity(x['values']):{'base':x['id'],'values':x['values']} for x in defaults}
+247:                 # Local zone overrides global by identity; instrument overrides format default.
+248:                 for zz in ([zones[i['zones'][0]]] if zones[i['zones'][0]]['global_zone'] else [])+[iz]:
+249:                     for mid in zz['modulator_ids']:
+250:                         mr=tables['imod'][int(mid.split(':')[1])];mods[mod_identity(mr['values'])]={'base':mid,'values':mr['values']}
+251:                 pmods={}
+252:                 for zz in ([zones[p['zones'][0]]] if zones[p['zones'][0]]['global_zone'] else [])+[pz]:
+253:                     for mid in zz['modulator_ids']:
+254:                         mr=tables['pmod'][int(mid.split(':')[1])];pmods[mod_identity(mr['values'])]=mr
+255:                 for ident,mr in pmods.items():
+256:                     if ident in mods:
+257:                         mods[ident]['preset_addition']=mr['id']; vv=list(mods[ident]['values']);vv[2]+=mr['values'][2];mods[ident]['values']=vv
+258:                     else:mods[ident]={'base':mr['id'],'values':mr['values']}
+259:                 effective={GEN_NAMES[k]:v for k,v in sorted(values.items()) if k!=53}
+260:                 root=values[58] if values[58]>=0 else s['root_key'] if s['root_key']<=127 else 60
+261:                 row={'id':f'voice:{len(links)}','preset':p['id'],'bank':p['values'][2],'program':p['values'][1],
+262:                     'preset_zone':zid,'instrument':i['id'],'instrument_zone':izid,'sample':s['id'],
+263:                     'key_range':kr,'velocity_range':vr,'nonempty_selection':kr[0]<=kr[1] and vr[0]<=vr[1],
+264:                     'effective_generators_before_modulation_or_host_clamping':effective,
+265:                     'effective_modulators':list(mods.values()),
+266:                     'modulator_projection_basis':'conditional_SF201_bitfield_description; not_verified_host_defaults',
+267:                     'default_filter_alternatives':{
+268:                         'SF201_bitfields':{'amount_source':3330,'resolved_base':mods[(258,8,3330)]['base'],'resolved_amount':mods[(258,8,3330)]['values'][2]},
+269:                         'SF201_printed_hex':{'amount_source':1282,'default_amount':-2400,'stored_imod_with_3330_is_distinct':True},
+270:                         'SF204_printed_default':{'amount_source':0,'default_amount':-2400,'stored_imod_with_3330_is_distinct':True}},
+271:                     'effective_addresses':addr,
+272:                     'root_key':root,'sample_rate_hz':s['rate_hz'],'pitch_correction_cents':s['pitch_correction_cents'],
+273:                     'loop_behavior':{0:'one_shot',1:'loops_through_release',3:'loops_until_release_then_tail'}[looping],
+274:                     'consumer_contract':'RES-AUDIO-SF2','audible_result':'UNKNOWN_NOT_SYNTHESIZED'}
+275:                 links.append(row);s.setdefault('resolved_voice_consumers',[]).append(row['id'])
+276:     # Every sample point, including gaps/guards, receives statistics without saving media.
+277:     merged=[]
+278:     for s,e in sorted((r['values'][1],r['values'][2]) for r in tables['shdr'][:-1]):
+279:         if merged and s<=merged[-1][1]:merged[-1][1]=max(merged[-1][1],e)
+280:         else:merged.append([s,e])
+281:     gaps=[];cursor=0
+282:     for s,e in merged:
+283:         if s>cursor:gaps.append({'start':cursor,'end_exclusive':s,**pcm_summary(cursor,s)})
+284:         cursor=e
+285:     if cursor<total:gaps.append({'start':cursor,'end_exclusive':total,**pcm_summary(cursor,total)})
+286:     info={}
+287:     for k,(s,n) in bypath.items():
+288:         if k.startswith('INFO/'):
+289:             info[k]=list(rd.unpack('<HH',s)) if k.endswith(('/ifil','/iver')) else rd.span(s,n).rstrip(b'\0').decode('latin1')
+290:     for p in tables['phdr'][:-1]:p['consumers']=['mkxp.json:66 via MIDI bank/program selection; actual MIDI files absent']
+291:     for t,rs in tables.items():
+292:         for r in rs:
+293:             if r['terminal']:r['consumers']=['structural_sentinel_only']
+294:             elif not r['consumers']:note('unreferenced_record',record=r['id'])
+295:     summary={'sha256':sha(data),'bytes':len(data),'record_counts_including_terminals':{k:len(v) for k,v in tables.items()},
+296:         'voice_links':len(links),'empty_voice_selections':sum(not x['nonempty_selection'] for x in links),
+297:         'sample_points':total,'banks':dict(collections.Counter(x['values'][2] for x in tables['phdr'][:-1])),
+298:         'sample_rates':dict(collections.Counter(x['rate_hz'] for x in tables['shdr'][:-1])),
+299:         'loop_modes':dict(collections.Counter(x['loop_behavior'] for x in links)),
+300:         'sample_portability_failures':{k:sum(not x['portability'][k] for x in tables['shdr'][:-1]) for k in ('min_48_points','loop_min_32_points','loop_pre_8','loop_post_8','matching_8_point_loop_neighborhood','following_46_zero')},
+301:         'observation_counts':dict(collections.Counter(x['kind'] for x in observations)),
+302:         'all_raw_table_records_owned_or_explicitly_unreferenced':True,'unscanned_sample_bytes':0,
+303:         'format_conformance_claim':False,'host_acceptance':'UNKNOWN'}
+304:     return {'summary':summary,'chunks':chunks,'info':info,'tables':tables,'observations':observations,
+305:         'default_filter_document_ambiguity':{'SF201_url':'https://www.synthfont.com/SFSPEC21.PDF','SF204_url':'https://www.synthfont.com/sfspec24.pdf','section':'8.4.2',
+306:             'SF201_printed_amount_source':1282,'SF201_bitfield_description_encoded':3330,'SF204_printed_amount_source':0,
+307:             'review':'File rows are unambiguous; external format editions/text disagree. Effective-modulator list is conditional on SF201 bitfields; per-voice alternatives retain uncertainty. No external synth implementation or host run selected a policy.'},
+308:         'format_defaults_not_R_records':defaults,'generator_defaults_not_R_records':{GEN_NAMES[k]:v for k,v in DEFAULTS.items()},
+309:         'voice_links':links,'pcm_all_points':pcm_summary(0,total),'pcm_gaps':gaps}
+310: 
+311: def main():
+312:     result=soundfont((ROOT/'soundfont.sf2').read_bytes())
+313:     save('soundfont-full-audit.json',result)
+314:     print(json.dumps(result['summary'],ensure_ascii=False))
+315: 
+316: if __name__=='__main__': main()

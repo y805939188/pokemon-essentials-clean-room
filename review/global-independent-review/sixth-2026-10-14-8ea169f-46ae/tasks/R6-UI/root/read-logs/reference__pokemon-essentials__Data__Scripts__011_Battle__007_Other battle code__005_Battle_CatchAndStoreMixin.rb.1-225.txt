@@ -1,0 +1,226 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 225], "total_lines": 271, "sha256": "3242b22c2719ced91097e69060488024b7ee1368152f3266cda1c37fcf33b4a3", "owner": "root", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:37:29.003688+00:00"}
+1: module Battle::CatchAndStoreMixin
+2:   #=============================================================================
+3:   # Store caught Pokémon
+4:   #=============================================================================
+5:   def pbStorePokemon(pkmn)
+6:     # Nickname the Pokémon (unless it's a Shadow Pokémon)
+7:     if !pkmn.shadowPokemon?
+8:       if $PokemonSystem.givenicknames == 0 &&
+9:          pbDisplayConfirm(_INTL("Would you like to give a nickname to {1}?", pkmn.name))
+10:         nickname = @scene.pbNameEntry(_INTL("{1}'s nickname?", pkmn.speciesName), pkmn)
+11:         pkmn.name = nickname
+12:       end
+13:     end
+14:     # Store the Pokémon
+15:     if pbPlayer.party_full? && (@sendToBoxes == 0 || @sendToBoxes == 2)   # Ask/must add to party
+16:       cmds = [_INTL("Add to your party"),
+17:               _INTL("Send to a Box"),
+18:               _INTL("See {1}'s summary", pkmn.name),
+19:               _INTL("Check party")]
+20:       cmds.delete_at(1) if @sendToBoxes == 2   # Remove "Send to a Box" option
+21:       loop do
+22:         cmd = pbShowCommands(_INTL("Where do you want to send {1} to?", pkmn.name), cmds, 99)
+23:         next if cmd == 99 && @sendToBoxes == 2   # Can't cancel if must add to party
+24:         break if cmd == 99   # Cancelling = send to a Box
+25:         cmd += 1 if cmd >= 1 && @sendToBoxes == 2
+26:         case cmd
+27:         when 0   # Add to your party
+28:           pbDisplay(_INTL("Choose a Pokémon in your party to send to your Boxes."))
+29:           party_index = -1
+30:           @scene.pbPartyScreen(0, (@sendToBoxes != 2), 1) do |idxParty, _partyScene|
+31:             party_index = idxParty
+32:             next true
+33:           end
+34:           next if party_index < 0   # Cancelled
+35:           party_size = pbPlayer.party.length
+36:           # Get chosen Pokémon and clear battle-related conditions
+37:           send_pkmn = pbPlayer.party[party_index]
+38:           @peer.pbOnLeavingBattle(self, send_pkmn, @usedInBattle[0][party_index], true)
+39:           send_pkmn.statusCount = 0 if send_pkmn.status == :POISON   # Bad poison becomes regular
+40:           send_pkmn.makeUnmega
+41:           send_pkmn.makeUnprimal
+42:           # Send chosen Pokémon to storage
+43:           stored_box = @peer.pbStorePokemon(pbPlayer, send_pkmn)
+44:           pbPlayer.party.delete_at(party_index)
+45:           box_name = @peer.pbBoxName(stored_box)
+46:           pbDisplayPaused(_INTL("{1} has been sent to Box \"{2}\".", send_pkmn.name, box_name))
+47:           # Rearrange all remembered properties of party Pokémon
+48:           (party_index...party_size).each do |idx|
+49:             if idx < party_size - 1
+50:               @initialItems[0][idx] = @initialItems[0][idx + 1]
+51:               $game_temp.party_levels_before_battle[idx] = $game_temp.party_levels_before_battle[idx + 1]
+52:               $game_temp.party_critical_hits_dealt[idx] = $game_temp.party_critical_hits_dealt[idx + 1]
+53:               $game_temp.party_direct_damage_taken[idx] = $game_temp.party_direct_damage_taken[idx + 1]
+54:             else
+55:               @initialItems[0][idx] = nil
+56:               $game_temp.party_levels_before_battle[idx] = nil
+57:               $game_temp.party_critical_hits_dealt[idx] = nil
+58:               $game_temp.party_direct_damage_taken[idx] = nil
+59:             end
+60:           end
+61:           break
+62:         when 1   # Send to a Box
+63:           break
+64:         when 2   # See X's summary
+65:           pbFadeOutIn do
+66:             summary_scene = PokemonSummary_Scene.new
+67:             summary_screen = PokemonSummaryScreen.new(summary_scene, true)
+68:             summary_screen.pbStartScreen([pkmn], 0)
+69:           end
+70:         when 3   # Check party
+71:           @scene.pbPartyScreen(0, true, 2)
+72:         end
+73:       end
+74:     end
+75:     # Store as normal (add to party if there's space, or send to a Box if not)
+76:     stored_box = @peer.pbStorePokemon(pbPlayer, pkmn)
+77:     if stored_box < 0
+78:       pbDisplayPaused(_INTL("{1} has been added to your party.", pkmn.name))
+79:       @initialItems[0][pbPlayer.party.length - 1] = pkmn.item_id if @initialItems
+80:       return
+81:     end
+82:     # Messages saying the Pokémon was stored in a PC box
+83:     box_name = @peer.pbBoxName(stored_box)
+84:     pbDisplayPaused(_INTL("{1} has been sent to Box \"{2}\"!", pkmn.name, box_name))
+85:   end
+86: 
+87:   # Register all caught Pokémon in the Pokédex, and store them.
+88:   def pbRecordAndStoreCaughtPokemon
+89:     @caughtPokemon.each do |pkmn|
+90:       pbSetCaught(pkmn)
+91:       pbSetSeen(pkmn)   # In case the form changed upon leaving battle
+92:       # Record the Pokémon's species as owned in the Pokédex
+93:       if !pbPlayer.owned?(pkmn.species)
+94:         pbPlayer.pokedex.set_owned(pkmn.species)
+95:         if $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(pkmn.species)
+96:           pbDisplayPaused(_INTL("{1}'s data was added to the Pokédex.", pkmn.name))
+97:           pbPlayer.pokedex.register_last_seen(pkmn)
+98:           @scene.pbShowPokedex(pkmn.species)
+99:         end
+100:       end
+101:       # Record a Shadow Pokémon's species as having been caught
+102:       pbPlayer.pokedex.set_shadow_pokemon_owned(pkmn.species) if pkmn.shadowPokemon?
+103:       # Store caught Pokémon
+104:       pbStorePokemon(pkmn)
+105:     end
+106:     @caughtPokemon.clear
+107:   end
+108: 
+109:   #=============================================================================
+110:   # Throw a Poké Ball
+111:   #=============================================================================
+112:   def pbThrowPokeBall(idxBattler, ball, catch_rate = nil, showPlayer = false)
+113:     # Determine which Pokémon you're throwing the Poké Ball at
+114:     battler = nil
+115:     if opposes?(idxBattler)
+116:       battler = @battlers[idxBattler]
+117:     else
+118:       battler = @battlers[idxBattler].pbDirectOpposing(true)
+119:     end
+120:     battler = battler.allAllies[0] if battler.fainted?
+121:     # Messages
+122:     itemName = GameData::Item.get(ball).name
+123:     if battler.fainted?
+124:       if itemName.starts_with_vowel?
+125:         pbDisplay(_INTL("{1} threw an {2}!", pbPlayer.name, itemName))
+126:       else
+127:         pbDisplay(_INTL("{1} threw a {2}!", pbPlayer.name, itemName))
+128:       end
+129:       pbDisplay(_INTL("But there was no target..."))
+130:       return
+131:     end
+132:     if itemName.starts_with_vowel?
+133:       pbDisplayBrief(_INTL("{1} threw an {2}!", pbPlayer.name, itemName))
+134:     else
+135:       pbDisplayBrief(_INTL("{1} threw a {2}!", pbPlayer.name, itemName))
+136:     end
+137:     # Animation of opposing trainer blocking Poké Balls (unless it's a Snag Ball
+138:     # at a Shadow Pokémon)
+139:     if trainerBattle? && !(GameData::Item.get(ball).is_snag_ball? && battler.shadowPokemon?)
+140:       @scene.pbThrowAndDeflect(ball, 1)
+141:       pbDisplay(_INTL("The Trainer blocked your Poké Ball! Don't be a thief!"))
+142:       return
+143:     end
+144:     # Calculate the number of shakes (4=capture)
+145:     pkmn = battler.pokemon
+146:     @criticalCapture = false
+147:     numShakes = pbCaptureCalc(pkmn, battler, catch_rate, ball)
+148:     PBDebug.log("[Threw Poké Ball] #{itemName}, #{numShakes} shakes (4=capture)")
+149:     # Animation of Ball throw, absorb, shake and capture/burst out
+150:     @scene.pbThrow(ball, numShakes, @criticalCapture, battler.index, showPlayer)
+151:     # Outcome message
+152:     case numShakes
+153:     when 0
+154:       pbDisplay(_INTL("Oh no! The Pokémon broke free!"))
+155:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+156:     when 1
+157:       pbDisplay(_INTL("Aww! It appeared to be caught!"))
+158:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+159:     when 2
+160:       pbDisplay(_INTL("Aargh! Almost had it!"))
+161:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+162:     when 3
+163:       pbDisplay(_INTL("Gah! It was so close, too!"))
+164:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+165:     when 4
+166:       pbDisplayBrief(_INTL("Gotcha! {1} was caught!", pkmn.name))
+167:       @scene.pbThrowSuccess   # Play capture success jingle
+168:       pbRemoveFromParty(battler.index, battler.pokemonIndex)
+169:       # Gain Exp
+170:       if Settings::GAIN_EXP_FOR_CAPTURE
+171:         battler.captured = true
+172:         pbGainExp
+173:         battler.captured = false
+174:       end
+175:       battler.pbReset
+176:       if pbAllFainted?(battler.index)
+177:         @decision = (trainerBattle?) ? 1 : 4   # Battle ended by win/capture
+178:       end
+179:       # Modify the Pokémon's properties because of the capture
+180:       if GameData::Item.get(ball).is_snag_ball?
+181:         pkmn.owner = Pokemon::Owner.new_from_trainer(pbPlayer)
+182:       end
+183:       Battle::PokeBallEffects.onCatch(ball, self, pkmn)
+184:       pkmn.poke_ball = ball
+185:       pkmn.makeUnmega if pkmn.mega?
+186:       pkmn.makeUnprimal
+187:       pkmn.update_shadow_moves if pkmn.shadowPokemon?
+188:       pkmn.record_first_moves
+189:       # Reset form
+190:       pkmn.forced_form = nil if MultipleForms.hasFunction?(pkmn.species, "getForm")
+191:       @peer.pbOnLeavingBattle(self, pkmn, true, true)
+192:       # Make the Poké Ball and data box disappear
+193:       @scene.pbHideCaptureBall(idxBattler)
+194:       # Save the Pokémon for storage at the end of battle
+195:       @caughtPokemon.push(pkmn)
+196:     end
+197:     if numShakes != 4
+198:       @first_poke_ball = ball if !@poke_ball_failed
+199:       @poke_ball_failed = true
+200:     end
+201:   end
+202: 
+203:   #=============================================================================
+204:   # Calculate how many shakes a thrown Poké Ball will make (4 = capture)
+205:   #=============================================================================
+206:   def pbCaptureCalc(pkmn, battler, catch_rate, ball)
+207:     return 4 if $DEBUG && Input.press?(Input::CTRL)
+208:     # Get a catch rate if one wasn't provided
+209:     catch_rate = pkmn.species_data.catch_rate if !catch_rate
+210:     # Modify catch_rate depending on the Poké Ball's effect
+211:     if !pkmn.species_data.has_flag?("UltraBeast") || ball == :BEASTBALL
+212:       catch_rate = Battle::PokeBallEffects.modifyCatchRate(ball, catch_rate, self, battler)
+213:     else
+214:       catch_rate /= 10
+215:     end
+216:     # First half of the shakes calculation
+217:     a = battler.totalhp
+218:     b = battler.hp
+219:     x = (((3 * a) - (2 * b)) * catch_rate.to_f) / (3 * a)
+220:     # Calculation modifiers
+221:     if battler.status == :SLEEP || battler.status == :FROZEN
+222:       x *= 2.5
+223:     elsif battler.status != :NONE
+224:       x *= 1.5
+225:     end

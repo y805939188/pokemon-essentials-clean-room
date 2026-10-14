@@ -1,0 +1,53 @@
+180: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("ParalyzeTarget",
+181:   proc { |move, user, target, ai, battle|
+182:     next move.statusMove? && !target.battler.pbCanParalyze?(user.battler, false, move.move)
+183:   }
+184: )
+185: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("ParalyzeTarget",
+186:   proc { |score, move, user, target, ai, battle|
+187:     useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+188:     # No score modifier if the paralysis will be removed immediately
+189:     next useless_score if target.has_active_item?([:CHERIBERRY, :LUMBERRY])
+190:     next useless_score if target.faster_than?(user) &&
+191:                           target.has_active_ability?(:HYDRATION) &&
+192:                           [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+193:     if target.battler.pbCanParalyze?(user.battler, false, move.move)
+194:       add_effect = move.get_score_change_for_additional_effect(user, target)
+195:       next useless_score if add_effect == -999   # Additional effect will be negated
+196:       score += add_effect
+197:       # Inherent preference (because of the chance of full paralysis)
+198:       score += 10
+199:       # Prefer if the target is faster than the user but will become slower if
+200:       # paralysed
+201:       if target.faster_than?(user)
+202:         user_speed = user.rough_stat(:SPEED)
+203:         target_speed = target.rough_stat(:SPEED)
+204:         score += 15 if target_speed < user_speed * ((Settings::MECHANICS_GENERATION >= 7) ? 2 : 4)
+205:       end
+206:       # Prefer if the target is confused or infatuated, to compound the turn skipping
+207:       score += 7 if target.effects[PBEffects::Confusion] > 1
+208:       score += 7 if target.effects[PBEffects::Attract] >= 0
+209:       # Prefer if the user or an ally has a move/ability that is better if the target is paralysed
+210:       ai.each_same_side_battler(user.side) do |b, i|
+211:         score += 5 if b.has_move_with_function?("DoublePowerIfTargetParalyzedCureTarget",
+212:                                                 "DoublePowerIfTargetStatusProblem")
+213:       end
+214:       # Don't prefer if target benefits from having the paralysis status problem
+215:       score -= 8 if target.has_active_ability?([:GUTS, :MARVELSCALE, :QUICKFEET])
+216:       score -= 20 if target.has_active_ability?(:SYNCHRONIZE) &&
+217:                      user.battler.pbCanParalyzeSynchronize?(target.battler)
+218:       score -= 5 if target.has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed",
+219:                                                    "CureUserBurnPoisonParalysis")
+220:       score -= 15 if target.check_for_move { |m|
+221:         m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanParalyze?(target.battler, false, m)
+222:       }
+223:       # Don't prefer if the target can heal itself (or be healed by an ally)
+224:       if target.has_active_ability?(:SHEDSKIN)
+225:         score -= 8
+226:       elsif target.has_active_ability?(:HYDRATION) &&
+227:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+228:         score -= 15
+229:       end
+230:       ai.each_same_side_battler(target.side) do |b, i|
+231:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+232:       end

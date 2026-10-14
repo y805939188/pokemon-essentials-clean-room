@@ -1,0 +1,147 @@
+1: module BattleAnimationEditor
+2:   module_function
+3: 
+4:   #=============================================================================
+5:   # Importing and exporting
+6:   #=============================================================================
+7:   def pbRgssChdir(dir)
+8:     RTP.eachPathFor(dir) { |path| Dir.chdir(path) { yield } }
+9:   end
+10: 
+11:   def tryLoadData(file)
+12:     begin
+13:       return load_data(file)
+14:     rescue
+15:       return nil
+16:     end
+17:   end
+18: 
+19:   def dumpBase64Anim(s)
+20:     return [Zlib::Deflate.deflate(Marshal.dump(s))].pack("m").gsub(/\n/, "\r\n")
+21:   end
+22: 
+23:   def loadBase64Anim(s)
+24:     return Marshal.restore(Zlib::Inflate.inflate(s.unpack("m")[0]))
+25:   end
+26: 
+27:   def pbExportAnim(animations)
+28:     filename = pbMessageFreeText(_INTL("Enter a filename."), "", false, 32)
+29:     if filename != ""
+30:       begin
+31:         filename += ".anm"
+32:         File.open(filename, "wb") do |f|
+33:           f.write(dumpBase64Anim(animations[animations.selected]))
+34:         end
+35:         failed = false
+36:       rescue
+37:         pbMessage(_INTL("Couldn't save the animation to {1}.", filename))
+38:         failed = true
+39:       end
+40:       if !failed
+41:         pbMessage(_INTL("Animation was saved to {1} in the game folder.", filename))
+42:         pbMessage(_INTL("It's a text file, so it can be transferred to others easily."))
+43:       end
+44:     end
+45:   end
+46: 
+47:   def pbImportAnim(animations, canvas, animwin)
+48:     animfiles = []
+49:     pbRgssChdir(".") { animfiles.concat(Dir.glob("*.anm")) }
+50:     cmdwin = pbListWindow(animfiles, 320)
+51:     cmdwin.opacity = 200
+52:     cmdwin.height = 480
+53:     cmdwin.viewport = canvas.viewport
+54:     loop do
+55:       Graphics.update
+56:       Input.update
+57:       cmdwin.update
+58:       if Input.trigger?(Input::USE) && animfiles.length > 0
+59:         begin
+60:           textdata = loadBase64Anim(IO.read(animfiles[cmdwin.index]))
+61:           throw "Bad data" if !textdata.is_a?(PBAnimation)
+62:           textdata.id = -1 # this is not an RPG Maker XP animation
+63:           pbConvertAnimToNewFormat(textdata)
+64:           animations[animations.selected] = textdata
+65:         rescue
+66:           pbMessage(_INTL("The animation is invalid or could not be loaded."))
+67:           next
+68:         end
+69:         graphic = animations[animations.selected].graphic
+70:         graphic = "Graphics/Animations/#{graphic}"
+71:         if graphic && graphic != "" && !FileTest.image_exist?(graphic)
+72:           pbMessage(_INTL("The animation file {1} was not found. The animation will load anyway.", graphic))
+73:         end
+74:         canvas.loadAnimation(animations[animations.selected])
+75:         animwin.animbitmap = canvas.animbitmap
+76:         break
+77:       end
+78:       if Input.trigger?(Input::BACK)
+79:         break
+80:       end
+81:     end
+82:     cmdwin.dispose
+83:     return
+84:   end
+85: 
+86:   #=============================================================================
+87:   # Format conversion
+88:   #=============================================================================
+89:   def pbConvertAnimToNewFormat(textdata)
+90:     needconverting = false
+91:     textdata.length.times do |i|
+92:       next if !textdata[i]
+93:       PBAnimation::MAX_SPRITES.times do |j|
+94:         next if !textdata[i][j]
+95:         needconverting = true if textdata[i][j][AnimFrame::FOCUS].nil?
+96:         break if needconverting
+97:       end
+98:       break if needconverting
+99:     end
+100:     if needconverting
+101:       textdata.length.times do |i|
+102:         next if !textdata[i]
+103:         PBAnimation::MAX_SPRITES.times do |j|
+104:           next if !textdata[i][j]
+105:           textdata[i][j][AnimFrame::PRIORITY] = 1 if textdata[i][j][AnimFrame::PRIORITY].nil?
+106:           case j
+107:           when 0      # User battler
+108:             textdata[i][j][AnimFrame::FOCUS] = 2
+109:             textdata[i][j][AnimFrame::X] = Battle::Scene::FOCUSUSER_X
+110:             textdata[i][j][AnimFrame::Y] = Battle::Scene::FOCUSUSER_Y
+111:           when 1   # Target battler
+112:             textdata[i][j][AnimFrame::FOCUS] = 1
+113:             textdata[i][j][AnimFrame::X] = Battle::Scene::FOCUSTARGET_X
+114:             textdata[i][j][AnimFrame::Y] = Battle::Scene::FOCUSTARGET_Y
+115:           else
+116:             textdata[i][j][AnimFrame::FOCUS] = (textdata.position || 4)
+117:             if textdata.position == 1
+118:               textdata[i][j][AnimFrame::X] += Battle::Scene::FOCUSTARGET_X
+119:               textdata[i][j][AnimFrame::Y] += Battle::Scene::FOCUSTARGET_Y - 2
+120:             end
+121:           end
+122:         end
+123:       end
+124:     end
+125:     return needconverting
+126:   end
+127: 
+128:   def pbConvertAnimsToNewFormat
+129:     pbMessage(_INTL("Will convert animations now."))
+130:     count = 0
+131:     animations = pbLoadBattleAnimations
+132:     if !animations || !animations[0]
+133:       pbMessage(_INTL("No animations exist."))
+134:       return
+135:     end
+136:     animations.length.times do |k|
+137:       next if !animations[k]
+138:       ret = pbConvertAnimToNewFormat(animations[k])
+139:       count += 1 if ret
+140:     end
+141:     if count > 0
+142:       save_data(animations, "Data/PkmnAnimations.rxdata")
+143:       $game_temp.battle_animations_data = nil
+144:     end
+145:     pbMessage(_INTL("{1} animations converted to new format.", count))
+146:   end
+147: end

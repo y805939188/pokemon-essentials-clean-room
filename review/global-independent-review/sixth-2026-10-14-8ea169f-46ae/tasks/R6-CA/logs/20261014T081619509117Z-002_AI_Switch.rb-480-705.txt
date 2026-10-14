@@ -1,0 +1,226 @@
+480:         pkmn.moves.each do |move|
+481:           next if move.status_move?
+482:           if ["IgnoreTargetAbility",
+483:               "CategoryDependsOnHigherDamageIgnoreTargetAbility"].include?(move.function_code)
+484:             reserve_can_damage_foe = true
+485:             break
+486:           end
+487:           if !ai.pokemon_can_absorb_move?(b, move, move.type)
+488:             reserve_can_damage_foe = true
+489:             break
+490:           end
+491:         end
+492:         break if reserve_can_damage_foe
+493:       end
+494:       break if reserve_can_damage_foe
+495:     end
+496:     next false if !reserve_can_damage_foe
+497:     PBDebug.log_ai("#{battler.name} wants to switch because it can't damage the foe(s)")
+498:     next true
+499:   }
+500: )
+501: 
+502: #===============================================================================
+503: # Pokémon doesn't have an ability that makes it immune to a foe's move, but a
+504: # reserve does (see def pokemon_can_absorb_move?). The foe's move is chosen
+505: # randomly, or is their most powerful move if the trainer's skill level is good
+506: # enough.
+507: #===============================================================================
+508: Battle::AI::Handlers::ShouldSwitch.add(:absorb_foe_move,
+509:   proc { |battler, reserves, ai, battle|
+510:     next false if !ai.trainer.medium_skill?
+511:     # Not worth it if the battler is evasive enough
+512:     next false if battler.stages[:EVASION] >= 3
+513:     # Not worth it if abilities are being negated
+514:     next false if battle.pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+515:     # Get the foe move with the highest power (or a random damaging move)
+516:     foe_moves = []
+517:     ai.each_foe_battler(battler.side) do |b, i|
+518:       b.moves.each do |move|
+519:         next if move.statusMove?
+520:         m_power = move.power
+521:         m_power = 100 if move.is_a?(Battle::Move::OHKO)
+522:         m_type = move.pbCalcType(b.battler)
+523:         foe_moves.push([m_power, m_type, move])
+524:       end
+525:     end
+526:     next false if foe_moves.empty?
+527:     if ai.trainer.high_skill?
+528:       foe_moves.sort! { |a, b| a[0] <=> b[0] }   # Highest power move
+529:       chosen_move = foe_moves.last
+530:     else
+531:       chosen_move = foe_moves[ai.pbAIRandom(foe_moves.length)]   # Random move
+532:     end
+533:     # Get the chosen move's information
+534:     move_power = chosen_move[0]
+535:     move_type = chosen_move[1]
+536:     move = chosen_move[2]
+537:     # Don't bother if the foe's best move isn't too strong
+538:     next false if move_power < 70
+539:     # Check battler for absorbing ability
+540:     next false if ai.pokemon_can_absorb_move?(battler, move, move_type)
+541:     # battler can't absorb move; find a party Pokémon that can
+542:     if reserves.any? { |pkmn| ai.pokemon_can_absorb_move?(pkmn, move, move_type) }
+543:       next false if ai.pbAIRandom(100) < 70
+544:       PBDebug.log_ai("#{battler.name} wants to switch because it can't absorb a foe's move but a reserve can")
+545:       next true
+546:     end
+547:     next false
+548:   }
+549: )
+550: 
+551: #===============================================================================
+552: # Sudden Death rule (at the end of each round, if one side has more able Pokémon
+553: # than the other side, that side wins). Avoid fainting at all costs.
+554: # NOTE: This rule isn't used anywhere.
+555: #===============================================================================
+556: Battle::AI::Handlers::ShouldSwitch.add(:sudden_death,
+557:   proc { |battler, reserves, ai, battle|
+558:     next false if !battle.rules["suddendeath"] || battler.turnCount == 0
+559:     if battler.hp <= battler.totalhp / 2
+560:       threshold = 100 * (battler.totalhp - battler.hp) / battler.totalhp
+561:       if ai.pbAIRandom(100) < threshold
+562:         PBDebug.log_ai("#{battler.name} wants to switch to avoid being KO'd and losing because of the sudden death rule")
+563:         next true
+564:       end
+565:     end
+566:     next false
+567:   }
+568: )
+569: 
+570: #===============================================================================
+571: # Pokémon is within 5 levels of the foe, and foe's last move was super-effective
+572: # and powerful.
+573: #===============================================================================
+574: Battle::AI::Handlers::ShouldSwitch.add(:high_damage_from_foe,
+575:   proc { |battler, reserves, ai, battle|
+576:     next false if !ai.trainer.high_skill?
+577:     next false if battler.hp >= battler.totalhp / 2
+578:     big_threat = false
+579:     ai.each_foe_battler(battler.side) do |b, i|
+580:       next if (b.level - battler.level).abs > 5
+581:       next if !b.battler.lastMoveUsed || !GameData::Move.exists?(b.battler.lastMoveUsed)
+582:       move_data = GameData::Move.get(b.battler.lastMoveUsed)
+583:       next if move_data.status?
+584:       eff = battler.effectiveness_of_type_against_battler(move_data.type, b)
+585:       next if !Effectiveness.super_effective?(eff) || move_data.power < 70
+586:       switch_chance = (move_data.power > 90) ? 50 : 25
+587:       big_threat = (ai.pbAIRandom(100) < switch_chance)
+588:       break if big_threat
+589:     end
+590:     if big_threat
+591:       PBDebug.log_ai("#{battler.name} wants to switch because a foe has a powerful super-effective move")
+592:       next true
+593:     end
+594:     next false
+595:   }
+596: )
+597: 
+598: #===============================================================================
+599: #===============================================================================
+600: #===============================================================================
+601: 
+602: #===============================================================================
+603: # Don't bother switching if the battler will just faint from entry hazard damage
+604: # upon switching back in, and if no reserve can remove the entry hazard(s).
+605: # Switching out in this case means the battler becomes unusable, so it might as
+606: # well stick around instead and do as much as it can.
+607: #===============================================================================
+608: Battle::AI::Handlers::ShouldNotSwitch.add(:lethal_entry_hazards,
+609:   proc { |battler, reserves, ai, battle|
+610:     next false if battle.rules["suddendeath"]
+611:     # Check whether battler will faint from entry hazard(s)
+612:     entry_hazard_damage = ai.calculate_entry_hazard_damage(battler.pokemon, battler.side)
+613:     next false if entry_hazard_damage < battler.hp
+614:     # Check for Rapid Spin
+615:     reserve_can_remove_hazards = false
+616:     reserves.each do |pkmn|
+617:       pkmn.moves.each do |move|
+618:         reserve_can_remove_hazards = (move.function_code == "RemoveUserBindingAndEntryHazards")
+619:         break if reserve_can_remove_hazards
+620:       end
+621:       break if reserve_can_remove_hazards
+622:     end
+623:     next false if reserve_can_remove_hazards
+624:     PBDebug.log_ai("#{battler.name} won't switch after all because it will faint from entry hazards if it switches back in")
+625:     next true
+626:   }
+627: )
+628: 
+629: #===============================================================================
+630: # Don't bother switching (50% chance) if the battler knows a super-effective
+631: # move.
+632: #===============================================================================
+633: Battle::AI::Handlers::ShouldNotSwitch.add(:battler_has_super_effective_move,
+634:   proc { |battler, reserves, ai, battle|
+635:     next false if battler.effects[PBEffects::PerishSong] == 1
+636:     next false if battler.rough_end_of_round_damage >= battler.hp * 2 / 3
+637:     next false if battle.rules["suddendeath"]
+638:     has_super_effective_move = false
+639:     battler.battler.eachMove do |move|
+640:       next if move.pp == 0 && move.total_pp > 0
+641:       next if move.statusMove?
+642:       # NOTE: Ideally this would ignore moves that are unusable, but that would
+643:       #       be too complicated to implement.
+644:       move_type = move.type
+645:       move_type = move.pbCalcType(battler.battler) if ai.trainer.medium_skill?
+646:       ai.each_foe_battler(battler.side) do |b|
+647:         # NOTE: Ideally this would ignore foes that move cannot target, but that
+648:         #       is complicated enough to implement that I'm not bothering. It's
+649:         #       also rare that it would matter.
+650:         eff = b.effectiveness_of_type_against_battler(move_type, battler, move)
+651:         has_super_effective_move = Effectiveness.super_effective?(eff)
+652:         break if has_super_effective_move
+653:       end
+654:       break if has_super_effective_move
+655:     end
+656:     if has_super_effective_move && ai.pbAIRandom(100) < 50
+657:       PBDebug.log_ai("#{battler.name} won't switch after all because it has a super-effective move")
+658:       next true
+659:     end
+660:     next false
+661:   }
+662: )
+663: 
+664: #===============================================================================
+665: # Don't bother switching if the battler has 4 or more positive stat stages.
+666: # Negative stat stages are ignored.
+667: #===============================================================================
+668: Battle::AI::Handlers::ShouldNotSwitch.add(:battler_has_very_raised_stats,
+669:   proc { |battler, reserves, ai, battle|
+670:     next false if battle.rules["suddendeath"]
+671:     stat_raises = 0
+672:     battler.stages.each_value { |val| stat_raises += val if val > 0 }
+673:     if stat_raises >= 4
+674:       PBDebug.log_ai("#{battler.name} won't switch after all because it has a lot of raised stats")
+675:       next true
+676:     end
+677:     next false
+678:   }
+679: )
+680: 
+681: #===============================================================================
+682: # Don't bother switching if the battler has Wonder Guard and is immune to the
+683: # foe's damaging attacks.
+684: #===============================================================================
+685: Battle::AI::Handlers::ShouldNotSwitch.add(:battler_is_immune_via_wonder_guard,
+686:   proc { |battler, reserves, ai, battle|
+687:     next false if battler.effects[PBEffects::PerishSong] == 1
+688:     next false if battler.rough_end_of_round_damage >= battler.hp / 2
+689:     next false if !battler.has_active_ability?(:WONDERGUARD)
+690:     super_effective_foe = false
+691:     ai.each_foe_battler(battler.side) do |b|
+692:       next if !b.check_for_move do |m|
+693:         next false if !m.damagingMove?
+694:         eff = battler.effectiveness_of_type_against_battler(m.pbCalcType(b.battler), b, m)
+695:         next Effectiveness.super_effective?(eff)
+696:       end
+697:       super_effective_foe = true
+698:       break
+699:     end
+700:     if !super_effective_foe
+701:       PBDebug.log_ai("#{battler.name} won't switch after all because it has Wonder Guard and can't be damaged by foes")
+702:     end
+703:     next !super_effective_foe
+704:   }
+705: )

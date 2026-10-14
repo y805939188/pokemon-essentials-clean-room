@@ -1,0 +1,375 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/016_UI/020_UI_PokeMart.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [1, 374], "total_lines": 748, "sha256": "e239ecb1061f091a405677c6cf1293b89ab9672158558b9a27689f4961b75c00", "owner": "bag", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:18:08.619176+00:00"}
+1: #===============================================================================
+2: # Abstraction layer for Pokemon Essentials
+3: #===============================================================================
+4: class PokemonMartAdapter
+5:   def getMoney
+6:     return $player.money
+7:   end
+8: 
+9:   def getMoneyString
+10:     return pbGetGoldString
+11:   end
+12: 
+13:   def setMoney(value)
+14:     $player.money = value
+15:   end
+16: 
+17:   def getInventory
+18:     return $bag
+19:   end
+20: 
+21:   def getName(item)
+22:     return GameData::Item.get(item).portion_name
+23:   end
+24: 
+25:   def getNamePlural(item)
+26:     return GameData::Item.get(item).portion_name_plural
+27:   end
+28: 
+29:   def getDisplayName(item)
+30:     item_name = GameData::Item.get(item).name
+31:     if GameData::Item.get(item).is_machine?
+32:       machine = GameData::Item.get(item).move
+33:       item_name = _INTL("{1} {2}", item_name, GameData::Move.get(machine).name)
+34:     end
+35:     return item_name
+36:   end
+37: 
+38:   def getDisplayNamePlural(item)
+39:     item_name_plural = GameData::Item.get(item).name_plural
+40:     if GameData::Item.get(item).is_machine?
+41:       machine = GameData::Item.get(item).move
+42:       item_name_plural = _INTL("{1} {2}", item_name_plural, GameData::Move.get(machine).name)
+43:     end
+44:     return item_name_plural
+45:   end
+46: 
+47:   def getDescription(item)
+48:     return GameData::Item.get(item).description
+49:   end
+50: 
+51:   def getItemIcon(item)
+52:     return (item) ? GameData::Item.icon_filename(item) : nil
+53:   end
+54: 
+55:   # Unused
+56:   def getItemIconRect(_item)
+57:     return Rect.new(0, 0, 48, 48)
+58:   end
+59: 
+60:   def getQuantity(item)
+61:     return $bag.quantity(item)
+62:   end
+63: 
+64:   def showQuantity?(item)
+65:     return !GameData::Item.get(item).is_important?
+66:   end
+67: 
+68:   def getPrice(item, selling = false)
+69:     if $game_temp.mart_prices && $game_temp.mart_prices[item]
+70:       if selling
+71:         return $game_temp.mart_prices[item][1] if $game_temp.mart_prices[item][1] >= 0
+72:       elsif $game_temp.mart_prices[item][0] > 0
+73:         return $game_temp.mart_prices[item][0]
+74:       end
+75:     end
+76:     return GameData::Item.get(item).sell_price if selling
+77:     return GameData::Item.get(item).price
+78:   end
+79: 
+80:   def getDisplayPrice(item, selling = false)
+81:     price = getPrice(item, selling).to_s_formatted
+82:     return _INTL("$ {1}", price)
+83:   end
+84: 
+85:   def canSell?(item)
+86:     return getPrice(item, true) > 0 && !GameData::Item.get(item).is_important?
+87:   end
+88: 
+89:   def addItem(item)
+90:     return $bag.add(item)
+91:   end
+92: 
+93:   def removeItem(item)
+94:     return $bag.remove(item)
+95:   end
+96: end
+97: 
+98: #===============================================================================
+99: # Buy and Sell adapters
+100: #===============================================================================
+101: class BuyAdapter
+102:   def initialize(adapter)
+103:     @adapter = adapter
+104:   end
+105: 
+106:   # For showing in messages
+107:   def getName(item)
+108:     @adapter.getName(item)
+109:   end
+110: 
+111:   # For showing in messages
+112:   def getNamePlural(item)
+113:     @adapter.getNamePlural(item)
+114:   end
+115: 
+116:   # For showing in the list of items
+117:   def getDisplayName(item)
+118:     @adapter.getDisplayName(item)
+119:   end
+120: 
+121:   # For showing in the list of items
+122:   def getDisplayNamePlural(item)
+123:     @adapter.getDisplayNamePlural(item)
+124:   end
+125: 
+126:   def getDisplayPrice(item)
+127:     @adapter.getDisplayPrice(item, false)
+128:   end
+129: 
+130:   def isSelling?
+131:     return false
+132:   end
+133: end
+134: 
+135: #===============================================================================
+136: #
+137: #===============================================================================
+138: class SellAdapter
+139:   def initialize(adapter)
+140:     @adapter = adapter
+141:   end
+142: 
+143:   # For showing in messages
+144:   def getName(item)
+145:     @adapter.getName(item)
+146:   end
+147: 
+148:   # For showing in messages
+149:   def getNamePlural(item)
+150:     @adapter.getNamePlural(item)
+151:   end
+152: 
+153:   # For showing in the list of items
+154:   def getDisplayName(item)
+155:     @adapter.getDisplayName(item)
+156:   end
+157: 
+158:   # For showing in the list of items
+159:   def getDisplayNamePlural(item)
+160:     @adapter.getDisplayNamePlural(item)
+161:   end
+162: 
+163:   def getDisplayPrice(item)
+164:     if @adapter.showQuantity?(item)
+165:       return sprintf("x%d", @adapter.getQuantity(item))
+166:     else
+167:       return ""
+168:     end
+169:   end
+170: 
+171:   def isSelling?
+172:     return true
+173:   end
+174: end
+175: 
+176: #===============================================================================
+177: # Pokémon Mart
+178: #===============================================================================
+179: class Window_PokemonMart < Window_DrawableCommand
+180:   def initialize(stock, adapter, x, y, width, height, viewport = nil)
+181:     @stock       = stock
+182:     @adapter     = adapter
+183:     super(x, y, width, height, viewport)
+184:     @selarrow    = AnimatedBitmap.new("Graphics/UI/Mart/cursor")
+185:     @baseColor   = Color.new(88, 88, 80)
+186:     @shadowColor = Color.new(168, 184, 184)
+187:     self.windowskin = nil
+188:   end
+189: 
+190:   def itemCount
+191:     return @stock.length + 1
+192:   end
+193: 
+194:   def item
+195:     return (self.index >= @stock.length) ? nil : @stock[self.index]
+196:   end
+197: 
+198:   def drawItem(index, count, rect)
+199:     textpos = []
+200:     rect = drawCursor(index, rect)
+201:     ypos = rect.y
+202:     if index == count - 1
+203:       textpos.push([_INTL("CANCEL"), rect.x, ypos + 2, :left, self.baseColor, self.shadowColor])
+204:     else
+205:       item = @stock[index]
+206:       itemname = @adapter.getDisplayName(item)
+207:       qty = @adapter.getDisplayPrice(item)
+208:       sizeQty = self.contents.text_size(qty).width
+209:       xQty = rect.x + rect.width - sizeQty - 2 - 16
+210:       textpos.push([itemname, rect.x, ypos + 2, :left, self.baseColor, self.shadowColor])
+211:       textpos.push([qty, xQty, ypos + 2, :left, self.baseColor, self.shadowColor])
+212:     end
+213:     pbDrawTextPositions(self.contents, textpos)
+214:   end
+215: end
+216: 
+217: #===============================================================================
+218: #
+219: #===============================================================================
+220: class PokemonMart_Scene
+221:   def update
+222:     pbUpdateSpriteHash(@sprites)
+223:     @subscene&.pbUpdate
+224:   end
+225: 
+226:   def pbRefresh
+227:     if @subscene
+228:       @subscene.pbRefresh
+229:     else
+230:       itemwindow = @sprites["itemwindow"]
+231:       @sprites["icon"].item = itemwindow.item
+232:       @sprites["itemtextwindow"].text =
+233:         (itemwindow.item) ? @adapter.getDescription(itemwindow.item) : _INTL("Quit shopping.")
+234:       @sprites["qtywindow"].visible = !itemwindow.item.nil?
+235:       @sprites["qtywindow"].text    = _INTL("In Bag:<r>{1}", @adapter.getQuantity(itemwindow.item))
+236:       @sprites["qtywindow"].y       = Graphics.height - 102 - @sprites["qtywindow"].height
+237:       itemwindow.refresh
+238:     end
+239:     @sprites["moneywindow"].text = _INTL("Money:\n<r>{1}", @adapter.getMoneyString)
+240:   end
+241: 
+242:   def pbStartBuyOrSellScene(buying, stock, adapter)
+243:     # Scroll right before showing screen
+244:     pbScrollMap(6, 5, 5)
+245:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+246:     @viewport.z = 99999
+247:     @stock = stock
+248:     @adapter = adapter
+249:     @sprites = {}
+250:     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+251:     @sprites["background"].setBitmap("Graphics/UI/Mart/bg")
+252:     @sprites["icon"] = ItemIconSprite.new(36, Graphics.height - 50, nil, @viewport)
+253:     winAdapter = buying ? BuyAdapter.new(adapter) : SellAdapter.new(adapter)
+254:     @sprites["itemwindow"] = Window_PokemonMart.new(
+255:       stock, winAdapter, Graphics.width - 316 - 16, 10, 330 + 16, Graphics.height - 124
+256:     )
+257:     @sprites["itemwindow"].viewport = @viewport
+258:     @sprites["itemwindow"].index = 0
+259:     @sprites["itemwindow"].refresh
+260:     @sprites["itemtextwindow"] = Window_UnformattedTextPokemon.newWithSize(
+261:       "", 64, Graphics.height - 96 - 16, Graphics.width - 64, 128, @viewport
+262:     )
+263:     pbPrepareWindow(@sprites["itemtextwindow"])
+264:     @sprites["itemtextwindow"].baseColor = Color.new(248, 248, 248)
+265:     @sprites["itemtextwindow"].shadowColor = Color.black
+266:     @sprites["itemtextwindow"].windowskin = nil
+267:     @sprites["helpwindow"] = Window_AdvancedTextPokemon.new("")
+268:     pbPrepareWindow(@sprites["helpwindow"])
+269:     @sprites["helpwindow"].visible = false
+270:     @sprites["helpwindow"].viewport = @viewport
+271:     pbBottomLeftLines(@sprites["helpwindow"], 1)
+272:     @sprites["moneywindow"] = Window_AdvancedTextPokemon.new("")
+273:     pbPrepareWindow(@sprites["moneywindow"])
+274:     @sprites["moneywindow"].setSkin("Graphics/Windowskins/goldskin")
+275:     @sprites["moneywindow"].visible = true
+276:     @sprites["moneywindow"].viewport = @viewport
+277:     @sprites["moneywindow"].x = 0
+278:     @sprites["moneywindow"].y = 0
+279:     @sprites["moneywindow"].width = 190
+280:     @sprites["moneywindow"].height = 96
+281:     @sprites["moneywindow"].baseColor = Color.new(88, 88, 80)
+282:     @sprites["moneywindow"].shadowColor = Color.new(168, 184, 184)
+283:     @sprites["qtywindow"] = Window_AdvancedTextPokemon.new("")
+284:     pbPrepareWindow(@sprites["qtywindow"])
+285:     @sprites["qtywindow"].setSkin("Graphics/Windowskins/goldskin")
+286:     @sprites["qtywindow"].viewport = @viewport
+287:     @sprites["qtywindow"].width = 190
+288:     @sprites["qtywindow"].height = 64
+289:     @sprites["qtywindow"].baseColor = Color.new(88, 88, 80)
+290:     @sprites["qtywindow"].shadowColor = Color.new(168, 184, 184)
+291:     @sprites["qtywindow"].text = _INTL("In Bag:<r>{1}", @adapter.getQuantity(@sprites["itemwindow"].item))
+292:     @sprites["qtywindow"].y    = Graphics.height - 102 - @sprites["qtywindow"].height
+293:     pbDeactivateWindows(@sprites)
+294:     @buying = buying
+295:     pbRefresh
+296:     Graphics.frame_reset
+297:   end
+298: 
+299:   def pbStartBuyScene(stock, adapter)
+300:     pbStartBuyOrSellScene(true, stock, adapter)
+301:   end
+302: 
+303:   def pbStartSellScene(bag, adapter)
+304:     if $bag
+305:       pbStartSellScene2(bag, adapter)
+306:     else
+307:       pbStartBuyOrSellScene(false, bag, adapter)
+308:     end
+309:   end
+310: 
+311:   def pbStartSellScene2(bag, adapter)
+312:     @subscene = PokemonBag_Scene.new
+313:     @adapter = adapter
+314:     @viewport2 = Viewport.new(0, 0, Graphics.width, Graphics.height)
+315:     @viewport2.z = 99999
+316:     pbWait(0.4) do |delta_t|
+317:       @viewport2.color.alpha = lerp(0, 255, 0.4, delta_t)
+318:     end
+319:     @viewport2.color.alpha = 255
+320:     @subscene.pbStartScene(bag)
+321:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+322:     @viewport.z = 99999
+323:     @sprites = {}
+324:     @sprites["helpwindow"] = Window_AdvancedTextPokemon.new("")
+325:     pbPrepareWindow(@sprites["helpwindow"])
+326:     @sprites["helpwindow"].visible = false
+327:     @sprites["helpwindow"].viewport = @viewport
+328:     pbBottomLeftLines(@sprites["helpwindow"], 1)
+329:     @sprites["moneywindow"] = Window_AdvancedTextPokemon.new("")
+330:     pbPrepareWindow(@sprites["moneywindow"])
+331:     @sprites["moneywindow"].setSkin("Graphics/Windowskins/goldskin")
+332:     @sprites["moneywindow"].visible = false
+333:     @sprites["moneywindow"].viewport = @viewport
+334:     @sprites["moneywindow"].x = 0
+335:     @sprites["moneywindow"].y = 0
+336:     @sprites["moneywindow"].width = 186
+337:     @sprites["moneywindow"].height = 96
+338:     @sprites["moneywindow"].baseColor = Color.new(88, 88, 80)
+339:     @sprites["moneywindow"].shadowColor = Color.new(168, 184, 184)
+340:     pbDeactivateWindows(@sprites)
+341:     @buying = false
+342:     pbRefresh
+343:   end
+344: 
+345:   def pbEndBuyScene
+346:     pbDisposeSpriteHash(@sprites)
+347:     @viewport.dispose
+348:     # Scroll left after showing screen
+349:     pbScrollMap(4, 5, 5)
+350:   end
+351: 
+352:   def pbEndSellScene
+353:     @subscene&.pbEndScene
+354:     pbDisposeSpriteHash(@sprites)
+355:     if @viewport2
+356:       pbWait(0.4) do |delta_t|
+357:         @viewport2.color.alpha = lerp(255, 0, 0.4, delta_t)
+358:       end
+359:       @viewport2.dispose
+360:     end
+361:     @viewport.dispose
+362:     pbScrollMap(4, 5, 5) if !@subscene
+363:   end
+364: 
+365:   def pbPrepareWindow(window)
+366:     window.visible = true
+367:     window.letterbyletter = false
+368:   end
+369: 
+370:   def pbShowMoney
+371:     pbRefresh
+372:     @sprites["moneywindow"].visible = true
+373:   end
+374: 

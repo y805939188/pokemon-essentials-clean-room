@@ -1,0 +1,300 @@
+601:           section = $~[1].to_i
+602:           if dex_lists[section]
+603:             raise _INTL("Dex list number {1} is defined at least twice.", section) + "\n" + FileLineData.linereport
+604:           end
+605:           dex_lists[section] = []
+606:         else
+607:           raise _INTL("Expected a section at the beginning of the file.") + "\n" + FileLineData.linereport if !section
+608:           species_list = line.split(",")
+609:           species_list.each do |species|
+610:             next if !species || species.empty?
+611:             s = parseSpecies(species)
+612:             dex_lists[section].push(s)
+613:           end
+614:         end
+615:       end
+616:       process_pbs_file_message_end
+617:     end
+618:     # Check for duplicate species in a Regional Dex
+619:     dex_lists.each_with_index do |list, index|
+620:       unique_list = list.uniq
+621:       next if list == unique_list
+622:       list.each_with_index do |s, i|
+623:         next if unique_list[i] == s
+624:         raise _INTL("Dex list number {1} has species {2} listed twice.", index, s) + "\n" + FileLineData.linereport
+625:       end
+626:     end
+627:     # Save all data
+628:     save_data(dex_lists, "Data/regional_dexes.dat")
+629:   end
+630: 
+631:   #=============================================================================
+632:   # Compile ribbon data
+633:   #=============================================================================
+634:   def compile_ribbons(*paths)
+635:     compile_PBS_file_generic(GameData::Ribbon, *paths) do |final_validate, hash|
+636:       (final_validate) ? validate_all_compiled_ribbons : validate_compiled_ribbon(hash)
+637:     end
+638:   end
+639: 
+640:   def validate_compiled_ribbon(hash)
+641:   end
+642: 
+643:   def validate_all_compiled_ribbons
+644:     # Get ribbon names/descriptions for translating
+645:     ribbon_names = []
+646:     ribbon_descriptions = []
+647:     GameData::Ribbon.each do |ribbon|
+648:       ribbon_names.push(ribbon.real_name)
+649:       ribbon_descriptions.push(ribbon.real_description)
+650:     end
+651:     MessageTypes.setMessagesAsHash(MessageTypes::RIBBON_NAMES, ribbon_names)
+652:     MessageTypes.setMessagesAsHash(MessageTypes::RIBBON_DESCRIPTIONS, ribbon_descriptions)
+653:   end
+654: 
+655:   #=============================================================================
+656:   # Compile wild encounter data
+657:   #=============================================================================
+658:   def compile_encounters(*paths)
+659:     GameData::Encounter::DATA.clear
+660:     max_level = GameData::GrowthRate.max_level
+661:     paths.each do |path|
+662:       compile_pbs_file_message_start(path)
+663:       file_suffix = File.basename(path, ".txt")[GameData::Encounter::PBS_BASE_FILENAME.length + 1, path.length] || ""
+664:       encounter_hash = nil
+665:       step_chances   = nil
+666:       current_type   = nil
+667:       idx = 0
+668:       pbCompilerEachPreppedLine(path) do |line, line_no|
+669:         echo "." if idx % 100 == 0
+670:         idx += 1
+671:         Graphics.update if idx % 500 == 0
+672:         next if line.length == 0
+673:         if current_type && line[/^\d+,/]   # Species line
+674:           values = line.split(",").collect! { |v| v.strip }
+675:           if !values || values.length < 3
+676:             raise _INTL("Expected a species entry line for encounter type {1} for map {2}.",
+677:                         GameData::EncounterType.get(current_type).real_name, encounter_hash[:map]) + "\n" + FileLineData.linereport
+678:           end
+679:           values = get_csv_record(line, [nil, "vevV", nil, :Species])
+680:           values[3] = values[2] if !values[3]
+681:           if values[2] > max_level
+682:             raise _INTL("Level number {1} is not valid (max. {2}).", values[2], max_level) + "\n" + FileLineData.linereport
+683:           elsif values[3] > max_level
+684:             raise _INTL("Level number {1} is not valid (max. {2}).", values[3], max_level) + "\n" + FileLineData.linereport
+685:           elsif values[2] > values[3]
+686:             raise _INTL("Minimum level is greater than maximum level.") + "\n" + FileLineData.linereport
+687:           end
+688:           encounter_hash[:types][current_type].push(values)
+689:         elsif line[/^\[\s*(.+)\s*\]$/]   # Map ID line
+690:           values = $~[1].split(",").collect! { |v| v.strip.to_i }
+691:           values[1] = 0 if !values[1]
+692:           map_number = values[0]
+693:           map_version = values[1]
+694:           # Add map encounter's data to records
+695:           if encounter_hash
+696:             encounter_hash[:types].each_value do |slots|
+697:               next if !slots || slots.length == 0
+698:               slots.each_with_index do |slot, i|
+699:                 next if !slot
+700:                 slots.each_with_index do |other_slot, j|
+701:                   next if i == j || !other_slot
+702:                   next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]
+703:                   slot[0] += other_slot[0]
+704:                   slots[j] = nil
+705:                 end
+706:               end
+707:               slots.compact!
+708:               slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }
+709:             end
+710:             GameData::Encounter.register(encounter_hash)
+711:           end
+712:           # Raise an error if a map/version combo is used twice
+713:           key = sprintf("%s_%d", map_number, map_version).to_sym
+714:           if GameData::Encounter::DATA[key]
+715:             raise _INTL("Encounters for map '{1}' are defined twice.", map_number) + "\n" + FileLineData.linereport
+716:           end
+717:           step_chances = {}
+718:           # Construct encounter hash
+719:           encounter_hash = {
+720:             :id              => key,
+721:             :map             => map_number,
+722:             :version         => map_version,
+723:             :step_chances    => step_chances,
+724:             :types           => {},
+725:             :pbs_file_suffix => file_suffix
+726:           }
+727:           current_type = nil
+728:         elsif !encounter_hash   # File began with something other than a map ID line
+729:           raise _INTL("Expected a map number, got \"{1}\" instead.", line) + "\n" + FileLineData.linereport
+730:         else
+731:           # Check if line is an encounter method name or not
+732:           values = line.split(",").collect! { |v| v.strip }
+733:           current_type = (values[0] && !values[0].empty?) ? values[0].to_sym : nil
+734:           if current_type && GameData::EncounterType.exists?(current_type)   # Start of a new encounter method
+735:             step_chances[current_type] = values[1].to_i if values[1] && !values[1].empty?
+736:             step_chances[current_type] ||= GameData::EncounterType.get(current_type).trigger_chance
+737:             encounter_hash[:types][current_type] = []
+738:           else
+739:             raise _INTL("Undefined encounter type \"{1}\" for map '{2}'.", line, encounter_hash[:map]) + "\n" + FileLineData.linereport
+740:           end
+741:         end
+742:       end
+743:       # Add last map's encounter data to records
+744:       if encounter_hash
+745:         encounter_hash[:types].each_value do |slots|
+746:           next if !slots || slots.length == 0
+747:           slots.each_with_index do |slot, i|
+748:             next if !slot
+749:             slots.each_with_index do |other_slot, j|
+750:               next if i == j || !other_slot
+751:               next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]
+752:               slot[0] += other_slot[0]
+753:               slots[j] = nil
+754:             end
+755:           end
+756:           slots.compact!
+757:           slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }
+758:         end
+759:         GameData::Encounter.register(encounter_hash)
+760:       end
+761:       process_pbs_file_message_end
+762:     end
+763:     # Save all data
+764:     GameData::Encounter.save
+765:   end
+766: 
+767:   #=============================================================================
+768:   # Compile trainer type data
+769:   #=============================================================================
+770:   def compile_trainer_types(*paths)
+771:     compile_PBS_file_generic(GameData::TrainerType, *paths) do |final_validate, hash|
+772:       (final_validate) ? validate_all_compiled_trainer_types : validate_compiled_trainer_type(hash)
+773:     end
+774:   end
+775: 
+776:   def validate_compiled_trainer_type(hash)
+777:   end
+778: 
+779:   def validate_all_compiled_trainer_types
+780:     # Get trainer type names for translating
+781:     trainer_type_names = []
+782:     GameData::TrainerType.each do |tr_type|
+783:       trainer_type_names.push(tr_type.real_name)
+784:     end
+785:     MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_TYPE_NAMES, trainer_type_names)
+786:   end
+787: 
+788:   #=============================================================================
+789:   # Compile individual trainer data
+790:   #=============================================================================
+791:   def compile_trainers(*paths)
+792:     GameData::Trainer::DATA.clear
+793:     schema = GameData::Trainer.schema
+794:     sub_schema = GameData::Trainer.sub_schema
+795:     idx = 0
+796:     # Read from PBS file(s)
+797:     paths.each do |path|
+798:       compile_pbs_file_message_start(path)
+799:       file_suffix = File.basename(path, ".txt")[GameData::Trainer::PBS_BASE_FILENAME.length + 1, path.length] || ""
+800:       data_hash = nil
+801:       current_pkmn = nil
+802:       section_name = nil
+803:       section_line = nil
+804:       # Read each line of trainers.txt at a time and compile it as a trainer property
+805:       pbCompilerEachPreppedLine(path) do |line, line_no|
+806:         echo "." if idx % 100 == 0
+807:         idx += 1
+808:         Graphics.update if idx % 500 == 0
+809:         FileLineData.setSection(section_name, nil, section_line)
+810:         if line[/^\s*\[\s*(.+)\s*\]\s*$/]
+811:           # New section [trainer_type, name] or [trainer_type, name, version]
+812:           section_name = $~[1]
+813:           section_line = line
+814:           if data_hash
+815:             validate_compiled_trainer(data_hash)
+816:             GameData::Trainer.register(data_hash)
+817:           end
+818:           FileLineData.setSection(section_name, nil, section_line)
+819:           # Construct data hash
+820:           data_hash = {
+821:             :pbs_file_suffix => file_suffix
+822:           }
+823:           data_hash[schema["SectionName"][0]] = get_csv_record(section_name.clone, schema["SectionName"])
+824:           data_hash[schema["Pokemon"][0]] = []
+825:           current_pkmn = nil
+826:         elsif line[/^\s*(\w+)\s*=\s*(.*)$/]
+827:           # XXX=YYY lines
+828:           if !data_hash
+829:             raise _INTL("Expected a section at the beginning of the file.") + "\n" + FileLineData.linereport
+830:           end
+831:           key = $~[1]
+832:           if schema[key]   # Property of the trainer
+833:             property_value = get_csv_record($~[2], schema[key])
+834:             if key == "Pokemon"
+835:               current_pkmn = {
+836:                 :species => property_value[0],
+837:                 :level   => property_value[1]
+838:               }
+839:               data_hash[schema[key][0]].push(current_pkmn)
+840:             else
+841:               data_hash[schema[key][0]] = property_value
+842:             end
+843:           elsif sub_schema[key]   # Property of a Pokémon
+844:             if !current_pkmn
+845:               raise _INTL("Pokémon hasn't been defined yet!") + "\n" + FileLineData.linereport
+846:             end
+847:             current_pkmn[sub_schema[key][0]] = get_csv_record($~[2], sub_schema[key])
+848:           end
+849:         end
+850:       end
+851:       # Add last trainer's data to records
+852:       if data_hash
+853:         FileLineData.setSection(section_name, nil, section_line)
+854:         validate_compiled_trainer(data_hash)
+855:         GameData::Trainer.register(data_hash)
+856:       end
+857:       process_pbs_file_message_end
+858:     end
+859:     validate_all_compiled_trainers
+860:     # Save all data
+861:     GameData::Trainer.save
+862:   end
+863: 
+864:   def validate_compiled_trainer(hash)
+865:     # Split trainer type, name and version into their own values, generate compound ID from them
+866:     hash[:id][2] ||= 0
+867:     hash[:trainer_type] = hash[:id][0]
+868:     hash[:real_name] = hash[:id][1]
+869:     hash[:version] = hash[:id][2]
+870:     # Ensure the trainer has at least one Pokémon
+871:     if hash[:pokemon].empty?
+872:       raise _INTL("Trainer with ID '{1}' has no Pokémon.", hash[:id]) + "\n" + FileLineData.linereport
+873:     end
+874:     max_level = GameData::GrowthRate.max_level
+875:     hash[:pokemon].each do |pkmn|
+876:       # Ensure valid level
+877:       if pkmn[:level] > max_level
+878:         raise _INTL("Invalid Pokémon level {1} (must be 1-{2}).", pkmn[:level], max_level) + "\n" + FileLineData.linereport
+879:       end
+880:       # Ensure valid name length
+881:       if pkmn[:real_name] && pkmn[:real_name].length > Pokemon::MAX_NAME_SIZE
+882:         raise _INTL("Invalid Pokémon nickname: {1} (must be 1-{2} characters).",
+883:                     pkmn[:real_name], Pokemon::MAX_NAME_SIZE) + "\n" + FileLineData.linereport
+884:       end
+885:       # Ensure no duplicate moves
+886:       pkmn[:moves].uniq! if pkmn[:moves]
+887:       # Ensure valid IVs, convert IVs to hash format
+888:       if pkmn[:iv]
+889:         iv_hash = {}
+890:         GameData::Stat.each_main do |s|
+891:           next if s.pbs_order < 0
+892:           iv_hash[s.id] = pkmn[:iv][s.pbs_order] || pkmn[:iv][0]
+893:           if iv_hash[s.id] > Pokemon::IV_STAT_LIMIT
+894:             raise _INTL("Invalid IV: {1} (must be 0-{2}).", iv_hash[s.id], Pokemon::IV_STAT_LIMIT) + "\n" + FileLineData.linereport
+895:           end
+896:         end
+897:         pkmn[:iv] = iv_hash
+898:       end
+899:       # Ensure valid EVs, convert EVs to hash format
+900:       if pkmn[:ev]

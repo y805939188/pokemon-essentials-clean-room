@@ -1,0 +1,440 @@
+441:   pbMessage(_INTL("Put the Trainer's graphic ({1}.png) in Graphics/Trainers, or it will be blank.", id.to_s))
+442:   return id.to_sym
+443: end
+444: 
+445: #===============================================================================
+446: # Individual trainer editor
+447: #===============================================================================
+448: module TrainerBattleProperty
+449:   NUM_ITEMS = 8
+450: 
+451:   def self.set(settingname, oldsetting)
+452:     return nil if !oldsetting
+453:     properties = [
+454:       [_INTL("Trainer Type"), TrainerTypeProperty,     _INTL("Name of the trainer type for this Trainer.")],
+455:       [_INTL("Trainer Name"), StringProperty,          _INTL("Name of the Trainer.")],
+456:       [_INTL("Version"),      LimitProperty.new(9999), _INTL("Number used to distinguish Trainers with the same name and trainer type.")],
+457:       [_INTL("Lose Text"),    StringProperty,          _INTL("Message shown in battle when the Trainer is defeated.")]
+458:     ]
+459:     Settings::MAX_PARTY_SIZE.times do |i|
+460:       properties.push([_INTL("Pokémon {1}", i + 1), TrainerPokemonProperty, _INTL("A Pokémon owned by the Trainer.")])
+461:     end
+462:     NUM_ITEMS.times do |i|
+463:       properties.push([_INTL("Item {1}", i + 1), ItemProperty, _INTL("An item used by the Trainer during battle.")])
+464:     end
+465:     return nil if !pbPropertyList(settingname, oldsetting, properties, true)
+466:     oldsetting = nil if !oldsetting[0]
+467:     return oldsetting
+468:   end
+469: 
+470:   def self.format(value)
+471:     return value.inspect
+472:   end
+473: end
+474: 
+475: #===============================================================================
+476: #
+477: #===============================================================================
+478: def pbTrainerBattleEditor
+479:   modified = false
+480:   pbListScreenBlock(_INTL("Trainer Battles"), TrainerBattleLister.new(0, true)) do |button, trainer_id|
+481:     if trainer_id
+482:       case button
+483:       when Input::ACTION
+484:         if trainer_id.is_a?(Array) && pbConfirmMessageSerious(_INTL("Delete this trainer battle?"))
+485:           tr_data = GameData::Trainer::DATA[trainer_id]
+486:           GameData::Trainer::DATA.delete(trainer_id)
+487:           modified = true
+488:           pbMessage(_INTL("The Trainer battle was deleted."))
+489:         end
+490:       when Input::USE
+491:         if trainer_id.is_a?(Array)   # Edit existing trainer
+492:           tr_data = GameData::Trainer::DATA[trainer_id]
+493:           old_type = tr_data.trainer_type
+494:           old_name = tr_data.real_name
+495:           old_version = tr_data.version
+496:           data = [
+497:             tr_data.trainer_type,
+498:             tr_data.real_name,
+499:             tr_data.version,
+500:             tr_data.real_lose_text
+501:           ]
+502:           Settings::MAX_PARTY_SIZE.times do |i|
+503:             data.push(tr_data.pokemon[i])
+504:           end
+505:           TrainerBattleProperty::NUM_ITEMS.times do |i|
+506:             data.push(tr_data.items[i])
+507:           end
+508:           loop do
+509:             data = TrainerBattleProperty.set(tr_data.real_name, data)
+510:             break if !data
+511:             party = []
+512:             items = []
+513:             Settings::MAX_PARTY_SIZE.times do |i|
+514:               party.push(data[4 + i]) if data[4 + i] && data[4 + i][:species]
+515:             end
+516:             TrainerBattleProperty::NUM_ITEMS.times do |i|
+517:               items.push(data[4 + Settings::MAX_PARTY_SIZE + i]) if data[4 + Settings::MAX_PARTY_SIZE + i]
+518:             end
+519:             if !data[0]
+520:               pbMessage(_INTL("Can't save. No trainer type was chosen."))
+521:             elsif !data[1] || data[1].empty?
+522:               pbMessage(_INTL("Can't save. No name was entered."))
+523:             elsif party.length == 0
+524:               pbMessage(_INTL("Can't save. The Pokémon list is empty."))
+525:             else
+526:               trainer_hash = {
+527:                 :trainer_type    => data[0],
+528:                 :real_name       => data[1],
+529:                 :version         => data[2],
+530:                 :lose_text       => data[3],
+531:                 :pokemon         => party,
+532:                 :items           => items,
+533:                 :pbs_file_suffix => tr_data.pbs_file_suffix
+534:               }
+535:               # Add trainer type's data to records
+536:               trainer_hash[:id] = [trainer_hash[:trainer_type], trainer_hash[:real_name], trainer_hash[:version]]
+537:               GameData::Trainer.register(trainer_hash)
+538:               if data[0] != old_type || data[1] != old_name || data[2] != old_version
+539:                 GameData::Trainer::DATA.delete([old_type, old_name, old_version])
+540:               end
+541:               modified = true
+542:               break
+543:             end
+544:           end
+545:         else   # New trainer
+546:           tr_type = nil
+547:           ret = pbMessage(_INTL("First, define the new trainer's type."),
+548:                           [_INTL("Use existing type"),
+549:                            _INTL("Create new type"),
+550:                            _INTL("Cancel")], 3)
+551:           case ret
+552:           when 0
+553:             tr_type = pbListScreen(_INTL("TRAINER TYPE"), TrainerTypeLister.new(0, false))
+554:           when 1
+555:             tr_type = pbTrainerTypeEditorNew(nil)
+556:           else
+557:             next
+558:           end
+559:           next if !tr_type
+560:           tr_name = pbMessageFreeText(_INTL("Now enter the trainer's name."), "", false, 30)
+561:           next if nil_or_empty?(tr_name)
+562:           tr_version = pbGetFreeTrainerParty(tr_type, tr_name)
+563:           if tr_version < 0
+564:             pbMessage(_INTL("There is no room to create a trainer of that type and name."))
+565:             next
+566:           end
+567:           t = pbNewTrainer(tr_type, tr_name, tr_version, false)
+568:           if t
+569:             trainer_hash = {
+570:               :trainer_type => tr_type,
+571:               :real_name    => tr_name,
+572:               :version      => tr_version,
+573:               :pokemon      => []
+574:             }
+575:             t[3].each do |pkmn|
+576:               trainer_hash[:pokemon].push(
+577:                 {
+578:                   :species => pkmn[0],
+579:                   :level   => pkmn[1]
+580:                 }
+581:               )
+582:             end
+583:             # Add trainer's data to records
+584:             trainer_hash[:id] = [trainer_hash[:trainer_type], trainer_hash[:real_name], trainer_hash[:version]]
+585:             GameData::Trainer.register(trainer_hash)
+586:             pbMessage(_INTL("The Trainer battle was added."))
+587:             modified = true
+588:           end
+589:         end
+590:       end
+591:     end
+592:   end
+593:   if modified && pbConfirmMessage(_INTL("Save changes?"))
+594:     GameData::Trainer.save
+595:     pbConvertTrainerData
+596:   else
+597:     GameData::Trainer.load
+598:   end
+599: end
+600: 
+601: #===============================================================================
+602: # Trainer Pokémon editor
+603: #===============================================================================
+604: module TrainerPokemonProperty
+605:   def self.set(settingname, initsetting)
+606:     initsetting = {:species => nil, :level => 10} if !initsetting
+607:     oldsetting = [
+608:       initsetting[:species],
+609:       initsetting[:level],
+610:       initsetting[:real_name],
+611:       initsetting[:form],
+612:       initsetting[:gender],
+613:       initsetting[:shininess],
+614:       initsetting[:super_shininess],
+615:       initsetting[:shadowness]
+616:     ]
+617:     Pokemon::MAX_MOVES.times do |i|
+618:       oldsetting.push((initsetting[:moves]) ? initsetting[:moves][i] : nil)
+619:     end
+620:     oldsetting.concat([initsetting[:ability],
+621:                        initsetting[:ability_index],
+622:                        initsetting[:item],
+623:                        initsetting[:nature],
+624:                        initsetting[:iv],
+625:                        initsetting[:ev],
+626:                        initsetting[:happiness],
+627:                        initsetting[:poke_ball]])
+628:     max_level = GameData::GrowthRate.max_level
+629:     pkmn_properties = [
+630:       [_INTL("Species"),       SpeciesProperty,                         _INTL("Species of the Pokémon.")],
+631:       [_INTL("Level"),         NonzeroLimitProperty.new(max_level),     _INTL("Level of the Pokémon (1-{1}).", max_level)],
+632:       [_INTL("Name"),          StringProperty,                          _INTL("Nickname of the Pokémon.")],
+633:       [_INTL("Form"),          LimitProperty2.new(999),                 _INTL("Form of the Pokémon.")],
+634:       [_INTL("Gender"),        GenderProperty,                          _INTL("Gender of the Pokémon.")],
+635:       [_INTL("Shiny"),         BooleanProperty2,                        _INTL("If set to true, the Pokémon is a different-colored Pokémon.")],
+636:       [_INTL("SuperShiny"),    BooleanProperty2,                        _INTL("Whether the Pokémon is super shiny (shiny with a special shininess animation).")],
+637:       [_INTL("Shadow"),        BooleanProperty2,                        _INTL("If set to true, the Pokémon is a Shadow Pokémon.")]
+638:     ]
+639:     Pokemon::MAX_MOVES.times do |i|
+640:       pkmn_properties.push([_INTL("Move {1}", i + 1),
+641:                             MovePropertyForSpecies.new(oldsetting), _INTL("A move known by the Pokémon. Leave all moves blank (use Z key to delete) for a wild moveset.")])
+642:     end
+643:     pkmn_properties.concat(
+644:       [[_INTL("Ability"),       AbilityProperty,                         _INTL("Ability of the Pokémon. Overrides the ability index.")],
+645:        [_INTL("Ability index"), LimitProperty2.new(99),                  _INTL("Ability index. 0=first ability, 1=second ability, 2+=hidden ability.")],
+646:        [_INTL("Held item"),     ItemProperty,                            _INTL("Item held by the Pokémon.")],
+647:        [_INTL("Nature"),        GameDataProperty.new(:Nature),           _INTL("Nature of the Pokémon.")],
+648:        [_INTL("IVs"),           IVsProperty.new(Pokemon::IV_STAT_LIMIT), _INTL("Individual values for each of the Pokémon's stats.")],
+649:        [_INTL("EVs"),           EVsProperty.new(Pokemon::EV_STAT_LIMIT), _INTL("Effort values for each of the Pokémon's stats.")],
+650:        [_INTL("Happiness"),     LimitProperty2.new(255),                 _INTL("Happiness of the Pokémon (0-255).")],
+651:        [_INTL("Poké Ball"),     BallProperty.new(oldsetting),            _INTL("The kind of Poké Ball the Pokémon is kept in.")]]
+652:     )
+653:     pbPropertyList(settingname, oldsetting, pkmn_properties, false)
+654:     return nil if !oldsetting[0]   # Species is nil
+655:     ret = {
+656:       :species         => oldsetting[0],
+657:       :level           => oldsetting[1],
+658:       :real_name       => oldsetting[2],
+659:       :form            => oldsetting[3],
+660:       :gender          => oldsetting[4],
+661:       :shininess       => oldsetting[5],
+662:       :super_shininess => oldsetting[6],
+663:       :shadowness      => oldsetting[7],
+664:       :ability         => oldsetting[8 + Pokemon::MAX_MOVES],
+665:       :ability_index   => oldsetting[9 + Pokemon::MAX_MOVES],
+666:       :item            => oldsetting[10 + Pokemon::MAX_MOVES],
+667:       :nature          => oldsetting[11 + Pokemon::MAX_MOVES],
+668:       :iv              => oldsetting[12 + Pokemon::MAX_MOVES],
+669:       :ev              => oldsetting[13 + Pokemon::MAX_MOVES],
+670:       :happiness       => oldsetting[14 + Pokemon::MAX_MOVES],
+671:       :poke_ball       => oldsetting[15 + Pokemon::MAX_MOVES]
+672:     }
+673:     moves = []
+674:     Pokemon::MAX_MOVES.times do |i|
+675:       moves.push(oldsetting[8 + i])
+676:     end
+677:     moves.uniq!
+678:     moves.compact!
+679:     ret[:moves] = moves
+680:     return ret
+681:   end
+682: 
+683:   def self.format(value)
+684:     return "-" if !value || !value[:species]
+685:     return sprintf("%s,%d", GameData::Species.get(value[:species]).name, value[:level])
+686:   end
+687: end
+688: 
+689: #===============================================================================
+690: # Metadata editor
+691: #===============================================================================
+692: def pbMetadataScreen
+693:   sel_player = -1
+694:   loop do
+695:     sel_player = pbListScreen(_INTL("SET METADATA"), MetadataLister.new(sel_player, true))
+696:     break if sel_player == -1
+697:     case sel_player
+698:     when -2   # Add new player
+699:       pbEditPlayerMetadata(-1)
+700:     when 0   # Edit global metadata
+701:       pbEditMetadata
+702:     else   # Edit player character
+703:       pbEditPlayerMetadata(sel_player) if sel_player >= 1
+704:     end
+705:   end
+706: end
+707: 
+708: def pbEditMetadata
+709:   data = []
+710:   metadata = GameData::Metadata.get
+711:   properties = GameData::Metadata.editor_properties
+712:   properties.each do |property|
+713:     val = metadata.get_property_for_PBS(property[0])
+714:     val = property[1].defaultValue if val.nil? && property[1].respond_to?(:defaultValue)
+715:     data.push(val)
+716:   end
+717:   if pbPropertyList(_INTL("Global Metadata"), data, properties, true)
+718:     # Construct metadata hash
+719:     schema = GameData::Metadata.schema
+720:     metadata_hash = {}
+721:     properties.each_with_index do |prop, i|
+722:       metadata_hash[schema[prop[0]][0]] = data[i]
+723:     end
+724:     metadata_hash[:id]              = 0
+725:     metadata_hash[:pbs_file_suffix] = metadata.pbs_file_suffix
+726:     # Add metadata's data to records
+727:     GameData::Metadata.register(metadata_hash)
+728:     GameData::Metadata.save
+729:     Compiler.write_metadata
+730:   end
+731: end
+732: 
+733: def pbEditPlayerMetadata(player_id = 1)
+734:   metadata = nil
+735:   if player_id < 1
+736:     # Adding new player character; get lowest unused player character ID
+737:     ids = GameData::PlayerMetadata.keys
+738:     1.upto(ids.max + 1) do |i|
+739:       next if ids.include?(i)
+740:       player_id = i
+741:       break
+742:     end
+743:     metadata = GameData::PlayerMetadata.new({:id => player_id})
+744:   elsif !GameData::PlayerMetadata.exists?(player_id)
+745:     pbMessage(_INTL("Metadata for player character {1} was not found.", player_id))
+746:     return
+747:   end
+748:   data = []
+749:   metadata = GameData::PlayerMetadata.try_get(player_id) if metadata.nil?
+750:   properties = GameData::PlayerMetadata.editor_properties
+751:   properties.each do |property|
+752:     val = metadata.get_property_for_PBS(property[0])
+753:     val = property[1].defaultValue if val.nil? && property[1].respond_to?(:defaultValue)
+754:     data.push(val)
+755:   end
+756:   if pbPropertyList(_INTL("Player {1}", metadata.id), data, properties, true)
+757:     # Construct player metadata hash
+758:     schema = GameData::PlayerMetadata.schema
+759:     metadata_hash = {}
+760:     properties.each_with_index do |prop, i|
+761:       case prop[0]
+762:       when "ID"
+763:         metadata_hash[schema["SectionName"][0]] = data[i]
+764:       else
+765:         metadata_hash[schema[prop[0]][0]] = data[i]
+766:       end
+767:     end
+768:     metadata_hash[:pbs_file_suffix] = metadata.pbs_file_suffix
+769:     # Add player metadata's data to records
+770:     GameData::PlayerMetadata.register(metadata_hash)
+771:     GameData::PlayerMetadata.save
+772:     Compiler.write_metadata
+773:   end
+774: end
+775: 
+776: #===============================================================================
+777: # Map metadata editor
+778: #===============================================================================
+779: def pbMapMetadataScreen(map_id = 0)
+780:   loop do
+781:     map_id = pbListScreen(_INTL("SET METADATA"), MapLister.new(map_id))
+782:     break if map_id < 0
+783:     (map_id == 0) ? pbEditMetadata : pbEditMapMetadata(map_id)
+784:   end
+785: end
+786: 
+787: def pbEditMapMetadata(map_id)
+788:   mapinfos = pbLoadMapInfos
+789:   data = []
+790:   map_name = mapinfos[map_id].name
+791:   metadata = GameData::MapMetadata.try_get(map_id)
+792:   metadata = GameData::MapMetadata.new({:id => map_id}) if !metadata
+793:   properties = GameData::MapMetadata.editor_properties
+794:   properties.each do |property|
+795:     val = metadata.get_property_for_PBS(property[0])
+796:     val = property[1].defaultValue if val.nil? && property[1].respond_to?(:defaultValue)
+797:     data.push(val)
+798:   end
+799:   if pbPropertyList(map_name, data, properties, true)
+800:     # Construct map metadata hash
+801:     schema = GameData::MapMetadata.schema
+802:     metadata_hash = {}
+803:     properties.each_with_index do |prop, i|
+804:       case prop[0]
+805:       when "ID"
+806:         metadata_hash[schema["SectionName"][0]] = data[i]
+807:       else
+808:         metadata_hash[schema[prop[0]][0]] = data[i]
+809:       end
+810:     end
+811:     metadata_hash[:pbs_file_suffix] = metadata.pbs_file_suffix
+812:     # Add map metadata's data to records
+813:     GameData::MapMetadata.register(metadata_hash)
+814:     GameData::MapMetadata.save
+815:     Compiler.write_map_metadata
+816:   end
+817: end
+818: 
+819: #===============================================================================
+820: # Item editor
+821: #===============================================================================
+822: def pbItemEditor
+823:   properties = GameData::Item.editor_properties
+824:   pbListScreenBlock(_INTL("Items"), ItemLister.new(0, true)) do |button, item|
+825:     if item
+826:       case button
+827:       when Input::ACTION
+828:         if item.is_a?(Symbol) && pbConfirmMessageSerious(_INTL("Delete this item?"))
+829:           GameData::Item::DATA.delete(item)
+830:           GameData::Item.save
+831:           Compiler.write_items
+832:           pbMessage(_INTL("The item was deleted."))
+833:         end
+834:       when Input::USE
+835:         if item.is_a?(Symbol)
+836:           itm = GameData::Item.get(item)
+837:           data = []
+838:           properties.each do |prop|
+839:             val = itm.get_property_for_PBS(prop[0])
+840:             val = prop[1].defaultValue if val.nil? && prop[1].respond_to?(:defaultValue)
+841:             data.push(val)
+842:           end
+843:           if pbPropertyList(itm.id.to_s, data, properties, true)
+844:             # Construct item hash
+845:             schema = GameData::Item.schema
+846:             item_hash = {}
+847:             properties.each_with_index do |prop, i|
+848:               case prop[0]
+849:               when "ID"
+850:                 item_hash[schema["SectionName"][0]] = data[i]
+851:               else
+852:                 item_hash[schema[prop[0]][0]] = data[i]
+853:               end
+854:             end
+855:             item_hash[:pbs_file_suffix] = itm.pbs_file_suffix
+856:             # Add item's data to records
+857:             GameData::Item.register(item_hash)
+858:             GameData::Item.save
+859:             Compiler.write_items
+860:           end
+861:         else   # Add a new item
+862:           pbItemEditorNew(nil)
+863:         end
+864:       end
+865:     end
+866:   end
+867: end
+868: 
+869: def pbItemEditorNew(default_name)
+870:   # Choose a name
+871:   name = pbMessageFreeText(_INTL("Please enter the item's name."),
+872:                            (default_name) ? default_name.gsub(/_+/, " ") : "", false, 30)
+873:   if nil_or_empty?(name)
+874:     return if !default_name
+875:     name = default_name
+876:   end
+877:   # Generate an ID based on the item name
+878:   id = name.gsub(/é/, "e")
+879:   id = id.gsub(/[^A-Za-z0-9_]/, "")
+880:   id = id.upcase

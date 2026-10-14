@@ -1,0 +1,300 @@
+1: module Compiler
+2:   module_function
+3: 
+4:   def get_all_PBS_file_paths(game_data)
+5:     ret = []
+6:     game_data.each { |element| ret.push(element.pbs_file_suffix) if !ret.include?(element.pbs_file_suffix) }
+7:     ret.each_with_index do |element, i|
+8:       ret[i] = [sprintf("PBS/%s.txt", game_data::PBS_BASE_FILENAME), element]
+9:       if !nil_or_empty?(element)
+10:         ret[i][0] = sprintf("PBS/%s_%s.txt", game_data::PBS_BASE_FILENAME, element)
+11:       end
+12:     end
+13:     return ret
+14:   end
+15: 
+16:   def add_PBS_header_to_file(file)
+17:     file.write(0xEF.chr)
+18:     file.write(0xBB.chr)
+19:     file.write(0xBF.chr)
+20:     file.write("\# " + _INTL("See the documentation on the wiki to learn how to edit this file.") + "\r\n")
+21:   end
+22: 
+23:   def write_PBS_file_generic(game_data)
+24:     paths = get_all_PBS_file_paths(game_data)
+25:     schema = game_data.schema
+26:     idx = 0
+27:     paths.each do |path|
+28:       write_pbs_file_message_start(path[0])
+29:       File.open(path[0], "wb") do |f|
+30:         add_PBS_header_to_file(f)
+31:         # Write each element in turn
+32:         game_data.each do |element|
+33:           next if element.pbs_file_suffix != path[1]
+34:           echo "." if idx % 100 == 0
+35:           Graphics.update if idx % 500 == 0
+36:           idx += 1
+37:           f.write("\#-------------------------------\r\n")
+38:           if schema["SectionName"]
+39:             f.write("[")
+40:             pbWriteCsvRecord(element.get_property_for_PBS("SectionName"), f, schema["SectionName"])
+41:             f.write("]\r\n")
+42:           else
+43:             f.write("[#{element.id}]\r\n")
+44:           end
+45:           schema.each_key do |key|
+46:             next if key == "SectionName"
+47:             val = element.get_property_for_PBS(key)
+48:             next if val.nil?
+49:             if schema[key][1][0] == "^" && val.is_a?(Array)
+50:               val.each do |sub_val|
+51:                 f.write(sprintf("%s = ", key))
+52:                 pbWriteCsvRecord(sub_val, f, schema[key])
+53:                 f.write("\r\n")
+54:               end
+55:             else
+56:               f.write(sprintf("%s = ", key))
+57:               pbWriteCsvRecord(val, f, schema[key])
+58:               f.write("\r\n")
+59:             end
+60:           end
+61:         end
+62:       end
+63:       process_pbs_file_message_end
+64:     end
+65:   end
+66: 
+67:   #=============================================================================
+68:   # Save Town Map data to PBS file
+69:   #=============================================================================
+70:   def write_town_map
+71:     write_PBS_file_generic(GameData::TownMap)
+72:   end
+73: 
+74:   #=============================================================================
+75:   # Save map connections to PBS file
+76:   #=============================================================================
+77:   def normalize_connection(conn)
+78:     ret = conn.clone
+79:     if conn[1].negative? != conn[4].negative?   # Exactly one is negative
+80:       ret[4] = -conn[1]
+81:       ret[1] = -conn[4]
+82:     end
+83:     if conn[2].negative? != conn[5].negative?   # Exactly one is negative
+84:       ret[5] = -conn[2]
+85:       ret[2] = -conn[5]
+86:     end
+87:     return ret
+88:   end
+89: 
+90:   def get_connection_text(map1, x1, y1, map2, x2, y2)
+91:     dims1 = MapFactoryHelper.getMapDims(map1)
+92:     dims2 = MapFactoryHelper.getMapDims(map2)
+93:     if x1 == 0 && x2 == dims2[0]
+94:       return sprintf("%d,West,%d,%d,East,%d", map1, y1, map2, y2)
+95:     elsif y1 == 0 && y2 == dims2[1]
+96:       return sprintf("%d,North,%d,%d,South,%d", map1, x1, map2, x2)
+97:     elsif x1 == dims1[0] && x2 == 0
+98:       return sprintf("%d,East,%d,%d,West,%d", map1, y1, map2, y2)
+99:     elsif y1 == dims1[1] && y2 == 0
+100:       return sprintf("%d,South,%d,%d,North,%d", map1, x1, map2, x2)
+101:     end
+102:     return sprintf("%d,%d,%d,%d,%d,%d", map1, x1, y1, map2, x2, y2)
+103:   end
+104: 
+105:   def write_connections(path = "PBS/map_connections.txt")
+106:     conndata = load_data("Data/map_connections.dat")
+107:     return if !conndata
+108:     write_pbs_file_message_start(path)
+109:     mapinfos = pbLoadMapInfos
+110:     File.open(path, "wb") do |f|
+111:       add_PBS_header_to_file(f)
+112:       f.write("\#-------------------------------\r\n")
+113:       conndata.each do |conn|
+114:         if mapinfos
+115:           # Skip if map no longer exists
+116:           next if !mapinfos[conn[0]] || !mapinfos[conn[3]]
+117:           f.write(sprintf("# %s (%d) - %s (%d)\r\n",
+118:                           (mapinfos[conn[0]]) ? mapinfos[conn[0]].name : "???", conn[0],
+119:                           (mapinfos[conn[3]]) ? mapinfos[conn[3]].name : "???", conn[3]))
+120:         end
+121:         if conn[1].is_a?(String) || conn[4].is_a?(String)
+122:           f.write(sprintf("%d,%s,%d,%d,%s,%d", conn[0], conn[1], conn[2],
+123:                           conn[3], conn[4], conn[5]))
+124:         else
+125:           ret = normalize_connection(conn)
+126:           f.write(get_connection_text(ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]))
+127:         end
+128:         f.write("\r\n")
+129:       end
+130:     end
+131:     process_pbs_file_message_end
+132:   end
+133: 
+134:   #=============================================================================
+135:   # Save type data to PBS file
+136:   #=============================================================================
+137:   def write_types
+138:     write_PBS_file_generic(GameData::Type)
+139:   end
+140: 
+141:   #=============================================================================
+142:   # Save ability data to PBS file
+143:   #=============================================================================
+144:   def write_abilities
+145:     write_PBS_file_generic(GameData::Ability)
+146:   end
+147: 
+148:   #=============================================================================
+149:   # Save move data to PBS file
+150:   #=============================================================================
+151:   def write_moves
+152:     write_PBS_file_generic(GameData::Move)
+153:   end
+154: 
+155:   #=============================================================================
+156:   # Save item data to PBS file
+157:   #=============================================================================
+158:   def write_items
+159:     write_PBS_file_generic(GameData::Item)
+160:   end
+161: 
+162:   #=============================================================================
+163:   # Save berry plant data to PBS file
+164:   #=============================================================================
+165:   def write_berry_plants
+166:     write_PBS_file_generic(GameData::BerryPlant)
+167:   end
+168: 
+169:   #=============================================================================
+170:   # Save Pokémon data to PBS file
+171:   # NOTE: Doesn't use write_PBS_file_generic because it needs to ignore defined
+172:   #       species with a form that isn't 0.
+173:   #=============================================================================
+174:   def write_pokemon
+175:     paths = []
+176:     GameData::Species.each_species { |element| paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix) }
+177:     paths.each_with_index do |element, i|
+178:       paths[i] = [sprintf("PBS/%s.txt", GameData::Species::PBS_BASE_FILENAME[0]), element]
+179:       if !nil_or_empty?(element)
+180:         paths[i][0] = sprintf("PBS/%s_%s.txt", GameData::Species::PBS_BASE_FILENAME[0], element)
+181:       end
+182:     end
+183:     schema = GameData::Species.schema
+184:     idx = 0
+185:     paths.each do |path|
+186:       write_pbs_file_message_start(path[0])
+187:       File.open(path[0], "wb") do |f|
+188:         add_PBS_header_to_file(f)
+189:         # Write each element in turn
+190:         GameData::Species.each_species do |element|
+191:           next if element.pbs_file_suffix != path[1]
+192:           echo "." if idx % 100 == 0
+193:           Graphics.update if idx % 500 == 0
+194:           idx += 1
+195:           f.write("\#-------------------------------\r\n")
+196:           if schema["SectionName"]
+197:             f.write("[")
+198:             pbWriteCsvRecord(element.get_property_for_PBS("SectionName"), f, schema["SectionName"])
+199:             f.write("]\r\n")
+200:           else
+201:             f.write("[#{element.id}]\r\n")
+202:           end
+203:           schema.each_key do |key|
+204:             next if key == "SectionName"
+205:             val = element.get_property_for_PBS(key)
+206:             next if val.nil?
+207:             if schema[key][1][0] == "^" && val.is_a?(Array)
+208:               val.each do |sub_val|
+209:                 f.write(sprintf("%s = ", key))
+210:                 pbWriteCsvRecord(sub_val, f, schema[key])
+211:                 f.write("\r\n")
+212:               end
+213:             else
+214:               f.write(sprintf("%s = ", key))
+215:               pbWriteCsvRecord(val, f, schema[key])
+216:               f.write("\r\n")
+217:             end
+218:           end
+219:         end
+220:       end
+221:       process_pbs_file_message_end
+222:     end
+223:   end
+224: 
+225:   #=============================================================================
+226:   # Save Pokémon forms data to PBS file
+227:   # NOTE: Doesn't use write_PBS_file_generic because it needs to ignore defined
+228:   #       species with a form of 0, and needs its own schema.
+229:   #=============================================================================
+230:   def write_pokemon_forms
+231:     paths = []
+232:     GameData::Species.each do |element|
+233:       next if element.form == 0
+234:       paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix)
+235:     end
+236:     paths.each_with_index do |element, i|
+237:       paths[i] = [sprintf("PBS/%s.txt", GameData::Species::PBS_BASE_FILENAME[1]), element]
+238:       if !nil_or_empty?(element)
+239:         paths[i][0] = sprintf("PBS/%s_%s.txt", GameData::Species::PBS_BASE_FILENAME[1], element)
+240:       end
+241:     end
+242:     schema = GameData::Species.schema(true)
+243:     idx = 0
+244:     paths.each do |path|
+245:       write_pbs_file_message_start(path[0])
+246:       File.open(path[0], "wb") do |f|
+247:         add_PBS_header_to_file(f)
+248:         # Write each element in turn
+249:         GameData::Species.each do |element|
+250:           next if element.form == 0
+251:           next if element.pbs_file_suffix != path[1]
+252:           echo "." if idx % 100 == 0
+253:           Graphics.update if idx % 500 == 0
+254:           idx += 1
+255:           f.write("\#-------------------------------\r\n")
+256:           if schema["SectionName"]
+257:             f.write("[")
+258:             pbWriteCsvRecord(element.get_property_for_PBS("SectionName", true), f, schema["SectionName"])
+259:             f.write("]\r\n")
+260:           else
+261:             f.write("[#{element.id}]\r\n")
+262:           end
+263:           schema.each_key do |key|
+264:             next if key == "SectionName"
+265:             val = element.get_property_for_PBS(key, true)
+266:             next if val.nil?
+267:             if schema[key][1][0] == "^" && val.is_a?(Array)
+268:               val.each do |sub_val|
+269:                 f.write(sprintf("%s = ", key))
+270:                 pbWriteCsvRecord(sub_val, f, schema[key])
+271:                 f.write("\r\n")
+272:               end
+273:             else
+274:               f.write(sprintf("%s = ", key))
+275:               pbWriteCsvRecord(val, f, schema[key])
+276:               f.write("\r\n")
+277:             end
+278:           end
+279:         end
+280:       end
+281:       process_pbs_file_message_end
+282:     end
+283:   end
+284: 
+285:   #=============================================================================
+286:   # Write species metrics
+287:   # NOTE: Doesn't use write_PBS_file_generic because it needs to ignore defined
+288:   #       metrics for forms of species where the metrics are the same as for the
+289:   #       base species.
+290:   #=============================================================================
+291:   def write_pokemon_metrics
+292:     paths = []
+293:     GameData::SpeciesMetrics.each do |element|
+294:       next if element.form == 0
+295:       paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix)
+296:     end
+297:     paths.each_with_index do |element, i|
+298:       paths[i] = [sprintf("PBS/%s.txt", GameData::SpeciesMetrics::PBS_BASE_FILENAME), element]
+299:       if !nil_or_empty?(element)
+300:         paths[i][0] = sprintf("PBS/%s_%s.txt", GameData::SpeciesMetrics::PBS_BASE_FILENAME, element)

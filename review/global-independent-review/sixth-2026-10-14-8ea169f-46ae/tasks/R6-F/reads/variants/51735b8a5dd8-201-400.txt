@@ -1,0 +1,201 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/005_Battle_ActionSwitching.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "a6103eebe572aa03b029de30a133a69808922eec", "sha256": "d72e947b222af17449e49af57226a5ee466a2295f4ca8182ca697f0c75299f53", "start_line": 201, "end_line": 400, "total_lines": 469, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:28:31.590905+00:00"}
+201:       break if switched.length == 0
+202:       pbOnBattlerEnteringBattle(switched)
+203:     end
+204:   end
+205: 
+206:   def pbGetReplacementPokemonIndex(idxBattler, random = false)
+207:     if random
+208:       choices = []   # Find all Pokémon that can switch in
+209:       eachInTeamFromBattlerIndex(idxBattler) do |_pkmn, i|
+210:         choices.push(i) if pbCanSwitchIn?(idxBattler, i)
+211:       end
+212:       return -1 if choices.length == 0
+213:       return choices[pbRandom(choices.length)]
+214:     else
+215:       return pbSwitchInBetween(idxBattler, true)
+216:     end
+217:   end
+218: 
+219:   # Actually performs the recalling and sending out in all situations.
+220:   def pbRecallAndReplace(idxBattler, idxParty, randomReplacement = false, batonPass = false)
+221:     @scene.pbRecall(idxBattler) if !@battlers[idxBattler].fainted?
+222:     @battlers[idxBattler].pbAbilitiesOnSwitchOut   # Inc. primordial weather check
+223:     @scene.pbShowPartyLineup(idxBattler & 1) if pbSideSize(idxBattler) == 1
+224:     pbMessagesOnReplace(idxBattler, idxParty) if !randomReplacement
+225:     pbReplace(idxBattler, idxParty, batonPass)
+226:   end
+227: 
+228:   def pbMessageOnRecall(battler)
+229:     if battler.pbOwnedByPlayer?
+230:       if battler.hp <= battler.totalhp / 4
+231:         pbDisplayBrief(_INTL("Good job, {1}! Come back!", battler.name))
+232:       elsif battler.hp <= battler.totalhp / 2
+233:         pbDisplayBrief(_INTL("OK, {1}! Come back!", battler.name))
+234:       elsif battler.turnCount >= 5
+235:         pbDisplayBrief(_INTL("{1}, that's enough! Come back!", battler.name))
+236:       elsif battler.turnCount >= 2
+237:         pbDisplayBrief(_INTL("{1}, come back!", battler.name))
+238:       else
+239:         pbDisplayBrief(_INTL("{1}, switch out! Come back!", battler.name))
+240:       end
+241:     else
+242:       owner = pbGetOwnerName(battler.index)
+243:       pbDisplayBrief(_INTL("{1} withdrew {2}!", owner, battler.name))
+244:     end
+245:   end
+246: 
+247:   # Only called from def pbRecallAndReplace and Battle Arena's def pbSwitch.
+248:   def pbMessagesOnReplace(idxBattler, idxParty)
+249:     party = pbParty(idxBattler)
+250:     newPkmnName = party[idxParty].name
+251:     if party[idxParty].ability == :ILLUSION && !pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+252:       new_index = pbLastInTeam(idxBattler)
+253:       newPkmnName = party[new_index].name if new_index >= 0 && new_index != idxParty
+254:     end
+255:     if pbOwnedByPlayer?(idxBattler)
+256:       opposing = @battlers[idxBattler].pbDirectOpposing
+257:       if opposing.fainted? || opposing.hp == opposing.totalhp
+258:         pbDisplayBrief(_INTL("You're in charge, {1}!", newPkmnName))
+259:       elsif opposing.hp >= opposing.totalhp / 2
+260:         pbDisplayBrief(_INTL("Go for it, {1}!", newPkmnName))
+261:       elsif opposing.hp >= opposing.totalhp / 4
+262:         pbDisplayBrief(_INTL("Just a little more! Hang in there, {1}!", newPkmnName))
+263:       else
+264:         pbDisplayBrief(_INTL("Your opponent's weak! Get 'em, {1}!", newPkmnName))
+265:       end
+266:     else
+267:       owner = pbGetOwnerFromBattlerIndex(idxBattler)
+268:       pbDisplayBrief(_INTL("{1} sent out {2}!", owner.full_name, newPkmnName))
+269:     end
+270:   end
+271: 
+272:   # Only called from def pbRecallAndReplace above and Battle Arena's def
+273:   # pbSwitch.
+274:   def pbReplace(idxBattler, idxParty, batonPass = false)
+275:     party = pbParty(idxBattler)
+276:     idxPartyOld = @battlers[idxBattler].pokemonIndex
+277:     # Initialise the new Pokémon
+278:     @battlers[idxBattler].pbInitialize(party[idxParty], idxParty, batonPass)
+279:     # Reorder the party for this battle
+280:     partyOrder = pbPartyOrder(idxBattler)
+281:     partyOrder[idxParty], partyOrder[idxPartyOld] = partyOrder[idxPartyOld], partyOrder[idxParty]
+282:     # Send out the new Pokémon
+283:     pbSendOut([[idxBattler, party[idxParty]]])
+284:     pbCalculatePriority(false, [idxBattler]) if Settings::RECALCULATE_TURN_ORDER_AFTER_SPEED_CHANGES
+285:   end
+286: 
+287:   # Called from def pbReplace above and at the start of battle.
+288:   # sendOuts is an array; each element is itself an array: [idxBattler,pkmn]
+289:   def pbSendOut(sendOuts, startBattle = false)
+290:     sendOuts.each { |b| @peer.pbOnEnteringBattle(self, @battlers[b[0]], b[1]) }
+291:     @scene.pbSendOutBattlers(sendOuts, startBattle)
+292:     sendOuts.each do |b|
+293:       @scene.pbResetCommandsIndex(b[0])
+294:       pbSetSeen(@battlers[b[0]])
+295:       @usedInBattle[b[0] & 1][b[0] / 2] = true
+296:     end
+297:   end
+298: 
+299:   #=============================================================================
+300:   # Effects upon a Pokémon entering battle
+301:   #=============================================================================
+302:   # Called at the start of battle only.
+303:   def pbOnAllBattlersEnteringBattle
+304:     pbCalculatePriority(true)
+305:     battler_indices = []
+306:     allBattlers.each { |b| battler_indices.push(b.index) }
+307:     pbOnBattlerEnteringBattle(battler_indices)
+308:     pbCalculatePriority
+309:     # Check forms are correct
+310:     allBattlers.each { |b| b.pbCheckForm }
+311:   end
+312: 
+313:   # Called when one or more Pokémon switch in. Does a lot of things, including
+314:   # entry hazards, form changes and items/abilities that trigger upon switching
+315:   # in.
+316:   def pbOnBattlerEnteringBattle(battler_index, skip_event_reset = false)
+317:     battler_index = [battler_index] if !battler_index.is_a?(Array)
+318:     battler_index.flatten!
+319:     # NOTE: This isn't done for switch commands, because they previously call
+320:     #       pbRecallAndReplace, which could cause Neutralizing Gas to end, which
+321:     #       in turn could cause Intimidate to trigger another Pokémon's Eject
+322:     #       Pack. That Eject Pack should trigger at the end of this method, but
+323:     #       this resetting would prevent that from happening, so it is skipped
+324:     #       and instead done earlier in def pbAttackPhaseSwitch.
+325:     if !skip_event_reset
+326:       allBattlers.each do |b|
+327:         b.droppedBelowHalfHP = false
+328:         b.statsDropped = false
+329:       end
+330:     end
+331:     # For each battler that entered battle, in speed order
+332:     pbPriority(true).each do |b|
+333:       next if !battler_index.include?(b.index) || b.fainted?
+334:       pbRecordBattlerAsParticipated(b)
+335:       pbMessagesOnBattlerEnteringBattle(b)
+336:       # Position/field effects triggered by the battler appearing
+337:       pbEffectsOnBattlerEnteringPosition(b)   # Healing Wish/Lunar Dance
+338:       pbEntryHazards(b)
+339:       # Battler faints if it is knocked out because of an entry hazard above
+340:       if b.fainted?
+341:         b.pbFaint
+342:         pbGainExp
+343:         pbJudge
+344:         next
+345:       end
+346:       b.pbCheckForm
+347:       # Primal Revert upon entering battle
+348:       pbPrimalReversion(b.index)
+349:       # Ending primordial weather, checking Trace
+350:       b.pbContinualAbilityChecks(true)
+351:       # Abilities that trigger upon switching in
+352:       if (!b.fainted? && b.unstoppableAbility?) || b.abilityActive?
+353:         Battle::AbilityEffects.triggerOnSwitchIn(b.ability, b, self, true)
+354:       end
+355:       pbEndPrimordialWeather   # Checking this again just in case
+356:       # Items that trigger upon switching in (Air Balloon message)
+357:       if b.itemActive?
+358:         Battle::ItemEffects.triggerOnSwitchIn(b.item, b, self)
+359:       end
+360:       # Berry check, status-curing ability check
+361:       b.pbHeldItemTriggerCheck
+362:       b.pbAbilityStatusCureCheck
+363:     end
+364:     # Check for triggering of Emergency Exit/Wimp Out/Eject Pack (only one will
+365:     # be triggered)
+366:     pbPriority(true).each do |b|
+367:       break if b.pbItemOnStatDropped
+368:       break if b.pbAbilitiesOnDamageTaken
+369:     end
+370:     allBattlers.each do |b|
+371:       b.droppedBelowHalfHP = false
+372:       b.statsDropped = false
+373:     end
+374:   end
+375: 
+376:   def pbRecordBattlerAsParticipated(battler)
+377:     # Record money-doubling effect of Amulet Coin/Luck Incense
+378:     if !battler.opposes? && [:AMULETCOIN, :LUCKINCENSE].include?(battler.item_id)
+379:       @field.effects[PBEffects::AmuletCoin] = true
+380:     end
+381:     # Update battlers' participants (who will gain Exp/EVs when a battler faints)
+382:     allBattlers.each { |b| b.pbUpdateParticipants }
+383:   end
+384: 
+385:   def pbMessagesOnBattlerEnteringBattle(battler)
+386:     # Introduce Shadow Pokémon
+387:     if battler.shadowPokemon?
+388:       pbCommonAnimation("Shadow", battler)
+389:       pbDisplay(_INTL("Oh!\nA Shadow Pokémon!")) if battler.opposes?
+390:     end
+391:   end
+392: 
+393:   # Called when a Pokémon enters battle, and when Ally Switch is used.
+394:   def pbEffectsOnBattlerEnteringPosition(battler)
+395:     position = @positions[battler.index]
+396:     # Healing Wish
+397:     if position.effects[PBEffects::HealingWish]
+398:       if battler.canHeal? || battler.status != :NONE
+399:         pbCommonAnimation("HealingWish", battler)
+400:         pbDisplay(_INTL("The healing wish came true for {1}!", battler.pbThis(true)))

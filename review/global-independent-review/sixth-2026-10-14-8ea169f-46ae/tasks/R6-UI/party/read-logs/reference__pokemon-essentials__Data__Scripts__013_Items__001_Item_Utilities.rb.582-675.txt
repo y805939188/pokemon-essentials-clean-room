@@ -1,0 +1,95 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/013_Items/001_Item_Utilities.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [582, 675], "total_lines": 917, "sha256": "d475b64f3f0011bf9312ff3e0fbe415edc51edb46a60e00db084b4fc12b1bff8", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:20:07.577666+00:00"}
+582: def pbLearnMove(pkmn, move, ignore_if_known = false, by_machine = false, &block)
+583:   return false if !pkmn
+584:   move = GameData::Move.get(move).id
+585:   if pkmn.egg? && !$DEBUG
+586:     pbMessage(_INTL("Eggs can't be taught any moves."), &block)
+587:     return false
+588:   elsif pkmn.shadowPokemon?
+589:     pbMessage(_INTL("Shadow Pokémon can't be taught any moves."), &block)
+590:     return false
+591:   end
+592:   pkmn_name = pkmn.name
+593:   move_name = GameData::Move.get(move).name
+594:   if pkmn.hasMove?(move)
+595:     pbMessage(_INTL("{1} already knows {2}.", pkmn_name, move_name), &block) if !ignore_if_known
+596:     return false
+597:   elsif pkmn.numMoves < Pokemon::MAX_MOVES
+598:     pkmn.learn_move(move)
+599:     pbMessage("\\se[]" + _INTL("{1} learned {2}!", pkmn_name, move_name) + "\\se[Pkmn move learnt]", &block)
+600:     return true
+601:   end
+602:   pbMessage(_INTL("{1} wants to learn {2}, but it already knows {3} moves.",
+603:                   pkmn_name, move_name, pkmn.numMoves.to_word) + "\1", &block)
+604:   if pbConfirmMessage(_INTL("Should {1} forget a move to learn {2}?", pkmn_name, move_name), &block)
+605:     loop do
+606:       move_index = pbForgetMove(pkmn, move)
+607:       if move_index >= 0
+608:         old_move_name = pkmn.moves[move_index].name
+609:         oldmovepp = pkmn.moves[move_index].pp
+610:         pkmn.moves[move_index] = Pokemon::Move.new(move)   # Replaces current/total PP
+611:         if by_machine && Settings::TAUGHT_MACHINES_KEEP_OLD_PP
+612:           pkmn.moves[move_index].pp = [oldmovepp, pkmn.moves[move_index].total_pp].min
+613:         end
+614:         pbMessage(_INTL("1, 2, and...\\wt[16] ...\\wt[16] ...\\wt[16] Ta-da!") + "\\se[Battle ball drop]\1", &block)
+615:         pbMessage(_INTL("{1} forgot how to use {2}.\\nAnd..." + "\1", pkmn_name, old_move_name), &block)
+616:         pbMessage("\\se[]" + _INTL("{1} learned {2}!", pkmn_name, move_name) + "\\se[Pkmn move learnt]", &block)
+617:         pkmn.changeHappiness("machine") if by_machine
+618:         return true
+619:       elsif pbConfirmMessage(_INTL("Give up on learning {1}?", move_name), &block)
+620:         pbMessage(_INTL("{1} did not learn {2}.", pkmn_name, move_name), &block)
+621:         return false
+622:       end
+623:     end
+624:   else
+625:     pbMessage(_INTL("{1} did not learn {2}.", pkmn_name, move_name), &block)
+626:   end
+627:   return false
+628: end
+629: 
+630: def pbForgetMove(pkmn, moveToLearn)
+631:   ret = -1
+632:   pbFadeOutIn do
+633:     scene = PokemonSummary_Scene.new
+634:     screen = PokemonSummaryScreen.new(scene)
+635:     ret = screen.pbStartForgetScreen([pkmn], 0, moveToLearn)
+636:   end
+637:   return ret
+638: end
+639: 
+640: #===============================================================================
+641: # Use an item from the Bag and/or on a Pokémon
+642: #===============================================================================
+643: # @return [Integer] 0 = item wasn't used; 1 = item used; 2 = close Bag to use in field
+644: def pbUseItem(bag, item, bagscene = nil)
+645:   itm = GameData::Item.get(item)
+646:   useType = itm.field_use
+647:   if useType == 1   # Item is usable on a Pokémon
+648:     if $player.pokemon_count == 0
+649:       pbMessage(_INTL("There is no Pokémon."))
+650:       return 0
+651:     end
+652:     ret = false
+653:     annot = nil
+654:     if itm.is_evolution_stone?
+655:       annot = []
+656:       $player.party.each do |pkmn|
+657:         elig = pkmn.check_evolution_on_use_item(item)
+658:         annot.push((elig) ? _INTL("ABLE") : _INTL("NOT ABLE"))
+659:       end
+660:     end
+661:     pbFadeOutIn do
+662:       scene = PokemonParty_Scene.new
+663:       screen = PokemonPartyScreen.new(scene, $player.party)
+664:       screen.pbStartScene(_INTL("Use on which Pokémon?"), false, annot)
+665:       loop do
+666:         scene.pbSetHelpText(_INTL("Use on which Pokémon?"))
+667:         chosen = screen.pbChoosePokemon
+668:         if chosen < 0
+669:           ret = false
+670:           break
+671:         end
+672:         pkmn = $player.party[chosen]
+673:         next if !pbCheckUseOnPokemon(item, pkmn, screen)
+674:         qty = 1
+675:         max_at_once = ItemHandlers.triggerUseOnPokemonMaximum(item, pkmn)

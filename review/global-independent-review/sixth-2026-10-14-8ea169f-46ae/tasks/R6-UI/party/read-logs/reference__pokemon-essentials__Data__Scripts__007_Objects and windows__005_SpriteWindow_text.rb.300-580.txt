@@ -1,0 +1,282 @@
+{"path": "reference/pokemon-essentials/Data/Scripts/007_Objects and windows/005_SpriteWindow_text.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "range": [300, 580], "total_lines": 1372, "sha256": "158899460b4e0ba86bfa8fb1fa26e8bbf66ee9333d9eef6cb3d5811fa40ea6d3", "owner": "party", "stage": "delivered_for_semantic_read", "timestamp": "2026-10-14T08:23:21.149345+00:00"}
+300:     @scrollstate = 0
+301:     @scrollY = 0
+302:     @scroll_timer_start = nil
+303:     @linesdrawn = 0
+304:     @realframes = 0
+305:     @textchars = []
+306:     width = 1
+307:     height = 1
+308:     numlines = 0
+309:     visiblelines = (self.height - self.borderY) / @lineHeight
+310:     if value.length == 0
+311:       @fmtchars = []
+312:       @bitmapwidth = width
+313:       @bitmapheight = height
+314:       @numtextchars = 0
+315:     else
+316:       if @letterbyletter
+317:         @fmtchars = []
+318:         fmt = getFormattedText(self.contents, 0, 0,
+319:                                self.width - self.borderX - SpriteWindow_Base::TEXT_PADDING, -1,
+320:                                shadowc3tag(@baseColor, @shadowColor) + value, @lineHeight, true)
+321:         @oldfont = self.contents.font.clone
+322:         fmt.each do |ch|
+323:           chx = ch[1] + ch[3]
+324:           chy = ch[2] + ch[4]
+325:           width  = chx if width < chx
+326:           height = chy if height < chy
+327:           if !ch[5] && ch[0] == "\n"
+328:             numlines += 1
+329:             if numlines >= visiblelines
+330:               fclone = ch.clone
+331:               fclone[0] = "\1"
+332:               @fmtchars.push(fclone)
+333:               @textchars.push("\1")
+334:             end
+335:           end
+336:           # Don't add newline characters, since they
+337:           # can slow down letter-by-letter display
+338:           if ch[5] || (ch[0] != "\r")
+339:             @fmtchars.push(ch)
+340:             @textchars.push(ch[5] ? "" : ch[0])
+341:           end
+342:         end
+343:         fmt.clear
+344:       else
+345:         @fmtchars = getFormattedText(self.contents, 0, 0,
+346:                                      self.width - self.borderX - SpriteWindow_Base::TEXT_PADDING, -1,
+347:                                      shadowc3tag(@baseColor, @shadowColor) + value, @lineHeight, true)
+348:         @oldfont = self.contents.font.clone
+349:         @fmtchars.each do |ch|
+350:           chx = ch[1] + ch[3]
+351:           chy = ch[2] + ch[4]
+352:           width = chx if width < chx
+353:           height = chy if height < chy
+354:           @textchars.push(ch[5] ? "" : ch[0])
+355:         end
+356:       end
+357:       @bitmapwidth = width
+358:       @bitmapheight = height
+359:       @numtextchars = @textchars.length
+360:     end
+361:     stopPause
+362:     @displaying = @letterbyletter
+363:     @needclear = true
+364:     @nodraw = @letterbyletter
+365:     refresh
+366:   end
+367: 
+368:   def busy?
+369:     return @displaying
+370:   end
+371: 
+372:   def pausing?
+373:     return @pausing && @displaying
+374:   end
+375: 
+376:   def resume
+377:     if !busy?
+378:       self.stopPause
+379:       return true
+380:     end
+381:     if @pausing
+382:       @pausing = false
+383:       self.stopPause
+384:       return false
+385:     end
+386:     return true
+387:   end
+388: 
+389:   def position
+390:     return 0 if @lastDrawnChar < 0
+391:     return @numtextchars if @lastDrawnChar >= @fmtchars.length
+392:     # index after the last character's index
+393:     return @fmtchars[@lastDrawnChar][14] + 1
+394:   end
+395: 
+396:   def maxPosition
+397:     pos = 0
+398:     @fmtchars.each do |ch|
+399:       # index after the last character's index
+400:       pos = ch[14] + 1 if pos < ch[14] + 1
+401:     end
+402:     return pos
+403:   end
+404: 
+405:   def skipAhead
+406:     return if !busy?
+407:     return if @textchars[@curchar] == "\n"
+408:     resume
+409:     if curcharSkip(true)
+410:       visiblelines = (self.height - self.borderY) / @lineHeight
+411:       if @textchars[@curchar] == "\n" && @linesdrawn >= visiblelines - 1
+412:         @scroll_timer_start = System.uptime
+413:       elsif @textchars[@curchar] == "\1"
+414:         @pausing = true if @curchar < @numtextchars - 1
+415:         self.startPause
+416:         refresh
+417:       end
+418:     end
+419:   end
+420: 
+421:   def allocPause
+422:     return if @pausesprite
+423:     @pausesprite = AnimatedSprite.create("Graphics/UI/pause_arrow", 4, 3)
+424:     @pausesprite.z       = 100000
+425:     @pausesprite.visible = false
+426:   end
+427: 
+428:   def startPause
+429:     allocPause
+430:     @pausesprite.visible = true
+431:     @pausesprite.frame   = 0
+432:     @pausesprite.start
+433:     moveCursor
+434:   end
+435: 
+436:   def stopPause
+437:     return if !@pausesprite
+438:     @pausesprite.stop
+439:     @pausesprite.visible = false
+440:   end
+441: 
+442:   def moveCursor
+443:     return if !@pausesprite
+444:     cursor = @cursorMode
+445:     cursor = 2 if cursor == 0 && !@endOfText
+446:     case cursor
+447:     when 0   # End of text
+448:       @pausesprite.x = self.x + self.startX + @endOfText.x + @endOfText.width - 2
+449:       @pausesprite.y = self.y + self.startY + @endOfText.y - @scrollY
+450:     when 1   # Lower right
+451:       pauseWidth  = @pausesprite.bitmap ? @pausesprite.framewidth : 16
+452:       pauseHeight = @pausesprite.bitmap ? @pausesprite.frameheight : 16
+453:       @pausesprite.x = self.x + self.width - 40 + (pauseWidth / 2)
+454:       @pausesprite.y = self.y + self.height - 60 + (pauseHeight / 2)
+455:     when 2   # Lower middle
+456:       pauseWidth  = @pausesprite.bitmap ? @pausesprite.framewidth : 16
+457:       pauseHeight = @pausesprite.bitmap ? @pausesprite.frameheight : 16
+458:       @pausesprite.x = self.x + (self.width / 2) - (pauseWidth / 2)
+459:       @pausesprite.y = self.y + self.height - 36 + (pauseHeight / 2)
+460:     end
+461:   end
+462: 
+463:   def refresh
+464:     oldcontents = self.contents
+465:     self.contents = pbDoEnsureBitmap(oldcontents, @bitmapwidth, @bitmapheight)
+466:     self.oy       = @scrollY
+467:     numchars = @numtextchars
+468:     numchars = [@curchar, @numtextchars].min if self.letterbyletter
+469:     return if busy? && @drawncurchar == @curchar && !@scroll_timer_start
+470:     if !self.letterbyletter || !oldcontents.equal?(self.contents)
+471:       @drawncurchar = -1
+472:       @needclear    = true
+473:     end
+474:     if @needclear
+475:       self.contents.font = @oldfont if @oldfont
+476:       self.contents.clear
+477:       @needclear = false
+478:     end
+479:     if @nodraw
+480:       @nodraw = false
+481:       return
+482:     end
+483:     maxX = self.width - self.borderX
+484:     maxY = self.height - self.borderY
+485:     (@drawncurchar + 1..numchars).each do |i|
+486:       next if i >= @fmtchars.length
+487:       if !self.letterbyletter
+488:         next if @fmtchars[i][1] >= maxX
+489:         next if @fmtchars[i][2] >= maxY
+490:       end
+491:       drawSingleFormattedChar(self.contents, @fmtchars[i])
+492:       @lastDrawnChar = i
+493:     end
+494:     # all characters were drawn, reset old font
+495:     self.contents.font = @oldfont if !self.letterbyletter && @oldfont
+496:     if numchars > 0 && numchars != @numtextchars
+497:       fch = @fmtchars[numchars - 1]
+498:       if fch
+499:         rcdst = Rect.new(fch[1], fch[2], fch[3], fch[4])
+500:         if @textchars[numchars] == "\1"
+501:           @endOfText = rcdst
+502:           allocPause
+503:           moveCursor
+504:         else
+505:           @endOfText = Rect.new(rcdst.x + rcdst.width, rcdst.y, 8, 1)
+506:         end
+507:       end
+508:     end
+509:     @drawncurchar = @curchar
+510:   end
+511: 
+512:   def redrawText
+513:     if @letterbyletter
+514:       oldPosition = self.position
+515:       self.text = self.text   # Clears the text already drawn
+516:       oldPosition = @numtextchars if oldPosition > @numtextchars
+517:       while self.position != oldPosition
+518:         refresh
+519:         updateInternal
+520:       end
+521:     else
+522:       self.text = self.text
+523:     end
+524:   end
+525: 
+526:   def updateInternal
+527:     time_now = System.uptime
+528:     @display_last_updated = time_now if !@display_last_updated
+529:     delta_t = time_now - @display_last_updated
+530:     @display_last_updated = time_now
+531:     visiblelines = (self.height - self.borderY) / @lineHeight
+532:     @lastchar = -1 if !@lastchar
+533:     show_more_characters = false
+534:     # Pauses and new lines
+535:     if @textchars[@curchar] == "\1"   # Waiting
+536:       show_more_characters = true if !@pausing
+537:     elsif @textchars[@curchar] == "\n"   # Move to new line
+538:       if @linesdrawn >= visiblelines - 1   # Need to scroll text to show new line
+539:         if @scroll_timer_start
+540:           old_y = @scrollstate
+541:           new_y = lerp(0, @lineHeight, 0.1, @scroll_timer_start, time_now)
+542:           @scrollstate = new_y
+543:           @scrollY += new_y - old_y
+544:           if @scrollstate >= @lineHeight
+545:             @scrollstate = 0
+546:             @scroll_timer_start = nil
+547:             @linesdrawn += 1
+548:             show_more_characters = true
+549:           end
+550:         else
+551:           show_more_characters = true
+552:         end
+553:       else   # New line but the next line can be shown without scrolling to it
+554:         @linesdrawn += 1 if @lastchar < @curchar
+555:         show_more_characters = true
+556:       end
+557:     elsif @curchar <= @numtextchars   # Displaying more text
+558:       show_more_characters = true
+559:     else
+560:       @displaying = false
+561:       @scrollstate = 0
+562:       @scrollY = 0
+563:       @scroll_timer_start = nil
+564:       @linesdrawn = 0
+565:     end
+566:     @lastchar = @curchar
+567:     # Keep displaying more text
+568:     if show_more_characters
+569:       @display_timer += delta_t
+570:       if curcharSkip
+571:         if @textchars[@curchar] == "\n" && @linesdrawn >= visiblelines - 1
+572:           @scroll_timer_start = time_now
+573:         elsif @textchars[@curchar] == "\1"
+574:           @pausing = true if @curchar < @numtextchars - 1
+575:           self.startPause
+576:           refresh
+577:         end
+578:       end
+579:     end
+580:   end

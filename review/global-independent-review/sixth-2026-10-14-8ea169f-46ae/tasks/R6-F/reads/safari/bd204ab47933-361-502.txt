@@ -1,0 +1,143 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/008_Other battle types/001_SafariBattle.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "91d69682f07e9679a0e9c83c3162c281f63b8b1a", "sha256": "2f7267ec090a62b21ed71df1dc54464128de429f445ce5ce2f79d4561c09cb45", "start_line": 361, "end_line": 502, "total_lines": 502, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:27:33.458160+00:00"}
+361:   end
+362: 
+363:   #-----------------------------------------------------------------------------
+364:   # Get party info (counts all teams on the same side)
+365:   #-----------------------------------------------------------------------------
+366:   def pbParty(idxBattler)
+367:     return (opposes?(idxBattler)) ? @party2 : nil
+368:   end
+369: 
+370:   def pbAllFainted?(idxBattler = 0); return false; end
+371: 
+372:   #-----------------------------------------------------------------------------
+373:   # Battler-related
+374:   #-----------------------------------------------------------------------------
+375:   def opposes?(idxBattler1, idxBattler2 = 0)
+376:     idxBattler1 = idxBattler1.index if idxBattler1.respond_to?("index")
+377:     idxBattler2 = idxBattler2.index if idxBattler2.respond_to?("index")
+378:     return (idxBattler1 & 1) != (idxBattler2 & 1)
+379:   end
+380: 
+381:   def pbRemoveFromParty(idxBattler, idxParty); end
+382:   def pbGainExp; end
+383: 
+384:   #-----------------------------------------------------------------------------
+385:   # Messages and animations
+386:   #-----------------------------------------------------------------------------
+387:   def pbDisplay(msg, &block)
+388:     @scene.pbDisplayMessage(msg, &block)
+389:   end
+390: 
+391:   def pbDisplayPaused(msg, &block)
+392:     @scene.pbDisplayPausedMessage(msg, &block)
+393:   end
+394: 
+395:   def pbDisplayBrief(msg)
+396:     @scene.pbDisplayMessage(msg, true)
+397:   end
+398: 
+399:   def pbDisplayConfirm(msg)
+400:     return @scene.pbDisplayConfirmMessage(msg)
+401:   end
+402: 
+403:   class BattleAbortedException < Exception; end
+404: 
+405:   def pbAbort
+406:     raise BattleAbortedException.new("Battle aborted")
+407:   end
+408: 
+409:   #-----------------------------------------------------------------------------
+410:   # Safari battle-specific methods
+411:   #-----------------------------------------------------------------------------
+412:   def pbEscapeRate(catch_rate)
+413:     return 125 if catch_rate <= 45   # Escape factor 9 (45%)
+414:     return 100 if catch_rate <= 60   # Escape factor 7 (35%)
+415:     return 75 if catch_rate <= 120   # Escape factor 5 (25%)
+416:     return 50 if catch_rate <= 250   # Escape factor 3 (15%)
+417:     return 25                        # Escape factor 2 (10%)
+418:   end
+419: 
+420:   def pbStartBattle
+421:     begin
+422:       pkmn = @party2[0]
+423:       pbSetSeen(pkmn)
+424:       @scene.pbStartBattle(self)
+425:       pbDisplayPaused(_INTL("Wild {1} appeared!", pkmn.name))
+426:       @scene.pbSafariStart
+427:       weather_data = GameData::BattleWeather.try_get(@weather)
+428:       @scene.pbCommonAnimation(weather_data.animation) if weather_data
+429:       safariBall = GameData::Item.get(:SAFARIBALL).id
+430:       catch_rate = pkmn.species_data.catch_rate
+431:       catchFactor  = (catch_rate * 100) / 1275
+432:       catchFactor  = [[catchFactor, 3].max, 20].min
+433:       escapeFactor = (pbEscapeRate(catch_rate) * 100) / 1275
+434:       escapeFactor = [[escapeFactor, 2].max, 20].min
+435:       loop do
+436:         cmd = @scene.pbSafariCommandMenu(0)
+437:         case cmd
+438:         when 0   # Ball
+439:           if pbBoxesFull?
+440:             pbDisplay(_INTL("The boxes are full! You can't catch any more Pokémon!"))
+441:             next
+442:           end
+443:           @ballCount -= 1
+444:           @scene.pbRefresh
+445:           rare = (catchFactor * 1275) / 100
+446:           if safariBall
+447:             pbThrowPokeBall(1, safariBall, rare, true)
+448:             if @caughtPokemon.length > 0
+449:               pbRecordAndStoreCaughtPokemon
+450:               @decision = 4
+451:             end
+452:           end
+453:         when 1   # Bait
+454:           pbDisplayBrief(_INTL("{1} threw some bait at the {2}!", self.pbPlayer.name, pkmn.name))
+455:           @scene.pbThrowBait
+456:           catchFactor  /= 2 if pbRandom(100) < 90   # Harder to catch
+457:           escapeFactor /= 2                       # Less likely to escape
+458:         when 2   # Rock
+459:           pbDisplayBrief(_INTL("{1} threw a rock at the {2}!", self.pbPlayer.name, pkmn.name))
+460:           @scene.pbThrowRock
+461:           catchFactor  *= 2                       # Easier to catch
+462:           escapeFactor *= 2 if pbRandom(100) < 90   # More likely to escape
+463:         when 3   # Run
+464:           pbSEPlay("Battle flee")
+465:           pbDisplayPaused(_INTL("You got away safely!"))
+466:           @decision = 3
+467:         else
+468:           next
+469:         end
+470:         catchFactor  = [[catchFactor, 3].max, 20].min
+471:         escapeFactor = [[escapeFactor, 2].max, 20].min
+472:         # End of round
+473:         if @decision == 0
+474:           if @ballCount <= 0
+475:             pbSEPlay("Safari Zone end")
+476:             pbDisplay(_INTL("PA: You have no Safari Balls left! Game over!"))
+477:             @decision = 2
+478:           elsif pbRandom(100) < 5 * escapeFactor
+479:             pbSEPlay("Battle flee")
+480:             pbDisplay(_INTL("{1} fled!", pkmn.name))
+481:             @decision = 3
+482:           elsif cmd == 1   # Bait
+483:             pbDisplay(_INTL("{1} is eating!", pkmn.name))
+484:           elsif cmd == 2   # Rock
+485:             pbDisplay(_INTL("{1} is angry!", pkmn.name))
+486:           else
+487:             pbDisplay(_INTL("{1} is watching carefully!", pkmn.name))
+488:           end
+489:           # Weather continues
+490:           weather_data = GameData::BattleWeather.try_get(@weather)
+491:           @scene.pbCommonAnimation(weather_data.animation) if weather_data
+492:         end
+493:         break if @decision > 0
+494:       end
+495:       @scene.pbEndBattle(@decision)
+496:     rescue BattleAbortedException
+497:       @decision = 0
+498:       @scene.pbEndBattle(@decision)
+499:     end
+500:     return @decision
+501:   end
+502: end

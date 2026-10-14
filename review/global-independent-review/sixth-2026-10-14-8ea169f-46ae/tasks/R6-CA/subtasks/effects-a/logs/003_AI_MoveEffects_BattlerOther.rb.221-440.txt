@@ -1,0 +1,220 @@
+221:         m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanParalyze?(target.battler, false, m)
+222:       }
+223:       # Don't prefer if the target can heal itself (or be healed by an ally)
+224:       if target.has_active_ability?(:SHEDSKIN)
+225:         score -= 8
+226:       elsif target.has_active_ability?(:HYDRATION) &&
+227:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+228:         score -= 15
+229:       end
+230:       ai.each_same_side_battler(target.side) do |b, i|
+231:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+232:       end
+233:     end
+234:     next score
+235:   }
+236: )
+237: 
+238: #===============================================================================
+239: #
+240: #===============================================================================
+241: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("ParalyzeTargetIfNotTypeImmune",
+242:   proc { |move, user, target, ai, battle|
+243:     eff = target.effectiveness_of_type_against_battler(move.rough_type, user, move)
+244:     next true if Effectiveness.ineffective?(eff)
+245:     next true if move.statusMove? && !target.battler.pbCanParalyze?(user.battler, false, move.move)
+246:     next false
+247:   }
+248: )
+249: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("ParalyzeTarget",
+250:                                                         "ParalyzeTargetIfNotTypeImmune")
+251: 
+252: #===============================================================================
+253: #
+254: #===============================================================================
+255: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("ParalyzeTarget",
+256:                                                         "ParalyzeTargetAlwaysHitsInRainHitsTargetInSky")
+257: 
+258: #===============================================================================
+259: #
+260: #===============================================================================
+261: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("ParalyzeFlinchTarget",
+262:   proc { |score, move, user, target, ai, battle|
+263:     paralyze_score = Battle::AI::Handlers.apply_move_effect_against_target_score("ParalyzeTarget",
+264:        0, move, user, target, ai, battle)
+265:     flinch_score = Battle::AI::Handlers.apply_move_effect_against_target_score("FlinchTarget",
+266:        0, move, user, target, ai, battle)
+267:     if paralyze_score == Battle::AI::MOVE_USELESS_SCORE &&
+268:        flinch_score == Battle::AI::MOVE_USELESS_SCORE
+269:       next Battle::AI::MOVE_USELESS_SCORE
+270:     end
+271:     score += paralyze_score if paralyze_score != Battle::AI::MOVE_USELESS_SCORE
+272:     score += flinch_score if flinch_score != Battle::AI::MOVE_USELESS_SCORE
+273:     next score
+274:   }
+275: )
+276: 
+277: #===============================================================================
+278: #
+279: #===============================================================================
+280: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("BurnTarget",
+281:   proc { |move, user, target, ai, battle|
+282:     next move.statusMove? && !target.battler.pbCanBurn?(user.battler, false, move.move)
+283:   }
+284: )
+285: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("BurnTarget",
+286:   proc { |score, move, user, target, ai, battle|
+287:     useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+288:     # No score modifier if the burn will be removed immediately
+289:     next useless_score if target.has_active_item?([:RAWSTBERRY, :LUMBERRY])
+290:     next useless_score if target.faster_than?(user) &&
+291:                           target.has_active_ability?(:HYDRATION) &&
+292:                           [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+293:     if target.battler.pbCanBurn?(user.battler, false, move.move)
+294:       add_effect = move.get_score_change_for_additional_effect(user, target)
+295:       next useless_score if add_effect == -999   # Additional effect will be negated
+296:       score += add_effect
+297:       # Inherent preference
+298:       score += 15
+299:       # Prefer if the target knows any physical moves that will be weaked by a burn
+300:       if !target.has_active_ability?(:GUTS) && target.check_for_move { |m| m.physicalMove? }
+301:         score += 8
+302:         score += 8 if !target.check_for_move { |m| m.specialMove? }
+303:       end
+304:       # Prefer if the user or an ally has a move/ability that is better if the target is burned
+305:       ai.each_same_side_battler(user.side) do |b, i|
+306:         score += 5 if b.has_move_with_function?("DoublePowerIfTargetStatusProblem")
+307:       end
+308:       # Don't prefer if target benefits from having the burn status problem
+309:       score -= 8 if target.has_active_ability?([:FLAREBOOST, :GUTS, :MARVELSCALE, :QUICKFEET])
+310:       score -= 5 if target.has_active_ability?(:HEATPROOF)
+311:       score -= 20 if target.has_active_ability?(:SYNCHRONIZE) &&
+312:                      user.battler.pbCanBurnSynchronize?(target.battler)
+313:       score -= 5 if target.has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed",
+314:                                                    "CureUserBurnPoisonParalysis")
+315:       score -= 15 if target.check_for_move { |m|
+316:         m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanBurn?(target.battler, false, m)
+317:       }
+318:       # Don't prefer if the target won't take damage from the burn
+319:       score -= 20 if !target.battler.takesIndirectDamage?
+320:       # Don't prefer if the target can heal itself (or be healed by an ally)
+321:       if target.has_active_ability?(:SHEDSKIN)
+322:         score -= 8
+323:       elsif target.has_active_ability?(:HYDRATION) &&
+324:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+325:         score -= 15
+326:       end
+327:       ai.each_same_side_battler(target.side) do |b, i|
+328:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+329:       end
+330:     end
+331:     next score
+332:   }
+333: )
+334: 
+335: #===============================================================================
+336: #
+337: #===============================================================================
+338: # BurnTargetIfTargetStatsRaisedThisTurn
+339: 
+340: #===============================================================================
+341: #
+342: #===============================================================================
+343: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("BurnFlinchTarget",
+344:   proc { |score, move, user, target, ai, battle|
+345:     burn_score = Battle::AI::Handlers.apply_move_effect_against_target_score("BurnTarget",
+346:        0, move, user, target, ai, battle)
+347:     flinch_score = Battle::AI::Handlers.apply_move_effect_against_target_score("FlinchTarget",
+348:        0, move, user, target, ai, battle)
+349:     if burn_score == Battle::AI::MOVE_USELESS_SCORE &&
+350:        flinch_score == Battle::AI::MOVE_USELESS_SCORE
+351:       next Battle::AI::MOVE_USELESS_SCORE
+352:     end
+353:     score += burn_score if burn_score != Battle::AI::MOVE_USELESS_SCORE
+354:     score += flinch_score if flinch_score != Battle::AI::MOVE_USELESS_SCORE
+355:     next score
+356:   }
+357: )
+358: 
+359: #===============================================================================
+360: #
+361: #===============================================================================
+362: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("FreezeTarget",
+363:   proc { |move, user, target, ai, battle|
+364:     next move.statusMove? && !target.battler.pbCanFreeze?(user.battler, false, move.move)
+365:   }
+366: )
+367: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("FreezeTarget",
+368:   proc { |score, move, user, target, ai, battle|
+369:     useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+370:     # No score modifier if the freeze will be removed immediately
+371:     next useless_score if target.has_active_item?([:ASPEARBERRY, :LUMBERRY])
+372:     next useless_score if target.faster_than?(user) &&
+373:                           target.has_active_ability?(:HYDRATION) &&
+374:                           [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+375:     if target.battler.pbCanFreeze?(user.battler, false, move.move)
+376:       add_effect = move.get_score_change_for_additional_effect(user, target)
+377:       next useless_score if add_effect == -999   # Additional effect will be negated
+378:       score += add_effect
+379:       # Inherent preference
+380:       score += 15
+381:       # Prefer if the user or an ally has a move/ability that is better if the target is frozen
+382:       ai.each_same_side_battler(user.side) do |b, i|
+383:         score += 5 if b.has_move_with_function?("DoublePowerIfTargetStatusProblem")
+384:       end
+385:       # Don't prefer if target benefits from having the frozen status problem
+386:       # NOTE: The target's Guts/Quick Feet will benefit from the target being
+387:       #       frozen, but the target won't be able to make use of them, so
+388:       #       they're not worth considering.
+389:       score -= 8 if target.has_active_ability?(:MARVELSCALE)
+390:       # Don't prefer if the target knows a move that can thaw it
+391:       score -= 15 if target.check_for_move { |m| m.thawsUser? }
+392:       # Don't prefer if the target can heal itself (or be healed by an ally)
+393:       if target.has_active_ability?(:SHEDSKIN)
+394:         score -= 8
+395:       elsif target.has_active_ability?(:HYDRATION) &&
+396:             [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+397:         score -= 15
+398:       end
+399:       ai.each_same_side_battler(target.side) do |b, i|
+400:         score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+401:       end
+402:     end
+403:     next score
+404:   }
+405: )
+406: 
+407: #===============================================================================
+408: #
+409: #===============================================================================
+410: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("FreezeTarget",
+411:                                                         "FreezeTargetSuperEffectiveAgainstWater")
+412: 
+413: #===============================================================================
+414: #
+415: #===============================================================================
+416: Battle::AI::Handlers::MoveEffectAgainstTargetScore.copy("FreezeTarget",
+417:                                                         "FreezeTargetAlwaysHitsInHail")
+418: 
+419: #===============================================================================
+420: #
+421: #===============================================================================
+422: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("FreezeFlinchTarget",
+423:   proc { |score, move, user, target, ai, battle|
+424:     freeze_score = Battle::AI::Handlers.apply_move_effect_against_target_score("FreezeTarget",
+425:        0, move, user, target, ai, battle)
+426:     flinch_score = Battle::AI::Handlers.apply_move_effect_against_target_score("FlinchTarget",
+427:        0, move, user, target, ai, battle)
+428:     if freeze_score == Battle::AI::MOVE_USELESS_SCORE &&
+429:        flinch_score == Battle::AI::MOVE_USELESS_SCORE
+430:       next Battle::AI::MOVE_USELESS_SCORE
+431:     end
+432:     score += freeze_score if freeze_score != Battle::AI::MOVE_USELESS_SCORE
+433:     score += flinch_score if flinch_score != Battle::AI::MOVE_USELESS_SCORE
+434:     next score
+435:   }
+436: )
+437: 
+438: #===============================================================================
+439: #
+440: #===============================================================================

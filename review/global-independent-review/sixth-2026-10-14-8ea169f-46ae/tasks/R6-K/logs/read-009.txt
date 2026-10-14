@@ -1,0 +1,341 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/005_PluginManager.rb RANGE 1-340 TOTAL 664
+1	#==============================================================================#
+2	#                                Plugin Manager                                #
+3	#                                   by Marin                                   #
+4	#               Support for external plugin scripts by Luka S.J.               #
+5	#                              Tweaked by Maruno                               #
+6	#------------------------------------------------------------------------------#
+7	#   Provides a simple interface that allows plugins to require dependencies    #
+8	#   at specific versions, and to specify incompatibilities between plugins.    #
+9	#                                                                              #
+10	#    Supports external scripts that are in .rb files in folders within the     #
+11	#                               Plugins folder.                                #
+12	#------------------------------------------------------------------------------#
+13	#                                   Usage:                                     #
+14	#                                                                              #
+15	# Each plugin should have its own folder in the "Plugins" folder found in the  #
+16	# main directory. The "Plugins" folder is similar in concept to the "PBS"      #
+17	# folder, in that its contents are compiled and recorded as existing. The      #
+18	# plugin's script file(s) are placed in its folder - they must be .rb files.   #
+19	#                                                                              #
+20	# A plugin's folder must also contain a "meta.txt" file. This file is what     #
+21	# makes Essentials recognise that the plugin exists, and contains important    #
+22	# information about the plugin; if this file does not exist, the folder's      #
+23	# contents are ignored. Each line in this file is a property.                  #
+24	#                                                                              #
+25	# Required lines:                                                              #
+26	#                                                                              #
+27	#     Name       = Simple Extension                          The plugin's name #
+28	#     Version    = 1.0                                    The plugin's version #
+29	#     Essentials = 19.1,20                 Compatible version(s) of Essentials #
+30	#     Link       = https://reliccastle.com/link-to-the-plugin/                 #
+31	#     Credits    = Luka S.J.,Maruno,Marin                    One or more names #
+32	#                                                                              #
+33	# A plugin's version should be in the format X or X.Y or X.Y.Z, where X/Y/Z    #
+34	# are numbers. You can also use Xa, Xb, Xc, Ya, etc. What matters is that you  #
+35	# use version numbers consistently for your plugin. A later version will be    #
+36	# alphanumerically higher than an older version.                               #
+37	#                                                                              #
+38	# Plugins can interact with each other in several ways, such as requiring      #
+39	# another one to exist or by clashing with each other. These interactions are  #
+40	# known as dependencies and conflicts. The lines below are all optional, and   #
+41	# go in "meta.txt" to define how your plugin works (or doesn't work) with      #
+42	# others. You can have multiples of each of these lines.                       #
+43	#                                                                              #
+44	#     Requires   = Basic Plugin            Must have this plugin (any version) #
+45	#     Requires   = Useful Utils,1.1         Must have this plugin/min. version #
+46	#     Exact      = Scene Tweaks,2                Must have this plugin/version #
+47	#     Optional   = Extended Windows,1.2   If this plugin exists, load it first #
+48	#     Conflicts  = Complex Extension                       Incompatible plugin #
+49	#                                                                              #
+50	# A plugin that depends on another one ("Requires"/"Exact"/"Optional") will    #
+51	# make that other plugin be loaded first. The "Optional" line is for a plugin  #
+52	# which isn't necessary, but if it does exist in the same project, it must be  #
+53	# at the given version or higher.                                              #
+54	#                                                                              #
+55	# When plugins are compiled, their scripts are stored in the file              #
+56	# "PluginScripts.rxdata" in the "Data" folder. Dependencies defined above will #
+57	# ensure that they are loaded in a suitable order. Scripts within a plugin are #
+58	# loaded alphanumerically, going through subfolders depth-first.               #
+59	#                                                                              #
+60	# The "Plugins" folder should be deleted when the game is released. Scripts in #
+61	# there are compiled, but any other files used by a plugin (graphics/audio)    #
+62	# should go into other folders and not the plugin's folder.                    #
+63	#                                                                              #
+64	#------------------------------------------------------------------------------#
+65	#                           The code behind plugins:                           #
+66	#                                                                              #
+67	# When a plugin's "meta.txt" file is read, its contents are registered in the  #
+68	# PluginManager. A simple example of registering a plugin is as follows:       #
+69	#                                                                              #
+70	#     PluginManager.register({                                                 #
+71	#       :name       => "Basic Plugin",                                         #
+72	#       :version    => "1.0",                                                  #
+73	#       :essentials => "20",                                                   #
+74	#       :link       => "https://reliccastle.com/link-to-the-plugin/",          #
+75	#       :credits    => ["Marin"]                                               #
+76	#     })                                                                       #
+77	#                                                                              #
+78	# The :link value is optional, but recommended. This will be shown in the      #
+79	# message if the PluginManager detects that this plugin needs to be updated.   #
+80	#                                                                              #
+81	# Here is the same example but also with dependencies and conflicts:           #
+82	#                                                                              #
+83	#     PluginManager.register({                                                 #
+84	#       :name       => "Basic Plugin",                                         #
+85	#       :version    => "1.0",                                                  #
+86	#       :essentials => "20",                                                   #
+87	#       :link       => "https://reliccastle.com/link-to-the-plugin/",          #
+88	#       :credits    => ["Marin"],                                              #
+89	#       :dependencies => ["Basic Plugin",                                      #
+90	#                         ["Useful Utils", "1.1"],                             #
+91	#                         [:exact, "Scene Tweaks", "2"],                       #
+92	#                         [:optional, "Extended Windows", "1.2"],              #
+93	#                        ],                                                    #
+94	#       :incompatibilities => ["Simple Extension"]                             #
+95	#     })                                                                       #
+96	#                                                                              #
+97	# The example dependencies/conflict are the same as the examples shown above   #
+98	# for lines in "meta.txt". :optional_exact is a combination of :exact and      #
+99	# :optional, and there is no way to make use of its combined functionality via #
+100	# "meta.txt".                                                                  #
+101	#                                                                              #
+102	#------------------------------------------------------------------------------#
+103	#                     Please give credit when using this.                      #
+104	#==============================================================================#
+105	
+106	module PluginManager
+107	  # Holds all registered plugin data.
+108	  @@Plugins = {}
+109	
+110	  # Registers a plugin and tests its dependencies and incompatibilities.
+111	  def self.register(options)
+112	    name         = nil
+113	    version      = nil
+114	    essentials   = nil
+115	    link         = nil
+116	    dependencies = nil
+117	    incompats    = nil
+118	    credits      = []
+119	    order = [:name, :version, :essentials, :link, :dependencies, :incompatibilities, :credits]
+120	    # Ensure it first reads the plugin's name, which is used in error reporting,
+121	    # by sorting the keys
+122	    keys = options.keys.sort do |a, b|
+123	      idx_a = order.index(a) || order.size
+124	      idx_b = order.index(b) || order.size
+125	      next idx_a <=> idx_b
+126	    end
+127	    keys.each do |key|
+128	      value = options[key]
+129	      case key
+130	      when :name   # Plugin name
+131	        if nil_or_empty?(value)
+132	          self.error("Plugin name must be a non-empty string.")
+133	        end
+134	        if !@@Plugins[value].nil?
+135	          self.error("A plugin called '#{value}' already exists.")
+136	        end
+137	        name = value
+138	      when :version   # Plugin version
+139	        self.error("Plugin version must be a string.") if nil_or_empty?(value)
+140	        version = value
+141	      when :essentials
+142	        essentials = value
+143	      when :link   # Plugin website
+144	        if nil_or_empty?(value)
+145	          self.error("Plugin link must be a non-empty string.")
+146	        end
+147	        link = value
+148	      when :dependencies   # Plugin dependencies
+149	        dependencies = value
+150	        dependencies = [dependencies] if !dependencies.is_a?(Array) || !dependencies[0].is_a?(Array)
+151	        value.each do |dep|
+152	          case dep
+153	          when String   # "plugin name"
+154	            if !self.installed?(dep)
+155	              self.error("Plugin '#{name}' requires plugin '#{dep}' to be installed above it.")
+156	            end
+157	          when Array
+158	            case dep.size
+159	            when 1   # ["plugin name"]
+160	              if dep[0].is_a?(String)
+161	                dep_name = dep[0]
+162	                if !self.installed?(dep_name)
+163	                  self.error("Plugin '#{name}' requires plugin '#{dep_name}' to be installed above it.")
+164	                end
+165	              else
+166	                self.error("Expected the plugin name as a string, but got #{dep[0].inspect}.")
+167	              end
+168	            when 2   # ["plugin name", "version"]
+169	              if dep[0].is_a?(Symbol)
+170	                self.error("A plugin version comparator symbol was given but no version was given.")
+171	              elsif dep[0].is_a?(String) && dep[1].is_a?(String)
+172	                dep_name    = dep[0]
+173	                dep_version = dep[1]
+174	                next if self.installed?(dep_name, dep_version)
+175	                if self.installed?(dep_name)   # Have plugin but lower version
+176	                  msg = "Plugin '#{name}' requires plugin '#{dep_name}' version #{dep_version} or higher, " +
+177	                        "but the installed version is #{self.version(dep_name)}."
+178	                  dep_link = self.link(dep_name)
+179	                  if dep_link
+180	                    msg += "\r\nCheck #{dep_link} for an update to plugin '#{dep_name}'."
+181	                  end
+182	                  self.error(msg)
+183	                else   # Don't have plugin
+184	                  self.error("Plugin '#{name}' requires plugin '#{dep_name}' version #{dep_version} " +
+185	                      "or higher to be installed above it.")
+186	                end
+187	              end
+188	            when 3   # [:optional/:exact/:optional_exact, "plugin name", "version"]
+189	              if !dep[0].is_a?(Symbol)
+190	                self.error("Expected first dependency argument to be a symbol, but got #{dep[0].inspect}.")
+191	              end
+192	              if !dep[1].is_a?(String)
+193	                self.error("Expected second dependency argument to be a plugin name, but got #{dep[1].inspect}.")
+194	              end
+195	              if !dep[2].is_a?(String)
+196	                self.error("Expected third dependency argument to be the plugin version, but got #{dep[2].inspect}.")
+197	              end
+198	              dep_arg     = dep[0]
+199	              dep_name    = dep[1]
+200	              dep_version = dep[2]
+201	              optional    = false
+202	              exact       = false
+203	              case dep_arg
+204	              when :optional
+205	                optional = true
+206	              when :exact
+207	                exact = true
+208	              when :optional_exact
+209	                optional = true
+210	                exact = true
+211	              else
+212	                self.error("Expected first dependency argument to be one of " +
+213	                           ":optional, :exact or :optional_exact, but got #{dep_arg.inspect}.")
+214	              end
+215	              if optional
+216	                if self.installed?(dep_name) &&   # Have plugin but lower version
+217	                   !self.installed?(dep_name, dep_version, exact)
+218	                  msg = "Plugin '#{name}' requires plugin '#{dep_name}', if installed, to be version #{dep_version}"
+219	                  msg << " or higher" if !exact
+220	                  msg << ", but the installed version was #{self.version(dep_name)}."
+221	                  dep_link = self.link(dep_name)
+222	                  if dep_link
+223	                    msg << "\r\nCheck #{dep_link} for an update to plugin '#{dep_name}'."
+224	                  end
+225	                  self.error(msg)
+226	                end
+227	              elsif !self.installed?(dep_name, dep_version, exact)
+228	                if self.installed?(dep_name)   # Have plugin but lower version
+229	                  msg = "Plugin '#{name}' requires plugin '#{dep_name}' to be version #{dep_version}"
+230	                  msg << " or later" if !exact
+231	                  msg << ", but the installed version was #{self.version(dep_name)}."
+232	                  dep_link = self.link(dep_name)
+233	                  if dep_link
+234	                    msg << "\r\nCheck #{dep_link} for an update to plugin '#{dep_name}'."
+235	                  end
+236	                else   # Don't have plugin
+237	                  msg = "Plugin '#{name}' requires plugin '#{dep_name}' version #{dep_version} "
+238	                  msg << "or later " if !exact
+239	                  msg << "to be installed above it."
+240	                end
+241	                self.error(msg)
+242	              end
+243	            end
+244	          end
+245	        end
+246	      when :incompatibilities   # Plugin incompatibilities
+247	        incompats = value
+248	        incompats = [incompats] if !incompats.is_a?(Array)
+249	        incompats.each do |incompat|
+250	          if self.installed?(incompat)
+251	            self.error("Plugin '#{name}' is incompatible with '#{incompat}'. They cannot both be used at the same time.")
+252	          end
+253	        end
+254	      when :credits # Plugin credits
+255	        value = [value] if value.is_a?(String)
+256	        if value.is_a?(Array)
+257	          value.each do |entry|
+258	            if entry.is_a?(String)
+259	              credits << entry
+260	            else
+261	              self.error("Plugin '#{name}'s credits array contains a non-string value.")
+262	            end
+263	          end
+264	        else
+265	          self.error("Plugin '#{name}'s credits field must contain a string, or a string array.")
+266	        end
+267	      else
+268	        self.error("Invalid plugin registry key '#{key}'.")
+269	      end
+270	    end
+271	    @@Plugins.each_value do |plugin|
+272	      if plugin[:incompatibilities]&.include?(name)
+273	        self.error("Plugin '#{plugin[:name]}' is incompatible with '#{name}'. They cannot both be used at the same time.")
+274	      end
+275	    end
+276	    # Add plugin to class variable
+277	    @@Plugins[name] = {
+278	      :name              => name,
+279	      :version           => version,
+280	      :essentials        => essentials,
+281	      :link              => link,
+282	      :dependencies      => dependencies,
+283	      :incompatibilities => incompats,
+284	      :credits           => credits
+285	    }
+286	  end
+287	
+288	  # Throws a pure error message without stack trace or any other useless info.
+289	  def self.error(msg)
+290	    Graphics.update
+291	    t = Thread.new do
+292	      Console.echo_error("Plugin Error:\r\n#{msg}")
+293	      print("Plugin Error:\r\n#{msg}")
+294	      Thread.exit
+295	    end
+296	    while t.status
+297	      Graphics.update
+298	    end
+299	    Kernel.exit! true
+300	  end
+301	
+302	  # Returns true if the specified plugin is installed.
+303	  # If the version is specified, this version is taken into account.
+304	  # If mustequal is true, the version must be a match with the specified version.
+305	  def self.installed?(plugin_name, plugin_version = nil, mustequal = false)
+306	    plugin = @@Plugins[plugin_name]
+307	    return false if plugin.nil?
+308	    return true if plugin_version.nil?
+309	    comparison = compare_versions(plugin[:version], plugin_version)
+310	    return true if !mustequal && comparison >= 0
+311	    return true if mustequal && comparison == 0
+312	  end
+313	
+314	  # Returns the string names of all installed plugins.
+315	  def self.plugins
+316	    return @@Plugins.keys
+317	  end
+318	
+319	  # Returns the installed version of the specified plugin.
+320	  def self.version(plugin_name)
+321	    return if !installed?(plugin_name)
+322	    return @@Plugins[plugin_name][:version]
+323	  end
+324	
+325	  # Returns the link of the specified plugin.
+326	  def self.link(plugin_name)
+327	    return if !installed?(plugin_name)
+328	    return @@Plugins[plugin_name][:link]
+329	  end
+330	
+331	  # Returns the credits of the specified plugin.
+332	  def self.credits(plugin_name)
+333	    return if !installed?(plugin_name)
+334	    return @@Plugins[plugin_name][:credits]
+335	  end
+336	
+337	  # Compares two versions given in string form. v1 should be the plugin version
+338	  # you actually have, and v2 should be the minimum/desired plugin version.
+339	  # Return values:
+340	  #     1 if v1 is higher than v2

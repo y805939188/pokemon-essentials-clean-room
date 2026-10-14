@@ -1,0 +1,240 @@
+471:     pbUpdateSpriteHash(sprites)
+472:     if cmdwindow.index < cmdwindow.roamerCount
+473:       pkmn = Settings::ROAMING_SPECIES[cmdwindow.index]
+474:     else
+475:       pkmn = nil
+476:     end
+477:     if Input.trigger?(Input::ACTION) && cmdwindow.index < cmdwindow.roamerCount &&
+478:        (pkmn[2] <= 0 || $game_switches[pkmn[2]]) &&
+479:        $PokemonGlobal.roamPokemon[cmdwindow.index] != true
+480:       # Roam selected Pokémon
+481:       pbPlayDecisionSE
+482:       if Input.press?(Input::CTRL)   # Roam to current map
+483:         if $PokemonGlobal.roamPosition[cmdwindow.index] == pbDefaultMap
+484:           $PokemonGlobal.roamPosition[cmdwindow.index] = nil
+485:         else
+486:           $PokemonGlobal.roamPosition[cmdwindow.index] = pbDefaultMap
+487:         end
+488:       else   # Roam to a random other map
+489:         oldmap = $PokemonGlobal.roamPosition[cmdwindow.index]
+490:         pbRoamPokemonOne(cmdwindow.index)
+491:         if $PokemonGlobal.roamPosition[cmdwindow.index] == oldmap
+492:           $PokemonGlobal.roamPosition[cmdwindow.index] = nil
+493:           pbRoamPokemonOne(cmdwindow.index)
+494:         end
+495:         $PokemonGlobal.roamedAlready = false
+496:       end
+497:       cmdwindow.refresh
+498:     elsif Input.trigger?(Input::BACK)
+499:       pbPlayCancelSE
+500:       break
+501:     elsif Input.trigger?(Input::USE)
+502:       if cmdwindow.index < cmdwindow.roamerCount
+503:         pbPlayDecisionSE
+504:         # Toggle through roaming, not roaming, defeated
+505:         if pkmn[2] > 0 && !$game_switches[pkmn[2]]
+506:           # not roaming -> roaming
+507:           $game_switches[pkmn[2]] = true
+508:         elsif $PokemonGlobal.roamPokemon[cmdwindow.index] != true
+509:           # roaming -> defeated
+510:           $PokemonGlobal.roamPokemon[cmdwindow.index] = true
+511:           $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = false
+512:         elsif $PokemonGlobal.roamPokemon[cmdwindow.index] == true &&
+513:               !$PokemonGlobal.roamPokemonCaught[cmdwindow.index]
+514:           # defeated -> caught
+515:           $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = true
+516:         elsif pkmn[2] > 0
+517:           # caught -> not roaming (or roaming if Switch ID is 0)
+518:           $game_switches[pkmn[2]] = false if pkmn[2] > 0
+519:           $PokemonGlobal.roamPokemon[cmdwindow.index] = nil
+520:           $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = false
+521:         end
+522:         cmdwindow.refresh
+523:       elsif cmdwindow.index == cmdwindow.itemCount - 2   # All roam
+524:         if Settings::ROAMING_SPECIES.length == 0
+525:           pbPlayBuzzerSE
+526:         else
+527:           pbPlayDecisionSE
+528:           pbRoamPokemon
+529:           $PokemonGlobal.roamedAlready = false
+530:           cmdwindow.refresh
+531:         end
+532:       else   # Clear all roaming locations
+533:         if Settings::ROAMING_SPECIES.length == 0
+534:           pbPlayBuzzerSE
+535:         else
+536:           pbPlayDecisionSE
+537:           Settings::ROAMING_SPECIES.length.times do |i|
+538:             $PokemonGlobal.roamPosition[i] = nil
+539:           end
+540:           $PokemonGlobal.roamedAlready = false
+541:           cmdwindow.refresh
+542:         end
+543:       end
+544:     end
+545:   end
+546:   pbDisposeSpriteHash(sprites)
+547:   viewport.dispose
+548: end
+549: 
+550: #===============================================================================
+551: # Battle animations import/export
+552: #===============================================================================
+553: def pbExportAllAnimations
+554:   begin
+555:     Dir.mkdir("Animations") rescue nil
+556:     animations = pbLoadBattleAnimations
+557:     if animations
+558:       msgwindow = pbCreateMessageWindow
+559:       animations.each do |anim|
+560:         next if !anim || anim.length == 0 || anim.name == ""
+561:         pbMessageDisplay(msgwindow, anim.name, false)
+562:         Graphics.update
+563:         safename = anim.name.gsub(/\W/, "_")
+564:         Dir.mkdir("Animations/#{safename}") rescue nil
+565:         File.open("Animations/#{safename}/#{safename}.anm", "wb") do |f|
+566:           f.write(BattleAnimationEditor.dumpBase64Anim(anim))
+567:         end
+568:         if anim.graphic && anim.graphic != ""
+569:           graphicname = RTP.getImagePath("Graphics/Animations/" + anim.graphic)
+570:           pbSafeCopyFile(graphicname, "Animations/#{safename}/" + File.basename(graphicname))
+571:         end
+572:         anim.timing.each do |timing|
+573:           if !timing.timingType || timing.timingType == 0
+574:             if timing.name && timing.name != ""
+575:               audioName = RTP.getAudioPath("Audio/SE/Anim/" + timing.name)
+576:               pbSafeCopyFile(audioName, "Animations/#{safename}/" + File.basename(audioName))
+577:             end
+578:           elsif timing.timingType == 1 || timing.timingType == 3
+579:             if timing.name && timing.name != ""
+580:               graphicname = RTP.getImagePath("Graphics/Animations/" + timing.name)
+581:               pbSafeCopyFile(graphicname, "Animations/#{safename}/" + File.basename(graphicname))
+582:             end
+583:           end
+584:         end
+585:       end
+586:       pbDisposeMessageWindow(msgwindow)
+587:       pbMessage(_INTL("All animations were extracted and saved to the Animations folder."))
+588:     else
+589:       pbMessage(_INTL("There are no animations to export."))
+590:     end
+591:   rescue
+592:     p $!.message, $!.backtrace
+593:     pbMessage(_INTL("The export failed."))
+594:   end
+595: end
+596: 
+597: def pbImportAllAnimations
+598:   animationFolders = []
+599:   if FileTest.directory?("Animations")
+600:     Dir.foreach("Animations") do |fb|
+601:       f = "Animations/" + fb
+602:       animationFolders.push(f) if FileTest.directory?(f) && fb != "." && fb != ".."
+603:     end
+604:   end
+605:   if animationFolders.length == 0
+606:     pbMessage(_INTL("There are no animations to import. Put each animation in a folder within the Animations folder."))
+607:   else
+608:     msgwindow = pbCreateMessageWindow
+609:     animations = pbLoadBattleAnimations
+610:     animations = PBAnimations.new if !animations
+611:     animationFolders.each do |folder|
+612:       pbMessageDisplay(msgwindow, folder, false)
+613:       Graphics.update
+614:       audios = []
+615:       files = Dir.glob(folder + "/*.*")
+616:       ["wav", "ogg", "mp3", "midi", "mid", "wma"].each do |ext|
+617:         upext = ext.upcase
+618:         audios.concat(files.find_all { |f| f[f.length - 3, 3] == ext })
+619:         audios.concat(files.find_all { |f| f[f.length - 3, 3] == upext })
+620:       end
+621:       audios.each do |audio|
+622:         pbSafeCopyFile(audio, RTP.getAudioPath("Audio/SE/Anim/" + File.basename(audio)), "Audio/SE/Anim/" + File.basename(audio))
+623:       end
+624:       images = []
+625:       ["png", "gif"].each do |ext|   # jpg jpeg bmp
+626:         upext = ext.upcase
+627:         images.concat(files.find_all { |f| f[f.length - 3, 3] == ext })
+628:         images.concat(files.find_all { |f| f[f.length - 3, 3] == upext })
+629:       end
+630:       images.each do |image|
+631:         pbSafeCopyFile(image, RTP.getImagePath("Graphics/Animations/" + File.basename(image)), "Graphics/Animations/" + File.basename(image))
+632:       end
+633:       Dir.glob(folder + "/*.anm") do |f|
+634:         textdata = BattleAnimationEditor.loadBase64Anim(IO.read(f)) rescue nil
+635:         if textdata.is_a?(PBAnimation)
+636:           index = pbAllocateAnimation(animations, textdata.name)
+637:           missingFiles = []
+638:           textdata.name = File.basename(folder) if textdata.name == ""
+639:           textdata.id = -1   # This is not an RPG Maker XP animation
+640:           BattleAnimationEditor.pbConvertAnimToNewFormat(textdata)
+641:           if textdata.graphic && textdata.graphic != "" &&
+642:              !FileTest.exist?(folder + "/" + textdata.graphic) &&
+643:              !FileTest.image_exist?("Graphics/Animations/" + textdata.graphic)
+644:             textdata.graphic = ""
+645:             missingFiles.push(textdata.graphic)
+646:           end
+647:           textdata.timing.each do |timing|
+648:             next if !timing.name || timing.name == "" ||
+649:                     FileTest.exist?(folder + "/" + timing.name) ||
+650:                     FileTest.audio_exist?("Audio/SE/Anim/" + timing.name)
+651:             timing.name = ""
+652:             missingFiles.push(timing.name)
+653:           end
+654:           animations[index] = textdata
+655:         end
+656:       end
+657:     end
+658:     save_data(animations, "Data/PkmnAnimations.rxdata")
+659:     $game_temp.battle_animations_data = nil
+660:     pbDisposeMessageWindow(msgwindow)
+661:     pbMessage(_INTL("All animations were imported."))
+662:   end
+663: end
+664: 
+665: #===============================================================================
+666: # Properly erases all non-existent tiles in maps (including event graphics)
+667: #===============================================================================
+668: def pbDebugFixInvalidTiles
+669:   total_errors = 0
+670:   num_error_maps = 0
+671:   tilesets = $data_tilesets
+672:   mapData = Compiler::MapData.new
+673:   t = System.uptime
+674:   Graphics.update
+675:   total_maps = mapData.mapinfos.keys.length
+676:   Console.echo_h1(_INTL("Checking {1} maps for invalid tiles", total_maps))
+677:   mapData.mapinfos.keys.sort.each do |id|
+678:     if System.uptime - t >= 5
+679:       t += 5
+680:       Graphics.update
+681:     end
+682:     map_errors = 0
+683:     map = mapData.getMap(id)
+684:     next if !map || !mapData.mapinfos[id]
+685:     passages = mapData.getTilesetPassages(map, id)
+686:     # Check all tiles in map for non-existent tiles
+687:     map.data.xsize.times do |x|
+688:       map.data.ysize.times do |y|
+689:         map.data.zsize.times do |i|
+690:           tile_id = map.data[x, y, i]
+691:           next if pbCheckTileValidity(tile_id, map, tilesets, passages)
+692:           map.data[x, y, i] = 0
+693:           map_errors += 1
+694:         end
+695:       end
+696:     end
+697:     # Check all events in map for page graphics using a non-existent tile
+698:     map.events.each_key do |key|
+699:       event = map.events[key]
+700:       event.pages.each do |page|
+701:         next if page.graphic.tile_id <= 0
+702:         next if pbCheckTileValidity(page.graphic.tile_id, map, tilesets, passages)
+703:         page.graphic.tile_id = 0
+704:         map_errors += 1
+705:       end
+706:     end
+707:     next if map_errors == 0
+708:     # Map was changed; save it
+709:     Console.echoln_li(_INTL("{1} error tile(s) found on map {2}: {3}.", map_errors, id, mapData.mapinfos[id].name))
+710:     total_errors += map_errors

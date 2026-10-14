@@ -1,0 +1,213 @@
+1: module GameData
+2:   class Trainer
+3:     attr_reader :id
+4:     attr_reader :trainer_type
+5:     attr_reader :real_name
+6:     attr_reader :version
+7:     attr_reader :items
+8:     attr_reader :real_lose_text
+9:     attr_reader :pokemon
+10:     attr_reader :pbs_file_suffix
+11: 
+12:     DATA = {}
+13:     DATA_FILENAME = "trainers.dat"
+14:     PBS_BASE_FILENAME = "trainers"
+15: 
+16:     # "Pokemon" is specially mentioned in def compile_trainers and def
+17:     # write_trainers, and acts as a subheading for a particular Pokémon.
+18:     SCHEMA = {
+19:       "SectionName" => [:id,             "esU", :TrainerType],
+20:       "Items"       => [:items,          "*e", :Item],
+21:       "LoseText"    => [:real_lose_text, "q"],
+22:       "Pokemon"     => [:pokemon,        "ev", :Species]   # Species, level
+23:     }
+24:     # This schema is for definable properties of individual Pokémon (apart from
+25:     # species and level which are above).
+26:     SUB_SCHEMA = {
+27:       "Form"         => [:form,            "u"],
+28:       "Name"         => [:real_name,       "s"],
+29:       "Moves"        => [:moves,           "*e", :Move],
+30:       "Ability"      => [:ability,         "e", :Ability],
+31:       "AbilityIndex" => [:ability_index,   "u"],
+32:       "Item"         => [:item,            "e", :Item],
+33:       "Gender"       => [:gender,          "e", {"M" => 0, "m" => 0, "Male" => 0, "male" => 0, "0" => 0,
+34:                                                  "F" => 1, "f" => 1, "Female" => 1, "female" => 1, "1" => 1}],
+35:       "Nature"       => [:nature,          "e", :Nature],
+36:       "IV"           => [:iv,              "uUUUUU"],
+37:       "EV"           => [:ev,              "uUUUUU"],
+38:       "Happiness"    => [:happiness,       "u"],
+39:       "Shiny"        => [:shininess,       "b"],
+40:       "SuperShiny"   => [:super_shininess, "b"],
+41:       "Shadow"       => [:shadowness,      "b"],
+42:       "Ball"         => [:poke_ball,       "e", :Item]
+43:     }
+44: 
+45:     extend ClassMethodsSymbols
+46:     include InstanceMethods
+47: 
+48:     def self.sub_schema
+49:       return SUB_SCHEMA
+50:     end
+51: 
+52:     # @param tr_type [Symbol, String]
+53:     # @param tr_name [String]
+54:     # @param tr_version [Integer, nil]
+55:     # @return [Boolean] whether the given other is defined as a self
+56:     def self.exists?(tr_type, tr_name, tr_version = 0)
+57:       validate tr_type => [Symbol, String]
+58:       validate tr_name => [String]
+59:       key = [tr_type.to_sym, tr_name, tr_version]
+60:       return !self::DATA[key].nil?
+61:     end
+62: 
+63:     # @param tr_type [Symbol, String]
+64:     # @param tr_name [String]
+65:     # @param tr_version [Integer, nil]
+66:     # @return [self]
+67:     def self.get(tr_type, tr_name, tr_version = 0)
+68:       validate tr_type => [Symbol, String]
+69:       validate tr_name => [String]
+70:       key = [tr_type.to_sym, tr_name, tr_version]
+71:       raise "Unknown trainer #{tr_type} #{tr_name} #{tr_version}." unless self::DATA.has_key?(key)
+72:       return self::DATA[key]
+73:     end
+74: 
+75:     # @param tr_type [Symbol, String]
+76:     # @param tr_name [String]
+77:     # @param tr_version [Integer, nil]
+78:     # @return [self, nil]
+79:     def self.try_get(tr_type, tr_name, tr_version = 0)
+80:       validate tr_type => [Symbol, String]
+81:       validate tr_name => [String]
+82:       key = [tr_type.to_sym, tr_name, tr_version]
+83:       return (self::DATA.has_key?(key)) ? self::DATA[key] : nil
+84:     end
+85: 
+86:     def initialize(hash)
+87:       @id              = hash[:id]
+88:       @trainer_type    = hash[:trainer_type]
+89:       @real_name       = hash[:real_name]       || ""
+90:       @version         = hash[:version]         || 0
+91:       @items           = hash[:items]           || []
+92:       @real_lose_text  = hash[:real_lose_text]  || "..."
+93:       @pokemon         = hash[:pokemon]         || []
+94:       @pokemon.each do |pkmn|
+95:         GameData::Stat.each_main do |s|
+96:           pkmn[:iv][s.id] ||= 0 if pkmn[:iv]
+97:           pkmn[:ev][s.id] ||= 0 if pkmn[:ev]
+98:         end
+99:       end
+100:       @pbs_file_suffix = hash[:pbs_file_suffix] || ""
+101:     end
+102: 
+103:     # @return [String] the translated name of this trainer
+104:     def name
+105:       return pbGetMessageFromHash(MessageTypes::TRAINER_NAMES, @real_name)
+106:     end
+107: 
+108:     # @return [String] the translated in-battle lose message of this trainer
+109:     def lose_text
+110:       return pbGetMessageFromHash(MessageTypes::TRAINER_SPEECHES_LOSE, @real_lose_text)
+111:     end
+112: 
+113:     # Creates a battle-ready version of a trainer's data.
+114:     # @return [Array] all information about a trainer in a usable form
+115:     def to_trainer
+116:       # Determine trainer's name
+117:       tr_name = self.name
+118:       Settings::RIVAL_NAMES.each do |rival|
+119:         next if rival[0] != @trainer_type || !$game_variables[rival[1]].is_a?(String)
+120:         tr_name = $game_variables[rival[1]]
+121:         break
+122:       end
+123:       # Create trainer object
+124:       trainer = NPCTrainer.new(tr_name, @trainer_type, @version)
+125:       trainer.id        = $player.make_foreign_ID
+126:       trainer.items     = @items.clone
+127:       trainer.lose_text = self.lose_text
+128:       # Create each Pokémon owned by the trainer
+129:       @pokemon.each do |pkmn_data|
+130:         species = GameData::Species.get(pkmn_data[:species]).species
+131:         pkmn = Pokemon.new(species, pkmn_data[:level], trainer, false)
+132:         trainer.party.push(pkmn)
+133:         # Set Pokémon's properties if defined
+134:         pkmn.form_simple = pkmn_data[:form] if pkmn_data[:form]
+135:         pkmn.item = pkmn_data[:item]
+136:         if pkmn_data[:moves] && pkmn_data[:moves].length > 0
+137:           pkmn_data[:moves].each { |move| pkmn.learn_move(move) }
+138:         else
+139:           pkmn.reset_moves
+140:         end
+141:         pkmn.ability_index = pkmn_data[:ability_index] || 0
+142:         pkmn.ability = pkmn_data[:ability]
+143:         pkmn.gender = pkmn_data[:gender] || ((trainer.male?) ? 0 : 1)
+144:         pkmn.shiny = (pkmn_data[:shininess]) ? true : false
+145:         pkmn.super_shiny = (pkmn_data[:super_shininess]) ? true : false
+146:         if pkmn_data[:nature]
+147:           pkmn.nature = pkmn_data[:nature]
+148:         else   # Make the nature random but consistent for the same species used by the same trainer type
+149:           species_num = GameData::Species.keys.index(species) || 1
+150:           tr_type_num = GameData::TrainerType.keys.index(@trainer_type) || 1
+151:           idx = (species_num + tr_type_num) % GameData::Nature.count
+152:           pkmn.nature = GameData::Nature.get(GameData::Nature.keys[idx]).id
+153:         end
+154:         GameData::Stat.each_main do |s|
+155:           if pkmn_data[:iv]
+156:             pkmn.iv[s.id] = pkmn_data[:iv][s.id]
+157:           else
+158:             pkmn.iv[s.id] = [pkmn_data[:level] / 2, Pokemon::IV_STAT_LIMIT].min
+159:           end
+160:           if pkmn_data[:ev]
+161:             pkmn.ev[s.id] = pkmn_data[:ev][s.id]
+162:           else
+163:             pkmn.ev[s.id] = [pkmn_data[:level] * 3 / 2, Pokemon::EV_LIMIT / 6].min
+164:           end
+165:         end
+166:         pkmn.happiness = pkmn_data[:happiness] if pkmn_data[:happiness]
+167:         if !nil_or_empty?(pkmn_data[:real_name])
+168:           pkmn.name = pbGetMessageFromHash(MessageTypes::POKEMON_NICKNAMES, pkmn_data[:real_name])
+169:         end
+170:         if pkmn_data[:shadowness]
+171:           pkmn.makeShadow
+172:           pkmn.shiny = false
+173:         end
+174:         pkmn.poke_ball = pkmn_data[:poke_ball] if pkmn_data[:poke_ball]
+175:         pkmn.calc_stats
+176:       end
+177:       return trainer
+178:     end
+179: 
+180:     alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+181:     def get_property_for_PBS(key, index = 0)
+182:       ret = __orig__get_property_for_PBS(key)
+183:       case key
+184:       when "SectionName"
+185:         ret = [@trainer_type, @real_name] if @version == 0
+186:       when "Pokemon"
+187:         ret = [@pokemon[index][:species], @pokemon[index][:level]]
+188:       end
+189:       return ret
+190:     end
+191: 
+192:     def get_pokemon_property_for_PBS(key, index = 0)
+193:       return [@pokemon[index][:species], @pokemon[index][:level]] if key == "Pokemon"
+194:       ret = @pokemon[index][SUB_SCHEMA[key][0]]
+195:       ret = nil if ret == false || (ret.is_a?(Array) && ret.length == 0) || ret == ""
+196:       case key
+197:       when "Gender"
+198:         ret = ["male", "female"][ret] if ret
+199:       when "IV", "EV"
+200:         if ret
+201:           new_ret = []
+202:           GameData::Stat.each_main do |s|
+203:             new_ret[s.pbs_order] = ret[s.id] if s.pbs_order >= 0
+204:           end
+205:           ret = new_ret
+206:         end
+207:       when "Shiny"
+208:         ret = nil if @pokemon[index][:super_shininess]
+209:       end
+210:       return ret
+211:     end
+212:   end
+213: end

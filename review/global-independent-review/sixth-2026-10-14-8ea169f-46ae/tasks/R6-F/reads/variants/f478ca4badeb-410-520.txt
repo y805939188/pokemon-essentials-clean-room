@@ -1,0 +1,112 @@
+{"reader": "variants", "path": "reference/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/007_Battler_UseMove.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "b6aa0c7f4aafc8b99d80508978f5704bc51a5867", "sha256": "c9fad69255284a917f3dd185a82f87122aae9df94c3aa4780cb8a23f9642eedf", "start_line": 410, "end_line": 520, "total_lines": 762, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:42.832246+00:00"}
+410:         if !success
+411:           if i == 0 && targets.length > 0
+412:             hasFailed = false
+413:             targets.each do |t|
+414:               next if t.damageState.protected
+415:               hasFailed = t.damageState.unaffected
+416:               break if !t.damageState.unaffected
+417:             end
+418:             user.lastMoveFailed = hasFailed
+419:           end
+420:           break
+421:         end
+422:         realNumHits += 1
+423:         break if user.fainted?
+424:         break if [:SLEEP, :FROZEN].include?(user.status)
+425:         # NOTE: If a multi-hit move becomes disabled partway through doing those
+426:         #       hits (e.g. by Cursed Body), the rest of the hits continue as
+427:         #       normal.
+428:         break if targets.none? { |t| !t.fainted? }   # All targets are fainted
+429:       end
+430:       # Battle Arena only - attack is successful
+431:       @battle.successStates[user.index].useState = 2
+432:       if targets.length > 0
+433:         @battle.successStates[user.index].typeMod = 0
+434:         targets.each do |b|
+435:           next if b.damageState.unaffected
+436:           @battle.successStates[user.index].typeMod += b.damageState.typeMod
+437:         end
+438:       end
+439:       # Effectiveness message for multi-hit moves
+440:       # NOTE: No move is both multi-hit and multi-target, and the messages below
+441:       #       aren't quite right for such a hypothetical move.
+442:       if numHits > 1
+443:         if move.damagingMove?
+444:           targets.each do |b|
+445:             next if b.damageState.unaffected || b.damageState.substitute
+446:             move.pbEffectivenessMessage(user, b, targets.length)
+447:           end
+448:         end
+449:         if realNumHits == 1
+450:           @battle.pbDisplay(_INTL("Hit 1 time!"))
+451:         elsif realNumHits > 1
+452:           @battle.pbDisplay(_INTL("Hit {1} times!", realNumHits))
+453:         end
+454:       end
+455:       # Magic Coat's bouncing back (move has targets)
+456:       targets.each do |b|
+457:         next if b.fainted?
+458:         next if !b.damageState.magicCoat && !b.damageState.magicBounce
+459:         @battle.pbShowAbilitySplash(b) if b.damageState.magicBounce
+460:         @battle.pbDisplay(_INTL("{1} bounced the {2} back!", b.pbThis, move.name))
+461:         @battle.pbHideAbilitySplash(b) if b.damageState.magicBounce
+462:         newChoice = choice.clone
+463:         newChoice[3] = user.index
+464:         newTargets = pbFindTargets(newChoice, move, b)
+465:         newTargets = pbChangeTargets(move, b, newTargets)
+466:         success = false
+467:         if !move.pbMoveFailed?(b, newTargets)
+468:           newTargets.each_with_index do |newTarget, idx|
+469:             if pbSuccessCheckAgainstTarget(move, b, newTarget, newTargets)
+470:               success = true
+471:               next
+472:             end
+473:             newTargets[idx] = nil
+474:           end
+475:           newTargets.compact!
+476:         end
+477:         pbProcessMoveHit(move, b, newTargets, 0, false) if success
+478:         b.lastMoveFailed = true if !success
+479:         targets.each { |otherB| otherB.pbFaint if otherB&.fainted? }
+480:         user.pbFaint if user.fainted?
+481:       end
+482:       # Magic Coat's bouncing back (move has no targets)
+483:       if magicCoater >= 0 || magicBouncer >= 0
+484:         mc = @battle.battlers[(magicCoater >= 0) ? magicCoater : magicBouncer]
+485:         if !mc.fainted?
+486:           user.lastMoveFailed = true
+487:           @battle.pbShowAbilitySplash(mc) if magicBouncer >= 0
+488:           @battle.pbDisplay(_INTL("{1} bounced the {2} back!", mc.pbThis, move.name))
+489:           @battle.pbHideAbilitySplash(mc) if magicBouncer >= 0
+490:           success = false
+491:           if !move.pbMoveFailed?(mc, [])
+492:             success = pbProcessMoveHit(move, mc, [], 0, false)
+493:           end
+494:           mc.lastMoveFailed = true if !success
+495:           targets.each { |b| b.pbFaint if b&.fainted? }
+496:           user.pbFaint if user.fainted?
+497:         end
+498:       end
+499:       # Move-specific effects after all hits
+500:       targets.each { |b| move.pbEffectAfterAllHits(user, b) }
+501:       # Faint if 0 HP
+502:       targets.each { |b| b.pbFaint if b&.fainted? }
+503:       user.pbFaint if user.fainted?
+504:       # External/general effects after all hits. Eject Button, Shell Bell, etc.
+505:       pbEffectsAfterMove(user, targets, move, realNumHits)
+506:       @battle.allBattlers.each do |b|
+507:         b.droppedBelowHalfHP = false
+508:         b.statsDropped = false
+509:       end
+510:     end
+511:     # End effect of Mold Breaker
+512:     @battle.moldBreaker = false
+513:     # Gain Exp
+514:     @battle.pbGainExp
+515:     # Battle Arena only - update skills
+516:     @battle.allBattlers.each { |b| @battle.successStates[b.index].updateSkill }
+517:     # Shadow Pokémon triggering Hyper Mode
+518:     pbHyperMode if @battle.choices[@index][0] != :None   # Not if self is replaced
+519:     # End of move usage
+520:     pbEndTurn(choice)

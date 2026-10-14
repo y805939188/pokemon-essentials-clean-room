@@ -1,0 +1,250 @@
+501:         PBAnimation::MAX_SPRITES.times do |i|
+502:           @celsprites[i].visible = oldstate[i][0]
+503:           @framesprites[i].visible = oldstate[i][1]
+504:           @lastframesprites[i].visible = oldstate[i][2]
+505:         end
+506:         @sprites["pokemon_0"].dispose
+507:         @sprites["pokemon_1"].dispose
+508:         @player.dispose
+509:         @player = nil
+510:       end
+511:     end
+512: 
+513:     def invalidate
+514:       PBAnimation::MAX_SPRITES.times do |i|
+515:         invalidateCel(i)
+516:       end
+517:     end
+518: 
+519:     def invalidateCel(i)
+520:       @dirty[i] = true
+521:     end
+522: 
+523:     def currentframe=(value)
+524:       @currentframe = value
+525:       invalidate
+526:     end
+527: 
+528:     def getCurrentFrame
+529:       return nil if @currentframe >= @animation.length
+530:       return @animation[@currentframe]
+531:     end
+532: 
+533:     def setFrame(i)
+534:       if @celsprites[i]
+535:         @framesprites[i].ox = 32
+536:         @framesprites[i].oy = 32
+537:         @framesprites[i].selected = (i == @currentcel)
+538:         @framesprites[i].locked = self.locked?(i)
+539:         @framesprites[i].x = @celsprites[i].x
+540:         @framesprites[i].y = @celsprites[i].y
+541:         @framesprites[i].visible = @celsprites[i].visible
+542:         @framesprites[i].repaint
+543:       end
+544:     end
+545: 
+546:     def setPreviousFrame(i)
+547:       if @currentframe > 0
+548:         cel = @animation[@currentframe - 1][i]
+549:         if cel.nil?
+550:           @lastframesprites[i].visible = false
+551:         else
+552:           @lastframesprites[i].ox = 32
+553:           @lastframesprites[i].oy = 32
+554:           @lastframesprites[i].selected = false
+555:           @lastframesprites[i].locked = false
+556:           @lastframesprites[i].x = cel[AnimFrame::X] + 64
+557:           @lastframesprites[i].y = cel[AnimFrame::Y] + 64
+558:           @lastframesprites[i].visible = true
+559:           @lastframesprites[i].repaint
+560:         end
+561:       else
+562:         @lastframesprites[i].visible = false
+563:       end
+564:     end
+565: 
+566:     def offsetFrame(frame, ox, oy)
+567:       if frame >= 0 && frame < @animation.length
+568:         PBAnimation::MAX_SPRITES.times do |i|
+569:           if !self.locked?(i) && @animation[frame][i]
+570:             @animation[frame][i][AnimFrame::X] += ox
+571:             @animation[frame][i][AnimFrame::Y] += oy
+572:           end
+573:           @dirty[i] = true if frame == @currentframe
+574:         end
+575:       end
+576:     end
+577: 
+578:     # Clears all items in the frame except locked items
+579:     def clearFrame(frame)
+580:       if frame >= 0 && frame < @animation.length
+581:         PBAnimation::MAX_SPRITES.times do |i|
+582:           if self.deletable?(i)
+583:             @animation[frame][i] = nil
+584:           else
+585:             pbResetCel(@animation[frame][i])
+586:           end
+587:           @dirty[i] = true if frame == @currentframe
+588:         end
+589:       end
+590:     end
+591: 
+592:     def insertFrame(frame)
+593:       return if frame >= @animation.length
+594:       @animation.insert(frame, @animation[frame].clone)
+595:       self.invalidate
+596:     end
+597: 
+598:     def copyFrame(src, dst)
+599:       return if dst >= @animation.length
+600:       PBAnimation::MAX_SPRITES.times do |i|
+601:         clonedframe = @animation[src][i]
+602:         clonedframe = clonedframe.clone if clonedframe && clonedframe != true
+603:         @animation[dst][i] = clonedframe
+604:       end
+605:       self.invalidate if dst == @currentframe
+606:     end
+607: 
+608:     def pasteFrame(frame)
+609:       return if frame < 0 || frame >= @animation.length
+610:       return if Clipboard.typekey != "PBAnimFrame"
+611:       @animation[frame] = Clipboard.data
+612:       self.invalidate if frame == @currentframe
+613:     end
+614: 
+615:     def deleteFrame(frame)
+616:       return if frame < 0 || frame >= @animation.length || @animation.length <= 1
+617:       self.currentframe -= 1 if frame == @animation.length - 1
+618:       @animation.delete_at(frame)
+619:       @currentcel = -1
+620:       self.invalidate
+621:     end
+622: 
+623:     # This frame becomes a copy of the previous frame
+624:     def pasteLast
+625:       copyFrame(@currentframe - 1, @currentframe) if @currentframe > 0
+626:     end
+627: 
+628:     def currentCel
+629:       return nil if @currentcel < 0
+630:       return nil if @currentframe >= @animation.length
+631:       return @animation[@currentframe][@currentcel]
+632:     end
+633: 
+634:     def pasteCel(x, y)
+635:       return if @currentframe >= @animation.length
+636:       return if Clipboard.typekey != "PBAnimCel"
+637:       PBAnimation::MAX_SPRITES.times do |i|
+638:         next if @animation[@currentframe][i]
+639:         @animation[@currentframe][i] = Clipboard.data
+640:         cel = @animation[@currentframe][i]
+641:         cel[AnimFrame::X] = x
+642:         cel[AnimFrame::Y] = y
+643:         cel[AnimFrame::LOCKED] = 0
+644:         @celsprites[i].bitmap = @user if cel[AnimFrame::PATTERN] == -1
+645:         @celsprites[i].bitmap = @target if cel[AnimFrame::PATTERN] == -2
+646:         @currentcel = i
+647:         break
+648:       end
+649:       invalidate
+650:     end
+651: 
+652:     def deleteCel(cel)
+653:       return if cel < 0
+654:       return if @currentframe < 0 || @currentframe >= @animation.length
+655:       return if !deletable?(cel)
+656:       @animation[@currentframe][cel] = nil
+657:       @dirty[cel] = true
+658:     end
+659: 
+660:     def swapCels(cel1, cel2)
+661:       return if cel1 < 0 || cel2 < 0
+662:       return if @currentframe < 0 || @currentframe >= @animation.length
+663:       t = @animation[@currentframe][cel1]
+664:       @animation[@currentframe][cel1] = @animation[@currentframe][cel2]
+665:       @animation[@currentframe][cel2] = t
+666:       @currentcel = cel2
+667:       @dirty[cel1] = true
+668:       @dirty[cel2] = true
+669:     end
+670: 
+671:     def locked?(celindex)
+672:       cel = @animation[self.currentframe]
+673:       return false if !cel
+674:       cel = cel[celindex]
+675:       return cel ? (cel[AnimFrame::LOCKED] != 0) : false
+676:     end
+677: 
+678:     def deletable?(celindex)
+679:       cel = @animation[self.currentframe]
+680:       return true if !cel
+681:       cel = cel[celindex]
+682:       return true if !cel
+683:       return false if cel[AnimFrame::LOCKED] != 0
+684:       if cel[AnimFrame::PATTERN] < 0
+685:         count = 0
+686:         pattern = cel[AnimFrame::PATTERN]
+687:         PBAnimation::MAX_SPRITES.times do |i|
+688:           othercel = @animation[self.currentframe][i]
+689:           count += 1 if othercel && othercel[AnimFrame::PATTERN] == pattern
+690:         end
+691:         return false if count <= 1
+692:       end
+693:       return true
+694:     end
+695: 
+696:     def setBitmap(i, frame)
+697:       if @celsprites[i]
+698:         cel = @animation[frame][i]
+699:         @celsprites[i].bitmap = @animbitmap
+700:         if cel
+701:           @celsprites[i].bitmap = @user if cel[AnimFrame::PATTERN] == -1
+702:           @celsprites[i].bitmap = @target if cel[AnimFrame::PATTERN] == -2
+703:         end
+704:       end
+705:     end
+706: 
+707:     def setSpriteBitmap(sprite, cel)
+708:       if sprite && !sprite.disposed?
+709:         sprite.bitmap = @animbitmap
+710:         if cel
+711:           sprite.bitmap = @user if cel[AnimFrame::PATTERN] == -1
+712:           sprite.bitmap = @target if cel[AnimFrame::PATTERN] == -2
+713:         end
+714:       end
+715:     end
+716: 
+717:     def addSprite(x, y)
+718:       return false if @currentframe >= @animation.length
+719:       PBAnimation::MAX_SPRITES.times do |i|
+720:         next if @animation[@currentframe][i]
+721:         @animation[@currentframe][i] = pbCreateCel(x, y, @pattern, @animation.position)
+722:         @dirty[i] = true
+723:         @currentcel = i
+724:         return true
+725:       end
+726:       return false
+727:     end
+728: 
+729:     def pbSpriteHitTest(sprite, x, y, usealpha = true, wholecanvas = false)
+730:       return false if !sprite || sprite.disposed?
+731:       return false if !sprite.bitmap
+732:       return false if !sprite.visible
+733:       return false if sprite.bitmap.disposed?
+734:       width = sprite.src_rect.width
+735:       height = sprite.src_rect.height
+736:       if wholecanvas
+737:         xwidth = 0
+738:         xheight = 0
+739:       else
+740:         xwidth = width - 64
+741:         xheight = height - 64
+742:         width = 64 if width > 64 && !usealpha
+743:         height = 64 if height > 64 && !usealpha
+744:       end
+745:       width = sprite.bitmap.width if width > sprite.bitmap.width
+746:       height = sprite.bitmap.height if height > sprite.bitmap.height
+747:       if usealpha
+748:         spritex = sprite.x - (sprite.ox * sprite.zoom_x)
+749:         spritey = sprite.y - (sprite.oy * sprite.zoom_y)
+750:         width *= sprite.zoom_x

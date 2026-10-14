@@ -1,0 +1,59 @@
+104:   def compile_connections(*paths)
+105:     hashenum = {
+106:       "N" => "N", "North" => "N",
+107:       "E" => "E", "East"  => "E",
+108:       "S" => "S", "South" => "S",
+109:       "W" => "W", "West"  => "W"
+110:     }
+111:     schema = [nil, "iyiiyi", nil, hashenum, nil, nil, hashenum]
+112:     records = []
+113:     paths.each do |path|
+114:       compile_pbs_file_message_start(path)
+115:       pbCompilerEachPreppedLine(path) do |line, lineno|
+116:         FileLineData.setLine(line, lineno)
+117:         record = get_csv_record(line, schema)
+118:         if !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[0]))
+119:           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[0]) + "\n" + FileLineData.linereport
+120:         elsif !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[3]))
+121:           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[3]) + "\n" + FileLineData.linereport
+122:         end
+123:         case record[1]
+124:         when "N"
+125:           raise _INTL("North side of first map must connect with south side of second map.") + "\n" + FileLineData.linereport if record[4] != "S"
+126:         when "S"
+127:           raise _INTL("South side of first map must connect with north side of second map.") + "\n" + FileLineData.linereport if record[4] != "N"
+128:         when "E"
+129:           raise _INTL("East side of first map must connect with west side of second map.") + "\n" + FileLineData.linereport if record[4] != "W"
+130:         when "W"
+131:           raise _INTL("West side of first map must connect with east side of second map.") + "\n" + FileLineData.linereport if record[4] != "E"
+132:         end
+133:         records.push(record)
+134:       end
+135:       process_pbs_file_message_end
+136:     end
+137:     save_data(records, "Data/map_connections.dat")
+138:   end
+139: 
+140:   #=============================================================================
+141:   # Compile type data
+142:   #=============================================================================
+143:   def compile_types(*paths)
+144:     compile_PBS_file_generic(GameData::Type, *paths) do |final_validate, hash|
+145:       (final_validate) ? validate_all_compiled_types : validate_compiled_type(hash)
+146:     end
+147:   end
+148: 
+149:   def validate_compiled_type(hash)
+150:     # Remove duplicate weaknesses/resistances/immunities
+151:     hash[:weaknesses].uniq! if hash[:weaknesses].is_a?(Array)
+152:     hash[:resistances].uniq! if hash[:resistances].is_a?(Array)
+153:     hash[:immunities].uniq! if hash[:immunities].is_a?(Array)
+154:   end
+155: 
+156:   def validate_all_compiled_types
+157:     type_names = []
+158:     GameData::Type.each do |type|
+159:       # Ensure all weaknesses/resistances/immunities are valid types
+160:       type.weaknesses.each do |other_type|
+161:         next if GameData::Type.exists?(other_type)
+162:         raise _INTL("'{1}' is not a defined type (type {2}, Weaknesses).", other_type.to_s, type.id)

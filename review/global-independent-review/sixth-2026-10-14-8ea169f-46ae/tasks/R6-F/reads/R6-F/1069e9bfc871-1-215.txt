@@ -1,0 +1,216 @@
+{"reader": "R6-F", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/001_Battle Frontier/001_Challenge_BattleChallenge.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "36aa3fbfbbd205fdd8cd9ac94c400e9f6fb4fe8d", "sha256": "f0417a0440747730bceeb9f0778534ddaf68f1dfc1a2119e641ab3ed973fb5b8", "start_line": 1, "end_line": 215, "total_lines": 429, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:26:35.644288+00:00"}
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class BattleChallenge
+5:   attr_reader :currentChallenge
+6: 
+7:   BATTLE_TOWER_ID   = 0
+8:   BATTLE_PALACE_ID  = 1
+9:   BATTLE_ARENA_ID   = 2
+10:   BATTLE_FACTORY_ID = 3
+11: 
+12:   def initialize
+13:     @bc = BattleChallengeData.new
+14:     @currentChallenge = -1
+15:     @types = {}
+16:   end
+17: 
+18:   def set(id, numrounds, rules)
+19:     @id = id
+20:     @numRounds = numrounds
+21:     @rules = rules
+22:     register(id, id[/double/], 3,
+23:              id[/^factory/] ? BATTLE_FACTORY_ID : BATTLE_TOWER_ID,
+24:              id[/open$/] ? 1 : 0)
+25:     pbWriteCup(id, rules)
+26:   end
+27: 
+28:   def register(id, doublebattle, numPokemon, battletype, mode = 1)
+29:     ensureType(id)
+30:     if battletype == BATTLE_FACTORY_ID
+31:       @bc.setExtraData(BattleFactoryData.new(@bc))
+32:       numPokemon = 3
+33:       battletype = BATTLE_TOWER_ID
+34:     end
+35:     @rules = modeToRules(doublebattle, numPokemon, battletype, mode) if !@rules
+36:   end
+37: 
+38:   def rules
+39:     if !@rules
+40:       @rules = modeToRules(self.data.doublebattle, self.data.numPokemon,
+41:                            self.data.battletype, self.data.mode)
+42:     end
+43:     return @rules
+44:   end
+45: 
+46:   def modeToRules(doublebattle, numPokemon, battletype, mode)
+47:     rules = PokemonChallengeRules.new
+48:     # Set the battle type
+49:     case battletype
+50:     when BATTLE_PALACE_ID
+51:       rules.setBattleType(BattlePalace.new)
+52:     when BATTLE_ARENA_ID
+53:       rules.setBattleType(BattleArena.new)
+54:       doublebattle = false
+55:     else   # Factory works the same as Tower
+56:       rules.setBattleType(BattleTower.new)
+57:     end
+58:     # Set standard rules and maximum level
+59:     case mode
+60:     when 1      # Open Level
+61:       rules.setRuleset(StandardRules.new(numPokemon, GameData::GrowthRate.max_level))
+62:       rules.setLevelAdjustment(OpenLevelAdjustment.new(30))
+63:     when 2   # Battle Tent
+64:       rules.setRuleset(StandardRules.new(numPokemon, GameData::GrowthRate.max_level))
+65:       rules.setLevelAdjustment(OpenLevelAdjustment.new(60))
+66:     else
+67:       rules.setRuleset(StandardRules.new(numPokemon, 50))
+68:       rules.setLevelAdjustment(OpenLevelAdjustment.new(50))
+69:     end
+70:     # Set whether battles are single or double
+71:     if doublebattle
+72:       rules.addBattleRule(DoubleBattle.new)
+73:     else
+74:       rules.addBattleRule(SingleBattle.new)
+75:     end
+76:     return rules
+77:   end
+78: 
+79:   def start(*args)
+80:     t = ensureType(@id)
+81:     @currentChallenge = @id   # must appear before pbStart
+82:     @bc.pbStart(t, @numRounds)
+83:   end
+84: 
+85:   def pbStart(challenge); end
+86: 
+87:   def pbEnd
+88:     if @currentChallenge != -1
+89:       ensureType(@currentChallenge).saveWins(@bc)
+90:       @currentChallenge = -1
+91:     end
+92:     @bc.pbEnd
+93:   end
+94: 
+95:   def pbBattle
+96:     return @bc.extraData.pbBattle(self) if @bc.extraData   # Battle Factory
+97:     opponent = pbGenerateBattleTrainer(self.nextTrainer, self.rules)
+98:     bttrainers = pbGetBTTrainers(@id)
+99:     trainerdata = bttrainers[self.nextTrainer]
+100:     opponent.lose_text = pbGetMessageFromHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, trainerdata[4])
+101:     opponent.win_text = pbGetMessageFromHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, trainerdata[3])
+102:     ret = pbOrganizedBattleEx(opponent, self.rules)
+103:     return ret
+104:   end
+105: 
+106:   def pbInChallenge?
+107:     return pbInProgress?
+108:   end
+109: 
+110:   def pbInProgress?
+111:     return @bc.inProgress
+112:   end
+113: 
+114:   def pbResting?
+115:     return @bc.resting
+116:   end
+117: 
+118:   def extra;        @bc.extraData;    end
+119:   def decision;     @bc.decision;     end
+120:   def wins;         @bc.wins;         end
+121:   def swaps;        @bc.swaps;        end
+122:   def battleNumber; @bc.battleNumber; end
+123:   def nextTrainer;  @bc.nextTrainer;  end
+124:   def pbGoOn;       @bc.pbGoOn;       end
+125:   def pbAddWin;     @bc.pbAddWin;     end
+126:   def pbCancel;     @bc.pbCancel;     end
+127:   def pbRest;       @bc.pbRest;       end
+128:   def pbMatchOver?; @bc.pbMatchOver?; end
+129:   def pbGoToStart;  @bc.pbGoToStart;  end
+130: 
+131:   def setDecision(value)
+132:     @bc.decision = value
+133:   end
+134: 
+135:   def setParty(value)
+136:     @bc.setParty(value)
+137:   end
+138: 
+139:   def data
+140:     return nil if !pbInProgress? || @currentChallenge < 0
+141:     return ensureType(@currentChallenge).clone
+142:   end
+143: 
+144:   def getCurrentWins(challenge)
+145:     return ensureType(challenge).currentWins
+146:   end
+147: 
+148:   def getPreviousWins(challenge)
+149:     return ensureType(challenge).previousWins
+150:   end
+151: 
+152:   def getMaxWins(challenge)
+153:     return ensureType(challenge).maxWins
+154:   end
+155: 
+156:   def getCurrentSwaps(challenge)
+157:     return ensureType(challenge).currentSwaps
+158:   end
+159: 
+160:   def getPreviousSwaps(challenge)
+161:     return ensureType(challenge).previousSwaps
+162:   end
+163: 
+164:   def getMaxSwaps(challenge)
+165:     return ensureType(challenge).maxSwaps
+166:   end
+167: 
+168:   #-----------------------------------------------------------------------------
+169: 
+170:   private
+171: 
+172:   def ensureType(id)
+173:     @types[id] = BattleChallengeType.new if !@types[id]
+174:     return @types[id]
+175:   end
+176: end
+177: 
+178: #===============================================================================
+179: #
+180: #===============================================================================
+181: class BattleChallengeData
+182:   attr_reader   :battleNumber
+183:   attr_reader   :numRounds
+184:   attr_reader   :party
+185:   attr_reader   :inProgress
+186:   attr_reader   :resting
+187:   attr_reader   :wins
+188:   attr_reader   :swaps
+189:   attr_accessor :decision
+190:   attr_reader   :extraData
+191: 
+192:   def initialize
+193:     reset
+194:   end
+195: 
+196:   def setExtraData(value)
+197:     @extraData = value
+198:   end
+199: 
+200:   def setParty(value)
+201:     $player.party = value if @inProgress
+202:     @party = value
+203:   end
+204: 
+205:   def pbStart(t, numRounds)
+206:     @inProgress   = true
+207:     @resting      = false
+208:     @decision     = 0
+209:     @swaps        = t.currentSwaps
+210:     @wins         = t.currentWins
+211:     @battleNumber = 1
+212:     @trainers     = []
+213:     raise _INTL("Number of rounds is 0 or less.") if numRounds <= 0
+214:     @numRounds = numRounds
+215:     # Get all the trainers for the next set of battles

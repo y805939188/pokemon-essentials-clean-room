@@ -1,0 +1,181 @@
+{"reader": "generator", "path": "reference/pokemon-essentials/Data/Scripts/018_Alternate battle modes/003_Battle Frontier generator/002_ChallengeGenerator_Pokemon.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "ea9d53ec18f0d67b20196509eb2bd14f88a15cec", "sha256": "23df29fbbb363b4287bf8b27a2695066936b9ce44c5ef882608dcfed6afec590", "start_line": 1, "end_line": 180, "total_lines": 359, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:26:47.429084+00:00"}
+1: $baseStatTotal   = {}
+2: $babySpecies     = {}
+3: $minimumLevel    = {}
+4: $evolutions      = {}
+5: $legalMoves      = {}    # For each species, all the moves they have access to
+6: $legalMovesLevel = 0     # Level for which $legalMoves were calculated
+7: $tmMoves         = nil   # Array of all moves teachable by a HM/TM/TR
+8: 
+9: def pbBaseStatTotal(species)
+10:   baseStats = GameData::Species.get(species).base_stats
+11:   ret = 0
+12:   baseStats.each_value { |s| ret += s }
+13:   return ret
+14: end
+15: 
+16: def baseStatTotal(species)
+17:   $baseStatTotal[species] = pbBaseStatTotal(species) if !$baseStatTotal[species]
+18:   return $baseStatTotal[species]
+19: end
+20: 
+21: def babySpecies(species)
+22:   $babySpecies[species] = GameData::Species.get(species).get_baby_species if !$babySpecies[species]
+23:   return $babySpecies[species]
+24: end
+25: 
+26: def minimumLevel(species)
+27:   $minimumLevel[species] = GameData::Species.get(species).minimum_level if !$minimumLevel[species]
+28:   return $minimumLevel[species]
+29: end
+30: 
+31: def evolutions(species)
+32:   $evolutions[species] = GameData::Species.get(species).get_evolutions(true) if !$evolutions[species]
+33:   return $evolutions[species]
+34: end
+35: 
+36: #===============================================================================
+37: #
+38: #===============================================================================
+39: # Used to replace Sketch with any other move.
+40: def pbRandomMove
+41:   keys = GameData::Move.keys
+42:   loop do
+43:     move_id = keys.sample
+44:     move = GameData::Move.get(move_id)
+45:     next if ["Struggle", "ReplaceMoveWithTargetLastMoveUsed"].include?(move.function_code)
+46:     return move.id
+47:   end
+48: end
+49: 
+50: def pbGetLegalMoves2(species, maxlevel)
+51:   species_data = GameData::Species.get(species)
+52:   moves = []
+53:   return moves if !species_data
+54:   # Populate available moves array (moves)
+55:   species_data.moves.each { |m| addMove(moves, m[1], 2) if m[0] <= maxlevel }
+56:   if !$tmMoves
+57:     $tmMoves = []
+58:     GameData::Item.each { |i| $tmMoves.push(i.move) if i.is_machine? }
+59:   end
+60:   species_data.tutor_moves.each { |m| addMove(moves, m, 0) if $tmMoves.include?(m) }
+61:   babyspecies = babySpecies(species)
+62:   GameData::Species.get(babyspecies).egg_moves.each { |m| addMove(moves, m, 2) }
+63:   movedatas = []
+64:   moves.each do |move|
+65:     movedatas.push([move, GameData::Move.get(move)])
+66:   end
+67:   # Delete less powerful moves
+68:   deleteAll = proc { |a, item|
+69:     while a.include?(item)
+70:       a.delete(item)
+71:     end
+72:   }
+73:   moves.each do |move|
+74:     md = GameData::Move.get(move)
+75:     movedatas.each do |move2|
+76:       # If we have a move that always hits, remove all other moves with no
+77:       # effect of the same type and <= base power
+78:       if md.accuracy == 0 && move2[1].function_code == "None" &&
+79:          md.type == move2[1].type && md.power >= move2[1].power
+80:         deleteAll.call(moves, move2[0])
+81:       # If we have two status moves that have the same function code, delete the
+82:       # one with lower accuracy (Supersonic vs. Confuse Ray, etc.)
+83:       elsif md.function_code == move2[1].function_code && md.power == 0 &&
+84:             move2[1].power == 0 && md.accuracy > move2[1].accuracy
+85:         deleteAll.call(moves, move2[0])
+86:       # Delete poison-causing moves if we have a move that causes toxic
+87:       elsif md.function_code == "BadPoisonTarget" && move2[1].function_code == "PoisonTarget"
+88:         deleteAll.call(moves, move2[0])
+89:       # If we have two moves with the same function code and type, and one of
+90:       # them is damaging and has 10/15/the same PP as the other move and EITHER
+91:       # does more damage than the other move OR does the same damage but is more
+92:       # accurate, delete the other move (Surf, Flamethrower, Thunderbolt, etc.)
+93:       elsif md.function_code == move2[1].function_code && md.power != 0 &&
+94:             md.type == move2[1].type &&
+95:             (md.total_pp == 15 || md.total_pp == 10 || md.total_pp == move2[1].total_pp) &&
+96:             (md.power > move2[1].power ||
+97:             (md.power == move2[1].power && md.accuracy > move2[1].accuracy))
+98:         deleteAll.call(moves, move2[0])
+99:       end
+100:     end
+101:   end
+102:   return moves
+103: end
+104: 
+105: def addMove(moves, move, base)
+106:   data = GameData::Move.get(move)
+107:   return if moves.include?(data.id)
+108:   return if [:BUBBLE, :BUBBLEBEAM].include?(data.id)   # Never add these moves
+109:   count = base + 1   # Number of times to add move to moves
+110:   count = base if data.function_code == "None" && data.power <= 40
+111:   if data.power <= 30 || [:GROWL, :TAILWHIP, :LEER].include?(data.id)
+112:     count = base
+113:   end
+114:   if data.power >= 60 ||
+115:      [:REFLECT, :LIGHTSCREEN, :SAFEGUARD, :SUBSTITUTE, :FAKEOUT].include?(data.id)
+116:     count = base + 2
+117:   end
+118:   count = base + 3 if data.power >= 80 && data.type == :NORMAL
+119:   if [:PROTECT, :DETECT, :TOXIC, :AERIALACE, :WILLOWISP, :SPORE, :THUNDERWAVE,
+120:       :HYPNOSIS, :CONFUSERAY, :ENDURE, :SWORDSDANCE].include?(data.id)
+121:     count = base + 3
+122:   end
+123:   count.times { moves.push(data.id) }
+124: end
+125: 
+126: # Returns whether moves contains any move with the same type as thismove but
+127: # with a higher base damage than it.
+128: def hasMorePowerfulMove(moves, thismove)
+129:   thisdata = GameData::Move.get(thismove)
+130:   return false if thisdata.power == 0
+131:   moves.each do |move|
+132:     next if !move
+133:     moveData = GameData::Move.get(move)
+134:     if moveData.type == thisdata.type && moveData.power > thisdata.power
+135:       return true
+136:     end
+137:   end
+138:   return false
+139: end
+140: 
+141: #===============================================================================
+142: # Generate a random Pokémon that adheres to the given rules.
+143: #===============================================================================
+144: def pbRandomPokemonFromRule(rules, trainer)
+145:   pkmn = nil
+146:   iteration = -1
+147:   loop do
+148:     iteration += 1
+149:     species = nil
+150:     level = rules.ruleset.suggestedLevel
+151:     keys = GameData::Species.keys
+152:     loop do
+153:       loop do
+154:         species = keys.sample
+155:         break if GameData::Species.get(species).form == 0
+156:       end
+157:       r = rand(20)
+158:       bst = baseStatTotal(species)
+159:       next if level < minimumLevel(species)
+160:       if iteration.even?
+161:         next if r < 16 && bst < 400
+162:         next if r < 13 && bst < 500
+163:       else
+164:         next if bst > 400
+165:         next if r < 10 && babySpecies(species) != species
+166:       end
+167:       next if r < 10 && babySpecies(species) == species
+168:       next if r < 7 && evolutions(species).length > 0
+169:       break
+170:     end
+171:     ev = []
+172:     GameData::Stat.each_main { |s| ev.push(s.id) if rand(100) < 50 }
+173:     nature = nil
+174:     keys = GameData::Nature.keys
+175:     loop do
+176:       nature = keys.sample
+177:       nature_data = GameData::Nature.get(nature)
+178:       if [:LAX, :GENTLE].include?(nature_data.id) || nature_data.stat_changes.length == 0
+179:         next if rand(20) < 19
+180:       else

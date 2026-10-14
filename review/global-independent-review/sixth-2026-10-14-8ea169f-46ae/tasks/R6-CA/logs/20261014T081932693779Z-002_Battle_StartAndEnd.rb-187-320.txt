@@ -1,0 +1,134 @@
+187:         pbDisplayPaused(_INTL("You are challenged by {1}!", @opponent[0].full_name))
+188:       when 2
+189:         pbDisplayPaused(_INTL("You are challenged by {1} and {2}!", @opponent[0].full_name,
+190:                               @opponent[1].full_name))
+191:       when 3
+192:         pbDisplayPaused(_INTL("You are challenged by {1}, {2} and {3}!",
+193:                               @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))
+194:       end
+195:     end
+196:     # Send out Pokémon (opposing trainers first)
+197:     [1, 0].each do |side|
+198:       next if side == 1 && wildBattle?
+199:       msg = ""
+200:       toSendOut = []
+201:       trainers = (side == 0) ? @player : @opponent
+202:       # Opposing trainers and partner trainers's messages about sending out Pokémon
+203:       trainers.each_with_index do |t, i|
+204:         next if side == 0 && i == 0   # The player's message is shown last
+205:         msg += "\n" if msg.length > 0
+206:         sent = sendOuts[side][i]
+207:         case sent.length
+208:         when 1
+209:           msg += _INTL("{1} sent out {2}!", t.full_name, @battlers[sent[0]].name)
+210:         when 2
+211:           msg += _INTL("{1} sent out {2} and {3}!", t.full_name,
+212:                        @battlers[sent[0]].name, @battlers[sent[1]].name)
+213:         when 3
+214:           msg += _INTL("{1} sent out {2}, {3} and {4}!", t.full_name,
+215:                        @battlers[sent[0]].name, @battlers[sent[1]].name, @battlers[sent[2]].name)
+216:         end
+217:         toSendOut.concat(sent)
+218:       end
+219:       # The player's message about sending out Pokémon
+220:       if side == 0
+221:         msg += "\n" if msg.length > 0
+222:         sent = sendOuts[side][0]
+223:         case sent.length
+224:         when 1
+225:           msg += _INTL("Go! {1}!", @battlers[sent[0]].name)
+226:         when 2
+227:           msg += _INTL("Go! {1} and {2}!", @battlers[sent[0]].name, @battlers[sent[1]].name)
+228:         when 3
+229:           msg += _INTL("Go! {1}, {2} and {3}!", @battlers[sent[0]].name,
+230:                        @battlers[sent[1]].name, @battlers[sent[2]].name)
+231:         end
+232:         toSendOut.concat(sent)
+233:       end
+234:       pbDisplayBrief(msg) if msg.length > 0
+235:       # The actual sending out of Pokémon
+236:       animSendOuts = []
+237:       toSendOut.each do |idxBattler|
+238:         animSendOuts.push([idxBattler, @battlers[idxBattler].pokemon])
+239:       end
+240:       pbSendOut(animSendOuts, true)
+241:     end
+242:   end
+243: 
+244:   #=============================================================================
+245:   # Start a battle
+246:   #=============================================================================
+247:   def pbStartBattle
+248:     PBDebug.log("")
+249:     PBDebug.log("================================================================")
+250:     PBDebug.log("")
+251:     logMsg = "[Started battle] "
+252:     if @sideSizes[0] == 1 && @sideSizes[1] == 1
+253:       logMsg += "Single "
+254:     elsif @sideSizes[0] == 2 && @sideSizes[1] == 2
+255:       logMsg += "Double "
+256:     elsif @sideSizes[0] == 3 && @sideSizes[1] == 3
+257:       logMsg += "Triple "
+258:     else
+259:       logMsg += "#{@sideSizes[0]}v#{@sideSizes[1]} "
+260:     end
+261:     logMsg += "wild " if wildBattle?
+262:     logMsg += "trainer " if trainerBattle?
+263:     logMsg += "battle (#{@player.length} trainer(s) vs. "
+264:     logMsg += "#{pbParty(1).length} wild Pokémon)" if wildBattle?
+265:     logMsg += "#{@opponent.length} trainer(s))" if trainerBattle?
+266:     PBDebug.log(logMsg)
+267:     pbEnsureParticipants
+268:     pbParty(0).each { |pkmn| @peer.pbOnStartingBattle(self, pkmn, wildBattle?) if pkmn }
+269:     pbParty(1).each { |pkmn| @peer.pbOnStartingBattle(self, pkmn, wildBattle?) if pkmn }
+270:     begin
+271:       pbStartBattleCore
+272:     rescue BattleAbortedException
+273:       @decision = 0
+274:       @scene.pbEndBattle(@decision)
+275:     end
+276:     return @decision
+277:   end
+278: 
+279:   def pbStartBattleCore
+280:     # Set up the battlers on each side
+281:     sendOuts = pbSetUpSides
+282:     @battleAI.create_ai_objects
+283:     # Create all the sprites and play the battle intro animation
+284:     @scene.pbStartBattle(self)
+285:     # Show trainers on both sides sending out Pokémon
+286:     pbStartBattleSendOut(sendOuts)
+287:     # Weather announcement
+288:     weather_data = GameData::BattleWeather.try_get(@field.weather)
+289:     pbCommonAnimation(weather_data.animation) if weather_data
+290:     case @field.weather
+291:     when :Sun         then pbDisplay(_INTL("The sunlight is strong."))
+292:     when :Rain        then pbDisplay(_INTL("It is raining."))
+293:     when :Sandstorm   then pbDisplay(_INTL("A sandstorm is raging."))
+294:     when :Hail        then pbDisplay(_INTL("Hail is falling."))
+295:     when :HarshSun    then pbDisplay(_INTL("The sunlight is extremely harsh."))
+296:     when :HeavyRain   then pbDisplay(_INTL("It is raining heavily."))
+297:     when :StrongWinds then pbDisplay(_INTL("The wind is strong."))
+298:     when :ShadowSky   then pbDisplay(_INTL("The sky is shadowy."))
+299:     end
+300:     # Terrain announcement
+301:     terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+302:     pbCommonAnimation(terrain_data.animation) if terrain_data
+303:     case @field.terrain
+304:     when :Electric
+305:       pbDisplay(_INTL("An electric current runs across the battlefield!"))
+306:     when :Grassy
+307:       pbDisplay(_INTL("Grass is covering the battlefield!"))
+308:     when :Misty
+309:       pbDisplay(_INTL("Mist swirls about the battlefield!"))
+310:     when :Psychic
+311:       pbDisplay(_INTL("The battlefield is weird!"))
+312:     end
+313:     # Abilities upon entering battle
+314:     pbOnAllBattlersEnteringBattle
+315:     # Main battle loop
+316:     pbBattleLoop
+317:   end
+318: 
+319:   #=============================================================================
+320:   # Main battle loop

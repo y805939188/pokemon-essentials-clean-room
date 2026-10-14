@@ -1,0 +1,220 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: class CommandMenuList
+5:   attr_accessor :currentList
+6: 
+7:   def initialize
+8:     @commands    = []
+9:     @currentList = :main
+10:   end
+11: 
+12:   def add(option, hash, name = nil, description = nil)
+13:     @commands.push([option, hash["parent"], name || hash["name"], description || hash["description"]])
+14:   end
+15: 
+16:   def list
+17:     ret = []
+18:     @commands.each { |cmd| ret.push(cmd[2]) if cmd[1] == @currentList }
+19:     return ret
+20:   end
+21: 
+22:   def getCommand(index)
+23:     count = 0
+24:     @commands.each do |cmd|
+25:       next if cmd[1] != @currentList
+26:       return cmd[0] if count == index
+27:       count += 1
+28:     end
+29:     return nil
+30:   end
+31: 
+32:   def getDesc(index)
+33:     count = 0
+34:     @commands.each do |cmd|
+35:       next if cmd[1] != @currentList
+36:       return cmd[3] if count == index && cmd[3]
+37:       break if count == index
+38:       count += 1
+39:     end
+40:     return "<No description available>"
+41:   end
+42: 
+43:   def hasSubMenu?(check_cmd)
+44:     @commands.each { |cmd| return true if cmd[1] == check_cmd }
+45:     return false
+46:   end
+47: 
+48:   def getParent
+49:     ret = nil
+50:     @commands.each do |cmd|
+51:       next if cmd[0] != @currentList
+52:       ret = cmd[1]
+53:       break
+54:     end
+55:     return nil if !ret
+56:     count = 0
+57:     @commands.each do |cmd|
+58:       next if cmd[1] != ret
+59:       return [ret, count] if cmd[0] == @currentList
+60:       count += 1
+61:     end
+62:     return [ret, 0]
+63:   end
+64: end
+65: 
+66: #===============================================================================
+67: #
+68: #===============================================================================
+69: def pbDebugMenu(show_all = true)
+70:   # Get all commands
+71:   commands = CommandMenuList.new
+72:   MenuHandlers.each_available(:debug_menu) do |option, hash, name|
+73:     next if !show_all && !hash["always_show"].nil? && !hash["always_show"]
+74:     if hash["description"].is_a?(Proc)
+75:       description = hash["description"].call
+76:     elsif !hash["description"].nil?
+77:       description = _INTL(hash["description"])
+78:     end
+79:     commands.add(option, hash, name, description)
+80:   end
+81:   # Setup windows
+82:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+83:   viewport.z = 99999
+84:   sprites = {}
+85:   sprites["textbox"] = pbCreateMessageWindow
+86:   sprites["textbox"].letterbyletter = false
+87:   sprites["cmdwindow"] = Window_CommandPokemonEx.new(commands.list)
+88:   cmdwindow = sprites["cmdwindow"]
+89:   cmdwindow.x        = 0
+90:   cmdwindow.y        = 0
+91:   cmdwindow.width    = Graphics.width
+92:   cmdwindow.height   = Graphics.height - sprites["textbox"].height
+93:   cmdwindow.viewport = viewport
+94:   cmdwindow.visible  = true
+95:   sprites["textbox"].text = commands.getDesc(cmdwindow.index)
+96:   pbFadeInAndShow(sprites)
+97:   # Main loop
+98:   ret = -1
+99:   refresh = true
+100:   loop do
+101:     loop do
+102:       oldindex = cmdwindow.index
+103:       cmdwindow.update
+104:       if refresh || cmdwindow.index != oldindex
+105:         sprites["textbox"].text = commands.getDesc(cmdwindow.index)
+106:         refresh = false
+107:       end
+108:       Graphics.update
+109:       Input.update
+110:       if Input.trigger?(Input::BACK)
+111:         parent = commands.getParent
+112:         if parent
+113:           pbPlayCancelSE
+114:           commands.currentList = parent[0]
+115:           cmdwindow.commands = commands.list
+116:           cmdwindow.index = parent[1]
+117:           refresh = true
+118:         else
+119:           ret = -1
+120:           break
+121:         end
+122:       elsif Input.trigger?(Input::USE)
+123:         ret = cmdwindow.index
+124:         break
+125:       end
+126:     end
+127:     break if ret < 0
+128:     cmd = commands.getCommand(ret)
+129:     if commands.hasSubMenu?(cmd)
+130:       pbPlayDecisionSE
+131:       commands.currentList = cmd
+132:       cmdwindow.commands = commands.list
+133:       cmdwindow.index = 0
+134:       refresh = true
+135:     elsif cmd == :warp
+136:       return if MenuHandlers.call(:debug_menu, cmd, "effect", sprites, viewport)
+137:     else
+138:       MenuHandlers.call(:debug_menu, cmd, "effect")
+139:     end
+140:   end
+141:   pbPlayCloseMenuSE
+142:   pbFadeOutAndHide(sprites)
+143:   pbDisposeMessageWindow(sprites["textbox"])
+144:   pbDisposeSpriteHash(sprites)
+145:   viewport.dispose
+146: end
+147: 
+148: #===============================================================================
+149: #
+150: #===============================================================================
+151: module PokemonDebugMixin
+152:   def pbPokemonDebug(pkmn, pkmnid, heldpoke = nil, settingUpBattle = false)
+153:     # Get all commands
+154:     commands = CommandMenuList.new
+155:     MenuHandlers.each_available(:pokemon_debug_menu) do |option, hash, name|
+156:       next if settingUpBattle && !hash["always_show"].nil? && !hash["always_show"]
+157:       commands.add(option, hash, name)
+158:     end
+159:     # Main loop
+160:     command = 0
+161:     loop do
+162:       command = pbShowCommands(_INTL("Do what with {1}?", pkmn.name), commands.list, command)
+163:       if command < 0
+164:         parent = commands.getParent
+165:         break if !parent
+166:         commands.currentList = parent[0]
+167:         command = parent[1]
+168:       else
+169:         cmd = commands.getCommand(command)
+170:         if commands.hasSubMenu?(cmd)
+171:           commands.currentList = cmd
+172:           command = 0
+173:         elsif MenuHandlers.call(:pokemon_debug_menu, cmd, "effect", pkmn, pkmnid, heldpoke, settingUpBattle, self)
+174:           break
+175:         end
+176:       end
+177:     end
+178:   end
+179: end
+180: 
+181: #===============================================================================
+182: #
+183: #===============================================================================
+184: module Battle::DebugMixin
+185:   def pbBattleDebug(battle, show_all = true)
+186:     # Get all commands
+187:     commands = CommandMenuList.new
+188:     MenuHandlers.each_available(:battle_debug_menu) do |option, hash, name|
+189:       next if !show_all && !hash["always_show"].nil? && !hash["always_show"]
+190:       if hash["description"].is_a?(Proc)
+191:         description = hash["description"].call
+192:       elsif !hash["description"].nil?
+193:         description = _INTL(hash["description"])
+194:       end
+195:       commands.add(option, hash, name, description)
+196:     end
+197:     # Setup windows
+198:     viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+199:     viewport.z = 99999
+200:     sprites = {}
+201:     sprites["textbox"] = pbCreateMessageWindow
+202:     sprites["textbox"].letterbyletter = false
+203:     sprites["cmdwindow"] = Window_CommandPokemonEx.new(commands.list)
+204:     cmdwindow = sprites["cmdwindow"]
+205:     cmdwindow.x        = 0
+206:     cmdwindow.y        = 0
+207:     cmdwindow.width    = Graphics.width / 2
+208:     cmdwindow.height   = Graphics.height - sprites["textbox"].height
+209:     cmdwindow.viewport = viewport
+210:     cmdwindow.visible  = true
+211:     sprites["textbox"].text = commands.getDesc(cmdwindow.index)
+212:     # Main loop
+213:     ret = -1
+214:     refresh = true
+215:     loop do
+216:       loop do
+217:         oldindex = cmdwindow.index
+218:         cmdwindow.update
+219:         if refresh || cmdwindow.index != oldindex
+220:           sprites["textbox"].text = commands.getDesc(cmdwindow.index)

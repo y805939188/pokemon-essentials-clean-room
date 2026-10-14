@@ -1,0 +1,263 @@
+1: #===============================================================================
+2: # Edits the terrain tags of tiles in tilesets.
+3: #===============================================================================
+4: class PokemonTilesetScene
+5:   TILE_SIZE            = 32   # in pixels
+6:   TILES_PER_ROW        = 8
+7:   TILESET_WIDTH        = TILES_PER_ROW * TILE_SIZE
+8:   TILES_PER_AUTOTILE   = 48
+9:   TILESET_START_ID     = TILES_PER_ROW * TILES_PER_AUTOTILE
+10:   TILE_BACKGROUND      = Color.magenta
+11:   CURSOR_COLOR         = Color.new(255, 0, 0)   # Red
+12:   CURSOR_OUTLINE_COLOR = Color.white
+13:   TEXT_COLOR           = Color.white
+14:   TEXT_SHADOW_COLOR    = Color.black
+15: 
+16:   def initialize
+17:     @tilesets_data = load_data("Data/Tilesets.rxdata")
+18:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+19:     @viewport.z = 99999
+20:     @sprites = {}
+21:     @sprites["title"] = Window_UnformattedTextPokemon.newWithSize(
+22:       _INTL("Tileset Editor\nA/S: SCROLL\nZ: MENU"),
+23:       TILESET_WIDTH, 0, Graphics.width - TILESET_WIDTH, 128, @viewport
+24:     )
+25:     @sprites["background"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+26:     @sprites["tileset"] = BitmapSprite.new(TILESET_WIDTH, Graphics.height, @viewport)
+27:     @sprites["tileset"].z = 10
+28:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+29:     @sprites["overlay"].z = 20
+30:     pbSetSystemFont(@sprites["overlay"].bitmap)
+31:     @visible_height = @sprites["tileset"].bitmap.height / TILE_SIZE
+32:     load_tileset(1)
+33:   end
+34: 
+35:   def open_screen
+36:     pbFadeInAndShow(@sprites)
+37:   end
+38: 
+39:   def close_screen
+40:     pbFadeOutAndHide(@sprites)
+41:     pbDisposeSpriteHash(@sprites)
+42:     @viewport.dispose
+43:     @tilehelper.dispose
+44:     if $game_map && $map_factory
+45:       $map_factory.setup($game_map.map_id)
+46:       $game_player.center($game_player.x, $game_player.y)
+47:       if $scene.is_a?(Scene_Map)
+48:         $scene.dispose
+49:         $scene.createSpritesets
+50:       end
+51:     end
+52:   end
+53: 
+54:   def load_tileset(id)
+55:     @tileset = @tilesets_data[id]
+56:     @tilehelper&.dispose
+57:     @tilehelper = TileDrawingHelper.fromTileset(@tileset)
+58:     @x = 0
+59:     @y = 0
+60:     @top_y = 0
+61:     @height = ((@tileset.terrain_tags.xsize - TILESET_START_ID) / TILES_PER_ROW) + 1
+62:     draw_tiles
+63:     draw_overlay
+64:   end
+65: 
+66:   def choose_tileset
+67:     commands = []
+68:     (1...@tilesets_data.length).each do |i|
+69:       commands.push(sprintf("%03d %s", i, @tilesets_data[i].name))
+70:     end
+71:     ret = pbShowCommands(nil, commands, -1)
+72:     load_tileset(ret + 1) if ret >= 0
+73:   end
+74: 
+75:   def draw_tiles
+76:     @sprites["background"].bitmap.clear
+77:     @sprites["tileset"].bitmap.clear
+78:     @visible_height.times do |yy|
+79:       autotile_row = (@top_y == 0 && yy == 0)   # Autotiles
+80:       id_y_offset = (autotile_row) ? 0 : TILESET_START_ID + ((@top_y + yy - 1) * TILES_PER_ROW)
+81:       break if @top_y + yy >= @height
+82:       TILES_PER_ROW.times do |xx|
+83:         @sprites["background"].bitmap.fill_rect(xx * TILE_SIZE, yy * TILE_SIZE, TILE_SIZE, TILE_SIZE, TILE_BACKGROUND)
+84:         id_x_offset = (autotile_row) ? xx * TILES_PER_AUTOTILE : xx
+85:         @tilehelper.bltTile(@sprites["tileset"].bitmap, xx * TILE_SIZE, yy * TILE_SIZE,
+86:                             id_y_offset + id_x_offset)
+87:       end
+88:     end
+89:   end
+90: 
+91:   def draw_overlay
+92:     @sprites["overlay"].bitmap.clear
+93:     # Draw all text over tiles (terrain tag numbers)
+94:     textpos = []
+95:     @visible_height.times do |yy|
+96:       TILES_PER_ROW.times do |xx|
+97:         tile_id = tile_ID_from_coordinates(xx, @top_y + yy)
+98:         terr = @tileset.terrain_tags[tile_id]
+99:         next if terr == 0
+100:         textpos.push([terr.to_s, (xx * TILE_SIZE) + (TILE_SIZE / 2), (yy * TILE_SIZE) + 6,
+101:                       :center, TEXT_COLOR, TEXT_SHADOW_COLOR, :outline])
+102:       end
+103:     end
+104:     pbDrawTextPositions(@sprites["overlay"].bitmap, textpos)
+105:     # Draw cursor
+106:     draw_cursor
+107:     # Draw information about selected tile on right side
+108:     draw_tile_details
+109:   end
+110: 
+111:   def draw_cursor
+112:     cursor_x = @x * TILE_SIZE
+113:     cursor_y = (@y - @top_y) * TILE_SIZE
+114:     cursor_width = TILE_SIZE
+115:     cursor_height = TILE_SIZE
+116:     bitmap = @sprites["overlay"].bitmap
+117:     bitmap.fill_rect(cursor_x - 2,                cursor_y - 2,                 cursor_width + 4, 8,  CURSOR_OUTLINE_COLOR)
+118:     bitmap.fill_rect(cursor_x - 2,                cursor_y - 2,                 8, cursor_height + 4, CURSOR_OUTLINE_COLOR)
+119:     bitmap.fill_rect(cursor_x - 2,                cursor_y + cursor_height - 6, cursor_width + 4, 8,  CURSOR_OUTLINE_COLOR)
+120:     bitmap.fill_rect(cursor_x + cursor_width - 6, cursor_y - 2,                 8, cursor_height + 4, CURSOR_OUTLINE_COLOR)
+121:     bitmap.fill_rect(cursor_x,                    cursor_y,                     cursor_width, 4,      CURSOR_COLOR)
+122:     bitmap.fill_rect(cursor_x,                    cursor_y,                     4, cursor_height,     CURSOR_COLOR)
+123:     bitmap.fill_rect(cursor_x,                    cursor_y + cursor_height - 4, cursor_width, 4,      CURSOR_COLOR)
+124:     bitmap.fill_rect(cursor_x + cursor_width - 4, cursor_y,                     4, cursor_height,     CURSOR_COLOR)
+125:   end
+126: 
+127:   def draw_tile_details
+128:     overlay = @sprites["overlay"].bitmap
+129:     tile_size = 4   # Size multiplier
+130:     tile_x = (Graphics.width * 3 / 4) - (TILE_SIZE * tile_size / 2)
+131:     tile_y = (Graphics.height / 2) - (TILE_SIZE * tile_size / 2)
+132:     tile_id = tile_ID_from_coordinates(@x, @y) || 0
+133:     # Draw tile (at 400% size)
+134:     @sprites["background"].bitmap.fill_rect(tile_x, tile_y, TILE_SIZE * tile_size, TILE_SIZE * tile_size, TILE_BACKGROUND)
+135:     @tilehelper.bltSmallTile(overlay, tile_x, tile_y, TILE_SIZE * tile_size, TILE_SIZE * tile_size, tile_id)
+136:     # Draw box around tile image
+137:     overlay.fill_rect(tile_x - 1,                       tile_y - 1,                       (TILE_SIZE * tile_size) + 2, 1, Color.white)
+138:     overlay.fill_rect(tile_x - 1,                       tile_y - 1,                       1, (TILE_SIZE * tile_size) + 2, Color.white)
+139:     overlay.fill_rect(tile_x - 1,                       tile_y + (TILE_SIZE * tile_size), (TILE_SIZE * tile_size) + 2, 1, Color.white)
+140:     overlay.fill_rect(tile_x + (TILE_SIZE * tile_size), tile_y - 1,                       1, (TILE_SIZE * tile_size) + 2, Color.white)
+141:     # Write terrain tag info about selected tile
+142:     terrain_tag = @tileset.terrain_tags[tile_id] || 0
+143:     if GameData::TerrainTag.exists?(terrain_tag)
+144:       terrain_tag_name = sprintf("%d: %s", terrain_tag, GameData::TerrainTag.get(terrain_tag).real_name)
+145:     else
+146:       terrain_tag_name = terrain_tag.to_s
+147:     end
+148:     textpos = [
+149:       [_INTL("Terrain Tag:"), Graphics.width * 3 / 4, tile_y + (TILE_SIZE * tile_size) + 22,
+150:        :center, Color.new(248, 248, 248), Color.new(40, 40, 40)],
+151:       [terrain_tag_name, Graphics.width * 3 / 4, tile_y + (TILE_SIZE * tile_size) + 54,
+152:        :center, Color.new(248, 248, 248), Color.new(40, 40, 40)]
+153:     ]
+154:     # Draw all text
+155:     pbDrawTextPositions(overlay, textpos)
+156:   end
+157: 
+158:   def tile_ID_from_coordinates(x, y)
+159:     return x * TILES_PER_AUTOTILE if y == 0   # Autotile
+160:     return TILESET_START_ID + ((y - 1) * TILES_PER_ROW) + x
+161:   end
+162: 
+163:   def set_terrain_tag_for_tile_ID(i, value)
+164:     if i < TILESET_START_ID
+165:       TILES_PER_AUTOTILE.times { |j| @tileset.terrain_tags[i + j] = value }
+166:     else
+167:       @tileset.terrain_tags[i] = value
+168:     end
+169:   end
+170: 
+171:   def update_cursor_position(x_offset, y_offset)
+172:     old_x = @x
+173:     old_y = @y
+174:     old_top_y = @top_y
+175:     if x_offset != 0
+176:       @x += x_offset
+177:       @x = @x.clamp(0, TILES_PER_ROW - 1)
+178:     end
+179:     if y_offset != 0
+180:       @y += y_offset
+181:       @y = @y.clamp(0, @height - 1)
+182:       @top_y = @y if @y < @top_y
+183:       @top_y = @y - @visible_height + 1 if @y >= @top_y + @visible_height
+184:       @top_y = 0 if @top_y < 0
+185:     end
+186:     draw_tiles if @top_y != old_top_y
+187:     draw_overlay if @x != old_x || @y != old_y
+188:   end
+189: 
+190:   def pbStartScene
+191:     open_screen
+192:     loop do
+193:       Graphics.update
+194:       Input.update
+195:       if Input.repeat?(Input::UP)
+196:         update_cursor_position(0, -1)
+197:       elsif Input.repeat?(Input::DOWN)
+198:         update_cursor_position(0, 1)
+199:       elsif Input.repeat?(Input::LEFT)
+200:         update_cursor_position(-1, 0)
+201:       elsif Input.repeat?(Input::RIGHT)
+202:         update_cursor_position(1, 0)
+203:       elsif Input.repeat?(Input::JUMPUP)
+204:         update_cursor_position(0, -@visible_height / 2)
+205:       elsif Input.repeat?(Input::JUMPDOWN)
+206:         update_cursor_position(0, @visible_height / 2)
+207:       elsif Input.trigger?(Input::ACTION)
+208:         commands = [
+209:           _INTL("Go to bottom"),
+210:           _INTL("Go to top"),
+211:           _INTL("Change tileset"),
+212:           _INTL("Cancel")
+213:         ]
+214:         case pbShowCommands(nil, commands, -1)
+215:         when 0
+216:           update_cursor_position(0, 99_999)
+217:         when 1
+218:           update_cursor_position(0, -99_999)
+219:         when 2
+220:           choose_tileset
+221:         end
+222:       elsif Input.trigger?(Input::BACK)
+223:         if pbConfirmMessage(_INTL("Save changes?"))
+224:           save_data(@tilesets_data, "Data/Tilesets.rxdata")
+225:           $data_tilesets = @tilesets_data
+226:           pbMessage(_INTL("To ensure that the changes remain, close and reopen RPG Maker XP."))
+227:         end
+228:         break if pbConfirmMessage(_INTL("Exit from the editor?"))
+229:       elsif Input.trigger?(Input::USE)
+230:         selected = tile_ID_from_coordinates(@x, @y)
+231:         old_tag = @tileset.terrain_tags[selected]
+232:         cmds = []
+233:         ids = []
+234:         old_idx = 0
+235:         GameData::TerrainTag.each do |tag|
+236:           old_idx = cmds.length if tag.id_number == old_tag
+237:           cmds.push("#{tag.id_number}: #{tag.real_name}")
+238:           ids.push(tag.id_number)
+239:         end
+240:         val = pbMessage("\\l[1]\\ts[]" + _INTL("Set the terrain tag."), cmds, -1, nil, old_idx)
+241:         if val >= 0 && val != old_tag
+242:           set_terrain_tag_for_tile_ID(selected, ids[val])
+243:           draw_overlay
+244:         end
+245:       end
+246:     end
+247:     close_screen
+248:   end
+249: end
+250: 
+251: #===============================================================================
+252: #
+253: #===============================================================================
+254: def pbTilesetScreen
+255:   pbFadeOutIn do
+256:     Graphics.resize_screen(Settings::SCREEN_WIDTH, Settings::SCREEN_HEIGHT * 2)
+257:     pbSetResizeFactor(1)
+258:     scene = PokemonTilesetScene.new
+259:     scene.pbStartScene
+260:     Graphics.resize_screen(Settings::SCREEN_WIDTH, Settings::SCREEN_HEIGHT)
+261:     pbSetResizeFactor($PokemonSystem.screensize)
+262:   end
+263: end

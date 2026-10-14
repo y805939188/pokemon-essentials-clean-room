@@ -1,0 +1,210 @@
+1: #===============================================================================
+2: #
+3: #===============================================================================
+4: Battle::AI::Handlers::MoveEffectScore.add("RedirectAllMovesToUser",
+5:   proc { |score, move, user, ai, battle|
+6:     # Useless if there is no ally to redirect attacks from
+7:     next Battle::AI::MOVE_USELESS_SCORE if user.battler.allAllies.length == 0
+8:     # Prefer if ally is at low HP and user is at high HP
+9:     if ai.trainer.has_skill_flag?("HPAware") && user.hp > user.totalhp * 2 / 3
+10:       ai.each_ally(user.index) do |b, i|
+11:         score += 10 if b.hp <= b.totalhp / 3
+12:       end
+13:     end
+14:     next score
+15:   }
+16: )
+17: 
+18: #===============================================================================
+19: #
+20: #===============================================================================
+21: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("RedirectAllMovesToTarget",
+22:   proc { |score, move, user, target, ai, battle|
+23:     if target.opposes?(user)
+24:       # Useless if target is a foe but there is only one foe
+25:       next Battle::AI::MOVE_USELESS_SCORE if target.battler.allAllies.length == 0
+26:       # Useless if there is no ally to attack the spotlighted foe
+27:       next Battle::AI::MOVE_USELESS_SCORE if user.battler.allAllies.length == 0
+28:     end
+29:     # Generaly don't prefer this move, as it's a waste of the user's turn
+30:     next score - 20
+31:   }
+32: )
+33: 
+34: #===============================================================================
+35: #
+36: #===============================================================================
+37: # CannotBeRedirected
+38: 
+39: #===============================================================================
+40: #
+41: #===============================================================================
+42: Battle::AI::Handlers::MoveBasePower.add("RandomlyDamageOrHealTarget",
+43:   proc { |power, move, user, target, ai, battle|
+44:     next 50   # Average power, ish
+45:   }
+46: )
+47: Battle::AI::Handlers::MoveEffectScore.add("RandomlyDamageOrHealTarget",
+48:   proc { |score, move, user, ai, battle|
+49:     # Generaly don't prefer this move, as it may heal the target instead
+50:     next score - 10
+51:   }
+52: )
+53: 
+54: #===============================================================================
+55: #
+56: #===============================================================================
+57: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("HealAllyOrDamageFoe",
+58:   proc { |move, user, target, ai, battle|
+59:     next !target.opposes?(user) && !target.battler.canHeal?
+60:   }
+61: )
+62: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("HealAllyOrDamageFoe",
+63:   proc { |score, move, user, target, ai, battle|
+64:     next score if target.opposes?(user)
+65:     # Consider how much HP will be restored
+66:     if ai.trainer.has_skill_flag?("HPAware")
+67:       if target.hp >= target.totalhp * 0.5
+68:         score -= 10
+69:       else
+70:         score += 20 * (target.totalhp - target.hp) / target.totalhp   # +10 to +20
+71:       end
+72:     end
+73:     next score
+74:   }
+75: )
+76: 
+77: #===============================================================================
+78: #
+79: #===============================================================================
+80: Battle::AI::Handlers::MoveFailureCheck.add("CurseTargetOrLowerUserSpd1RaiseUserAtkDef1",
+81:   proc { |move, user, ai, battle|
+82:     next false if user.has_type?(:GHOST) ||
+83:                   (move.rough_type == :GHOST && user.has_active_ability?([:LIBERO, :PROTEAN]))
+84:     will_fail = true
+85:     (move.move.statUp.length / 2).times do |i|
+86:       next if !user.battler.pbCanRaiseStatStage?(move.move.statUp[i * 2], user.battler, move.move)
+87:       will_fail = false
+88:       break
+89:     end
+90:     (move.move.statDown.length / 2).times do |i|
+91:       next if !user.battler.pbCanLowerStatStage?(move.move.statDown[i * 2], user.battler, move.move)
+92:       will_fail = false
+93:       break
+94:     end
+95:     next will_fail
+96:   }
+97: )
+98: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("CurseTargetOrLowerUserSpd1RaiseUserAtkDef1",
+99:   proc { |move, user, target, ai, battle|
+100:     next false if !user.has_type?(:GHOST) &&
+101:                   !(move.rough_type == :GHOST && user.has_active_ability?([:LIBERO, :PROTEAN]))
+102:     next true if target.effects[PBEffects::Curse] || !target.battler.takesIndirectDamage?
+103:     next false
+104:   }
+105: )
+106: Battle::AI::Handlers::MoveEffectScore.add("CurseTargetOrLowerUserSpd1RaiseUserAtkDef1",
+107:   proc { |score, move, user, ai, battle|
+108:     next score if user.has_type?(:GHOST) ||
+109:                   (move.rough_type == :GHOST && user.has_active_ability?([:LIBERO, :PROTEAN]))
+110:     score = ai.get_score_for_target_stat_raise(score, user, move.move.statUp)
+111:     next score if score == Battle::AI::MOVE_USELESS_SCORE
+112:     next ai.get_score_for_target_stat_drop(score, user, move.move.statDown, false)
+113:   }
+114: )
+115: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("CurseTargetOrLowerUserSpd1RaiseUserAtkDef1",
+116:   proc { |score, move, user, target, ai, battle|
+117:     next score if !user.has_type?(:GHOST) &&
+118:                   !(move.rough_type == :GHOST && user.has_active_ability?([:LIBERO, :PROTEAN]))
+119:     # Don't prefer if user will faint because of using this move
+120:     if ai.trainer.has_skill_flag?("HPAware")
+121:       next Battle::AI::MOVE_USELESS_SCORE if user.hp <= user.totalhp / 2
+122:     end
+123:     # Prefer early on
+124:     score += 10 if user.turnCount < 2
+125:     if ai.trainer.medium_skill?
+126:       # Prefer if the user has no damaging moves
+127:       score += 15 if !user.check_for_move { |m| m.damagingMove? }
+128:       # Prefer if the target can't switch out to remove its curse
+129:       score += 10 if !battle.pbCanChooseNonActive?(target.index)
+130:     end
+131:     if ai.trainer.high_skill?
+132:       # Prefer if user can stall while damage is dealt
+133:       if user.check_for_move { |m| m.is_a?(Battle::Move::ProtectMove) }
+134:         score += 5
+135:       end
+136:     end
+137:     next score
+138:   }
+139: )
+140: 
+141: #===============================================================================
+142: #
+143: #===============================================================================
+144: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("EffectDependsOnEnvironment",
+145:   proc { |score, move, user, target, ai, battle|
+146:     # Determine this move's effect
+147:     move.move.pbOnStartUse(user.battler, [target.battler])
+148:     function_code = nil
+149:     case move.move.secretPower
+150:     when 2
+151:       function_code = "SleepTarget"
+152:     when 10
+153:       function_code = "BurnTarget"
+154:     when 0, 1
+155:       function_code = "ParalyzeTarget"
+156:     when 9
+157:       function_code = "FreezeTarget"
+158:     when 7, 11, 13
+159:       function_code = "FlinchTarget"
+160:     else
+161:       stat_lowered = nil
+162:       case move.move.secretPower
+163:       when 5
+164:         function_code = :ATTACK
+165:       when 14
+166:         function_code = :DEFENSE
+167:       when 3
+168:         function_code = :SPECIAL_ATTACK
+169:       when 4, 6, 12
+170:         function_code = :SPEED
+171:       when 8
+172:         function_code = :ACCURACY
+173:       end
+174:       next ai.get_score_for_target_stat_drop(score, target, [stat_lowered, 1]) if stat_lowered
+175:     end
+176:     if function_code
+177:       next Battle::AI::Handlers.apply_move_effect_against_target_score(function_code,
+178:          score, move, user, target, ai, battle)
+179:     end
+180:     next score
+181:   }
+182: )
+183: 
+184: #===============================================================================
+185: #
+186: #===============================================================================
+187: Battle::AI::Handlers::MoveBasePower.add("HitsAllFoesAndPowersUpInPsychicTerrain",
+188:   proc { |power, move, user, target, ai, battle|
+189:     next move.move.pbBaseDamage(power, user.battler, target.battler)
+190:   }
+191: )
+192: 
+193: #===============================================================================
+194: #
+195: #===============================================================================
+196: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TargetNextFireMoveDamagesTarget",
+197:   proc { |move, user, target, ai, battle|
+198:     next target.effects[PBEffects::Powder]
+199:   }
+200: )
+201: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetNextFireMoveDamagesTarget",
+202:   proc { |score, move, user, target, ai, battle|
+203:     # Prefer if target knows any Fire moves (moreso if that's the only type they know)
+204:     next Battle::AI::MOVE_USELESS_SCORE if !target.check_for_move { |m| m.pbCalcType(target.battler) == :FIRE }
+205:     score += 10
+206:     score += 10 if !target.check_for_move { |m| m.pbCalcType(target.battler) != :FIRE }
+207:     next score
+208:   }
+209: )
+210: 

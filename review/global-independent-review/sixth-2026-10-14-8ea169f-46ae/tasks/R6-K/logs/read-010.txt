@@ -1,0 +1,325 @@
+PATH reference/pokemon-essentials/Data/Scripts/001_Technical/005_PluginManager.rb RANGE 341-664 TOTAL 664
+341	  #     0 if v1 is equal to v2
+342	  #     -1 if v1 is lower than v2
+343	  def self.compare_versions(v1, v2)
+344	    d1 = v1.chars
+345	    d1.insert(0, "0") if d1[0] == "."   # Turn ".123" into "0.123"
+346	    while d1[-1] == "."                 # Turn "123." into "123"
+347	      d1 = d1[0..-2]
+348	    end
+349	    d2 = v2.chars
+350	    d2.insert(0, "0") if d2[0] == "."   # Turn ".123" into "0.123"
+351	    while d2[-1] == "."                 # Turn "123." into "123"
+352	      d2 = d2[0..-2]
+353	    end
+354	    [d1.size, d2.size].max.times do |i|   # Compare each digit in turn
+355	      c1 = d1[i]
+356	      c2 = d2[i]
+357	      if c1
+358	        return 1 if !c2
+359	        return 1 if c1.to_i(16) > c2.to_i(16)
+360	        return -1 if c1.to_i(16) < c2.to_i(16)
+361	      elsif c2
+362	        return -1
+363	      end
+364	    end
+365	    return 0
+366	  end
+367	
+368	  # Formats the error message
+369	  def self.pluginErrorMsg(name, script)
+370	    e = $!
+371	    # begin message formatting
+372	    message = "[Pokémon Essentials version #{Essentials::VERSION}]\r\n"
+373	    message += "#{Essentials::ERROR_TEXT}\r\n"   # For third party scripts to add to
+374	    message += "Error in Plugin: [#{name}]\r\n"
+375	    message += "Exception: #{e.class}\r\n"
+376	    message += "Message: "
+377	    message += e.message
+378	    # show last 10 lines of backtrace
+379	    message += "\r\n\r\nBacktrace:\r\n"
+380	    e.backtrace[0, 10].each { |i| message += "#{i}\r\n" }
+381	    # output to log
+382	    errorlog = "errorlog.txt"
+383	    File.open(errorlog, "ab") do |f|
+384	      f.write("\r\n=================\r\n\r\n[#{Time.now}]\r\n")
+385	      f.write(message)
+386	    end
+387	    # format/censor the error log directory
+388	    errorlogline = errorlog.gsub("/", "\\")
+389	    errorlogline.sub!(Dir.pwd + "\\", "")
+390	    errorlogline.sub!(pbGetUserName, "USERNAME")
+391	    errorlogline = "\r\n" + errorlogline if errorlogline.length > 20
+392	    # output message
+393	    print("#{message}\r\nThis exception was logged in #{errorlogline}.\r\nHold Ctrl when closing this message to copy it to the clipboard.")
+394	    # Give a ~500ms coyote time to start holding Control
+395	    t = System.uptime
+396	    until System.uptime - t >= 0.5
+397	      Input.update
+398	      if Input.press?(Input::CTRL)
+399	        Input.clipboard = message
+400	        break
+401	      end
+402	    end
+403	  end
+404	
+405	  # Used to read the metadata file
+406	  def self.readMeta(dir, file)
+407	    filename = "#{dir}/#{file}"
+408	    meta = {}
+409	    # read file
+410	    Compiler.pbCompilerEachPreppedLine(filename) do |line, line_no|
+411	      # split line up into property name and values
+412	      if !line[/^\s*(\w+)\s*=\s*(.*)$/]
+413	        raise _INTL("Bad line syntax (expected syntax like XXX=YYY).") + "\n" + FileLineData.linereport
+414	      end
+415	      property = $~[1].upcase
+416	      data = $~[2].split(",")
+417	      data.each_with_index { |value, i| data[i] = value.strip }
+418	      # begin formatting data hash
+419	      case property
+420	      when "ESSENTIALS"
+421	        meta[:essentials] = [] if !meta[:essentials]
+422	        data.each { |ver| meta[:essentials].push(ver) }
+423	      when "REQUIRES"
+424	        meta[:dependencies] = [] if !meta[:dependencies]
+425	        if data.length < 2   # No version given, just push name of plugin dependency
+426	          meta[:dependencies].push(data[0])
+427	          next
+428	        elsif data.length == 2   # Push name and version of plugin dependency
+429	          meta[:dependencies].push([data[0], data[1]])
+430	        else   # Push dependency type, name and version of plugin dependency
+431	          meta[:dependencies].push([data[2].downcase.to_sym, data[0], data[1]])
+432	        end
+433	      when "EXACT"
+434	        next if data.length < 2   # Exact dependencies must have a version given; ignore if not
+435	        meta[:dependencies] = [] if !meta[:dependencies]
+436	        meta[:dependencies].push([:exact, data[0], data[1]])
+437	      when "OPTIONAL"
+438	        next if data.length < 2   # Optional dependencies must have a version given; ignore if not
+439	        meta[:dependencies] = [] if !meta[:dependencies]
+440	        meta[:dependencies].push([:optional, data[0], data[1]])
+441	      when "CONFLICTS"
+442	        meta[:incompatibilities] = [] if !meta[:incompatibilities]
+443	        data.each { |value| meta[:incompatibilities].push(value) if value && !value.empty? }
+444	      when "SCRIPTS"
+445	        meta[:scripts] = [] if !meta[:scripts]
+446	        data.each { |scr| meta[:scripts].push(scr) }
+447	      when "CREDITS"
+448	        meta[:credits] = data
+449	      when "LINK", "WEBSITE"
+450	        meta[:link] = data[0]
+451	      else
+452	        meta[property.downcase.to_sym] = data[0]
+453	      end
+454	    end
+455	    # generate a list of all script files to be loaded, in the order they are to
+456	    # be loaded (files listed in the meta file are loaded first)
+457	    meta[:scripts] = [] if !meta[:scripts]
+458	    # get all script files from plugin Dir
+459	    Dir.all(dir).each do |fl|
+460	      next if !fl.include?(".rb")
+461	      meta[:scripts].push(fl.gsub("#{dir}/", ""))
+462	    end
+463	    # ensure no duplicate script files are queued
+464	    meta[:scripts].uniq!
+465	    # return meta hash
+466	    return meta
+467	  end
+468	
+469	  # Get a list of all the plugin directories to inspect
+470	  def self.listAll
+471	    return [] if !$DEBUG || FileTest.exist?("Game.rgssad") || !Dir.safe?("Plugins")
+472	    # get a list of all directories in the `Plugins/` folder
+473	    dirs = []
+474	    Dir.get("Plugins").each { |d| dirs.push(d) if Dir.safe?(d) }
+475	    # return all plugins
+476	    return dirs
+477	  end
+478	
+479	  # Catch any potential loop with dependencies and raise an error
+480	  def self.validateDependencies(name, meta, og = nil)
+481	    # exit if no registered dependency
+482	    return nil if !meta[name] || !meta[name][:dependencies]
+483	    og = [name] if !og
+484	    # go through all dependencies
+485	    meta[name][:dependencies].each do |dname|
+486	      # clean the name to a simple string
+487	      dname = dname[0] if dname.is_a?(Array) && dname.length == 2
+488	      dname = dname[1] if dname.is_a?(Array) && dname.length == 3
+489	      # catch looping dependency issue
+490	      self.error("Plugin '#{og[0]}' has looping dependencies which cannot be resolved automatically.") if !og.nil? && og.include?(dname)
+491	      new_og = og.clone
+492	      new_og.push(dname)
+493	      self.validateDependencies(dname, meta, new_og)
+494	    end
+495	    return name
+496	  end
+497	
+498	  # Sort load order based on dependencies (this ends up in reverse order)
+499	  def self.sortLoadOrder(order, plugins)
+500	    # go through the load order
+501	    order.each do |o|
+502	      next if !plugins[o] || !plugins[o][:dependencies]
+503	      # go through all dependencies
+504	      plugins[o][:dependencies].each do |dname|
+505	        optional = false
+506	        # clean the name to a simple string
+507	        if dname.is_a?(Array)
+508	          optional = [:optional, :optional_exact].include?(dname[0])
+509	          dname = dname[dname.length - 2]
+510	        end
+511	        # catch missing dependency
+512	        if !order.include?(dname)
+513	          next if optional
+514	          self.error("Plugin '#{o}' requires plugin '#{dname}' to work properly.")
+515	        end
+516	        # skip if already sorted
+517	        next if order.index(dname) > order.index(o)
+518	        # catch looping dependency issue
+519	        order.swap(o, dname)
+520	        order = self.sortLoadOrder(order, plugins)
+521	      end
+522	    end
+523	    return order
+524	  end
+525	
+526	  # Get the order in which to load plugins
+527	  def self.getPluginOrder
+528	    plugins = {}
+529	    order = []
+530	    # Find all plugin folders that have a meta.txt and add them to the list of
+531	    # plugins.
+532	    self.listAll.each do |dir|
+533	      # skip if there is no meta file
+534	      next if !FileTest.exist?(dir + "/meta.txt")
+535	      ndx = order.length
+536	      meta = self.readMeta(dir, "meta.txt")
+537	      meta[:dir] = dir
+538	      # raise error if no name defined for plugin
+539	      self.error("No 'Name' metadata defined for plugin located at '#{dir}'.") if !meta[:name]
+540	      # raise error if no script defined for plugin
+541	      self.error("No 'Scripts' metadata defined for plugin located at '#{dir}'.") if !meta[:scripts]
+542	      plugins[meta[:name]] = meta
+543	      # raise error if a plugin with the same name already exists
+544	      self.error("A plugin called '#{meta[:name]}' already exists in the load order.") if order.include?(meta[:name])
+545	      order.insert(ndx, meta[:name])
+546	    end
+547	    # validate all dependencies
+548	    order.each { |o| self.validateDependencies(o, plugins) }
+549	    # sort the load order
+550	    return self.sortLoadOrder(order, plugins).reverse, plugins
+551	  end
+552	
+553	  # Check if plugins need compiling
+554	  def self.needCompiling?(order, plugins)
+555	    # fixed actions
+556	    return false if !$DEBUG || FileTest.exist?("Game.rgssad")
+557	    return true if $full_compile
+558	    return true if !FileTest.exist?("Data/PluginScripts.rxdata")
+559	    Input.update
+560	    return true if Input.press?(Input::SHIFT) || Input.press?(Input::CTRL)
+561	    # analyze whether or not to push recompile
+562	    mtime = File.mtime("Data/PluginScripts.rxdata")
+563	    order.each do |o|
+564	      # go through all the registered plugin scripts
+565	      scr = plugins[o][:scripts]
+566	      dir = plugins[o][:dir]
+567	      scr.each do |sc|
+568	        return true if File.mtime("#{dir}/#{sc}") > mtime
+569	      end
+570	      return true if File.mtime("#{dir}/meta.txt") > mtime
+571	    end
+572	    return false
+573	  end
+574	
+575	  # Check if plugins need compiling
+576	  def self.compilePlugins(order, plugins)
+577	    Console.echo_li("Compiling plugin scripts...")
+578	    scripts = []
+579	    # go through the entire order one by one
+580	    order.each do |o|
+581	      # save name, metadata and scripts array
+582	      meta = plugins[o].clone
+583	      meta.delete(:scripts)
+584	      meta.delete(:dir)
+585	      dat = [o, meta, []]
+586	      # iterate through each file to deflate
+587	      plugins[o][:scripts].each do |file|
+588	        File.open("#{plugins[o][:dir]}/#{file}", "rb") do |f|
+589	          dat[2].push([file, Zlib::Deflate.deflate(f.read)])
+590	        end
+591	      end
+592	      # push to the main scripts array
+593	      scripts.push(dat)
+594	    end
+595	    # save to main `PluginScripts.rxdata` file
+596	    File.open("Data/PluginScripts.rxdata", "wb") { |f| Marshal.dump(scripts, f) }
+597	    # collect garbage
+598	    GC.start
+599	    Console.echo_done(true)
+600	  end
+601	
+602	  # Check if plugins need compiling
+603	  def self.runPlugins
+604	    Console.echo_h1("Checking plugins")
+605	    # get the order of plugins to interpret
+606	    order, plugins = self.getPluginOrder
+607	    # compile if necessary
+608	    if self.needCompiling?(order, plugins)
+609	      self.compilePlugins(order, plugins)
+610	    else
+611	      Console.echoln_li("Plugins were not compiled")
+612	    end
+613	    # load plugins
+614	    scripts = load_data("Data/PluginScripts.rxdata")
+615	    echoed_plugins = []
+616	    scripts.each do |plugin|
+617	      # get the required data
+618	      name, meta, script = plugin
+619	      if !meta[:essentials] || !meta[:essentials].include?(Essentials::VERSION)
+620	        Console.echo_warn("Plugin '#{name}' may not be compatible with Essentials v#{Essentials::VERSION}. Trying to load anyway.")
+621	      end
+622	      # register plugin
+623	      self.register(meta)
+624	      # go through each script and interpret
+625	      script.each do |scr|
+626	        # turn code into plaintext
+627	        code = Zlib::Inflate.inflate(scr[1]).force_encoding(Encoding::UTF_8)
+628	        # get rid of tabs
+629	        code.gsub!("\t", "  ")
+630	        # construct filename
+631	        sname = scr[0].gsub("\\", "/").split("/")[-1]
+632	        fname = "[#{name}] #{sname}"
+633	        # try to run the code
+634	        begin
+635	          eval(code, TOPLEVEL_BINDING, fname)
+636	          Console.echoln_li("Loaded plugin: ==#{name}== (ver. #{meta[:version]})") if !echoed_plugins.include?(name)
+637	          echoed_plugins.push(name)
+638	        rescue Exception   # format error message to display
+639	          self.pluginErrorMsg(name, sname)
+640	          Kernel.exit! true
+641	        end
+642	      end
+643	    end
+644	    if scripts.length > 0
+645	      Console.echoln_li_done("Successfully loaded #{scripts.length} plugin(s)")
+646	    else
+647	      Console.echoln_li_done("No plugins found")
+648	    end
+649	  end
+650	
+651	  # Get plugin dir from name based on meta entries
+652	  def self.findDirectory(name)
+653	    # go through the plugins folder
+654	    Dir.get("Plugins").each do |dir|
+655	      next if !Dir.safe?(dir)
+656	      next if !FileTest.exist?(dir + "/meta.txt")
+657	      # read meta
+658	      meta = self.readMeta(dir, "meta.txt")
+659	      return dir if meta[:name] == name
+660	    end
+661	    # return nil if no plugin dir found
+662	    return nil
+663	  end
+664	end

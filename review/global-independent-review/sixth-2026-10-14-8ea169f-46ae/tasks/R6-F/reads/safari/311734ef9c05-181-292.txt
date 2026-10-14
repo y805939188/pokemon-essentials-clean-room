@@ -1,0 +1,113 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/019_Utilities/002_Utilities_Pokemon.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "15432c8183de4c75ab6fb4edce82baf7d919eb05", "sha256": "665ca8dec3789a4b689984145eb3e7d3d563e702cfd5535f6f5110aebd8f30b6", "start_line": 181, "end_line": 292, "total_lines": 292, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:35:06.703148+00:00"}
+181: def pbFirstAblePokemon(variable_ID)
+182:   $player.party.each_with_index do |pkmn, i|
+183:     next if !pkmn.able?
+184:     pbSet(variable_ID, i)
+185:     return pkmn
+186:   end
+187:   pbSet(variable_ID, -1)
+188:   return nil
+189: end
+190: 
+191: #===============================================================================
+192: # Return a level value based on Pokémon in a party
+193: #===============================================================================
+194: def pbBalancedLevel(party)
+195:   return 1 if party.length == 0
+196:   # Calculate the mean of all levels
+197:   sum = 0
+198:   party.each { |p| sum += p.level }
+199:   return 1 if sum == 0
+200:   mLevel = GameData::GrowthRate.max_level
+201:   average = sum.to_f / party.length
+202:   # Calculate the standard deviation
+203:   varianceTimesN = 0
+204:   party.each do |pkmn|
+205:     deviation = pkmn.level - average
+206:     varianceTimesN += deviation * deviation
+207:   end
+208:   # NOTE: This is the "population" standard deviation calculation, since no
+209:   # sample is being taken.
+210:   stdev = Math.sqrt(varianceTimesN / party.length)
+211:   mean = 0
+212:   weights = []
+213:   # Skew weights according to standard deviation
+214:   party.each do |pkmn|
+215:     weight = pkmn.level.to_f / sum
+216:     if weight < 0.5
+217:       weight -= (stdev / mLevel.to_f)
+218:       weight = 0.001 if weight <= 0.001
+219:     else
+220:       weight += (stdev / mLevel.to_f)
+221:       weight = 0.999 if weight >= 0.999
+222:     end
+223:     weights.push(weight)
+224:   end
+225:   weightSum = 0
+226:   weights.each { |w| weightSum += w }
+227:   # Calculate the weighted mean, assigning each weight to each level's
+228:   # contribution to the sum
+229:   party.each_with_index { |pkmn, i| mean += pkmn.level * weights[i] }
+230:   mean /= weightSum
+231:   mean = mean.round
+232:   mean = 1 if mean < 1
+233:   # Add 2 to the mean to challenge the player
+234:   mean += 2
+235:   # Adjust level to maximum
+236:   mean = mLevel if mean > mLevel
+237:   return mean
+238: end
+239: 
+240: #===============================================================================
+241: # Calculates a Pokémon's size (in millimeters)
+242: #===============================================================================
+243: def pbSize(pkmn)
+244:   baseheight = pkmn.height
+245:   hpiv = pkmn.iv[:HP] & 15
+246:   ativ = pkmn.iv[:ATTACK] & 15
+247:   dfiv = pkmn.iv[:DEFENSE] & 15
+248:   saiv = pkmn.iv[:SPECIAL_ATTACK] & 15
+249:   sdiv = pkmn.iv[:SPECIAL_DEFENSE] & 15
+250:   spiv = pkmn.iv[:SPEED] & 15
+251:   m = pkmn.personalID & 0xFF
+252:   n = (pkmn.personalID >> 8) & 0xFF
+253:   s = ((((ativ ^ dfiv) * hpiv) ^ m) * 256) + (((saiv ^ sdiv) * spiv) ^ n)
+254:   xyz = [1700, 1, 65_510]
+255:   case s
+256:   when 0...10          then xyz = [ 290,   1,      0]
+257:   when 10...110        then xyz = [ 300,   1,     10]
+258:   when 110...310       then xyz = [ 400,   2,    110]
+259:   when 310...710       then xyz = [ 500,   4,    310]
+260:   when 710...2710      then xyz = [ 600,  20,    710]
+261:   when 2710...7710     then xyz = [ 700,  50,   2710]
+262:   when 7710...17_710   then xyz = [ 800, 100,   7710]
+263:   when 17_710...32_710 then xyz = [ 900, 150, 17_710]
+264:   when 32_710...47_710 then xyz = [1000, 150, 32_710]
+265:   when 47_710...57_710 then xyz = [1100, 100, 47_710]
+266:   when 57_710...62_710 then xyz = [1200,  50, 57_710]
+267:   when 62_710...64_710 then xyz = [1300,  20, 62_710]
+268:   when 64_710...65_210 then xyz = [1400,   5, 64_710]
+269:   when 65_210...65_410 then xyz = [1500,   2, 65_210]
+270:   end
+271:   return ((((s - xyz[2]) / xyz[1]) + xyz[0]).floor * baseheight / 10).floor
+272: end
+273: 
+274: #===============================================================================
+275: # Returns true if the given species can be legitimately obtained as an egg
+276: #===============================================================================
+277: def pbHasEgg?(species)
+278:   species_data = GameData::Species.try_get(species)
+279:   return false if !species_data
+280:   species = species_data.species
+281:   # species may be unbreedable, so check its evolution's compatibilities
+282:   evoSpecies = species_data.get_evolutions(true)
+283:   compatSpecies = (evoSpecies && evoSpecies[0]) ? evoSpecies[0][0] : species
+284:   species_data = GameData::Species.try_get(compatSpecies)
+285:   compat = species_data.egg_groups
+286:   return false if compat.include?(:Undiscovered) || compat.include?(:Ditto)
+287:   baby = GameData::Species.get(species).get_baby_species
+288:   return true if species == baby   # Is a basic species
+289:   baby = GameData::Species.get(species).get_baby_species(true)
+290:   return true if species == baby   # Is an egg species without incense
+291:   return false
+292: end

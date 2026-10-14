@@ -1,0 +1,229 @@
+241:       ret = try_type if has_encounter_type?(try_type)
+242:     end
+243:     return ret if ret
+244:     return (has_encounter_type?(base_type)) ? base_type : nil
+245:   end
+246: 
+247:   # Returns the encounter method that the current encounter should be generated
+248:   # from, depending on the player's current location.
+249:   def encounter_type
+250:     time = pbGetTimeNow
+251:     ret = nil
+252:     if $PokemonGlobal.surfing
+253:       ret = find_valid_encounter_type_for_time(:Water, time)
+254:     else   # Land/Cave (can have both in the same map)
+255:       if has_land_encounters? && $game_map.terrain_tag($game_player.x, $game_player.y).land_wild_encounters
+256:         ret = :BugContest if pbInBugContest? && has_encounter_type?(:BugContest)
+257:         ret = find_valid_encounter_type_for_time(:Land, time) if !ret
+258:       end
+259:       if !ret && has_cave_encounters?
+260:         ret = find_valid_encounter_type_for_time(:Cave, time)
+261:       end
+262:     end
+263:     return ret
+264:   end
+265: 
+266:   #-----------------------------------------------------------------------------
+267: 
+268:   # For the current map, randomly chooses a species and level from the encounter
+269:   # list for the given encounter type. Returns nil if there are none defined.
+270:   # A higher chance_rolls makes this method prefer rarer encounter slots.
+271:   def choose_wild_pokemon(enc_type, chance_rolls = 1)
+272:     if !enc_type || !GameData::EncounterType.exists?(enc_type)
+273:       raise ArgumentError.new(_INTL("Encounter type {1} does not exist", enc_type))
+274:     end
+275:     enc_list = @encounter_tables[enc_type]
+276:     return nil if !enc_list || enc_list.length == 0
+277:     # Static/Magnet Pull prefer wild encounters of certain types, if possible.
+278:     # If they activate, they remove all Pokémon from the encounter table that do
+279:     # not have the type they favor. If none have that type, nothing is changed.
+280:     first_pkmn = $player.first_pokemon
+281:     if first_pkmn
+282:       favored_type = nil
+283:       case first_pkmn.ability_id
+284:       when :FLASHFIRE
+285:         favored_type = :FIRE if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS &&
+286:                                 GameData::Type.exists?(:FIRE) && rand(100) < 50
+287:       when :HARVEST
+288:         favored_type = :GRASS if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS &&
+289:                                  GameData::Type.exists?(:GRASS) && rand(100) < 50
+290:       when :LIGHTNINGROD
+291:         favored_type = :ELECTRIC if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS &&
+292:                                     GameData::Type.exists?(:ELECTRIC) && rand(100) < 50
+293:       when :MAGNETPULL
+294:         favored_type = :STEEL if GameData::Type.exists?(:STEEL) && rand(100) < 50
+295:       when :STATIC
+296:         favored_type = :ELECTRIC if GameData::Type.exists?(:ELECTRIC) && rand(100) < 50
+297:       when :STORMDRAIN
+298:         favored_type = :WATER if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS &&
+299:                                  GameData::Type.exists?(:WATER) && rand(100) < 50
+300:       end
+301:       if favored_type
+302:         new_enc_list = []
+303:         enc_list.each do |enc|
+304:           species_data = GameData::Species.get(enc[1])
+305:           new_enc_list.push(enc) if species_data.types.include?(favored_type)
+306:         end
+307:         enc_list = new_enc_list if new_enc_list.length > 0
+308:       end
+309:     end
+310:     enc_list.sort! { |a, b| b[0] <=> a[0] }   # Highest probability first
+311:     # Calculate the total probability value
+312:     chance_total = 0
+313:     enc_list.each { |a| chance_total += a[0] }
+314:     # Choose a random entry in the encounter table based on entry probabilities
+315:     rnd = 0
+316:     chance_rolls.times do
+317:       r = rand(chance_total)
+318:       rnd = r if r > rnd   # Prefer rarer entries if rolling repeatedly
+319:     end
+320:     encounter = nil
+321:     enc_list.each do |enc|
+322:       rnd -= enc[0]
+323:       next if rnd >= 0
+324:       encounter = enc
+325:       break
+326:     end
+327:     # Get the chosen species and level
+328:     level = rand(encounter[2]..encounter[3])
+329:     # Some abilities alter the level of the wild Pokémon
+330:     if first_pkmn
+331:       case first_pkmn.ability_id
+332:       when :HUSTLE, :PRESSURE, :VITALSPIRIT
+333:         level = encounter[3] if rand(100) < 50   # Highest possible level
+334:       end
+335:     end
+336:     # Black Flute and White Flute alter the level of the wild Pokémon
+337:     if $PokemonMap.lower_level_wild_pokemon
+338:       level = [level - rand(1..4), 1].max
+339:     elsif $PokemonMap.higher_level_wild_pokemon
+340:       level = [level + rand(1..4), GameData::GrowthRate.max_level].min
+341:     end
+342:     # Return [species, level]
+343:     return [encounter[1], level]
+344:   end
+345: 
+346:   # For the given map, randomly chooses a species and level from the encounter
+347:   # list for the given encounter type. Returns nil if there are none defined.
+348:   # Used by the Bug-Catching Contest to choose what the other participants
+349:   # caught.
+350:   def choose_wild_pokemon_for_map(map_ID, enc_type)
+351:     if !enc_type || !GameData::EncounterType.exists?(enc_type)
+352:       raise ArgumentError.new(_INTL("Encounter type {1} does not exist", enc_type))
+353:     end
+354:     # Get the encounter table
+355:     encounter_data = GameData::Encounter.get(map_ID, $PokemonGlobal.encounter_version)
+356:     return nil if !encounter_data
+357:     enc_list = encounter_data.types[enc_type]
+358:     return nil if !enc_list || enc_list.length == 0
+359:     # Calculate the total probability value
+360:     chance_total = 0
+361:     enc_list.each { |a| chance_total += a[0] }
+362:     # Choose a random entry in the encounter table based on entry probabilities
+363:     rnd = rand(chance_total)
+364:     encounter = nil
+365:     enc_list.each do |enc|
+366:       rnd -= enc[0]
+367:       next if rnd >= 0
+368:       encounter = enc
+369:       break
+370:     end
+371:     # Return [species, level]
+372:     level = rand(encounter[2]..encounter[3])
+373:     return [encounter[1], level]
+374:   end
+375: end
+376: 
+377: #===============================================================================
+378: #
+379: #===============================================================================
+380: # Creates and returns a Pokémon based on the given species and level.
+381: # Applies wild Pokémon modifiers (wild held item, shiny chance modifiers,
+382: # Pokérus, gender/nature forcing because of player's lead Pokémon).
+383: def pbGenerateWildPokemon(species, level, isRoamer = false)
+384:   genwildpoke = Pokemon.new(species, level)
+385:   # Give the wild Pokémon a held item
+386:   items = genwildpoke.wildHoldItems
+387:   first_pkmn = $player.first_pokemon
+388:   chances = [50, 5, 1]
+389:   if first_pkmn
+390:     case first_pkmn.ability_id
+391:     when :COMPOUNDEYES
+392:       chances = [60, 20, 5]
+393:     when :SUPERLUCK
+394:       chances = [60, 20, 5] if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS
+395:     end
+396:   end
+397:   itemrnd = rand(100)
+398:   if (items[0] == items[1] && items[1] == items[2]) || itemrnd < chances[0]
+399:     genwildpoke.item = items[0].sample
+400:   elsif itemrnd < (chances[0] + chances[1])
+401:     genwildpoke.item = items[1].sample
+402:   elsif itemrnd < (chances[0] + chances[1] + chances[2])
+403:     genwildpoke.item = items[2].sample
+404:   end
+405:   # Improve chances of shiny Pokémon with Shiny Charm and battling more of the
+406:   # same species
+407:   shiny_retries = 0
+408:   shiny_retries += 2 if $bag.has?(:SHINYCHARM)
+409:   if Settings::HIGHER_SHINY_CHANCES_WITH_NUMBER_BATTLED
+410:     values = [0, 0]
+411:     case $player.pokedex.battled_count(species)
+412:     when 0...50    then values = [0, 0]
+413:     when 50...100  then values = [1, 15]
+414:     when 100...200 then values = [2, 20]
+415:     when 200...300 then values = [3, 25]
+416:     when 300...500 then values = [4, 30]
+417:     else                values = [5, 30]
+418:     end
+419:     shiny_retries += values[0] if values[1] > 0 && rand(1000) < values[1]
+420:   end
+421:   if shiny_retries > 0
+422:     shiny_retries.times do
+423:       break if genwildpoke.shiny?
+424:       genwildpoke.shiny = nil   # Make it recalculate shininess
+425:       genwildpoke.personalID = rand(2**16) | (rand(2**16) << 16)
+426:     end
+427:   end
+428:   # Give Pokérus
+429:   genwildpoke.givePokerus if rand(65_536) < Settings::POKERUS_CHANCE
+430:   # Change wild Pokémon's gender/nature depending on the lead party Pokémon's
+431:   # ability
+432:   if first_pkmn
+433:     if first_pkmn.hasAbility?(:CUTECHARM) && !genwildpoke.singleGendered?
+434:       if first_pkmn.male?
+435:         (rand(3) < 2) ? genwildpoke.makeFemale : genwildpoke.makeMale
+436:       elsif first_pkmn.female?
+437:         (rand(3) < 2) ? genwildpoke.makeMale : genwildpoke.makeFemale
+438:       end
+439:     elsif first_pkmn.hasAbility?(:SYNCHRONIZE)
+440:       if !isRoamer && (Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS || (rand(100) < 50))
+441:         genwildpoke.nature = first_pkmn.nature
+442:       end
+443:     end
+444:   end
+445:   # Trigger events that may alter the generated Pokémon further
+446:   genwildpoke.form_simple = genwildpoke.form if MultipleForms.hasFunction?(genwildpoke.species, "getForm")
+447:   EventHandlers.trigger(:on_wild_pokemon_created, genwildpoke)
+448:   return genwildpoke
+449: end
+450: 
+451: # Used by fishing rods and Headbutt/Rock Smash/Sweet Scent to generate a wild
+452: # Pokémon (or two if it's Sweet Scent) for a triggered wild encounter.
+453: def pbEncounter(enc_type, only_single = true)
+454:   $game_temp.encounter_type = enc_type
+455:   encounter1 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+456:   EventHandlers.trigger(:on_wild_species_chosen, encounter1)
+457:   return false if !encounter1
+458:   if !only_single && $PokemonEncounters.have_double_wild_battle?
+459:     encounter2 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+460:     EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+461:     return false if !encounter2
+462:     WildBattle.start(encounter1, encounter2, can_override: true)
+463:   else
+464:     WildBattle.start(encounter1, can_override: true)
+465:   end
+466:   $game_temp.encounter_type = nil
+467:   $game_temp.force_single_battle = false
+468:   return true
+469: end

@@ -1,0 +1,181 @@
+{"reader": "safari", "path": "reference/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb", "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b", "git_blob": "e95754925d6eea2735a22e9dfe5a8414fc7e3ab6", "sha256": "23caecf210623ca8fde9224d4409dccd3817f6a341a7d3921848fa156476d7bd", "start_line": 181, "end_line": 360, "total_lines": 750, "phase": "PRESENTED_FOR_READING_NOT_SEMANTIC_PASS", "time": "2026-10-14T08:29:44.861572+00:00"}
+181:   EventHandlers.trigger(:on_player_step_taken)
+182:   handled = [nil]
+183:   EventHandlers.trigger(:on_player_step_taken_can_transfer, handled)
+184:   return if handled[0]
+185:   pbBattleOnStepTaken(repel_active) if !eventTriggered && !$game_temp.in_menu
+186:   $game_temp.encounter_triggered = false   # This info isn't needed here
+187: end
+188: 
+189: # Start wild encounters while turning on the spot
+190: EventHandlers.add(:on_player_change_direction, :trigger_encounter,
+191:   proc {
+192:     repel_active = ($PokemonGlobal.repel > 0)
+193:     pbBattleOnStepTaken(repel_active) if !$game_temp.in_menu
+194:   }
+195: )
+196: 
+197: def pbBattleOnStepTaken(repel_active)
+198:   return if $player.able_pokemon_count == 0
+199:   return if !$PokemonEncounters.encounter_possible_here?
+200:   encounter_type = $PokemonEncounters.encounter_type
+201:   return if !encounter_type
+202:   return if !$PokemonEncounters.encounter_triggered?(encounter_type, repel_active)
+203:   $game_temp.encounter_type = encounter_type
+204:   encounter = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+205:   EventHandlers.trigger(:on_wild_species_chosen, encounter)
+206:   if $PokemonEncounters.allow_encounter?(encounter, repel_active)
+207:     if $PokemonEncounters.have_double_wild_battle?
+208:       encounter2 = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+209:       EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+210:       WildBattle.start(encounter, encounter2, can_override: true)
+211:     else
+212:       WildBattle.start(encounter, can_override: true)
+213:     end
+214:     $game_temp.encounter_type = nil
+215:     $game_temp.encounter_triggered = true
+216:   end
+217:   $game_temp.force_single_battle = false
+218: end
+219: 
+220: #===============================================================================
+221: # Checks when moving between maps
+222: #===============================================================================
+223: # Set up various data related to the new map.
+224: EventHandlers.add(:on_enter_map, :setup_new_map,
+225:   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+226:     # Record new Teleport destination
+227:     new_map_metadata = $game_map.metadata
+228:     if new_map_metadata&.teleport_destination
+229:       $PokemonGlobal.healingSpot = new_map_metadata.teleport_destination
+230:     end
+231:     # End effects that apply only while on the map they were used
+232:     $PokemonMap&.clear
+233:     # Setup new wild encounter tables
+234:     $PokemonEncounters&.setup($game_map.map_id)
+235:     # Record the new map as having been visited
+236:     $PokemonGlobal.visitedMaps[$game_map.map_id] = true
+237:   }
+238: )
+239: 
+240: # Changes the overworld weather.
+241: EventHandlers.add(:on_enter_map, :set_weather,
+242:   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+243:     next if old_map_id == 0 || old_map_id == $game_map.map_id
+244:     old_weather = $game_screen.weather_type
+245:     new_weather = :None
+246:     new_map_metadata = $game_map.metadata
+247:     if new_map_metadata&.weather
+248:       new_weather = new_map_metadata.weather[0] if rand(100) < new_map_metadata.weather[1]
+249:     end
+250:     next if old_weather == new_weather
+251:     $game_screen.weather(new_weather, 9, 0)
+252:   }
+253: )
+254: 
+255: # Update trail of which maps the player has most recently visited.
+256: EventHandlers.add(:on_enter_map, :add_to_trail,
+257:   proc { |_old_map_id|
+258:     next if !$game_map
+259:     $PokemonGlobal.mapTrail = [] if !$PokemonGlobal.mapTrail
+260:     if $PokemonGlobal.mapTrail[0] != $game_map.map_id && $PokemonGlobal.mapTrail.length >= 4
+261:       $PokemonGlobal.mapTrail.pop
+262:     end
+263:     $PokemonGlobal.mapTrail = [$game_map.map_id] + $PokemonGlobal.mapTrail
+264:   }
+265: )
+266: 
+267: # Force cycling/walking.
+268: EventHandlers.add(:on_enter_map, :force_cycling,
+269:   proc { |_old_map_id|
+270:     if $game_map.metadata&.always_bicycle
+271:       pbMountBike
+272:     elsif !pbCanUseBike?($game_map.map_id)
+273:       pbDismountBike
+274:     end
+275:   }
+276: )
+277: 
+278: # Display darkness circle on dark maps.
+279: EventHandlers.add(:on_map_or_spriteset_change, :show_darkness,
+280:   proc { |scene, _map_changed|
+281:     next if !scene || !scene.spriteset
+282:     map_metadata = $game_map.metadata
+283:     if map_metadata&.dark_map
+284:       $game_temp.darkness_sprite = DarknessSprite.new
+285:       scene.spriteset.addUserSprite($game_temp.darkness_sprite)
+286:       if $PokemonGlobal.flashUsed
+287:         $game_temp.darkness_sprite.radius = $game_temp.darkness_sprite.radiusMax
+288:       end
+289:     else
+290:       $PokemonGlobal.flashUsed = false
+291:       $game_temp.darkness_sprite&.dispose
+292:       $game_temp.darkness_sprite = nil
+293:     end
+294:   }
+295: )
+296: 
+297: # Show location signpost.
+298: EventHandlers.add(:on_map_or_spriteset_change, :show_location_window,
+299:   proc { |scene, map_changed|
+300:     next if !scene || !scene.spriteset
+301:     next if !map_changed || !$game_map.metadata&.announce_location
+302:     nosignpost = false
+303:     if $PokemonGlobal.mapTrail[1]
+304:       (Settings::NO_SIGNPOSTS.length / 2).times do |i|
+305:         nosignpost = true if Settings::NO_SIGNPOSTS[2 * i] == $PokemonGlobal.mapTrail[1] &&
+306:                              Settings::NO_SIGNPOSTS[(2 * i) + 1] == $game_map.map_id
+307:         nosignpost = true if Settings::NO_SIGNPOSTS[(2 * i) + 1] == $PokemonGlobal.mapTrail[1] &&
+308:                              Settings::NO_SIGNPOSTS[2 * i] == $game_map.map_id
+309:         break if nosignpost
+310:       end
+311:       nosignpost = true if $game_map.name == pbGetMapNameFromId($PokemonGlobal.mapTrail[1])
+312:     end
+313:     scene.spriteset.addUserSprite(LocationWindow.new($game_map.name)) if !nosignpost
+314:   }
+315: )
+316: 
+317: #===============================================================================
+318: # Event locations, terrain tags
+319: #===============================================================================
+320: # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+321: def pbFacingTile(direction = nil, event = nil)
+322:   return $map_factory.getFacingTile(direction, event) if $map_factory
+323:   return pbFacingTileRegular(direction, event)
+324: end
+325: 
+326: # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+327: def pbFacingTileRegular(direction = nil, event = nil)
+328:   event = $game_player if !event
+329:   return [0, 0, 0] if !event
+330:   x = event.x
+331:   y = event.y
+332:   direction = event.direction if !direction
+333:   x_offset = [0, -1, 0, 1, -1, 0, 1, -1, 0, 1][direction]
+334:   y_offset = [0, 1, 1, 1, 0, 0, 0, -1, -1, -1][direction]
+335:   return [$game_map.map_id, x + x_offset, y + y_offset]
+336: end
+337: 
+338: # Returns whether event is in line with the player, is facing the player and is
+339: # within distance tiles of the player.
+340: def pbEventFacesPlayer?(event, player, distance)
+341:   return false if !event || !player || distance <= 0
+342:   x_min = x_max = y_min = y_max = -1
+343:   case event.direction
+344:   when 2   # Down
+345:     x_min = event.x
+346:     x_max = event.x + event.width - 1
+347:     y_min = event.y + 1
+348:     y_max = event.y + distance
+349:   when 4   # Left
+350:     x_min = event.x - distance
+351:     x_max = event.x - 1
+352:     y_min = event.y - event.height + 1
+353:     y_max = event.y
+354:   when 6   # Right
+355:     x_min = event.x + event.width
+356:     x_max = event.x + event.width - 1 + distance
+357:     y_min = event.y - event.height + 1
+358:     y_max = event.y
+359:   when 8   # Up
+360:     x_min = event.x

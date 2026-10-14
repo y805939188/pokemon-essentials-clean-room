@@ -1,0 +1,119 @@
+1441: # TypeDependsOnUserPlate
+1442: 
+1443: #===============================================================================
+1444: #
+1445: #===============================================================================
+1446: # TypeDependsOnUserMemory
+1447: 
+1448: #===============================================================================
+1449: #
+1450: #===============================================================================
+1451: # TypeDependsOnUserDrive
+1452: 
+1453: #===============================================================================
+1454: #
+1455: #===============================================================================
+1456: Battle::AI::Handlers::MoveFailureCheck.add("TypeDependsOnUserMorpekoFormRaiseUserSpeed1",
+1457:   proc { |move, user, ai, battle|
+1458:     next !user.battler.isSpecies?(:MORPEKO) && user.effects[PBEffects::TransformSpecies] != :MORPEKO
+1459:   }
+1460: )
+1461: Battle::AI::Handlers::MoveEffectScore.copy("RaiseUserSpeed1",
+1462:                                            "TypeDependsOnUserMorpekoFormRaiseUserSpeed1")
+1463: 
+1464: #===============================================================================
+1465: #
+1466: #===============================================================================
+1467: Battle::AI::Handlers::MoveBasePower.add("TypeAndPowerDependOnWeather",
+1468:   proc { |power, move, user, target, ai, battle|
+1469:     next move.move.pbBaseDamage(power, user.battler, target.battler)
+1470:   }
+1471: )
+1472: 
+1473: #===============================================================================
+1474: #
+1475: #===============================================================================
+1476: Battle::AI::Handlers::MoveBasePower.copy("TypeAndPowerDependOnWeather",
+1477:                                          "TypeAndPowerDependOnTerrain")
+1478: 
+1479: #===============================================================================
+1480: #
+1481: #===============================================================================
+1482: Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TargetMovesBecomeElectric",
+1483:   proc { |move, user, target, ai, battle|
+1484:     next !user.faster_than?(target)
+1485:   }
+1486: )
+1487: Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("TargetMovesBecomeElectric",
+1488:   proc { |score, move, user, target, ai, battle|
+1489:     # Get Electric's effectiveness against the user
+1490:     electric_eff = user.effectiveness_of_type_against_battler(:ELECTRIC, target)
+1491:     electric_eff *= 1.5 if target.has_type?(:ELECTRIC)   # STAB
+1492:     electric_eff = 0 if user.has_active_ability?([:LIGHTNINGROD, :MOTORDRIVE, :VOLTABSORB])
+1493:     # For each of target's moves, get its effectiveness against the user and
+1494:     # decide whether it is better or worse than Electric's effectiveness
+1495:     old_type_better = 0
+1496:     electric_type_better = 0
+1497:     target.battler.eachMove do |m|
+1498:       next if !m.damagingMove?
+1499:       m_type = m.pbCalcType(target.battler)
+1500:       next if m_type == :ELECTRIC
+1501:       eff = user.effectiveness_of_type_against_battler(m_type, target, m)
+1502:       eff *= 1.5 if target.has_type?(m_type)   # STAB
+1503:       case m_type
+1504:       when :FIRE
+1505:         eff = 0 if user.has_active_ability?(:FLASHFIRE)
+1506:       when :GRASS
+1507:         eff = 0 if user.has_active_ability?(:SAPSIPPER)
+1508:       when :WATER
+1509:         eff = 0 if user.has_active_ability?([:STORMDRAIN, :WATERABSORB])
+1510:       end
+1511:       if eff > electric_eff
+1512:         electric_type_better += 1
+1513:       elsif eff < electric_eff
+1514:         old_type_better += 1
+1515:       end
+1516:     end
+1517:     next Battle::AI::MOVE_USELESS_SCORE if electric_type_better == 0
+1518:     next Battle::AI::MOVE_USELESS_SCORE if electric_type_better < old_type_better
+1519:     score += 10 * (electric_type_better - old_type_better)
+1520:     next score
+1521:   }
+1522: )
+1523: 
+1524: #===============================================================================
+1525: #
+1526: #===============================================================================
+1527: Battle::AI::Handlers::MoveEffectScore.add("NormalMovesBecomeElectric",
+1528:   proc { |score, move, user, ai, battle|
+1529:     base_electric_eff = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+1530:     base_electric_eff = 0 if user.has_active_ability?([:LIGHTNINGROD, :MOTORDRIVE, :VOLTABSORB])
+1531:     # Check all affected foe battlers for Normal moves, get their effectiveness
+1532:     # against the user and decide whether it is better or worse than Electric's
+1533:     # effectiveness
+1534:     normal_type_better = 0
+1535:     electric_type_better = 0
+1536:     ai.each_foe_battler(user.side) do |b, i|
+1537:       next if move.rough_priority(b) <= 0 && b.faster_than?(user)
+1538:       next if !b.has_damaging_move_of_type?(:NORMAL)
+1539:       # Normal's effectiveness
+1540:       eff = user.effectiveness_of_type_against_battler(:NORMAL, b)
+1541:       eff *= 1.5 if b.has_type?(:NORMAL)   # STAB
+1542:       # Electric's effectiveness
+1543:       elec_eff = user.effectiveness_of_type_against_battler(:ELECTRIC, b)
+1544:       elec_eff *= 1.5 if b.has_type?(:ELECTRIC)   # STAB
+1545:       elec_eff *= base_electric_eff
+1546:       # Compare the two
+1547:       if eff > elec_eff
+1548:         electric_type_better += 1
+1549:       elsif eff < elec_eff
+1550:         normal_type_better += 1
+1551:       end
+1552:     end
+1553:     if electric_type_better == 0 || electric_type_better < normal_type_better
+1554:       next (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+1555:     end
+1556:     score += 10 * (electric_type_better - normal_type_better)
+1557:     next score
+1558:   }
+1559: )
