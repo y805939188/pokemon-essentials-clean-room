@@ -11,6 +11,7 @@ repo = e.parents[4]
 contract = json.loads((p / 'contracts/R6-U09.json').read_text())
 inputs = json.loads((e / 'input-manifest.json').read_text())['inputs']
 files = json.loads((e / 'candidate-files.json').read_text())['files']
+validation = json.loads((e / 'static-validation.json').read_text())
 ledger = [json.loads(line) for line in (e / 'reading-ledger.jsonl').read_text().splitlines()]
 by_path = {r['identity']['path']: r for r in inputs}
 formal_root = 'deliverables/final-specification-set/'
@@ -138,7 +139,7 @@ for original in contract['scope_contracts']:
           'future_compatibility_policy': 'Accurate fixed-source behavior does not decide permanent defect compatibility; no optional/policy changes.'},
       'acceptance_and_regression': {'vectors': [vector_rows[v] for v in vec],
           'current_author_static_result': 'SUPPORTED_FOR_SCOPED_FACTS_AND_DERIVED_VECTORS; NOT_AN_INDEPENDENT_PASS',
-          'tool_validation': {'record':'static-validation.json', 'checks':198, 'failed':0, 'scope':'identities/allowlist/preserved spans and vectors/33 local link targets, not behavior execution'},
+          'tool_validation': {'record':'static-validation.json', 'checks':validation['checks_total'], 'failed':validation['failed'], 'scope':'identities/allowlist/preserved spans and vectors/33 local link targets, not behavior execution'},
           'precise_history_controls': history[identifier],
           'history_qualification': 'R1 original WP only; R2 229/21/341; R3 23/76 with optional/NO_REQUIRED/historical not-started kept; R4 17/76 distinct from B5 16/75; R5 unique activation 92 CLOSED precise selected scopes only, not whole files or host.',
           'history_current_author_limit': 'Bounded retained clauses and rejoined source controls only; unchanged history input identities and selected qualification records do not count as fresh whole-R1–R5 or independent integrated PASS.',

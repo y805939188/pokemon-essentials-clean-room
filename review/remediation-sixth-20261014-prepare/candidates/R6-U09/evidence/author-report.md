@@ -21,20 +21,20 @@
 | ID / 原分类 | 实际规则修订 | 有效反例与正常/边界对照 | 新目录行 |
 | --- | --- | --- | --- |
 | R6-DX-COMP-001 / required P2 | WP04、WP75 区分启动检查与运行中直接内容阶段；WP72 同步实际菜单阶段、完成及释放门。直接入口不取得启动缺目录反写、导入/mtime/预删及局部异常诊断/清理/转换。 | 完整兼容工程、PBS/旧档案有效、先行阶段正常；Status/Power40 在条目校验失败，早期档案新、moves.dat 旧、当前表可有前缀，坏条目未登记；完成/释放未必到达。启动同态仅诊断正常返回才进入异常后删除尝试。未登记 Map007 在直接入口不导入，999排除另列；全合法直接流程正常收尾是独立静态对照。 | KL37–39；DXCOMP-C01–03。KL02/03 仅修前提为启动，原结果不改。 |
-| R6-DX-COMP-002 / required P2 | WP04/WP75/WP72/WP62 明确区域磁盘、缓存查询和反写三观察点；WP74 编译缓存行改为不清既有集合/关联。WP04 两处动画写入摘要统一至既有 WP74 的有效条目门。 | 已预载区域 A=[BULBASAUR]，合法作者 B=[IVYSAUR]、两物种已定义、全阶段成功、无独立失效：编译档案 B/查询 A，导出 PBS A/档案仍 B。空缓存、编辑器 Yes/No、新临时会话数据、独立连接清理/新进程分别观察；新 Game_Temp 不清独立连接缓存。有有效动画写新磁盘而两缓存仍 A，与零有效条目保留旧磁盘 M 不同。Reload 仅证明宿主请求。 | KL40–45；DXCOMP-C04–08。 |
+| R6-DX-COMP-002 / required P2 | WP04/WP75/WP72/WP62 明确区域磁盘、缓存查询和反写三观察点；WP74 编译缓存行改为不清既有集合/关联。WP04 两处动画写入摘要统一至既有 WP74 的有效条目门。 | 已预载区域 A=[BULBASAUR]，合法作者 B=[IVYSAUR]、两物种已定义、全阶段成功、无独立失效：编译档案 B/查询 A，导出 PBS A/档案仍 B。缓存未建立、编辑器 Yes/No、新临时会话数据、独立连接清理/新进程分别观察；新 Game_Temp 不清独立连接缓存。有有效动画写新磁盘而两缓存仍 A，与零有效条目保留旧磁盘 M 不同。Reload 仅证明宿主请求。 | KL40–45；DXCOMP-C04–08。 |
 | R6-DX-COMP-003 / required P3 | WP04 增加首列注释/纯空白/行内注释/缩进独立注释的解析家族边界及失败前缀。 | 合法唯一普通类型 A/B，无早期错；B 内一个 ASCII 空格接 # note：A 已登记，B 未交付登记，终检/整表保存未到。首列 #、纯空白正常；前首节为缺少初始节错误；合法专用 Trainer 同行可略过。旧 Name/q 井号后缀与引号不保护规则保留；不推断随附语料数量或全部 PBS 家族。 | KL46–50。 |
 
 所有新行为案例均为 **SOURCE_STATIC 支持的 DERIVED_VECTOR / NOT_EXECUTED**。没有执行 R 原函数/回调、完整独立行为模型、完整宿主、Demo、真实用户存档或生产服务；当前作者各执行数均 0。没有未知 Marshal/eval、EXE/DLL/loader 执行，没有引擎实现或参考源码修补。
 
 ## 保留与工具验证
 
-[static-validation.json](static-validation.json) 的 198 项有限检查全部 OK，33 个本地链接目标存在；[static-check-2.json](static-check-2.json) 独立捕获 argv/cwd/UTC/stdout/stderr/exit=0。检查包括冻结身份、7份准备镜像原为 baseline、只改本批 allowlist、正式 deliverables 未变、diff --check、旧向量原结果、具名历史段落保留与 JSON 解析。它们是 TOOL_VALIDATION，不是行为运行或独立审查。
+[static-validation.json](static-validation.json) 的 198 项有限检查全部 OK，33 个本地链接目标存在；[static-check-4.json](static-check-4.json) 独立捕获 argv/cwd/UTC/stdout/stderr/exit=0。检查包括冻结身份、7份准备镜像原为 baseline、只改本批 allowlist、正式 deliverables 未变、diff --check（排除统一差异文件的空行上下文标记）、旧向量原结果、具名历史段落保留与 JSON 解析。它们是 TOOL_VALIDATION，不是行为运行或独立审查。
 
 精确保留项包括 WP04 启动发现/整数 mtime/异常表、分词/schema、遭遇专用解析/概率往返、指标布局/写出、进化与电话身份/默认/井号往返；WP74 原命名、零有效写入门、播放回退、交换/保存、SC-U07-001 LF纠正；WP75 原事件转换、门/出口、脚本数量守卫与 B20-C024 往返；WP62 原记录写入/身份/解锁/展示刷新；WP72 原调试入口与全部效果表。原 Demo 测试目录327行是完整字节前缀保留；内核旧向量除 KL02/03 前提范围收窄，其余行原字节保持。
 
 R1原WP资格、R2 229/21/341、R3 23/76、R4 17/76与B5 16/75、R5唯一 activation 所选92 CLOSED原精确范围均保留，不扩大为整文件/领域/宿主通过。相关 R5-U07 所选7条资格元数据、001–004 准则及 SC-U07-001 原纠正已读；新核对只覆盖本次实际受影响段与消费者。[history-selected-bindings.json](history-selected-bindings.json) 保留原时点 OPEN/拟关闭字段，不重新打开已激活第五项。[history-hash-input-contract.json](history-hash-input-contract.json) 的内容实际是 GR5-M01-002 本地化默认消息材料，不用文件名把它充作 PBS 井号旧验收。精确整合后的独立历史回归仍待接收者执行。
 
-原失败尝试保全：初次在 clean-room origin 混合取准备/main/R 的 fetch 失败，随后固定准备与 R 正确来源取得成功（早期 fetch 原 stdout/退出在平台记录，未补写本地 UTC）；source-tree-query 第一次因缺 commit 字段在联网前失败，retry-1 API被代理403阻断，随后已授权 Git 固定对象 fetch/完整 blob 比较成功；static-check-1 因 formal 输入缺 commit 字段停止，修正输入元数据继承后 static-check-2 为0失败。对应文件不删除、不把失败倒写为成功；均未执行参考行为。
+原失败尝试保全：初次在 clean-room origin 混合取准备/main/R 的 fetch 失败，随后固定准备与 R 正确来源取得成功（早期 fetch 原 stdout/退出在平台记录，未补写本地 UTC）；source-tree-query 第一次因缺 commit 字段在联网前失败，retry-1 API被代理403阻断，随后已授权 Git 固定对象 fetch/完整 blob 比较成功；static-check-1 因 formal 输入缺 commit 字段停止，修正输入元数据继承后 static-check-2 为0失败。static-check-3 将已提交的统一差异文件的空行上下文标记当作文本尾空白，exit=1且独立差异检查exit=2；限定排除该证据格式后static-check-4对真实规格和其余文件检查为0失败。对应文件不删除、不把失败倒写为成功；均未执行参考行为。
 
 ## 精确写集与接收
 

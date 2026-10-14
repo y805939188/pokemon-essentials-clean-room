@@ -158,8 +158,11 @@ untracked = git('ls-files', '--others', '--exclude-standard').decode().splitline
 check('write set only own exact mirrors/evidence', all(p in mirror_paths or p.startswith(PREFIX + 'evidence/') for p in tracked + untracked))
 check('all and only seven mirrors changed', {p for p in tracked if '/mirror/' in p} == set(mirror_paths))
 check('formal baseline still unchanged', git('diff', BASE, '--', 'deliverables') == b'')
-diff_check = subprocess.run(['git', 'diff', '--check', BASE], cwd=REPO, capture_output=True, text=True)
-check('git diff --check', diff_check.returncode == 0, {'exit': diff_check.returncode, 'stdout': diff_check.stdout, 'stderr': diff_check.stderr})
+diff_argv = ['git', 'diff', '--check', BASE, '--', '.', ':(exclude)' + PREFIX + 'evidence/candidate.patch']
+diff_check = subprocess.run(diff_argv, cwd=REPO, capture_output=True, text=True)
+check('git diff --check, excluding unified patch context markers', diff_check.returncode == 0,
+      {'argv': diff_argv, 'exit': diff_check.returncode, 'stdout': diff_check.stdout, 'stderr': diff_check.stderr,
+       'exclusion_reason': 'A unified-diff artifact uses a single-space marker for unchanged blank context; the underlying Markdown is checked normally.'})
 for p in EVIDENCE.glob('*.json'):
     json.loads(p.read_text())
 for line in (EVIDENCE / 'reading-ledger.jsonl').read_text().splitlines():
