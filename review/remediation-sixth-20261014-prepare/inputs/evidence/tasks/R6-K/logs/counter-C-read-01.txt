@@ -1,0 +1,164 @@
+PATH reference/pokemon-essentials/Data/Scripts/011_Battle/005_AI/001_Battle_AI.rb RANGE 1-163 TOTAL 163
+1	#===============================================================================
+2	#
+3	#===============================================================================
+4	class Battle::AI
+5	  attr_reader :battle
+6	  attr_reader :trainer
+7	  attr_reader :battlers
+8	  attr_reader :user, :target, :move
+9	
+10	  def initialize(battle)
+11	    @battle = battle
+12	  end
+13	
+14	  def create_ai_objects
+15	    # Initialize AI trainers
+16	    @trainers = [[], []]
+17	    @battle.player.each_with_index do |trainer, i|
+18	      @trainers[0][i] = AITrainer.new(self, 0, i, trainer)
+19	    end
+20	    if @battle.wildBattle?
+21	      @trainers[1][0] = AITrainer.new(self, 1, 0, nil)
+22	    else
+23	      @battle.opponent.each_with_index do |trainer, i|
+24	        @trainers[1][i] = AITrainer.new(self, 1, i, trainer)
+25	      end
+26	    end
+27	    # Initialize AI battlers
+28	    @battlers = []
+29	    @battle.battlers.each_with_index do |battler, i|
+30	      @battlers[i] = AIBattler.new(self, i) if battler
+31	    end
+32	    # Initialize AI move object
+33	    @move = AIMove.new(self)
+34	  end
+35	
+36	  # Set some class variables for the Pokémon whose action is being chosen
+37	  def set_up(idxBattler)
+38	    # Find the AI trainer choosing the action
+39	    opposes = @battle.opposes?(idxBattler)
+40	    trainer_index = @battle.pbGetOwnerIndexFromBattlerIndex(idxBattler)
+41	    @trainer = @trainers[(opposes) ? 1 : 0][trainer_index]
+42	    # Find the AI battler for which the action is being chosen
+43	    @user = @battlers[idxBattler]
+44	    @battlers.each { |b| b.refresh_battler if b }
+45	  end
+46	
+47	  # Choose an action.
+48	  def pbDefaultChooseEnemyCommand(idxBattler)
+49	    set_up(idxBattler)
+50	    ret = false
+51	    PBDebug.logonerr { ret = pbChooseToSwitchOut }
+52	    if ret
+53	      PBDebug.log("")
+54	      return
+55	    end
+56	    ret = false
+57	    PBDebug.logonerr { ret = pbChooseToUseItem }
+58	    if ret
+59	      PBDebug.log("")
+60	      return
+61	    end
+62	    if @battle.pbAutoFightMenu(idxBattler)
+63	      PBDebug.log("")
+64	      return
+65	    end
+66	    @battle.pbRegisterMegaEvolution(idxBattler) if pbEnemyShouldMegaEvolve?
+67	    choices = pbGetMoveScores
+68	    pbChooseMove(choices)
+69	    PBDebug.log("")
+70	  end
+71	
+72	  # Choose a replacement Pokémon (called directly from @battle, not part of
+73	  # action choosing). Must return the party index of a replacement Pokémon if
+74	  # possible.
+75	  def pbDefaultChooseNewEnemy(idxBattler)
+76	    set_up(idxBattler)
+77	    return choose_best_replacement_pokemon(idxBattler, true)
+78	  end
+79	end
+80	
+81	#===============================================================================
+82	#
+83	#===============================================================================
+84	module Battle::AI::Handlers
+85	  MoveFailureCheck              = HandlerHash.new
+86	  MoveFailureAgainstTargetCheck = HandlerHash.new
+87	  MoveEffectScore               = HandlerHash.new
+88	  MoveEffectAgainstTargetScore  = HandlerHash.new
+89	  MoveBasePower                 = HandlerHash.new
+90	  GeneralMoveScore              = HandlerHash.new
+91	  GeneralMoveAgainstTargetScore = HandlerHash.new
+92	  ShouldSwitch                  = HandlerHash.new
+93	  ShouldNotSwitch               = HandlerHash.new
+94	  AbilityRanking                = AbilityHandlerHash.new
+95	  ItemRanking                   = ItemHandlerHash.new
+96	
+97	  def self.move_will_fail?(function_code, *args)
+98	    return MoveFailureCheck.trigger(function_code, *args) || false
+99	  end
+100	
+101	  def self.move_will_fail_against_target?(function_code, *args)
+102	    return MoveFailureAgainstTargetCheck.trigger(function_code, *args) || false
+103	  end
+104	
+105	  def self.apply_move_effect_score(function_code, score, *args)
+106	    ret = MoveEffectScore.trigger(function_code, score, *args)
+107	    return (ret.nil?) ? score : ret
+108	  end
+109	
+110	  def self.apply_move_effect_against_target_score(function_code, score, *args)
+111	    ret = MoveEffectAgainstTargetScore.trigger(function_code, score, *args)
+112	    return (ret.nil?) ? score : ret
+113	  end
+114	
+115	  def self.get_base_power(function_code, power, *args)
+116	    ret = MoveBasePower.trigger(function_code, power, *args)
+117	    return (ret.nil?) ? power : ret
+118	  end
+119	
+120	  def self.apply_general_move_score_modifiers(score, *args)
+121	    GeneralMoveScore.each do |id, score_proc|
+122	      new_score = score_proc.call(score, *args)
+123	      score = new_score if new_score
+124	    end
+125	    return score
+126	  end
+127	
+128	  def self.apply_general_move_against_target_score_modifiers(score, *args)
+129	    GeneralMoveAgainstTargetScore.each do |id, score_proc|
+130	      new_score = score_proc.call(score, *args)
+131	      score = new_score if new_score
+132	    end
+133	    return score
+134	  end
+135	
+136	  def self.should_switch?(*args)
+137	    ret = false
+138	    ShouldSwitch.each do |id, switch_proc|
+139	      ret ||= switch_proc.call(*args)
+140	      break if ret
+141	    end
+142	    return ret
+143	  end
+144	
+145	  def self.should_not_switch?(*args)
+146	    ret = false
+147	    ShouldNotSwitch.each do |id, switch_proc|
+148	      ret ||= switch_proc.call(*args)
+149	      break if ret
+150	    end
+151	    return ret
+152	  end
+153	
+154	  def self.modify_ability_ranking(ability, score, *args)
+155	    ret = AbilityRanking.trigger(ability, score, *args)
+156	    return (ret.nil?) ? score : ret
+157	  end
+158	
+159	  def self.modify_item_ranking(item, score, *args)
+160	    ret = ItemRanking.trigger(item, score, *args)
+161	    return (ret.nil?) ? score : ret
+162	  end
+163	end
