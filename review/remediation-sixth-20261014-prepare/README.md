@@ -2,6 +2,8 @@
 
 全部56项候选PASS、实际接收及五组独立实际静态内容PASS齐备，唯一映射为A11／B9／C19／D9／E8，正式内容冻结86bbc99、formal tree ebbe29f2bc88cd17de7072bf440c6fa8c8c7089c未变。[完整公共同步](integration/public-sync-20261014/sync-input.json)及[依赖状态](integration/public-sync-20261014/dependency-status.json)已应用，公共新字节和依赖证据等待非作者有限最终验收审计。候选／实际／同步／接受／CLOSED分列；正式接受与CLOSED仍0，56项OPEN。配置有效回显UNVERIFIED，静态资格不造配置认证或新增运行；参考／完整模型／宿主／Demo／真实save执行0。全部历史前缀、原FAIL、可选／政策／限制保持。
 
+有限最终验收入口：[审计输入](integration/final-acceptance-audit-20261014/input.json)／[非作者ultra任务描述](integration/final-acceptance-audit-20261014/prompt.md)，固定登记d35356005f79b9fdffc5a4202a0b39e9255a36fa。此入口仅准备，尚未启动／自签；审核准确登记和依赖，不再做全局语义review。
+
 云端执行根 `/workspace/pokemon-essentials-clean-room`，分支 `codex/remediation-sixth-20261014-8ea169f-cloud`。唯一正式接收和公共台账写者为此任务的 `/root`；父线程 ID `01a10d94-84b9-759e-aa1d-edb0d9b6d0e2` 是已知来源身份，没有冒称不可见平台 UUID。未操作 Mac、main、交付 tag、旧分支或环境释放。
 
 ## 固定输入及准确核验范围
