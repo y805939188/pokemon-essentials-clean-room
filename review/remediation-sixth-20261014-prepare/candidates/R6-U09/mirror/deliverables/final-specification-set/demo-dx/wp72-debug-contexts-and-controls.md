@@ -262,13 +262,13 @@
 | Import/Export all battle animations | 批量导入/导出 | §8.2 文件写出 | WP74 |
 | Edit terrain tags | 地形标签编辑器 | 图块组地形标签 | WP73-B |
 | Fix invalid tiles | 无效图块修复 | §8.2 地图文件改写 | WP73-B/WP75 边界 |
-| Compile data | 强制全量编译＋完成消息 | **全量编译输出** | WP75 |
-| Create PBS file（单复数） | 22 个单项或全部 → 对应反写＋「File written.」 | **写 PBS 文本** | WP75 |
+| Compile data | 消息窗 → 直接强制全量内容阶段 → 正常返回才完成消息/释放 | **逐阶段编译输出**；无启动清单预删、局部异常清理/转换、新地图导入；已预载区域/动画/连接缓存不自动失效 | WP75／WP04 §3.3、§5.6 |
+| Create PBS file（单复数） | 22 个单项或全部 → 对应反写＋正常返回才「File written.」 | **写 PBS 文本**；区域图鉴采用已有缓存，可把新作者输入覆写为旧内容，编译档案不随这次反写改变 | WP75／WP04 §5.5 |
 | Rename outdated files | 确认 → 文件名更新＋「Done.」 | **可改地图数据的文件更名/移动** | WP75 |
 | Extract text for translation | 语言存在门 → 选语言/游戏或核心/地图文本拆分 → 文本抽取 | 写文本抽取目录 | WP75 |
 | Compile translated text | 文本目录门 → 文本编译 | 写语言 .dat | WP75 |
 | Manage Mystery Gifts | 神秘礼物管理 | 礼物管理界面 | WP64（领域引用） |
-| Reload system cache | 系统缓存重载＋「Done.」 | 刷新系统文件缓存 | WP02/WP07 边界引用 |
+| Reload system cache | 请求宿主系统文件缓存重载＋正常返回才「Done.」 | 不由请求名称推出区域/动画/连接对象缓存清空；宿主内部效果未观察 | WP02/WP07／WP04 §5.6 |
 
 - **入口 ≠ 完成**：上表只固定「从调试菜单可达、各自前置与即时动作」——工具内部行为由归属包验收；菜单项无 `受限可见标记` 显式假标记的分组（PBS 编辑器、其它编辑器、文件选项）在**受限菜单（载入界面）中同样出现**（§3.2）。
 
