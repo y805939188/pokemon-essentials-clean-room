@@ -1648,3 +1648,114 @@ B10继续阻塞，须八实际门禁＋B14-C后全53读／8写及合同重冻结
 当前 [关闭登记候选](../review/remediation-third-20261012-prepare/registration/final-closure-candidate.json) 已物化23项CLOSED登记；**有效最终CLOSED在本生成时点仍为0**。只有同一独立reviewer通过精确关闭候选的有限字节影响验收，并由唯一登记员添加准确绑定的 [关闭接受回执](../review/remediation-third-20261012-prepare/registration/final-closure-acceptance.json) 后，这23项才生效、U07才最终完成。候选中的closed计数和布尔字段均由此激活条件控制；旧PENDING与本段待审说明是固定生成时点，不能回写冒充已签未来hash。回执尚未存在时，本链接是明确的未来激活位置。
 
 [U07正式接受](../review/remediation-third-20261012-prepare/registration/U07-formal-acceptance.json)、[关闭说明](../review/remediation-third-20261012-prepare/U07/final-closure/closure-registration-report.md)及提交后 [同reviewer验收输入](../review/remediation-third-20261012-prepare/U07/final-closure/actual-review-input.json) 定位原PASS、真实关闭字节和后续门禁。正式131字节、旧229/341资格及原第三轮证据保持；GR3-M09-001可选暂缓／U08未启动，GR3-M02-003不需修订且不重开。静态关闭不表示运行：行为、参考、编译／转换、反序列化、真实Demo、输入／渲染／音频仍全部0／NOT_EXECUTED，资料与宿主未知保持。关闭字节验收前不合main、不清理分支。
+
+## 第五轮限定整改接受与最终整合候选（2026-10-14）
+
+本段是第五轮当前后继状态；此前各轮“当前”、PENDING、WAIT和执行0段落保留其原始生成时点，不作为第五轮有效状态。B5 `9366d9d17aaeac3b4414236468affa650fb3dd27`、只读R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`、第五轮语义报告 `c0ff33024aea424c68d29f9778fe7c8e807d21e8` 与发布 `f49d870c6fd616ab6736754a218a4553b5acac7f` 固定。
+
+七批的92项必修（51P2／41P3）已分别取得独立实际限定静态裁决并由唯一R5-I正式接受其精确owner贡献，累计568条按原审者schema限定验收结果（410条原始static要求及158条保留／向量／源事实／运行边界检查）、262个作者传递贡献（259显式编辑＋2个U05镜像＋1个U07镜像）。U03原失败及原作者定向修订分别保留；两份冻结建议SHA的MISMATCH记录未被改成通过。此处“接受92”不代表全局新审查、整共享文件接收或最终关闭。
+
+21个共享路径的上游贡献已到齐，18条依赖的准确owner接受门已满足；完整共享文件／消费者、92项全部正文及同步附表／向量、85个唯一写者路径、当前Feature Matrix和两向追溯、既定有限回归仍待R5-U08独立终审。此六份导航／支撑同步为候选，U08 candidate PASS、actual PASS、唯一正式接受分别登记；有效OPEN_REQUIRED92、CLOSED0。后续确切关闭字节还须同一非作者审者有限验收和唯一激活回执。
+
+旧回归分母为R4 17控制／76条件、R3 23控制／76条件、旧229控制／341具名贡献。R4在B5第五轮审查时16／75支持及GR5-M04-002 Summary残留保留；当前U03／U06／U07精确贡献对其提供新增有限支持，由U08核当前汇总，不能转签整旧ID。GR3-M09-001可选暂缓／历史U08未启动和GR3-M02-003不需修订不重开；本轮R5-U08不是该历史可选任务。
+
+SC-U07-001使GR5-M12-002仅按准确前提接受：六族捕获体不跨LF，独立合法完整调用行可命中并整字段重写丢失周边普通行，外围空白LF另列。冻结author错误跨LF字段仍是历史证据且明确排除当前事实／签名；002必修、33条U07及92分母保持。
+
+optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可选方面保持隔离。13项具名材料／宿主边界继续有效；可审R432、正式131及有效补充未审0仅指固定有限可得静态材料，不证明宿主、完整资源或机器码动态边界。R4历史4隔离执行与R5原review新增4隔离执行分期保留，本update新增参考／行为模型／宿主／Demo执行0。Git、哈希、JSON和文档补丁检查只属TOOL_VALIDATION；向量为DERIVED_VECTOR／NOT_EXECUTED。实际模型回显UNVERIFIED，不由请求参数推造回显。
+
+当前证据见 [唯一接受台账](../review/remediation-fifth-20261013-prepare/registration/successors/20261014-u07-formal-acceptance/current-ledger.json)、[92项原始static要求及568接受结果精确终审矩阵](../review/remediation-fifth-20261013-prepare/integration/R5-U08/candidate-01/mandatory92-review-matrix.json)、[21共享全文输入](../review/remediation-fifth-20261013-prepare/integration/R5-U08/candidate-01/shared21-full-file-input.json)、[18依赖握手](../review/remediation-fifth-20261013-prepare/integration/R5-U08/candidate-01/dependency18-handshakes.json)、[两向追溯](../review/remediation-fifth-20261013-prepare/integration/R5-U08/candidate-01/bidirectional-traceability.json)、[有限旧回归](../review/remediation-fifth-20261013-prepare/integration/R5-U08/candidate-01/historical-regression-input.json)和[13边界](../review/remediation-fifth-20261013-prepare/frozen-input/limits-and-missing-materials.md)。
+
+| 第五轮必修ID | 唯一owner | 原始static数 | 当前限定接受 | 最终关闭 |
+| --- | --- | ---: | --- | --- |
+| GR5-M01-001 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-002 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-003 | R5-U01 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-004 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-008 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-009 | R5-U01 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-010 | R5-U01 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-011 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-012 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-013 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-014 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-015 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-016 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-017 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-018 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-021 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-022 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-023 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-024 | R5-U01 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-025 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-026 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-027 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-028 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-029 | R5-U01 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-030 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-031 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-001 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-002 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-003 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-004 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-005 | R5-U01 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-006 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-007 | R5-U01 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M02-008 | R5-U01 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-JXN-001 | R5-U02 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-001 | R5-U02 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-002 | R5-U02 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-003 | R5-U02 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-004 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-005 | R5-U02 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-006 | R5-U02 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-007 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-008 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-009 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-010 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-011 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-012 | R5-U02 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M03-013 | R5-U02 | 9 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-JXN-003 | R5-U03 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-005 | R5-U03 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M01-006 | R5-U03 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M04-001 | R5-U03 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M04-002 | R5-U03 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-001 | R5-U03 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-002 | R5-U03 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-003 | R5-U03 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-004 | R5-U03 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-006 | R5-U03 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M05-007 | R5-U03 | 10 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-JXN-002 | R5-U04 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M07-001 | R5-U04 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M07-002 | R5-U04 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M07-003 | R5-U04 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M08-001 | R5-U04 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M08-002 | R5-U04 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M08-003 | R5-U04 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M09-001 | R5-U05 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-001 | R5-U06 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-002 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-003 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-004 | R5-U06 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-005 | R5-U06 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-006 | R5-U06 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-007 | R5-U06 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-008 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-009 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-010 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-011 | R5-U06 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-012 | R5-U06 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M10-013 | R5-U06 | 7 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M11-001 | R5-U06 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M11-002 | R5-U06 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M11-003 | R5-U06 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M11-004 | R5-U06 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M11-005 | R5-U06 | 6 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-001 | R5-U07 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-002 | R5-U07 | 3 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-003 | R5-U07 | 4 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-004 | R5-U07 | 2 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-101 | R5-U07 | 11 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-102 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+| GR5-M12-103 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
