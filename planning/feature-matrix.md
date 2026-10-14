@@ -497,3 +497,34 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 | GR5-M12-101 | R5-U07 | 11 | 精确owner静态已接受 | OPEN_REQUIRED |
 | GR5-M12-102 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
 | GR5-M12-103 | R5-U07 | 5 | 精确owner静态已接受 | OPEN_REQUIRED |
+
+
+<!-- R6-CURRENT-SYNC-BEGIN -->
+## 第六轮当前实际内容与公共登记（D／E，待登记复核）
+
+固定正式版本 `86bbc99b28d93db4ed9d6897daf5f3725ccd1808`，formal tree `ebbe29f2bc88cd17de7072bf440c6fa8c8c7089c`。全部56项候选已通过并实际收到；当前D／E共17项独立实际内容通过，余39项实际结论未收。此处同步17项有限静态结果，公共新字节尚待独立复核；正式接受／CLOSED均0，56项仍OPEN。第五唯一92项CLOSED及上方各轮旧状态按原时点保留，不重启或扩大旧scope。
+
+依据 [D组完整实际裁决](https://github.com/y805939188/pokemon-essentials-clean-room/blob/7a637751bc26b3a7b6cc30d281ef9663d3a7f692/review/remediation-sixth-20261014-prepare/actual-reviews/group-D/report.md)、[E组完整实际裁决](https://github.com/y805939188/pokemon-essentials-clean-room/blob/915f0ef84ca5c544c98978ddfb0ee76149a2e033/review/remediation-sixth-20261014-prepare/actual-reviews/group-E/review-report.md) 与 [逐ID同步输入](../review/remediation-sixth-20261014-prepare/integration/public-sync-20261014/sync-input.json)。F002的WP66-A／WP54／QC内容条件由两组共同确认，仍只算E主责的一项。其余组的未完成接口与最终登记资格不由这17项代签。INTEGRATED_CONTENT_PASS只授有限静态内容，配置有效回显UNVERIFIED，不签配置已验证的全局INTEGRATED_PASS。SOURCE_STATIC／DERIVED_VECTOR／TOOL分别记录；本次参考、完整行为模型、宿主／Demo、真实存读档／录像执行均0。8可选、1浮点facet、7政策、14限制未纳必修。
+
+| ID | 主批／实际组 | 已核规则与正常／边界控制 | 实际正式条款 | 状态 |
+| --- | --- | --- | --- | --- |
+| GR6-F-001 | R6-U13／E | 设施取消清内层即时字段，保留外层身份／六计数／轮上限；取消后结束仍先回收并可把队伍赋nil。 控制：WS-W13／W30／W36 | WP55 §2.3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-002 | R6-U13／E | 加入容量仅正读取值生效，恰等值且新增才移确认焦点；0与两类负数读取／最终判断、nil与空数组分别处理。 控制：QC-Q48／Q49及正常1／3、nil／[]控制 | WP54 §2.1／§2.3／WP66-A §4.6 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-S001 | R6-U13／E | 专门Save隐藏与Quit Game共享保存分开；活动对象可进入保存输入，拒绝／IO／未捕获异常保前缀，SF30正常与默认转换控制保留。 控制：SF30-d/e／SF36–40 | WP53 §8.3／§8.4 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-V001 | R6-U13／E | Arena状态2表示目标分支完成；Protect可伤害0仍技−2，失败历史独立；只结算当前存活者与已达待状态。 控制：PA-P14／P15／P26／P29／P30 | WP56 §3.1／WP40 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-V002 | R6-U13／E | 录制18键捕获世界准备后现值；构造默认、Cave时段／覆盖／base分开，回放恢复录值不重新准备。 控制：RC-W27及原询问消费控制 | WP58 §3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-V003 | R6-U13／E | Palace正常自动出招早于Mega登记返回；Tower／Arena需实际登记并到执行门，记录仍遗漏Mega标记。 控制：RC-W18／W28 | WP56 §2.4／WP58 §3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-V004 | R6-U13／E | Arena取消列明持续招而保留存活未替代者回复期；2→普通尾1→裁判后1，倒下／补位清效另算。 控制：PA-P16／P31及连续3／4／5轮控制 | WP40／WP56 §3.2 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-F-V005 | R6-U13／E | Palace最佳占比从0严格增加；存活后备取整0无最佳，后段标记与正占比早返不同，同值保先者。 控制：PA-P12／P24／P32 | WP56 §2.5 | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-UI-BAG-001 | R6-U12／D | BP自定义问候替代两条默认介绍；正常取消仍共用告别并清覆盖，过滤在首问候前改原列表。 控制：R6-U12-BP01–04 | WP29／WP66-C | 独立实际静态PASS；公共同步待复核；OPEN |
+| GR6-UI-BAG-002 | R6-U12／D | Bag成功提示先于逐个删除，PC整批删除／刷新先于提示；异常、取消和忙暂停保留各自库存前缀。 控制：R6-U12-TS01–05 | WP27／WP66-C／WP17 | 独立实际静态PASS；公共同步待复核；OPEN |
+| R6-UI-001 | R6-U10／D | 捕获送盒暂停：已存／删旧员，记忆移位与新员入队在消息返回后；异常只保到达前缀。 控制：U10-CP01–09 | WP67-A §8.3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| R6-UI-002 | R6-U10／D | Safari仅队伍满且全部盒满时拒投球；盒满而队伍有位仍放行，扣球不保证捕获成功。 控制：U10-SF01–05 | WP67-A §10／WP53 §4.4 | 独立实际静态PASS；公共同步待复核；OPEN |
+| R6-UI-PARTY-001 | R6-U10／D | 摘要缺标记槽的显示0不补原值，ACTION比较失败；显式0、USE／BACK／OK与Storage直接Mark分别判断。 控制：U10-MK01–09 | WP66-A §6.3／WP18 | 独立实际静态PASS；公共同步待复核；OPEN |
+| R6-UI-PARTY-002 | R6-U10／D | 重学记录与等级候选重叠保留等级位置，仅独有未会记录前置；确认／取消与成功教学统计分开。 控制：U10-RL01–09 | WP66-A §7.3／WP30 §6.3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| UI-ST-001 | R6-U11／D | Storage按钮端点及盒头／出口／队伍状态导航逐入口定义，图鉴列表／搜索／Entry返回不共用一套规则。 控制：R6-BX01–04与原BX控制 | WP66-B §3.1／§3.3 | 独立实际静态PASS；公共同步待复核；OPEN |
+| UI-ST-003 | R6-U11／D | 图鉴Forms有序候选两端回绕，下一循环开头先写最后显示；单项不开放选择，BACK与资源失败前缀分层。 控制：R6-DX01–04／R6-PD01–03 | WP66-B／WP62 | 独立实际静态PASS；公共同步待复核；OPEN |
+| UI-ST-005 | R6-U11／D | Storage同轮方向覆盖和后续动作优先级分阶段；切盒正常后续才完成刷新，currentBox持久链独立。 控制：R6-BX及原R5-F/J控制 | WP66-B／WP17 | 独立实际静态PASS；公共同步待复核；OPEN |
+
+完整源／消费者定位、固定合同与实际报告身份、未完成依赖与未执行层以同步输入为准；此层不证明任何新增运行结果。
+<!-- R6-CURRENT-SYNC-END -->
