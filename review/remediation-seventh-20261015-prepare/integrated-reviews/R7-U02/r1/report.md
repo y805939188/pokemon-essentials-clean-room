@@ -50,3 +50,7 @@ D06静态工具重新核Game.exe完整身份及精确21名称/样本范围，且
 真实日志限制：早期侦察、fetch、bootstrap及直接读取有平台工具I/O和原生HTTP恢复回执，未另存每条独立PID/UTC/stdout/stderr，不事后补造。从logs/001开始仅具名包装调用有真实分流和子进程信息；交互读取仍以平台输出为证。005/006因未取得非祖先候选Git对象而失败；修正为固定提交HTTP/已核恢复字节。007把errata候选行直接与根调整后行比较而失败；后继单独核status/reception再整体比较，008全部56/24/3通过。错误日志完整保留，不把后继exit0改写为首轮通过。两次错误路径的交互展示读取已纠正，不是行为失败。没有保存或发布私有模型流、参考源正文或反汇编正文。
 
 成果仅在从B创建的隔离checkout分支 `codex/r7-ir-u02-20261015-r1`，只写本 `review/remediation-seventh-20261015-prepare/integrated-reviews/R7-U02/r1/`。不携带作者镜像、不修改MI/正式/main/tag或公共台账，不force或覆盖同名分支。最终commit/tree和全部文件远端字节回读由提交后的真实工具回执与最终回传绑定，manifest自身不伪造递归自哈希。没有阻塞本次三项限定静态裁决的缺失输入；上述正式接收、全局责任、运行和配置门仍保持原资格。
+
+首个普通发布提交为 `58f203b5492866bd70682e8fc06a06582a3ae404`，tree `7da2a39f08771742a9220340cc7a0733187706bc`。实际普通push退出0；新建独立bare接收库从远端取回commit/tree并穷举树，固定raw地址完整回读 **58文件 / 789,215字节**，全部HTTP200、完整bytes/SHA256/blob/100644模式一致，远端tip前后一致。完整回执见 [remote-readback-first.json](remote-readback-first.json)，真实commit/push/readback分流见logs/012–014。当前后继仅封存这些运输证据和说明，三项语义裁决不变；后继最终commit另作完整远端逐文件回读，由最后平台工具输出和最终回传外部绑定，避免自包含回执无限递归。
+
+封存全写集空白检查015真实exit2，仅指出原GitHub push stderr四行自带尾空格；保留原始stderr及包含同样字节的015诊断stdout，不清洗或改写失败。排除这两份具名原始I/O后的新成果检查另记016；不能把全写集检查写成通过。
