@@ -72,3 +72,5 @@ SOURCE_STATIC／DERIVED_VECTOR与TOOL_VALIDATION分列；全部原/新行为、R
 唯一成果分支 `codex/r7-ir-u11-20261015-r1` 从固定B的隔离worktree产生，创建前检查本地/远端无同名分支。仅写 `review/remediation-seventh-20261015-prepare/integrated-reviews/R7-U11/r1/`，未携带或修改MI正文、作者镜像、公共台账、main或tag，不force。最终commit/tree及普通推送、完整逐文件远端响应体回读由提交后真实工具结果在最终回传绑定；manifest不填写递归自hash。包内若归档首轮运输回执，它仅证明明确列出的前一commit，最后封装提交另作全文件回读。
 
 首个内容载荷提交 `b349180eb63d21f1434a629915f4d76107455506`，tree `aa3e56a295cec88bd5479eef495ffa9e448c8bc8` 已普通推送；全部78文件／843,246字节的远端完整响应体与本地及Git一致，前后tip相同，见 `publication-evidence/payload-readback.json` 及017–020真实命令I/O。当前后继只归档该运输证据、补此段和更新manifest；最终封装提交另作完整远端回读，在最终回传绑定，不递归冒称回执证明自身。
+
+封装完整暂存空白检查023真实exit2：仅归档的019-payload-push.stderr第1–4行Git远端PR提示含尾空格。原始流不清洗，失败输出保留；当时封装提交8e73c72cb349d936fe20870949dead2b74c2dcd4已生成、尚未推送。当前后继补此说明并限定新著文本的空白检查，排除原始publication stdout/stderr，结构/条款/写集验证继续完整执行；不将完整检查exit2改称通过。最终推送包含这些普通提交及本说明，最后全文件远端回读另行绑定。

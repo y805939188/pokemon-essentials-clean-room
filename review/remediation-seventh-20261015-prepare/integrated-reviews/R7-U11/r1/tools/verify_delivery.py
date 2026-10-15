@@ -52,7 +52,10 @@ assert read(OUT/'context-observation.json')['AI_auxiliary_tasks_created']==0
 for p in OUT.rglob('*.json'):
     json.loads(p.read_bytes())
 assert not any(p.is_symlink() for p in OUT.rglob('*'))
-subprocess.run(['git','diff','--check',B,'--',PREFIX],cwd=REPO,check=True)
+subprocess.run(['git','diff','--check',B,'--',PREFIX,
+                ':(exclude)'+PREFIX+'publication-evidence/*.stdout',
+                ':(exclude)'+PREFIX+'publication-evidence/*.stderr'],cwd=REPO,check=True)
 print(json.dumps({'authorized_review_paths':len(changed),'actual_clause_spans_verified':spans,
                   'primary_full_read_records':14,'all_behavior_vectors':'NOT_EXECUTED',
-                  'formal_B_subtree_unchanged':True,'structured_delivery':'VALID'},ensure_ascii=False))
+                  'formal_B_subtree_unchanged':True,'structured_delivery':'VALID',
+                  'whitespace_scope':'New authored text, excluding retained raw publication stdout/stderr; complete cached check023 exit2 preserved'},ensure_ascii=False))
