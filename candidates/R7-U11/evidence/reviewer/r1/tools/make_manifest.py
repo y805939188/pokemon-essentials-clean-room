@@ -1,0 +1,8 @@
+"""List all current reviewer evidence; the final commit externally binds this file."""
+import datetime,hashlib,json,pathlib,os
+root=pathlib.Path(__file__).resolve().parents[1];repo=pathlib.Path('/workspace/r7-u11-reviewer-checkout');rows=[]
+for p in sorted(root.rglob('*')):
+ if not p.is_file() or p.name=='artifact-manifest.json':continue
+ assert not p.is_symlink();b=p.read_bytes();rows.append({'path':str(p.relative_to(repo)),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'git_blob':hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest(),'mode':'100644'})
+d={'schema':'r7.u11.independent-reviewer-artifact-manifest.r1.v1','created_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'generator_pid':os.getpid(),'reviewer_thread':'01a13ff1-099f-70d6-9a47-17d59f03a003','branch':'codex/r7-u11-reviewer-20261015-r1','base_commit':'e646432c644dec04d306842cc5a559a29c718fbc','candidate_commit':'f151a507bb43e8c936845c7408ab4bc14138caf0','candidate_tree':'62ae934df20c75633964a6a29cd211522fa6659f','files':rows,'nonself_files':len(rows),'nonself_bytes':sum(r['bytes'] for r in rows),'self':{'path':str((root/'artifact-manifest.json').relative_to(repo)),'identity':'Externally bound by actual final commit/tree and complete post-push remote readback; no recursive self-hash.'},'write_scope':'Only candidates/R7-U11/evidence/reviewer/r1/; all files new relative to fixed B','qualification':'Artifact transport identities; semantic verdicts in report/per-id, no integrated acceptance/closure.'}
+(root/'artifact-manifest.json').write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n');print(json.dumps({'nonself_files':len(rows),'nonself_bytes':d['nonself_bytes'],'manifest_self':'EXTERNAL_COMMIT_TREE_BINDING'}))
