@@ -34,7 +34,7 @@ def fetch(path, commit, target, expected=None):
     (OUT/'audit-downloads.json').write_text(json.dumps(downloads,ensure_ascii=False,indent=2)+'\n')
     return b
 
-start=utc(); downloads=[]; receipt=dict(start_utc=start,pid=os.getpid(),scope='TOOL_VALIDATION_ONLY_NO_SEMANTIC_OR_RUNTIME_CREDIT')
+start=utc(); downloads=read(OUT/'audit-downloads.json') if (OUT/'audit-downloads.json').exists() else []; receipt=dict(start_utc=start,pid=os.getpid(),scope='TOOL_VALIDATION_ONLY_NO_SEMANTIC_OR_RUNTIME_CREDIT')
 fi=read(ROOT/'supplemental/integrated-input.json')
 assert fi['actual_MI']==MI and fi['actual_MI_tree']=='6480ffe3df49bd9776c719f3c9be1c13618fdb0a'
 assert read(ROOT/'supplemental/MI-git-metadata.json')['tree']['sha']==fi['actual_MI_tree']
