@@ -74,3 +74,7 @@ WP16 §3.1/§3.1.1的量化、邻图、镜头时长、轴计时、钳边与整�
 当前候选输入无未解决阻塞。仍开放：R7-I条款/共享/消费者接收和实际整合、精确累计整合commit/tree的全新独立R7-IR、直接/传递依赖及具名历史回归的最终接收、正式接受与关闭。本人不宣布正式接受或关闭。
 
 成果只在从固定B建立的 `codex/r7-u03-reviewer-20261015-r2`，新增目录仅 `candidates/R7-U03/evidence/reviewer/r2/`。最终结果commit/tree、普通push及最终全量远端回读在交接中包外绑定，以避免自引用；如有后继提交，仅补充本次真实发布/回读证据，不改变上述判定。
+
+## 实际内容发布与完整回读
+
+首个内容提交 **718c9ba9b31ecd3774581ed22621d0ef05e2fed1**，tree **5f9d03e08b75bb9f509702bdc63b52ce7313507f**，已普通push到唯一成果分支。远端ref、固定commit的FETCH_HEAD/实际tree及对B全部 **74文件 / 643,505字节** 已逐文件完整HTTP200回读，与Git实际字节、大小、SHA256/blob相同，见 `content-remote-readback.json` 及 `commands/push-content.*`、`commands/readback-content.*`。此证据后继仅补该次真实commit/push/回读I/O及manifest，语义结论不变；最终后继仍须完整回读并在交接绑定。原始push输出的远端尾随空格保留，空白检查只排除commands/中原样stdout/stderr，不排除正文、JSON或工具。
