@@ -100,3 +100,7 @@ WP43全文及§6.2/§7已有C1早返正确，候选与之相容，无条件同�
 唯一成果分支 `codex/r7-u06-reviewer-20261015-r1`，在本环境干净隔离checkout从固定B创建。创建前远端同名分支无结果。仅提交 `candidates/R7-U06/evidence/reviewer/r1/`；不携带作者镜像，不改正式文件、作者分支、整合分支、main或tag，不force。
 
 `per-id.json`给逐项结论与每条向量判断；`review-input-receipt.json`绑定输入；`receipts/source-read-set.json`给精确源身份／已读范围；`artifact-manifest.json`覆盖本批审者产物（自身由结果commit/tree及完整远端回读绑定）。普通提交／push和首次完整回读证据随后随证据提交发布。最终结果commit/tree及对它的全部新增文件完整远端回读在包外回报，避免伪造“包含自身发布后回执”的循环身份。
+
+首次成果已普通提交／推送：commit `411aec4415781eb8705a1654fe4ac638231413e0`，tree `d31196e9402e92babdc9b5b632883210cbf22a6a`。30个新增文件／314,095字节均从该固定commit的远端raw URL完整读回并核bytes/SHA/blob/mode，前后远端ref一致，Git协议fetch所得commit/tree一致。完整回执见 `receipts/first-remote-readback.json`，真实命令009–012保留。
+
+命令011原拟从GitHub commit API读元数据，遭代理隧道403、exit1；没有据此声称回读完成。命令012改用普通Git协议fetch核固定身份并继续逐个raw完整读取，exit0。没有认证绕过或审批升级，失败证据未删除。后继只补这段发布事实、回读工具和真实发布证据／清单，不改输入或两项内容判断；最终完整回读在最终提交后另行完成。

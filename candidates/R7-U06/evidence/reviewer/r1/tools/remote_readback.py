@@ -32,10 +32,11 @@ def main():
     start=utc();commit=git('rev-parse','HEAD');tree=git('rev-parse','HEAD^{tree}')
     ref=git('ls-remote','--heads','origin','refs/heads/'+BRANCH)
     assert ref.split()==[commit,'refs/heads/'+BRANCH],ref
-    api=f'https://api.github.com/repos/{REPOSITORY}/git/commits/{commit}'
-    with urllib.request.urlopen(urllib.request.Request(api,headers={'User-Agent':'R7-U06-independent-reviewer'}),timeout=40) as response:
-        remote_commit=json.load(response);api_status=response.status
-    assert remote_commit['sha']==commit and remote_commit['tree']['sha']==tree
+    fetch=subprocess.run(['git','-C',str(ROOT),'fetch','--no-tags','origin','refs/heads/'+BRANCH],capture_output=True,text=True)
+    assert fetch.returncode==0,(fetch.stdout,fetch.stderr)
+    fetched_commit=git('rev-parse','FETCH_HEAD')
+    fetched_tree=git('rev-parse','FETCH_HEAD^{tree}')
+    assert fetched_commit==commit and fetched_tree==tree
     changes=git('diff','--name-status',B,commit).splitlines()
     paths=[]
     for row in changes:
@@ -65,7 +66,11 @@ def main():
     assert final_ref==ref
     receipt={'schema':'r7.u06.reviewer-full-remote-readback.v1','status':'ALL_NEW_REVIEWER_FILES_FULL_REMOTE_BYTES_VERIFIED',
              'start_utc':start,'end_utc':utc(),'branch':BRANCH,'commit':commit,'tree':tree,'fixed_B':B,
-             'remote_ref_before_and_after':ref,'commit_api_url':api,'commit_api_http_status':api_status,
+             'remote_ref_before_and_after':ref,
+             'git_protocol_fetch':{'argv':['git','fetch','--no-tags','origin','refs/heads/'+BRANCH],
+                                   'stdout':fetch.stdout,'stderr':fetch.stderr,'exit_code':fetch.returncode,
+                                   'FETCH_HEAD':fetched_commit,'FETCH_HEAD_tree':fetched_tree},
+             'commit_api_qualification':'Not used. Original API attempt received proxy 403; see commands/011-payload-readback.json.',
              'remote_commit_tree_matches':True,'files':rows,'files_verified':len(rows),
              'bytes_verified':sum(x['bytes'] for x in rows),'qualification':'TOOL_VALIDATION_ONLY; no formal acceptance or closure'}
     output.parent.mkdir(parents=True,exist_ok=True)
