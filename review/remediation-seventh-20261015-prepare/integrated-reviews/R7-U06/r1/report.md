@@ -60,3 +60,5 @@ GR6-CA-EB-001的AI空名单、正替身、预测关/评分开除零是不同消�
 30条行为向量全部 **NOT_EXECUTED**。本次及续审参考观察、参考程序、独立完整行为模型、宿主/Demo/native媒体/真实存档回放、行为故障注入新增运行均0。历史H14/UTIL-03的一进程10输入只保留原资格，不回填。原 [L01–L14完整原件](evidence/limits-and-alias-reception.json) 字节不变；有效model/effort/tier/speed始终 **UNVERIFIED**，请求/PID/退出0不认证配置。两项PASS只认证以上完整限定静态实际整合内容。
 
 所有真实旧失败及原一次认证查询仍可在旧提交/归档/原日志核验。只在原唯一分支和原授权r1目录普通提交/推送；MI正文、候选、公共台账、main和tag不改、不force。发布后对包括历史归档和manifest在内的全部新成果文件做固定commit完整远端字节/SHA256/Git blob/mode回读；先将首次续审提交的真实回读纳入证据提交，再将最终提交的完整回读及commit/tree随最终答复返回，避免虚构自含未来提交身份。
+
+首次续审普通推送提交 `b791a37d7228d21b2f3272d98b0c5bf1f38e65ea`／tree `796f83603a1a1a5b9a94189a3eec2d917a5e81a7` 的 **116文件、2,879,659字节** 已固定提交完整远端回读一致（包括当前及历史manifest、旧WAIT四核心文件和日志）：[逐文件回执](evidence/continuation/first-complete-remote-readback.json)。后续证据提交纳入这份真实回执；最终commit/tree及其全部文件远端回读随最终答复另行返回，不将首次续审提交冒充最终提交。
