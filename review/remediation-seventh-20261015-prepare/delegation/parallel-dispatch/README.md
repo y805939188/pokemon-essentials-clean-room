@@ -1,6 +1,6 @@
 # 全部剩余作者并行派发与冻结后独立复审
 
-父会话已报告成功创建并inProgress：U01=01a13f52-add1-7706-b7ec-54e07e0d7013，U04=01a13f52-cc74-7568-9e75-85ac773c6015，U05=01a13f52-ecf8-73f9-8c9b-f5c164f0c017。事实来源是父会话回传；本环境没有重新查询账号任务服务。请求gpt-6.1-sol xhigh/default，实际模型/档位/速度回参仍UNVERIFIED。不要重复派发这三批。
+初始父回传成功创建：U01=01a13f52-add1-7706-b7ec-54e07e0d7013，U04=01a13f52-cc74-7568-9e75-85ac773c6015，U05=01a13f52-ecf8-73f9-8c9b-f5c164f0c017。事实来源是父会话回传；本环境没有重新查询账号任务服务。请求gpt-6.1-sol xhigh/default，实际模型/档位/速度回参仍UNVERIFIED。不要重复派发这三批。
 
 用户不设置并发任务数量上限。剩余U02/U03/U06/U07/U08/U09/U10/U11/U12/U13各自隔离candidates镜像和唯一分支，可全部并行创建；13批作者阻塞边0、镜像写写冲突0。这不是服务slot或实际创建回执。唯一创建者是父会话cloud_threads.create，本整合者创建0。新实际ID返回后再登记。
 
@@ -8,10 +8,12 @@
 
 7组共享实际目标产生19对去重批次冲突、39次文件内配对；含条件同步，不采用optional/policy。作者可并行不等于正式写入可无冲突并行。R7-I唯一按条款串行整合，保留累计贡献；完整路径/对端关系见conflict-relations.json。
 
-reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。当前可启动reviewer为0：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
+reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。当前U01/U05已由R7-I真实接收并冻结，可据candidate-freezes/reviewer-ready.json创建独立ultra审者；其它11批仍等待。通用门：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
 
 独立reviewer只写本批evidence/reviewer/r1，唯一分支codex/r7-uXX-reviewer-20261015-r1，基于B；不修作者镜像，不动正式文件。完整候选/证据由固定作者commit或经R7-I核验的平台产物读取到只读暂存目录，审者输入freeze必须额外由父会话绑定真实commit。13份模板现在只是未来有界输入，不是已启动/通过声明。
 
 候选PASS→R7-I实际整合→新的R7-IR审实际累计字节→正式ACCEPTED→共享接收/直接传递依赖/历史回归满足才CLOSED。R7-IR-after-integration.md同样等待真实integrated-input记录及commit/tree，不能以本轮作者或候选审者替代。有效配置、L01-L14、运行零验证及optional/policy分母保持；不合并main、不删历史、不提前关闭。
 
 原启动/完成回执、f622静态计划和旧零作者记录保留生成时点。当前派发状态以ledger.json和此目录parent-launch-receipt.json、dispatch-index.json为准。候选PASS/实际PASS/ACCEPTED/CLOSED仍为0/27项、0/13批；作者已启动3/13是不同维度。
+
+U01实际候选de550bb9、U05实际候选3acf3e23均已完整根接收，冻结提交 58c6427f2ba48aa7dd3b59d4ab1e40c54394fd3a；具体reviewer文件位于candidate-freezes/<批次>/reviewer-dispatch.md。作者已完成2/13，仍未产生候选独立PASS/实际整合PASS/ACCEPTED/CLOSED。
