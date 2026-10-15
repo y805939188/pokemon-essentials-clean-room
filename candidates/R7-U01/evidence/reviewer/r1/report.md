@@ -74,3 +74,5 @@ CG01：WP03整数比较贡献可按条款接收；J01第58行先修订。CG02：
 本次成果仅在唯一 `codex/r7-u01-reviewer-20261015-r1`，从固定B的独立干净checkout产生，仅写 `candidates/R7-U01/evidence/reviewer/r1/`。普通提交/推送及完整远端读回由真实工具回参和外层最终交付绑定；文件不声称包含自身最终commit/hash。首次传输回执若随最终成果入树，只证明其明确列出的前一提交，最终提交仍另作全量远端验证。
 
 初次staged diff检查因原样patch空白上下文行报trailing whitespace（exit2）；该失败日志已保留。首个本地提交当时尚未推送，后继普通提交将patch证据无损封装JSON并移除裸patch，保留原始内容hash。最终发布前重新进行含未跟踪新文件的暂存检查；不把初次未暂存检查的exit0当作完整检查。
+
+首个实际远端发布提交 `3e5f55bb10cd3fbd0eaf91306e1c8d553392d273`，tree `6aebb0c06fbe1623b362c3a2b9663688d25f0977`，普通push成功（exit0）；远端固定URL完整读回24文件／206,085 bytes，逐文件HTTP200、完整bytes/SHA256/blob/mode均匹配，分支tip前后相同。完整回执随tool-evidence/remote-readback-first.json发布。当前后继提交只追加这次真实传输证据、报告运输说明及manifest；最终commit/tree仍由外层独立全量回读绑定，不能把本首轮回执冒充最终提交回执。
