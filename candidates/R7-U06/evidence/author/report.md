@@ -55,3 +55,5 @@ REFERENCE_OBSERVATION、参考Ruby、游戏宿主、Demo、native媒体、真实
 `commands/`逐命令保存真实argv、UTC、工具子进程PID、完整stdout/stderr和底层exit；`runtime-identity.json`独立保存请求/实际资格；不上传私有模型流。初始侦察/分段读取经平台工具回执完成，未独立落盘每次UTC/stdout/stderr；`initial-provenance.json`保留真实可见回执与这一缺口，不补造历史日志或作者模型PID。该审计限制交R7-I保留，不能用后继exit0抹去。
 
 发布仅普通提交和普通push至唯一成果分支，逐新文件以完整固定commit的GitHub raw URL读取全部字节，另核远端ref与commit/tree。最终commit不可能包含其自身发布后的回执：首次发布的完整回执可随证据后继提交；最终commit/tree及最终全部文件读回结果在包外工具回执/最终回报绑定。`artifact-manifest.json`不自含自身哈希；完整Git tree与最终逐文件读回覆盖它。完成最终读回后停止候选写入，等待R7-I/独立ultra复审。
+
+首次载荷已普通提交并推送：commit `ec9b84b1a9808f795e2974926088205f2186f9fd`，tree `4ba327a12addb179f11eefd072d88d9136f32248`；39个新增文件/561,602字节全部经HTTP200完整读回并核bytes/SHA/blob，见 `publication/first-readback.json`及命令015–017。其后只补发布证据与本报告/manifest，不改四份候选镜像；最终证据提交及43文件完整读回在包外绑定。
