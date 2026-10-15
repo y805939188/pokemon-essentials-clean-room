@@ -42,3 +42,7 @@
 作者无前置阻塞批次，但仍有接收门：R7-I 逐文件接收、生成 candidate-input.json 并绑定真实 author task/context；另一实际 context 的 ultra reviewer 审冻结候选；R7-I 按 CG06 逐 clause 串行整合；新的 R7-IR 审实际整合字节；直接/传递消费者及历史回归满足后才考虑关闭。未满足者保持 OPEN。L01–L14、旧 56/92 关闭边界、27 项/13 批分母均不变；7 optional、2 导航 facet、1 no-required、2 policy 均未采用。
 
 按后继派发授权普通提交、普通推送唯一分支，并对每个新增文件从完整固定远端 URL 读回。发布证据以真实 Git commit/tree、远端分支回参及逐文件读回结果为准；最终 commit 的自身读回由平台末次工具输出及最终回传绑定，避免制造自引用哈希。候选提交不得整分支合并进正式目录。
+
+首次发布已完成：候选 `a226d678ae8723d9b7b797ce5d31cde8537609a6` / tree `517e5c9f46136bc8e5d76b8052aeee9088241a45` 普通 push 成功，102 个新增文件共 1,113,718 字节已从固定远端 URL 全量匹配，见 [remote-readback-first.json](remote-readback-first.json) 及命令 030–032。后继提交仅封存本次发布收据、更新清单与报告，三个镜像字节不再改变；最终后继逐文件再读回的真实结果由平台工具末次输出绑定。
+
+本地 recorder 记录实际 argv/stdout/stderr/UTC/退出；若命令使用 Python stdin heredoc，脚本正文只存在于对应平台原始工具调用，未另存 stdin 副本。这个可重放性缺口和早期 bootstrap 分流缺口均保留，不以重建脚本倒填原始输入。已存的 verify_candidate.py / remote_readback.py 可独立重验当前候选及远端完整字节。
