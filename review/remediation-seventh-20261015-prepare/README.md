@@ -35,3 +35,7 @@ R7-I是唯一整合/公共登记写者：先固定候选bytes及作者context �
 正式接收必须绑定实际输入、完整最低规则、必要正文/向量/反向消费者和正确保留scope；静态可判定项无宿主也可有限验收。L01–L14、实际配置UNVERIFIED、宿主/Demo/native媒体/真实存档回放0均保留；未运行向量保持NOT_EXECUTED。R6原56/R5原92关闭证据和所有旧状态不改。
 
 所有新成果仅在整改分支普通提交/推送；不合并main、不force、不移动tag、不删历史。当前进度见[ledger.json](ledger.json)。
+
+指定配置CLI启动尝试 R7-U13-A-01（真实PID1417）在创建thread前因只读文件系统退出1，无thread ID、无候选。此为执行环境障碍，未触发自动批准拒绝。原stdout/stderr、请求与退出留在[启动尝试](launch-attempts/R7-U13-A-01/reception.json)。未改用其它模型/速度；当前可直接由父会话创建13作者，独立reviewer等待冻结候选。真实任务启动数0，候选/整合PASS、ACCEPTED、CLOSED仍全部0。
+
+精简prompt与合同的固定提交为 `f622356f`；完整提交和路径见[固定委派绑定](delegation/fixed-dispatch-binding.json)。
