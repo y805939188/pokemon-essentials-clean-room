@@ -87,3 +87,5 @@ SOURCE_STATIC、DERIVED_VECTOR、TOOL_VALIDATION分别记录。参考观察／�
 初始侦察／fetch／bootstrap及部分内容投影只有平台真实I/O，没有逐条另存独立UTC/PID/分离流，不回填早期时间。补取旧r1前两次遇缺Git对象，精确fetch后第三次完成；第一次结束回参未捕获。机械审计先后遇缺对象、B无新errata、阶段行位置、重复合计、目录名及gzip编码／解码比较错误；读取覆盖器另修正绝对／相对路径。失败输出保留，修正后实际重核通过，没有据工具错误修改被审内容或授行为信用。
 
 成果只在从B建立的独立worktree、唯一分支 `codex/r7-ir-u03-20261015-r1`，仅新增本r1规定证据；普通commit/push，不改正文、公共台账、main或tag。最终结果commit/tree及全部文件完整HTTP响应体的bytes/SHA256/blob／Git模式回读由真实交付在包外绑定，manifest不自哈希。R7-I须接收本结果并完成适用的语义／共享／依赖／历史责任登记后，另行决定ACCEPTED／CLOSED，本审不自行接受关闭。
+
+首个内容成果已普通推送并完整远端回读：commit `390bf3d0b5dba92498f314a72e0516c8990c502e`，tree `2263310229c937bd5605be859c83a231d715bb7f`，57文件／1,147,820字节。所有固定提交HTTP200完整响应体与本地／Git bytes、SHA256、blob及100644模式一致，回读前后远端ref稳定。见[首个内容回读](evidence/publication/content-readback.json)。本后继只封存该运输证据和说明／回执／manifest，不改变两项结论；最终后继再次全量远端回读并由最终交付在包外绑定。
