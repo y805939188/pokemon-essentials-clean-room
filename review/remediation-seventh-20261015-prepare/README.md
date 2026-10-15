@@ -1,3 +1,5 @@
+当前最后两项调度登记（2026-10-15T18:40:25.900664+00:00）：U03新实际IR thread01a140d8-cab0-753f-83f9-3c18414ce035已由父会话创建；U06原thread01a1401c-1527-75c6-9a36-7bc9b3a00007续审turn01a140d9-0f0a-7559-983e-21717145aac0已启动，不另计审者。42个任务ID唯一，当前没有待创建请求。环境恢复保留原工作区/分支/成果。候选PASS及实际应用27/27项13/13批；独立实际PASS与ACCEPTED23/27项11/13批；CLOSED0。累计静态保留核验见closure/preflight/final-static-projection.json；这不是语义PASS。两份实际结果接收和全部关闭门完成前不merge main。以下旧快照按各自时点保留。
+
 当前正式接收（2026-10-15T17:13:23.547605+00:00）：U07独立实际IR及U10同context完整续审均已接收，原WAIT保留。候选PASS/实际应用27/27项13/13批；独立实际PASS及ACCEPTED23/27项11/13批；CLOSED0。仅U03两项新实际IR、U06两项原context明确完整结论尚待；所有已创建任务41个ID唯一，最后U03实际IR请求仍未获父创建ID，勿重复。closure/preflight/current-gate-matrix.json已列27项精确门，所有最终关闭和main合并保持未放行。以下旧快照按各自时点保留。
 
 当前全轮实际条款冻结（2026-10-15T16:20:22.378864+00:00）：候选PASS及实际已应用均27/27项13/13批；独立实际PASS/正式ACCEPTED19/27项9/13批；CLOSED0。最后U03新独立实际IR输入见integration/wave4/v1/ir-ready.json，未在本环境创建；U06原context续审输入见process-adjudications/R7-U06-IR-PROC-001/v1/same-context-continuation.md，程序违例保留、无PASS代签；U07实际结果待接收；U10原context续审父已启动。最新MI=94d5eb73f4508b8a8a54319040faa9aea5752059，FI=6a02773d62e36a295e9701a8d0ba5b5cb6441614。全部门完成前不merge main。以下旧快照按各自时点保留。
