@@ -76,3 +76,5 @@ CG01：WP03整数比较贡献可按条款接收；J01第58行先修订。CG02：
 初次staged diff检查因原样patch空白上下文行报trailing whitespace（exit2）；该失败日志已保留。首个本地提交当时尚未推送，后继普通提交将patch证据无损封装JSON并移除裸patch，保留原始内容hash。最终发布前重新进行含未跟踪新文件的暂存检查；不把初次未暂存检查的exit0当作完整检查。
 
 首个实际远端发布提交 `3e5f55bb10cd3fbd0eaf91306e1c8d553392d273`，tree `6aebb0c06fbe1623b362c3a2b9663688d25f0977`，普通push成功（exit0）；远端固定URL完整读回24文件／206,085 bytes，逐文件HTTP200、完整bytes/SHA256/blob/mode均匹配，分支tip前后相同。完整回执随tool-evidence/remote-readback-first.json发布。当前后继提交只追加这次真实传输证据、报告运输说明及manifest；最终commit/tree仍由外层独立全量回读绑定，不能把本首轮回执冒充最终提交回执。
+
+提交79a16cba6d1fefea57d21a99da402d295b16443e／tree512ef3675eebb3a2c654e49c879bf5de78341164已普通push成功。首次最终回读在末尾分支tip检查遇远端503（exit1），失败工具I/O完整保留；同容器同commit重试成功，31文件／238,677 bytes全部HTTP200且完整字节/身份匹配，tip前后一致。失败与重试回执见tool-evidence/readback-79a16cba-*。最后归档提交只增加这些真实证据及当前说明/manifest，不改变两项语义结论；其自身最终commit/tree与全量回读仍由外层绑定。
