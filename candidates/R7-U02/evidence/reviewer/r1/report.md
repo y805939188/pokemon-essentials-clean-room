@@ -73,3 +73,5 @@ logs/001起保存审计命令真实argv/cwd、独立UTC、PID、完整可发布s
 唯一成果分支 `codex/r7-u02-reviewer-20261015-r1`，独立worktree从固定B创建；只提交本r1下报告、回执、manifest及真实工具证据。不携带作者镜像，不写候选、正式、reference、main、tag或统筹分支，不force。最终完整commit/tree和普通push及完整远端回读绑定在本报告所属提交之外的最终回传，避免自包含自身哈希。所有非自身文件由artifact-manifest逐项绑定，manifest自身由实际提交tree与最后全文件远端回读绑定。
 
 附：补充依赖的可选直接GitHub API元数据请求遭代理403，首次生成器exit1完整保留于logs/005；固定raw正文已正常恢复。随后用固定B追溯的两个blob及已连接GitHub在固定R返回的消息组件blob核对，logs/006生成成功。没有用403标记源不可读，也没有查询凭据、提升权限或把重试成功回填成首次成功。
+
+运输接收：证据载荷提交 `283c23f606e324851009c44af53ef8f31e5bb80a`（tree `424bf8d87f1bceb96bfc798f48c1f5307116a15a`）已普通推送并从不可变远端逐文件完整读回49文件/298,250字节，全部匹配，分支前后指向相同。完整逐文件接收见 [remote-readback-payload.json](remote-readback-payload.json)。本运输附记及更新后的manifest由其后同一分支普通提交运输；最终该提交的完整远端回读另在最终回传绑定，不伪造递归自包含证明。
