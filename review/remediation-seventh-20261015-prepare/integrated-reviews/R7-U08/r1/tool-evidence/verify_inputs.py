@@ -68,7 +68,7 @@ for row in journal['files']:
   assert b['reception']['ACCEPTED'] is False and b['reception']['CLOSED'] is False
   checks['errata_admin_field_changes']=changes
  match(cur,admin['after_identity'] if admin else row['assembled_candidate_clauses_identity'])
- checks['journal_files'].append({'path':p,'contributors':row['contributors'],'hunks':len(row['hunks']),'assembled_identity':identity(assembled),'actual_identity':identity(cur),'result':'ALL_CANDIDATE_SPANS_PRESERVED'})
+ checks['journal_files'].append({'path':p,'contributors':row['contributors'],'hunks':len(row['hunks']),'assembled_identity':identity(assembled),'actual_identity':identity(cur),'result':('EXACT_CANDIDATE_ASSEMBLY_THEN_DECLARED_ADMIN_ADJUSTMENT_ONLY' if admin else 'ALL_CANDIDATE_SPANS_PRESERVED')})
 checks['journal_hunks']=hunks;assert len(hunks)==56 and len(checks['journal_files'])==24
 checks['same_boundary_insertions']=journal['same_boundary_insertions']
 checks['root_admin_adjustments']=journal['root_administrative_reception_adjustments']

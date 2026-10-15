@@ -61,3 +61,7 @@ U02固定候选84e2cca132ada38405657f19cbbd3d6891d4794f、原独立批准44276c5
 R7-I仍须实际接收本结果，分别登记本批语义、CG06共享、直接/传递消费者和历史责任，然后才可另行正式ACCEPTED、再另行CLOSED。未读的全历史/宿主/媒体或未来贡献不自动放行。本次四个静态PASS不免除这些门。
 
 交付仅在从B建立的`codex/r7-ir-u08-20261015-r1`普通提交/推送本目录证据。正式正文、被审候选、公共台账、main/tag均未修改。先将完整载荷普通推送并逐文件远端回读，再封存该回读证据并普通提交推送；最后完整回读的commit/tree和本地收据由实际工具输出报告，避免对自己的commit/hash作递归猜造。详见[输入收据](review-input-receipt.json)、[全量机械证据](tool-evidence/input-byte-validation.json)、[成果清单](artifact-manifest.json)及首轮remote-readback收据。
+
+首轮载荷已普通推送：`77d875b498882a2d6ef666599838b9b38a65c761` / tree `2af630279eac2c952bc9ebe59f2d91df60a447c8`；71文件/1017995字节均通过完整HTTP及独立Git回读，见[逐文件回读收据](tool-evidence/remote-readback-first.json)。本封存只增补真实交付证据及root管理变化的机械标签说明；最终commit/tree另由实际工具输出回报。默认空白检查仅命中原始005 stderr末尾空行，保留原证据，013/014及whitespace-qualification.json说明该项。
+
+封存新增的017远端服务器原始推送日志自带尾部空格，原样保留；021对所有拟提交Markdown/JSON/Python/JSONL的空白检查通过，原始stdout/stderr不作格式化。最终提交/推送/回读日志写在本容器`/workspace/r7-ir-R7-U08/final-delivery/`，避免把回读自己的收据递归写入同一提交。
