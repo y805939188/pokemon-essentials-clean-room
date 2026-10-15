@@ -1887,6 +1887,6 @@ J01采用已接非作者反证counter-review.json（14,166字节，SHA256 272e94
 
 证据层级：BINARY_DATA_STATIC / NATIVE_DISASSEMBLY_STATIC / DERIVED_VECTOR；恢复和指针结构校验是 TOOL_VALIDATION，向量全部 NOT_EXECUTED。本容器只取得有界参考快照，未重新认证参考整树。CC04 实际注册/宿主查询桥仍未读；设备、后端选择、注册优先级、全 1923 记录字段语义与 76 字段/48 记录没有本独立签署，1666+257 和 731 Windows 只沿既有工具结构计数。未知名继续不证明所有失败保留全部前项，不证明全局回滚或物理 button9 失效。L01–L14、旧 56/92 与 27 项/13 批分母不变，未来兼容政策、宿主/Demo/媒体/真实存档仍分门待证。
 
-## 第七轮累计整合的当前接收状态
+## 第七轮全部必修条款的累计接收入口
 
-上列第七轮作者候选段保留制作时点的原声明与证据资格。当前状态见[实际接收登记](../review/remediation-seventh-20261015-prepare/integration/wave3/v1/public-reception.json)，作者证据须以该登记的固定候选提交和精确路径读取。本次U07/U10的新context候选r2通过后已按条款整合，等待新的独立实际IR；旧r1辅助任务披露与WAIT完整保留，未豁免或迁移。U03候选r2尚待结果。已应用25/27项、12/13批，独立实际PASS与正式ACCEPTED5/27项、3/13批，CLOSED0；其它已应用条款仍以各自固定MI/FI接受新独立IR。U04/U05/U09已接受的八份正文逐字保持。所有行为向量NOT_EXECUTED，宿主等运行0、有效配置UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持；用户授权仅在全轮所有门完成后最终普通merge main，当前未达门。
+第七轮作者候选段保留各自制作时点的原声明。当前状态及固定候选/实际审查身份见[累计接收登记](../review/remediation-seventh-20261015-prepare/integration/wave4/v1/public-reception.json)，作者证据按其中完整候选提交与精确路径读取。本次U03新context候选r2通过后，最后两项已按条款整合；当前27/27项、13/13批均已应用，原U03/U07/U10 r1流程WAIT及披露保留且未迁移。当前独立实际PASS与正式ACCEPTED19/27项、9/13批，CLOSED0；U03新实际IR、U06原context明确内容结论、U07实际IR及U10原context完整续审仍待接收。各批实际审查只绑定各自MI/FI，最终累计保留、共享/直接/传递/历史关闭仍单独登记。所有行为NOT_EXECUTED、宿主等运行0、有效配置UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持；全部门完成前不merge main。
