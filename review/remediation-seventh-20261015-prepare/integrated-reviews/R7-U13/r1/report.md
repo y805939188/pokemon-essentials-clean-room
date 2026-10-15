@@ -101,3 +101,5 @@ SOURCE_STATIC为本次具名配置／脚本／实际正文阅读；DERIVED_VECTO
 仅从固定B的隔离worktree创建唯一分支 `codex/r7-ir-u13-20261015-r1`，只写本 `integrated-reviews/R7-U13/r1/` 的报告、逐ID、回执、manifest及真实工具证据，不携带或修改MI正文、作者镜像、正式正文、公共台账、main或tag。普通提交／推送，未force或覆盖他人同名分支。最终结果commit/tree与所有文件不可变远端完整响应体的逐文件验证在实际运输后绑定；manifest不伪造自身最终hash或递归回执。
 
 尚未由本任务完成：R7-I接收本新结果精确commit/tree、登记语义／共享／直接及传递依赖／历史责任，再按其授权分别决定正式接受和关闭；更宽native／真实宿主／兼容范围仍须各自证据。本报告仅提供这一个ID的限定静态实际整合结论。
+
+首个证据载荷已普通推送并完整回读：commit `514542fe620262e30d38fc6ddba94d34d1326513`，tree `3764f3114023fb19b748a067d71e82167f4ed7ed`；261文件、2,743,112字节，全部HTTP完整响应体／bytes／SHA256／blob／模式匹配，分支回读前后相同。报告、JSON和Python工具限定空白检查实际exit0。真实Git命令I/O和逐文件回执归档于 [payload运输证据](tools/publication-payload/publication-and-full-readback.json)。后继提交只归档运输证据、补充本段／回执并更新manifest；GR7-D07-001内容结论及MI/FI不变。最终封装提交另做全文件远端回读，由最终工具I/O与返回在包外绑定。
