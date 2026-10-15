@@ -590,3 +590,7 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 ## 第七轮全部必修条款的累计接收入口
 
 第七轮作者候选段保留各自制作时点的原声明。当前状态及固定候选/实际审查身份见[累计接收登记](../review/remediation-seventh-20261015-prepare/integration/wave4/v1/public-reception.json)，作者证据按其中完整候选提交与精确路径读取。本次U03新context候选r2通过后，最后两项已按条款整合；当前27/27项、13/13批均已应用，原U03/U07/U10 r1流程WAIT及披露保留且未迁移。当前独立实际PASS与正式ACCEPTED19/27项、9/13批，CLOSED0；U03新实际IR、U06原context明确内容结论、U07实际IR及U10原context完整续审仍待接收。各批实际审查只绑定各自MI/FI，最终累计保留、共享/直接/传递/历史关闭仍单独登记。所有行为NOT_EXECUTED、宿主等运行0、有效配置UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持；全部门完成前不merge main。
+
+## 第七轮必修整改最终接收（限定静态范围）
+
+以上作者候选与各准备波次的状态注记保留其制作时点；本段为本轮最终权威状态，见[完整报告](../review/remediation-seventh-20261015-prepare/completion/final-report.md)、[逐项关闭决定](../review/remediation-seventh-20261015-prepare/closure/final/decision.json)和[当前接收登记](../review/remediation-seventh-20261015-prepare/completion/current-public-reception.json)。27/27项、13/13批已完成合格候选审查、逐条实际整合、独立实际复审及根语义/共享/有限直接与传递依赖/具名历史接收，正式ACCEPTED及CLOSED均27/27项、13/13批。关闭仅限原缩窄必修静态规格更正；L01–L14、有效模型配置UNVERIFIED、全部本轮行为NOT_EXECUTED、新增宿主/Demo/原生媒体/真实存档回放0、较宽原生桥与兼容政策仍保留开放。原Reviewed/Inventoried媒体资格、旧56/92关闭边界、旧WAIT/失败/程序违例不被升级或抹除，7optional、2额外导航facet、1no-required、2policy未自动采用。本轮依最新用户AGENTS限制只发布整改分支，不合并main，不执行相关清理或本地同步。
