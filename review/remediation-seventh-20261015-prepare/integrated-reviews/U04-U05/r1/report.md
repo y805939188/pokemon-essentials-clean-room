@@ -67,3 +67,5 @@ M07-002逐条件接收 WP21 §4.1/§6 的动态守卫、显式同值提交和写
 独立审计首轮exit1：审计允许目录误漏本轮新增的原R7 publication证据，将其误列为历史修改；修正精确前缀，并另断言所有B已有路径除五正式文件外均不变后，真实重核exit0，见 audit-command.json。失败说明保存在 session-observations.json；早期探查/读取及被截断后补读的I/O仍在平台，不伪补独立UTC/stdout/stderr。旧作者/候选审者失败资格保持。
 
 唯一成果worktree `/workspace/r7-ir-result` 从固定B创建，分支 `codex/r7-ir-u04-u05-20261015-r1`；创建前精确远端分支查询为空。只写本目录的四个主文件及真实工具证据；不携带候选/MI正文，不改正式、公共台账、main或tag，不force。最终普通推送后的完整commit/tree及所有文件不可变URL全响应体读回，由实际工具I/O和最终返回绑定，避免同一提交自引用。发布证据只证明运输，不改变上述内容结论及后续根门。
+
+内容载荷已普通推送并完整回读：commit `92c798f11bbd1ecc6ec9fc774f169a10d33ed51a`，tree `05ae75137f7189e2b94873a469efb26f7ae154f7`；21文件、321,393字节，读回前后远端均指向该完整提交，所有完整HTTP响应体与Git blob/本地字节一致。真实提交/push/fetch及逐文件回执见 `tool-evidence/payload-publication.json`。本封装只追加该运输回执、更新本段及manifest；三项逐ID内容结论与MI/FI不变。最终封装提交及全部文件再次回读由最终工具I/O和返回绑定，不递归声称回执位于自身所绑定提交内。
