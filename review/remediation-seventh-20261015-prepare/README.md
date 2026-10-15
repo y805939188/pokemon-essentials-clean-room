@@ -1,5 +1,7 @@
 # 第七轮云端整改开工核验与委派入口
 
+当前派发登记：父会话已创建U01/U04/U05并报告inProgress，其余10批完整作者入口及13批冻结后ultra审者入口见[并行派发包](delegation/parallel-dispatch/README.md)。无用户并发数量上限；作者镜像可并行，共享实际文件仍由R7-I串行接收。有效配置UNVERIFIED，四阶段结果仍全部0/27项、0/13批。下文旧启动回执保留各自生成时点。
+
 开工核验 READY_WITH_LIMITS；27必修（10 P2、17 P3、P1=0），13批。此提交仅冻结准备和委派输入，候选通过、整合后通过、正式接受、最终关闭均为0/27项、0/13批。
 
 固定B `e646432c644dec04d306842cc5a559a29c718fbc`；固定发布C2 `4580645dfbfec4a3c7ccbad56ae293cc619b0d25`，workspace tree `1f4375e2a51801ed62bc143c1d51f70296fa52f3`，报告tree `a011f74704047f11ee47c9a631914337558cb81b`。Core和C1链、Prompt/Manifest完整大小/SHA/blob均匹配，见[startup/handoff-identities.json](startup/handoff-identities.json)。

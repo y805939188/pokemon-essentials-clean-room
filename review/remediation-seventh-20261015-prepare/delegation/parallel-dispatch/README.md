@@ -1,0 +1,17 @@
+# 全部剩余作者并行派发与冻结后独立复审
+
+父会话已报告成功创建并inProgress：U01=01a13f52-add1-7706-b7ec-54e07e0d7013，U04=01a13f52-cc74-7568-9e75-85ac773c6015，U05=01a13f52-ecf8-73f9-8c9b-f5c164f0c017。事实来源是父会话回传；本环境没有重新查询账号任务服务。请求gpt-6.1-sol xhigh/default，实际模型/档位/速度回参仍UNVERIFIED。不要重复派发这三批。
+
+用户不设置并发任务数量上限。剩余U02/U03/U06/U07/U08/U09/U10/U11/U12/U13各自隔离candidates镜像和唯一分支，可全部并行创建；13批作者阻塞边0、镜像写写冲突0。这不是服务slot或实际创建回执。唯一创建者是父会话cloud_threads.create，本整合者创建0。新实际ID返回后再登记。
+
+完整自包含作者输入在authors/<批次>-author.md，固定合同f622356f、恢复658488c8、输入准备4bd15202，精确路径、规则/保留/向量、云端恢复、唯一输出分支和条件全部内含。10个作者仅向codex/r7-uXX-author-20261015-wave1普通提交/推送本批candidates；已有三批保留pilot1分支。候选分支从固定B建立，禁止推整合分支/main或force。运输授权覆盖旧精简入口不提交/推送限制，行为合同范围不变。
+
+7组共享实际目标产生19对去重批次冲突、39次文件内配对；含条件同步，不采用optional/policy。作者可并行不等于正式写入可无冲突并行。R7-I唯一按条款串行整合，保留累计贡献；完整路径/对端关系见conflict-relations.json。
+
+reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。当前可启动reviewer为0：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
+
+独立reviewer只写本批evidence/reviewer/r1，唯一分支codex/r7-uXX-reviewer-20261015-r1，基于B；不修作者镜像，不动正式文件。完整候选/证据由固定作者commit或经R7-I核验的平台产物读取到只读暂存目录，审者输入freeze必须额外由父会话绑定真实commit。13份模板现在只是未来有界输入，不是已启动/通过声明。
+
+候选PASS→R7-I实际整合→新的R7-IR审实际累计字节→正式ACCEPTED→共享接收/直接传递依赖/历史回归满足才CLOSED。R7-IR-after-integration.md同样等待真实integrated-input记录及commit/tree，不能以本轮作者或候选审者替代。有效配置、L01-L14、运行零验证及optional/policy分母保持；不合并main、不删历史、不提前关闭。
+
+原启动/完成回执、f622静态计划和旧零作者记录保留生成时点。当前派发状态以ledger.json和此目录parent-launch-receipt.json、dispatch-index.json为准。候选PASS/实际PASS/ACCEPTED/CLOSED仍为0/27项、0/13批；作者已启动3/13是不同维度。
