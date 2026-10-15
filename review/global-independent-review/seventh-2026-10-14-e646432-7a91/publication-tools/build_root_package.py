@@ -115,7 +115,9 @@ R1–R6范围、旧FAIL/修订PASS、实际整合/最终登记/ACCEPTED/CLOSED�
     for name in ('historical_qualifications','inherited_nonmandatory','limits','execution'):
         if name in sections:body+='\n\n## '+name+' 完整当前用途记录\n\n```json\n'+pretty(sections[name])+'```\n'
     out.mkdir(parents=True)
-    files={'cloud-seventh-update-handoff-prompt.md':body,'cloud-seventh-update-handoff-manifest.json':pretty(manifest),
+    # Full objects remain present; whitespace-only compaction keeps the large
+    # manifest inside ordinary Git's single-file limit without dropping fields.
+    files={'cloud-seventh-update-handoff-prompt.md':body,'cloud-seventh-update-handoff-manifest.json':json.dumps(manifest,ensure_ascii=False,separators=(',',':'))+'\n',
            'batch-assignment.json':pretty(plan),'dependency-graph.json':pretty(manifest['dependency_graph']),
            'file-conflict-graph.json':pretty(manifest['file_conflict_graph'])}
     prompt_prefix='tasks/R7-P03/plan-candidate/prompts/'
