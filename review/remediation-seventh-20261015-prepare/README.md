@@ -1,3 +1,5 @@
+当前实际整合冻结：MI45c80832a41c1b56dcd7e9d93497758cbb7721de，FI13d76ba61838b13925ba9d41f58a6b047564d926。八批18项新实际R7-IR完整输入见integration/wave2/v1/ir-ready.json；三批6项流程资格新候选r2输入见review-rechecks/ready.json。全部11项任务仅准备未在本环境创建，父会话独占创建。候选PASS21/27项、10/13批；已逐条整合21/27项、10/13批；实际独立PASS及ACCEPTED3/27项、2/13批；CLOSED0。以下较早快照按各自时点保留。
+
 当前登记（2026-10-15T14:55:18.778554+00:00）：候选PASS 21/27项、10/13批；实际整合独立PASS及正式ACCEPTED均3/27项、2/13批；CLOSED0。U03/U07/U10因合同前AI辅助流程偏差保持WAIT，三份新context完整r2输入见review-rechecks/ready.json，未在整合者创建任务；原候选和旧报告保留。以下较早快照以各自时点解释。
 
 # 当前第七轮状态（历史记录保留）
