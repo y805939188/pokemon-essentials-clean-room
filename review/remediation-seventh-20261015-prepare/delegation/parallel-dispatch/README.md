@@ -1,3 +1,5 @@
+当前全轮实际条款冻结（2026-10-15T16:20:22.378864+00:00）：候选PASS及实际已应用均27/27项13/13批；独立实际PASS/正式ACCEPTED19/27项9/13批；CLOSED0。最后U03新独立实际IR输入见integration/wave4/v1/ir-ready.json，未在本环境创建；U06原context续审输入见process-adjudications/R7-U06-IR-PROC-001/v1/same-context-continuation.md，程序违例保留、无PASS代签；U07实际结果待接收；U10原context续审父已启动。最新MI=94d5eb73f4508b8a8a54319040faa9aea5752059，FI=6a02773d62e36a295e9701a8d0ba5b5cb6441614。全部门完成前不merge main。以下旧快照按各自时点保留。
+
 当前接收登记（2026-10-15T16:12:54.827949+00:00）：候选PASS27/27项13/13批；实际已应用25/27项12/13批；独立实际PASS及ACCEPTED19/27项9/13批；CLOSED0。新U03r2已合格待最终整合/新IR；U06认证状态查询程序违例保留，根裁决允许原独立context完成内容并签新明确结论，现仍WAIT；U12同context完整续审已接收，旧部分WAIT保留；U10原实际IR已由父续接，U07实际IR待结果。全部已创建任务ID41个唯一，无重复创建。最终main合并门未满足。以下旧快照按各自时点保留。
 
 当前累计整合（2026-10-15T15:40:37.932388+00:00）：U07/U10新r2均合格并按条款整合，新16片段/7目标叠加既有贡献，U11旧工具组先于U10新工具组并存，先前已接受8份正文逐字保持。候选PASS/实际已应用25/27项12/13批；独立实际PASS及ACCEPTED5/27项3/13批；CLOSED0。两个新实际IR完整输入见integration/wave3/v1/ir-ready.json，未在本环境创建；原11任务全部确认创建，尚待U03r2和另7个wave2实际IR。最新MI=e54f54a2cb32e546eabd46aaf53ed45b30a8af89，FI=b98fa82f8a08b5630ac568cbe8c34f607f623cfb。全部门完成前不merge main。以下旧快照按各自时点保留。
