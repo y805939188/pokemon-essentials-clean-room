@@ -67,4 +67,6 @@ GR7-M03-001、GR7-M03-002 均为 **PASS_SCOPED_CANDIDATE**。本次未发现需�
 
 从固定B创建干净隔离checkout `/workspace/r7-u04-reviewer-checkout`，唯一成果分支 `codex/r7-u04-reviewer-20261015-r1`；创建前远端同名为空。只提交本目录的报告、逐ID、输入回执、manifest及真实工具证据；不携带作者镜像、不改正式/公共/旧证据/main/tag，不force。
 
-payload提交和普通push之后将进行不可变URL逐文件完整读回；payload回执可由后续普通证据提交携带。最终结果commit/tree及最终所有文件远端读回由包外真实Git/工具I/O绑定，避免自引用哈希。初始侦察/阅读I/O保留在平台，未捏造其未保存的独立UTC/stdout/stderr；本地包装开始后的真实完整可发布I/O见 tool-evidence/public-command-log.jsonl，未推送私有模型流或参考源表达式。
+payload已普通提交并推送：commit `dd888db92274a48579fc75616fe0840912f148cc`，tree `629d3b13bb41c8148dd2e43bef3e99fb05366246`，直接父提交为B。其18文件、230,695字节均已通过不可变远端URL取得完整响应体，并与实际Git blob逐字节一致，读回前后远端分支均指向该commit。真实回执 `tool-evidence/remote-readback-payload.json`，提交/普通push的完整命令I/O见 `tool-evidence/payload-publication.json`。本次证据追加只纳入该回执和运输记录，并更新本段及manifest；逐ID结论与候选输入不变。
+
+最终结果commit/tree及最终所有文件远端读回由包外真实Git/工具I/O绑定，避免自引用哈希。初始侦察/阅读I/O保留在平台，未捏造其未保存的独立UTC/stdout/stderr；本地包装开始后的真实完整可发布I/O见 `tool-evidence/public-command-log.jsonl` 与上述运输记录，最后一次提交/推送/全文件回读通过平台工具I/O交付。未推送私有模型流或参考源表达式。
