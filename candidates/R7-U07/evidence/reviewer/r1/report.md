@@ -68,3 +68,5 @@ SOURCE_STATIC＝上述实际读取；DERIVED_VECTOR＝六向量静态核对；TO
 首次生成 reviewer manifest 时，审计器在新建 manifest 前取得文件集，之后比较时漏算自身，触发 AssertionError。该公开组合命令最终 shell exit 0 来自后续一致性检查，不冒充 manifest 子命令成功；没有独立记录其子进程 exit／PID。已修正为先补入明确自身路径、验证后再写，随后真实独立日志记录修正后执行。此为本审者工具错误，未修改冻结输入或候选、未影响静态内容结论，详见日志003／004。
 
 全部仓库写入只在 `candidates/R7-U07/evidence/reviewer/r1/`。候选、正式正文、公共文件、main、tag及旧证据未改。仅向唯一 reviewer 分支普通提交／推送，无 force。发布采用载荷提交与后续真实发布回执提交，最终 commit/tree 及全部文件的远端完整读取在最终工具回传中包外绑定，避免自引用。传输成功不改变上述 WAIT，不授予实际整合 PASS、ACCEPTED 或 CLOSED。
+
+首个证据载荷 `734736f9400943afa1be6296a0dca6755850de5a`／tree `0f5187313ea42ff82dc3b3731b1b194771a5b242` 已普通推送，16文件／168,636字节经固定远端URL完整读取并全部匹配，分支头前后相同。完整文件表与HTTP回执见 `receipts/core-remote-readback.json`，真实提交／推送／回读I/O见日志005–010。本后续提交仅收入这些发布证据和manifest；最终全量远端回读在包外返回，所有资格结论保持不变。
