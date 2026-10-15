@@ -1,3 +1,5 @@
+当前续审结论：三项均为 **PASS_SCOPED_ACTUAL_INTEGRATION**。下方首段是4188ee2的历史WAIT原报告；续审完成依据与当前责任边界见文末，逐项当前结果见per-id.json。
+
 # R7-U10 独立实际整合复审 r1：WAIT
 
 GR7-M15-001、GR7-M15-002、GR7-M17-001 均为 **WAIT**。本次已完成冻结输入恢复、完整字节身份核验、U10累计条款重放及下列具名静态核对；没有完成合同要求的全部当前正文、共享文件和领域/历史语义复核，因此不签署 PASS_SCOPED_ACTUAL_INTEGRATION。未在已读局部找到足够具体的 FAIL 反例，不等于完整内容无缺陷。候选r2 PASS、旧r1内容PASS、恢复成功和字节保留均没有迁移为实际PASS。
@@ -60,3 +62,56 @@ GR7-M17-001：全文读r2静态PE/CLR解码审计工具后只重定位输入路�
 全部行为NOT_EXECUTED；新增参考观察、参考程序、独立完整行为模型、宿主、Demo、native媒体、真实存档回放均0。SOURCE_STATIC、DERIVED_VECTOR与TOOL_VALIDATION分列；L01–L14逐项原资格、H14局部历史执行和旧日志缺口不回填。初始shell工具I/O在平台记录，未为每条捕获本地独立PID/UTC/stdout/stderr，未补造；恢复回执有真实请求UTC，独立审计工具PID在证据中，与模型身份分开。部分大段显示被截断，不把文件落盘/散列或工具exit0冒充全文模型审读。
 
 成果从固定B创建的隔离checkout，唯一分支`codex/r7-ir-u10-20261015-r1`。唯一仓库写集为本目录report.md、per-id.json、review-input-receipt.json、artifact-manifest.json及真实审计证据；没有携带/修改MI正文、候选镜像、公共台账、main或tag。普通commit/push和最终完整远端bytes/SHA256/blob回读在包外绑定commit/tree，避免自引用。
+
+
+---
+
+# 同一独立审者续审完成记录（当前有效内容结论）
+
+**GR7-M15-001、GR7-M15-002、GR7-M17-001均为PASS_SCOPED_ACTUAL_INTEGRATION。** 本次已补完原WAIT明确列出的三类内容义务；没有发现本批需退回修订的具体反例或缺失输入。上方原报告与`4188ee2bfb8e4b6f3c5ac2c8e8be24384f93d0f4`中的WAIT描述当时未完成的状态，原四份主文件另完整保存在`evidence/initial-WAIT/`，不将其倒写为历史PASS。
+
+审者仍为实际thread/context `01a1403b-12e8-77dc-87ff-20b21d8e302c`，未创建任何辅助agent、子会话或模型调用，未查询认证或额度。有效model/effort/tier/speed仍逐项UNVERIFIED；SOURCE_STATIC、DERIVED_VECTOR和TOOL_VALIDATION分开，全部行为仍NOT_EXECUTED，新增参考/程序/独立完整模型/宿主/Demo/native媒体/真实存档回放均0。
+
+## 实际冻结与完整内容
+
+结论固定MI `e54f54a2cb32e546eabd46aaf53ed45b30a8af89`，workspace tree `b3b6b166b69d2e4dc513cd8d72950b47306191fd`，正式131子树 `e1dfe28acd4f559b22da505238ef3a899aed4542`；FI `b98fa82f8a08b5630ac568cbe8c34f607f623cfb`，tree `eaf9f0831cea151c8a77ad716ad4c8fc5b71dc66`。没有切换到浮动HEAD。新r2 `d7337be83dae5aa7b848cd6a603c2aa7048ffa0c`只是原候选独立依据，本次不继承其PASS。
+
+完整阅读当前audit 1892行、Feature Matrix 592行、DX目录433行、WP73-B 220行、WP74 521行、WP75 460行及WP77 230行；另全文读WP34 233行与WP62 197行。各次实际范围/身份见`evidence/continuation-read-receipts.jsonl`，少数长显示截断后已用窄段补读。范围覆盖工具仅证明文本送达；下述相容性是本审者内容判断。其余先前已接受文件按本批实际相交的派出/形态/记录/资源/取消/保存段及对应向量核语义，不重审无关战斗、储存或小游戏规则。
+
+## 三项结论及向量
+
+| ID | 实际条款 | 独立内容判断 |
+| --- | --- | --- |
+| GR7-M15-001 | WP73-B §7.3 L140、§7.5 L165；WE-M17 L139 | 合法无自有阴影，通用1/2不同可加载、3首缺，初始登记1/绑定1/标志假；浏览2后BACK为登记1/绑定2/标志假，主菜单仍刷新位置而不重绑。重开尺寸页才按1重载。不浏览、已有true、USE留项/ACTION前进、坐标BACK刷新、首缺/自有阴影/同值确认及总保存门各按独立前态核，均通过有限静态内容核验。 |
+| GR7-M15-002 | AN-M09 L168；WP74 §7.1/§17正确条件保留 | 合法A0/A1/A2、旧selected2，缩3→2后未导航才越界。Load可先绑空、释放旧位图再失败；Rename空名失败。Delete Yes恰尾添成3无洞，No仍2。旧0/1的独立正常Load/Rename/Delete保持2，先导航恢复有效。列表BACK保留内存截尾，外层Save/Exit/cache另判。 |
+| GR7-M17-001 | WP74 §18 L460–489及范围/未知转引；TOOL-AN01–17 L417–433；T-WP74 L1476–1479；F18-03 L258 | 自行静态解析并读全部15方法、11个EH及跳转目标。先全部解析XML再输出；首参数/无参/缺路径/I/O门、x缺空/整图、负/零/Format/缺值/溢出分流、缺图路径保原槽与存在但加载失败分开。n0=960×192，n6=960×384，槽5=(0,192)，56×68槽0目标(40,28,112,136)，缺0后槽1仍(232,28,112,136)。alpha/非alpha请求、逐项保存、A确存后B失败前缀/finally只请求逐条相符。 |
+
+`per-id.json`保留34项独立向量的完整前提、预期、源定位和理由（9＋8＋17），本次全部标为有限实际静态内容核验通过；执行一律NOT_EXECUTED。实际全文bytes/SHA256/blob、B/候选对照、每个实际条款零基行区间及UTF-8字节半开区间逐项列明，不把共享整文件等同于U10候选整文件。
+
+## 累计共享内容与精确批准
+
+三共享文件共16处累计贡献逐一绑定journal的B片段、批准候选与原独立审查，全部实际片段精确相等，见`evidence/continuation-shared-contributions.json`。audit/matrix的贡献者为U13/U10/U11/U12/U01/U02，DX为U10/U11；其它批次只作贡献保留及本批相容性核验，不给其新语义PASS。
+
+| 贡献者 | 原独立结果 | 当前有限相容性 |
+| --- | --- | --- |
+| U01 | 2e1b1fb6dd638757436b7292949b3ba0012cafec | 指标缺字段自身默认/整条缺失克隆、后缀及No/Yes保留；不取消阴影资源绑定例外，旧anchor债务不升级。 |
+| U02 | 44276c5ae69ef0970a98464a5a9e6ff7eb1c1f1c | 15按钮/6轴词汇与未读注册桥保持，未据此认证编辑器物理输入或尾部刷新；两EOF均先U01后U02。 |
+| U11 | 4467147f9f2e184dba6f61d9fb2699738f365571 | T-WP75邻T-WP74、F18-04邻F18-03各归本工具；EXT01–12先于TOOL-AN01–17，同EOF并存不覆盖WE/AN旧行。四目标窗口请求不借图像保存规则。 |
+| U12 | 28335c5d8400b6b64e53ad56ee55c572f5a3cc07 | 当前§5.3勘误转引、旧R6原字节/审批状态与作者时点均保持，不据导航更新重签行为。 |
+| U13 | f34cb117cdd06f8b4462a95c5196f458848ff729 | SF2配置声明、原生消费/声音未知分层，未授U10媒体、库或宿主运行资格。 |
+
+上表完整提交值以同目录结构证据中的FI精确绑定为准；生成时另对五份报告全文及逐ID结论核对。root末段只更新wave3当前接收指针/时点，25/27已应用、12/13批，独立实际PASS和正式接受5/27、3/13批，CLOSED0；没有在本次审查前给U10接受。旧作者pending说明是历史时点，原r1辅助披露/WAIT与U03未整合保持。
+
+严格字节重放仍保留原两个未匹配检查：旧`current-navigation-errata.json`整候选hunk与实际三个接收阶段字符串不同，完整差异只有/status、/reception/candidate_review、/reception/shared_integration，当前文件与前一MI 45c80832逐字相同。它是前期receiver注记，行为字段/原定位未变，不属U10新行为或新贡献；不谎称72处纯候选文本全部匹配。27/28文件严格重建、全部U10十三片段匹配；新U07/U10十六片段与原五十六片段保持，U04/U05更早十一片段另由八已接受文件保留校验保护。
+
+## 领域交叉、历史责任与剩余根动作
+
+AN002按B原R6-U07 `/scope_contracts/1`重读：Delete→BACK→Focus写集合B、新单元读画布A、保存/导出读B，普通同对象、取消和重新Load分别保持；这不是AN-M09旧游标前提。AN007按`/scope_contracts/6`和新定向读取固定R的Interpolation核对，源13121字节/SHA256 58c31f761a5f63e0fa526ab8bfe46e209ac2c677bd9700a0c5e161a5e3014341/blob54bebd98e4520b2d7da38ff62ad65f9b08ea2063与旧冻结身份相同。0.3333/0.6666约99.99/199.98、显式N5及B20-D024原向量、一般N端点optional边界保留。
+
+WE-M15–20、B19-C016的确认/坐标/后缀/路径/档案后PBS失败边界；AN-M01/M09–12/M24–33及DXCOMP-C06–08的对象、类型门、批量前缀、缓存/关联边界均相容。图像工具只请求图像产物；WP74 §11的.anm对象类型门、§14.3停用RMXP转换、§15关联、§16保存/cache未改，无自动桥。WP75 §14明确animmaker归WP74，WP77工具入口与Demo事件链分离。R6 L06/L07及C17 L01–L14继续有效，旧H14局部Ruby执行不回填。
+
+先前U04/U05/U09八文件逐字保持之外，已实际核对领域交叉：WP39席位/伙伴与WP41派出/实际替换仍归战斗域，BC26–31/SW30–35的决定/目标补救/前缀未受编辑器预览例外影响；WP34与BR27–31/PF01–09/R4-IF01–06保留按个体动态形态读取可先提交/登记、缺图不回滚和子代同值规则；WP62与WP66-B及PD/R4-PD/R6-PD对照保留出场包装/全局形态提交的门和接收者、完整单条编号、普通图像刷新不写记录与多项Forms首轮另写false/BACK保留。U10按显式物种/形态编辑指标与generic shadow绑定，不把这些独立消费者归成统一刷新或取消事务。原两组独立实际报告与精确接受决定的责任边界已读；这只是本批交叉相容性，不重签旧五ID或56/92。
+
+本审者已完成三ID内容、共享保留/相容性及具名静态历史回归。原record-to-record直接/传递排程边为空不表示全局依赖满足。**仍需R7-I接收本新结果的精确commit/tree，并登记WP73-B/WE、WP74/AN/TOOL-AN、T-WP74/F18-03以及WP75/WP77/图像消费者的语义owner、共享receiver、直接/传递/领域及历史责任，再分别作ACCEPTED/CLOSED决定。**这些是根的后续动作，不再把本审者已完成的内容判断记为WAIT。无缺失输入或未完成内容义务；运行未知只限制结论范围，不阻塞本次静态PASS。7 optional、2导航facet、1 no-required、2policy未采用，27项/13批、旧56/92不变。
+
+成果仅在唯一原分支`codex/r7-ir-u10-20261015-r1`追加证据；保留4188ee2为普通祖先，不force，不改候选/正式正文/公共台账/main/tag。最终提交及全部文件完整远端bytes/SHA256/blob回读在包外以真实commit/tree绑定，manifest不制造递归自哈希。
