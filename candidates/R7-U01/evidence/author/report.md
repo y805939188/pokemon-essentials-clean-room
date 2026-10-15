@@ -19,3 +19,5 @@
 提交前完成机械核验后，只普通push到唯一成果分支；远端回读按不可变实际提交逐文件验证完整bytes/SHA256/Git blob，并另核分支tip。提交不能在其自身内容内记载自身完整commit身份：最终commit/tree和最终远端回读tool I/O由外层交付绑定；如有先行传输回执，则只证明其明确绑定的前一提交，不能冒充最终HEAD。
 
 交给R7-I先核范围/身份并冻结candidate-input.json，再由不同实际context的独立ultra会话复审。随后仍须R7-I逐条串行整合、新R7-IR审实际整合commit/tree及精确历史回归。候选PASS、整合PASS、正式接受、关闭严格分开；本作者不提前关闭依赖未满足项。分母27项/13批，7 optional、2额外导航facet、1 no-required、2 policy不采用。
+
+首个传输提交80fde6e81aa523b65e013c5183ad4561d5fe9d58（tree e028ea5bfb9426f2246f416a596bf656e8e40066）已普通push成功（exit0），随后远端固定URL完整回读16文件／886,454字节全部匹配，分支tip前后均为该提交。真实push/HTTP/git回参保存在push-first.json及remote-readback-first.json；该回执严格只绑定首个提交。后续仅追加本传输证据、回读工具及更新manifest/report，不改六份候选镜像；最终HEAD仍须再次远端核全量字节，由外层回传完整commit/tree。
