@@ -1,0 +1,543 @@
+READ R/Data/Scripts/011_Battle/007_Other battle code/007_BattleAnimationPlayer.rb L334-390; total 844 lines
+  334 class PBAnimations < Array
+  335   include Enumerable
+  336   attr_reader   :array
+  337   attr_accessor :selected
+  338 
+  339   def initialize(size = 1)
+  340     @array = []
+  341     @selected = 0
+  342     size = 1 if size < 1   # Always create at least one animation
+  343     size.times do
+  344       @array.push(PBAnimation.new)
+  345     end
+  346   end
+  347 
+  348   def length
+  349     return @array.length
+  350   end
+  351 
+  352   def each
+  353     @array.each { |i| yield i }
+  354   end
+  355 
+  356   def [](i)
+  357     return @array[i]
+  358   end
+  359 
+  360   def []=(i, value)
+  361     @array[i] = value
+  362   end
+  363 
+  364   def get_from_name(name)
+  365     @array.each { |i| return i if i&.name == name }
+  366     return nil
+  367   end
+  368 
+  369   def compact
+  370     @array.compact!
+  371   end
+  372 
+  373   def insert(index, val)
+  374     @array.insert(index, val)
+  375   end
+  376 
+  377   def delete_at(index)
+  378     @array.delete_at(index)
+  379   end
+  380 
+  381   def resize(len)
+  382     idxStart = @array.length
+  383     idxEnd   = len
+  384     if idxStart > idxEnd
+  385       (idxStart - idxEnd).times { @array.pop }
+  386     else
+  387       (idxEnd - idxStart).times { @array.push(PBAnimation.new) }
+  388     end
+  389     self.selected = len if self.selected >= len
+  390   end
+READ R/Data/Scripts/020_Debug/002_Animation editor/005_AnimEditor_Functions.rb L1-183; total 1170 lines
+    1 module BattleAnimationEditor
+    2   module_function
+    3 
+    4   #=============================================================================
+    5   # Mini battle scene
+    6   #=============================================================================
+    7   class MiniBattler
+    8     attr_accessor :index
+    9     attr_accessor :pokemon
+   10 
+   11     def initialize(index); self.index = index; end
+   12   end
+   13 
+   14   #=============================================================================
+   15   #
+   16   #=============================================================================
+   17   class MiniBattle
+   18     attr_accessor :battlers
+   19 
+   20     def initialize
+   21       @battlers = []
+   22       4.times { |i| @battlers[i] = MiniBattler.new(i) }
+   23     end
+   24   end
+   25 
+   26   #=============================================================================
+   27   # Pop-up menus for buttons in bottom menu
+   28   #=============================================================================
+   29   def pbSelectAnim(canvas, animwin)
+   30     animfiles = []
+   31     pbRgssChdir(File.join("Graphics", "Animations")) { animfiles.concat(Dir.glob("*.png")) }
+   32     cmdwin = pbListWindow(animfiles, 320)
+   33     cmdwin.opacity = 200
+   34     cmdwin.height = 512
+   35     bmpwin = BitmapDisplayWindow.new(320, 0, 320, 448)
+   36     ctlwin = ControlWindow.new(320, 448, 320, 64)
+   37     cmdwin.viewport = canvas.viewport
+   38     bmpwin.viewport = canvas.viewport
+   39     ctlwin.viewport = canvas.viewport
+   40     ctlwin.addSlider(_INTL("Hue:"), 0, 359, 0)
+   41     loop do
+   42       bmpwin.bitmapname = cmdwin.commands[cmdwin.index]
+   43       Graphics.update
+   44       Input.update
+   45       cmdwin.update
+   46       bmpwin.update
+   47       ctlwin.update
+   48       bmpwin.hue = ctlwin.value(0) if ctlwin.changed?(0)
+   49       if Input.trigger?(Input::USE) && animfiles.length > 0
+   50         filename = cmdwin.commands[cmdwin.index]
+   51         bitmap = AnimatedBitmap.new("Graphics/Animations/" + filename, ctlwin.value(0)).deanimate
+   52         canvas.animation.graphic = File.basename(filename, ".*")
+   53         canvas.animation.hue = ctlwin.value(0)
+   54         canvas.animbitmap = bitmap
+   55         animwin.animbitmap = bitmap
+   56         break
+   57       end
+   58       if Input.trigger?(Input::BACK)
+   59         break
+   60       end
+   61     end
+   62     bmpwin.dispose
+   63     cmdwin.dispose
+   64     ctlwin.dispose
+   65     return
+   66   end
+   67 
+   68   def pbChangeMaximum(canvas)
+   69     sliderwin2 = ControlWindow.new(0, 0, 320, 32 * 4)
+   70     sliderwin2.viewport = canvas.viewport
+   71     sliderwin2.addSlider(_INTL("Frames:"), 1, 1000, canvas.animation.length)
+   72     okbutton = sliderwin2.addButton(_INTL("OK"))
+   73     cancelbutton = sliderwin2.addButton(_INTL("Cancel"))
+   74     sliderwin2.opacity = 200
+   75     loop do
+   76       Graphics.update
+   77       Input.update
+   78       sliderwin2.update
+   79       if sliderwin2.changed?(okbutton)
+   80         canvas.animation.resize(sliderwin2.value(0))
+   81         break
+   82       end
+   83       if sliderwin2.changed?(cancelbutton) || Input.trigger?(Input::BACK)
+   84         break
+   85       end
+   86     end
+   87     sliderwin2.dispose
+   88     return
+   89   end
+   90 
+   91   def pbAnimName(animation, cmdwin)
+   92     window = ControlWindow.new(320, 128, 320, 32 * 4)
+   93     window.z = 99999
+   94     window.addControl(TextField.new(_INTL("New Name:"), animation.name))
+   95     Input.text_input = true
+   96     okbutton = window.addButton(_INTL("OK"))
+   97     cancelbutton = window.addButton(_INTL("Cancel"))
+   98     window.opacity = 224
+   99     loop do
+  100       Graphics.update
+  101       Input.update
+  102       window.update
+  103       if window.changed?(okbutton) || Input.triggerex?(:RETURN)
+  104         cmdwin.commands[cmdwin.index] = _INTL("{1} {2}", cmdwin.index, window.controls[0].text)
+  105         animation.name = window.controls[0].text
+  106         break
+  107       end
+  108       if window.changed?(cancelbutton) || Input.triggerex?(:ESCAPE)
+  109         break
+  110       end
+  111     end
+  112     window.dispose
+  113     Input.text_input = false
+  114     return
+  115   end
+  116 
+  117   def pbAnimList(animations, canvas, animwin)
+  118     commands = []
+  119     animations.length.times do |i|
+  120       animations[i] = PBAnimation.new if !animations[i]
+  121       commands[commands.length] = _INTL("{1} {2}", i, animations[i].name)
+  122     end
+  123     cmdwin = pbListWindow(commands, 320)
+  124     cmdwin.height = 416
+  125     cmdwin.opacity = 224
+  126     cmdwin.index = animations.selected
+  127     cmdwin.viewport = canvas.viewport
+  128     helpwindow = Window_UnformattedTextPokemon.newWithSize(
+  129       _INTL("Enter: Load/rename an animation\nEsc: Cancel"),
+  130       320, 0, 320, 128, canvas.viewport
+  131     )
+  132     maxsizewindow = ControlWindow.new(0, 416, 320, 32 * 3)
+  133     maxsizewindow.addSlider(_INTL("Total Animations:"), 1, 2000, animations.length)
+  134     maxsizewindow.addButton(_INTL("Resize Animation List"))
+  135     maxsizewindow.opacity = 224
+  136     maxsizewindow.viewport = canvas.viewport
+  137     loop do
+  138       Graphics.update
+  139       Input.update
+  140       cmdwin.update
+  141       maxsizewindow.update
+  142       helpwindow.update
+  143       if maxsizewindow.changed?(1)
+  144         newsize = maxsizewindow.value(0)
+  145         animations.resize(newsize)
+  146         commands.clear
+  147         animations.length.times do |i|
+  148           commands[commands.length] = _INTL("{1} {2}", i, animations[i].name)
+  149         end
+  150         cmdwin.commands = commands
+  151         cmdwin.index = animations.selected
+  152         next
+  153       end
+  154       if Input.trigger?(Input::USE) && animations.length > 0
+  155         cmd2 = pbShowCommands(helpwindow,
+  156                               [_INTL("Load Animation"),
+  157                                _INTL("Rename"),
+  158                                _INTL("Delete")], -1)
+  159         case cmd2
+  160         when 0   # Load Animation
+  161           canvas.loadAnimation(animations[cmdwin.index])
+  162           animwin.animbitmap = canvas.animbitmap
+  163           animations.selected = cmdwin.index
+  164           break
+  165         when 1   # Rename
+  166           pbAnimName(animations[cmdwin.index], cmdwin)
+  167           cmdwin.refresh
+  168         when 2   # Delete
+  169           if pbConfirmMessage(_INTL("Are you sure you want to delete this animation?"))
+  170             animations[cmdwin.index] = PBAnimation.new
+  171             cmdwin.commands[cmdwin.index] = _INTL("{1} {2}", cmdwin.index, animations[cmdwin.index].name)
+  172             cmdwin.refresh
+  173           end
+  174         end
+  175       end
+  176       if Input.trigger?(Input::BACK)
+  177         break
+  178       end
+  179     end
+  180     helpwindow.dispose
+  181     maxsizewindow.dispose
+  182     cmdwin.dispose
+  183   end
+READ R/Data/Scripts/020_Debug/002_Animation editor/005_AnimEditor_Functions.rb L994-1001; total 1170 lines
+  994       if Input.trigger?(Input::BACK)
+  995         if pbConfirmMessage(_INTL("Save changes?"))
+  996           save_data(animation, "Data/PkmnAnimations.rxdata")
+  997         end
+  998         if pbConfirmMessage(_INTL("Exit from the editor?"))
+  999           $game_temp.battle_animations_data = nil
+ 1000           break
+ 1001         end
+READ R/Data/Scripts/020_Debug/003_Editor_Listers.rb L1-20; total 647 lines
+    1 #===============================================================================
+    2 # Core lister script
+    3 #===============================================================================
+    4 def pbListWindow(cmds, width = Graphics.width / 2)
+    5   list = Window_CommandPokemon.newWithSize(cmds, 0, 0, width, Graphics.height)
+    6   list.index     = 0
+    7   list.rowHeight = 24
+    8   pbSetSmallFont(list.contents)
+    9   list.refresh
+   10   return list
+   11 end
+   12 
+   13 def pbListScreen(title, lister)
+   14   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+   15   viewport.z = 99999
+   16   list = pbListWindow([])
+   17   list.viewport = viewport
+   18   list.z        = 2
+   19   title = Window_UnformattedTextPokemon.newWithSize(
+   20     title, Graphics.width / 2, 0, Graphics.width / 2, 64, viewport
+READ R/Data/Scripts/020_Debug/002_Animation editor/001_AnimEditor_SceneElements.rb L409-440; total 1012 lines
+  409     def loadAnimation(anim)
+  410       @animation = anim
+  411       @animbitmap&.dispose
+  412       if @animation.graphic == ""
+  413         @animbitmap = nil
+  414       else
+  415         begin
+  416           @animbitmap = AnimatedBitmap.new("Graphics/Animations/" + @animation.graphic,
+  417                                            @animation.hue).deanimate
+  418         rescue
+  419           @animbitmap = nil
+  420         end
+  421       end
+  422       @currentcel = -1
+  423       self.currentframe = 0
+  424       @selecting = false
+  425       @pattern = 0
+  426       self.invalidate
+  427     end
+  428 
+  429     def animbitmap=(value)
+  430       @animbitmap&.dispose
+  431       @animbitmap = value
+  432       (2...PBAnimation::MAX_SPRITES).each do |i|
+  433         @celsprites[i].bitmap = @animbitmap if @celsprites[i]
+  434       end
+  435       self.invalidate
+  436     end
+  437 
+  438     def dispose
+  439       @user.dispose
+  440       @target.dispose
+READ R/Data/Scripts/020_Debug/002_Animation editor/004_AnimEditor_ExportImport.rb L1-147; total 147 lines
+    1 module BattleAnimationEditor
+    2   module_function
+    3 
+    4   #=============================================================================
+    5   # Importing and exporting
+    6   #=============================================================================
+    7   def pbRgssChdir(dir)
+    8     RTP.eachPathFor(dir) { |path| Dir.chdir(path) { yield } }
+    9   end
+   10 
+   11   def tryLoadData(file)
+   12     begin
+   13       return load_data(file)
+   14     rescue
+   15       return nil
+   16     end
+   17   end
+   18 
+   19   def dumpBase64Anim(s)
+   20     return [Zlib::Deflate.deflate(Marshal.dump(s))].pack("m").gsub(/\n/, "\r\n")
+   21   end
+   22 
+   23   def loadBase64Anim(s)
+   24     return Marshal.restore(Zlib::Inflate.inflate(s.unpack("m")[0]))
+   25   end
+   26 
+   27   def pbExportAnim(animations)
+   28     filename = pbMessageFreeText(_INTL("Enter a filename."), "", false, 32)
+   29     if filename != ""
+   30       begin
+   31         filename += ".anm"
+   32         File.open(filename, "wb") do |f|
+   33           f.write(dumpBase64Anim(animations[animations.selected]))
+   34         end
+   35         failed = false
+   36       rescue
+   37         pbMessage(_INTL("Couldn't save the animation to {1}.", filename))
+   38         failed = true
+   39       end
+   40       if !failed
+   41         pbMessage(_INTL("Animation was saved to {1} in the game folder.", filename))
+   42         pbMessage(_INTL("It's a text file, so it can be transferred to others easily."))
+   43       end
+   44     end
+   45   end
+   46 
+   47   def pbImportAnim(animations, canvas, animwin)
+   48     animfiles = []
+   49     pbRgssChdir(".") { animfiles.concat(Dir.glob("*.anm")) }
+   50     cmdwin = pbListWindow(animfiles, 320)
+   51     cmdwin.opacity = 200
+   52     cmdwin.height = 480
+   53     cmdwin.viewport = canvas.viewport
+   54     loop do
+   55       Graphics.update
+   56       Input.update
+   57       cmdwin.update
+   58       if Input.trigger?(Input::USE) && animfiles.length > 0
+   59         begin
+   60           textdata = loadBase64Anim(IO.read(animfiles[cmdwin.index]))
+   61           throw "Bad data" if !textdata.is_a?(PBAnimation)
+   62           textdata.id = -1 # this is not an RPG Maker XP animation
+   63           pbConvertAnimToNewFormat(textdata)
+   64           animations[animations.selected] = textdata
+   65         rescue
+   66           pbMessage(_INTL("The animation is invalid or could not be loaded."))
+   67           next
+   68         end
+   69         graphic = animations[animations.selected].graphic
+   70         graphic = "Graphics/Animations/#{graphic}"
+   71         if graphic && graphic != "" && !FileTest.image_exist?(graphic)
+   72           pbMessage(_INTL("The animation file {1} was not found. The animation will load anyway.", graphic))
+   73         end
+   74         canvas.loadAnimation(animations[animations.selected])
+   75         animwin.animbitmap = canvas.animbitmap
+   76         break
+   77       end
+   78       if Input.trigger?(Input::BACK)
+   79         break
+   80       end
+   81     end
+   82     cmdwin.dispose
+   83     return
+   84   end
+   85 
+   86   #=============================================================================
+   87   # Format conversion
+   88   #=============================================================================
+   89   def pbConvertAnimToNewFormat(textdata)
+   90     needconverting = false
+   91     textdata.length.times do |i|
+   92       next if !textdata[i]
+   93       PBAnimation::MAX_SPRITES.times do |j|
+   94         next if !textdata[i][j]
+   95         needconverting = true if textdata[i][j][AnimFrame::FOCUS].nil?
+   96         break if needconverting
+   97       end
+   98       break if needconverting
+   99     end
+  100     if needconverting
+  101       textdata.length.times do |i|
+  102         next if !textdata[i]
+  103         PBAnimation::MAX_SPRITES.times do |j|
+  104           next if !textdata[i][j]
+  105           textdata[i][j][AnimFrame::PRIORITY] = 1 if textdata[i][j][AnimFrame::PRIORITY].nil?
+  106           case j
+  107           when 0      # User battler
+  108             textdata[i][j][AnimFrame::FOCUS] = 2
+  109             textdata[i][j][AnimFrame::X] = Battle::Scene::FOCUSUSER_X
+  110             textdata[i][j][AnimFrame::Y] = Battle::Scene::FOCUSUSER_Y
+  111           when 1   # Target battler
+  112             textdata[i][j][AnimFrame::FOCUS] = 1
+  113             textdata[i][j][AnimFrame::X] = Battle::Scene::FOCUSTARGET_X
+  114             textdata[i][j][AnimFrame::Y] = Battle::Scene::FOCUSTARGET_Y
+  115           else
+  116             textdata[i][j][AnimFrame::FOCUS] = (textdata.position || 4)
+  117             if textdata.position == 1
+  118               textdata[i][j][AnimFrame::X] += Battle::Scene::FOCUSTARGET_X
+  119               textdata[i][j][AnimFrame::Y] += Battle::Scene::FOCUSTARGET_Y - 2
+  120             end
+  121           end
+  122         end
+  123       end
+  124     end
+  125     return needconverting
+  126   end
+  127 
+  128   def pbConvertAnimsToNewFormat
+  129     pbMessage(_INTL("Will convert animations now."))
+  130     count = 0
+  131     animations = pbLoadBattleAnimations
+  132     if !animations || !animations[0]
+  133       pbMessage(_INTL("No animations exist."))
+  134       return
+  135     end
+  136     animations.length.times do |k|
+  137       next if !animations[k]
+  138       ret = pbConvertAnimToNewFormat(animations[k])
+  139       count += 1 if ret
+  140     end
+  141     if count > 0
+  142       save_data(animations, "Data/PkmnAnimations.rxdata")
+  143       $game_temp.battle_animations_data = nil
+  144     end
+  145     pbMessage(_INTL("{1} animations converted to new format.", count))
+  146   end
+  147 end
+READ R/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb L1260-1321; total 1321 lines
+ 1260     GameData::PhoneMessage.each do |contact|
+ 1261       [:intro, :intro_morning, :intro_afternoon, :intro_evening, :body, :body1,
+ 1262        :body2, :battle_request, :battle_remind, :end].each do |msg_type|
+ 1263         msgs = contact.send(msg_type)
+ 1264         next if !msgs || msgs.length == 0
+ 1265         msgs.each { |msg| messages.push(msg) }
+ 1266       end
+ 1267     end
+ 1268     MessageTypes.setMessagesAsHash(MessageTypes::PHONE_MESSAGES, messages)
+ 1269   end
+ 1270 
+ 1271   #=============================================================================
+ 1272   # Compile battle animations
+ 1273   #=============================================================================
+ 1274   def compile_animations
+ 1275     Console.echo_li(_INTL("Compiling animations..."))
+ 1276     begin
+ 1277       pbanims = load_data("Data/PkmnAnimations.rxdata")
+ 1278     rescue
+ 1279       pbanims = PBAnimations.new
+ 1280     end
+ 1281     changed = false
+ 1282     move2anim = [{}, {}]
+ 1283 #    anims = load_data("Data/Animations.rxdata")
+ 1284 #    for anim in anims
+ 1285 #      next if !anim || anim.frames.length == 1
+ 1286 #      found = false
+ 1287 #      for i in 0...pbanims.length
+ 1288 #        if pbanims[i] && pbanims[i].id == anim.id
+ 1289 #          found = true if pbanims[i].array.length > 1
+ 1290 #          break
+ 1291 #        end
+ 1292 #      end
+ 1293 #      pbanims[anim.id] = pbConvertRPGAnimation(anim) if !found
+ 1294 #    end
+ 1295     idx = 0
+ 1296     pbanims.length.times do |i|
+ 1297       echo "." if idx % 100 == 0
+ 1298       Graphics.update if idx % 500 == 0
+ 1299       idx += 1
+ 1300       next if !pbanims[i]
+ 1301       if pbanims[i].name[/^OppMove\:\s*(.*)$/]
+ 1302         if GameData::Move.exists?($~[1])
+ 1303           moveid = GameData::Move.get($~[1]).id
+ 1304           changed = true if !move2anim[0][moveid] || move2anim[1][moveid] != i
+ 1305           move2anim[1][moveid] = i
+ 1306         end
+ 1307       elsif pbanims[i].name[/^Move\:\s*(.*)$/]
+ 1308         if GameData::Move.exists?($~[1])
+ 1309           moveid = GameData::Move.get($~[1]).id
+ 1310           changed = true if !move2anim[0][moveid] || move2anim[0][moveid] != i
+ 1311           move2anim[0][moveid] = i
+ 1312         end
+ 1313       end
+ 1314     end
+ 1315     if changed
+ 1316       save_data(move2anim, "Data/move2anim.dat")
+ 1317       save_data(pbanims, "Data/PkmnAnimations.rxdata")
+ 1318     end
+ 1319     process_pbs_file_message_end
+ 1320   end
+ 1321 end
+READ R/animmaker.txt L1-26; total 26 lines
+    1 animmaker.exe - Converts sprites to RPG Maker XP format animations
+    2 (C) 2008 Peter O.
+    3 
+    4 Usage: animmaker xmlfile.xml
+    5 ('xmlfile.xml' is the path to any XML file, see below)
+    6 
+    7 Example of XML file:
+    8 
+    9 <animations>
+   10 <!--Animation file to create (in this case, animation.png)-->
+   11 <animation name="animation.png">
+   12  <!--Pattern to add to the animation.  Consists of the image's
+   13      filename plus the rectangle of the pattern to extract
+   14      from the image (x, y, width, height) (up to 96x96 in size)
+   15      Sprites listed here will be doubled in size in the animation-->
+   16  <pattern filename="pkmnfrlg_effects.png" x="50" y="201" 
+   17    width="56" height="68" />
+   18 </animation>
+   19 <!--Another animation file, animation2.png)-->
+   20 <animation name="animation2.png">
+   21  <pattern filename="pkmnfrlg_effects.png" x="50" y="201" 
+   22    width="56" height="68" />
+   23  <!-- You can leave out x, y, etc.  to use the whole image-->
+   24  <pattern filename="effects2.png" />
+   25 </animation>
+   26 </animations>
