@@ -46,7 +46,7 @@ for row in CONTRACT['paths']:
   target=(p.parent/link.split('#')[0]).resolve()
   logical=str(target.relative_to(ROOT/'candidates/R7-U03'))
   assert target.is_file() or subprocess.run(['git','cat-file','-e',B+':'+logical],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE).returncode==0, link
- diffs.extend(difflib.unified_diff(before.splitlines(True),after.splitlines(True),fromfile='B/'+row['path'],tofile=row['candidate_path']))
+ diffs.extend(difflib.unified_diff(before.splitlines(True),after.splitlines(True),fromfile='B/'+row['path'],tofile=row['candidate_path'],n=0))
  verified.append(dict(path=row['candidate_path'],unchanged_old_table_rows=len(oldrows)-len(edited_ids),changes=changes))
 for p in HERE.rglob('*.json'):
  json.loads(p.read_bytes())
