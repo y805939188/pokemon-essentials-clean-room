@@ -21,3 +21,11 @@
 交给R7-I先核范围/身份并冻结candidate-input.json，再由不同实际context的独立ultra会话复审。随后仍须R7-I逐条串行整合、新R7-IR审实际整合commit/tree及精确历史回归。候选PASS、整合PASS、正式接受、关闭严格分开；本作者不提前关闭依赖未满足项。分母27项/13批，7 optional、2额外导航facet、1 no-required、2 policy不采用。
 
 首个传输提交80fde6e81aa523b65e013c5183ad4561d5fe9d58（tree e028ea5bfb9426f2246f416a596bf656e8e40066）已普通push成功（exit0），随后远端固定URL完整回读16文件／886,454字节全部匹配，分支tip前后均为该提交。真实push/HTTP/git回参保存在push-first.json及remote-readback-first.json；该回执严格只绑定首个提交。后续仅追加本传输证据、回读工具及更新manifest/report，不改六份候选镜像；最终HEAD仍须再次远端核全量字节，由外层回传完整commit/tree。
+
+## r1 复审后作者最小修订（等待新冻结）
+
+已完整读取固定审查提交1a479cf49386a0aabe2ccd96aef92abb16620143的report.md、per-id.json及new-counterexample.json，并按固定Git对象恢复核验38份审者产物。r1对旧冻结候选de550bb9fe5d2b80312b1a4f6f166d2a6aa5fc67给出M01 PASS_SCOPED_CANDIDATE、J01 FAIL_SCOPED_CANDIDATE；这是外部审者对旧字节的结论，不是本作者对当前修订的PASS。旧冻结commit/tree、manifest和六镜像身份保存在r1-correction/correction.json，原报告及证据不覆写。
+
+R7-U01-R1-J01-01成立：原WP03第58行“仅在没有记录时采用4000”把输出值与值来源混同。依据固定R的Shadow字段正整数声明、字段默认、指定形态/基础查询和实际最大量表消费者，改为有记录读取GaugeSize（省略默认4000、显式4000也保留），无记录回退4000。只改该一处句子；generic目录仅追加省略4000／显式4000／显式5000／无命中回退4000四例，均SOURCE_STATIC／DERIVED_VECTOR、NOT_EXECUTED。无读取操作的UI取消/保存/部分提交；J01-V12/V13门不变。
+
+M01条款、原16项向量和catalog旧前缀完整保留，其余四份镜像完全未改；正确Shadow领域正文/参考/正式文件/main未改，未新增policy。当前状态仍CANDIDATE_READY_NOT_REVIEWED；等待R7-I按新commit/tree重新冻结并另行独立复审，随后各整合/接受/关闭门不变。有效配置UNVERIFIED、L01–L14、宿主/Demo/native媒体/真实存档回放0保持。

@@ -48,6 +48,29 @@ def main():
   assert r['status']=='CANDIDATE_READY_NOT_REVIEWED' and all(r[k]=='NOT_REACHED' for k in ['independent_candidate_review','integrated_review','formal_acceptance','closed'])
   for loc in r['forward_map'].values():assert 1<=loc['lines'][0]<=loc['lines'][1]<=len((REPO/loc['path']).read_text().splitlines())
  assert per['conditional_targets']['adopted']==[]
+ correction_path=EVIDENCE/'r1-correction/correction.json'
+ correction_vectors=0
+ if correction_path.exists():
+  correction=json.loads(correction_path.read_text());prior=correction['previous_candidate_commit']
+  assert prior=='de550bb9fe5d2b80312b1a4f6f166d2a6aa5fc67'
+  old_per=json.loads(git('show',prior+':'+PREFIX+'evidence/author/per-id.json'))
+  assert per['records'][0]==old_per['records'][0],'M01 reviewed contribution changed'
+  assert per['records'][1]['vectors']==old_per['records'][1]['vectors'],'Original J01 vectors changed'
+  changed=correction['change'];previous=git('show',prior+':'+changed['path'])
+  assert previous.count(changed['old'].encode())==1
+  assert (REPO/changed['path']).read_bytes()==previous.replace(changed['old'].encode(),changed['new'].encode()),'WP03 exceeded one-sentence correction'
+  assert (ROOT/TARGETS[4]).read_bytes().startswith(git('show',prior+':'+PREFIX+TARGETS[4])),'Original catalog bytes changed'
+  for target in [TARGETS[0],TARGETS[2],TARGETS[3],TARGETS[5]]:
+   assert (ROOT/target).read_bytes()==git('show',prior+':'+PREFIX+target),'Unrelated mirror changed'
+  assert ident(git('show',prior+':'+PREFIX+'evidence/author/artifact-manifest.json'))==correction['previous_author_manifest']
+  expected_cases=[('R1-J01-DEFAULT-01',True,4000,4000,'present_record_field_default'),('R1-J01-DEFAULT-02',True,4000,4000,'present_record_explicit_field'),('R1-J01-CONTROL-01',True,5000,5000,'present_record_explicit_field'),('R1-J01-CONTROL-02',False,None,4000,'missing_record_fallback')]
+  assert len(correction['vectors'])==len(expected_cases)
+  for v,expected in zip(correction['vectors'],expected_cases):
+   assert (v['id'],v['record_presence'],v['record_gauge_size'],v['expected_consumer_result'],v['value_origin'])==expected
+   assert v['behavior_execution']=='NOT_EXECUTED' and catalog.count('| '+v['id']+' |')==1
+   loc=v['candidate_catalog'];assert '| '+v['id']+' |' in (REPO/loc['path']).read_text().splitlines()[loc['lines'][0]-1]
+   correction_vectors+=1
+  assert correction['independent_new_candidate_review']=='NOT_REACHED' and not correction['ACCEPTED'] and not correction['CLOSED']
  # Validate new Markdown links against candidate snapshots, preserving preexisting links.
  anchor=lambda s: re.sub(r'[^\w\- ]','',s.lower(),flags=re.UNICODE).replace(' ','-')
  new_links=0
@@ -109,5 +132,5 @@ def main():
   manifest_path.write_text(json.dumps({'schema':'r7.u01-author-artifact-manifest.v1','base_commit':BASE,'status':'CANDIDATE_READY_NOT_REVIEWED','files':rows,'self_identity':'artifact-manifest.json cannot contain its own content hash. Its complete bytes/blob are bound by actual Git commit/tree and external final remote readback. All other artifacts are enumerated exactly.','integration':'Candidate mirrors are complete B files but only exact contribution clauses may be integrated by R7-I.','effective_configuration':'UNVERIFIED'},ensure_ascii=False,indent=2)+'\n')
  else:
   manifest=json.loads(manifest_path.read_text());assert manifest['files']==rows,'Artifact manifest stale'
- print(json.dumps({'status':'MECHANICAL_CHECKS_OK_NOT_SEMANTIC_PASS','mirrors':len(mirrors),'vectors':len(vectors),'new_links_checked':new_links,'restored_files_verified':restored,'raw_pointer_bindings_verified':raw_bindings,'formal_paths_unchanged':True,'manifest_members_excluding_self':len(rows),'reference_behavior_executed':False,'independent_candidate_review':'NOT_REACHED'},ensure_ascii=False))
+ print(json.dumps({'status':'MECHANICAL_CHECKS_OK_NOT_SEMANTIC_PASS','mirrors':len(mirrors),'vectors':len(vectors),'r1_correction_vectors':correction_vectors,'new_links_checked':new_links,'restored_files_verified':restored,'raw_pointer_bindings_verified':raw_bindings,'formal_paths_unchanged':True,'manifest_members_excluding_self':len(rows),'reference_behavior_executed':False,'independent_candidate_review':'NOT_REACHED'},ensure_ascii=False))
 if __name__=='__main__':main()
