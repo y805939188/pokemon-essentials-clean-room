@@ -67,3 +67,7 @@ CG06 的固定冲突表及 U02 合同共享范围已读：U02 贡献是 F8截图
 ## 成果运输
 
 唯一成果分支 `codex/r7-u08-reviewer-20261015-r1` 已从固定B创建独立checkout；创建前同名本地/远端成果均不存在。只提交本 `candidates/R7-U08/evidence/reviewer/r1/`，没有携带作者镜像或改正式/公共/main/tag/reference。普通提交与普通push；最终commit/tree、远端分支回参及最后完整逐文件远端回读由实际发布回执/末次工具输出和最终回传绑定，不制造自引用commit或manifest哈希。
+
+首轮普通发布实际完成：`0577bb5b4d6b13f905354174b0465c6b7de42079` / tree `674ea61633bfd77c39b6088dcaa3073d6ef9de5d`；35文件 / 399,425字节已从不可变远端URL全部匹配，并用新接收库核远端commit/tree。完整证据为 `tool-evidence/remote-readback-first.json` 与 first-commit / first-ordinary-push / first-complete-remote-readback 的真实分流。后继只封存这些回执和补充输入身份、更新本清单/报告，四项语义结论及候选字节不变；最终后继完整远端回读由末次真实工具输出及最终回传绑定。
+
+封存原始GitHub push stderr后，全写集whitespace检查真实exit2，仅指出该原始stderr四行自带尾空格；保全I/O不做修剪。排除这一具名原始stderr的作者成果检查exit0，详见 `tool-evidence/whitespace-validation.json`；没有把全写集检查写成通过。
