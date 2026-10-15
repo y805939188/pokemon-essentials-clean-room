@@ -115,3 +115,5 @@ WE-M15–20、B19-C016的确认/坐标/后缀/路径/档案后PBS失败边界；
 本审者已完成三ID内容、共享保留/相容性及具名静态历史回归。原record-to-record直接/传递排程边为空不表示全局依赖满足。**仍需R7-I接收本新结果的精确commit/tree，并登记WP73-B/WE、WP74/AN/TOOL-AN、T-WP74/F18-03以及WP75/WP77/图像消费者的语义owner、共享receiver、直接/传递/领域及历史责任，再分别作ACCEPTED/CLOSED决定。**这些是根的后续动作，不再把本审者已完成的内容判断记为WAIT。无缺失输入或未完成内容义务；运行未知只限制结论范围，不阻塞本次静态PASS。7 optional、2导航facet、1 no-required、2policy未采用，27项/13批、旧56/92不变。
 
 成果仅在唯一原分支`codex/r7-ir-u10-20261015-r1`追加证据；保留4188ee2为普通祖先，不force，不改候选/正式正文/公共台账/main/tag。最终提交及全部文件完整远端bytes/SHA256/blob回读在包外以真实commit/tree绑定，manifest不制造递归自哈希。
+
+续审内容载荷已普通推送为`84321935137922319220c0c60c707987c4d6ed12`，tree `83c0114b22ef26cb935f74fcb029de50f66581e6`；31文件／1,136,188字节的固定远端完整响应体均匹配bytes/SHA256/blob，回读前后ref一致。真实逐文件回执见`evidence/continuation-payload-remote-readback.json`，Git I/O见对应publication-commands。本后继只归档该运输证据、补此注记和更新manifest，三项内容结论不变；最终后继提交的全部文件另再次完整回读并在最终回传绑定。
