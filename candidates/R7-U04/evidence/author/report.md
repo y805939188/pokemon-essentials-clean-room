@@ -40,4 +40,8 @@ SOURCE_STATIC、DERIVED_VECTOR、TOOL_VALIDATION 分层；新增12个静态目�
 
 普通提交只包含 `candidates/R7-U04/`；普通 push 只去 `codex/r7-u04-author-20261015-pilot1`。不修改正式文件、公共台账、旧证据、参考、main、tag或整合分支。提交身份由包外实际 Git commit/tree 绑定，避免自引用哈希；manifest 自身身份由实际 Git tree 绑定。
 
+候选载荷已普通提交并推送：commit `2b9941a3d76f4fccc07cd50cc63414e9ed3f31df`，tree `4bdcf08628c880a6d4f922d57e7efe470944fb82`，直接父提交为固定 B。随后对该 commit 的全部15个候选文件、261,894字节通过不可变远端 HTTP URL 实际下载；每个完整响应体与对应 Git blob 逐字节相等，下载前后 ls-remote 均指向该完整 commit。真实回执 remote-readback-payload.json；可复现工具 remote_readback.py。该传输结果不授语义或独立 review 资格。
+
+本次再以普通证据追加提交携带上述回读回执、回读工具及更新后的清单/日志；三个正文/目录镜像与已回读载荷完全一致。追加提交的最终完整 commit/tree 在包外交付，并对最终远端全候选字节再次回读。最终回读通过平台 tool I/O 回传，不把含自身 commit 身份的回执无限递归提交进同一 commit。所有需交付的新建候选文件及证据均在成果分支内，bootstrap和输入快照不进入候选。
+
 候选完成后交 R7-I 校验差异与身份、冻结 candidate-input.json，再由不同真实 context 的独立 ultra 审者复核。本作者未创建 reviewer。候选 PASS、实际整合后的新 R7-IR PASS、ACCEPTED、CLOSED 四门均未达到。无作者排程前置批次不表示消费者、历史回归或接收依赖已经满足；依赖未满足不提前关闭。
