@@ -99,9 +99,12 @@ def main():
     author_manifest_path = prefix+'evidence/author/artifact-manifest.json'
     manifest = json.loads(expected[author_manifest_path])
     assert manifest['base_commit'] == B
-    assert {row['path'] for row in manifest['files']} == set(expected)-{author_manifest_path}
-    for row in manifest['files']:
-        match(expected[row['path']], row.get('new_identity', row))
+    declarations = manifest.get('files')
+    if declarations is None:
+        declarations = manifest['mirrors'] + [{'path': path, **record} for path, record in manifest['evidence_inventory'].items()]
+    assert {row['path'] for row in declarations} == set(expected)-{author_manifest_path}
+    for row in declarations:
+        match(expected[row['path']], row.get('new_identity', row.get('candidate_identity', row)))
     mirror_rows = []
     diffs = []
     for path, data in expected.items():
@@ -109,7 +112,7 @@ def main():
             continue
         target = path[len(prefix):]
         original = git('show', B+':'+target)
-        declaration = next(row for row in manifest['files'] if row['path'] == path)
+        declaration = next(row for row in declarations if row['path'] == path)
         base = declaration.get('base_target_identity', declaration.get('base_identity'))
         match(original, base)
         mirror_rows.append({'path': path, 'formal_target': target, **identity(data), 'base_B_identity': identity(original), 'write_classification': allowed[path]['classification']})
@@ -122,10 +125,16 @@ def main():
     if 'actual_thread' in per_id:
         author_context = per_id['actual_thread']
         self_task_qualification = per_id.get('actual_task_id')
-    else:
+    elif 'task_context' in per_id:
         author_context = per_id['task_context']['actual_thread_id_from_environment']
         self_task_qualification = per_id['task_context']['platform_task_id']
-    assert author_context == args.author_identifier
+    else:
+        context = json.loads(expected[prefix+'evidence/author/execution-context.json'])
+        author_context = context['actual_author_platform_context_id']
+        self_task_qualification = context['actual_author_platform_task_id']
+    internal_context_exposed = not author_context.startswith(('NOT_EXPOSED', 'UNVERIFIED'))
+    if internal_context_exposed:
+        assert author_context == args.author_identifier
     folder = ROOT/'candidate-freezes'/bid
     folder.mkdir(parents=True, exist_ok=False)
     (folder/'mirror-diffs.patch').write_text(''.join(diffs))
@@ -138,7 +147,8 @@ def main():
             row.update(formal_target=mirrors[path]['formal_target'], write_classification=mirrors[path]['write_classification'])
         file_rows.append(row)
     conditional = per_id.get('conditional_targets', {'adopted': [], 'qualification': 'No conditional target exists for this batch'})
-    freeze = {'schema': 'r7.actual-candidate-input-freeze.v1', 'batch_id': bid, 'required_ids': contract['required_ids'], 'fixed_B': B, 'fixed_B_tree': '84f79ec6e772aacbf3a464fde68cdc5a280e2950', 'original_contract_commit_path_identity': {'commit': CONTRACT, 'path': contract_path, **identity(contract_bytes)}, 'author_task_id': args.author_identifier, 'author_context_and_qualification': {'parent_supplied_task_identifier': args.author_identifier, 'author_reported_actual_thread': author_context, 'author_local_platform_task_id_field': self_task_qualification, 'qualification': 'Parent task identifier matches actual thread reported by author; opaque platform task ID was not exposed inside author container.'}, 'author_output_branch': args.branch, 'candidate_commit': args.candidate, 'candidate_tree': tree, 'complete_diff_against_B': [{'status': status, 'path': path} for status, path in changes], 'candidate_and_author_evidence_file_identities': file_rows, 'counts': {'files': len(file_rows), 'bytes': sum(row['bytes'] for row in file_rows), 'mirrors': len(mirror_rows), 'evidence': len(file_rows)-len(mirror_rows)}, 'author_manifest_coverage': {'declared_other_files': len(manifest['files']), 'self_manifest_bound_here': {'path': author_manifest_path, **identity(expected[author_manifest_path])}, 'declared_and_actual_identities_match': True}, 'conditional_sync_justifications': conditional, 'input_reception_complete': True, 'complete_candidate_remote_readback': str((folder/'remote-readback.json').relative_to(PROJECT)), 'mirror_diff_evidence': str((folder/'mirror-diffs.patch').relative_to(PROJECT)), 'unmet_dependencies': ['Different-context independent ultra candidate semantic review', 'R7-I clause-level integration and shared receiver reception', 'New independent R7-IR actual integrated commit/tree review', 'Formal acceptance and exact direct/transitive dependencies and historical regressions before CLOSED'], 'freeze_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'requested_and_effective_configuration_qualification': {'requested_author': 'gpt-6.1-sol xhigh/default normal speed; Fast forbidden', 'effective_author': 'UNVERIFIED', 'requested_reviewer': 'gpt-6.1-sol ultra/default normal speed; Fast forbidden', 'effective_reviewer': 'NOT_CREATED_UNVERIFIED'}, 'execution': {'behavior_vectors': 'NOT_EXECUTED', 'reference_or_full_model_execution_by_integrator': 0, 'host_Demo_native_media_real_save_replay': 0, 'tool_checks_here': 'Diff scope, complete transfer, byte identity and manifest binding only'}, 'L01_L14': 'RETAINED', 'candidate_semantic_PASS': False, 'integrated_PASS': False, 'ACCEPTED': False, 'CLOSED': False, 'self_binding': 'This file own publishing commit/tree is supplied externally by a successor concrete reviewer dispatch; never use a floating HEAD.'}
+    context_qualification = 'Parent task identifier matches actual thread reported by author; opaque platform task ID was not exposed inside author container.' if internal_context_exposed else 'Parent provided the externally created author cloud-thread/task identifier and result linkage. Author container did not expose its internal context/task ID; do not fabricate a match. Require a separately created different reviewer cloud thread and preserve this qualification.'
+    freeze = {'schema': 'r7.actual-candidate-input-freeze.v1', 'batch_id': bid, 'required_ids': contract['required_ids'], 'fixed_B': B, 'fixed_B_tree': '84f79ec6e772aacbf3a464fde68cdc5a280e2950', 'original_contract_commit_path_identity': {'commit': CONTRACT, 'path': contract_path, **identity(contract_bytes)}, 'author_task_id': args.author_identifier, 'author_context_and_qualification': {'parent_supplied_task_identifier': args.author_identifier, 'author_reported_actual_thread': author_context, 'author_local_platform_task_id_field': self_task_qualification, 'internal_context_exposed': internal_context_exposed, 'qualification': context_qualification}, 'author_output_branch': args.branch, 'candidate_commit': args.candidate, 'candidate_tree': tree, 'complete_diff_against_B': [{'status': status, 'path': path} for status, path in changes], 'candidate_and_author_evidence_file_identities': file_rows, 'counts': {'files': len(file_rows), 'bytes': sum(row['bytes'] for row in file_rows), 'mirrors': len(mirror_rows), 'evidence': len(file_rows)-len(mirror_rows)}, 'author_manifest_coverage': {'declared_other_files': len(declarations), 'self_manifest_bound_here': {'path': author_manifest_path, **identity(expected[author_manifest_path])}, 'declared_and_actual_identities_match': True}, 'conditional_sync_justifications': conditional, 'input_reception_complete': True, 'complete_candidate_remote_readback': str((folder/'remote-readback.json').relative_to(PROJECT)), 'mirror_diff_evidence': str((folder/'mirror-diffs.patch').relative_to(PROJECT)), 'unmet_dependencies': ['Different-context independent ultra candidate semantic review', 'R7-I clause-level integration and shared receiver reception', 'New independent R7-IR actual integrated commit/tree review', 'Formal acceptance and exact direct/transitive dependencies and historical regressions before CLOSED'], 'freeze_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'requested_and_effective_configuration_qualification': {'requested_author': 'gpt-6.1-sol xhigh/default normal speed; Fast forbidden', 'effective_author': 'UNVERIFIED', 'requested_reviewer': 'gpt-6.1-sol ultra/default normal speed; Fast forbidden', 'effective_reviewer': 'NOT_CREATED_UNVERIFIED'}, 'execution': {'behavior_vectors': 'NOT_EXECUTED', 'reference_or_full_model_execution_by_integrator': 0, 'host_Demo_native_media_real_save_replay': 0, 'tool_checks_here': 'Diff scope, complete transfer, byte identity and manifest binding only'}, 'L01_L14': 'RETAINED', 'candidate_semantic_PASS': False, 'integrated_PASS': False, 'ACCEPTED': False, 'CLOSED': False, 'self_binding': 'This file own publishing commit/tree is supplied externally by a successor concrete reviewer dispatch; never use a floating HEAD.'}
     dump(folder/'candidate-input.json', freeze)
     artifacts = [{'repository': REPOSITORY, 'commit': args.candidate, 'path': row['path'], 'local_path': 'candidate/'+row['path'], 'bytes': row['bytes'], 'sha256': row['sha256'], 'git_blob_content_id': row['git_blob']} for row in file_rows]
     dump(folder/'candidate-restore'/f'{bid}.json', {'schema': 'r7.bounded-candidate-byte-restore.v1', 'batch_id': bid, 'contract_commit': CONTRACT, 'evidence_publication_commit': args.candidate, 'unresolved_reference_fields': [], 'artifacts': artifacts, 'evidence': [], 'fixed_read_inputs': [], 'future_paths_not_downloaded': [], 'qualification': 'Use fixed restore_container_context.py658488c8 to restore only actual frozen candidate bytes into a new reviewer input directory. Original semantic contract/source recovery is a separate invocation.'})
