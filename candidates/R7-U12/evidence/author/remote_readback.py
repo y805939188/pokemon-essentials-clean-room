@@ -43,8 +43,6 @@ def main():
     _,fetch=command(['git','fetch','origin','refs/heads/'+BRANCH])
     fetched,_=command(['git','rev-parse','FETCH_HEAD']);assert fetched.decode().strip()==commit
     tree,_=command(['git','rev-parse',commit+'^{tree}']);tree=tree.decode().strip()
-    remote_doc,api_attempts=http('https://api.github.com/repos/'+REPO+'/git/commits/'+commit,100000)
-    document=json.loads(remote_doc);assert document['sha']==commit and document['tree']['sha']==tree
     paths,_=command(['git','diff-tree','--no-commit-id','--name-only','-r',B,commit]);paths=paths.decode().splitlines()
     assert paths and all(p.startswith('candidates/R7-U12/') for p in paths)
     def read(path):
@@ -63,7 +61,8 @@ def main():
         else:assert row['path']=='candidates/R7-U12/evidence/author/artifact-manifest.json'
     result={'schema':'r7.u12.full-remote-readback.v1','status':'ALL_NEW_FILES_FULL_REMOTE_READBACK_MATCH',
         'start_utc':start,'end_utc':utc(),'branch':BRANCH,'commit':commit,'tree':tree,
-        'ls_remote':ls,'fetch':fetch,'remote_commit_document':document,'remote_commit_api_attempts':api_attempts,
+        'ls_remote':ls,'fetch':fetch,
+        'tree_binding':'Git remote advertises exact commit; ordinary fetch confirms FETCH_HEAD; tree computed from that content-addressed commit. GitHub API unavailable (proxy403), no API-returned tree claimed.',
         'files':files,'file_count':len(files),'bytes_read_and_matched':sum(r['bytes'] for r in files),
         'qualification':'Remote full bytes and commit/tree identity only; not independent review, semantic acceptance, or runtime certification.'}
     if len(sys.argv)>2:

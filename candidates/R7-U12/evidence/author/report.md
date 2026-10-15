@@ -21,3 +21,5 @@ GR7-H08-001：新增候选 `review/remediation-seventh-20261015-prepare/current-
 无作者前置阻塞边。仍OPEN/待办：R7-I按完整候选差异与身份生成candidate-input；不同实际context的ultra候选复审；CG01/CG07共享消费者及R7-I逐条串行整合；新R7-IR实际整合复审；后续唯一接受/关闭及具体历史回归接收。候选PASS、整合PASS、ACCEPTED、CLOSED均未发生。27项/13批分母、L01–L14和旧56/92有限关闭边界保持。
 
 交付包括六个完整镜像、`per-id.json`、`artifact-manifest.json`、`mirror-identities.json`、`complete-mirror-diff.patch`、验证/恢复回执及公开工具日志。artifact-manifest逐文件列出原B/新bytes/SHA/blob；自身不填自哈希。先发布候选，随后只提交新增发布回执和最终清单，六镜像不变；最后整体commit/tree和逐新文件远端读回由包外真实工具回执绑定，避免自引用。只普通推送唯一分支；全部发布完成即停止写入，等待父会话安排ultra复审。
+
+首次候选实际提交 `a9ba695da3d120171ced3e22dbfa214fe4b3db45` / tree `248173fe2514900d8af1f180cf8e95ed0a364b30` 已普通push，87个新文件共1,136,087字节完成不可变raw完整远端读回，逐文件证据在 `first-publication-readback.json`。020误填提交ID、021可选API代理403两个exit1原样保留，022改用真实提交及Git+raw完成exit0；API访问不是本合同必需条件。最终证据补交只改本目录，六镜像固定不变；最终提交/tree/推送及完整读回由包外实际工具I/O绑定。
