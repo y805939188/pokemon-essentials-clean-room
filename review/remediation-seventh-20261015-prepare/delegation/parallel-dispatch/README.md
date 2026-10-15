@@ -1,3 +1,7 @@
+# 当前状态：父会话已创建13作者及3候选审者，禁止重复创建
+
+当前任务ID以../task-registry/current.json为准；新创建10作者和3reviewer的执行进度尚未由整合者独立确认，等待父会话转交实际结果。以下派发资格与早期状态保留生成时点，不能再据它重复创建已登记任务。
+
 # 全部剩余作者并行派发与冻结后独立复审
 
 初始父回传成功创建：U01=01a13f52-add1-7706-b7ec-54e07e0d7013，U04=01a13f52-cc74-7568-9e75-85ac773c6015，U05=01a13f52-ecf8-73f9-8c9b-f5c164f0c017。事实来源是父会话回传；本环境没有重新查询账号任务服务。请求gpt-6.1-sol xhigh/default，实际模型/档位/速度回参仍UNVERIFIED。不要重复派发这三批。
@@ -8,7 +12,7 @@
 
 7组共享实际目标产生19对去重批次冲突、39次文件内配对；含条件同步，不采用optional/policy。作者可并行不等于正式写入可无冲突并行。R7-I唯一按条款串行整合，保留累计贡献；完整路径/对端关系见conflict-relations.json。
 
-reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。当前U01/U04/U05已由R7-I真实接收并冻结，可据candidate-freezes/reviewer-ready.json创建独立ultra审者；其它10批仍等待。通用门：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
+reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。U01/U04/U05真实候选已冻结，三个ultra审者也已由父会话创建，等待实际结果；其它10批审者仍待候选冻结。通用门：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
 
 独立reviewer只写本批evidence/reviewer/r1，唯一分支codex/r7-uXX-reviewer-20261015-r1，基于B；不修作者镜像，不动正式文件。完整候选/证据由固定作者commit或经R7-I核验的平台产物读取到只读暂存目录，审者输入freeze必须额外由父会话绑定真实commit。13份模板现在只是未来有界输入，不是已启动/通过声明。
 
