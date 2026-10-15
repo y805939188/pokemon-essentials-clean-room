@@ -86,3 +86,5 @@ WP62完整单条行、WP66-B转引和编号向量均为001的具名required同�
 仍未满足：R7-I按条款串行整合及CG05贡献接收；实际累计commit/tree的新独立R7-IR；语义owner、直接/传递/领域依赖及具名历史回归最终接收；根正式ACCEPTED和满足全部条件后的CLOSED。本次候选PASS不自动通过这些门。
 
 唯一成果分支 `codex/r7-u09-reviewer-20261015-r1`，由独立checkout从B创建，创建前远端无同名分支。只普通提交／普通推送本目录证据；未携带作者镜像。先提交推送并完整远端回读，再将首次回读回执纳入后继普通提交；最终再对最终commit所有新增文件完整回读，真实最终commit/tree与逐文件回读通过工具输出和最终交付绑定。manifest不自哈希；不为嵌入自己的最终commit而循环改写。未修改候选、正式文件、公共台账、main、tag或旧r1成果。
+
+首次普通推送已完成：commit `b236a638030cd01bb143706ba54ca523da8b1f56`，tree `e07caedfd01f86d9a8ed5ea575588a951aa006e5`，父提交为固定B；随后远端完整回读12文件／162,537字节全部匹配，前后分支ref一致。`first-push-readback.json` 与 `publication-first-io.json` 为真实回执，本后继提交只补入这些运输证据、此说明及manifest身份，不改审查结论或输入。最终提交完整远端读回另通过最终工具输出绑定。
