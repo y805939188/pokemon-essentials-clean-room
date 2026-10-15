@@ -10,11 +10,12 @@ def fetch(url):
 start=datetime.datetime.now(datetime.timezone.utc).isoformat()
 ref=git('ls-remote','origin','refs/heads/'+branch).decode().strip();assert ref.split()[0]==commit
 paths=git('diff','--name-only',B,commit).decode().splitlines();assert paths and all(p.startswith('candidates/R7-U03/evidence/reviewer/r1/') for p in paths)
-meta,code=fetch('https://api.github.com/repos/'+repo+'/git/commits/'+commit);obj=json.loads(meta)
-tree=git('rev-parse',commit+'^{tree}').decode().strip();assert obj['sha']==commit and obj['tree']['sha']==tree
-local_commit=git('cat-file','commit',commit)
-# Reconstruct the complete signed/unsigned immutable Git commit text from remote metadata.
-assert obj['tree']['sha']==tree
+subprocess.run(['git','fetch','--no-tags','origin',commit],check=True)
+remote_fetch_head=git('rev-parse','FETCH_HEAD').decode().strip();assert remote_fetch_head==commit
+obj_text=git('cat-file','commit',remote_fetch_head)
+obj_tree=obj_text.decode().splitlines()[0].removeprefix('tree ')
+tree=git('rev-parse',commit+'^{tree}').decode().strip();assert obj_tree==tree
+local_commit=obj_text
 rows=[]
 def one(p):
  expected=git('show',commit+':'+p);url='https://raw.githubusercontent.com/'+repo+'/'+commit+'/'+urllib.parse.quote(p)
@@ -23,6 +24,6 @@ def one(p):
  assert mode=='100644' and kind=='blob' and blob==a['git_blob']
  return dict(path=p,url=url,http_status=status,git_mode=mode,**a,complete_response_equals_immutable_git_blob=True)
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:rows=list(pool.map(one,paths))
-receipt=dict(schema='r7-u03-r1.complete-result-remote-readback.v1',start_utc=start,end_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),branch=branch,remote_ref=ref,commit=commit,tree=tree,remote_commit_api_status=code,remote_commit_object=obj,local_commit_object_identity=identity(local_commit),base_commit=B,files=rows,file_count=len(rows),byte_count=sum(r['bytes'] for r in rows),scope='Only reviewer r1 new evidence against fixed B',all_files_verified=True,qualification='TOOL_VALIDATION transport only; not integrated semantic acceptance')
+receipt=dict(schema='r7-u03-r1.complete-result-remote-readback.v1',start_utc=start,end_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(),branch=branch,remote_ref=ref,commit=commit,tree=tree,remote_commit_binding='Ordinary remote git fetch exact commit; FETCH_HEAD and commit object tree verified',remote_fetch_head=remote_fetch_head,remote_commit_object=obj_text.decode(),local_commit_object_identity=identity(local_commit),base_commit=B,files=rows,file_count=len(rows),byte_count=sum(r['bytes'] for r in rows),scope='Only reviewer r1 new evidence against fixed B',all_files_verified=True,qualification='TOOL_VALIDATION transport only; not integrated semantic acceptance')
 p=pathlib.Path(out);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps(dict(commit=commit,tree=tree,branch=branch,files=len(rows),bytes=sum(r['bytes'] for r in rows),all_files_verified=True,receipt=str(p),receipt_identity=identity(p.read_bytes()))))

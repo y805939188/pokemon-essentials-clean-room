@@ -70,3 +70,7 @@ CG04只贡献MV01/MV02及R7-BP块；固定原U01合同的复合PBS/地牢节头�
 SOURCE_STATIC / CONTRACT_TEXT / DERIVED_VECTOR / TOOL_VALIDATION分别登记；新增参考行为运行、独立完整模型、游戏宿主、Demo、native媒体、真实存档回放均 **0**，全部新增行为向量 **NOT_EXECUTED**。L01–L14、旧56/92关闭边界、27项/13批分母保持；历史局部执行不扩为本项运行资格。
 
 仍开放：R7-I逐条接收/共享整合、真实累计整合commit/tree的全新独立R7-IR、正式接收及精确直接/传递/历史回归关闭门。没有当前候选输入阻塞；不提前宣布实际整合PASS、ACCEPTED或CLOSED。结果commit/tree和最终全量远端读回由最终交接包外绑定，避免提交内自引用。
+
+## 已实际发布的内容版本
+
+首个内容成果已普通push并完整远端读回：commit `56600855df07d8a3a0d1c5990b62e5b32ee7c2aa`，tree `df3dfbba7e658273bc0ceba49e033c67b92ab88e`，40文件/365,065字节，逐文件固定commit HTTP200完整响应与Git字节/bytes/SHA/blob一致，见content-remote-readback.json。GitHub API commit元数据请求首次被代理403拒绝，真实失败日志保留；后用普通Git远端fetch/FETCH_HEAD及commit对象绑定tree，再完成全部文件HTTP回读，无未解决传输阻塞。此后继仅补发布/读回证据和元数据回读工具的安全替代路径，两项内容结论不变。原始push日志含远端尾随空格，按完整I/O保留；空白检查只排除commands/下原样stdout/stderr，不排除正文/JSON/工具。最终后继commit/tree与最终全量远端回读由最终交接包外绑定。
