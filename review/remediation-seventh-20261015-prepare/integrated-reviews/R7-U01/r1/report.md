@@ -49,3 +49,5 @@ SOURCE_STATIC、DERIVED_VECTOR与TOOL_VALIDATION分别记录。REFERENCE_OBSERVA
 工具失败和日志缺口没有抹去：前三次机械审计分别遇缺Git对象、gzip编码/解码对象比较及B不存在新errata的工具错误，修正后实际重核成功；补充审计误假设errata只一顶层字段，实为status/reception两阶段字段，按真实差异修正后成功。失败回参均保留。早期侦察/读取/fetch/bootstrap有平台I/O，未另存逐命令完整UTC/PID/分离流，不回填；read-io只记实印范围/哈希，截断后有补读。候选r2早期认证诊断偏差及原日志限制照旧披露，本次未查认证/额度、不发私有模型流。详细资格见输入回执。
 
 成果仅在从B创建的隔离checkout、唯一分支 `codex/r7-ir-u01-20261015-r1`，只写本r1目录；不携带候选/MI正文、不改公共台账/main/tag。普通提交/推送及最终不可变URL逐文件完整bytes/SHA256/blob/mode回读，由真实外层commit/tree与末次回执绑定；manifest不伪造递归自哈希。先行运输回执若由后继提交封存，只证明其明确前一提交，最终后继另作全量读回。
+
+首个内容载荷已普通推送：`cc900cf6d4eb76434d82608b90e2e7d6e880c6a1`／tree `116487f3a07c799004ae949085230febaa120332`；固定远端完整回读44文件／795,269字节，HTTP全文与bytes/SHA256/blob一致，模式及完整路径宇宙由远端fetch的同一commit/tree绑定，回读前后tip相同。真实回参见[载荷回读](tool-evidence/readback-payload.json)及commit/push/readback I/O。本后继仅封存这些运输回执、前次验证和本附记/输入回执/manifest；两项内容结论与MI/FI保持。最终后继再次全量远端回读，由外层真实工具结果及最终回传绑定。
