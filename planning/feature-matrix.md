@@ -171,7 +171,7 @@ Classification 使用一个主要类别；必要的跨域分类记入 Notes。�
 | F04-05 | D04 | NPC、训练家感知与跟随 | 事件角色移动、远距触发、跟随及地图转移约束 | Engine/Overworld | E09、E10、E18 | Reviewed（WP13 NPC/感知/跟随范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Reviewed（限定静态范围，GR-005 事件更新机会补上次成功更新的持续许可及其清除/重设顺序有界修订，2026-10-01 定点复审 PASS_SCOPED；管理性回填）＋Inventoried（完整跟随系统范围） | 中 | 不能自动等同于完整跟随宝可梦系统；事件跟随机制已按源码提取（守卫仅适用特定入口）；WP13 规格见 [wp13-map-events-npc-followers](../specs/overworld/wp13-map-events-npc-followers.md)；WP24/WP63 交界 |
 | F04-06 | D04 | 随机地牢 | 按参数生成布局、安排事件和玩家位置 | Engine/Overworld | E29、E34 | Reviewed（WP14 生成规则/摆放/失败范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Reviewed（限定静态范围，GR-006 大网格奇数单元/通道参数调整意图与标准参数对象下首次写回失败分层有界修订，2026-10-01 定点复审 PASS_SCOPED；管理性回填）＋Inventoried（真实地图可达性与种子复现范围） | 高 | 补充标签：可选通用玩法；布局不自动归 Kernel，未运行种子/可达性测试；WP14 规格见 [wp14-random-dungeons](../specs/overworld/wp14-random-dungeons.md) |
 | F05-01 | D05 | 资源解析与生命周期 | 获取/缓存图像、解析资源变体及处理资源使用 | Engine/Overworld | E11、E12 | Reviewed（WP15 解析/缓存/缺失边界范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Inventoried（动画位图逐入口行为范围） | 中 | 仅提取可见要求及缺失资源行为；WP15 规格见 [wp15-resource-matching-and-audio](../specs/overworld/wp15-resource-matching-and-audio.md) |
-| F05-02 | D05 | 声音与音乐 | BGM/BGS/SE/ME、切换恢复、菜单音和物种叫声 | Engine/Overworld | E11、E12、E18 | Reviewed（WP15 播放/切换/暂停恢复/叫声范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Reviewed（限定静态范围，GR-007 传送淡出中 BGS 名称差异实际请求 BGM 淡出的更正有界修订，2026-10-01 定点复审 PASS_SCOPED；管理性回填）＋Inventoried（实际播放与战斗内音频范围） | 高 | 战斗/骑行/地图选择声音另有消费者；WP15 规格见 [wp15-resource-matching-and-audio](../specs/overworld/wp15-resource-matching-and-audio.md) |
+| F05-02 | D05 | 声音与音乐 | BGM/BGS/SE/ME、切换恢复、菜单音和物种叫声 | Engine/Overworld | E11、E12、E18 | Reviewed（WP15 播放/切换/暂停恢复/叫声范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Reviewed（限定静态范围，GR-007 传送淡出中 BGS 名称差异实际请求 BGM 淡出的更正有界修订，2026-10-01 定点复审 PASS_SCOPED；管理性回填）＋Inventoried（实际播放与战斗内音频范围）＋Pending（GR7-D07-001：MIDI 独立音色库静态声明候选，待非作者核验及 R7-I 接收） | 高 | 战斗/骑行/地图选择声音另有消费者；WP15 规格见 [wp15-resource-matching-and-audio](../specs/overworld/wp15-resource-matching-and-audio.md)；声明的随附身份为 `soundfont.sf2`，不认证 L04/L09 原生选择、接受、合成或声音 |
 | F05-03 | D05 | 地图绘制 | tileset、自动图块、地图位置与分层可视效果 | Engine/Overworld | E11、E09 | Reviewed（WP16 图块层/滚动/拼接/分层范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Inventoried（实际视觉结果范围） | 中 | 不保留渲染器架构；WP16 规格见 [wp16-world-rendering-and-visual-transitions](../specs/overworld/wp16-world-rendering-and-visual-transitions.md) |
 | F05-04 | D05 | 精灵、天气与场景过渡 | 角色/物品精灵、反射阴影、天气叠层和转场动画 | Engine/Overworld | E11、E28、E31 | Reviewed（WP16 精灵/反射/天气/过渡范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Inventoried（动态阴影创建者与实际时序范围） | 中 | 资源缺失，视觉时序未运行验证；WP16 规格见 [wp16-world-rendering-and-visual-transitions](../specs/overworld/wp16-world-rendering-and-visual-transitions.md) |
 | F05-05 | D05 | 消息与基础窗口 | 显示文本、选项、数量、提示及用户等待反馈 | UI | E11、E10 | Reviewed（WP17 消息/选项/数量/交界范围，2026-09-23 外审闭合 PASS_SCOPED；管理性回填）＋Inventoried（真实交互观察范围） | 高 | 文字格式、取消与输入上限已按源码提取；WP17 规格见 [wp17-messages-windows-input](../specs/ui/wp17-messages-windows-input.md) 及附表 [wp17-draw-text-tags](../specs/ui/wp17-draw-text-tags.md) |
@@ -256,7 +256,7 @@ Classification 使用一个主要类别；必要的跨域分类记入 Notes。�
 | F18-01 | D18 | 调试与情境构造 | 修改状态、创建队伍/战斗、操控地图与检查效果 | Demo/Developer Experience | E33、E21、E24 | Reviewed（限定静态范围，2026-10-02 统一首审系列 v5 记录复核 PASS_SCOPED——WP72 A～F 调试入口与可见性、世界情境与会话控制、玩家/队伍/存储/背包操控、个体诊断与编辑、测试战斗与战斗内观察/编辑、日志与工具边界具名范围）＋Inventoried（宿主环境/工具内部/demo 编排/随机序列未验证范围） | 高 | 作为作者行为要求，不建议照搬调试实现；WP72 规格见 [wp72-debug-contexts-and-controls](../specs/demo/wp72-debug-contexts-and-controls.md) |
 | F18-02 | D18 | 数据和世界编辑器 | 编辑训练家、物种、遭遇、地图连接、地形及指标 | Demo/Developer Experience | E33、E05、E04 | Reviewed（限定静态范围，2026-10-02 统一首审系列 v5 记录复核 PASS_SCOPED——WP73-A 属性框架与训练家类型/训练家战斗/道具/物种/全局与玩家元数据/地区图鉴内容编辑器、WP73-B 地图连接/地图元数据/地形标签/遭遇/指标编辑与无效图块修复具名范围）＋Inventoried（编辑器运行验证/素材/demo 编排未验证范围） | 高 | 保存/反写兼容是独立验收点；WP73-A 规格见 [wp73-a-content-editors](../specs/demo/wp73-a-content-editors.md)；WP73-B 规格见 [wp73-b-world-editors](../specs/demo/wp73-b-world-editors.md) |
 | F18-03 | D18 | 战斗动画制作 | 编辑/组织/导入/导出动画并关联表现资源 | Demo/Developer Experience | E33、E11 | Reviewed（限定静态范围，2026-10-02 WP74 首审系列 v4 有界复审 PASS_SCOPED 18/18——WP74 A～F 进入离开与环境恢复、集合与动画管理、帧与单元编辑、区间/路径与音画时序、预览播放、交换与兼容具名范围）＋Inventoried（编辑器运行验证/素材/demo 编排未验证范围） | 中 | 无动画资产和运行验证；WP74 规格见 [wp74-battle-animation-authoring-and-exchange](../specs/demo/wp74-battle-animation-authoring-and-exchange.md) |
-| F18-04 | D18 | 工程转换与外围制作工具 | 事件简写转换、旧脚本用法转换、文件组织及辅助制作 | Demo/Developer Experience | E01、E05、E33 | Reviewed（限定静态范围，2026-10-02 WP75 首审系列 v4 有界复审 PASS_SCOPED 20/20——WP75 A～F 入口与触发、新地图导入、事件简写转换（训练家/道具球/门/事件名/柜台）、旧用法与文本规范化、编译驱动与脚本往返、区域地图文本与外围工具具名范围）＋Inventoried（工具运行验证/素材/demo 编排未验证范围） | 中 | 地图类转换在 demo 缺素材不可运行；WP75 规格见 [wp75-project-conversion-and-authoring-tools](../specs/demo/wp75-project-conversion-and-authoring-tools.md) |
+| F18-04 | D18 | 工程转换与外围制作工具 | 事件简写转换、旧脚本用法转换、文件组织及辅助制作 | Demo/Developer Experience | E01、E05、E33 | Reviewed（限定静态范围，2026-10-02 WP75 首审系列 v4 有界复审 PASS_SCOPED 20/20——WP75 A～F 入口与触发、新地图导入、事件简写转换（训练家/道具球/门/事件名/柜台）、旧用法与文本规范化、编译驱动与脚本往返、区域地图文本与外围工具具名范围）＋Inventoried（工具运行验证/素材/demo 编排未验证范围） | 中 | 地图类转换在 demo 缺素材不可运行；WP75 规格见 [wp75-project-conversion-and-authoring-tools](../specs/demo/wp75-project-conversion-and-authoring-tools.md)；第七轮有限静态补充：固定文字扩展工具的标记门、四目标独立尺寸请求及Batch按钮只定位见净化WP75 §14与R7-U11-EXT-01–12；SOURCE_STATIC／DERIVED_VECTOR，实际接口/尺寸/周期/进程归属/自动启动仍未验证，原Reviewed历史资格不扩张 |
 | F18-05 | D18 | 挑战内容生成与评估 | 生成参赛生物/训练家池并筛选/模拟评估 | Demo/Developer Experience | E27 | Reviewed（限定静态范围，2026-10-02 WP76 首审系列 v4 短复审 PASS_SCOPED 20/20——WP76 A～F 入口与触发、复用已有列表、候选个体生成、队伍组建与迭代、模拟对战与评级、训练家池与写出具名静态范围；管理性回填）＋Inventoried（生成器运行验证/素材/demo 编排未验证范围） | 中 | 不将生成器当作普通游戏战斗；WP76 规格见 [wp76-facility-content-generation-and-simulation](../specs/demo/wp76-facility-content-generation-and-simulation.md) |
 | F18-06 | D18 | demo 场景与能力示例 | 用地图、遭遇、训练家和设施配置建立演示覆盖候选 | Demo/Developer Experience | E34、E18、E26、E27 | Reviewed（WP77 A～D 具名静态范围——配置事实/静态能力候选/缺口登记，2026-10-03 v3 短复审通过 PASS_SCOPED、原 9 项＋N01 共 10 项全关闭，见 review/wp77-review-2026-10-03/recheck-v3/report.md）＋Provisional（事件可达性与 demo 演示范围——材料缺失，待事件证据） | 中 | 有配置证据，未证实事件可达性；WP77 规格见 [wp77-demo-evidence-and-capability-coverage](../specs/demo/wp77-demo-evidence-and-capability-coverage.md) |
 | F18-07 | D18 | 基线、缺失材料与兼容范围 | 明确当前快照实际包含什么、还需哪些演示/运行证据 | Demo/Developer Experience | E01、E02、E34 | Reviewed（WP01 基线范围）＋Provisional（WP77 Demo 范围）＋Reviewed（WP77 配置/候选/缺口登记范围，2026-10-03 v3 短复审通过 PASS_SCOPED、10 项全关闭，见 review/wp77-review-2026-10-03/recheck-v3/report.md） | 高 | 高置信度针对缺失事实；WP01 规格见 [wp01-baseline-and-evidence-scope](../specs/demo/wp01-baseline-and-evidence-scope.md)，2026-09-19 闭合复审通过；demo 实际流程仍未知，WP77 有事件证据后方可标记已演示 |
@@ -550,7 +550,7 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 | R6-DX-COMP-001 | R6-U09／C | 运行中直接编译与启动检查的导入、预删／诊断后删除、错误前缀及正常收尾分开，删除只是尝试。 控制：KL37–39／DXCOMP-C01–03、坏招式／007／合法对照 | WP04 §3.3／§4.5／WP72 §10／WP75 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-COMP-002 | R6-U09／C | 合法编译可磁盘新而预载缓存旧，反写仍读旧缓存；冷缓存、显式失效与动画／连接独立缓存分开。 控制：KL40–45／DXCOMP-C04–08及零有效名门 | WP04 §5.6／WP75／WP74／WP62 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-COMP-003 | R6-U09／C | 普通缩进独立注释预处理为空后仍可语法拒绝，专用训练家先处理略空；首节／节内及字段井号分层。 控制：KL33–35／KL46–50及列首井号／空行对照 | WP04 §4.2／WP03 §5.1 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
-| R6-DX-DEBUG-001 | R6-U08／C | Debug部分添加仍反馈请求数量，容量不足返回false不等于完全未入；取消／无限口袋／后段显示失败分开。 控制：DG-U08-01–04、空／998／999容量 | WP72 §5.2／WP27 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
+| R6-DX-DEBUG-001 | R6-U08／C | Debug部分添加仍反馈请求数量，容量不足返回false不等于完全未入；取消／无限口袋／后段显示失败分开。 控制：DG-U08-01–04、空／998／999容量 | WP72 §5.3／WP27（当前导航勘误：[GR7-H08-001](../review/remediation-seventh-20261015-prepare/current-navigation-errata.json)） | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-002 | R6-U08／C | 传送返回前同步地图／公共事件刷新，Refresh map直接置请求；随后消息微更新可消费，观察点按前缀限定。 控制：DG-U08-05–08及取消／后项失败 | WP72 §2.3／§3.2／WP17 §7.2 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-003 | R6-U08／C | F9新登记受消息、解释器和冰／瀑移动门约束，旧请求消费不重检新门；强制路线WAIT与自动移动标记不同。 控制：DG-U08-09–16及排队／暂停／调试关 | WP72 §2.1／WP12 §4.3 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-004 | R6-U08／C | AI零评分变化在全部输出门之前返回，旧缓冲保持；非零、独立打印和显式flush各有边界。 控制：DG-U08-17–22、±1／门开关／文件失败 | WP72 §9／WP51 | 独立实际静态PASS；有限登记PASS；正式接受；CLOSED |
@@ -567,3 +567,26 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 
 完整源／消费者、五组签名及独立有限验收见同步输入；正式接受限静态合同，不授新增运行证明。
 <!-- R6-CURRENT-SYNC-END -->
+
+## 第七轮 R7-U01 作者候选（待冻结与独立复审）
+
+本段仅在 candidates/R7-U01 镜像中提出贡献；状态 **CANDIDATE_READY_NOT_REVIEWED**。固定B为 e646432c644dec04d306842cc5a559a29c718fbc；仅本批两项最小静态合同，分母仍27项/13批，不采用7 optional、2额外导航facet、1 no-required、2 policy。候选PASS、实际整合PASS、ACCEPTED和CLOSED各有独立接收门；旧56/92关闭边界不由本段改变。
+
+| ID／关联Feature | 本批候选条款与向量 | 状态与依赖 |
+| --- | --- | --- |
+| GR7-M01-001／F01-02、F02-01 | WP03 §3.1：五类纯整数主身份的查找与记录对整数比较分开，保留同类/符号/字符串/双身份与查询覆写；GR7-M01-001-V1–V3 | SOURCE_STATIC／DERIVED_VECTOR；NOT_EXECUTED；待非作者候选复核、R7-I逐条整合、实际整合独立复核及具名历史回归 |
+| GR7-J01-001／F01-02、F02-01、F02-02、F04-06 | WP03 §5.1.2／§5.2、WP04 §4.2：三类节头接受域、省略/空位0、显式0拒绝、别名查询与第二节拒绝；两个测试目录同一J01-V01–V13；含Tileset7/23合法组对照 | SOURCE_STATIC／DERIVED_VECTOR；NOT_EXECUTED；保留Species先登记、Shadow本例启用、三消费者不同查询门、No/Yes及直接/启动失败前缀。C03 E009/E010旧错误anchor不恢复为完整SUPPORTED；正反向贡献见本批作者证据 |
+
+本批没有作者阻塞入边；共享文件冲突CG01/CG02/CG03/CG04/CG07仍由R7-I按条款整合。L01–L14、有效配置UNVERIFIED以及本批宿主/Demo/native媒体/真实存档回放0保持；不提前关闭未满足依赖。
+
+## 第七轮 U02 有界静态资料候选（待独立复审）
+
+下行只贡献固定 B 上 GR7-D06-001 的有限资料，状态 CANDIDATE_READY_NOT_REVIEWED；不是公共接收/关闭登记，不增加 Feature 或本轮 27 项/13 批分母，旧 56/92 关闭边界保持。
+
+| 父 Feature / 必修 | 有界提取与目标 | 证据资格 | 具名未满足依赖 |
+| --- | --- | --- | --- |
+| F05-06 / GR7-D06-001 | WP17 §6.1：映射表是请求数据，随附解析器仅本次核定的 15 按钮+6 轴目标名；DB-0087 a:b0 正常追加、misc1:b9 请求错误不追加而外层继续后继字段；输入/帮助别名层保持。UI 目录 R7-U02-DB01–05/BT01–15/AX01–06，精确二进制来源见 source-traceability 的本批条目 | 有界数据与反汇编静态阅读；向量 NOT_EXECUTED；1666+257、731 Windows 仅既有 TOOL_VALIDATION 计数，不签全 1923 记录字段语义、76/48 或注册优先级；未运行参考/宿主 | CC04 实际注册/宿主查询桥未读、真实设备/后端未验证；更宽等价须另补静态桥及授权运行。R7-I 共享条款接收、非作者候选复审、实际整合复审与精确历史/消费者回归仍 OPEN；词汇扩展/旧缺陷兼容另作政策 |
+
+## 第七轮累计整合的当前接收状态
+
+上列第七轮作者候选段保留各自制作时点的候选状态和原证据资格。当前独立候选审查、逐条整合及后续正式接受状态以[本轮实际接收登记](../review/remediation-seventh-20261015-prepare/integration/wave2/v1/public-reception.json)为准；作者证据通过该登记的固定候选提交与精确路径读取。U01、U02、U06、U08、U09、U11、U12、U13 本次已逐条整合，等待新 context 审查实际累计字节，尚未正式接受或关闭。U04/U05 的三项已有独立实际整合 PASS 和 R7-I 正式接受，关闭仍单独登记。U03/U07/U10 保留流程资格 WAIT，未合入。所有行为向量仍 NOT_EXECUTED，宿主等运行0、有效配置 UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持。
