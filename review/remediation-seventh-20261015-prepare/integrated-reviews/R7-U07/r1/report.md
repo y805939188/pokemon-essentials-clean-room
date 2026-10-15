@@ -73,3 +73,5 @@ SOURCE_STATIC、DERIVED_VECTOR、TOOL_VALIDATION分开。新增参考观察/进�
 两次早期机械失败如实保留：U01报告路径误用r1导致404；候选导航JSON与实际行政字段不同导致断言失败。纠正后完整重核通过，仅获TOOL_VALIDATION。初始若干读取没有独立落盘每命令UTC/PID/三流；平台I/O、恢复HTTP回执与现存stderr保留，不补造。另一次空列表探查IndexError和shell API tunnel403分开登记，非规格缺陷、非认证状态查询、非自动审批拒绝。
 
 唯一隔离checkout由B建立，分支 `codex/r7-ir-u07-20261015-r1`；仅本目录四主文件及真实工具证据普通commit/push。不携带MI正文、候选镜像、公共台账，不改main/tag，不force。manifest不自哈希；最终commit/tree和全部文件不可变URL完整响应体读回在外部返回绑定，避免自引用。
+
+首次内容发布已普通推送并完整回读：commit `9813f11521ed2deb088cfed2285490e73e351c1f` / tree `26a1ecb99d5785e180d0a7b1755ea68b59076cfc`，21文件、665,529字节，读回前后远端ref相同且所有完整HTTP响应体与Git/本地字节相等。真实命令、UTC/PID/三流及逐文件身份见 [payload-publication](evidence/payload-publication.json)。本封装仅补运输证据、此说明与manifest，不改变逐项结论；最终封装commit/tree及其全部文件重新回读由最终工具I/O与返回在外部绑定。
