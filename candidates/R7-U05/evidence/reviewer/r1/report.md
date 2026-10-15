@@ -71,4 +71,8 @@
 
 L01–L14全部保留；27项／13批分母、7 optional／2导航facet／1 no-required／2 policy未采用及旧56／92边界不变。参考执行、独立完整行为模型、宿主／Demo／native媒体／真实存档回放新增均0。既有H14/UTIL-03的1进程10输入不属于本任务，不回填为本次运行。
 
-成果仅写 `candidates/R7-U05/evidence/reviewer/r1/`，唯一运输分支为 `codex/r7-u05-reviewer-20261015-r1`，独立worktree从固定B创建。无作者镜像、正式文件、公共台账、main或tag修改；只普通提交／推送。运输首轮读回回执将保存在 tools/，最终封装commit/tree及其全部文件的再次远端完整读回由最终工具I/O和任务返回绑定，避免递归自指。
+成果仅写 `candidates/R7-U05/evidence/reviewer/r1/`，唯一运输分支为 `codex/r7-u05-reviewer-20261015-r1`，独立worktree从固定B创建。无作者镜像、正式文件、公共台账、main或tag修改；只普通提交／推送。
+
+首轮内容提交 `dd7094435b20252fd4777519ebab0a277e906208`，tree `ea734cedbdaac6083ab48e5606295bdb38ed4d01`，直接父为固定B。确认远端同名分支不存在后普通push，exit0；随后 ls-remote／fetch核回同一完整commit，23文件／186,936字节从该不可变远端URL全部完整读取，与Git blob及本地字节完全相同。完整命令I/O与逐文件HTTP／身份见 `tools/remote-readback-content.json`。这只证明运输，不替代以上独立语义判断。
+
+本首轮回执与本段纳入封装提交；最终封装commit/tree及其全部文件的再次远端完整读回由最终工具I/O和任务返回绑定，避免递归自指。最终普通push只允许把本task的首轮commit快进到封装commit，若远端不同则保护原成果并停止。
