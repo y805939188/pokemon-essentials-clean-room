@@ -87,3 +87,5 @@ SOURCE_STATIC、DERIVED_VECTOR、TOOL_VALIDATION分别记录。所有行为向�
 早期定位、下载、内容阅读的真实I/O在平台工具记录及恢复回执，未另存的逐命令UTC/PID/分离流不回填；续审阅读同样沿实际平台输出。后继审计、提交、普通push和远端回读保存真实argv、cwd、UTC、工具PID、stdout/stderr及exit。哈希、退出0与作者自审从未代替语义判断；私有模型流不发布。
 
 唯一隔离checkout从B创建，成果分支 `codex/r7-ir-u12-20261015-r1`。仅写本r1的报告、逐ID、输入回执、manifest与工具证据，不携带MI正文／候选镜像，不改main/tag、正式正文或公共台账，不force。`7ce48732`及`38ea9afb`是已发布的历史部分审查和运输证据，本次追加完成证据。最终真实commit/tree与完整逐文件远端响应体回读在最终回传绑定；manifest自身由实际提交tree和外部最终回读证明，避免自引用。
+
+完成内容载荷已普通推送并完整回读：commit `7b940e1fa68767f4f590f5412f95dd4af1f07b57`，tree `500a490f208a90c41a2d61380f37c660a1cf6a51`；68文件／3,904,804字节，全部不可变HTTP完整响应体与Git/本地匹配，分支前后固定。见 `tool-evidence/completion-publication.json`、`completion-payload-readback.json` 和 logs/008。本后继封装只归档真实运输证据、此附记及manifest；两项内容结论与MI/FI不变。最终封装提交仍另作全文件远端回读，由最终回传绑定。
