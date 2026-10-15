@@ -1,3 +1,17 @@
+# 当前第七轮状态（历史记录保留）
+
+当前13批、27项的最新作者候选已全部接收并冻结；含U01旧候选的历史版本共14份。实际r1独立复审收到3份：U04两项PASS，U05一项PASS；U01旧M01有限PASS/J01FAIL保留，新返修a3938bbb另立r2，未继承旧PASS、未整合旧U01。
+
+U04/U05的3项、5份文档已按11hunk实际整合到b0eea808；实际输入冻结d9021aa2，新的R7-IR ultra完整文件在integration/U04-U05/v1/R7-IR-dispatch.md。仍无实际整合PASS、ACCEPTED、CLOSED。未改main。
+
+其余10批及U01返修版共11份具体ultra候选复审输入已就绪，见intake/20261015-author-wave/reviewer-dispatch-index.json。当前候选PASS为3/27项、2/13批；实际整合PASS、正式接受、关闭均0。源/行为向量未执行，模型有效配置UNVERIFIED，L01-L14保持。
+
+任务创建仅由父会话；根未创建模型任务。父会话若已创建本次请求须按其实际ID续接，不能因根未收到ID而重复创建。当前已知16个任务及12个待创建请求见delegation/task-registry/current.json。
+
+---
+
+## 以下为原开工与派发导航，旧计数保留生成时点
+
 # 当前状态：父会话已创建13作者及3候选审者，禁止重复创建
 
 当前任务ID以../task-registry/current.json为准；新创建10作者和3reviewer的执行进度尚未由整合者独立确认，等待父会话转交实际结果。以下派发资格与早期状态保留生成时点，不能再据它重复创建已登记任务。
