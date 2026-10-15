@@ -82,3 +82,5 @@ r1报告里的CG01–03路径简称与固定图不一致，本报告按原图重
 早期环境侦察、源/文档读取、fetch、bootstrap有平台工具I/O；恢复另有真实HTTP UTC/状态回执，但早期命令未全部另存逐命令UTC/stdout/stderr/PID，不能倒填。取得合同全文前执行过一次gh认证状态诊断；这是流程偏差，不是模型配置认证，未读取/发布凭证值，后续未再查询额度或认证。对/root技能路径的探查遇权限拒绝，不声称已读。字节审计器两次因作者manifest内B身份路径与候选路径未正确区分而退出1；失败日志保留，修正后119成员/完整差异/5绑定核对退出0。后续提交/push/远端读回使用完整公开I/O记录器；没有保存私有模型流。
 
 成果严格限唯一分支 `codex/r7-u01-reviewer-20261015-r2`，从固定B的独立checkout产生，仅写 `candidates/R7-U01/evidence/reviewer/r2/`，不携带作者镜像，不改旧r1/正式/main/tag。最终commit/tree及完整远端回读由外层交付绑定；manifest不伪称包含自身最终hash。若前次回读证据随后继提交归档，它只证明其明确列出的前一commit，最终commit另作全量远端验证。
+
+首个真实发布提交 `b75be5daa0c106f0a0a5f2ed79d456553e528b6d`，tree `8e33d8863eb8841610aa54e358b8de006a3bb226`，普通push退出0；固定远端URL完整回读28文件／469,256字节，每项HTTP200、完整bytes/SHA256/blob/mode匹配，远端tip前后相同。首次回读argv曾误填一个以b75be5da开头的无效完整ID，尚未进入文件验证便失败；完整错误日志保留，不赋任何身份信用。随后采用Git实读的上述完整ID成功回读，见tool-evidence/readback-first-corrected.json。当前后继提交仅归档真实运输证据、记录该错误和说明并更新manifest；两项结论不变，最终commit另作全量远端回读。
