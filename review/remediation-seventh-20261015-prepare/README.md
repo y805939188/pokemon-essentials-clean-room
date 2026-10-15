@@ -39,3 +39,5 @@ R7-I是唯一整合/公共登记写者：先固定候选bytes及作者context �
 指定配置CLI启动尝试 R7-U13-A-01（真实PID1417）在创建thread前因只读文件系统退出1，无thread ID、无候选。此为执行环境障碍，未触发自动批准拒绝。原stdout/stderr、请求与退出留在[启动尝试](launch-attempts/R7-U13-A-01/reception.json)。未改用其它模型/速度；当前可直接由父会话创建13作者，独立reviewer等待冻结候选。真实任务启动数0，候选/整合PASS、ACCEPTED、CLOSED仍全部0。
 
 精简prompt与合同的固定提交为 `f622356f`；完整提交和路径见[固定委派绑定](delegation/fixed-dispatch-binding.json)。
+
+同一云端环境恢复已确认，原准备成果及本地证据保留，未重复派发作者。独立容器不能假定共享本环境绝对路径；请使用[逐批跨容器恢复说明](recovery/independent-containers.md)、`recovery/batches/<批次>.json` 和 `tools/restore_container_context.py`。恢复工具只取具名固定证据及读输入，不扫描80MB Manifest、不创建任务。U01远端/续传和U08共享编码对象回执已保存；这些是同环境隔离目录试验，不宣称真实独立容器验证。原prompt和合同固定提交f622356f不变。
