@@ -1,0 +1,715 @@
+
+FILE Data/Scripts/016_UI/001_Non-interactive UI/006_UI_HallOfFame.rb
+1: #===============================================================================
+2: # * Hall of Fame - by FL (Credits will be apreciated)
+3: #===============================================================================
+4: #
+5: # This script is for Pokémon Essentials. It makes a recordable Hall of Fame
+6: # like the Gen 3 games.
+7: #
+8: #===============================================================================
+9: #
+10: # To this scripts works, put it above main, put a 512x384 picture in
+11: # hallfamebars and a 8x24 background picture in hallfamebg. To call this script,
+12: # use 'pbHallOfFameEntry'. After you recorder the first entry, you can access
+13: # the hall teams using a PC. You can also check the player Hall of Fame last
+14: # number using '$PokemonGlobal.hallOfFameLastNumber'.
+15: #
+16: #===============================================================================
+17: class HallOfFame_Scene
+18:   # When true, all pokémon will be in one line.
+19:   # When false, all pokémon will be in two lines.
+20:   SINGLE_ROW_OF_POKEMON = false
+21:   # Make the pokémon movement ON in hall entry.
+22:   ANIMATION = true
+23:   # Time in seconds for a Pokémon to slide to its position from off-screen.
+24:   APPEAR_SPEED = 0.4
+25:   # Entry wait time (in seconds) between showing each Pokémon (and trainer).
+26:   ENTRY_WAIT_TIME = 3.0
+27:   # Wait time (in seconds) when showing "Welcome to the Hall of Fame!".
+28:   WELCOME_WAIT_TIME = 4.0
+29:   # Maximum number limit of simultaneous hall entries saved.
+30:   # 0 = Doesn't save any hall. -1 = no limit
+31:   # Prefer to use larger numbers (like 500 and 1000) than don't put a limit.
+32:   # If a player exceed this limit, the first one will be removed.
+33:   HALL_ENTRIES_LIMIT = 50
+34:   # The entry music name. Put "" to doesn't play anything.
+35:   HALL_OF_FAME_BGM = "Hall of Fame"
+36:   # Allow eggs to be show and saved in hall.
+37:   ALLOW_EGGS = true
+38:   # Remove the hallbars when the trainer sprite appears.
+39:   REMOVE_BARS_WHEN_SHOWING_TRAINER = true
+40:   # The final fade speed on entry.
+41:   FINAL_FADE_DURATION = 1.0
+42:   # Sprite's opacity value when it isn't selected.
+43:   OPACITY = 64
+44:   TEXT_BASE_COLOR   = Color.new(248, 248, 248)
+45:   TEXT_SHADOW_COLOR = Color.new(0, 0, 0)
+46: 
+47:   # Placement for pokemon icons
+48:   def pbStartScene
+49:     @sprites = {}
+50:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+51:     @viewport.z = 99999
+52:     # Comment the below line to doesn't use a background
+53:     addBackgroundPlane(@sprites, "bg", "Hall of Fame/bg", @viewport)
+54:     @sprites["hallbars"] = IconSprite.new(@viewport)
+55:     @sprites["hallbars"].setBitmap("Graphics/UI/Hall of Fame/bars")
+56:     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+57:     @sprites["overlay"].z = 10
+58:     pbSetSystemFont(@sprites["overlay"].bitmap)
+59:     @alreadyFadedInEnd = false
+60:     @useMusic = false
+61:     @battlerIndex = 0
+62:     @hallEntry = []
+63:     @nationalDexList = [:NONE]
+64:     GameData::Species.each_species { |s| @nationalDexList.push(s.species) }
+65:   end
+66: 
+67:   def pbStartSceneEntry
+68:     pbStartScene
+69:     @useMusic = (HALL_OF_FAME_BGM && HALL_OF_FAME_BGM != "")
+70:     pbBGMPlay(HALL_OF_FAME_BGM) if @useMusic
+71:     saveHallEntry
+72:     @movements = []
+73:     createBattlers
+74:     pbFadeInAndShow(@sprites) { pbUpdate }
+75:   end
+76: 
+77:   def pbStartScenePC
+78:     pbStartScene
+79:     @hallIndex = $PokemonGlobal.hallOfFame.size - 1
+80:     @hallEntry = $PokemonGlobal.hallOfFame[-1]
+81:     createBattlers(false)
+82:     pbFadeInAndShow(@sprites) { pbUpdate }
+83:     pbUpdatePC
+84:   end
+85: 
+86:   def pbEndScene
+87:     $game_map.autoplay if @useMusic
+88:     pbDisposeMessageWindow(@sprites["msgwindow"]) if @sprites.include?("msgwindow")
+89:     pbFadeOutAndHide(@sprites) { pbUpdate } if !@alreadyFadedInEnd
+90:     pbDisposeSpriteHash(@sprites)
+91:     @viewport.dispose
+92:   end
+93: 
+94:   def slowFadeOut(duration)
+95:     col = Color.new(0, 0, 0, 0)
+96:     timer_start = System.uptime
+97:     loop do
+98:       col.alpha = lerp(0, 255, duration, timer_start, System.uptime)
+99:       @viewport.color = col
+100:       Graphics.update
+101:       Input.update
+102:       pbUpdate
+103:       break if col.alpha == 255
+104:     end
+105:   end
+106: 
+107:   # Dispose the sprite if the sprite exists and make it null
+108:   def restartSpritePosition(sprites, spritename)
+109:     sprites[spritename].dispose if sprites.include?(spritename) && sprites[spritename]
+110:     sprites[spritename] = nil
+111:   end
+112: 
+113:   # Change the pokémon sprites opacity except the index one
+114:   def setPokemonSpritesOpacity(index, opacity = 255)
+115:     @hallEntry.size.times do |n|
+116:       @sprites["pokemon#{n}"].opacity = (n == index) ? 255 : opacity if @sprites["pokemon#{n}"]
+117:     end
+118:   end
+119: 
+120:   def saveHallEntry
+121:     $player.party.each do |pkmn|
+122:       # Clones every pokémon object
+123:       @hallEntry.push(pkmn.clone) if !pkmn.egg? || ALLOW_EGGS
+124:     end
+125:     # Update the global variables
+126:     $PokemonGlobal.hallOfFame.push(@hallEntry)
+127:     $PokemonGlobal.hallOfFameLastNumber += 1
+128:     if HALL_ENTRIES_LIMIT >= 0 && $PokemonGlobal.hallOfFame.size > HALL_ENTRIES_LIMIT
+129:       $PokemonGlobal.hallOfFame.delete_at(0)
+130:     end
+131:   end
+132: 
+133:   # Return the x/y point position in screen for battler index number
+134:   # Don't use odd numbers!
+135:   def xpointformula(battlernumber)
+136:     if SINGLE_ROW_OF_POKEMON
+137:       ret = ((60 * (battlernumber / 2)) + 48) * (xpositionformula(battlernumber) - 1)   # -48, 48, -108, 108, -168, 168
+138:       return ret + (Graphics.width / 2)                   # 208, 304, 148, 364, 88, 424
+139:     end
+140:     return 96 + (160 * xpositionformula(battlernumber))   # 256, 96, 456, 256, 456, 96
+141:   end
+142: 
+143:   def ypointformula(battlernumber)
+144:     return 180 - (32 * (battlernumber / 2)) if SINGLE_ROW_OF_POKEMON   # 180, 180, 148, 148, 116, 116
+145:     return 96 + (64 * ypositionformula(battlernumber))                 # 90, 90, 90, 160, 160, 160
+146:   end
+147: 
+148:   # Returns 0, 1 or 2 as the x position value (left, middle, right column)
+149:   def xpositionformula(battlernumber)
+150:     return (battlernumber % 2) * 2 if SINGLE_ROW_OF_POKEMON       # 0, 2, 0, 2, 0, 2
+151:     return (1 - battlernumber) % 3 if (battlernumber / 3).even?   # First 3 mons: 1, 0, 2
+152:     return (1 + battlernumber) % 3                                # Second 3 mons: 1, 2, 0
+153:   end
+154: 
+155:   # Returns 0, 1 or 2 as the y position value (top, middle, bottom row)
+156:   def ypositionformula(battlernumber)
+157:     return 1 if SINGLE_ROW_OF_POKEMON      # 1, 1, 1, 1, 1, 1
+158:     return ((battlernumber / 3) % 2) * 2   # 0, 0, 0, 2, 2, 2
+159:   end
+160: 
+161:   def moveSprite(i)
+162:     spritename = (i > -1) ? "pokemon#{i}" : "trainer"
+163:     if !ANIMATION   # Skips animation, place directly in end position
+164:       @sprites[spritename].x = @movements[i][1]
+165:       @sprites[spritename].y = @movements[i][3]
+166:       @movements[i][0] = @movements[i][1]
+167:       @movements[i][2] = @movements[i][3]
+168:       return
+169:     end
+170:     @movements[i][4] = System.uptime if !@movements[i][4]
+171:     speed = (i > -1) ? APPEAR_SPEED : APPEAR_SPEED * 3
+172:     @sprites[spritename].x = lerp(@movements[i][0], @movements[i][1], speed, @movements[i][4], System.uptime)
+173:     @sprites[spritename].y = lerp(@movements[i][2], @movements[i][3], speed, @movements[i][4], System.uptime)
+174:     @movements[i][0] = @movements[i][1] if @sprites[spritename].x == @movements[i][1]
+175:     @movements[i][2] = @movements[i][3] if @sprites[spritename].y == @movements[i][3]
+176:   end
+177: 
+178:   def createBattlers(hide = true)
+179:     # Movement in animation
+180:     Settings::MAX_PARTY_SIZE.times do |i|
+181:       # Clear all pokémon sprites and dispose the ones that exists every time
+182:       # that this method is call
+183:       restartSpritePosition(@sprites, "pokemon#{i}")
+184:       next if i >= @hallEntry.size
+185:       end_x = xpointformula(i)
+186:       end_y = ypointformula(i)
+187:       @sprites["pokemon#{i}"] = PokemonSprite.new(@viewport)
+188:       @sprites["pokemon#{i}"].setPokemonBitmap(@hallEntry[i])
+189:       # This method doesn't put the exact coordinates
+190:       @sprites["pokemon#{i}"].x = end_x
+191:       @sprites["pokemon#{i}"].y = end_y
+192:       @sprites["pokemon#{i}"].z = Settings::MAX_PARTY_SIZE - i if SINGLE_ROW_OF_POKEMON
+193:       next if !hide
+194:       # Animation distance calculation
+195:       x_direction = xpositionformula(i) - 1
+196:       y_direction = ypositionformula(i) - 1
+197:       distance = 0
+198:       if y_direction == 0
+199:         distance = (x_direction > 0) ? end_x : Graphics.width - end_x
+200:         distance += @sprites["pokemon#{i}"].bitmap.width / 2
+201:       else
+202:         distance = (y_direction > 0) ? end_y : Graphics.height - end_y
+203:         distance += @sprites["pokemon#{i}"].bitmap.height / 2
+204:       end
+205:       start_x = end_x - (x_direction * distance)
+206:       start_y = end_y - (y_direction * distance)
+207:       @sprites["pokemon#{i}"].x = start_x
+208:       @sprites["pokemon#{i}"].y = start_y
+209:       @movements[i] = [start_x, end_x, start_y, end_y]
+210:     end
+211:   end
+212: 
+213:   def createTrainerBattler
+214:     @sprites["trainer"] = IconSprite.new(@viewport)
+215:     @sprites["trainer"].setBitmap(GameData::TrainerType.player_front_sprite_filename($player.trainer_type))
+216:     if SINGLE_ROW_OF_POKEMON
+217:       @sprites["trainer"].x = Graphics.width / 2
+218:       @sprites["trainer"].y = 208
+219:     else
+220:       @sprites["trainer"].x = Graphics.width - 96
+221:       @sprites["trainer"].y = 160
+222:     end
+223:     @movements.push([Graphics.width / 2, @sprites["trainer"].x, @sprites["trainer"].y, @sprites["trainer"].y])
+224:     @sprites["trainer"].z = 9
+225:     @sprites["trainer"].ox = @sprites["trainer"].bitmap.width / 2
+226:     @sprites["trainer"].oy = @sprites["trainer"].bitmap.height / 2
+227:     if REMOVE_BARS_WHEN_SHOWING_TRAINER
+228:       @sprites["overlay"].bitmap.clear
+229:       @sprites["hallbars"].visible = false
+230:     end
+231:     if ANIMATION && !SINGLE_ROW_OF_POKEMON   # Trainer Animation
+232:       @sprites["trainer"].x = @movements.last[0]
+233:     else
+234:       timer_start = System.uptime
+235:       loop do
+236:         Graphics.update
+237:         Input.update
+238:         pbUpdate
+239:         break if System.uptime - timer_start >= ENTRY_WAIT_TIME
+240:       end
+241:     end
+242:   end
+243: 
+244:   def writeTrainerData
+245:     if $PokemonGlobal.hallOfFameLastNumber == 1
+246:       totalsec = $stats.time_to_enter_hall_of_fame.to_i
+247:     else
+248:       totalsec = $stats.play_time.to_i
+249:     end
+250:     hour = totalsec / 60 / 60
+251:     min = totalsec / 60 % 60
+252:     pubid = sprintf("%05d", $player.public_ID)
+253:     lefttext = _INTL("Name<r>{1}", $player.name) + "<br>"
+254:     lefttext += _INTL("ID No.<r>{1}", pubid) + "<br>"
+255:     if hour > 0
+256:       lefttext += _INTL("Time<r>{1}h {2}m", hour, min) + "<br>"
+257:     else
+258:       lefttext += _INTL("Time<r>{1}m", min) + "<br>"
+259:     end
+260:     lefttext += _INTL("Pokédex<r>{1}/{2}",
+261:                       $player.pokedex.owned_count, $player.pokedex.seen_count) + "<br>"
+262:     @sprites["messagebox"] = Window_AdvancedTextPokemon.new(lefttext)
+263:     @sprites["messagebox"].viewport = @viewport
+264:     @sprites["messagebox"].width = 192 if @sprites["messagebox"].width < 192
+265:     @sprites["msgwindow"] = pbCreateMessageWindow(@viewport)
+266:     pbMessageDisplay(@sprites["msgwindow"],
+267:                      _INTL("League champion!\nCongratulations!") + "\\^")
+268:   end
+269: 
+270:   def writePokemonData(pokemon, hallNumber = -1)
+271:     overlay = @sprites["overlay"].bitmap
+272:     overlay.clear
+273:     pokename = pokemon.name
+274:     speciesname = pokemon.speciesName
+275:     if pokemon.male?
+276:       speciesname += "♂"
+277:     elsif pokemon.female?
+278:       speciesname += "♀"
+279:     end
+280:     pokename += "/" + speciesname
+281:     pokename = _INTL("Egg") + "/" + _INTL("Egg") if pokemon.egg?
+282:     idno = (pokemon.owner.name.empty? || pokemon.egg?) ? "?????" : sprintf("%05d", pokemon.owner.public_id)
+283:     dexnumber = _INTL("No. ???")
+284:     if !pokemon.egg?
+285:       number = @nationalDexList.index(pokemon.species) || 0
+286:       dexnumber = _ISPRINTF("No. {1:03d}", number)
+287:     end
+288:     textPositions = [
+289:       [dexnumber, 32, Graphics.height - 74, :left, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR],
+290:       [pokename, Graphics.width - 192, Graphics.height - 74, :center, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR],
+291:       [_INTL("Lv. {1}", pokemon.egg? ? "?" : pokemon.level),
+292:        64, Graphics.height - 42, :left, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR],
+293:       [_INTL("ID No. {1}", pokemon.egg? ? "?????" : idno),
+294:        Graphics.width - 192, Graphics.height - 42, :center, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR]
+295:     ]
+296:     if hallNumber > -1
+297:       textPositions.push([_INTL("Hall of Fame No."), (Graphics.width / 2) - 104, 6, :left, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR])
+298:       textPositions.push([hallNumber.to_s, (Graphics.width / 2) + 104, 6, :right, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR])
+299:     end
+300:     pbDrawTextPositions(overlay, textPositions)
+301:   end
+302: 
+303:   def writeWelcome
+304:     overlay = @sprites["overlay"].bitmap
+305:     overlay.clear
+306:     pbDrawTextPositions(overlay, [[_INTL("Welcome to the Hall of Fame!"),
+307:                                    Graphics.width / 2, Graphics.height - 68, :center, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR]])
+308:   end
+309: 
+310:   def pbAnimationLoop
+311:     loop do
+312:       Graphics.update
+313:       Input.update
+314:       pbUpdate
+315:       pbUpdateAnimation
+316:       break if @battlerIndex == @hallEntry.size + 2
+317:     end
+318:   end
+319: 
+320:   def pbPCSelection
+321:     loop do
+322:       Graphics.update
+323:       Input.update
+324:       pbUpdate
+325:       continueScene = true
+326:       break if Input.trigger?(Input::BACK)   # Exits
+327:       if Input.trigger?(Input::USE)   # Moves the selection one entry backward
+328:         @battlerIndex += 10
+329:         continueScene = pbUpdatePC
+330:       end
+331:       if Input.trigger?(Input::LEFT)   # Moves the selection one pokémon forward
+332:         @battlerIndex -= 1
+333:         continueScene = pbUpdatePC
+334:       end
+335:       if Input.trigger?(Input::RIGHT)   # Moves the selection one pokémon backward
+336:         @battlerIndex += 1
+337:         continueScene = pbUpdatePC
+338:       end
+339:       break if !continueScene
+340:     end
+341:   end
+342: 
+343:   def pbUpdate
+344:     pbUpdateSpriteHash(@sprites)
+345:   end
+346: 
+347:   def pbUpdateAnimation
+348:     if @battlerIndex <= @hallEntry.size
+349:       if @movements[@battlerIndex] &&
+350:          (@movements[@battlerIndex][0] != @movements[@battlerIndex][1] ||
+351:          @movements[@battlerIndex][2] != @movements[@battlerIndex][3])
+352:         spriteIndex = (@battlerIndex < @hallEntry.size) ? @battlerIndex : -1
+353:         moveSprite(spriteIndex)
+354:       else
+355:         @battlerIndex += 1
+356:         if @battlerIndex <= @hallEntry.size
+357:           # If it is a pokémon, write the pokémon text, wait the
+358:           # ENTRY_WAIT_TIME and goes to the next battler
+359:           @hallEntry[@battlerIndex - 1].play_cry
+360:           writePokemonData(@hallEntry[@battlerIndex - 1])
+361:           timer_start = System.uptime
+362:           loop do
+363:             Graphics.update
+364:             Input.update
+365:             pbUpdate
+366:             break if System.uptime - timer_start >= ENTRY_WAIT_TIME
+367:           end
+368:           if @battlerIndex < @hallEntry.size   # Preparates the next battler
+369:             setPokemonSpritesOpacity(@battlerIndex, OPACITY)
+370:             @sprites["overlay"].bitmap.clear
+371:           else   # Show the welcome message and prepares the trainer
+372:             setPokemonSpritesOpacity(-1)
+373:             writeWelcome
+374:             timer_start = System.uptime
+375:             loop do
+376:               Graphics.update
+377:               Input.update
+378:               pbUpdate
+379:               break if System.uptime - timer_start >= WELCOME_WAIT_TIME
+380:             end
+381:             setPokemonSpritesOpacity(-1, OPACITY) if !SINGLE_ROW_OF_POKEMON
+382:             createTrainerBattler
+383:           end
+384:         end
+385:       end
+386:     elsif @battlerIndex > @hallEntry.size
+387:       # Write the trainer data and fade
+388:       writeTrainerData
+389:       timer_start = System.uptime
+390:       loop do
+391:         Graphics.update
+392:         Input.update
+393:         pbUpdate
+394:         break if System.uptime - timer_start >= ENTRY_WAIT_TIME
+395:       end
+396:       pbBGMFade(FINAL_FADE_DURATION) if @useMusic
+397:       slowFadeOut(FINAL_FADE_DURATION)
+398:       @alreadyFadedInEnd = true
+399:       @battlerIndex += 1
+400:     end
+401:   end
+402: 
+403:   def pbUpdatePC
+404:     # Change the team
+405:     if @battlerIndex >= @hallEntry.size
+406:       @hallIndex -= 1
+407:       return false if @hallIndex == -1
+408:       @hallEntry = $PokemonGlobal.hallOfFame[@hallIndex]
+409:       @battlerIndex = 0
+410:       createBattlers(false)
+411:     elsif @battlerIndex < 0
+412:       @hallIndex += 1
+413:       return false if @hallIndex >= $PokemonGlobal.hallOfFame.size
+414:       @hallEntry = $PokemonGlobal.hallOfFame[@hallIndex]
+415:       @battlerIndex = @hallEntry.size - 1
+416:       createBattlers(false)
+417:     end
+418:     # Change the pokemon
+419:     @hallEntry[@battlerIndex].play_cry
+420:     setPokemonSpritesOpacity(@battlerIndex, OPACITY)
+421:     hallNumber = $PokemonGlobal.hallOfFameLastNumber + @hallIndex -
+422:                  $PokemonGlobal.hallOfFame.size + 1
+423:     writePokemonData(@hallEntry[@battlerIndex], hallNumber)
+424:     return true
+425:   end
+426: end
+427: 
+428: #===============================================================================
+429: #
+430: #===============================================================================
+431: class HallOfFameScreen
+432:   def initialize(scene)
+433:     @scene = scene
+434:   end
+435: 
+436:   def pbStartScreenEntry
+437:     @scene.pbStartSceneEntry
+438:     @scene.pbAnimationLoop
+439:     @scene.pbEndScene
+440:   end
+441: 
+442:   def pbStartScreenPC
+443:     @scene.pbStartScenePC
+444:     @scene.pbPCSelection
+445:     @scene.pbEndScene
+446:   end
+447: end
+448: 
+449: #===============================================================================
+450: #
+451: #===============================================================================
+452: MenuHandlers.add(:pc_menu, :hall_of_fame, {
+453:   "name"      => _INTL("Hall of Fame"),
+454:   "order"     => 40,
+455:   "condition" => proc { next $PokemonGlobal.hallOfFameLastNumber > 0 },
+456:   "effect"    => proc { |menu|
+457:     pbMessage("\\se[PC access]" + _INTL("Accessed the Hall of Fame."))
+458:     pbHallOfFamePC
+459:     next false
+460:   }
+461: })
+462: 
+463: #===============================================================================
+464: #
+465: #===============================================================================
+466: class PokemonGlobalMetadata
+467:   attr_writer :hallOfFame
+468:   # Number necessary if hallOfFame array reach in its size limit
+469:   attr_writer :hallOfFameLastNumber
+470: 
+471:   def hallOfFame
+472:     @hallOfFame = [] if !@hallOfFame
+473:     return @hallOfFame
+474:   end
+475: 
+476:   def hallOfFameLastNumber
+477:     return @hallOfFameLastNumber || 0
+478:   end
+479: end
+480: 
+481: #===============================================================================
+482: #
+483: #===============================================================================
+484: def pbHallOfFameEntry
+485:   scene = HallOfFame_Scene.new
+486:   screen = HallOfFameScreen.new(scene)
+487:   screen.pbStartScreenEntry
+488: end
+489: 
+490: def pbHallOfFamePC
+491:   scene = HallOfFame_Scene.new
+492:   screen = HallOfFameScreen.new(scene)
+493:   screen.pbStartScreenPC
+494: end
+
+FILE Data/Scripts/008_Audio/002_Audio_Play.rb
+1: def pbStringToAudioFile(str)
+2:   if str[/^(.*)\:\s*(\d+)\s*\:\s*(\d+)\s*$/]   # Of the format "XXX: ###: ###"
+3:     file   = $1
+4:     volume = $2.to_i
+5:     pitch  = $3.to_i
+6:     return RPG::AudioFile.new(file, volume, pitch)
+7:   elsif str[/^(.*)\:\s*(\d+)\s*$/]             # Of the format "XXX: ###"
+8:     file   = $1
+9:     volume = $2.to_i
+10:     return RPG::AudioFile.new(file, volume, 100)
+11:   else
+12:     return RPG::AudioFile.new(str, 100, 100)
+13:   end
+14: end
+15: 
+16: # Converts an object to an audio file.
+17: # str -- Either a string showing the filename or an RPG::AudioFile object.
+18: # Possible formats for _str_:
+19: # filename                        volume and pitch 100
+20: # filename:volume           pitch 100
+21: # filename:volume:pitch
+22: # volume -- Volume of the file, up to 100
+23: # pitch -- Pitch of the file, normally 100
+24: def pbResolveAudioFile(str, volume = nil, pitch = nil)
+25:   if str.is_a?(String)
+26:     str = pbStringToAudioFile(str)
+27:     str.volume = volume || 100
+28:     str.pitch  = pitch || 100
+29:   end
+30:   if str.is_a?(RPG::AudioFile)
+31:     if volume || pitch
+32:       return RPG::AudioFile.new(str.name, volume || str.volume || 100,
+33:                                 pitch || str.pitch || 100)
+34:     else
+35:       return str
+36:     end
+37:   end
+38:   return str
+39: end
+40: 
+41: #===============================================================================
+42: 
+43: # Plays a BGM file.
+44: # param -- Either a string showing the filename
+45: # (relative to Audio/BGM/) or an RPG::AudioFile object.
+46: # Possible formats for _param_:
+47: # filename                        volume and pitch 100
+48: # filename:volume           pitch 100
+49: # filename:volume:pitch
+50: # volume -- Volume of the file, up to 100
+51: # pitch -- Pitch of the file, normally 100
+52: def pbBGMPlay(param, volume = nil, pitch = nil)
+53:   return if !param
+54:   param = pbResolveAudioFile(param, volume, pitch)
+55:   if param.name && param.name != ""
+56:     if $game_system
+57:       $game_system.bgm_play(param)
+58:       return
+59:     elsif (RPG.const_defined?(:BGM) rescue false)
+60:       b = RPG::BGM.new(param.name, param.volume, param.pitch)
+61:       if b.respond_to?("play")
+62:         b.play
+63:         return
+64:       end
+65:     end
+66:     Audio.bgm_play(canonicalize("Audio/BGM/" + param.name), param.volume, param.pitch)
+67:   end
+68: end
+69: 
+70: # Fades out or stops BGM playback. 'x' is the time in seconds to fade out.
+71: def pbBGMFade(x = 0.0); pbBGMStop(x); end
+72: 
+73: # Fades out or stops BGM playback. 'x' is the time in seconds to fade out.
+74: def pbBGMStop(timeInSeconds = 0.0)
+75:   if $game_system && timeInSeconds > 0.0
+76:     $game_system.bgm_fade(timeInSeconds)
+77:     return
+78:   elsif $game_system
+79:     $game_system.bgm_stop
+80:     return
+81:   elsif (RPG.const_defined?(:BGM) rescue false)
+82:     begin
+83:       (timeInSeconds > 0.0) ? RPG::BGM.fade((timeInSeconds * 1000).floor) : RPG::BGM.stop
+84:       return
+85:     rescue
+86:     end
+87:   end
+88:   (timeInSeconds > 0.0) ? Audio.bgm_fade((timeInSeconds * 1000).floor) : Audio.bgm_stop
+89: end
+90: 
+91: #===============================================================================
+92: 
+93: # Plays an ME file.
+94: # param -- Either a string showing the filename
+95: # (relative to Audio/ME/) or an RPG::AudioFile object.
+96: # Possible formats for _param_:
+97: # filename                        volume and pitch 100
+98: # filename:volume           pitch 100
+99: # filename:volume:pitch
+100: # volume -- Volume of the file, up to 100
+101: # pitch -- Pitch of the file, normally 100
+102: def pbMEPlay(param, volume = nil, pitch = nil)
+103:   return if !param
+104:   param = pbResolveAudioFile(param, volume, pitch)
+105:   if param.name && param.name != ""
+106:     if $game_system
+107:       $game_system.me_play(param)
+108:       return
+109:     elsif (RPG.const_defined?(:ME) rescue false)
+110:       b = RPG::ME.new(param.name, param.volume, param.pitch)
+111:       if b.respond_to?("play")
+112:         b.play
+113:         return
+114:       end
+115:     end
+
+FILE Data/Scripts/004_Game classes/002_Game_System.rb
+1: #===============================================================================
+2: # ** Game_System
+3: #------------------------------------------------------------------------------
+4: #  This class handles data surrounding the system. Backround music, etc.
+5: #  is managed here as well. Refer to "$game_system" for the instance of
+6: #  this class.
+7: #===============================================================================
+8: class Game_System
+9:   attr_reader   :map_interpreter          # map event interpreter
+10:   attr_reader   :battle_interpreter       # battle event interpreter
+11:   attr_accessor :timer_start              # $stats.play_time when timer was started, or nil
+12:   attr_accessor :timer_duration           # Time (in seconds) the timer is initially set to
+13:   attr_accessor :save_disabled            # save forbidden
+14:   attr_accessor :menu_disabled            # menu forbidden
+15:   attr_accessor :encounter_disabled       # encounter forbidden
+16:   attr_accessor :message_position         # text option: positioning
+17:   attr_accessor :message_frame            # text option: window frame
+18:   attr_accessor :save_count               # save count
+19:   attr_accessor :magic_number             # magic number
+20:   attr_accessor :autoscroll_x_speed
+21:   attr_accessor :autoscroll_y_speed
+22:   attr_accessor :bgm_position
+23: 
+24:   def initialize
+25:     @map_interpreter    = Interpreter.new(0, true)
+26:     @battle_interpreter = Interpreter.new(0, false)
+27:     @timer_start        = nil
+28:     @timer_duration     = 0
+29:     @save_disabled      = false
+30:     @menu_disabled      = false
+31:     @encounter_disabled = false
+32:     @message_position   = 2
+33:     @message_frame      = 0
+34:     @save_count         = 0
+35:     @magic_number       = 0
+36:     @autoscroll_x_speed = 0
+37:     @autoscroll_y_speed = 0
+38:     @bgm_position       = 0
+39:     @bgs_position       = 0
+40:   end
+41: 
+42:   #-----------------------------------------------------------------------------
+43: 
+44:   def bgm_play(bgm, track = nil)
+45:     old_pos = @bgm_position
+46:     @bgm_position = 0
+47:     bgm_play_internal(bgm, 0, track)
+48:     @bgm_position = old_pos
+49:   end
+50: 
+51:   def bgm_play_internal2(name, volume, pitch, position, track = nil) # :nodoc:
+52:     vol = volume
+53:     vol *= $PokemonSystem.bgmvolume / 100.0
+54:     vol = vol.to_i
+55:     begin
+56:       Audio.bgm_play(name, vol, pitch, position, track)
+57:     rescue ArgumentError
+58:       Audio.bgm_play(name, vol, pitch, 0, track)
+59:     end
+60:   end
+61: 
+62:   def bgm_play_internal(bgm, position, track = nil) # :nodoc:
+63:     if !track || track == 0
+64:       @bgm_position = position if !@bgm_paused
+65:       @playing_bgm = bgm&.clone
+66:     end
+67:     if bgm && bgm.name != ""
+68:       if !@defaultBGM && FileTest.audio_exist?("Audio/BGM/" + bgm.name)
+69:         bgm_play_internal2("Audio/BGM/" + bgm.name, bgm.volume, bgm.pitch, @bgm_position, track)
+70:       end
+71:     else
+72:       if !track || track == 0
+73:         @bgm_position = position if !@bgm_paused
+74:         @playing_bgm = nil
+75:       end
+76:       Audio.bgm_stop(track) if !@defaultBGM
+77:     end
+78:     if @defaultBGM
+79:       bgm_play_internal2("Audio/BGM/" + @defaultBGM.name,
+80:                          @defaultBGM.volume, @defaultBGM.pitch, @bgm_position, track)
+81:     end
+82:     Graphics.frame_reset
+83:   end
+84: 
+85:   def bgm_pause(fadetime = 0.0) # :nodoc:
+86:     pos = Audio.bgm_pos rescue 0
+87:     self.bgm_fade(fadetime) if fadetime > 0.0
+88:     @bgm_position = pos
+89:     @bgm_paused   = true
+90:   end
+91: 
+92:   def bgm_unpause  # :nodoc:
+93:     @bgm_position = 0
+94:     @bgm_paused   = false
+95:   end
+96: 
+97:   def bgm_resume(bgm) # :nodoc:
+98:     if @bgm_paused
+99:       self.bgm_play_internal(bgm, @bgm_position)
+100:       @bgm_position = 0

@@ -1,0 +1,719 @@
+
+FILE Data/Scripts/011_Battle/004_Scene/006_Battle_Scene_Objects.rb
+1: #===============================================================================
+2: # Data box for regular battles
+3: #===============================================================================
+4: class Battle::Scene::PokemonDataBox < Sprite
+5:   attr_reader   :battler
+6:   attr_accessor :selected
+7: 
+8:   # Time in seconds to fully fill the Exp bar (from empty).
+9:   EXP_BAR_FILL_TIME = 1.75
+10:   # Time in seconds for this data box to flash when the Exp fully fills.
+11:   EXP_FULL_FLASH_DURATION = 0.2
+12:   # Maximum time in seconds to make a change to the HP bar.
+13:   HP_BAR_CHANGE_TIME = 1.0
+14:   # Time (in seconds) for one complete sprite bob cycle (up and down) while
+15:   # choosing a command for this battler or when this battler is being chosen as
+16:   # a target. Set to nil to prevent bobbing.
+17:   BOBBING_DURATION = 0.6
+18:   # Height in pixels of a status icon
+19:   STATUS_ICON_HEIGHT = 16
+20:   # Text colors
+21:   NAME_BASE_COLOR         = Color.new(72, 72, 72)
+22:   NAME_SHADOW_COLOR       = Color.new(184, 184, 184)
+23:   MALE_BASE_COLOR         = Color.new(48, 96, 216)
+24:   MALE_SHADOW_COLOR       = NAME_SHADOW_COLOR
+25:   FEMALE_BASE_COLOR       = Color.new(248, 88, 40)
+26:   FEMALE_SHADOW_COLOR     = NAME_SHADOW_COLOR
+27: 
+28:   def initialize(battler, sideSize, viewport = nil)
+29:     super(viewport)
+30:     @battler         = battler
+31:     @sprites         = {}
+32:     @spriteX         = 0
+33:     @spriteY         = 0
+34:     @spriteBaseX     = 0
+35:     @selected        = 0
+36:     @show_hp_numbers = false
+37:     @show_exp_bar    = false
+38:     initializeDataBoxGraphic(sideSize)
+39:     initializeOtherGraphics(viewport)
+40:     refresh
+41:   end
+42: 
+43:   def initializeDataBoxGraphic(sideSize)
+44:     onPlayerSide = @battler.index.even?
+45:     # Get the data box graphic and set whether the HP numbers/Exp bar are shown
+46:     if sideSize == 1   # One Pokémon on side, use the regular dara box BG
+47:       bgFilename = [_INTL("Graphics/UI/Battle/databox_normal"),
+48:                     _INTL("Graphics/UI/Battle/databox_normal_foe")][@battler.index % 2]
+49:       if onPlayerSide
+50:         @show_hp_numbers = true
+51:         @show_exp_bar    = true
+52:       end
+53:     else   # Multiple Pokémon on side, use the thin dara box BG
+54:       bgFilename = [_INTL("Graphics/UI/Battle/databox_thin"),
+55:                     _INTL("Graphics/UI/Battle/databox_thin_foe")][@battler.index % 2]
+56:     end
+57:     @databoxBitmap&.dispose
+58:     @databoxBitmap = AnimatedBitmap.new(bgFilename)
+59:     # Determine the co-ordinates of the data box and the left edge padding width
+60:     if onPlayerSide
+61:       @spriteX = Graphics.width - 244
+62:       @spriteY = Graphics.height - 192
+63:       @spriteBaseX = 34
+64:     else
+65:       @spriteX = -16
+66:       @spriteY = 36
+67:       @spriteBaseX = 16
+68:     end
+69:     case sideSize
+70:     when 2
+71:       @spriteX += [-12,  12,  0,  0][@battler.index]
+72:       @spriteY += [-20, -34, 34, 20][@battler.index]
+73:     when 3
+74:       @spriteX += [-12,  12, -6,  6,  0,  0][@battler.index]
+75:       @spriteY += [-42, -46,  4,  0, 50, 46][@battler.index]
+76:     end
+77:   end
+78: 
+79:   def initializeOtherGraphics(viewport)
+80:     # Create other bitmaps
+81:     @numbersBitmap = AnimatedBitmap.new("Graphics/UI/Battle/icon_numbers")
+82:     @hpBarBitmap   = AnimatedBitmap.new("Graphics/UI/Battle/overlay_hp")
+83:     @expBarBitmap  = AnimatedBitmap.new("Graphics/UI/Battle/overlay_exp")
+84:     # Create sprite to draw HP numbers on
+85:     @hpNumbers = BitmapSprite.new(124, 16, viewport)
+86: #    pbSetSmallFont(@hpNumbers.bitmap)
+87:     @sprites["hpNumbers"] = @hpNumbers
+88:     # Create sprite wrapper that displays HP bar
+89:     @hpBar = Sprite.new(viewport)
+90:     @hpBar.bitmap = @hpBarBitmap.bitmap
+91:     @hpBar.src_rect.height = @hpBarBitmap.height / 3
+92:     @sprites["hpBar"] = @hpBar
+93:     # Create sprite wrapper that displays Exp bar
+94:     @expBar = Sprite.new(viewport)
+95:     @expBar.bitmap = @expBarBitmap.bitmap
+96:     @sprites["expBar"] = @expBar
+97:     # Create sprite wrapper that displays everything except the above
+98:     @contents = Bitmap.new(@databoxBitmap.width, @databoxBitmap.height)
+99:     self.bitmap  = @contents
+100:     self.visible = false
+101:     self.z       = 150 + ((@battler.index / 2) * 5)
+102:     pbSetSystemFont(self.bitmap)
+103:   end
+104: 
+105:   def dispose
+106:     pbDisposeSpriteHash(@sprites)
+107:     @databoxBitmap.dispose
+108:     @numbersBitmap.dispose
+109:     @hpBarBitmap.dispose
+110:     @expBarBitmap.dispose
+111:     @contents.dispose
+112:     super
+113:   end
+114: 
+115:   def x=(value)
+116:     super
+117:     @hpBar.x     = value + @spriteBaseX + 102
+118:     @expBar.x    = value + @spriteBaseX + 6
+119:     @hpNumbers.x = value + @spriteBaseX + 80
+120:   end
+121: 
+122:   def y=(value)
+123:     super
+124:     @hpBar.y     = value + 40
+125:     @expBar.y    = value + 74
+126:     @hpNumbers.y = value + 52
+127:   end
+128: 
+129:   def z=(value)
+130:     super
+131:     @hpBar.z     = value + 1
+132:     @expBar.z    = value + 1
+133:     @hpNumbers.z = value + 2
+134:   end
+135: 
+136:   def opacity=(value)
+137:     super
+138:     @sprites.each do |i|
+139:       i[1].opacity = value if !i[1].disposed?
+140:     end
+141:   end
+142: 
+143:   def visible=(value)
+144:     super
+145:     @sprites.each do |i|
+146:       i[1].visible = value if !i[1].disposed?
+147:     end
+148:     @expBar.visible = (value && @show_exp_bar)
+149:   end
+150: 
+151:   def color=(value)
+152:     super
+153:     @sprites.each do |i|
+154:       i[1].color = value if !i[1].disposed?
+155:     end
+156:   end
+157: 
+158:   def battler=(b)
+159:     @battler = b
+160:     self.visible = (@battler && !@battler.fainted?)
+161:   end
+162: 
+163:   def hp
+164:     return (animating_hp?) ? @anim_hp_current : @battler.hp
+165:   end
+166: 
+167:   def exp_fraction
+168:     if animating_exp?
+169:       return 0.0 if @anim_exp_range == 0
+170:       return @anim_exp_current.to_f / @anim_exp_range
+171:     end
+172:     return @battler.pokemon.exp_fraction
+173:   end
+174: 
+175:   # NOTE: A change in HP takes the same amount of time to animate, no matter how
+176:   #       big a change it is.
+177:   def animate_hp(old_val, new_val)
+178:     return if old_val == new_val
+179:     @anim_hp_start = old_val
+180:     @anim_hp_end = new_val
+181:     @anim_hp_current = old_val
+182:     @anim_hp_timer_start = System.uptime
+183:   end
+184: 
+185:   def animating_hp?
+186:     return @anim_hp_timer_start != nil
+187:   end
+188: 
+189:   # NOTE: Filling the Exp bar from empty to full takes EXP_BAR_FILL_TIME seconds
+190:   #       no matter what. Filling half of it takes half as long, etc.
+191:   def animate_exp(old_val, new_val, range)
+192:     return if old_val == new_val || range == 0 || !@show_exp_bar
+193:     @anim_exp_start = old_val
+194:     @anim_exp_end = new_val
+195:     @anim_exp_range = range
+196:     @anim_exp_duration_mult = (new_val - old_val).abs / range.to_f
+197:     @anim_exp_current = old_val
+198:     @anim_exp_timer_start = System.uptime
+199:     pbSEPlay("Pkmn exp gain") if @show_exp_bar
+200:   end
+201: 
+202:   def animating_exp?
+203:     return @anim_exp_timer_start != nil
+204:   end
+205: 
+206:   def pbDrawNumber(number, btmp, startX, startY, align = :left)
+207:     # -1 means draw the / character
+208:     n = (number == -1) ? [10] : number.to_i.digits.reverse
+209:     charWidth  = @numbersBitmap.width / 11
+210:     charHeight = @numbersBitmap.height
+211:     startX -= charWidth * n.length if align == :right
+212:     n.each do |i|
+213:       btmp.blt(startX, startY, @numbersBitmap.bitmap, Rect.new(i * charWidth, 0, charWidth, charHeight))
+214:       startX += charWidth
+215:     end
+216:   end
+217: 
+218:   def draw_background
+219:     self.bitmap.blt(0, 0, @databoxBitmap.bitmap, Rect.new(0, 0, @databoxBitmap.width, @databoxBitmap.height))
+220:   end
+221: 
+222:   def draw_name
+223:     nameWidth = self.bitmap.text_size(@battler.name).width
+224:     nameOffset = 0
+225:     nameOffset = nameWidth - 116 if nameWidth > 116
+226:     pbDrawTextPositions(self.bitmap, [[@battler.name, @spriteBaseX + 8 - nameOffset, 12, :left,
+227:                                        NAME_BASE_COLOR, NAME_SHADOW_COLOR]]
+228:     )
+229:   end
+230: 
+231:   def draw_level
+232:     # "Lv" graphic
+233:     pbDrawImagePositions(self.bitmap, [[_INTL("Graphics/UI/Battle/overlay_lv"), @spriteBaseX + 140, 16]])
+234:     # Level number
+235:     pbDrawNumber(@battler.level, self.bitmap, @spriteBaseX + 162, 16)
+236:   end
+237: 
+238:   def draw_gender
+239:     gender = @battler.displayGender
+240:     return if ![0, 1].include?(gender)
+241:     gender_text  = (gender == 0) ? _INTL("♂") : _INTL("♀")
+242:     base_color   = (gender == 0) ? MALE_BASE_COLOR : FEMALE_BASE_COLOR
+243:     shadow_color = (gender == 0) ? MALE_SHADOW_COLOR : FEMALE_SHADOW_COLOR
+244:     pbDrawTextPositions(self.bitmap, [[gender_text, @spriteBaseX + 126, 12, :left, base_color, shadow_color]])
+245:   end
+246: 
+247:   def draw_status
+248:     return if @battler.status == :NONE
+249:     if @battler.status == :POISON && @battler.statusCount > 0   # Badly poisoned
+250:       s = GameData::Status.count - 1
+251:     else
+252:       s = GameData::Status.get(@battler.status).icon_position
+253:     end
+254:     return if s < 0
+255:     pbDrawImagePositions(self.bitmap, [[_INTL("Graphics/UI/Battle/icon_statuses"), @spriteBaseX + 24, 36,
+256:                                         0, s * STATUS_ICON_HEIGHT, -1, STATUS_ICON_HEIGHT]])
+257:   end
+258: 
+259:   def draw_shiny_icon
+260:     return if !@battler.shiny?
+261:     shiny_x = (@battler.opposes?(0)) ? 206 : -6   # Foe's/player's
+262:     pbDrawImagePositions(self.bitmap, [["Graphics/UI/shiny", @spriteBaseX + shiny_x, 36]])
+263:   end
+264: 
+265:   def draw_special_form_icon
+266:     # Mega Evolution/Primal Reversion icon
+267:     if @battler.mega?
+268:       pbDrawImagePositions(self.bitmap, [["Graphics/UI/Battle/icon_mega", @spriteBaseX + 8, 34]])
+269:     elsif @battler.primal?
+270:       filename = nil
+271:       if @battler.isSpecies?(:GROUDON)
+272:         filename = "Graphics/UI/Battle/icon_primal_Groudon"
+273:       elsif @battler.isSpecies?(:KYOGRE)
+274:         filename = "Graphics/UI/Battle/icon_primal_Kyogre"
+275:       end
+276:       primalX = (@battler.opposes?) ? 208 : -28   # Foe's/player's
+277:       pbDrawImagePositions(self.bitmap, [[filename, @spriteBaseX + primalX, 4]]) if filename
+278:     end
+279:   end
+280: 
+281:   def draw_owned_icon
+282:     return if !@battler.owned? || !@battler.opposes?(0)   # Draw for foe Pokémon only
+283:     pbDrawImagePositions(self.bitmap, [["Graphics/UI/Battle/icon_own", @spriteBaseX + 8, 36]])
+284:   end
+285: 
+286:   def refresh
+287:     self.bitmap.clear
+288:     return if !@battler.pokemon
+289:     draw_background
+290:     draw_name
+291:     draw_level
+292:     draw_gender
+293:     draw_status
+294:     draw_shiny_icon
+295:     draw_special_form_icon
+296:     draw_owned_icon
+297:     refresh_hp
+298:     refresh_exp
+299:   end
+300: 
+301:   def refresh_hp
+302:     @hpNumbers.bitmap.clear
+303:     return if !@battler.pokemon
+304:     # Show HP numbers
+305:     if @show_hp_numbers
+306:       pbDrawNumber(self.hp, @hpNumbers.bitmap, 54, 2, :right)
+307:       pbDrawNumber(-1, @hpNumbers.bitmap, 54, 2)   # / char
+308:       pbDrawNumber(@battler.totalhp, @hpNumbers.bitmap, 70, 2)
+309:     end
+310:     # Resize HP bar
+311:     w = 0
+312:     if self.hp > 0
+313:       w = @hpBarBitmap.width.to_f * self.hp / @battler.totalhp
+314:       w = 1 if w < 1
+315:       # NOTE: The line below snaps the bar's width to the nearest 2 pixels, to
+316:       #       fit in with the rest of the graphics which are doubled in size.
+317:       w = ((w / 2.0).round) * 2
+318:     end
+319:     @hpBar.src_rect.width = w
+320:     hpColor = 0                                      # Green bar
+321:     hpColor = 1 if self.hp <= @battler.totalhp / 2   # Yellow bar
+322:     hpColor = 2 if self.hp <= @battler.totalhp / 4   # Red bar
+323:     @hpBar.src_rect.y = hpColor * @hpBarBitmap.height / 3
+324:   end
+325: 
+326:   def refresh_exp
+327:     return if !@show_exp_bar
+328:     w = exp_fraction * @expBarBitmap.width
+329:     # NOTE: The line below snaps the bar's width to the nearest 2 pixels, to
+330:     #       fit in with the rest of the graphics which are doubled in size.
+331:     w = ((w / 2).round) * 2
+332:     @expBar.src_rect.width = w
+333:   end
+334: 
+335:   def update_hp_animation
+336:     return if !animating_hp?
+337:     @anim_hp_current = lerp(@anim_hp_start, @anim_hp_end, HP_BAR_CHANGE_TIME,
+338:                             @anim_hp_timer_start, System.uptime)
+339:     # Refresh the HP bar/numbers
+340:     refresh_hp
+341:     # End the HP bar filling animation
+342:     if @anim_hp_current == @anim_hp_end
+343:       @anim_hp_start = nil
+344:       @anim_hp_end = nil
+345:       @anim_hp_timer_start = nil
+346:       @anim_hp_current = nil
+347:     end
+348:   end
+349: 
+350:   def update_exp_animation
+351:     return if !animating_exp?
+352:     if !@show_exp_bar   # Not showing the Exp bar, no need to waste time animating it
+353:       @anim_exp_timer_start = nil
+354:       return
+355:     end
+356:     duration = EXP_BAR_FILL_TIME * @anim_exp_duration_mult
+357:     @anim_exp_current = lerp(@anim_exp_start, @anim_exp_end, duration,
+358:                              @anim_exp_timer_start, System.uptime)
+359:     # Refresh the Exp bar
+360:     refresh_exp
+361:     return if @anim_exp_current != @anim_exp_end   # Exp bar still has more to animate
+362:     # End the Exp bar filling animation
+363:     if @anim_exp_current >= @anim_exp_range
+364:       if @anim_exp_flash_timer_start
+365:         # Waiting for Exp full flash to finish
+366:         return if System.uptime - @anim_exp_flash_timer_start < EXP_FULL_FLASH_DURATION
+367:       else
+368:         # Show the Exp full flash
+369:         @anim_exp_flash_timer_start = System.uptime
+370:         pbSEStop
+371:         pbSEPlay("Pkmn exp full")
+372:         flash_duration = EXP_FULL_FLASH_DURATION * Graphics.frame_rate   # Must be in frames, not seconds
+373:         self.flash(Color.new(64, 200, 248, 192), flash_duration)
+374:         @sprites.each do |i|
+375:           i[1].flash(Color.new(64, 200, 248, 192), flash_duration) if !i[1].disposed?
+376:         end
+377:         return
+378:       end
+379:     end
+380:     pbSEStop if !@anim_exp_flash_timer_start
+381:     @anim_exp_start = nil
+382:     @anim_exp_end = nil
+383:     @anim_exp_duration_mult = nil
+384:     @anim_exp_current = nil
+385:     @anim_exp_timer_start = nil
+386:     @anim_exp_flash_timer_start = nil
+387:   end
+388: 
+389:   def update_positions
+390:     self.x = @spriteX
+391:     self.y = @spriteY
+392:     # Data box bobbing while Pokémon is selected
+393:     if (@selected == 1 || @selected == 2) && BOBBING_DURATION   # Choosing commands/targeted
+394:       bob_delta = System.uptime % BOBBING_DURATION   # 0-BOBBING_DURATION
+395:       bob_frame = (4 * bob_delta / BOBBING_DURATION).floor
+396:       case bob_frame
+397:       when 1 then self.y = @spriteY - 2
+398:       when 3 then self.y = @spriteY + 2
+399:       end
+400:     end
+401:   end
+402: 
+403:   def update
+404:     super
+405:     # Animate HP bar
+406:     update_hp_animation
+407:     # Animate Exp bar
+408:     update_exp_animation
+409:     # Update coordinates of the data box
+410:     update_positions
+411:     pbUpdateSpriteHash(@sprites)
+412:   end
+413: end
+
+FILE Data/Scripts/001_Technical/002_RubyUtilities.rb
+394: #===============================================================================
+395: # Linear interpolation between two values, given the duration of the change and
+396: # either:
+397: #   - the time passed since the start of the change (delta), or
+398: #   - the start time of the change (delta) and the current time (now)
+399: #===============================================================================
+400: def lerp(start_val, end_val, duration, delta, now = nil)
+401:   return end_val if duration <= 0
+402:   delta = now - delta if now
+403:   return start_val if delta <= 0
+404:   return end_val if delta >= duration
+405:   return start_val + ((end_val - start_val) * delta / duration.to_f)
+406: end
+
+FILE Data/Scripts/011_Battle/004_Scene/004_Scene_PlayAnimations.rb
+219:   # Shows a HP-changing common animation and animates a data box's HP bar.
+220:   # Called by def pbReduceHP, def pbRecoverHP.
+221:   def pbHPChanged(battler, oldHP, showAnim = false)
+222:     @briefMessage = false
+223:     if battler.hp > oldHP
+224:       pbCommonAnimation("HealthUp", battler) if showAnim && @battle.showAnims
+225:     elsif battler.hp < oldHP
+226:       pbCommonAnimation("HealthDown", battler) if showAnim && @battle.showAnims
+227:     end
+228:     @sprites["dataBox_#{battler.index}"].animate_hp(oldHP, battler.hp)
+229:     while @sprites["dataBox_#{battler.index}"].animating_hp?
+230:       pbUpdate
+231:     end
+232:   end
+233: 
+234:   def pbDamageAnimation(battler, effectiveness = 0)
+235:     @briefMessage = false
+236:     # Damage animation
+237:     damageAnim = Animation::BattlerDamage.new(@sprites, @viewport, battler.index, effectiveness)
+238:     loop do
+239:       damageAnim.update
+240:       pbUpdate
+241:       break if damageAnim.animDone?
+242:     end
+243:     damageAnim.dispose
+244:   end
+245: 
+246:   # Animates battlers flashing and data boxes' HP bars because of damage taken
+247:   # by an attack. targets is an array, which are all animated simultaneously.
+248:   # Each element in targets is also an array: [battler, old HP, effectiveness]
+249:   def pbHitAndHPLossAnimation(targets)
+250:     @briefMessage = false
+251:     # Set up animations
+252:     damageAnims = []
+253:     targets.each do |t|
+254:       anim = Animation::BattlerDamage.new(@sprites, @viewport, t[0].index, t[2])
+273:       end
+274:       next if !allDone
+275:       break
+276:     end
+277:     damageAnims.each { |a| a.dispose }
+278:   end
+279: 
+280:   #=============================================================================
+281:   # Animates a data box's Exp bar
+282:   #=============================================================================
+283:   def pbEXPBar(battler, startExp, endExp, tempExp1, tempExp2)
+284:     return if !battler || endExp == startExp
+285:     startExpLevel = tempExp1 - startExp
+286:     endExpLevel   = tempExp2 - startExp
+287:     expRange      = endExp - startExp
+288:     dataBox = @sprites["dataBox_#{battler.index}"]
+289:     dataBox.animate_exp(startExpLevel, endExpLevel, expRange)
+290:     while dataBox.animating_exp?
+291:       pbUpdate
+292:     end
+293:   end
+294: 
+295:   #=============================================================================
+296:   # Shows stats windows upon a Pokémon levelling up
+297:   #=============================================================================
+298:   def pbLevelUp(pkmn, _battler, oldTotalHP, oldAttack, oldDefense, oldSpAtk, oldSpDef, oldSpeed)
+299:     pbTopRightWindow(
+300:       _INTL("Max. HP<r>+{1}\nAttack<r>+{2}\nDefense<r>+{3}\nSp. Atk<r>+{4}\nSp. Def<r>+{5}\nSpeed<r>+{6}",
+301:             pkmn.totalhp - oldTotalHP, pkmn.attack - oldAttack, pkmn.defense - oldDefense,
+302:             pkmn.spatk - oldSpAtk, pkmn.spdef - oldSpDef, pkmn.speed - oldSpeed)
+303:     )
+304:     pbTopRightWindow(
+305:       _INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+306:             pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed)
+307:     )
+308:   end
+309: 
+
+FILE Data/Scripts/011_Battle/004_Scene/001_Battle_Scene.rb
+79:   def pbUpdate(cw = nil)
+80:     pbGraphicsUpdate
+81:     pbInputUpdate
+82:     pbFrameUpdate(cw)
+83:   end
+84: 
+85:   def pbGraphicsUpdate
+86:     # Update lineup animations
+87:     if @animations.length > 0
+88:       shouldCompact = false
+89:       @animations.each_with_index do |a, i|
+90:         a.update
+91:         next if !a.animDone?
+92:         a.dispose
+93:         @animations[i] = nil
+94:         shouldCompact = true
+95:       end
+96:       @animations.compact! if shouldCompact
+97:     end
+98:     # Update other graphics
+99:     @sprites["battle_bg"].update if @sprites["battle_bg"].respond_to?("update")
+100:     Graphics.update
+101:   end
+102: 
+103:   def pbInputUpdate
+104:     Input.update
+105:     if Input.trigger?(Input::BACK) && @abortable && !@aborted
+106:       @aborted = true
+107:       @battle.pbAbort
+108:     end
+109:   end
+110: 
+111:   def pbFrameUpdate(cw = nil)
+112:     cw&.update
+113:     @battle.battlers.each_with_index do |b, i|
+114:       next if !b
+115:       @sprites["dataBox_#{i}"]&.update
+116:       @sprites["pokemon_#{i}"]&.update
+117:       @sprites["shadow_#{i}"]&.update
+118:     end
+119:   end
+
+FILE Data/Scripts/011_Battle/002_Battler/003_Battler_ChangeSelf.rb
+5:   def pbReduceHP(amt, anim = true, registerDamage = true, anyAnim = true)
+6:     amt = amt.round
+7:     amt = @hp if amt > @hp
+8:     amt = 1 if amt < 1 && !fainted?
+9:     oldHP = @hp
+10:     self.hp -= amt
+11:     PBDebug.log("[HP change] #{pbThis} lost #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+12:     raise _INTL("HP less than 0") if @hp < 0
+13:     raise _INTL("HP greater than total HP") if @hp > @totalhp
+14:     @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+15:     if amt > 0 && registerDamage
+16:       @droppedBelowHalfHP = true if @hp < @totalhp / 2 && @hp + amt >= @totalhp / 2
+17:       @tookDamageThisRound = true
+18:       @tookMoveDamageThisRound = true
+19:     end
+20:     return amt
+21:   end
+22: 
+23:   def pbRecoverHP(amt, anim = true, anyAnim = true)
+24:     amt = amt.round
+25:     amt = @totalhp - @hp if amt > @totalhp - @hp
+26:     amt = 1 if amt < 1 && @hp < @totalhp
+27:     oldHP = @hp
+28:     self.hp += amt
+29:     PBDebug.log("[HP change] #{pbThis} gained #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+30:     raise _INTL("HP less than 0") if @hp < 0
+31:     raise _INTL("HP greater than total HP") if @hp > @totalhp
+32:     @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+33:     @droppedBelowHalfHP = false if @hp >= @totalhp / 2
+34:     return amt
+
+FILE Data/Scripts/014_Pokemon/001_Pokemon.rb
+1085:   # @return [Integer] the maximum HP of this Pokémon
+1086:   def calcHP(base, level, iv, ev)
+1087:     return 1 if base == 1   # For Shedinja
+1088:     iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+1089:     return (((base * 2) + iv + (ev / 4)) * level / 100).floor + level + 10
+1090:   end
+1091: 
+1092:   # @return [Integer] the specified stat of this Pokémon (not used for total HP)
+1093:   def calcStat(base, level, iv, ev, nat)
+1094:     iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+1095:     return (((((base * 2) + iv + (ev / 4)) * level / 100).floor + 5) * nat / 100).floor
+1096:   end
+1097: 
+1098:   # Recalculates this Pokémon's stats.
+1099:   def calc_stats
+1100:     base_stats = self.baseStats
+1101:     this_level = self.level
+1102:     this_IV    = self.calcIV
+1103:     # Format stat multipliers due to nature
+1104:     nature_mod = {}
+1105:     GameData::Stat.each_main { |s| nature_mod[s.id] = 100 }
+1106:     this_nature = self.nature_for_stats
+1107:     if this_nature
+1108:       this_nature.stat_changes.each { |change| nature_mod[change[0]] += change[1] }
+1109:     end
+1110:     # Calculate stats
+1111:     stats = {}
+1112:     GameData::Stat.each_main do |s|
+1113:       if s.id == :HP
+1114:         stats[s.id] = calcHP(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id])
+1115:       else
+1116:         stats[s.id] = calcStat(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id], nature_mod[s.id])
+1117:       end
+1118:     end
+1119:     hp_difference = stats[:HP] - @totalhp
+1120:     @totalhp = stats[:HP]
+1121:     self.hp = [@hp + hp_difference, 1].max if @hp > 0 || hp_difference > 0
+1122:     @attack  = stats[:ATTACK]
+1123:     @defense = stats[:DEFENSE]
+1124:     @spatk   = stats[:SPECIAL_ATTACK]
+1125:     @spdef   = stats[:SPECIAL_DEFENSE]
+1126:     @speed   = stats[:SPEED]
+1127:   end
+
+FILE PBS/pokemon.txt
+629: [PIKACHU]
+630: Name = Pikachu
+631: Types = ELECTRIC
+632: BaseStats = 35,55,40,90,50,50
+633: GenderRatio = Female50Percent
+634: GrowthRate = Medium
+635: BaseExp = 112
+636: EVs = SPEED,2
+637: CatchRate = 190
+638: Happiness = 50
+639: Abilities = STATIC
+640: HiddenAbilities = LIGHTNINGROD
+641: Moves = 1,PLAYNICE,1,SWEETKISS,1,NUZZLE,1,NASTYPLOT,1,CHARM,1,THUNDERSHOCK,1,TAILWHIP,1,GROWL,1,QUICKATTACK,4,THUNDERWAVE,8,DOUBLETEAM,12,ELECTROBALL,16,FEINT,20,SPARK,24,AGILITY,28,SLAM,32,DISCHARGE,36,THUNDERBOLT,40,LIGHTSCREEN,44,THUNDER
+642: TutorMoves = AGILITY,ATTRACT,BODYSLAM,BRICKBREAK,CAPTIVATE,CHARGEBEAM,CHARM,CONFIDE,COUNTER,COVET,DEFENSECURL,DIG,DOUBLEEDGE,DOUBLETEAM,DRAININGKISS,DYNAMICPUNCH,ECHOEDVOICE,ELECTRICTERRAIN,ELECTROBALL,ELECTROWEB,ENCORE,ENDURE,FACADE,FLASH,FLING,FOCUSPUNCH,FRUSTRATION,GRASSKNOT,HEADBUTT,HELPINGHAND,HIDDENPOWER,IRONTAIL,KNOCKOFF,LASERFOCUS,LIGHTSCREEN,MAGNETRISE,MEGAKICK,MEGAPUNCH,MIMIC,MUDSLAP,NASTYPLOT,NATURALGIFT,PAYDAY,PLAYROUGH,PROTECT,RAINDANCE,REFLECT,REST,RETURN,REVERSAL,RISINGVOLTAGE,ROCKSMASH,ROLLOUT,ROUND,SECRETPOWER,SEISMICTOSS,SHOCKWAVE,SIGNALBEAM,SLEEPTALK,SNORE,STRENGTH,SUBSTITUTE,SURF,SWAGGER,SWIFT,THIEF,THUNDER,THUNDERBOLT,THUNDERPUNCH,THUNDERWAVE,UPROAR,VOLTSWITCH,VOLTTACKLE,WILDCHARGE
+643: EggGroups = Field,Fairy
+644: HatchSteps = 2560
+645: Height = 0.4
+646: Weight = 6.0
+647: Color = Yellow
+648: Shape = Quadruped
+649: Habitat = Forest
+650: Category = Mouse
+651: Pokedex = It stores electricity in the electric sacs on its cheeks. When it releases pent-up energy in a burst, the electric power is equal to a lightning bolt.
+652: Generation = 1
+653: WildItemUncommon = LIGHTBALL
+654: Evolution = RAICHU,Item,THUNDERSTONE
+655: #-------------------------------
+
+FILE Data/Scripts/011_Battle/001_Battle/003_Battle_ExpAndMoveLearning.rb
+162:     expGained = expFinal - pkmn.exp
+163:     return if expGained <= 0
+164:     # "Exp gained" message
+165:     if showMessages
+166:       if isOutsider
+167:         pbDisplayPaused(_INTL("{1} got a boosted {2} Exp. Points!", pkmn.name, expGained))
+168:       else
+169:         pbDisplayPaused(_INTL("{1} got {2} Exp. Points!", pkmn.name, expGained))
+170:       end
+171:     end
+172:     curLevel = pkmn.level
+173:     newLevel = growth_rate.level_from_exp(expFinal)
+174:     if newLevel < curLevel
+175:       debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
+176:       raise _INTL("{1}'s new level is less than its current level, which shouldn't happen.", pkmn.name) + "\n[#{debugInfo}]"
+177:     end
+178:     # Give Exp
+179:     if pkmn.shadowPokemon?
+180:       if pkmn.heartStage <= 3
+181:         pkmn.exp += expGained
+182:         $stats.total_exp_gained += expGained
+183:       end
+184:       return
+185:     end
+186:     $stats.total_exp_gained += expGained
+187:     tempExp1 = pkmn.exp
+188:     battler = pbFindBattler(idxParty)
+189:     loop do   # For each level gained in turn...
+190:       # EXP Bar animation
+191:       levelMinExp = growth_rate.minimum_exp_for_level(curLevel)
+192:       levelMaxExp = growth_rate.minimum_exp_for_level(curLevel + 1)
+193:       tempExp2 = (levelMaxExp < expFinal) ? levelMaxExp : expFinal
+194:       pkmn.exp = tempExp2
+195:       @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)
+196:       tempExp1 = tempExp2
+197:       curLevel += 1
+198:       if curLevel > newLevel
+199:         # Gained all the Exp now, end the animation
+200:         pkmn.calc_stats
+201:         battler&.pbUpdate(false)
+202:         @scene.pbRefreshOne(battler.index) if battler
+203:         break
+204:       end
+205:       # Levelled up
+206:       pbCommonAnimation("LevelUp", battler) if battler
+207:       oldTotalHP = pkmn.totalhp
+208:       oldAttack  = pkmn.attack
+209:       oldDefense = pkmn.defense
+210:       oldSpAtk   = pkmn.spatk
+211:       oldSpDef   = pkmn.spdef
+212:       oldSpeed   = pkmn.speed
+213:       battler.pokemon.changeHappiness("levelup") if battler&.pokemon
+214:       pkmn.calc_stats
+215:       battler&.pbUpdate(false)
+216:       @scene.pbRefreshOne(battler.index) if battler
+217:       pbDisplayPaused(_INTL("{1} grew to Lv. {2}!", pkmn.name, curLevel)) { pbSEPlay("Pkmn level up") }
+218:       @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,
+219:                        oldSpAtk, oldSpDef, oldSpeed)
+220:       # Learn all moves learned at this level
+221:       moveList = pkmn.getMoveList
+222:       moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
+223:     end
+224:   end

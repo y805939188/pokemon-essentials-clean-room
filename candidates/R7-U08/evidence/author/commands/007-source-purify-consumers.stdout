@@ -1,0 +1,629 @@
+
+FILE Data/Scripts/014_Pokemon/001_Pokemon-related/002_ShadowPokemon_Other.rb
+1: # All types except Shadow have Shadow as a weakness.
+2: # Shadow has Shadow as a resistance.
+3: # On a side note, the Shadow moves in Colosseum will not be affected by
+4: # Weaknesses or Resistances, while in XD the Shadow-type is Super-Effective
+5: # against all other types.
+6: # 2/5 - display nature
+7: #
+8: # XD - Shadow Rush -- 55, 100 - Deals damage.
+9: # Colosseum - Shadow Rush -- 90, 100
+10: # If this attack is successful, user loses half of HP lost by opponent due to
+11: # this attack (recoil). If user is in Hyper Mode, this attack has a good chance
+12: # for a critical hit.
+13: 
+14: #===============================================================================
+15: # Purify a Shadow Pokémon.
+16: #===============================================================================
+17: def pbPurify(pkmn, scene)
+18:   return if !pkmn.shadowPokemon? || pkmn.heart_gauge != 0
+19:   $stats.shadow_pokemon_purified += 1
+20:   pkmn.shadow = false
+21:   pkmn.hyper_mode = false
+22:   pkmn.giveRibbon(:NATIONAL)
+23:   scene.pbDisplay(_INTL("{1} opened the door to its heart!", pkmn.name))
+24:   old_moves = []
+25:   pkmn.moves.each { |m| old_moves.push(m.id) }
+26:   pkmn.update_shadow_moves
+27:   pkmn.moves.each_with_index do |m, i|
+28:     next if m.id == old_moves[i]
+29:     scene.pbDisplay(_INTL("{1} regained the move {2}!", pkmn.name, m.name))
+30:   end
+31:   pkmn.record_first_moves
+32:   if pkmn.saved_ev
+33:     pkmn.add_evs(pkmn.saved_ev)
+34:     pkmn.saved_ev = nil
+35:   end
+36:   if pkmn.saved_exp
+37:     newexp = pkmn.growth_rate.add_exp(pkmn.exp, (pkmn.saved_exp * 4 / 5) || 0)
+38:     pkmn.saved_exp = nil
+39:     newlevel = pkmn.growth_rate.level_from_exp(newexp)
+40:     curlevel = pkmn.level
+41:     if newexp != pkmn.exp
+42:       scene.pbDisplay(_INTL("{1} regained {2} Exp. Points!", pkmn.name, newexp - pkmn.exp))
+43:     end
+44:     if newlevel == curlevel
+45:       pkmn.exp = newexp
+46:       pkmn.calc_stats
+47:     else
+48:       pbChangeLevel(pkmn, newlevel, scene)   # for convenience
+49:       pkmn.exp = newexp
+50:     end
+51:   end
+52:   if $PokemonSystem.givenicknames == 0 &&
+53:      scene.pbConfirm(_INTL("Would you like to give a nickname to {1}?", pkmn.speciesName))
+54:     newname = pbEnterPokemonName(_INTL("{1}'s nickname?", pkmn.speciesName),
+55:                                  0, Pokemon::MAX_NAME_SIZE, "", pkmn)
+56:     pkmn.name = newname
+57:   end
+58: end
+59: 
+60: #===============================================================================
+61: # Relic Stone scene.
+62: #===============================================================================
+63: class RelicStoneScene
+64:   def pbPurify; end
+65: 
+66:   def pbUpdate
+67:     pbUpdateSpriteHash(@sprites)
+68:   end
+69: 
+70:   def pbEndScene
+71:     pbFadeOutAndHide(@sprites) { pbUpdate }
+72:     pbDisposeSpriteHash(@sprites)
+73:     @viewport.dispose
+74:   end
+75: 
+76:   def pbDisplay(msg, brief = false)
+77:     UIHelper.pbDisplay(@sprites["msgwindow"], msg, brief) { pbUpdate }
+78:   end
+79: 
+80:   def pbConfirm(msg)
+81:     UIHelper.pbConfirm(@sprites["msgwindow"], msg) { pbUpdate }
+82:   end
+83: 
+84:   def pbStartScene(pokemon)
+85:     @sprites = {}
+86:     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+87:     @viewport.z = 99999
+88:     @pokemon = pokemon
+89:     addBackgroundPlane(@sprites, "bg", "relicstonebg", @viewport)
+90:     @sprites["msgwindow"] = Window_AdvancedTextPokemon.new("")
+91:     @sprites["msgwindow"].viewport = @viewport
+92:     @sprites["msgwindow"].x        = 0
+93:     @sprites["msgwindow"].y        = Graphics.height - 96
+94:     @sprites["msgwindow"].width    = Graphics.width
+95:     @sprites["msgwindow"].height   = 96
+96:     @sprites["msgwindow"].text     = ""
+97:     @sprites["msgwindow"].visible  = true
+98:     pbDeactivateWindows(@sprites)
+99:     pbFadeInAndShow(@sprites) { pbUpdate }
+100:   end
+101: end
+102: 
+103: #===============================================================================
+104: #
+105: #===============================================================================
+106: class RelicStoneScreen
+107:   def initialize(scene)
+108:     @scene = scene
+109:   end
+110: 
+111:   def pbDisplay(x)
+112:     @scene.pbDisplay(x)
+113:   end
+114: 
+115:   def pbConfirm(x)
+116:     @scene.pbConfirm(x)
+117:   end
+118: 
+119:   def pbUpdate; end
+120: 
+121:   def pbRefresh; end
+122: 
+123:   def pbStartScreen(pokemon)
+124:     @scene.pbStartScene(pokemon)
+125:     @scene.pbPurify
+126:     pbPurify(pokemon, self)
+127:     @scene.pbEndScene
+128:   end
+129: end
+130: 
+131: #===============================================================================
+132: #
+133: #===============================================================================
+134: def pbRelicStoneScreen(pkmn)
+135:   retval = true
+136:   pbFadeOutIn do
+137:     scene = RelicStoneScene.new
+138:     screen = RelicStoneScreen.new(scene)
+139:     retval = screen.pbStartScreen(pkmn)
+140:   end
+141:   return retval
+142: end
+143: 
+144: #===============================================================================
+145: #
+146: #===============================================================================
+147: def pbRelicStone
+148:   if $player.party.none? { |pkmn| pkmn.purifiable? }
+149:     pbMessage(_INTL("You have no Pokémon that can be purified."))
+150:     return
+151:   end
+
+FILE Data/Scripts/013_Items/001_Item_Utilities.rb
+132: def pbChangeLevel(pkmn, new_level, scene)
+133:   new_level = new_level.clamp(1, GameData::GrowthRate.max_level)
+134:   if pkmn.level == new_level
+135:     if scene.is_a?(PokemonPartyScreen)
+136:       scene.pbDisplay(_INTL("{1}'s level remained unchanged.", pkmn.name))
+137:     else
+138:       pbMessage(_INTL("{1}'s level remained unchanged.", pkmn.name))
+139:     end
+140:     return
+141:   end
+142:   old_level           = pkmn.level
+143:   old_total_hp        = pkmn.totalhp
+144:   old_attack          = pkmn.attack
+145:   old_defense         = pkmn.defense
+146:   old_special_attack  = pkmn.spatk
+147:   old_special_defense = pkmn.spdef
+148:   old_speed           = pkmn.speed
+149:   pkmn.level = new_level
+150:   pkmn.calc_stats
+151:   pkmn.hp = 1 if new_level > old_level && pkmn.species_data.base_stats[:HP] == 1
+152:   scene.pbRefresh
+153:   if old_level > new_level
+154:     if scene.is_a?(PokemonPartyScreen)
+155:       scene.pbDisplay(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+156:     else
+157:       pbMessage(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+158:     end
+159:     total_hp_diff        = pkmn.totalhp - old_total_hp
+160:     attack_diff          = pkmn.attack - old_attack
+161:     defense_diff         = pkmn.defense - old_defense
+162:     special_attack_diff  = pkmn.spatk - old_special_attack
+163:     special_defense_diff = pkmn.spdef - old_special_defense
+164:     speed_diff           = pkmn.speed - old_speed
+165:     pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+166:                            total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+167:     pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+168:                            pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+169:   else
+170:     pkmn.changeHappiness("vitamin")
+171:     if scene.is_a?(PokemonPartyScreen)
+172:       scene.pbDisplay(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+173:     else
+174:       pbMessage(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+175:     end
+176:     total_hp_diff        = pkmn.totalhp - old_total_hp
+177:     attack_diff          = pkmn.attack - old_attack
+178:     defense_diff         = pkmn.defense - old_defense
+179:     special_attack_diff  = pkmn.spatk - old_special_attack
+180:     special_defense_diff = pkmn.spdef - old_special_defense
+181:     speed_diff           = pkmn.speed - old_speed
+182:     pbTopRightWindow(_INTL("Max. HP<r>+{1}\nAttack<r>+{2}\nDefense<r>+{3}\nSp. Atk<r>+{4}\nSp. Def<r>+{5}\nSpeed<r>+{6}",
+183:                            total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+184:     pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+185:                            pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+186:     # Learn new moves upon level up
+187:     movelist = pkmn.getMoveList
+188:     movelist.each do |i|
+189:       next if i[0] <= old_level || i[0] > pkmn.level
+190:       pbLearnMove(pkmn, i[1], true) { scene.pbUpdate }
+191:     end
+192:     # Check for evolution
+193:     new_species = pkmn.check_evolution_on_level_up
+194:     if new_species
+195:       pbFadeOutInWithMusic do
+196:         evo = PokemonEvolutionScene.new
+197:         evo.pbStartScreen(pkmn, new_species)
+198:         evo.pbEvolution
+199:         evo.pbEndScreen
+200:         scene.pbRefresh if scene.is_a?(PokemonPartyScreen)
+201:       end
+202:     end
+203:   end
+204: end
+205: 
+206: def pbTopRightWindow(text, scene = nil)
+207:   window = Window_AdvancedTextPokemon.new(text)
+208:   window.width = 198
+209:   window.x     = Graphics.width - window.width
+210:   window.y     = 0
+211:   window.z     = 99999
+212:   pbPlayDecisionSE
+213:   loop do
+214:     Graphics.update
+215:     Input.update
+216:     window.update
+217:     scene&.pbUpdate
+218:     break if Input.trigger?(Input::USE)
+219:   end
+220:   window.dispose
+221: end
+
+FILE Data/Scripts/010_Data/001_Hardcoded data/001_GrowthRate.rb
+1: module GameData
+2:   class GrowthRate
+3:     attr_reader :id
+4:     attr_reader :real_name
+5:     attr_reader :exp_values
+6:     attr_reader :exp_formula
+7: 
+8:     DATA = {}
+9: 
+10:     extend ClassMethodsSymbols
+11:     include InstanceMethods
+12: 
+13:     def self.load; end
+14:     def self.save; end
+15: 
+16:     # Calculates the maximum level a Pokémon can attain. This can vary during a
+17:     # game, and here is where you would make it do so. Note that this method is
+18:     # called by the Compiler, which happens before anything (e.g. Game Switches/
+19:     # Variables, the player's data) is loaded, so code in this method should
+20:     # check whether the needed variables exist before using them; if they don't,
+21:     # this method should return the maximum possible level ever.
+22:     # @return [Integer] the maximum level attainable by a Pokémon
+23:     def self.max_level
+24:       return Settings::MAXIMUM_LEVEL
+25:     end
+26: 
+27:     def initialize(hash)
+28:       @id          = hash[:id]
+29:       @real_name   = hash[:name] || "Unnamed"
+30:       @exp_values  = hash[:exp_values]
+31:       @exp_formula = hash[:exp_formula]
+32:     end
+33: 
+34:     # @return [String] the translated name of this growth rate
+35:     def name
+36:       return _INTL(@real_name)
+37:     end
+38: 
+39:     # @param level [Integer] a level number
+40:     # @return [Integer] the minimum Exp needed to be at the given level
+41:     def minimum_exp_for_level(level)
+42:       return ArgumentError.new("Level #{level} is invalid.") if !level || level <= 0
+43:       level = [level, GrowthRate.max_level].min
+44:       return @exp_values[level] if level < @exp_values.length
+45:       raise "No Exp formula is defined for growth rate #{name}" if !@exp_formula
+46:       return @exp_formula.call(level)
+47:     end
+48: 
+49:     # @return [Integer] the maximum Exp a Pokémon with this growth rate can have
+50:     def maximum_exp
+51:       return minimum_exp_for_level(GrowthRate.max_level)
+52:     end
+53: 
+54:     # @param exp1 [Integer] an Exp amount
+55:     # @param exp2 [Integer] an Exp amount
+56:     # @return [Integer] the sum of the two given Exp amounts
+57:     def add_exp(exp1, exp2)
+58:       return (exp1 + exp2).clamp(0, maximum_exp)
+59:     end
+60: 
+61:     # @param exp [Integer] an Exp amount
+62:     # @return [Integer] the level of a Pokémon that has the given Exp amount
+63:     def level_from_exp(exp)
+64:       return ArgumentError.new("Exp amount #{level} is invalid.") if !exp || exp < 0
+65:       max = GrowthRate.max_level
+66:       return max if exp >= maximum_exp
+67:       (1..max).each do |level|
+68:         return level - 1 if exp < minimum_exp_for_level(level)
+69:       end
+70:       return max
+71:     end
+72:   end
+73: end
+74: 
+75: #===============================================================================
+76: 
+77: GameData::GrowthRate.register({
+78:   :id          => :Medium,   # Also known as Medium Fast
+79:   :name        => _INTL("Medium"),
+80:   :exp_values  => [-1,
+81:                    0,      8,      27,     64,     125,    216,    343,    512,    729,    1000,
+82:                    1331,   1728,   2197,   2744,   3375,   4096,   4913,   5832,   6859,   8000,
+83:                    9261,   10648,  12167,  13824,  15625,  17576,  19683,  21952,  24389,  27000,
+84:                    29791,  32768,  35937,  39304,  42875,  46656,  50653,  54872,  59319,  64000,
+85:                    68921,  74088,  79507,  85184,  91125,  97336,  103823, 110592, 117649, 125000,
+86:                    132651, 140608, 148877, 157464, 166375, 175616, 185193, 195112, 205379, 216000,
+87:                    226981, 238328, 250047, 262144, 274625, 287496, 300763, 314432, 328509, 343000,
+88:                    357911, 373248, 389017, 405224, 421875, 438976, 456533, 474552, 493039, 512000,
+89:                    531441, 551368, 571787, 592704, 614125, 636056, 658503, 681472, 704969, 729000,
+90:                    753571, 778688, 804357, 830584, 857375, 884736, 912673, 941192, 970299, 1000000],
+91:   :exp_formula => proc { |level| next level**3 }
+92: })
+93: 
+
+FILE Data/Scripts/014_Pokemon/003_Pokemon_ShadowPokemon.rb
+1: #===============================================================================
+2: # Pokémon class.
+3: #===============================================================================
+4: class Pokemon
+5:   attr_accessor :shadow
+6:   attr_writer   :heart_gauge
+7:   attr_writer   :hyper_mode
+8:   attr_accessor :saved_exp
+9:   attr_accessor :saved_ev
+10:   attr_accessor :shadow_moves
+11:   attr_accessor :heart_gauge_step_counter
+12: 
+13:   alias __shadow_expeq exp= unless method_defined?(:__shadow_expeq)
+14:   def exp=(value)
+15:     if shadowPokemon?
+16:       @saved_exp += value - @exp
+17:     else
+18:       __shadow_expeq(value)
+19:     end
+20:   end
+21: 
+22:   alias __shadow_hpeq hp= unless method_defined?(:__shadow_hpeq)
+23:   def hp=(value)
+24:     __shadow_hpeq(value)
+25:     @hyper_mode = false if @hp <= 0
+26:   end
+27: 
+28:   def heart_gauge
+29:     return @heart_gauge || 0
+30:   end
+31: 
+32:   def shadow_data
+33:     return GameData::ShadowPokemon.get_species_form(@species, form_simple)
+34:   end
+35: 
+36:   def max_gauge_size
+37:     data = shadow_data
+38:     return (data) ? data.gauge_size : GameData::ShadowPokemon::HEART_GAUGE_SIZE
+39:   end
+40: 
+41:   def adjustHeart(value)
+42:     return if !shadowPokemon?
+43:     @heart_gauge = (self.heart_gauge + value).clamp(0, max_gauge_size)
+44:   end
+45: 
+46:   def change_heart_gauge(method, multiplier = 1)
+47:     return if !shadowPokemon?
+48:     heart_amounts = {
+49:       # [sending into battle, call to, walking 256 steps, using scent]
+50:       :HARDY   => [110, 300, 100,  90],
+51:       :LONELY  => [ 70, 330, 100, 130],
+52:       :BRAVE   => [130, 270,  90,  80],
+53:       :ADAMANT => [110, 270, 110,  80],
+54:       :NAUGHTY => [120, 270, 110,  70],
+55:       :BOLD    => [110, 270,  90, 100],
+56:       :DOCILE  => [100, 360,  80, 120],
+57:       :RELAXED => [ 90, 270, 110, 100],
+58:       :IMPISH  => [120, 300, 100,  80],
+59:       :LAX     => [100, 270,  90, 110],
+60:       :TIMID   => [ 70, 330, 110, 120],
+61:       :HASTY   => [130, 300,  70, 100],
+62:       :SERIOUS => [100, 330, 110,  90],
+63:       :JOLLY   => [120, 300,  90,  90],
+64:       :NAIVE   => [100, 300, 120,  80],
+65:       :MODEST  => [ 70, 300, 120, 110],
+66:       :MILD    => [ 80, 270, 100, 120],
+67:       :QUIET   => [100, 300, 100, 100],
+68:       :BASHFUL => [ 80, 300,  90, 130],
+69:       :RASH    => [ 90, 300,  90, 120],
+70:       :CALM    => [ 80, 300, 110, 110],
+71:       :GENTLE  => [ 70, 300, 130, 100],
+72:       :SASSY   => [130, 240, 100,  70],
+73:       :CAREFUL => [ 90, 300, 100, 110],
+74:       :QUIRKY  => [130, 270,  80,  90]
+75:     }
+76:     amt = 100
+77:     case method
+78:     when "battle"
+79:       amt = (heart_amounts[@nature]) ? heart_amounts[@nature][0] : 100
+80:     when "call"
+81:       amt = (heart_amounts[@nature]) ? heart_amounts[@nature][1] : 300
+82:     when "walking"
+83:       amt = (heart_amounts[@nature]) ? heart_amounts[@nature][2] : 100
+84:     when "scent"
+85:       amt = (heart_amounts[@nature]) ? heart_amounts[@nature][3] : 100
+86:       amt *= multiplier
+87:     else
+88:       raise _INTL("Unknown heart gauge-changing method: {1}", method.to_s)
+89:     end
+90:     adjustHeart(-amt)
+91:   end
+92: 
+93:   def heartStage
+94:     return 0 if !shadowPokemon?
+95:     max_size = max_gauge_size
+96:     stage_size = max_size / 5.0
+97:     return ([self.heart_gauge, max_size].min / stage_size).ceil
+98:   end
+99: 
+100:   def shadowPokemon?
+101:     return @shadow && @heart_gauge && @heart_gauge >= 0
+102:   end
+103: 
+104:   def hyper_mode
+105:     return (self.heart_gauge == 0 || @hp == 0) ? false : @hyper_mode
+106:   end
+107: 
+108:   alias __shadow__changeHappiness changeHappiness unless method_defined?(:__shadow__changeHappiness)
+109:   def changeHappiness(method)
+110:     return if shadowPokemon? && heartStage >= 4
+111:     __shadow__changeHappiness(method)
+112:   end
+113: 
+114:   def makeShadow
+115:     @shadow       = true
+116:     @hyper_mode   = false
+117:     @saved_exp    = 0
+118:     @saved_ev     = {}
+119:     GameData::Stat.each_main { |s| @saved_ev[s.id] = 0 }
+120:     @heart_gauge  = max_gauge_size
+121:     @heart_gauge_step_counter = 0
+122:     @shadow_moves = []
+123:     # Retrieve Shadow moveset for this Pokémon
+124:     data = shadow_data
+125:     # Record this Pokémon's Shadow moves
+126:     if data
+127:       data.moves.each do |m|
+128:         @shadow_moves.push(m) if GameData::Move.exists?(m)
+129:         break if @shadow_moves.length >= MAX_MOVES
+130:       end
+131:     end
+132:     if @shadow_moves.empty? && GameData::Move.exists?(:SHADOWRUSH)
+133:       @shadow_moves.push(:SHADOWRUSH)
+134:     end
+135:     # Record this Pokémon's original moves
+136:     if !@shadow_moves.empty?
+137:       @moves.each_with_index { |m, i| @shadow_moves[MAX_MOVES + i] = m.id }
+138:       update_shadow_moves
+139:     end
+140:   end
+141: 
+142:   def update_shadow_moves
+143:     return if !@shadow_moves || @shadow_moves.empty?
+144:     # Not a Shadow Pokémon (any more); relearn all its original moves
+145:     if !shadowPokemon?
+146:       if @shadow_moves.length > MAX_MOVES
+147:         new_moves = []
+148:         @shadow_moves.each_with_index { |m, i| new_moves.push(m) if m && i >= MAX_MOVES }
+149:         replace_moves(new_moves)
+150:       end
+151:       @shadow_moves = nil
+152:       return
+153:     end
+154:     # Is a Shadow Pokémon; ensure it knows the appropriate moves depending on its heart stage
+155:     # Start with all Shadow moves
+156:     new_moves = []
+157:     @shadow_moves.each_with_index { |m, i| new_moves.push(m) if m && i < MAX_MOVES }
+158:     num_shadow_moves = new_moves.length
+159:     # Add some original moves (skipping ones in the same slot as a Shadow Move)
+160:     num_original_moves = [3, 3, 2, 1, 1, 0][self.heartStage]
+
+FILE Data/Scripts/014_Pokemon/001_Pokemon.rb
+173:     @form = value
+174:     @ability = nil
+175:     yield if block_given?
+176:     MultipleForms.call("onSetForm", self, value, oldForm)
+177:     calc_stats
+178:     $player&.pokedex&.register(self)
+179:   end
+180: 
+181:   def form_simple=(value)
+182:     @form = value
+183:     calc_stats
+184:   end
+185: 
+186:   #=============================================================================
+187:   # Level
+188:   #=============================================================================
+189: 
+190:   # @return [Integer] this Pokémon's level
+191:   def level
+192:     @level = growth_rate.level_from_exp(@exp) if !@level
+193:     return @level
+194:   end
+195: 
+196:   # Sets this Pokémon's level. The given level must be between 1 and the
+197:   # maximum level (defined in {GameData::GrowthRate}).
+198:   # @param value [Integer] new level (between 1 and the maximum level)
+199:   def level=(value)
+200:     if value < 1 || value > GameData::GrowthRate.max_level
+201:       raise ArgumentError.new(_INTL("The level number ({1}) is invalid.", value))
+202:     end
+203:     @exp = growth_rate.minimum_exp_for_level(value)
+204:     @level = value
+205:   end
+206: 
+207:   # Sets this Pokémon's Exp. Points.
+208:   # @param value [Integer] new experience points
+209:   def exp=(value)
+210:     @exp = value
+211:     @level = nil
+212:   end
+213: 
+214:   # @return [Boolean] whether this Pokémon is an egg
+215:   def egg?
+216:     return @steps_to_hatch > 0
+217:   end
+218: 
+
+FILE Data/Scripts/019_Utilities/002_Utilities_Pokemon.rb
+1: #===============================================================================
+2: # Nicknaming and storing Pokémon
+3: #===============================================================================
+4: def pbBoxesFull?
+5:   return ($player.party_full? && $PokemonStorage.full?)
+6: end
+7: 
+8: def pbNickname(pkmn)
+9:   return if $PokemonSystem.givenicknames != 0
+10:   species_name = pkmn.speciesName
+11:   if pbConfirmMessage(_INTL("Would you like to give a nickname to {1}?", species_name))
+12:     pkmn.name = pbEnterPokemonName(_INTL("{1}'s nickname?", species_name),
+13:                                    0, Pokemon::MAX_NAME_SIZE, "", pkmn)
+14:   end
+15: end
+16: 
+17: def pbStorePokemon(pkmn)
+18:   if pbBoxesFull?
+19:     pbMessage(_INTL("There's no more room for Pokémon!") + "\1")
+20:     pbMessage(_INTL("The Pokémon Boxes are full and can't accept any more!"))
+21:     return
+22:   end
+23:   pkmn.record_first_moves
+24:   if $player.party_full?
+25:     stored_box = $PokemonStorage.pbStoreCaught(pkmn)
+26:     box_name   = $PokemonStorage[stored_box].name
+27:     pbMessage(_INTL("{1} has been sent to Box \"{2}\"!", pkmn.name, box_name))
+28:   else
+29:     $player.party[$player.party.length] = pkmn
+30:   end
+31: end
+32: 
+33: def pbNicknameAndStore(pkmn)
+34:   if pbBoxesFull?
+35:     pbMessage(_INTL("There's no more room for Pokémon!") + "\1")
+36:     pbMessage(_INTL("The Pokémon Boxes are full and can't accept any more!"))
+37:     return
+38:   end
+39:   $player.pokedex.set_seen(pkmn.species)
+40:   $player.pokedex.set_owned(pkmn.species)
+41:   pbNickname(pkmn)
+42:   pbStorePokemon(pkmn)
+43: end
+44: 
+45: #===============================================================================
+46: # Giving Pokémon to the player (will send to storage if party is full)
+47: #===============================================================================
+48: def pbAddPokemon(pkmn, level = 1, see_form = true)
+49:   return false if !pkmn
+50:   if pbBoxesFull?
+51:     pbMessage(_INTL("There's no more room for Pokémon!") + "\1")
+52:     pbMessage(_INTL("The Pokémon Boxes are full and can't accept any more!"))
+53:     return false
+54:   end
+55:   pkmn = Pokemon.new(pkmn, level) if !pkmn.is_a?(Pokemon)
+56:   species_name = pkmn.speciesName
+57:   pbMessage(_INTL("{1} obtained {2}!", $player.name, species_name) + "\\me[Pkmn get]\\wtnp[80]")
+58:   was_owned = $player.owned?(pkmn.species)
+59:   $player.pokedex.set_seen(pkmn.species)
+60:   $player.pokedex.set_owned(pkmn.species)
+61:   $player.pokedex.register(pkmn) if see_form
+62:   # Show Pokédex entry for new species if it hasn't been owned before
+63:   if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && see_form && !was_owned &&
+64:      $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(pkmn.species)
+65:     pbMessage(_INTL("{1}'s data was added to the Pokédex.", species_name))
+66:     $player.pokedex.register_last_seen(pkmn)
+67:     pbFadeOutIn do
+68:       scene = PokemonPokedexInfo_Scene.new
+69:       screen = PokemonPokedexInfoScreen.new(scene)
+70:       screen.pbDexEntry(pkmn.species)
+71:     end
+72:   end
+73:   # Nickname and add the Pokémon
+74:   pbNicknameAndStore(pkmn)
+75:   return true
+76: end
+77: 
