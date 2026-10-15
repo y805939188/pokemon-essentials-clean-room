@@ -67,3 +67,5 @@ L01–L14已全文读并原样保留于 `inputs/limits-and-alias-reception.json`
 发布前manifest自检另发现自写生成器按文件名排除自身，误把r2内原样保留的 `prior-r1/artifact-manifest.json` 也排除。首次公开组合检查失败；随后日志043真实复现AssertionError/exit1，旧r1副本始终未丢失或改写。已改为仅排除根manifest精确路径，再生成并核对完整文件集。该问题仅在本审者证据打包，未修改候选，也不提高语义/运行资格。最终成功检查及完整远端回读另作真实记录。
 
 日志046保留全证据 `git diff --cached --check` 的exit2：仅三份.patch原样证据中的14个统一diff空上下文行被判尾空白。此类行的单空格是patch数据，冻结mirror-diffs与新独立diff均保持实际字节；不修剪证据。日志047具名排除这三份patch后其余文件检查exit0，范围/身份审计仍全量覆盖三份patch。
+
+首个r2证据载荷 `a4cba73dbb41a57ec3df90502964043b7d66b7f5` / tree `4e54838193e0ada3837fc792037fa79aa0f1f24d` 已普通推送，远端分支头前后相同；88文件/1,075,700字节均按固定commit完整HTTP读取并核bytes/SHA256/blob，包含manifest自身。详见 `receipts/core-remote-readback.json`、`publication-receipt.json` 与日志050–053。后续提交仅收入真实发布证据及对应manifest，候选语义结论不变；最终新提交全部文件另做完整远端回读并包外返回。
