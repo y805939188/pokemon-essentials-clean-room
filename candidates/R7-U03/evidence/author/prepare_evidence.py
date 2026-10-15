@@ -133,7 +133,7 @@ report='''# R7-U03 作者候选
 
 validate-final-mirrors完成有界目录/差异位置/旧表行保持/新链接逻辑目标/JSON检查。共1,016个非目标旧表行保持原文（含表头/分隔行，数字不是行为案例分母）。该结果仅TOOL_VALIDATION，作者静态读源与纸面向量不作为独立PASS。所有新增行为向量仍NOT_EXECUTED；REFERENCE_OBSERVATION、独立完整模型、游戏宿主、Demo、native媒体与真实存档回放各0。失败/取消/部分提交按per-id.json分别登记，未把退出0提升为业务成功。
 
-校验过程中第一次递归身份检查发现批清单外4个具体可读绑定，按精确C2对象定向恢复后149成员全部匹配；未把可读材料伪标limit。目录校验器先后因行号清单偏移、未排除本来就需修改的碰撞表行而退出1，修正校验器后通过；这些真实失败日志保留，不曾执行参考程序。首次git diff --check把标准补丁的空白上下文行标为尾随空白，命令编排的换行又使首个本地提交在该检查失败后仍生成；推送前已将补丁改为零上下文并重新完整检查，保留原提交，不reset/amend/force。该早期命令只有平台I/O，未补造分离日志。初始侦察与内容读取仅有平台tool I/O，未另存逐命令UTC/stdout/stderr；不补造旧时间。后续commands/保存分离的可发布命令I/O、UTC、PID、退出，参考源正文不复制入公共证据，私有模型流不推送。
+校验过程中第一次递归身份检查发现批清单外4个具体可读绑定，按精确C2对象定向恢复后149成员全部匹配；未把可读材料伪标limit。目录校验器先后因行号清单偏移、未排除本来就需修改的碰撞表行而退出1，修正校验器后通过；这些真实失败日志保留，不曾执行参考程序。首次git diff --check把标准补丁的空白上下文行标为尾随空白，命令编排的换行又使首个本地提交在该检查失败后仍生成；推送前已将补丁改为零上下文并重新完整检查，保留原提交，不reset/amend/force。该早期命令只有平台I/O，未补造分离日志。原始push输出也含远端尾随空格，按完整I/O要求保留，最终空白检查只排除commands/*.stdout与*.stderr，正文/JSON/工具不排除。初始侦察与内容读取仅有平台tool I/O，未另存逐命令UTC/stdout/stderr；不补造旧时间。后续commands/保存分离的可发布命令I/O、UTC、PID、退出，参考源正文不复制入公共证据，私有模型流不推送。
 
 无作者前置批次阻塞；依赖仍OPEN：R7-I接收实际候选身份/scope并生成candidate-input.json，不同实际context的ultra审者复核，CG04（本批与U01/U13的移动目录）及CG05（本批与U09的被动目录）由R7-I串行按条款整合，再由新R7-IR审实际整合字节。WP12/WP61/WP06/Repel消费者与历史MR02、GR3-M03-001关系仍需最终接收，不自行宣称已满足全部直接/传递依赖或全历史回归。候选PASS、整合PASS、ACCEPTED、CLOSED分开。
 
@@ -141,6 +141,11 @@ validate-final-mirrors完成有界目录/差异位置/旧表行保持/新链接�
 
 唯一成果分支codex/r7-u03-author-20261015-wave1，从固定B e646432c644dec04d306842cc5a559a29c718fbc创建。与B差异仅candidates/R7-U03/；只普通提交/普通push该分支。全部新文件进入提交。发布后按固定结果commit逐新文件完整HTTP远端读回并比较bytes/SHA/blob，另读远端branch及commit/tree。允许将首个候选内容提交的发布/读回回执提交为同分支后继证据；最终commit/tree及最终全量读回在最终交接中包外绑定，避免提交内自引用哈希。完成后冻结，停止写入，等待R7-I派发的ultra复审。
 '''
+publication_receipt = HERE/'publication-content-readback.json'
+if publication_receipt.exists():
+    published = json.loads(publication_receipt.read_bytes())
+    assert published['all_complete_remote_bytes_equal']
+    report += ('\n已完成首个内容候选的普通推送和完整远端读回：commit `'+published['commit']+'`，tree `'+published['tree']+'`，'+str(published['new_file_count'])+'个新增文件逐个固定commit HTTP200完整读取，bytes/SHA/blob全部相等。完整逐文件回执在publication-content-readback.json，普通push及读回命令的I/O在commands/push-content.*、commands/readback-content.*。本次后继只加入发布证据及其身份/报告；5份候选镜像字节保持该内容提交不变。最终后继commit/tree及其全部新文件读回仍由最终交接包外绑定。\n')
 (HERE/'report.md').write_text(report)
 
 inventory=[]
