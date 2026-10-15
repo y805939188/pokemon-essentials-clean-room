@@ -1473,6 +1473,10 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 | 场景/向量 | 测试目录 AN 系列（AN-M01–M33，共 33 条） |
 | 具名未验证 | 编辑器实际运行表现与宿主窗口/素材行为（WP15/U01）；素材缺口（调试 UI 图、动画图、动画音效、动画档案、招式关联档案、动画目录均缺）下可视结果与失败形态；demo 入口可达性（WP77/U01） |
 
+**2026-10-15 第七轮 GR7-M17-001 候选追加（CANDIDATE_READY_NOT_REVIEWED）**：在上述历史批准身份之外，WP74 §18及测试目录TOOL-AN-01–17新增有限静态请求合同，未重写历史只读／批准／关闭结论。固定R 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b 的 animmaker.exe（10,240 bytes，SHA256 bbbcd909bcd2310078def29f4889f6203e0bc1c8f6500d216440774f832cd96b，blob 6977937ac7604ff237dea02d89c88f89b8f71830）及 animmaker.txt 为输入。采用已接非作者R7-C06的有限静态解码范围：15个方法体及11个异常处理条目，方法区间[592,2664)（含头部/对齐/异常表，各段不冒称连续指令）；token0600000e/0f的XML/输出循环与09/0b的图像/数值分支分别核对。C2 4580645dfbfec4a3c7ccbad56ae293cc619b0d25 的逻辑证据 tasks/R7-C06/logs/038-cil-decode.stdout（SHA256 e4a7c9ef36a53cc03646a0e233711264aac07a1f8f0a1dc798a0fd879c0dfc22）、039-cil-helpers.stdout（4dbb40c99eb477cdbaf750dabeef1a7842a2073a2d985c597c7bffa491b973f2）已在本作者容器定向恢复核验并读取，未在本次重跑其解码器或执行目标。原反证绑定 p02-33da3f93fd6480f9a050#/challenges/1、固定f622356f原七组合同保持为范围依据。
+
+新增事实为输入门、缺图仍保原槽、画布/双倍绘制算术、逐动画图像保存请求和失败前缀；既有五列192格并非新遗漏。交界定点读：005_AnimEditor_Functions.rb L1–183、004_AnimEditor_ExportImport.rb L1–147、002_Compiler_CompilePBS.rb L1260–1321，保留.anm类型门、停用RMXP转换、命名/缓存规则，无自动桥。SOURCE_STATIC／DERIVED_VECTOR与原解码器TOOL_VALIDATION分列；本作者参考/独立完整模型/宿主/Demo/native媒体/真实存档回放均0，向量NOT_EXECUTED。实际XML/图像库、透明/插值/编码、输出文件、错误格式化、清理及跨项回滚不保证，R6及当前L06/L07边界保留。完整作者范围、身份与未满足接收门见 candidates/R7-U10/evidence/author/；追加自身不授予独立PASS、ACCEPTED或CLOSED。
+
 ### T-WP75-01 《工程转换与作者工具》
 
 | 字段 | 内容 |
@@ -1885,4 +1889,4 @@ J01采用已接非作者反证counter-review.json（14,166字节，SHA256 272e94
 
 ## 第七轮累计整合的当前接收状态
 
-上列第七轮作者候选段保留各自制作时点的候选状态和原证据资格。当前独立候选审查、逐条整合及后续正式接受状态以[本轮实际接收登记](../review/remediation-seventh-20261015-prepare/integration/wave2/v1/public-reception.json)为准；作者证据通过该登记的固定候选提交与精确路径读取。U01、U02、U06、U08、U09、U11、U12、U13 本次已逐条整合，等待新 context 审查实际累计字节，尚未正式接受或关闭。U04/U05 的三项已有独立实际整合 PASS 和 R7-I 正式接受，关闭仍单独登记。U03/U07/U10 保留流程资格 WAIT，未合入。所有行为向量仍 NOT_EXECUTED，宿主等运行0、有效配置 UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持。
+上列第七轮作者候选段保留制作时点的原声明与证据资格。当前状态见[实际接收登记](../review/remediation-seventh-20261015-prepare/integration/wave3/v1/public-reception.json)，作者证据须以该登记的固定候选提交和精确路径读取。本次U07/U10的新context候选r2通过后已按条款整合，等待新的独立实际IR；旧r1辅助任务披露与WAIT完整保留，未豁免或迁移。U03候选r2尚待结果。已应用25/27项、12/13批，独立实际PASS与正式ACCEPTED5/27项、3/13批，CLOSED0；其它已应用条款仍以各自固定MI/FI接受新独立IR。U04/U05/U09已接受的八份正文逐字保持。所有行为向量NOT_EXECUTED，宿主等运行0、有效配置UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持；用户授权仅在全轮所有门完成后最终普通merge main，当前未达门。
