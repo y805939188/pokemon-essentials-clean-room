@@ -1,0 +1,17 @@
+# 当前固定payload后继实际接收：com_ability_item
+
+状态：PLANNED_NOT_STARTED，新增实际context0。此合同只作root后继调度准备，不声称有人已开始/已退出/已验收。
+
+先完整读项目AGENTS、inputs/review-SKILL全文、inputs/eighth-global-review-prompt.md完整36653B（SHA63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b）、delegation/prompts/coverage-incremental-v2.md完整合同；不得用摘要代替。此后完整读同目录com_ability_item.readset.json及其全部3份固定payload，原始总B6068626。每项保留snapshot_index/原路径/唯一snapshot路径/bytes/SHA/blob/捕获UTC/当前已读或partial范围；原301path/289SHA的04:56切点不倒填晚结果。
+
+R=/workspace/pokemon-essentials，commit8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b，tree7589c800b61ba13a13040ed0d686979b80a84fd0。B8=fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal treef292698cdd4a8e725525a9be6dc34b75faaf151e。
+
+建议唯一独占写集tasks/current_payload_reception_com_ability_item/，须由root实际派发并确认未冲突才成为真实任务。此审计者不创建/写该目录。不碰任何原作者任务写集、R、formal、main或历史原件；无commit/push/install/spawn，无目标/恢复业务执行，UPDATE_NOT_STARTED/NOT_EXECUTED。请求gpt-6.1-sol ultra/default普速Fastoff，实际无权威回显逐字段UNVERIFIED。
+
+实际接收要求：逐完整当前字段值、所有手工事实/反向断言/前提/正常取消失败与已提交prefix、每个具名producer/receiver完整有限对象、所有实际有效规则及当前历史资格，明确精确JSON指针或连续行范围。所有可得未审/未接收保持OPEN，不归hostlimit。作者全文attestation、方法头/locator、字段投影、同blob、范围union、旧PASS、读取脚本或其exit0均不代替实际source/formal或语义验收。严格纯身份/恢复表可具型目的处置，但必须检查全部schema/值域、完整读取非身份常值/根字段、给逐行精确处置，明确未逐字读全部哈希路径且source/atomic信用0。含字面源码/程序fragment/断言的表不能整体冒纯哈希。所有逆向无损共同值/columnar阅读视图须先全读helper、复制至本人新隔离目标，保留全部字段值/顺序/类型并逐原件完全重构相等；必须实际完整读视图的共同定义与全部varying行，生成/计数不是阅读。
+
+不得授全局/全域PASS或把旧KERNEL2219/CORE994/CRE1430 pendinglocator并集改为已封；相应三atomic新context启动不授实际结果。收到晚delta需另冻精确身份、实际完整读后再分列接收，不倒填原捕获时点。root25有限21required(2P2/19P3)+4optional不是最终全局分母；旧历史去重仍OPEN。原UI平台流attestation和未保留原stdout/operationID的独立EOF资格分列，不能伪造原日志或由补读倒授过去事件。
+
+交付至少review.md、progress.json、identities.json、reading-ledger.json、finite-semantic-reception.json、interfaces.json、open-remainder.json、execution-records.json。逐输入标注本人真正全文/当前值/局部/未读/严格目的处置，精确剩余范围和可执行后继；每个accepted只限实际完整接收对象与前提，写清所有transitive consumer和source/formal必要片何处仍OPEN。原I/O/UTC/exit和失败/截断必须保留，原时点无同期捕获UNVERIFIED，不能补造。helper先全读懂后仅执行静态隔离自己的副本，目标程序不得运行。发现新formal问题交完整8节proposal由root安排实际不同非提出者反证，不自动整改。
+
+每60秒以内向root报真实新增已读贡献、当前唯一R/F范围、发现和pending；本任务是payload独立接收，不因此增加原作者源码全文credit。结束时精确报已完整接收/具型处置/partial/unread分母，任何available未审继续OPEN。

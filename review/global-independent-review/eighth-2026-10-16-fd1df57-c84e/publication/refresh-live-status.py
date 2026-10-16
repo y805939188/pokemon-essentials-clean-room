@@ -1,3 +1,4 @@
+raise SystemExit('Superseded at checkpoint25: use current explicit root state; this historical generator must not overwrite new actual contexts/classifications.')
 """Record root-observed collaboration states; this grants no semantic credit."""
 from pathlib import Path
 import datetime

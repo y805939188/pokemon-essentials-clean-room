@@ -1,0 +1,221 @@
+"""Audit five frozen generated candidate indexes, never execute their text.
+
+The exact original payloads remain in the immutable readset. This helper checks
+an exhaustive allowlist of record/occurrence fields and produces a purpose view.
+It explicitly does NOT make the reader read every candidate literal, infer its
+behavior, accept a native program, or repair the authors' captured UNREAD state.
+Unknown fields/types/constants fail rather than silently disappearing.
+"""
+import collections
+import datetime
+import hashlib
+import json
+import re
+from pathlib import Path
+
+OWN = Path(__file__).resolve().parent
+BASE = OWN.parent.parent
+INDEXES = [8, 10, 12, 13, 14]
+ledger = json.loads((OWN / 'reading-ledger.json').read_text())
+began = datetime.datetime.now(datetime.timezone.utc).isoformat()
+datasets = {}
+results = []
+all_text = set()
+ref_shapes = {
+    8: ['id', 'path', 'start', 'end_exclusive', 'section', 'initial_kind', 'encoding'],
+    10: ['candidate_id', 'path', 'inventory_line', 'encoding', 'start', 'end_exclusive', 'sha256', 'section'],
+}
+kind_by_section = {
+    'headers_or_overlay_or_cross_section': 'HEADER_OR_OVERLAY_REVIEW',
+    '.text': 'CODE_SECTION_TEXT_REVIEW',
+    '.rdata': 'DATA_TEXT_REVIEW',
+    '.data': 'DATA_TEXT_REVIEW',
+    '.rsrc': 'RESOURCE_TYPED_REVIEW',
+}
+allowed_paths = {'Game.exe', 'x64-msvcrt-ruby310.dll', 'zlib1.dll', 'animmaker.exe', 'extendtext.exe'}
+for index in INDEXES:
+    source = ledger['snapshot_payloads'][index]
+    raw = (BASE / source['snapshot']).read_bytes()
+    assert len(raw) == source['bytes']
+    assert hashlib.sha256(raw).hexdigest() == source['sha256']
+    rows = json.loads(raw)
+    assert type(rows) is list and rows
+    datasets[index] = rows
+    expected = ['read_id', 'text', 'refs']
+    if index != 8:
+        expected += ['semantic_status']
+    if index == 13:
+        expected += ['original_view_line']
+    states = collections.Counter()
+    constants = {k: collections.Counter() for k in ['path', 'section', 'initial_kind', 'encoding']}
+    ref_count = 0
+    ids = []
+    starts, ends, lengths, text_lengths = [], [], [], []
+    view_lines = []
+    refs_per_row = collections.Counter()
+    for position, row in enumerate(rows):
+        assert type(row) is dict and list(row) == expected
+        assert type(row['read_id']) is str
+        assert re.fullmatch(('S' if index == 8 else 'U') + r'\d{5}', row['read_id'])
+        ids.append(row['read_id'])
+        if index == 8:
+            assert row['read_id'] == f'S{position:05d}'
+        else:
+            assert row['semantic_status'] == 'UNREAD'
+            states[row['semantic_status']] += 1
+        if index == 13:
+            assert type(row['original_view_line']) is int and row['original_view_line'] >= 1
+            view_lines.append(row['original_view_line'])
+        assert type(row['text']) is str
+        ascii_bytes = row['text'].encode('ascii')
+        assert len(ascii_bytes) >= 1
+        all_text.add(row['text'])
+        text_lengths.append(len(ascii_bytes))
+        assert type(row['refs']) is list and row['refs']
+        refs_per_row[len(row['refs'])] += 1
+        for ref in row['refs']:
+            assert type(ref) is dict and list(ref) == ref_shapes[8 if index == 8 else 10]
+            assert ref['path'] in allowed_paths
+            if index != 8:
+                assert ref['path'] == 'Game.exe'
+            assert ref['encoding'] in {'ascii', 'utf-16-le-ascii-subset'}
+            assert ref['section'] in kind_by_section
+            for key in ['start', 'end_exclusive']:
+                assert type(ref[key]) is int and ref[key] >= 0
+            assert ref['end_exclusive'] > ref['start']
+            encoded = ascii_bytes if ref['encoding'] == 'ascii' else row['text'].encode('utf-16-le')
+            assert ref['end_exclusive'] - ref['start'] == len(encoded)
+            if index == 8:
+                assert type(ref['id']) is str
+                assert re.fullmatch(re.escape(ref['path']) + r':\d+', ref['id'])
+                assert ref['initial_kind'] == kind_by_section[ref['section']]
+            else:
+                assert type(ref['inventory_line']) is int and ref['inventory_line'] >= 1
+                assert ref['candidate_id'] == f"{ref['path']}:{ref['inventory_line']}"
+                assert type(ref['sha256']) is str and re.fullmatch(r'[0-9a-f]{64}', ref['sha256'])
+                assert hashlib.sha256(encoded).hexdigest() == ref['sha256']
+            for key in constants:
+                constants[key][ref.get(key, '<ABSENT>')] += 1
+            ref_count += 1
+            starts.append(ref['start'])
+            ends.append(ref['end_exclusive'])
+            lengths.append(len(encoded))
+    assert len(set(ids)) == len(ids)
+    if index != 8:
+        assert [int(x[1:]) for x in ids] == sorted(int(x[1:]) for x in ids)
+    if index == 13:
+        assert view_lines == sorted(set(view_lines))
+    results.append({
+        'index': index,
+        'source': {k: source[k] for k in ['original_path', 'snapshot', 'bytes', 'sha256', 'git_blob', 'captured_utc']},
+        'complete_field_allowlist': expected,
+        'complete_ref_field_allowlist': ref_shapes[8 if index == 8 else 10],
+        'row_count': len(rows), 'occurrence_count': ref_count,
+        'read_id_first_last': [ids[0], ids[-1]],
+        'read_id_order': 'unique increasing; S sequence continuous' if index == 8 else 'unique increasing U identities; gaps are not accepted/removed semantics',
+        'status_at_snapshot': dict(states) if states else {'semantic_status_field': 'ABSENT'},
+        'occurrence_classifications_complete': {k: dict(v) for k, v in constants.items()},
+        'refs_per_row_distribution': dict(sorted(refs_per_row.items())),
+        'all_text_ascii_inventory_only': True,
+        'text_length_min_max': [min(text_lengths), max(text_lengths)],
+        'reference_offset_min_and_max_end': [min(starts), max(ends)],
+        'reference_length_min_max': [min(lengths), max(lengths)],
+        'original_view_line_bounds': [view_lines[0], view_lines[-1]] if view_lines else 'FIELD_ABSENT',
+        'all_declared_occurrence_encoded_lengths_match_text': True,
+        'all_declared_occurrence_hashes_match_encoded_text': True if index != 8 else 'HASH_FIELD_ABSENT',
+        'raw_candidate_literal_full_read_by_this_context': False,
+        'native_program_source_or_behavior_accepted': False,
+    })
+
+def without_view_line(row):
+    return {k: v for k, v in row.items() if k != 'original_view_line'}
+
+base_map = {r['read_id']: r for r in datasets[14]}
+relationships = []
+for index in [10, 12, 13]:
+    rows = datasets[index]
+    in_base = [r for r in rows if r['read_id'] in base_map]
+    exact = [r for r in in_base if without_view_line(r) == base_map[r['read_id']]]
+    missing = [r['read_id'] for r in rows if r['read_id'] not in base_map]
+    changed = [r['read_id'] for r in in_base if without_view_line(r) != base_map[r['read_id']]]
+    item = {
+        'compared_index': index, 'base_index': 14,
+        'same_read_id_count': len(in_base), 'exact_record_count_excluding_original_view_line': len(exact),
+        'only_in_compared_count': len(missing), 'different_record_count': len(changed),
+        'interpretation': 'Exact inventory relationship only; not a reading or semantic acceptance link.',
+        'changed_record_field_counts': dict(collections.Counter(
+            k for r in in_base for k in without_view_line(r)
+            if r[k] != base_map[r['read_id']][k])),
+    }
+    if index == 13:
+        assert not missing
+        for row in rows:
+            mapped = datasets[14][row['original_view_line'] - 1]
+            assert {k: row[k] for k in ['read_id', 'text', 'semantic_status']} == {
+                k: mapped[k] for k in ['read_id', 'text', 'semantic_status']}
+        assert len(changed) == 1 and changed[0]['read_id'] == 'U29194'
+        item['all_original_view_line_read_id_text_status_bindings_to_index14_exact'] = True
+        item['full_record_binding_exact_count'] = len(exact)
+        item['full_record_reference_binding_exception_count'] = len(changed)
+        item['complete_reference_binding_exceptions'] = [
+            {'compared_full_record': r, 'base_full_record': base_map[r['read_id']]}
+            for r in in_base if without_view_line(r) != base_map[r['read_id']]
+        ]
+    relationships.append(item)
+
+purpose = {
+    'schema': 'r8.coverage.candidate-five.strict-inventory-purpose/v1',
+    'began_utc': began,
+    'qualification': 'Complete typed generated-index purpose review, NOT literal candidate reading; NOT native/program/primary semantic acceptance.',
+    'why_generated_index_and_not_a_manual_semantic_rule_carrier': [
+        'Exhaustive allowlisted roots are only arrays of read_id, extracted text, occurrence references, optional captured UNREAD and optional view coordinate. No arbitrary field was ignored.',
+        'No manual fact, clause, expected behavior, premise, consumer reception, verdict or acceptance field occurs in these five indexes.',
+        'text may contain API names, error/help/configuration strings or apparent code vocabulary. Its candidacy never makes it inert, correct, reached, called or accepted. The literal bodies are retained unmodified and remain not fully read in this context.',
+        'The reviewed R binary/program inventory remains separately OPEN: these extracted fragments are not complete native functions/CFG, serialized code or source-file reading. No source program body is disposed as a hash or administrative identity.',
+    ],
+    'complete_field_purposes': {
+        'root_array_order': 'Generated candidate order. Preserved in exact original frozen bytes, never reordered into a semantic graph.',
+        'read_id': 'Generated S/U candidate locator; no manual fact/atom ID or acceptance.',
+        'text': 'Raw extracted candidate literal. Inventory-only for this supporting audit; not fully personally read. All exact literals remain available in immutable originals and require actual reception before any literal/body claim.',
+        'refs': 'Ordered nonempty occurrence index. Not a producer/caller/consumer semantic edge; no deduplication of order or multiplicity.',
+        'refs.id': 'Old extraction occurrence path:number locator, only present in index8.',
+        'refs.candidate_id': 'Game.exe:inventory_line identity join, only present in four U indexes.',
+        'refs.path': 'Occurrence source filename; no direct binary source-read or section proof.',
+        'refs.inventory_line': 'Positive original candidate-inventory coordinate, not source-code line or proof of reading.',
+        'refs.start': 'Nonnegative byte offset in declared file; identity/locator only.',
+        'refs.end_exclusive': 'Exclusive byte-end coordinate; internal encoded-length check only, not original-R byte verification.',
+        'refs.section': 'Declared scanner section classification. No independent PE mapping, reachability or behavior acceptance.',
+        'refs.initial_kind': 'Initial scanner review routing class, exactly mapped by section; REVIEW is pending work, not verdict.',
+        'refs.encoding': 'ascii or utf-16-le-ascii-subset extraction label. Internal encoded-length/hash consistency only.',
+        'refs.sha256': 'Lowercase 64-hex literal-occurrence identity metadata; preserved exact in original. Not individually manually read and not a program proof.',
+        'semantic_status': 'Actual current field in every U record is captured UNREAD, completely received as that declaration. Never silently changed because an external ledger later claims literal reading.',
+        'original_view_line': 'Positive original generated view coordinate, complete exact read_id/text/status binding to index14 row;11614 full-reference bindings exact and one U29194 reference-list difference preserved complete. Not a new source-read, I/O receipt or consumer acceptance.',
+    },
+    'files': results,
+    'exact_inventory_relationships': relationships,
+    'distinct_literal_count_machine_inventory_not_reading': len(all_text),
+    'distinct_literal_utf8_bytes_machine_inventory_not_reading': sum(len(s.encode('utf-8')) for s in all_text),
+    'all_rows_count': sum(len(v) for v in datasets.values()),
+    'all_occurrences_count': sum(r['occurrence_count'] for r in results),
+    'U_rows_with_UNREAD_at_capture': sum(len(datasets[i]) for i in [10, 12, 13, 14]),
+    'capture_vs_later_actual_reception': {
+        'frozen_status': 'All78213 U rows retain UNREAD at their individual captured_utc; index8 has no status field.',
+        'frozen_author_ledger_separate': 'Original16 reading-ledger claims continuous original lines1–10450, continuation1–11615, plus1539 removed type/controller rows. Author literal-content claim is not this auditor literal reading or native-consumer acceptance.',
+        'frozen_author_progress_separate': 'Original15 at updated04:47:40.319456 says semantically_received0, game_content_view_available_unread_lines0, remaining_type_or_literal_or_consumers_pendingtrue. These distinct declarations are preserved; no invented uniform PASS.',
+        'later_primary_successor': 'Later actual binary/media/font/native successors have their own exact delta receipts if actually received. None is inferred from this index review, a root summary or a reader exit.',
+    },
+    'original_invalid_index': 'Index10 INVALID-r2 remains distinct and immutable. Frozen author16 explicitly rejects r2 numeric ranges for wrong-section delta and uses correctedr3. Internal candidate/hash checks here do not rehabilitate r2 range typing.',
+    'actual_reading_boundary': 'Prior finite literals/controller/native/YARB receptions keep their exact scope. This whole-index purpose view adds ZERO literal FULL_READ, R/F source read, atom, effective interface or task/global PASS credit.',
+    'available_literal_and_program_work': 'All unreceived literal bodies and necessary original native/serialized program units remain available OPEN, not host/material limits.',
+    'business_execution': 'NOT_EXECUTED',
+    'update_status': 'UPDATE_NOT_STARTED',
+    'global_pass': False,
+    'own_task_final_acceptance': 'PENDING_ROOT_INDEPENDENT_SUPPORTING_CONTRACT_RECEPTION',
+    'ended_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+}
+out = OWN / 'candidate5-strict-inventory-purpose-view.json'
+out.write_text(json.dumps(purpose, ensure_ascii=False, indent=2) + '\n')
+print(json.dumps({'began_utc': began, 'ended_utc': purpose['ended_utc'], 'output': out.name,
+                  'bytes': out.stat().st_size, 'lines': len(out.read_text().splitlines()),
+                  'sha256': hashlib.sha256(out.read_bytes()).hexdigest(),
+                  'qualification': 'GENERATED_ONLY; must actually read whole purpose view; no candidate literals or program semantic credit'}))

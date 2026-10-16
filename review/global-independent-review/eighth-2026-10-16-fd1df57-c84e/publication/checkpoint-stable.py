@@ -1,3 +1,4 @@
+raise SystemExit('Superseded at checkpoint25: use current explicit root state; this historical generator must not overwrite new actual contexts/classifications.')
 from pathlib import Path
 import json,hashlib,datetime,shutil,subprocess
 root=Path(__file__).resolve().parents[1];repo=root.parents[2]
