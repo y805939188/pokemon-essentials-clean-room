@@ -45,16 +45,16 @@ B8 固定 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81
 
 candidate FAIL、actual 局部 PASS、owner operations、接受、关闭候选和唯一激活各守原输入/时点；不把旧 FAIL/WAIT/MISMATCH 改写为本次 PASS。旧五份报告身份已由前接收后继恢复，原 UNVERIFIED 保留在原时点，新证据只给身份信用。前接收的 U03 消费条件、Summary/Party/FURFROU/BACK 和瓶子顺序仍只按其有限范围作上下文，不能借以重签未接的整个外组 producer。
 
-`RECEPTION-H-EARLY-EVIDENCE-001` 的全局28值与 `RECEPTION-H-EARLY-POLICY-002` 的 UTIL-03 末尾 LF 仍交冻结尾组作真正非提出者裁决。本组接受强制 clarifier：通用 numeric 的旧 policy 候选不得套给 PBS 单行 f/b/枚举，亦不因该候选改 B8、选择未来兼容或重开历史92/第七轮27。
+后继已取得尾组固定回执 `76471376a7b0a42cfcf030a404fc91afb0a94835`，由非目标作者、非提出者 context `01a144a2-a554-77a2-997c-09b15efd7020` 给出两项裁决。本组已完整读其报告和裁决：`EVIDENCE-001` 确认28长值/48出现的业务证据分类缺陷，同时28/28在B8已有正文，不能据此推B8缺行为或历史结论一概无效；`POLICY-002` 确认 numeric? 的单末尾 LF 静态边界，未来兼容仍未选择。它不能套给 PBS 单行 f/b/枚举，不改 B8、不重开历史92/第七轮27。本组只接必要语义，不重复尾组全体policy主责。
 
 ## 真实剩余与整合入口
 
 本组可得必要原合同/criterion/定义的未读、未接收差集均为0。以下是实际跨组缺口，不是本组抽样残留，也不是宿主材料限制：
 
 1. **`IF-EXTERNAL-M05-006` OPEN**：四道具默认及 Flags/数量谓词的真实完整 producer 接收回执尚未取得。受影响的是 GR5-M01-011/preserve/01、GR5-M01-016/static/06、preserve/01 的主责引用接合。本组已核 B8 真实引用及自身份名/消费位事实；不冒充已收上游。
-2. **`IF-GLOBAL-STAGE-SHARED` OPEN**：shared21/dependency18 及全局 scope/阶段资格由 `r5_tail_shared_policy` 独占。`interfaces.json` 已逐 producer 给48份实质贡献，每份保留自己的事实和台账指针；尾组仍须以实际回执接合，不能只看任务状态。尾组本次最终回执尚未取得。
+2. **`IF-GLOBAL-STAGE-SHARED` 最终组合 OPEN**：实际已收到上述尾组回执，接收其阶段资格，并把本组有关的16条shared、6条依赖边与当前48份producer事实逐一相接，见 `evidence/tail-interface-reception.json`。原候选 OPEN92/CLOSED0 与唯一激活后的历史 CLOSED92/OPEN0 分时点保留；不反写旧状态。尾组12:44记录的0/80外组收据早于本组核心发布，不表示现在仍没有本组凭据。原接收者/主审可直接使用两方实质凭据接合，但含尚缺core producer的最终组合不能全签；无需新增审查层。
 
-原接收者/主审可直接消费本组 48/294 凭据，并在实际收到上述 producer/尾组回执后完成相应接合；无需新增一轮审查。其它冻结 shard 的 primary 未被本组重签。真实地图/公共事件安排、原生归档、媒体/UI、实际存档和完整编译往返均未新增执行，限于相应观察点；没有用这些限制豁免已可读定义。
+原接收者/主审可直接消费本组 48/294 凭据，并在取得尚缺 producer 事实后完成对应组合接合；无需新增一轮审查。其它冻结 shard 的 primary 未被本组重签。真实地图/公共事件安排、原生归档、媒体/UI、实际存档和完整编译往返均未新增执行，限于相应观察点；没有用这些限制豁免已可读定义。
 
 ## 发布与执行
 
