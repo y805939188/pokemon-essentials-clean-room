@@ -13,7 +13,7 @@ def main():
     assert q['status']=='INCOMPLETE' and not q['full_task_final_ready']
     assert r['independence']['different'] and p['actual_receiver_differs_from_author']
     assert len(f['primary_objects'])==10715
-    assert sum(x['literal_read_here'] for x in f['primary_objects'])==439
+    assert sum(x['literal_read_here'] for x in f['primary_objects'])==442
     assert len(r['literal_record_reads'])==433
     assert len({x['id'] for x in r['literal_record_reads']})==433
     named=read('continuation/received-parts/parent-acceptance.json')
@@ -24,6 +24,11 @@ def main():
     assert not (own_ids|named_ids)&pending and len(pending)==4827
     assert own_ids|named_ids|pending=={x['id'] for x in f['primary_objects'] if x['kind']=='record'}
     assert r['counts']['primary_distinct_pairs_actually_read_or_received']==len(own_ids|named_ids)==5870
+    purpose=read('continuation/target-payload-purpose.json')
+    assert len(purpose['entries'])==213
+    assert {x['path'] for x in purpose['entries']}=={x['path'] for x in r['target_file_states']}
+    views=read('continuation/target-view-reuse.json')
+    assert len(views['source_views'])==105 and len(views['corpus_views'])==38
     assert sum(x['kind']=='record' and not x['literal_read_here'] for x in f['primary_objects'])==10264
     assert len(f['image_methods'])==len(q['image_callers'])==36
     assert sum(len(x['matched_lines']) for x in f['image_methods'])==63

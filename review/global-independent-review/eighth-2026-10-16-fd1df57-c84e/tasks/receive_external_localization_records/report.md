@@ -1,4 +1,4 @@
-> 当前后继：**INCOMPLETE**。已实际阅读或由具名非作者读者接收 **5,870/10,697对（11,740字段）**；父个人433对与A/B/C的5,437对分列。D **4,827对**和固定213载荷用途/采用范围最终核对待完成。
+> 当前后继：**INCOMPLETE**。已实际阅读或由具名非作者读者接收 **5,870/10,697对（11,740字段）**；父个人433对与A/B/C的5,437对分列。D **4,827对**待实际接收；固定213载荷用途/采用范围已逐路径核对。
 > 全部新实质接收、更正和限制见 [substantive-reception-2.md](continuation/substantive-reception-2.md)，精确子组提交/树/逐ID接收见 [parent-acceptance.json](continuation/received-parts/parent-acceptance.json)。下方前稿保留历史时点，旧未读计数不代表当前。没有整改、行为运行或根最终签收。
 
 # receive_external_localization_records 独立接收报告

@@ -43,9 +43,9 @@ def main():
     assert tree==local_tree
     tasktree=git(remote,'rev-parse',args.commit+':'+PREFIX).decode().strip()
     assert tasktree==git(REPO/'.git','rev-parse',args.commit+':'+PREFIX).decode().strip()
-    changed=git(REPO/'.git','diff-tree','--no-commit-id','--name-only','-r','40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232',args.commit).decode().splitlines()
+    changed=[x.decode() for x in git(REPO/'.git','diff-tree','--no-commit-id','--name-only','-r','-z','40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232',args.commit).split(b'\0') if x]
     assert set(changed)==set(actual)
-    out={'schema':'gr8-elr-complete-remote-publication-readback/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':args.commit,'checkout_tree':tree,'task_tree':tasktree,'task_prefix':PREFIX,'remote_git_dir':str(remote),'collection_exact':True,'full_bytes_mode_blob_sha_exact':True,'all_changed_paths_in_exclusive_write_set':True,'files':rows,'count':len(rows),'bytes':sum(x['bytes'] for x in rows),'cache_boundary':'Isolated bare store may be seeded only with unchanged fixed contract commit40f45dd; report commit fetched from GitHub after ordinary push; no alternates/shared object access.','semantic_credit':'NONE_TRANSPORT_ONLY','task_state':'INCOMPLETE','UPDATE_NOT_STARTED':True}
+    out={'schema':'gr8-elr-complete-remote-publication-readback/v2','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':args.commit,'checkout_tree':tree,'task_tree':tasktree,'task_prefix':PREFIX,'remote_git_dir':str(remote),'collection_exact':True,'full_bytes_mode_blob_sha_exact':True,'all_changed_paths_in_exclusive_write_set':True,'files':rows,'count':len(rows),'bytes':sum(x['bytes'] for x in rows),'cache_boundary':'Previously fetched fixed contract/report objects retained only to negotiate history; current report fetched from GitHub after ordinary push; no alternates/shared object access. Every current task payload read in full again.','semantic_credit':'NONE_TRANSPORT_ONLY','task_state':'INCOMPLETE','UPDATE_NOT_STARTED':True}
     Path(args.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
     print(json.dumps({k:v for k,v in out.items() if k!='files'},ensure_ascii=False))
 if __name__=='__main__':main()
