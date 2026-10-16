@@ -1,0 +1,118 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/012_MoveEffects_ChangeMoveEffect.rb RANGE 1019-1135
+class Battle::Move::UseRandomMoveFromUserParty < Battle::Move
+  attr_reader :moveBlacklist
+
+  def callsAnotherMove?; return true; end
+
+  def initialize(battle, move)
+    super
+    @moveBlacklist = [
+      # Struggle, Belch
+      "Struggle",                                          # Struggle
+      "FailsIfUserNotConsumedBerry",                       # Belch
+      # Moves that affect the moveset
+      "ReplaceMoveThisBattleWithTargetLastMoveUsed",       # Mimic
+      "ReplaceMoveWithTargetLastMoveUsed",                 # Sketch
+      "TransformUserIntoTarget",                           # Transform
+      # Counter moves
+      "CounterPhysicalDamage",                             # Counter
+      "CounterSpecialDamage",                              # Mirror Coat
+      "CounterDamagePlusHalf",                             # Metal Burst        # Not listed on Bulbapedia
+      # Helping Hand, Feint (always blacklisted together, don't know why)
+      "PowerUpAllyMove",                                   # Helping Hand
+      "RemoveProtections",                                 # Feint
+      # Protection moves
+      "ProtectUser",                                       # Detect, Protect
+      "ProtectUserSideFromPriorityMoves",                  # Quick Guard        # Not listed on Bulbapedia
+      "ProtectUserSideFromMultiTargetDamagingMoves",       # Wide Guard         # Not listed on Bulbapedia
+      "UserEnduresFaintingThisTurn",                       # Endure
+      "ProtectUserSideFromDamagingMovesIfUserFirstTurn",   # Mat Block
+      "ProtectUserSideFromStatusMoves",                    # Crafty Shield      # Not listed on Bulbapedia
+      "ProtectUserFromDamagingMovesKingsShield",           # King's Shield
+      "ProtectUserFromDamagingMovesObstruct",              # Obstruct           # Not listed on Bulbapedia
+      "ProtectUserFromTargetingMovesSpikyShield",          # Spiky Shield
+      "ProtectUserBanefulBunker",                          # Baneful Bunker
+      # Moves that call other moves
+      "UseLastMoveUsedByTarget",                           # Mirror Move
+      "UseLastMoveUsed",                                   # Copycat
+      "UseMoveTargetIsAboutToUse",                         # Me First
+#      "UseMoveDependingOnEnvironment",                    # Nature Power       # See below
+      "UseRandomUserMoveIfAsleep",                         # Sleep Talk
+      "UseRandomMoveFromUserParty",                        # Assist
+      "UseRandomMove",                                     # Metronome
+      # Move-redirecting and stealing moves
+      "BounceBackProblemCausingStatusMoves",               # Magic Coat         # Not listed on Bulbapedia
+      "StealAndUseBeneficialStatusMove",                   # Snatch
+      "RedirectAllMovesToUser",                            # Follow Me, Rage Powder
+      "RedirectAllMovesToTarget",                          # Spotlight
+      # Set up effects that trigger upon KO
+      "ReduceAttackerMovePPTo0IfUserFaints",               # Grudge             # Not listed on Bulbapedia
+      "AttackerFaintsIfUserFaints",                        # Destiny Bond
+      # Target-switching moves
+#      "SwitchOutTargetStatusMove",                        # Roar, Whirlwind    # See below
+      "SwitchOutTargetDamagingMove",                       # Circle Throw, Dragon Tail
+      # Held item-moving moves
+      "UserTakesTargetItem",                               # Covet, Thief
+      "UserTargetSwapItems",                               # Switcheroo, Trick
+      "TargetTakesUserItem",                               # Bestow
+      # Moves that start focussing at the start of the round
+      "FailsIfUserDamagedThisTurn",                        # Focus Punch
+      "UsedAfterUserTakesPhysicalDamage",                  # Shell Trap
+      "BurnAttackerBeforeUserActs",                        # Beak Blast
+      # Event moves that do nothing
+      "DoesNothingFailsIfNoAlly",                          # Hold Hands
+      "DoesNothingCongratulations"                         # Celebrate
+    ]
+    if Settings::MECHANICS_GENERATION >= 6
+      @moveBlacklist += [
+        # Moves that call other moves
+        "UseMoveDependingOnEnvironment",                   # Nature Power
+        # Two-turn attacks
+        "TwoTurnAttack",                                   # Razor Wind                # Not listed on Bulbapedia
+        "TwoTurnAttackOneTurnInSun",                       # Solar Beam, Solar Blade   # Not listed on Bulbapedia
+        "TwoTurnAttackParalyzeTarget",                     # Freeze Shock              # Not listed on Bulbapedia
+        "TwoTurnAttackBurnTarget",                         # Ice Burn                  # Not listed on Bulbapedia
+        "TwoTurnAttackFlinchTarget",                       # Sky Attack                # Not listed on Bulbapedia
+        "TwoTurnAttackChargeRaiseUserDefense1",            # Skull Bash                # Not listed on Bulbapedia
+        "TwoTurnAttackInvulnerableInSky",                  # Fly
+        "TwoTurnAttackInvulnerableUnderground",            # Dig
+        "TwoTurnAttackInvulnerableUnderwater",             # Dive
+        "TwoTurnAttackInvulnerableInSkyParalyzeTarget",    # Bounce
+        "TwoTurnAttackInvulnerableRemoveProtections",      # Shadow Force/Phantom Force
+        "TwoTurnAttackInvulnerableInSkyTargetCannotAct",   # Sky Drop
+        "AllBattlersLoseHalfHPUserSkipsNextTurn",          # Shadow Half
+        "TwoTurnAttackRaiseUserSpAtkSpDefSpd2",            # Geomancy                  # Not listed on Bulbapedia
+        # Target-switching moves
+        "SwitchOutTargetStatusMove"                        # Roar, Whirlwind
+      ]
+    end
+  end
+
+  def pbMoveFailed?(user, targets)
+    @assistMoves = []
+    # NOTE: This includes the Pokémon of ally trainers in multi battles.
+    @battle.pbParty(user.index).each_with_index do |pkmn, i|
+      next if !pkmn || i == user.pokemonIndex
+      next if Settings::MECHANICS_GENERATION >= 6 && pkmn.egg?
+      pkmn.moves.each do |move|
+        next if @moveBlacklist.include?(move.function_code)
+        next if move.type == :SHADOW
+        @assistMoves.push(move.id)
+      end
+    end
+    if @assistMoves.length == 0
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbEffectGeneral(user)
+    move = @assistMoves[@battle.pbRandom(@assistMoves.length)]
+    user.pbUseMoveSimple(move)
+  end
+end
+
+#===============================================================================
+# Uses a random move the user knows. Fails if user is not asleep. (Sleep Talk)
+#===============================================================================

@@ -13,7 +13,7 @@ atoms=read('manual-atomic-clauses.json');stats=read('wp06-stats-directory-manual
 CHILDREN=len(atoms['records'])
 old=read('old-locator-disposition.json');consumer=read('consumer-candidate-dispositions.json');facts=read('sourcefact-consumer-receptions.json');ledger=read('reading-ledger.json')
 full={x['path'] for x in ledger['records'] if x.get('repo')=='R' and x.get('status')=='FULL_READ' and not x['path'].startswith('PBS/')}
-LOCAL=consumer['summary']['RECEIVED_LOCAL_STATIC_DOWNSTREAM_OPEN']; NAMED=consumer['summary']['RECEIVED_NAMED_BOUNDED_CONTRIBUTION_DOWNSTREAM_OPEN']; OPEN=consumer['summary']['OPEN_NOT_YET_SEMANTICALLY_RECEIVED']
+LOCAL=consumer['summary']['RECEIVED_LOCAL_STATIC_DOWNSTREAM_OPEN']; NAMED=consumer['summary']['RECEIVED_NAMED_BOUNDED_CONTRIBUTION_DOWNSTREAM_OPEN']; OPEN=consumer['summary'].get('OPEN_NOT_YET_SEMANTICALLY_RECEIVED',0)
 PURPOSE=sum(v for k,v in consumer['summary'].items() if k not in ('RECEIVED_LOCAL_STATIC_DOWNSTREAM_OPEN','RECEIVED_NAMED_BOUNDED_CONTRIBUTION_DOWNSTREAM_OPEN','OPEN_NOT_YET_SEMANTICALLY_RECEIVED')); DISCOVERED=len(consumer.get('additional_discovered_lexical_candidates',[]))
 OWN_R_FULL=len(full)
 bound=sum(bool(x.get('explicit_manual_child_ids') or x.get('manual_child_assertions')) for x in old['records'])
@@ -37,6 +37,11 @@ actual_receipts=[
  ('CORE-FIELD-9','received/core-field-settings-finite-reception.v1.json',9),
  ('ROOT-ENCOUNTER-BOUNDED-1','received/root-encounter-finite-reception.v1.json',1),
  ('CORE-SFB-11-20','received/core-sourcefacts11-20-finite-reception.v1.json',10),
+ ('ROOT-PARTICIPATION-BOUNDED','received/root-participation-no-required-finite-reception.v1.json',1),
+ ('ROOT-BOOTSTRAP-49','received/root-bootstrap-finite-new-joins.v1.json',1),
+ ('ROOT-BOOTSTRAP-PATH-CORRECTION','received/root-bootstrap-finite-new-joins.mandatory-path-clarifier.v1.json',1),
+ ('PBS-BATTLE-FIELD-PRODUCER','received/pbs-battle-qualified-producer-fields.v1.json',18),
+ ('PBS-BATTLE-FIELD-COUNT-CORRECTION','received/pbs-battle-qualified-producer-fields.mandatory-count-clarifier.v1.json',1),
 ]
 received=[]
 for identity,path,count in actual_receipts:

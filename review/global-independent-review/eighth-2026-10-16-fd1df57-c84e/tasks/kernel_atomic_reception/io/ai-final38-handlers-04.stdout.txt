@@ -1,0 +1,208 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/006_AI_MoveEffects_Healing.rb RANGE 637-641
+Battle::AI::Handlers::MoveFailureCheck.add("AttackerFaintsIfUserFaints",
+  proc { |move, user, ai, battle|
+    next Settings::MECHANICS_GENERATION >= 7 && user.effects[PBEffects::DestinyBondPrevious]
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/007_AI_MoveEffects_Items.rb RANGE 129-143
+Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("DestroyTargetBerryOrGem",
+  proc { |score, move, user, target, ai, battle|
+    next score if !target.item || (!target.item.is_berry? &&
+                  !(Settings::MECHANICS_GENERATION >= 6 && target.item.is_gem?))
+    next score if user.battler.unlosableItem?(target.item)
+    next score if target.effects[PBEffects::Substitute] > 0
+    next score if target.has_active_ability?(:STICKYHOLD) && !battle.moldBreaker
+    next score if !target.item_active?
+    # User can incinerate the target's item; score it
+    item_preference = target.wants_item?(target.item_id)
+    no_item_preference = target.wants_item?(:NONE)
+    score -= (no_item_preference - item_preference) * 4
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/008_AI_MoveEffects_ChangeMoveEffect.rb RANGE 514-530
+Battle::AI::Handlers::MoveFailureCheck.add("UseRandomMoveFromUserParty",
+  proc { |move, user, ai, battle|
+    will_fail = true
+    battle.pbParty(user.index).each_with_index do |pkmn, i|
+      next if !pkmn || i == user.party_index
+      next if Settings::MECHANICS_GENERATION >= 6 && pkmn.egg?
+      pkmn.moves.each do |pkmn_move|
+        next if move.move.moveBlacklist.include?(pkmn_move.function_code)
+        next if pkmn_move.type == :SHADOW
+        will_fail = false
+        break
+      end
+      break if !will_fail
+    end
+    next will_fail
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/009_AI_MoveEffects_SwitchingActing.rb RANGE 762-770
+Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("DisableTargetStatusMoves",
+  proc { |move, user, target, ai, battle|
+    next true if target.effects[PBEffects::Taunt] > 0
+    next true if move.move.pbMoveFailedAromaVeil?(user.battler, target.battler, false)
+    next true if Settings::MECHANICS_GENERATION >= 6 &&
+                 !battle.moldBreaker && target.has_active_ability?(:OBLIVIOUS)
+    next false
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/002_AI_MoveEffects_BattlerStats.rb RANGE 1281-1312
+Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("UserCopyTargetStatStages",
+  proc { |score, move, user, target, ai, battle|
+    raises = []
+    drops = []
+    GameData::Stat.each_battle do |s|
+      stage_diff = target.stages[s.id] - user.stages[s.id]
+      if stage_diff > 0
+        raises.push(s.id)
+        raises.push(stage_diff)
+      elsif stage_diff < 0
+        drops.push(s.id)
+        drops.push(stage_diff)
+      end
+    end
+    next Battle::AI::MOVE_USELESS_SCORE if raises.length == 0   # No stat raises
+    score = ai.get_score_for_target_stat_raise(score, user, raises, false, true) if raises.length > 0
+    score = ai.get_score_for_target_stat_drop(score, user, drops, false, true) if drops.length > 0
+    if Settings::NEW_CRITICAL_HIT_RATE_MECHANICS
+      if user.effects[PBEffects::FocusEnergy] > 0 && target.effects[PBEffects::FocusEnergy] == 0
+        score -= 5
+      elsif user.effects[PBEffects::FocusEnergy] == 0 && target.effects[PBEffects::FocusEnergy] > 0
+        score += 5
+      end
+      if user.effects[PBEffects::LaserFocus] > 0 && target.effects[PBEffects::LaserFocus] == 0
+        score -= 5
+      elsif user.effects[PBEffects::LaserFocus] == 0 && target.effects[PBEffects::LaserFocus] > 0
+        score += 5
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/002_AI_Switch.rb RANGE 318-369
+Battle::AI::Handlers::ShouldSwitch.add(:yawning,
+  proc { |battler, reserves, ai, battle|
+    # Yawning and can fall asleep because of it
+    next false if battler.effects[PBEffects::Yawn] == 0 || !battler.battler.pbCanSleepYawn?
+    # Doesn't want to be asleep (includes checking for moves usable while asleep)
+    next false if battler.wants_status_problem?(:SLEEP)
+    # Can't cure itself of sleep
+    if battler.ability_active?
+      next false if [:INSOMNIA, :NATURALCURE, :REGENERATOR, :SHEDSKIN].include?(battler.ability_id)
+      next false if battler.ability_id == :HYDRATION && [:Rain, :HeavyRain].include?(battler.battler.effectiveWeather)
+    end
+    next false if battler.has_active_item?([:CHESTOBERRY, :LUMBERRY]) && battler.battler.canConsumeBerry?
+    # Ally can't cure sleep
+    ally_can_heal = false
+    ai.each_ally(battler.index) do |b, i|
+      ally_can_heal = b.has_active_ability?(:HEALER)
+      break if ally_can_heal
+    end
+    next false if ally_can_heal
+    # Doesn't benefit from being asleep/isn't less affected by sleep
+    next false if battler.has_active_ability?([:EARLYBIRD, :MARVELSCALE])
+    # Not trapping another battler in battle
+    if ai.trainer.high_skill?
+      next false if ai.battlers.any? do |b|
+        b.effects[PBEffects::JawLock] == battler.index ||
+        b.effects[PBEffects::MeanLook] == battler.index ||
+        b.effects[PBEffects::Octolock] == battler.index ||
+        b.effects[PBEffects::TrappingUser] == battler.index
+      end
+      trapping = false
+      ai.each_foe_battler(battler.side) do |b, i|
+        next if b.ability_active? && Battle::AbilityEffects.triggerCertainSwitching(b.ability, b.battler, battle)
+        next if b.item_active? && Battle::ItemEffects.triggerCertainSwitching(b.item, b.battler, battle)
+        next if Settings::MORE_TYPE_EFFECTS && b.has_type?(:GHOST)
+        next if b.battler.trappedInBattle?   # Relevant trapping effects are checked above
+        if battler.ability_active?
+          trapping = Battle::AbilityEffects.triggerTrappingByTarget(battler.ability, b.battler, battler.battler, battle)
+          break if trapping
+        end
+        if battler.item_active?
+          trapping = Battle::ItemEffects.triggerTrappingByTarget(battler.item, b.battler, battler.battler, battle)
+          break if trapping
+        end
+      end
+      next false if trapping
+    end
+    # Doesn't have sufficiently raised stats that would be lost by switching
+    next false if battler.stages.any? { |key, val| val >= 2 }
+    PBDebug.log_ai("#{battler.name} wants to switch because it is yawning and can't do anything while asleep")
+    next true
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/002_AI_Switch.rb RANGE 374-418
+Battle::AI::Handlers::ShouldSwitch.add(:asleep,
+  proc { |battler, reserves, ai, battle|
+    # Asleep and won't wake up this round or next round
+    next false if battler.status != :SLEEP || battler.statusCount <= 2
+    # Doesn't want to be asleep (includes checking for moves usable while asleep)
+    next false if battler.wants_status_problem?(:SLEEP)
+    # Doesn't benefit from being asleep
+    next false if battler.has_active_ability?(:MARVELSCALE)
+    # Doesn't know Rest (if it does, sleep is expected, so don't apply this check)
+    next false if battler.check_for_move { |m| m.function_code == "HealUserFullyAndFallAsleep" }
+    # Not trapping another battler in battle
+    if ai.trainer.high_skill?
+      next false if ai.battlers.any? do |b|
+        b.effects[PBEffects::JawLock] == battler.index ||
+        b.effects[PBEffects::MeanLook] == battler.index ||
+        b.effects[PBEffects::Octolock] == battler.index ||
+        b.effects[PBEffects::TrappingUser] == battler.index
+      end
+      trapping = false
+      ai.each_foe_battler(battler.side) do |b, i|
+        next if b.ability_active? && Battle::AbilityEffects.triggerCertainSwitching(b.ability, b.battler, battle)
+        next if b.item_active? && Battle::ItemEffects.triggerCertainSwitching(b.item, b.battler, battle)
+        next if Settings::MORE_TYPE_EFFECTS && b.has_type?(:GHOST)
+        next if b.battler.trappedInBattle?   # Relevant trapping effects are checked above
+        if battler.ability_active?
+          trapping = Battle::AbilityEffects.triggerTrappingByTarget(battler.ability, b.battler, battler.battler, battle)
+          break if trapping
+        end
+        if battler.item_active?
+          trapping = Battle::ItemEffects.triggerTrappingByTarget(battler.item, b.battler, battler.battler, battle)
+          break if trapping
+        end
+      end
+      next false if trapping
+    end
+    # Doesn't have sufficiently raised stats that would be lost by switching
+    next false if battler.stages.any? { |key, val| val >= 2 }
+    # A reserve Pokémon is awake and not frozen
+    next false if reserves.none? { |pkmn| ![:SLEEP, :FROZEN].include?(pkmn.status) }
+    # 60% chance to not bother
+    next false if ai.pbAIRandom(100) < 60
+    PBDebug.log_ai("#{battler.name} wants to switch because it is asleep and can't do anything")
+    next true
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/009_AI_MoveEffects_SwitchingActing.rb RANGE 288-295
+Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TrapTargetInBattle",
+  proc { |move, user, target, ai, battle|
+    next false if move.damagingMove?
+    next true if target.effects[PBEffects::MeanLook] >= 0
+    next true if Settings::MORE_TYPE_EFFECTS && target.has_type?(:GHOST)
+    next false
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/009_AI_MoveEffects_SwitchingActing.rb RANGE 337-344
+Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("TrapTargetInBattleLowerTargetDefSpDef1EachTurn",
+  proc { |move, user, target, ai, battle|
+    next false if move.damagingMove?
+    next true if target.effects[PBEffects::Octolock] >= 0
+    next true if Settings::MORE_TYPE_EFFECTS && target.has_type?(:GHOST)
+    next false
+  }
+)

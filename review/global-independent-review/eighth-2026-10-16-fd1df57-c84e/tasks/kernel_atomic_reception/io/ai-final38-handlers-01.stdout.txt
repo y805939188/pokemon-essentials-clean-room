@@ -1,0 +1,256 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/007_AI_ChooseMove_OtherScores.rb RANGE 53-81
+Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:priority_move_against_faster_target,
+  proc { |score, move, user, target, ai, battle|
+    if ai.trainer.high_skill? && target.faster_than?(user) && move.rough_priority(user) > 0
+      # User is at risk of being knocked out
+      if ai.trainer.has_skill_flag?("HPAware") && user.hp < user.totalhp / 3
+        old_score = score
+        score += 8
+        PBDebug.log_score_change(score - old_score, "user at low HP and move has priority over faster target")
+      end
+      # Target is predicted to be knocked out by the move
+      if move.damagingMove? && move.rough_damage >= target.hp
+        old_score = score
+        score += 8
+        PBDebug.log_score_change(score - old_score, "target at low HP and move has priority over faster target")
+      end
+      # Any foe knows Quick Guard and can protect against priority moves
+      old_score = score
+      ai.each_foe_battler(user.side) do |b, i|
+        next if !b.has_move_with_function?("ProtectUserSideFromPriorityMoves")
+        next if Settings::MECHANICS_GENERATION <= 5 && b.effects[PBEffects::ProtectRate] > 1
+        score -= 5
+      end
+      if score != old_score
+        PBDebug.log_score_change(score - old_score, "a foe knows Quick Guard and may protect against priority moves")
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/007_AI_ChooseMove_OtherScores.rb RANGE 351-362
+Battle::AI::Handlers::GeneralMoveAgainstTargetScore.add(:thawing_move_against_frozen_target,
+  proc { |score, move, user, target, ai, battle|
+    if ai.trainer.medium_skill? && target.status == :FROZEN
+      if move.rough_type == :FIRE || (Settings::MECHANICS_GENERATION >= 6 && move.move.thawsUser?)
+        old_score = score
+        score -= 20
+        PBDebug.log_score_change(score - old_score, "thaws the target")
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/001_AI_MoveEffects_Misc.rb RANGE 537-555
+Battle::AI::Handlers::MoveEffectScore.add("RemoveUserBindingAndEntryHazards",
+  proc { |score, move, user, ai, battle|
+    # Score for raising user's Speed
+    if Settings::MECHANICS_GENERATION >= 8
+      score = Battle::AI::Handlers.apply_move_effect_score("RaiseUserSpeed1",
+         score, move, user, ai, battle)
+    end
+    # Score for removing various effects
+    score += 10 if user.effects[PBEffects::Trapping] > 0
+    score += 15 if user.effects[PBEffects::LeechSeed] >= 0
+    if battle.pbAbleNonActiveCount(user.idxOwnSide) > 0
+      score += 15 if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+      score += 15 if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+      score += 20 if user.pbOwnSide.effects[PBEffects::StealthRock]
+      score += 15 if user.pbOwnSide.effects[PBEffects::StickyWeb]
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/002_AI_MoveEffects_BattlerStats.rb RANGE 194-214
+Battle::AI::Handlers::MoveEffectScore.add("RaiseUserSpeed2LowerUserWeight",
+  proc { |score, move, user, ai, battle|
+    score = ai.get_score_for_target_stat_raise(score, user, move.move.statUp)
+    if ai.trainer.medium_skill?
+      current_weight = user.battler.pbWeight
+      if current_weight > 1
+        score -= 5 if user.has_move_with_function?("PowerHigherWithUserHeavierThanTarget")
+        ai.each_foe_battler(user.side) do |b, i|
+          score -= 5 if b.has_move_with_function?("PowerHigherWithUserHeavierThanTarget")
+          score += 5 if b.has_move_with_function?("PowerHigherWithTargetWeight")
+          # User will become susceptible to Sky Drop
+          if b.has_move_with_function?("TwoTurnAttackInvulnerableInSkyTargetCannotAct") &&
+             Settings::MECHANICS_GENERATION >= 6
+            score -= 10 if current_weight >= 2000 && current_weight < 3000
+          end
+        end
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/002_AI_MoveEffects_BattlerStats.rb RANGE 269-282
+Battle::AI::Handlers::MoveEffectScore.add("RaiseUserEvasion2MinimizeUser",
+  proc { |score, move, user, ai, battle|
+    score = ai.get_score_for_target_stat_raise(score, user, move.move.statUp)
+    if ai.trainer.medium_skill? && !user.effects[PBEffects::Minimize]
+      ai.each_foe_battler(user.side) do |b, i|
+        # Moves that do double damage and (in Gen 6+) have perfect accuracy
+        if b.check_for_move { |m| m.tramplesMinimize? }
+          score -= (Settings::MECHANICS_GENERATION >= 6) ? 15 : 10
+        end
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/002_AI_MoveEffects_BattlerStats.rb RANGE 970-992
+Battle::AI::Handlers::MoveFailureAgainstTargetCheck.add("LowerTargetEvasion1RemoveSideEffects",
+  proc { |move, user, target, ai, battle|
+    target_side = target.pbOwnSide
+    target_opposing_side = target.pbOpposingSide
+    next false if target_side.effects[PBEffects::AuroraVeil] > 0 ||
+                  target_side.effects[PBEffects::LightScreen] > 0 ||
+                  target_side.effects[PBEffects::Reflect] > 0 ||
+                  target_side.effects[PBEffects::Mist] > 0 ||
+                  target_side.effects[PBEffects::Safeguard] > 0
+    next false if target_side.effects[PBEffects::StealthRock] ||
+                  target_side.effects[PBEffects::Spikes] > 0 ||
+                  target_side.effects[PBEffects::ToxicSpikes] > 0 ||
+                  target_side.effects[PBEffects::StickyWeb]
+    next false if Settings::MECHANICS_GENERATION >= 6 &&
+                  (target_opposing_side.effects[PBEffects::StealthRock] ||
+                  target_opposing_side.effects[PBEffects::Spikes] > 0 ||
+                  target_opposing_side.effects[PBEffects::ToxicSpikes] > 0 ||
+                  target_opposing_side.effects[PBEffects::StickyWeb])
+    next false if Settings::MECHANICS_GENERATION >= 8 && battle.field.terrain != :None
+    next move.statusMove? &&
+         !target.battler.pbCanLowerStatStage?(move.move.statDown[0], user.battler, move.move)
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/002_AI_MoveEffects_BattlerStats.rb RANGE 993-1021
+Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("LowerTargetEvasion1RemoveSideEffects",
+  proc { |score, move, user, target, ai, battle|
+    next Battle::AI::MOVE_USELESS_SCORE if !target.opposes?(user)
+    # Score for stat drop
+    score = ai.get_score_for_target_stat_drop(score, target, move.move.statDown)
+    # Score for removing side effects/terrain
+    score += 10 if target.pbOwnSide.effects[PBEffects::AuroraVeil] > 1 ||
+                   target.pbOwnSide.effects[PBEffects::Reflect] > 1 ||
+                   target.pbOwnSide.effects[PBEffects::LightScreen] > 1 ||
+                   target.pbOwnSide.effects[PBEffects::Mist] > 1 ||
+                   target.pbOwnSide.effects[PBEffects::Safeguard] > 1
+    if target.can_switch_lax?
+      score -= 15 if target.pbOwnSide.effects[PBEffects::Spikes] > 0 ||
+                     target.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0 ||
+                     target.pbOwnSide.effects[PBEffects::StealthRock] ||
+                     target.pbOwnSide.effects[PBEffects::StickyWeb]
+    end
+    if user.can_switch_lax? && Settings::MECHANICS_GENERATION >= 6
+      score += 15 if target.pbOpposingSide.effects[PBEffects::Spikes] > 0 ||
+                     target.pbOpposingSide.effects[PBEffects::ToxicSpikes] > 0 ||
+                     target.pbOpposingSide.effects[PBEffects::StealthRock] ||
+                     target.pbOpposingSide.effects[PBEffects::StickyWeb]
+    end
+    if Settings::MECHANICS_GENERATION >= 8 && battle.field.terrain != :None
+      score -= ai.get_score_for_terrain(battle.field.terrain, user)
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/003_AI_MoveEffects_BattlerOther.rb RANGE 185-236
+Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("ParalyzeTarget",
+  proc { |score, move, user, target, ai, battle|
+    useless_score = (move.statusMove?) ? Battle::AI::MOVE_USELESS_SCORE : score
+    # No score modifier if the paralysis will be removed immediately
+    next useless_score if target.has_active_item?([:CHERIBERRY, :LUMBERRY])
+    next useless_score if target.faster_than?(user) &&
+                          target.has_active_ability?(:HYDRATION) &&
+                          [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+    if target.battler.pbCanParalyze?(user.battler, false, move.move)
+      add_effect = move.get_score_change_for_additional_effect(user, target)
+      next useless_score if add_effect == -999   # Additional effect will be negated
+      score += add_effect
+      # Inherent preference (because of the chance of full paralysis)
+      score += 10
+      # Prefer if the target is faster than the user but will become slower if
+      # paralysed
+      if target.faster_than?(user)
+        user_speed = user.rough_stat(:SPEED)
+        target_speed = target.rough_stat(:SPEED)
+        score += 15 if target_speed < user_speed * ((Settings::MECHANICS_GENERATION >= 7) ? 2 : 4)
+      end
+      # Prefer if the target is confused or infatuated, to compound the turn skipping
+      score += 7 if target.effects[PBEffects::Confusion] > 1
+      score += 7 if target.effects[PBEffects::Attract] >= 0
+      # Prefer if the user or an ally has a move/ability that is better if the target is paralysed
+      ai.each_same_side_battler(user.side) do |b, i|
+        score += 5 if b.has_move_with_function?("DoublePowerIfTargetParalyzedCureTarget",
+                                                "DoublePowerIfTargetStatusProblem")
+      end
+      # Don't prefer if target benefits from having the paralysis status problem
+      score -= 8 if target.has_active_ability?([:GUTS, :MARVELSCALE, :QUICKFEET])
+      score -= 20 if target.has_active_ability?(:SYNCHRONIZE) &&
+                     user.battler.pbCanParalyzeSynchronize?(target.battler)
+      score -= 5 if target.has_move_with_function?("DoublePowerIfUserPoisonedBurnedParalyzed",
+                                                   "CureUserBurnPoisonParalysis")
+      score -= 15 if target.check_for_move { |m|
+        m.function_code == "GiveUserStatusToTarget" && user.battler.pbCanParalyze?(target.battler, false, m)
+      }
+      # Don't prefer if the target can heal itself (or be healed by an ally)
+      if target.has_active_ability?(:SHEDSKIN)
+        score -= 8
+      elsif target.has_active_ability?(:HYDRATION) &&
+            [:Rain, :HeavyRain].include?(target.battler.effectiveWeather)
+        score -= 15
+      end
+      ai.each_same_side_battler(target.side) do |b, i|
+        score -= 8 if i != target.index && b.has_active_ability?(:HEALER)
+      end
+    end
+    next score
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/003_AI_MoveEffects_BattlerOther.rb RANGE 785-798
+Battle::AI::Handlers::MoveFailureCheck.add("SetUserTypesToUserMoveType",
+  proc { |move, user, ai, battle|
+    next true if !user.battler.canChangeType?
+    has_possible_type = false
+    user.battler.eachMoveWithIndex do |m, i|
+      break if Settings::MECHANICS_GENERATION >= 6 && i > 0
+      next if GameData::Type.get(m.type).pseudo_type
+      next if user.has_type?(m.type)
+      has_possible_type = true
+      break
+    end
+    next !has_possible_type
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/006_AI MoveEffects/003_AI_MoveEffects_BattlerOther.rb RANGE 799-822
+Battle::AI::Handlers::MoveEffectAgainstTargetScore.add("SetUserTypesToUserMoveType",
+  proc { |score, move, user, target, ai, battle|
+    possible_types = []
+    user.battler.eachMoveWithIndex do |m, i|
+      break if Settings::MECHANICS_GENERATION >= 6 && i > 0
+      next if GameData::Type.get(m.type).pseudo_type
+      next if user.has_type?(m.type)
+      possible_types.push(m.type)
+    end
+    # Check if any user's moves will get STAB because of the type change
+    possible_types.each do |type|
+      next if !user.has_damaging_move_of_type?(type)
+      score += 14
+      break
+    end
+    # NOTE: Other things could be considered, like the foes' moves'
+    #       effectivenesses against the current and new user's type(s), and
+    #       whether any of the user's moves will lose STAB because of the type
+    #       change (and if so, which set of STAB is more beneficial). However,
+    #       I'm keeping this simple because, if you know this move, you probably
+    #       want to use it just because.
+    next score
+  }
+)

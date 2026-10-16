@@ -1,0 +1,230 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb RANGE 68-141
+MenuHandlers.add(:debug_menu, :safari_zone_and_bug_contest, {
+  "name"        => _INTL("Safari Zone and Bug-Catching Contest"),
+  "parent"      => :field_menu,
+  "description" => _INTL("Edit steps/time remaining and number of usable Poké Balls."),
+  "effect"      => proc {
+    if pbInSafari?
+      safari = pbSafariState
+      cmd = 0
+      loop do
+        cmds = [_INTL("Steps remaining: {1}", (Settings::SAFARI_STEPS > 0) ? safari.steps : _INTL("infinite")),
+                GameData::Item.get(:SAFARIBALL).name_plural + ": " + safari.ballcount.to_s]
+        cmd = pbShowCommands(nil, cmds, -1, cmd)
+        break if cmd < 0
+        case cmd
+        when 0   # Steps remaining
+          if Settings::SAFARI_STEPS > 0
+            params = ChooseNumberParams.new
+            params.setRange(0, 99999)
+            params.setDefaultValue(safari.steps)
+            safari.steps = pbMessageChooseNumber(_INTL("Set the steps remaining in this Safari game."), params)
+          end
+        when 1   # Safari Balls
+          params = ChooseNumberParams.new
+          params.setRange(0, 99999)
+          params.setDefaultValue(safari.ballcount)
+          safari.ballcount = pbMessageChooseNumber(
+            _INTL("Set the quantity of {1}.", GameData::Item.get(:SAFARIBALL).name_plural), params)
+        end
+      end
+    elsif pbInBugContest?
+      contest = pbBugContestState
+      cmd = 0
+      loop do
+        cmds = []
+        if Settings::BUG_CONTEST_TIME > 0
+          time_left = Settings::BUG_CONTEST_TIME - (System.uptime - contest.timer_start).to_i
+          time_left = 0 if time_left < 0
+          min = time_left / 60
+          sec = time_left % 60
+          time_string = _ISPRINTF("{1:02d}m {2:02d}s", min, sec)
+        else
+          time_string = _INTL("infinite")
+        end
+        cmds.push(_INTL("Time remaining: {1}", time_string))
+        cmds.push(GameData::Item.get(:SPORTBALL).name_plural + ": " + contest.ballcount.to_s)
+        cmd = pbShowCommands(nil, cmds, -1, cmd)
+        break if cmd < 0
+        case cmd
+        when 0   # Steps remaining
+          if Settings::BUG_CONTEST_TIME > 0
+            params = ChooseNumberParams.new
+            params.setRange(0, 99999)
+            params.setDefaultValue(min)
+            new_time = pbMessageChooseNumber(_INTL("Set the time remaining (in minutes) in this Bug-Catching Contest."), params)
+            contest.timer_start += (new_time - min) * 60
+            $scene.spriteset.usersprites.each do |sprite|
+              next if !sprite.is_a?(TimerDisplay)
+              sprite.start_time = contest.timer_start
+              break
+            end
+          end
+        when 1   # Sport Balls
+          params = ChooseNumberParams.new
+          params.setRange(0, 99999)
+          params.setDefaultValue(contest.ballcount)
+          contest.ballcount = pbMessageChooseNumber(
+            _INTL("Set the quantity of {1}.", GameData::Item.get(:SPORTBALL).name_plural), params)
+        end
+      end
+    else
+      pbMessage(_INTL("You aren't in the Safari Zone or a Bug-Catching Contest!"))
+    end
+  }
+})
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb RANGE 593-638
+MenuHandlers.add(:debug_menu, :fill_boxes, {
+  "name"        => _INTL("Fill storage boxes"),
+  "parent"      => :pokemon_menu,
+  "description" => _INTL("Puts one Pokémon of each species (at Level 50) in storage."),
+  "effect"      => proc {
+    added = 0
+    box_qty = $PokemonStorage.maxPokemon(0)
+    completed = true
+    GameData::Species.each do |species_data|
+      sp = species_data.species
+      f = species_data.form
+      # Record each form of each species as seen and owned
+      if f == 0
+        if species_data.single_gendered?
+          g = (species_data.gender_ratio == :AlwaysFemale) ? 1 : 0
+          $player.pokedex.register(sp, g, f, 0, false)
+          $player.pokedex.register(sp, g, f, 1, false)
+        else   # Both male and female
+          $player.pokedex.register(sp, 0, f, 0, false)
+          $player.pokedex.register(sp, 0, f, 1, false)
+          $player.pokedex.register(sp, 1, f, 0, false)
+          $player.pokedex.register(sp, 1, f, 1, false)
+        end
+        $player.pokedex.set_owned(sp, false)
+      elsif species_data.real_form_name && !species_data.real_form_name.empty?
+        g = (species_data.gender_ratio == :AlwaysFemale) ? 1 : 0
+        $player.pokedex.register(sp, g, f, 0, false)
+        $player.pokedex.register(sp, g, f, 1, false)
+      end
+      # Add Pokémon (if form 0, i.e. one of each species)
+      next if f != 0
+      if added >= Settings::NUM_STORAGE_BOXES * box_qty
+        completed = false
+        next
+      end
+      added += 1
+      $PokemonStorage[(added - 1) / box_qty, (added - 1) % box_qty] = Pokemon.new(sp, 50)
+    end
+    $player.pokedex.refresh_accessible_dexes
+    pbMessage(_INTL("Storage boxes were filled with one Pokémon of each species."))
+    if !completed
+      pbMessage(_INTL("Note: The number of storage spaces ({1} boxes of {2}) is less than the number of species.",
+                      Settings::NUM_STORAGE_BOXES, box_qty))
+    end
+  }
+})
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb RANGE 778-827
+MenuHandlers.add(:debug_menu, :add_item, {
+  "name"        => _INTL("Add item"),
+  "parent"      => :items_menu,
+  "description" => _INTL("Choose an item and a quantity of it to add to the Bag."),
+  "effect"      => proc {
+    pbListScreenBlock(_INTL("ADD ITEM"), ItemLister.new) do |button, item|
+      if button == Input::USE && item
+        params = ChooseNumberParams.new
+        params.setRange(1, Settings::BAG_MAX_PER_SLOT)
+        params.setInitialValue(1)
+        params.setCancelValue(0)
+        qty = pbMessageChooseNumber(_INTL("Add how many {1}?",
+                                          GameData::Item.get(item).name_plural), params)
+        if qty > 0
+          $bag.add(item, qty)
+          pbMessage(_INTL("Gave {1}x {2}.", qty, GameData::Item.get(item).name))
+        end
+      end
+    end
+  }
+})
+
+MenuHandlers.add(:debug_menu, :fill_bag, {
+  "name"        => _INTL("Fill Bag"),
+  "parent"      => :items_menu,
+  "description" => _INTL("Empties the Bag and then fills it with a certain number of every item."),
+  "effect"      => proc {
+    params = ChooseNumberParams.new
+    params.setRange(1, Settings::BAG_MAX_PER_SLOT)
+    params.setInitialValue(1)
+    params.setCancelValue(0)
+    qty = pbMessageChooseNumber(_INTL("Choose the number of items."), params)
+    if qty > 0
+      $bag.clear
+      # NOTE: This doesn't simply use $bag.add for every item in turn, because
+      #       that's really slow when done in bulk.
+      pocket_sizes = Settings::BAG_MAX_POCKET_SIZE
+      bag = $bag.pockets   # Called here so that it only rearranges itself once
+      GameData::Item.each do |i|
+        next if !pocket_sizes[i.pocket - 1] || pocket_sizes[i.pocket - 1] == 0
+        next if pocket_sizes[i.pocket - 1] > 0 && bag[i.pocket].length >= pocket_sizes[i.pocket - 1]
+        item_qty = (i.is_important?) ? 1 : qty
+        bag[i.pocket].push([i.id, item_qty])
+      end
+      # NOTE: Auto-sorting pockets don't need to be sorted afterwards, because
+      #       items are added in the same order they would be sorted into.
+      pbMessage(_INTL("The Bag was filled with {1} of each item.", qty))
+    end
+  }
+})
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb RANGE 849-880
+MenuHandlers.add(:debug_menu, :set_money, {
+  "name"        => _INTL("Set money"),
+  "parent"      => :player_menu,
+  "description" => _INTL("Edit how much money, Game Corner Coins and Battle Points you have."),
+  "effect"      => proc {
+    cmd = 0
+    loop do
+      cmds = [_INTL("Money: ${1}", $player.money.to_s_formatted),
+              _INTL("Coins: {1}", $player.coins.to_s_formatted),
+              _INTL("Battle Points: {1}", $player.battle_points.to_s_formatted)]
+      cmd = pbShowCommands(nil, cmds, -1, cmd)
+      break if cmd < 0
+      case cmd
+      when 0   # Money
+        params = ChooseNumberParams.new
+        params.setRange(0, Settings::MAX_MONEY)
+        params.setDefaultValue($player.money)
+        $player.money = pbMessageChooseNumber("\\ts[]" + _INTL("Set the player's money."), params)
+      when 1   # Coins
+        params = ChooseNumberParams.new
+        params.setRange(0, Settings::MAX_COINS)
+        params.setDefaultValue($player.coins)
+        $player.coins = pbMessageChooseNumber("\\ts[]" + _INTL("Set the player's Coin amount."), params)
+      when 2   # Battle Points
+        params = ChooseNumberParams.new
+        params.setRange(0, Settings::MAX_BATTLE_POINTS)
+        params.setDefaultValue($player.battle_points)
+        $player.battle_points = pbMessageChooseNumber("\\ts[]" + _INTL("Set the player's BP amount."), params)
+      end
+    end
+  }
+})
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb RANGE 1115-1133
+MenuHandlers.add(:debug_menu, :rename_player, {
+  "name"        => _INTL("Set player name"),
+  "parent"      => :player_menu,
+  "description" => _INTL("Rename the player."),
+  "effect"      => proc {
+    trname = pbEnterPlayerName("Your name?", 0, Settings::MAX_PLAYER_NAME_SIZE, $player.name)
+    if nil_or_empty?(trname) && pbConfirmMessage(_INTL("Give yourself a default name?"))
+      trainertype = $player.trainer_type
+      gender      = pbGetTrainerTypeGender(trainertype)
+      trname      = pbSuggestTrainerName(gender)
+    end
+    if nil_or_empty?(trname)
+      pbMessage(_INTL("The player's name remained {1}.", $player.name))
+    else
+      $player.name = trname
+      pbMessage(_INTL("The player's name was changed to {1}.", $player.name))
+    end
+  }
+})

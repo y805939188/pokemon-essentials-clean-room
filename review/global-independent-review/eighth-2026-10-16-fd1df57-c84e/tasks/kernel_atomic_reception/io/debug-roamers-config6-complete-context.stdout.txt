@@ -1,0 +1,184 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/003_Debug_MenuExtraCode.rb RANGE 370-552
+        end
+      end
+
+    end
+  end
+  cmd_window.dispose
+end
+
+#===============================================================================
+# Debug roaming Pokémon screen
+#===============================================================================
+class SpriteWindow_DebugRoamers < Window_DrawableCommand
+  def initialize(viewport)
+    super(0, 0, Graphics.width, Graphics.height, viewport)
+  end
+
+  def roamerCount
+    return Settings::ROAMING_SPECIES.length
+  end
+
+  def itemCount
+    return self.roamerCount + 2
+  end
+
+  def shadowtext(t, x, y, w, h, align = 0, colors = 0)
+    y += 8   # TEXT OFFSET
+    width = self.contents.text_size(t).width
+    case align
+    when 1
+      x += (w - width)             # Right aligned
+    when 2
+      x += (w / 2) - (width / 2)   # Centre aligned
+    end
+    base = Color.new(96, 96, 96)
+    case colors
+    when 1
+      base = Color.new(168, 48, 56)   # Red
+    when 2
+      base = Color.new(0, 144, 0)     # Green
+    end
+    pbDrawShadowText(self.contents, x, y, [width, w].max, h, t, base, Color.new(208, 208, 200))
+  end
+
+  def drawItem(index, _count, rect)
+    pbSetNarrowFont(self.contents)
+    rect = drawCursor(index, rect)
+    nameWidth   = rect.width * 50 / 100
+    statusWidth = rect.width * 50 / 100
+    if index == self.itemCount - 2
+      # Advance roaming
+      self.shadowtext(_INTL("[All roam to new locations]"), rect.x, rect.y, nameWidth, rect.height)
+    elsif index == self.itemCount - 1
+      # Advance roaming
+      self.shadowtext(_INTL("[Clear all current roamer locations]"), rect.x, rect.y, nameWidth, rect.height)
+    else
+      pkmn = Settings::ROAMING_SPECIES[index]
+      name = GameData::Species.get(pkmn[0]).name + " (Lv. #{pkmn[1]})"
+      status = ""
+      statuscolor = 0
+      if pkmn[2] <= 0 || $game_switches[pkmn[2]]
+        status = $PokemonGlobal.roamPokemon[index]
+        if status == true
+          if $PokemonGlobal.roamPokemonCaught[index]
+            status = "[CAUGHT]"
+          else
+            status = "[DEFEATED]"
+          end
+          statuscolor = 1
+        else
+          # roaming
+          curmap = $PokemonGlobal.roamPosition[index]
+          if curmap
+            mapinfos = pbLoadMapInfos
+            status = "[ROAMING][#{curmap}: #{mapinfos[curmap].name}]"
+          else
+            status = "[ROAMING][map not set]"
+          end
+          statuscolor = 2
+        end
+      else
+        status = "[NOT ROAMING][Switch #{pkmn[2]} is off]"
+      end
+      self.shadowtext(name, rect.x, rect.y, nameWidth, rect.height)
+      self.shadowtext(status, rect.x + nameWidth, rect.y, statusWidth, rect.height, 1, statuscolor)
+    end
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+def pbDebugRoamers
+  viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+  viewport.z = 99999
+  sprites = {}
+  sprites["cmdwindow"] = SpriteWindow_DebugRoamers.new(viewport)
+  cmdwindow = sprites["cmdwindow"]
+  cmdwindow.active = true
+  loop do
+    Graphics.update
+    Input.update
+    pbUpdateSpriteHash(sprites)
+    if cmdwindow.index < cmdwindow.roamerCount
+      pkmn = Settings::ROAMING_SPECIES[cmdwindow.index]
+    else
+      pkmn = nil
+    end
+    if Input.trigger?(Input::ACTION) && cmdwindow.index < cmdwindow.roamerCount &&
+       (pkmn[2] <= 0 || $game_switches[pkmn[2]]) &&
+       $PokemonGlobal.roamPokemon[cmdwindow.index] != true
+      # Roam selected Pokémon
+      pbPlayDecisionSE
+      if Input.press?(Input::CTRL)   # Roam to current map
+        if $PokemonGlobal.roamPosition[cmdwindow.index] == pbDefaultMap
+          $PokemonGlobal.roamPosition[cmdwindow.index] = nil
+        else
+          $PokemonGlobal.roamPosition[cmdwindow.index] = pbDefaultMap
+        end
+      else   # Roam to a random other map
+        oldmap = $PokemonGlobal.roamPosition[cmdwindow.index]
+        pbRoamPokemonOne(cmdwindow.index)
+        if $PokemonGlobal.roamPosition[cmdwindow.index] == oldmap
+          $PokemonGlobal.roamPosition[cmdwindow.index] = nil
+          pbRoamPokemonOne(cmdwindow.index)
+        end
+        $PokemonGlobal.roamedAlready = false
+      end
+      cmdwindow.refresh
+    elsif Input.trigger?(Input::BACK)
+      pbPlayCancelSE
+      break
+    elsif Input.trigger?(Input::USE)
+      if cmdwindow.index < cmdwindow.roamerCount
+        pbPlayDecisionSE
+        # Toggle through roaming, not roaming, defeated
+        if pkmn[2] > 0 && !$game_switches[pkmn[2]]
+          # not roaming -> roaming
+          $game_switches[pkmn[2]] = true
+        elsif $PokemonGlobal.roamPokemon[cmdwindow.index] != true
+          # roaming -> defeated
+          $PokemonGlobal.roamPokemon[cmdwindow.index] = true
+          $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = false
+        elsif $PokemonGlobal.roamPokemon[cmdwindow.index] == true &&
+              !$PokemonGlobal.roamPokemonCaught[cmdwindow.index]
+          # defeated -> caught
+          $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = true
+        elsif pkmn[2] > 0
+          # caught -> not roaming (or roaming if Switch ID is 0)
+          $game_switches[pkmn[2]] = false if pkmn[2] > 0
+          $PokemonGlobal.roamPokemon[cmdwindow.index] = nil
+          $PokemonGlobal.roamPokemonCaught[cmdwindow.index] = false
+        end
+        cmdwindow.refresh
+      elsif cmdwindow.index == cmdwindow.itemCount - 2   # All roam
+        if Settings::ROAMING_SPECIES.length == 0
+          pbPlayBuzzerSE
+        else
+          pbPlayDecisionSE
+          pbRoamPokemon
+          $PokemonGlobal.roamedAlready = false
+          cmdwindow.refresh
+        end
+      else   # Clear all roaming locations
+        if Settings::ROAMING_SPECIES.length == 0
+          pbPlayBuzzerSE
+        else
+          pbPlayDecisionSE
+          Settings::ROAMING_SPECIES.length.times do |i|
+            $PokemonGlobal.roamPosition[i] = nil
+          end
+          $PokemonGlobal.roamedAlready = false
+          cmdwindow.refresh
+        end
+      end
+    end
+  end
+  pbDisposeSpriteHash(sprites)
+  viewport.dispose
+end
+
+#===============================================================================
+# Battle animations import/export
+#===============================================================================

@@ -1,0 +1,302 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/005_MoveEffects_Misc.rb RANGE 558-603
+class Battle::Move::RemoveUserBindingAndEntryHazards < Battle::Move::StatUpMove
+  def initialize(battle, move)
+    super
+    @statUp = [:SPEED, 1]
+  end
+
+  def pbEffectAfterAllHits(user, target)
+    return if user.fainted? || target.damageState.unaffected
+    if user.effects[PBEffects::Trapping] > 0
+      trapMove = GameData::Move.get(user.effects[PBEffects::TrappingMove]).name
+      trapUser = @battle.battlers[user.effects[PBEffects::TrappingUser]]
+      @battle.pbDisplay(_INTL("{1} got free of {2}'s {3}!", user.pbThis, trapUser.pbThis(true), trapMove))
+      user.effects[PBEffects::Trapping]     = 0
+      user.effects[PBEffects::TrappingMove] = nil
+      user.effects[PBEffects::TrappingUser] = -1
+    end
+    if user.effects[PBEffects::LeechSeed] >= 0
+      user.effects[PBEffects::LeechSeed] = -1
+      @battle.pbDisplay(_INTL("{1} shed Leech Seed!", user.pbThis))
+    end
+    if user.pbOwnSide.effects[PBEffects::StealthRock]
+      user.pbOwnSide.effects[PBEffects::StealthRock] = false
+      @battle.pbDisplay(_INTL("{1} blew away stealth rocks!", user.pbThis))
+    end
+    if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+      user.pbOwnSide.effects[PBEffects::Spikes] = 0
+      @battle.pbDisplay(_INTL("{1} blew away spikes!", user.pbThis))
+    end
+    if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+      user.pbOwnSide.effects[PBEffects::ToxicSpikes] = 0
+      @battle.pbDisplay(_INTL("{1} blew away poison spikes!", user.pbThis))
+    end
+    if user.pbOwnSide.effects[PBEffects::StickyWeb]
+      user.pbOwnSide.effects[PBEffects::StickyWeb] = false
+      @battle.pbDisplay(_INTL("{1} blew away sticky webs!", user.pbThis))
+    end
+  end
+
+  def pbAdditionalEffect(user, target)
+    super if Settings::MECHANICS_GENERATION >= 8
+  end
+end
+
+#===============================================================================
+# Attacks 2 rounds in the future. (Doom Desire, Future Sight)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/007_MoveEffects_BattlerOther.rb RANGE 132-145
+class Battle::Move::BadPoisonTarget < Battle::Move::PoisonTarget
+  def initialize(battle, move)
+    super
+    @toxic = true
+  end
+
+  def pbOverrideSuccessCheckPerHit(user, target)
+    return (Settings::MORE_TYPE_EFFECTS && statusMove? && user.pbHasType?(:POISON))
+  end
+end
+
+#===============================================================================
+# Paralyzes the target.
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/007_MoveEffects_BattlerOther.rb RANGE 799-832
+class Battle::Move::SetUserTypesToUserMoveType < Battle::Move
+  def canSnatch?; return true; end
+
+  def pbMoveFailed?(user, targets)
+    if !user.canChangeType?
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    userTypes = user.pbTypes(true)
+    @newTypes = []
+    user.eachMoveWithIndex do |m, i|
+      break if Settings::MECHANICS_GENERATION >= 6 && i > 0
+      next if GameData::Type.get(m.type).pseudo_type
+      next if userTypes.include?(m.type)
+      @newTypes.push(m.type) if !@newTypes.include?(m.type)
+    end
+    if @newTypes.length == 0
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbEffectGeneral(user)
+    newType = @newTypes[@battle.pbRandom(@newTypes.length)]
+    user.pbChangeTypes(newType)
+    typeName = GameData::Type.get(newType).name
+    @battle.pbDisplay(_INTL("{1}'s type changed to {2}!", user.pbThis, typeName))
+  end
+end
+
+#===============================================================================
+# The target's types become Psychic. (Magic Powder)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/007_MoveEffects_BattlerOther.rb RANGE 1086-1154
+class Battle::Move::UserTargetSwapAbilities < Battle::Move
+  def ignoresSubstitute?(user); return true; end
+
+  def pbMoveFailed?(user, targets)
+    if !user.ability
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    if user.unstoppableAbility?
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    if user.ungainableAbility? || user.ability == :WONDERGUARD
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if !target.ability ||
+       (user.ability == target.ability && Settings::MECHANICS_GENERATION <= 5)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.unstoppableAbility?
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.ungainableAbility? || target.ability == :WONDERGUARD
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    if user.opposes?(target)
+      @battle.pbShowAbilitySplash(user, false, false)
+      @battle.pbShowAbilitySplash(target, true, false)
+    end
+    oldUserAbil   = user.ability
+    oldTargetAbil = target.ability
+    user.ability   = oldTargetAbil
+    target.ability = oldUserAbil
+    if user.opposes?(target)
+      @battle.pbReplaceAbilitySplash(user)
+      @battle.pbReplaceAbilitySplash(target)
+    end
+    if Battle::Scene::USE_ABILITY_SPLASH
+      @battle.pbDisplay(_INTL("{1} swapped Abilities with its target!", user.pbThis))
+    else
+      @battle.pbDisplay(_INTL("{1} swapped its {2} Ability with its target's {3} Ability!",
+                              user.pbThis, target.abilityName, user.abilityName))
+    end
+    if user.opposes?(target)
+      @battle.pbHideAbilitySplash(user)
+      @battle.pbHideAbilitySplash(target)
+    end
+    user.pbOnLosingAbility(oldUserAbil)
+    target.pbOnLosingAbility(oldTargetAbil)
+    user.pbTriggerAbilityOnGainingIt
+    target.pbTriggerAbilityOnGainingIt
+  end
+end
+
+#===============================================================================
+# Target's ability is negated. (Gastro Acid)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/008_MoveEffects_MoveAttributes.rb RANGE 412-423
+class Battle::Move::DoublePowerIfUserPoisonedBurnedParalyzed < Battle::Move
+  def damageReducedByBurn?; return Settings::MECHANICS_GENERATION <= 5; end
+
+  def pbBaseDamage(baseDmg, user, target)
+    baseDmg *= 2 if user.poisoned? || user.burned? || user.paralyzed?
+    return baseDmg
+  end
+end
+
+#===============================================================================
+# Power is doubled if the target is asleep. Wakes the target up. (Wake-Up Slap)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/008_MoveEffects_MoveAttributes.rb RANGE 1287-1337
+class Battle::Move::TypeDependsOnUserIVs < Battle::Move
+  def pbBaseType(user)
+    hp = pbHiddenPower(user.pokemon)
+    return hp[0]
+  end
+
+  def pbBaseDamage(baseDmg, user, target)
+    return super if Settings::MECHANICS_GENERATION >= 6
+    hp = pbHiddenPower(user.pokemon)
+    return hp[1]
+  end
+end
+
+# NOTE: This allows Hidden Power to be Fairy-type (if you have that type in your
+#       game). I don't care that the official games don't work like that.
+def pbHiddenPower(pkmn)
+  iv = pkmn.iv
+  idxType = 0
+  power = 60
+  types = []
+  GameData::Type.each do |t|
+    types[t.icon_position] ||= []
+    types[t.icon_position].push(t.id) if !t.pseudo_type && ![:NORMAL, :SHADOW].include?(t.id)
+  end
+  types.flatten!.compact!
+  idxType |= (iv[:HP] & 1)
+  idxType |= (iv[:ATTACK] & 1) << 1
+  idxType |= (iv[:DEFENSE] & 1) << 2
+  idxType |= (iv[:SPEED] & 1) << 3
+  idxType |= (iv[:SPECIAL_ATTACK] & 1) << 4
+  idxType |= (iv[:SPECIAL_DEFENSE] & 1) << 5
+  idxType = (types.length - 1) * idxType / 63
+  type = types[idxType]
+  if Settings::MECHANICS_GENERATION <= 5
+    powerMin = 30
+    powerMax = 70
+    power |= (iv[:HP] & 2) >> 1
+    power |= (iv[:ATTACK] & 2)
+    power |= (iv[:DEFENSE] & 2) << 1
+    power |= (iv[:SPEED] & 2) << 2
+    power |= (iv[:SPECIAL_ATTACK] & 2) << 3
+    power |= (iv[:SPECIAL_DEFENSE] & 2) << 4
+    power = powerMin + ((powerMax - powerMin) * power / 63)
+  end
+  return [type, power]
+end
+
+#===============================================================================
+# Power and type depend on the user's held berry. Destroys the berry.
+# (Natural Gift)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/009_MoveEffects_MultiHit.rb RANGE 420-482
+class Battle::Move::TwoTurnAttackInvulnerableInSkyTargetCannotAct < Battle::Move::TwoTurnMove
+  def unusableInGravity?; return true; end
+
+  def pbIsChargingTurn?(user)
+    # NOTE: Sky Drop doesn't benefit from Power Herb, probably because it works
+    #       differently (i.e. immobilises the target during use too).
+    @powerHerb = false
+    @chargingTurn = (user.effects[PBEffects::TwoTurnAttack].nil?)
+    @damagingTurn = (!user.effects[PBEffects::TwoTurnAttack].nil?)
+    return !@damagingTurn
+  end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if !target.opposes?(user)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.effects[PBEffects::Substitute] > 0 && !ignoresSubstitute?(user)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if Settings::MECHANICS_GENERATION >= 6 && target.pbWeight >= 2000   # 200.0kg
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.semiInvulnerable? ||
+       (target.effects[PBEffects::SkyDrop] >= 0 && @chargingTurn)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.effects[PBEffects::SkyDrop] != user.index && @damagingTurn
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbCalcTypeMod(movetype, user, target)
+    return Effectiveness::INEFFECTIVE_MULTIPLIER if target.pbHasType?(:FLYING)
+    return super
+  end
+
+  def pbChargingTurnMessage(user, targets)
+    @battle.pbDisplay(_INTL("{1} took {2} into the sky!", user.pbThis, targets[0].pbThis(true)))
+  end
+
+  def pbAttackingTurnMessage(user, targets)
+    @battle.pbDisplay(_INTL("{1} was freed from the Sky Drop!", targets[0].pbThis))
+  end
+
+  def pbChargingTurnEffect(user, target)
+    target.effects[PBEffects::SkyDrop] = user.index
+  end
+
+  def pbEffectAfterAllHits(user, target)
+    target.effects[PBEffects::SkyDrop] = -1 if @damagingTurn
+  end
+end
+
+#===============================================================================
+# Two turn attack. Skips first turn, attacks second turn. Is invulnerable during
+# use. Ends target's protections upon hit. (Shadow Force, Phantom Force)
+#===============================================================================

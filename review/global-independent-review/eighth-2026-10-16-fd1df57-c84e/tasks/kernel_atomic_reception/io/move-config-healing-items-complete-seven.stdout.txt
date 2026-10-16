@@ -1,0 +1,160 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/010_MoveEffects_Healing.rb RANGE 170-217
+class Battle::Move::HealUserByHalfOfDamageDone < Battle::Move
+  def healingMove?; return Settings::MECHANICS_GENERATION >= 6; end
+
+  def pbEffectAgainstTarget(user, target)
+    return if target.damageState.hpLost <= 0
+    hpGain = (target.damageState.hpLost / 2.0).round
+    user.pbRecoverHPFromDrain(hpGain, target)
+  end
+end
+
+#===============================================================================
+# User gains half the HP it inflicts as damage. Fails if target is not asleep.
+# (Dream Eater)
+#===============================================================================
+class Battle::Move::HealUserByHalfOfDamageDoneIfTargetAsleep < Battle::Move
+  def healingMove?; return Settings::MECHANICS_GENERATION >= 6; end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if !target.asleep?
+      @battle.pbDisplay(_INTL("{1} wasn't affected!", target.pbThis)) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    return if target.damageState.hpLost <= 0
+    hpGain = (target.damageState.hpLost / 2.0).round
+    user.pbRecoverHPFromDrain(hpGain, target)
+  end
+end
+
+#===============================================================================
+# User gains 3/4 the HP it inflicts as damage. (Draining Kiss, Oblivion Wing)
+#===============================================================================
+class Battle::Move::HealUserByThreeQuartersOfDamageDone < Battle::Move
+  def healingMove?; return Settings::MECHANICS_GENERATION >= 6; end
+
+  def pbEffectAgainstTarget(user, target)
+    return if target.damageState.hpLost <= 0
+    hpGain = (target.damageState.hpLost * 0.75).round
+    user.pbRecoverHPFromDrain(hpGain, target)
+  end
+end
+
+#===============================================================================
+# The user and its allies gain 25% of their total HP. (Life Dew)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/010_MoveEffects_Healing.rb RANGE 671-689
+class Battle::Move::AttackerFaintsIfUserFaints < Battle::Move
+  def pbMoveFailed?(user, targets)
+    if Settings::MECHANICS_GENERATION >= 7 && user.effects[PBEffects::DestinyBondPrevious]
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbEffectGeneral(user)
+    user.effects[PBEffects::DestinyBond] = true
+    @battle.pbDisplay(_INTL("{1} is hoping to take its attacker down with it!", user.pbThis))
+  end
+end
+
+#===============================================================================
+# If user is KO'd before it next moves, the attack that caused it loses all PP.
+# (Grudge)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/011_MoveEffects_Items.rb RANGE 32-72
+class Battle::Move::TargetTakesUserItem < Battle::Move
+  def ignoresSubstitute?(user)
+    return true if Settings::MECHANICS_GENERATION >= 6
+    return super
+  end
+
+  def pbMoveFailed?(user, targets)
+    if !user.item || user.unlosableItem?(user.item)
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if target.item || target.unlosableItem?(user.item)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    itemName = user.itemName
+    target.item = user.item
+    # Permanently steal the item from wild Pokémon
+    if user.wild? && !target.initialItem && user.item == user.initialItem
+      target.setInitialItem(user.item)
+      user.pbRemoveItem
+    else
+      user.pbRemoveItem(false)
+    end
+    @battle.pbDisplay(_INTL("{1} received {2} from {3}!", target.pbThis, itemName, user.pbThis(true)))
+    target.pbHeldItemTriggerCheck
+  end
+end
+
+#===============================================================================
+# User and target swap items. They remain swapped after wild battles.
+# (Switcheroo, Trick)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/011_MoveEffects_Items.rb RANGE 168-212
+class Battle::Move::RemoveTargetItem < Battle::Move
+  def pbBaseDamage(baseDmg, user, target)
+    if Settings::MECHANICS_GENERATION >= 6 &&
+       target.item && !target.unlosableItem?(target.item)
+      # NOTE: Damage is still boosted even if target has Sticky Hold or a
+      #       substitute.
+      baseDmg = (baseDmg * 1.5).round
+    end
+    return baseDmg
+  end
+
+  def pbEffectAfterAllHits(user, target)
+    return if user.wild?   # Wild Pokémon can't knock off
+    return if user.fainted?
+    return if target.damageState.unaffected || target.damageState.substitute
+    return if !target.item || target.unlosableItem?(target.item)
+    return if target.hasActiveAbility?(:STICKYHOLD) && !@battle.moldBreaker
+    itemName = target.itemName
+    target.pbRemoveItem(false)
+    @battle.pbDisplay(_INTL("{1} dropped its {2}!", target.pbThis, itemName))
+  end
+end
+
+#===============================================================================
+# Target's berry/Gem is destroyed. (Incinerate)
+#===============================================================================
+class Battle::Move::DestroyTargetBerryOrGem < Battle::Move
+  def pbEffectWhenDealingDamage(user, target)
+    return if target.damageState.substitute || target.damageState.berryWeakened
+    return if !target.item || (!target.item.is_berry? &&
+              !(Settings::MECHANICS_GENERATION >= 6 && target.item.is_gem?))
+    return if target.unlosableItem?(target.item)
+    return if target.hasActiveAbility?(:STICKYHOLD) && !@battle.moldBreaker
+    item_name = target.itemName
+    target.pbRemoveItem
+    @battle.pbDisplay(_INTL("{1}'s {2} was incinerated!", target.pbThis, item_name))
+  end
+end
+
+#===============================================================================
+# Negates the effect and usability of the target's held item for the rest of the
+# battle (even if it is switched out). Fails if the target doesn't have a held
+# item, the item is unlosable, the target has Sticky Hold, or the target is
+# behind a substitute. (Corrosive Gas)
+#===============================================================================

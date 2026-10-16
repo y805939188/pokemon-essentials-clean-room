@@ -1,0 +1,134 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/001_Battle_Battler.rb RANGE 567-594
+  def affectedByPowder?(showMsg = false)
+    return false if fainted?
+    if pbHasType?(:GRASS) && Settings::MORE_TYPE_EFFECTS
+      @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis)) if showMsg
+      return false
+    end
+    if Settings::MECHANICS_GENERATION >= 6
+      if hasActiveAbility?(:OVERCOAT) && !@battle.moldBreaker
+        if showMsg
+          @battle.pbShowAbilitySplash(self)
+          if Battle::Scene::USE_ABILITY_SPLASH
+            @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis))
+          else
+            @battle.pbDisplay(_INTL("{1} is unaffected because of its {2}!", pbThis, abilityName))
+          end
+          @battle.pbHideAbilitySplash(self)
+        end
+        return false
+      end
+      if hasActiveItem?(:SAFETYGOGGLES)
+        if showMsg
+          @battle.pbDisplay(_INTL("{1} is unaffected because of its {2}!", pbThis, itemName))
+        end
+        return false
+      end
+    end
+    return true
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/004_Battler_Statuses.rb RANGE 174-217
+  def pbCanSynchronizeStatus?(newStatus, user)
+    return false if fainted?
+    # Trying to replace a status problem with another one
+    return false if self.status != :NONE
+    # Terrain immunity
+    return false if @battle.field.terrain == :Misty && affectedByTerrain?
+    # Type immunities
+    hasImmuneType = false
+    case newStatus
+    when :POISON
+      # NOTE: user will have Synchronize, so it can't have Corrosion.
+      if !(user && user.hasActiveAbility?(:CORROSION))
+        hasImmuneType |= pbHasType?(:POISON)
+        hasImmuneType |= pbHasType?(:STEEL)
+      end
+    when :BURN
+      hasImmuneType |= pbHasType?(:FIRE)
+    when :PARALYSIS
+      hasImmuneType |= pbHasType?(:ELECTRIC) && Settings::MORE_TYPE_EFFECTS
+    end
+    return false if hasImmuneType
+    # Ability immunity
+    if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, newStatus)
+      return false
+    end
+    if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, newStatus)
+      return false
+    end
+    allAllies.each do |b|
+      next if !b.abilityActive?
+      next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, newStatus)
+      return false
+    end
+    # Safeguard immunity
+    # NOTE: user will have Synchronize, so it can't have Infiltrator.
+    if pbOwnSide.effects[PBEffects::Safeguard] > 0 &&
+       !(user && user.hasActiveAbility?(:INFILTRATOR))
+      return false
+    end
+    return true
+  end
+
+  #=============================================================================
+  # Generalised infliction of status problem
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/003_Battler_ChangeSelf.rb RANGE 297-325
+  def pbTransform(target)
+    oldAbil = @ability_id
+    @effects[PBEffects::Transform]        = true
+    @effects[PBEffects::TransformSpecies] = target.species
+    pbChangeTypes(target)
+    self.ability = target.ability
+    @attack  = target.attack
+    @defense = target.defense
+    @spatk   = target.spatk
+    @spdef   = target.spdef
+    @speed   = target.speed
+    GameData::Stat.each_battle { |s| @stages[s.id] = target.stages[s.id] }
+    if Settings::NEW_CRITICAL_HIT_RATE_MECHANICS
+      @effects[PBEffects::FocusEnergy] = target.effects[PBEffects::FocusEnergy]
+      @effects[PBEffects::LaserFocus]  = target.effects[PBEffects::LaserFocus]
+    end
+    @moves.clear
+    target.moves.each_with_index do |m, i|
+      @moves[i] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(m.id))
+      @moves[i].pp       = 5
+      @moves[i].total_pp = 5
+    end
+    @effects[PBEffects::Disable]      = 0
+    @effects[PBEffects::DisableMove]  = nil
+    @effects[PBEffects::WeightChange] = target.effects[PBEffects::WeightChange]
+    @battle.scene.pbRefreshOne(@index)
+    @battle.pbDisplay(_INTL("{1} transformed into {2}!", pbThis, target.pbThis(true)))
+    pbOnLosingAbility(oldAbil)
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/006_MoveEffects_BattlerStats.rb RANGE 1716-1741
+class Battle::Move::UserCopyTargetStatStages < Battle::Move
+  def ignoresSubstitute?(user); return true; end
+
+  def pbEffectAgainstTarget(user, target)
+    GameData::Stat.each_battle do |s|
+      if user.stages[s.id] > target.stages[s.id]
+        user.statsLoweredThisRound = true
+        user.statsDropped = true
+      elsif user.stages[s.id] < target.stages[s.id]
+        user.statsRaisedThisRound = true
+      end
+      user.stages[s.id] = target.stages[s.id]
+    end
+    if Settings::NEW_CRITICAL_HIT_RATE_MECHANICS
+      user.effects[PBEffects::FocusEnergy] = target.effects[PBEffects::FocusEnergy]
+      user.effects[PBEffects::LaserFocus]  = target.effects[PBEffects::LaserFocus]
+    end
+    @battle.pbDisplay(_INTL("{1} copied {2}'s stat changes!", user.pbThis, target.pbThis(true)))
+  end
+end
+
+#===============================================================================
+# User gains stat stages equal to each of the target's positive stat stages,
+# and target's positive stat stages become 0, before damage calculation.
+# (Spectral Thief)
+#===============================================================================

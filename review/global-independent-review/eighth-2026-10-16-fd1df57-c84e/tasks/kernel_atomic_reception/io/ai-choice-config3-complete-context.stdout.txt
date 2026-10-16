@@ -1,0 +1,255 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/005_AI_ChooseMove.rb RANGE 23-87
+  def pbGetMoveScores
+    choices = []
+    @user.battler.eachMoveWithIndex do |orig_move, idxMove|
+      # Unchoosable moves aren't considered
+      if !@battle.pbCanChooseMove?(@user.index, idxMove, false)
+        if orig_move.pp == 0 && orig_move.total_pp > 0
+          PBDebug.log_ai("#{@user.name} cannot use #{orig_move.name} (no PP left)")
+        else
+          PBDebug.log_ai("#{@user.name} cannot choose to use #{orig_move.name}")
+        end
+        next
+      end
+      # Set up move in class variables
+      set_up_move_check(orig_move)
+      # Predict whether the move will fail (generally)
+      if @trainer.has_skill_flag?("PredictMoveFailure") && pbPredictMoveFailure
+        PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+        PBDebug.log_score_change(MOVE_FAIL_SCORE - MOVE_BASE_SCORE, "move will fail")
+        add_move_to_choices(choices, idxMove, MOVE_FAIL_SCORE)
+        next
+      end
+      # Get the move's target type
+      target_data = @move.pbTarget(@user.battler)
+      if @move.function_code == "CurseTargetOrLowerUserSpd1RaiseUserAtkDef1" &&
+         @move.rough_type == :GHOST && @user.has_active_ability?([:LIBERO, :PROTEAN])
+        target_data = GameData::Target.get((Settings::MECHANICS_GENERATION >= 8) ? :RandomNearFoe : :NearFoe)
+      end
+      case target_data.num_targets
+      when 0   # No targets, affects the user or a side or the whole field
+        # Includes: BothSides, FoeSide, None, User, UserSide
+        PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+        score = MOVE_BASE_SCORE
+        PBDebug.logonerr { score = pbGetMoveScore }
+        add_move_to_choices(choices, idxMove, score)
+      when 1   # One target to be chosen by the trainer
+        # Includes: Foe, NearAlly, NearFoe, NearOther, Other, RandomNearFoe, UserOrNearAlly
+        redirected_target = get_redirected_target(target_data)
+        num_targets = 0
+        @battle.allBattlers.each do |b|
+          next if redirected_target && b.index != redirected_target
+          next if !@battle.pbMoveCanTarget?(@user.battler.index, b.index, target_data)
+          next if target_data.targets_foe && !@user.battler.opposes?(b)
+          PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name} against #{b.name} (#{b.index})...")
+          score = MOVE_BASE_SCORE
+          PBDebug.logonerr { score = pbGetMoveScore([b]) }
+          add_move_to_choices(choices, idxMove, score, b.index)
+          num_targets += 1
+        end
+        PBDebug.log("     no valid targets") if num_targets == 0
+      else   # Multiple targets at once
+        # Includes: AllAllies, AllBattlers, AllFoes, AllNearFoes, AllNearOthers, UserAndAllies
+        targets = []
+        @battle.allBattlers.each do |b|
+          next if !@battle.pbMoveCanTarget?(@user.battler.index, b.index, target_data)
+          targets.push(b)
+        end
+        PBDebug.log_ai("#{@user.name} is considering using #{orig_move.name}...")
+        score = MOVE_BASE_SCORE
+        PBDebug.logonerr { score = pbGetMoveScore(targets) }
+        add_move_to_choices(choices, idxMove, score)
+      end
+    end
+    @battle.moldBreaker = false
+    return choices
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/005_AI_ChooseMove.rb RANGE 142-226
+  def set_up_move_check(move)
+    case move.function_code
+    when "UseLastMoveUsed"
+      if @battle.lastMoveUsed &&
+         GameData::Move.exists?(@battle.lastMoveUsed) &&
+         !move.moveBlacklist.include?(GameData::Move.get(@battle.lastMoveUsed).function_code)
+        move = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@battle.lastMoveUsed))
+      end
+    when "UseMoveDependingOnEnvironment"
+      move.pbOnStartUse(@user.battler, [])   # Determine which move is used instead
+      move = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(move.npMove))
+    end
+    @battle.moldBreaker = @user.has_mold_breaker?
+    @move.set_up(move)
+  end
+
+  # Set some extra class variables for the target being assessed.
+  def set_up_move_check_target(target)
+    @target = (target) ? @battlers[target.index] : nil
+    @target&.refresh_battler
+    if @target && @move.function_code == "UseLastMoveUsedByTarget"
+      if @target.battler.lastRegularMoveUsed &&
+         GameData::Move.exists?(@target.battler.lastRegularMoveUsed) &&
+         GameData::Move.get(@target.battler.lastRegularMoveUsed).has_flag?("CanMirrorMove")
+        @battle.moldBreaker = @user.has_mold_breaker?
+        mov = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@target.battler.lastRegularMoveUsed))
+        @move.set_up(mov)
+      end
+    end
+  end
+
+  #-----------------------------------------------------------------------------
+
+  # Returns whether the move will definitely fail (assuming no battle conditions
+  # change between now and using the move).
+  def pbPredictMoveFailure
+    # User is asleep and will not wake up
+    return true if @user.battler.asleep? && @user.statusCount > 1 && !@move.move.usableWhenAsleep?
+    # User is awake and can't use moves that are only usable when asleep
+    return true if !@user.battler.asleep? && @move.move.usableWhenAsleep?
+    # NOTE: Truanting is not considered, because if it is, a Pokémon with Truant
+    #       will want to switch due to terrible moves every other round (because
+    #       all of its moves will fail), and this is disruptive and shouldn't be
+    #       how such Pokémon behave.
+    # Primal weather
+    return true if @battle.pbWeather == :HeavyRain && @move.rough_type == :FIRE
+    return true if @battle.pbWeather == :HarshSun && @move.rough_type == :WATER
+    # Move effect-specific checks
+    return true if Battle::AI::Handlers.move_will_fail?(@move.function_code, @move, @user, self, @battle)
+    return false
+  end
+
+  # Returns whether the move will definitely fail against the target (assuming
+  # no battle conditions change between now and using the move).
+  def pbPredictMoveFailureAgainstTarget
+    # Move effect-specific checks
+    return true if Battle::AI::Handlers.move_will_fail_against_target?(@move.function_code, @move, @user, @target, self, @battle)
+    # Immunity to priority moves because of Psychic Terrain
+    return true if @battle.field.terrain == :Psychic && @target.battler.affectedByTerrain? &&
+                   @target.opposes?(@user) && @move.rough_priority(@user) > 0
+    # Immunity because of ability
+    return true if @move.move.pbImmunityByAbility(@user.battler, @target.battler, false)
+    # Immunity because of Dazzling/Queenly Majesty
+    if @move.rough_priority(@user) > 0 && @target.opposes?(@user)
+      each_same_side_battler(@target.side) do |b, i|
+        return true if b.has_active_ability?([:DAZZLING, :QUEENLYMAJESTY])
+      end
+    end
+    # Type immunity
+    calc_type = @move.rough_type
+    typeMod = @move.move.pbCalcTypeMod(calc_type, @user.battler, @target.battler)
+    return true if @move.move.pbDamagingMove? && Effectiveness.ineffective?(typeMod)
+    # Dark-type immunity to moves made faster by Prankster
+    return true if Settings::MECHANICS_GENERATION >= 7 && @move.statusMove? &&
+                   @user.has_active_ability?(:PRANKSTER) && @target.has_type?(:DARK) && @target.opposes?(@user)
+    # Airborne-based immunity to Ground moves
+    return true if @move.damagingMove? && calc_type == :GROUND &&
+                   @target.battler.airborne? && !@move.move.hitsFlyingTargets?
+    # Immunity to powder-based moves
+    return true if @move.move.powderMove? && !@target.battler.affectedByPowder?
+    # Substitute
+    return true if @target.effects[PBEffects::Substitute] > 0 && @move.statusMove? &&
+                   !@move.move.ignoresSubstitute?(@user.battler) && @user.index != @target.index
+    return false
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/009_AITrainer.rb RANGE 1-100
+#===============================================================================
+# AI skill levels:
+#     0:     Wild Pokémon
+#     1-31:  Basic trainer (young/inexperienced)
+#     32-47: Medium skill
+#     48-99: High skill
+#     100+:  Best skill (Gym Leaders, Elite Four, Champion)
+# NOTE: A trainer's skill value can range from 0-255, but by default only four
+#       distinct skill levels exist. The skill value is typically the same as
+#       the trainer's base money value.
+#
+# Skill flags:
+#   PredictMoveFailure
+#   ScoreMoves
+#   PreferMultiTargetMoves
+#   HPAware (considers HP values of user/target for "worth it?" score changes)
+#   ConsiderSwitching (can choose to switch out Pokémon)
+#   ReserveLastPokemon (don't switch it in if possible)
+#   UsePokemonInOrder (uses earliest-listed Pokémon possible)
+#
+# Anti-skill flags are skill flags with "Anti" at the beginning. An "AntiXYZ"
+# flag will negate the corresponding "XYZ" flag.
+#===============================================================================
+class Battle::AI::AITrainer
+  attr_reader :side, :trainer_index
+  attr_reader :skill
+
+  def initialize(ai, side, index, trainer)
+    @ai            = ai
+    @side          = side
+    @trainer_index = index
+    @trainer       = trainer
+    @skill         = 0
+    @skill_flags   = []
+    set_up_skill
+    set_up_skill_flags
+    sanitize_skill_flags
+  end
+
+  def set_up_skill
+    if @trainer
+      @skill = @trainer.skill_level
+    elsif Settings::SMARTER_WILD_LEGENDARY_POKEMON
+      # Give wild legendary/mythical Pokémon a higher skill
+      wild_battler = @ai.battle.battlers[@side]
+      sp_data = wild_battler.pokemon.species_data
+      if sp_data.has_flag?("Legendary") ||
+         sp_data.has_flag?("Mythical") ||
+         sp_data.has_flag?("UltraBeast")
+        @skill = 32   # Medium skill
+      end
+    end
+  end
+
+  def set_up_skill_flags
+    if @trainer
+      @trainer.flags.each { |flag| @skill_flags.push(flag) }
+    end
+    if @skill > 0
+      @skill_flags.push("PredictMoveFailure")
+      @skill_flags.push("ScoreMoves")
+      @skill_flags.push("PreferMultiTargetMoves")
+    end
+    if medium_skill?
+      @skill_flags.push("ConsiderSwitching")
+      @skill_flags.push("HPAware")
+    end
+    if !medium_skill?
+      @skill_flags.push("UsePokemonInOrder")
+    elsif best_skill?
+      @skill_flags.push("ReserveLastPokemon")
+    end
+  end
+
+  def sanitize_skill_flags
+    # NOTE: Any skill flag which is shorthand for multiple other skill flags
+    #       should be "unpacked" here.
+    # Remove any skill flag "XYZ" if there is also an "AntiXYZ" skill flag
+    @skill_flags.each_with_index do |flag, i|
+      @skill_flags[i] = nil if @skill_flags.include?("Anti" + flag)
+    end
+    @skill_flags.compact!
+  end
+
+  def has_skill_flag?(flag)
+    return @skill_flags.include?(flag)
+  end
+
+  def medium_skill?
+    return @skill >= 32
+  end
+
+  def high_skill?
+    return @skill >= 48
+  end
+
+  def best_skill?
+    return @skill >= 100
+  end
+end
