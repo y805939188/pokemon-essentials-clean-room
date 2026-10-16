@@ -1,0 +1,181 @@
+{"path": "/workspace/pokemon-essentials-clean-room/review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/pbs_creature_facility/finite-pool-audit.py", "bytes": 11673, "sha256": "43c8f5ccc038a5fd4f143d84d5247eb3db392ef67cbe85406a20e94b275069b2", "range": [1, 180], "file_lines": 180, "began_utc": "2026-10-16T15:51:00.316697+00:00", "purpose": "READ_DISPLAY_ONLY_NO_AUTOMATIC_SEMANTIC_CREDIT"}
+00001 """Finite data projection and graph certificates, never execute reference behavior.
+00002 
+00003 The graph criterion is mathematical: a team satisfying distinct species and
+00004 nonempty-item identities is a matching from species to item. An absent held item
+00005 has a private right vertex for that species. Duplicate source occurrences retain
+00006 their sampling weight but do not change existence of a matching.
+00007 """
+00008 from pathlib import Path
+00009 import collections
+00010 import hashlib
+00011 import json
+00012 
+00013 HERE = Path(__file__).parent
+00014 REF = Path('/workspace/pokemon-essentials')
+00015 
+00016 def write(name, value):
+00017     (HERE / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+00018 
+00019 def templates(path):
+00020     result = []
+00021     for line_no, line in enumerate((REF / path).read_text(encoding='utf-8-sig').splitlines(), 1):
+00022         if not line or line.startswith('#'):
+00023             continue
+00024         species, item, nature, evs, moves = line.strip().split(';')
+00025         result.append(dict(index=len(result), line=line_no, species=species, item=item or None,
+00026                            nature=nature, evs=evs.split(','), moves=moves.split(','),
+00027                            raw_item=item or None, raw_moves=moves.split(',')))
+00028     return result
+00029 
+00030 def certificate(rows, item_clause=True):
+00031     edges = collections.defaultdict(dict)
+00032     for row in rows:
+00033         right = row['item'] if row['item'] and item_clause else '@free:' + row['species']
+00034         edges[row['species']].setdefault(right, row['index'])
+00035     held = {}
+00036     def augment(species, visited):
+00037         for item, row_index in edges[species].items():
+00038             if item in visited:
+00039                 continue
+00040             visited.add(item)
+00041             if item not in held or augment(held[item][0], visited):
+00042                 held[item] = (species, row_index)
+00043                 return True
+00044         return False
+00045     for species in edges:
+00046         augment(species, set())
+00047     return dict(maximum_matching=len(held), witness_rows=[v[1] for v in held.values()])
+00048 
+00049 def main():
+00050     raw = json.loads((HERE / 'trainer-structure.json').read_text())
+00051     traits_doc = json.loads((HERE / 'subreviews/trait_eligibility/finite-traits.json').read_text())
+00052     traits = collections.defaultdict(list)
+00053     for row in traits_doc['records']:
+00054         if row['dataset'] == 'default' and row['template_created_this_form']:
+00055             traits[row['species']].append(row)
+00056     pairs = {
+00057         'PBS/battle_tower_trainers.txt': 'PBS/battle_tower_pokemon.txt',
+00058         'PBS/cup_fancy_trainers.txt': 'PBS/cup_fancy_pkmn.txt',
+00059         'PBS/cup_fancy_trainers_single.txt': 'PBS/cup_fancy_pkmn_single.txt',
+00060         'PBS/cup_little_trainers.txt': 'PBS/cup_little_pkmn.txt',
+00061         'PBS/cup_pika_trainers.txt': 'PBS/cup_pika_pkmn.txt',
+00062         'PBS/cup_poke_trainers.txt': 'PBS/cup_poke_pkmn.txt',
+00063     }
+00064     data = {f: templates(f) for f in pairs.values()}
+00065     predicates = {
+00066         'all_normal': None, 'standard': 'standard_non_egg', 'fancy': 'fancy_species_cold',
+00067         'little_factory': 'little_factory_species_cold', 'little_direct': 'little_direct_species_cold',
+00068         'light_direct': 'light_direct_species_cold', 'strict_little': 'strict_species_cold',
+00069         'factory': 'factory_species',
+00070     }
+00071     def eligibility(row, name):
+00072         options = traits[row['species']]
+00073         assert options, ('missing creation-form predicate', row['species'])
+00074         values = [True if predicates[name] is None else x[predicates[name]] for x in options]
+00075         if name == 'strict_little' and (row['item'] in ['BERRYJUICE', 'DEEPSEATOOTH'] or
+00076                                        any(m in ['SONICBOOM', 'DRAGONRAGE'] for m in row['moves'])):
+00077             values = [False] * len(values)
+00078         return all(values), any(values)
+00079     # IDs here are projections, not calls to the reference registries.
+00080     ids = {}
+00081     for kind, file in [('species', 'PBS/pokemon.txt'), ('items', 'PBS/items.txt'), ('moves', 'PBS/moves.txt'), ('trainer_types', 'PBS/trainer_types.txt')]:
+00082         ids[kind] = {s[1:-1] for s in (REF / file).read_text(encoding='utf-8-sig').splitlines() if s.startswith('[')}
+00083     all_rows = [r for rows in data.values() for r in rows]
+00084     literals = {
+00085         'species': sorted({r['species'] for r in all_rows}),
+00086         'items': sorted({r['raw_item'] for r in all_rows if r['raw_item']}),
+00087         'moves': sorted({m for r in all_rows for m in r['raw_moves'] if m}),
+00088         'trainer_types': sorted({r['fields']['Type']['value'] for r in raw['source_records']}),
+00089     }
+00090     write('literal-validation.json', dict(evidence='TOOL_VALIDATION', behavior='NOT_EXECUTED',
+00091           unique_counts={k: len(v) for k, v in literals.items()}, literals=literals,
+00092           absent={k: sorted(set(v) - ids[k]) for k, v in literals.items()},
+00093           premise='Current default PBS headers, no alternate profile or plugin registration; existence is not eligibility or execution.'))
+00094     normalization = []
+00095     for file, table in data.items():
+00096         for row in table:
+00097             if row['item'] and row['item'] not in ids['items']:
+00098                 row['item'] = None
+00099             row['moves'] = [m for m in row['moves'][:4] if m in ids['moves']]
+00100             # All current source rows retain at least one valid move, so the
+00101             # source's first-registry-move fallback is not reached here.
+00102             assert row['moves'], ('empty valid moves', file, row['index'])
+00103             if row['raw_item'] != row['item'] or row['raw_moves'] != row['moves']:
+00104                 normalization.append(dict(file=file, index=row['index'], line=row['line'],
+00105                                           raw_item=row['raw_item'], item=row['item'],
+00106                                           raw_moves=row['raw_moves'], moves=row['moves']))
+00107     write('template-default-normalization.json', dict(evidence='SOURCE_STATIC_WITH_TOOL_VALIDATION',
+00108           behavior='NOT_EXECUTED', premise='Default registered headers and no plugin aliases; fromInspected drops unknown item/moves. Empty trailing move slots are omitted.',
+00109           raw_literal_inventory='literal-validation.json', normalized_held_ids=sorted({r['item'] for r in all_rows if r['item']}),
+00110           differences=normalization))
+00111     rows_out = []
+00112     summary = {}
+00113     for record in raw['source_records']:
+00114         file = record['file']; candidates = [int(x) for x in record['fields']['PokemonNos']['value'].split(',')]
+00115         table = data[pairs[file]]
+00116         assert all(0 <= i < len(table) for i in candidates)
+00117         item = dict(file=file, trainer_index=len([x for x in rows_out if x['file'] == file]),
+00118                     original_section=record['section'], source_range=[record['start'], max(v['line'] for v in record['fields'].values())],
+00119                     candidates=candidates, candidate_occurrences=len(candidates), predicates={})
+00120         for name in predicates:
+00121             kinds = {}
+00122             for quantifier, take in [('every_creation_form', 0), ('some_creation_form', 1)]:
+00123                 eligible = [table[i] for i in candidates if eligibility(table[i], name)[take]]
+00124                 cert = certificate(eligible, name != 'strict_little')
+00125                 cert['eligible_occurrences'] = len(eligible)
+00126                 cert['eligible_template_indices'] = list(dict.fromkeys(r['index'] for r in eligible))
+00127                 kinds[quantifier] = cert
+00128             item['predicates'][name] = kinds
+00129         rows_out.append(item)
+00130     for file, pokemon_file in pairs.items():
+00131         sub = [r for r in rows_out if r['file'] == file]
+00132         summary[file] = {'trainers': len(sub), 'templates': len(data[pokemon_file]), 'profiles': {}}
+00133         for name in predicates:
+00134             selected = [r['predicates'][name]['every_creation_form'] for r in sub]
+00135             summary[file]['profiles'][name] = {
+00136                 'minimum_matching': min(x['maximum_matching'] for x in selected),
+00137                 'no_team3_trainer_indices': [r['trainer_index'] for r in sub if r['predicates'][name]['some_creation_form']['maximum_matching'] < 3],
+00138                 'no_robust_team4_trainer_indices': [r['trainer_index'] for r in sub if r['predicates'][name]['every_creation_form']['maximum_matching'] < 4],
+00139                 'form_condition_changes_graph': [r['trainer_index'] for r in sub if r['predicates'][name]['some_creation_form'] != r['predicates'][name]['every_creation_form']],
+00140             }
+00141     write('finite-pool-certificates.json', dict(schema='gr8.pbs-facility.finite-pools/v1',
+00142           qualification='TOOL_VALIDATION over SOURCE_STATIC peer traits; cold/consistent species caches and current default headers required; independent graph argument in review.md. No reference/model/host behavior executed.',
+00143           traits_input_sha256=hashlib.sha256((HERE / 'subreviews/trait_eligibility/finite-traits.json').read_bytes()).hexdigest(),
+00144           records=rows_out, summary=summary))
+00145     write('finite-pool-summary.json', summary)
+00146     # Complete 15 disjoint nonnegative win bands plus the negative branch.
+00147     thresholds = [(0,0,100),(6,80,40),(7,80,40),(13,120,20),(14,100,40),(20,140,20),(21,120,40),(27,160,20),(28,140,40),(34,180,20),(35,160,40),(41,200,20),(42,180,40),(48,220,40),(49,200,100)]
+00148     bands = {}
+00149     for n in (200, 300):
+00150         all_indices = set(); values=[]
+00151         for j,(wins,start,length) in enumerate(thresholds):
+00152             a=start*n//300; count=length*n//300; all_indices.update(range(a,a+count))
+00153             values.append(dict(win_lower=wins, win_upper=thresholds[j+1][0]-1 if j+1<len(thresholds) else None,
+00154                                first_index=a, last_index=a+count-1, count=count))
+00155         bands[n]=dict(bands=values, absent_trainer_indices=sorted(set(range(n))-all_indices), negative_wins_return=0)
+00156     write('trainer-selection-domain.json', dict(evidence='DERIVED_VECTOR', behavior='NOT_EXECUTED', domains=bands))
+00157     factory=[]
+00158     low=[(0,173),(174,272),(273,371),(372,491),(492,610),(611,729),(730,849),(372,881)]
+00159     high=[(372,491),(492,610),(611,729),(730,849)]+[(372,881)]*4
+00160     for file, table in data.items():
+00161         for level_mode, domains in [('ordinary',low),('maximum_level',high)]:
+00162             for group,(a,z) in enumerate(domains):
+00163                 lo=a*len(table)//881;hi=z*len(table)//881
+00164                 valid=[r for r in table[max(lo,0):min(hi+1,len(table))] if eligibility(r,'factory')[0]]
+00165                 cert=certificate(valid)
+00166                 factory.append(dict(file=file, N=len(table), level_mode=level_mode, group=group,
+00167                                     domain=[lo,hi], missing_indices=[i for i in range(lo,hi+1) if i>=len(table)],
+00168                                     valid_domain_matching=cert,
+00169                                     arbitrary_valid_exclusions_sufficient_3_plus6=cert['maximum_matching']>=15,
+00170                                     arbitrary_valid_exclusions_sufficient_4_plus6=cert['maximum_matching']>=16))
+00171     write('factory-domain-certificates.json', dict(evidence='DERIVED_VECTOR_AND_TOOL_VALIDATION', behavior='NOT_EXECUTED',
+00172           premise='Current factory predicates, suggested level50/100, nonnegative wins/swaps and already-valid excluded team. Matching bound M >= n+2e is sufficient, not necessary; excluded species/item vertices remove at most2e matched edges. Bad index can still fail before validation.',
+00173           domains=factory))
+00174     print(json.dumps({'trainer_records':len(rows_out), 'template_records':len(all_rows), 'factory_domains':len(factory),
+00175                       'literals':{k:len(v) for k,v in literals.items()},
+00176                       'fixed_factory_nontermination':{'Pika':'3*20=60>50','Poke':'3*55=165>155','Fancy':'3*30=90>80'},
+00177                       'trainer_200_unreachable':bands[200]['absent_trainer_indices']},ensure_ascii=False))
+00178 
+00179 if __name__ == '__main__':
+00180     main()

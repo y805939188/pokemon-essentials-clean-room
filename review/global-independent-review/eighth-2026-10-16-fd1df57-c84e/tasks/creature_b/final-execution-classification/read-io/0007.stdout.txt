@@ -1,0 +1,90 @@
+{"path": "/workspace/pokemon-essentials-clean-room/review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/pbs_creature_facility/subreviews/trait_eligibility/assemble-static-table.py", "bytes": 5923, "sha256": "a5d98ae38c581d8d1a8013bc5a9ccaec60fe840c683d7e344c0eb62cfe5d9b2c", "range": [1, 89], "file_lines": 89, "began_utc": "2026-10-16T15:53:34.501868+00:00", "purpose": "READ_DISPLAY_ONLY_NO_AUTOMATIC_SEMANTIC_CREDIT"}
+00001 """Mechanical static evidence assembly. Reads projected PBS fields already reviewed.
+00002 No reference code import, game execution, sampling, or future framework output.
+00003 All predicates are deductions under the explicit cold-cache premises in review.md.
+00004 """
+00005 from pathlib import Path
+00006 import json
+00007 from decimal import Decimal, ROUND_HALF_UP
+00008 P=Path(__file__).parent
+00009 classes=json.loads((P/'species-field-classes.json').read_text())
+00010 selected=json.loads((P/'template-species.json').read_text())
+00011 def nunit(v):return max(1,int((Decimal(v)*10).quantize(Decimal(1),rounding=ROUND_HALF_UP)))
+00012 def arr(f,k):return [x.strip() for x in ','.join(f.get(k,[])).split(',') if x.strip()]
+00013 def evos(f):
+00014  out=[]
+00015  for k in ['Evolutions','Evolution']:
+00016   for v in f.get(k,[]):
+00017    t=v.split(',')
+00018    for j in range(0,len(t),3):out.append([x.strip() for x in t[j:j+3]])
+00019  return out
+00020 result=[]
+00021 for dataset in ['default',*[f'Gen {i} backup' for i in range(5,9)]]:
+00022  # All included records retain source order via first matching occurrence.
+00023  rows=[]
+00024  for c in classes:
+00025   for o in c['occurrences']:
+00026    if o['dataset']==dataset:rows.append((o,c))
+00027  rows.sort(key=lambda z:('pokemon_forms' in z[0]['file'],z[0]['start']))
+00028  base={};forms={}
+00029  for o,c in rows:
+00030   ident=c['species'];f=c['fields'];bits=ident.split(',');s=bits[0];form=int(bits[1]) if len(bits)>1 else 0
+00031   default=int(next((a[12:] for a in arr(f,'Flags') if a.lower().startswith('defaultform_')),'-1'))
+00032   q={'species':s,'form':form,'source_class':c['id'],'source':o,'default_form':default,
+00033      'base_stats':[int(x) for x in arr(f,'BaseStats')], 'abilities':arr(f,'Abilities'),
+00034      'hidden_abilities':arr(f,'HiddenAbilities'),'height_dm':nunit(f['Height'][0]) if 'Height' in f else None,
+00035      'weight_hg':nunit(f['Weight'][0]) if 'Weight' in f else None,'evolutions':evos(f)}
+00036   if form==0:base[s]=q
+00037   else:forms[(s,form)]=q
+00038  # Relevant incoming edges, including None, already included in ancestor closure.
+00039  incoming={}
+00040  for q in base.values():
+00041   for e in q['evolutions']:incoming.setdefault(e[0],q['species'])
+00042  for q in forms.values():
+00043   b=base[q['species']]
+00044   for k in ['base_stats','abilities','hidden_abilities']:
+00045    if k not in {'base_stats':'BaseStats','abilities':'Abilities','hidden_abilities':'HiddenAbilities'}:continue
+00046    # Missing property inherits; explicit empty properties are absent after PBS conversion.
+00047    if not q[k]:q[k]=b[k].copy()
+00048   for k in ['height_dm','weight_hg']:
+00049    if q[k] is None:q[k]=b[k]
+00050   if q['default_form']<0:q['default_form']=b['default_form']
+00051   if not q['evolutions']:q['evolutions']=[e.copy() for e in b['evolutions']]
+00052  form_incoming={}
+00053  for q in list(base.values())+list(forms.values()):
+00054   for e in q['evolutions']:
+00055    incoming.setdefault(e[0],q['species'])
+00056    if q['form']>0:form_incoming.setdefault((e[0],q['form']),q['species'])
+00057  # Baby resolution recurses through the default record after the first step.
+00058  def prev(q):return form_incoming.get((q['species'],q['default_form'] if q['default_form']>=0 else q['form']),incoming.get(q['species']))
+00059  def baby(q):
+00060   s=q['species'];p=prev(q);visited=set()
+00061   while p and p!=s:
+00062    if p in visited:raise ValueError('cycle')
+00063    visited.add(p);s=p;p=prev(base[s])
+00064   return s
+00065  for q in list(base.values())+list(forms.values()):
+00066   s=q['species']
+00067   if s not in selected:continue
+00068   q=dict(q);bst=sum(q['base_stats']);a=q['abilities'];bb=baby(q)
+00069   valid_e=[e for e in q['evolutions'] if len(e)>1 and e[1]!='None']
+00070   st=True if set(a)&{'TRUANT','SLOWSTART'} or s in {'DRAGONITE','SALAMENCE','TYRANITAR'} else s not in {'WYNAUT','WOBBUFFET'} and bst<600
+00071   reason='ordinary_ability_early_allow' if set(a)&{'TRUANT','SLOWSTART'} else 'named_species_early_allow' if s in {'DRAGONITE','SALAMENCE','TYRANITAR'} else 'named_species_deny' if s in {'WYNAUT','WOBBUFFET'} else 'bst_below_600' if bst<600 else 'bst_at_least_600'
+00072   created=[0]
+00073   if s=='UNOWN':created=list(range(28))
+00074   elif s in {'BURMY','WORMADAM'}:created=[0,1,2]
+00075   q.update(dataset=dataset,bst=bst,baby_species_cold=bb,baby_restriction_cold=(s==bb),valid_evolutions=valid_e,
+00076     can_evolve_cold=bool(valid_e),unevolved_restriction_cold=s==bb and bool(valid_e),standard_non_egg=st,standard_reason=reason,
+00077     height_le_2m=q['height_dm']<=20,weight_le_20kg=q['weight_hg']<=200,weight_le_99kg=q['weight_hg']<=990,
+00078     fancy_species_cold=st and s==bb and q['height_dm']<=20 and q['weight_hg']<=200,
+00079     little_factory_species_cold=st and s==bb and bool(valid_e),little_direct_species_cold=st and s==bb,
+00080     light_direct_species_cold=st and s==bb and q['weight_hg']<=990,
+00081     strict_species_cold=st and s==bb and bool(valid_e) and s not in {'SCYTHER','SNEASEL','MEDITITE','YANMA','TANGELA','MURKROW'},
+00082     template_creation_forms=created,template_created_this_form=q['form'] in created,
+00083     factory_species=(s!='UNOWN'),execution='NOT_EXECUTED',evidence='SOURCE_STATIC_DEDUCTION')
+00084   result.append(q)
+00085 (P/'finite-traits.json').write_text(json.dumps({'schema':'gr8-facility-finite-traits/v1','semantics':'Cold caches, compiled finite PBS profile, normal non-egg instance, current form; all source deductions, no execution. Fields with _species exclude level/item/move/team gates.','template_species_count':len(selected),'records':result},ensure_ascii=False,indent=2)+'\n')
+00086 base_rows={q['species']:q for q in result if q['dataset']=='default' and q['form']==0}
+00087 (P/'default-base-traits.json').write_text(json.dumps(base_rows,ensure_ascii=False,indent=2)+'\n')
+00088 counts={d:sum(q['dataset']==d for q in result) for d in ['default',*[f'Gen {i} backup' for i in range(5,9)]]}
+00089 print(json.dumps({'records':len(result),'datasets':counts,'base_default':len(base_rows),'default_standard_denied':[(s,q['bst'],q['standard_reason']) for s,q in base_rows.items() if not q['standard_non_egg']],'default_fancy_species_count':sum(q['fancy_species_cold'] for q in base_rows.values()),'default_little_species_count':sum(q['little_factory_species_cold'] for q in base_rows.values())},ensure_ascii=False))

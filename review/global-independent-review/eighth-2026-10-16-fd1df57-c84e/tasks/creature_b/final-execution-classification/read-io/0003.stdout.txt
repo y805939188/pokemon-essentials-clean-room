@@ -1,0 +1,146 @@
+{"path": "/workspace/pokemon-essentials-clean-room/review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/pbs_creature_facility/subreviews/trait_eligibility/independent-graph-check.py", "bytes": 10061, "sha256": "53fc918f996a65009c6ea9058ccd3c542227325b1463c9b6a3e58554b32421c4", "range": [1, 145], "file_lines": 145, "began_utc": "2026-10-16T15:51:04.978366+00:00", "purpose": "READ_DISPLAY_ONLY_NO_AUTOMATIC_SEMANTIC_CREDIT"}
+00001 """Finite graph tool validation, not a reference/game/behavior-model execution.
+00002 Only the already-read parent's mathematical certificate function is evaluated.
+00003 The independent upper certificate is a vertex cover derived from max-flow cut.
+00004 All output is confined to this child directory.
+00005 """
+00006 from pathlib import Path
+00007 from collections import defaultdict,deque
+00008 import ast,collections,json,hashlib,datetime,itertools
+00009 P=Path(__file__).parent;H=P.parent.parent;R=Path('/workspace/pokemon-essentials')
+00010 started=datetime.datetime.now(datetime.timezone.utc).isoformat()
+00011 
+00012 def fileid(path):
+00013  b=path.read_bytes();return {'path':str(path.resolve()),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest()}
+00014 parent_inputs=[fileid(H/'finite-pool-audit.py'),fileid(H/'finite-pool-summary.json')]
+00015 assert parent_inputs[0]['sha256']=='43c8f5ccc038a5fd4f143d84d5247eb3db392ef67cbe85406a20e94b275069b2'
+00016 assert parent_inputs[1]['sha256']=='fef3f71acff4666555e56d2df7d285dacc6f50982682818135c9885f1425ac91'
+00017 # Complete script was read before evaluating this one pure function. No main call,
+00018 # no parent writes, and no import of source/reference code.
+00019 module=ast.parse((H/'finite-pool-audit.py').read_text())
+00020 node=next(n for n in module.body if isinstance(n,ast.FunctionDef) and n.name=='certificate')
+00021 context={'collections':collections}
+00022 exec(compile(ast.Module(body=[node],type_ignores=[]),'<parent graph certificate only>','exec'),context)
+00023 parent_certificate=context['certificate']
+00024 
+00025 def maxflow_certificate(rows,item_clause):
+00026  # Tagged endpoints deliberately avoid collisions between held IDs/private nil.
+00027  edges={};left=set();right=set()
+00028  for row in rows:
+00029   s=('species',row['species']);i=('item',row['item']) if item_clause and row['item'] else ('free',row['species'])
+00030   edges.setdefault((s,i),row['index']);left.add(s);right.add(i)
+00031  src=('source',);sink=('sink',);cap=defaultdict(dict)
+00032  def edge(a,b):cap[a][b]=1;cap[b].setdefault(a,0)
+00033  for s in left:edge(src,s)
+00034  for i in right:edge(i,sink)
+00035  for s,i in edges:edge(s,i)
+00036  flow=0
+00037  while True:
+00038   previous={src:None};todo=deque([src])
+00039   while todo and sink not in previous:
+00040    a=todo.popleft()
+00041    for b,c in cap[a].items():
+00042     if c and b not in previous:previous[b]=a;todo.append(b)
+00043   if sink not in previous:break
+00044   b=sink
+00045   while previous[b] is not None:
+00046    a=previous[b];cap[a][b]-=1;cap[b][a]+=1;b=a
+00047   flow+=1
+00048  reach={src};todo=deque([src])
+00049  while todo:
+00050   a=todo.popleft()
+00051   for b,c in cap[a].items():
+00052    if c and b not in reach:reach.add(b);todo.append(b)
+00053  cover=(left-reach)|(right&reach)
+00054  matched=[(s,i,row_index) for (s,i),row_index in edges.items() if cap[i].get(s,0)==1]
+00055  assert len({s for s,i,r in matched})==len(matched)==len({i for s,i,r in matched})==flow
+00056  assert all(s in cover or i in cover for s,i in edges)
+00057  assert len(cover)==flow
+00058  return {'maximum_matching':flow,'witness_rows':[r for s,i,r in matched],
+00059          'upper_vertex_cover':[list(x) for x in sorted(cover)],'edge_count':len(edges)}
+00060 
+00061 def check_rows(rows,item_clause):
+00062  own=maxflow_certificate(rows,item_clause);parent=parent_certificate(rows,item_clause)
+00063  assert own['maximum_matching']==parent['maximum_matching']
+00064  selected={r['index']:r for r in rows}
+00065  witness=[selected[i] for i in parent['witness_rows']]
+00066  assert len(witness)==parent['maximum_matching'] and len({r['species'] for r in witness})==len(witness)
+00067  if item_clause:assert len([r['item'] for r in witness if r['item']])==len({r['item'] for r in witness if r['item']})
+00068  return own
+00069 
+00070 # Complete finite class: all simple bipartite graphs with <=4 labelled species
+00071 # and <=4 labelled nonempty item vertices (zero-degree labels permitted).
+00072 small=0
+00073 for mask in range(1<<16):
+00074  rows=[{'species':f'S{a}','item':f'I{b}','index':a*4+b} for a in range(4) for b in range(4) if mask&(1<<(a*4+b))]
+00075  check_rows(rows,True);small+=1
+00076 # Explicit nil, duplicate occurrences, augmenting-path and strict no-item gates.
+00077 edge_cases=[
+00078  ('several_nil',[('A',None),('B',None),('C',None)],True,3),
+00079  ('same_species_nil_twice',[('A',None),('A',None),('B','X')],True,2),
+00080  ('same_item_different_species',[('A','X'),('B','X'),('C','Y')],True,2),
+00081  ('alternating_reassignment',[('A','X'),('A','Y'),('B','X')],True,2),
+00082  ('strict_ignores_repeated_items',[('A','X'),('B','X'),('C','X')],False,3),
+00083  ('strict_still_rejects_repeated_species',[('A','X'),('A','Y'),('B','X')],False,2),
+00084 ]
+00085 edge_out=[]
+00086 for name,pairs,clause,wanted in edge_cases:
+00087  rows=[{'species':s,'item':i,'index':j} for j,(s,i) in enumerate(pairs)]
+00088  c=check_rows(rows,clause);assert c['maximum_matching']==wanted
+00089  edge_out.append({'name':name,'input':rows,'item_clause':clause,'expected_maximum':wanted,'certificate':c})
+00090 print(json.dumps({'phase':'finite_math_graphs_complete','all_4_by_4_graphs':small,'targeted_cases':len(edge_out)}),flush=True)
+00091 
+00092 # Reconstruct already-frozen raw pool projections without executing a species
+00093 # registry, ruleset, random generator or any game function.
+00094 pairs={'PBS/battle_tower_trainers.txt':'PBS/battle_tower_pokemon.txt','PBS/cup_fancy_trainers.txt':'PBS/cup_fancy_pkmn.txt','PBS/cup_fancy_trainers_single.txt':'PBS/cup_fancy_pkmn_single.txt','PBS/cup_little_trainers.txt':'PBS/cup_little_pkmn.txt','PBS/cup_pika_trainers.txt':'PBS/cup_pika_pkmn.txt','PBS/cup_poke_trainers.txt':'PBS/cup_poke_pkmn.txt'}
+00095 traits=defaultdict(list)
+00096 for q in json.loads((P/'finite-traits.json').read_text())['records']:
+00097  if q['dataset']=='default' and q['template_created_this_form']:traits[q['species']].append(q)
+00098 keys={'all_normal':None,'standard':'standard_non_egg','fancy':'fancy_species_cold','little_factory':'little_factory_species_cold','little_direct':'little_direct_species_cold','light_direct':'light_direct_species_cold','strict_little':'strict_species_cold','factory':'factory_species'}
+00099 assert set(traits)==set(json.loads((P/'template-species.json').read_text()))
+00100 # Cold cache proof checks each actual created form for every dependency used by
+00101 # the8 projections, rather than inferring graph equality from a summary alone.
+00102 form_differences=[]
+00103 for species,forms in traits.items():
+00104  for name,key in keys.items():
+00105   values=[True if key is None else q[key] for q in forms]
+00106   if len(set(values))>1:form_differences.append({'species':species,'predicate':name,'values':values})
+00107 assert not form_differences
+00108 
+00109 def read_templates(rel):
+00110  rows=[]
+00111  for lineno,line in enumerate((R/rel).read_text(encoding='utf-8-sig').splitlines(),1):
+00112   if not line.strip() or line.lstrip().startswith('#'):continue
+00113   s,i,n,e,m=line.strip().split(';')
+00114   rows.append({'species':s,'item':i or None,'moves':m.split(','),'index':len(rows),'line':lineno})
+00115  return rows
+00116 
+00117 def read_pools(rel):
+00118  # Only finite PokemonNos fields, retaining multiplicity/order.
+00119  return [[int(x) for x in line.split('=',1)[1].split(',')] for line in (R/rel).read_text(encoding='utf-8-sig').splitlines() if line.startswith('PokemonNos =')]
+00120 
+00121 summary={};certs=[];pool_count=0;math_count=0
+00122 for trainerfile,templatefile in pairs.items():
+00123  templates=read_templates(templatefile);pools=read_pools(trainerfile);pool_count+=len(pools)
+00124  part={name:[] for name in keys}
+00125  for trainer_index,pool in enumerate(pools):
+00126   assert all(0<=i<len(templates) for i in pool)
+00127   for name,key in keys.items():
+00128    eligible=[]
+00129    for i in pool:
+00130     row=templates[i];formvalues=[True if key is None else q[key] for q in traits[row['species']]]
+00131     if name=='strict_little' and (row['item'] in {'BERRYJUICE','DEEPSEATOOTH'} or set(row['moves'])&{'SONICBOOM','DRAGONRAGE'}):formvalues=[False]*len(formvalues)
+00132     assert all(formvalues)==any(formvalues)
+00133     if all(formvalues):eligible.append(row)
+00134    cert=check_rows(eligible,name!='strict_little');math_count+=1
+00135    certs.append({'file':trainerfile,'trainer_index':trainer_index,'profile':name,'eligible_occurrences':len(eligible),'certificate':cert})
+00136    part[name].append(cert['maximum_matching'])
+00137  profiles={name:{'minimum_matching':min(values),'no_team3_trainer_indices':[i for i,n in enumerate(values) if n<3],'no_robust_team4_trainer_indices':[i for i,n in enumerate(values) if n<4],'form_condition_changes_graph':[]} for name,values in part.items()}
+00138  summary[trainerfile]={'trainers':len(pools),'templates':len(templates),'profiles':profiles}
+00139 assert summary==json.loads((H/'finite-pool-summary.json').read_text())
+00140 finished=datetime.datetime.now(datetime.timezone.utc).isoformat()
+00141 report={'schema':'gr8-independent-finite-graph-check/v1','reviewer':'/root/pbs_creature_facility/trait_eligibility','parent_inputs':parent_inputs,'child_traits':fileid(P/'finite-traits.json'),'start_utc':started,'end_utc':finished,'qualification':'TOOL_VALIDATION_OF_EXISTENCE_GRAPH_AND_STATIC_DATA_PROJECTION_ONLY','reference_game_behavior_model_execution':'NOT_EXECUTED','finite_4_by_4_graphs':small,'explicit_cases':edge_out,'finite_actual_pools':pool_count,'profiles_per_pool':8,'independent_actual_matching_checks':math_count,'independent_algorithm':'unit-capacity max-flow; feasible matching lower witness + equally sized vertex-cover upper certificate; compared to parent DFSaugment cardinalities','summary_exact_structural_equal':True,'all_some_shape_predicate_differences':form_differences,'cold_cache_premise':'normal successful fixed default creation; actual preexisting caches handled by generic predicates in graph-review.md','raw_projection_inputs':[fileid(R/f) for f in list(pairs)+list(pairs.values())],'remaining':'parent actual reception; full team gates/counts/total level and short-pool bypass remain separate source conditions','result':'PASS_FINITE_GRAPH_SCOPE'}
+00142 (P/'graph-check.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+00143 (P/'graph-certificates.json').write_text(json.dumps({'schema':'gr8-independent-lower-upper-graph-certificates/v1','records':certs,'all_behavior':'NOT_EXECUTED'},ensure_ascii=False,indent=2)+'\n')
+00144 (P/'independent-pool-summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
+00145 print(json.dumps({'result':'PASS_FINITE_GRAPH_SCOPE','synthetic_graphs':small,'pools':pool_count,'actual_profile_graphs':math_count,'summary_equal':True,'form_predicate_differences':len(form_differences),'utc':finished}),flush=True)

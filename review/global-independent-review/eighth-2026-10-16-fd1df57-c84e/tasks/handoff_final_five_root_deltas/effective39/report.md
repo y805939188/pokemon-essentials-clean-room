@@ -1,0 +1,15 @@
+# 39条完整有效人工整改handoff准备
+
+READY_PENDING_ROOT_CORE_FREEZE，UPDATE_NOT_STARTED。
+
+原实际context继续，只在effective39/生成当前最终态完整中文入口、39条规范记录索引/manifest、完整F05八组合同、九批assignment/执行prompt、依赖图及冲突图。原38已合格合同不重审，原26文件全部保字节。当前39=29required（2P2/27P3）+10optional全部UNSELECTED，独立视觉政策仍未选。
+
+F05为GR8-COM-RECORD-DEBUG-RNG-001，severity原值NOT_REQUIRED_BOUNDARY_PRECISION，不提升为P3/required。只在用户后续选择时由U06唯一候选writer精确改WP58 L105相关短语，再由R8-INTEGRATOR唯一正式整合；当前无WP58必修目标，无新批次/依赖。保正常记录/回放普通Scene、生成器AI主路径、直接helper返回和失败区别、原18初始属性/五元组/随机顺序以及RC29原ID/计数；WP76/RC-W11正确只读。
+
+完整交接入口为handoff/cloud-eighth-update-handoff-prompt.md，同规范数据为handoff/cloud-eighth-update-handoff-manifest.json。records-index.json逐ID解析全部39完整合同，contracts.f05.zh.json保F05全部八组，不以路径或摘要替代。九批prompt均给原完整prompt/readset精确身份和当前有效门；只有U06多一个未选条件合同。reading-ledger.json记录本实际continuation完整阅读，verification/validation.json仅为组合/身份工具核验，非新review层或业务证据。
+
+history-qualifications.json完整吸收42唯一任务ID而非42真实不同context的口径，以及WP39批准v3/管理回填/B8当前原spec的阶段身份区分。支持输入C33已实际普通发布及远端全byte核验，相关两资格文件精确匹配；C33不当作最终R8 core，历史来源支持不扩大为当前全部metadatahash或行为批准，不新增正式root。
+
+当前有效稿将14有限NO_REQUIRED（含F06及独立R8-LMC-H001）完整列入policy-and-preservation；LMC-H001与颜色GR8-HIST-C2-001分开。root当前registry27/九原外部任务各自task-final状态准确接收，不替代ABI/全历史/globalcore收口。完整CREB对应facet acceptedfact及源根伴件入口保留，不新增正式root。launch-methods.json和主prompt给实证成功的云API/逻辑与实际ID/独立prompt-readset/日志方法、已核CLI语法及精确readonly初始化失败，Desktop本云环境不可用。前23载荷及原manifest共24文件原byte存入prior-freeze-v1/；上一26载荷及manifest共27准确成员存入非递归prior-freeze-v2/。各由外部archive-index精确映射；原v1及最初26文件全保，当前manifest不递归self/归档。
+
+仍由root最后绑定真实语义core及报告enclosing commit；当前PENDING_ROOT_CORE_FREEZE/null不伪造hash。新增context、独立票、审查层、业务运行与整改均0。
