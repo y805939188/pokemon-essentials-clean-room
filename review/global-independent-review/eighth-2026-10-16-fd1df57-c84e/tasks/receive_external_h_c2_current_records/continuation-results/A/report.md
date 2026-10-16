@@ -29,4 +29,6 @@
 
 **真实剩余**：A可得未读与自身必需未决均为0。父仍须接收本精确发布、登记A范围并整合其它分组和全局最终签字；本报告不判断B/C/D是否完成，不授根ACCEPTED/CLOSED，不修改正式规格、不整改、不合main。详见 [unread.json](unread.json)。
 
-发布只覆盖此目录的新增报告证据。提交及无alternates远端完整回读结果见 `publication.json`（如存在）；该文件之后的收据提交另由最终工具回读与答复绑定，避免自指哈希。输出截断、补读及发现性命令失败均在 [operation-notes.json](operation-notes.json)明确保留。
+发布只覆盖此目录的新增报告证据。核心提交 `eac9d819946de636df3ef201b9f40cb0b423c909` 已普通push，并在无alternates的自有隔离bare中从远端完整回读121个增量文件（5,786,535字节），路径、mode、blob、全字节、SHA256及A子树一致，见 [publication.json](publication.json)。本收据及其说明的后继提交另由最终工具回读与答复绑定，避免自指哈希。输出截断、补读及发现性命令失败均在 [operation-notes.json](operation-notes.json)明确保留。
+
+结构校验通过。`git diff --check` 对三个精确显示切块报告尾空白（exit 2）；切块在原文中间结束，为保持拼接值与显示SHA原样保留，未宣称该检查通过。无正式规格或实现文件变更。
