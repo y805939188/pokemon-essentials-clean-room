@@ -44,7 +44,7 @@ ds=load('source-displays.json')
 bs=load('binary-displays.json')
 locators=load('required-locators.json')
 
-fixed=dict(contract=CONTRACT,parent_successor=BASE,B8=B8,R=R,C2=C2,external_target=TARGET)
+fixed=dict(contract=CONTRACT,parent_successor=BASE,B8=B8,R=R,C2=C2,external_target=TARGET,B8_tree='751dfde81048c81390f89a65ca1d1a565ba8e1ca',B8_formal_tree='f292698cdd4a8e725525a9be6dc34b75faaf151e',R_tree='7589c800b61ba13a13040ed0d686979b80a84fd0',C2_tree='1f4375e2a51801ed62bc143c1d51f70296fa52f3',external_target_tree='5ce79942a5171ed0508282dd3a4917481a4c1324',external_task_tree='4438ac6b91b12751e361ca3a21ecd03c1f54b231')
 configuration=dict(requested_model='gpt-6.1-sol',requested_effort='ultra',requested_tier='default',requested_speed='normal',requested_fast=False,**{f'effective_{x}':'UNVERIFIED' for x in ['model','effort','tier','speed','fast']})
 boundary=dict(reader_context=CONTEXT,external_original_author='01a143b2-b02d-7094-808b-a4e9de51301b',parent_receiver='01a14465-f204-7783-a526-9b43e91ea005',distinct_context=True,subagents_spawned=0,new_behavior_executions=0,source_program_executions=0,independent_full_models_executed=0,host_demo_native_media_real_save_replay_executions=0,evidence_types=['SOURCE_STATIC','BINARY_STATIC','DERIVED_VECTOR','TOOL_VALIDATION'],configuration=configuration,authority='READY_FOR_PARENT_RECEPTION is this partition recommendation, not global PASS/ACCEPTED/CLOSED; root canonical/signature/dedup remain parent duties')
 write('review-boundaries.json',dict(schema='r8.B.boundaries.v1',fixed=fixed,**boundary,write_set=PREFIX+'/',reference_read_only=True,formal_specs_changed=False,remediation_started=False,optional_or_policy_selected=False,merge_main=False,force_push=False,tags_changed=False,publication='Ordinary commit/push authorized. Exact remote receipt follows in publication.json.'))
@@ -104,6 +104,7 @@ counters=[]
 b8views=load('.work/originals/100')
 for j,loc in zip(judgments,locators):
     i=j['index'];a=canonical[i];p=proposals[i];assert j['id']==a['id']==loc['id']
+    loc=dict(loc,fully_received_is_frozen_parent_precontinuation_field=True,current_B_reader_fully_received=True,current_B_disposition='See this reception-ledger and unread.json; original parent false is retained as historical input, not current unread')
     ca=acks['c13a' if i==13 else f'c{i}'];pa=acks[f'p{i}']
     assert ca['object_sha256']==sha(enc(a)) and pa['object_sha256']==sha(enc(p))
     assert set(ca['shown'])==set(range(ca['parts'])) and set(pa['shown'])==set(range(pa['parts']))
