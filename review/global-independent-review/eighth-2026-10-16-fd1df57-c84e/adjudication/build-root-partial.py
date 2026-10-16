@@ -52,6 +52,7 @@ ui003_counter, ui003b = take("adjudication/root-ui003-counterreview.json")
 world004_counter, w004b = take("adjudication/root-world004-counterreview.json")
 com004_counter, com004b = take("adjudication/root-com004-counterreview.json")
 com005_counter, com005b = take("adjudication/root-com005-counterreview.json")
+com006_counter, com006b = take("adjudication/root-com006-counterreview.json")
 first_recorded, first_recorded_binding = take("adjudication/root-decision-first-recorded-bindings.json")
 
 records = []
@@ -232,6 +233,15 @@ add("GR8-COM-005", "required", "P3",
            "origin_proposal_id": "GR8-CAR-CAND-002",
            "exact_history_dedup": "PENDING; no old closure reopened"})
 
+add("GR8-COM-006", "required", "P3",
+    "采纳有限火药伤害门修正：WP40§5.2第14步把火属性且有粉末写成伤害并失败，但正常有效雨天跳过自损而仍失败。完整主稿非目标/overview反方已核，WP47-A明确把雨天自损路回WP40/42，天气三层与合格尾清理均正确；仅原括注限定有效天气非雨/大雨且可承间伤时自损，失败保留，不动正确详约、不强制新目录向量。全量历史去重与接口仍OPEN。",
+    com006_counter["complete_proposal"], com006_counter["proposal_binding"],
+    proposer="/root/core_atomic_reception", reviewer="/root",
+    extra={"independent_counterreview": com006_counter,
+           "independent_counterreview_binding": com006b,
+           "origin_proposal_id": "GR8-CAR-CAND-003",
+           "exact_history_dedup": "PENDING; no old closure reopened"})
+
 counts = {"required": sum(r["classification"] == "required" for r in records),
           "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
           "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),
@@ -241,18 +251,18 @@ out = {
     "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe", "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
     "status": "PARTIAL_REVIEW_NO_GLOBAL_PASS", "whole_review_required_count": None,
     "bounded_counts": counts,
-    "counts_qualification": "仅此已接收25项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
+    "counts_qualification": "仅此已接收26项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
     "records": records, "root_read_complete_payloads": inputs,
     "root_read_credit": "完整独立反证/提案文件的综合接收，不冒充root已逐个重读其全部原source/formal，也不授其它领域覆盖。PBSW001另有root真实独立全读证据。",
-    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本25项required/optional或全域NO_REQUIRED_UPDATE。",
+    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本26项required/optional或全域NO_REQUIRED_UPDATE。",
     "separate_rejected_original_candidate": "adjudication/root-ui002-reception.json: GR8-UI-002 v1异常反例已驳回，不计required/optional，不自动替换为显示缺项。",
     "pending_proposals_outside_this_receipt": ["后续新提案仍持续进入；全量未读、跨域及历史接收尚未完成。"],
     "actual_configuration": dict.fromkeys(["model", "effort", "tier", "speed", "opaque_platform_id"], "UNVERIFIED"),
     "requested_configuration": {"model": "gpt-6.1-sol", "effort": "ultra", "tier": "default", "speed": "normal/Fast off"},
     "behavior_execution_credit": 0, "update_started": False, "final_marker": "UPDATE_NOT_STARTED",
 }
-assert len(records) == 25 and len({r["id"] for r in records}) == 25
-assert sum(r["classification"] == "required" for r in records) == 21
+assert len(records) == 26 and len({r["id"] for r in records}) == 26
+assert sum(r["classification"] == "required" for r in records) == 22
 p = ROOT / "adjudication/root-decisions.partial.json"
 p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
 print(json.dumps({"path": str(p), "bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "status": out["status"], "bounded_counts": out["bounded_counts"]}, ensure_ascii=False))

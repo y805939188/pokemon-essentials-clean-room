@@ -43,6 +43,10 @@ active_candidate=root/'tasks/core_atomic_reception/candidate-powder-damage-gates
 if active_candidate.exists():
  raw=active_candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('core_atomic_reception-'+sha+'.json');target.write_bytes(raw)
  proposals.append({'origin_task':'core_atomic_reception','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':None})
+active_candidate=root/'tasks/core_atomic_reception/candidate-after-all-hits-wording.v1.json'
+if active_candidate.exists():
+ raw=active_candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('core_atomic_reception-'+sha+'.json');target.write_bytes(raw)
+ proposals.append({'origin_task':'core_atomic_reception','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':'delegation/prompts/after-all-hits-existing-kernel-counterreview.md'})
 write('findings.json',{'schema':'gr8-findings/v3','utc':now,'proposals':proposals,'adjudicated_required':[],'required_count':None,'required_count_reason':'Whole review and root final canonical adjudication are incomplete; no NO_REQUIRED_UPDATE conclusion','independent_receptions':['tasks/counter_kernel_first/adjudications.json','tasks/combat_review/adjudications-creature.json'],'root_partial_counterreview':'coverage/root-counterreview-notes.json','update_started':False})
 scope=load('publication/checkpoint-scope.json')
 completed=scope['completed'];running=scope['running']
@@ -63,8 +67,8 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='771444809e5d8c4d1d15aa1fceae4cf813cab716'
-state['dispatch_remote_readback']={'files':7149,'bytes':614821805,'status':'VERIFIED','evidence':'publication/r8-font-ui-com005-developer-readback-15.json','semantic_credit':'NONE'}
+state['published_dispatch_checkpoint']='30cfed0996003b6ebf4b5c51cc04f31ca9255440'
+state['dispatch_remote_readback']={'files':7663,'bytes':691064703,'status':'VERIFIED','evidence':'publication/r8-media-C-pokemon-contracts-readback-16.json','semantic_credit':'NONE'}
 state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':40,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':7,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_not_started_locally':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
@@ -88,6 +92,10 @@ for entry in findings['proposals']:
   entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
   entry['canonical_id']='GR8-COM-005'
   entry['root_decision_path']='adjudication/root-com005-counterreview.json'
+ elif rid == 'GR8-CAR-CAND-003':
+  entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
+  entry['canonical_id']='GR8-COM-006'
+  entry['root_decision_path']='adjudication/root-com006-counterreview.json'
  elif rid == 'GR8-UI-002':
   entry['root_status']='REJECTED_ORIGINAL_EXCEPTION_CANDIDATE_ONLY'
   entry['root_decision_path']='adjudication/root-ui002-reception.json'
@@ -97,7 +105,7 @@ for entry in findings['proposals']:
  else:entry['root_status']='WAIT_ROOT_CANONICAL_CLASSIFICATION_AND_NONPROPOSER_RECEPTION'
 findings['independent_receptions']+=['tasks/counter_combat_first/adjudications.json','tasks/counter_world_first/adjudications.json','tasks/world_topology_audit/refutation-ui001.json','tasks/world_topology_audit/refutation-pbsw002.json','coverage/root-pbsw-001-counterreview.json']
 findings['independent_receptions']+=['tasks/com_facility/adjudications-ai.json','adjudication/root-hist-001-counterreview.json','adjudication/root-history-facets-counterreview.json']
-findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json','adjudication/root-world003-counterreview.json','adjudication/root-world004-counterreview.json','adjudication/root-world-int001-reception.json','adjudication/root-world-int002-counterreview.json','adjudication/root-ui002-reception.json','adjudication/root-ui003-counterreview.json','adjudication/root-com004-counterreview.json','adjudication/root-com005-counterreview.json']
+findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json','adjudication/root-world003-counterreview.json','adjudication/root-world004-counterreview.json','adjudication/root-world-int001-reception.json','adjudication/root-world-int002-counterreview.json','adjudication/root-ui002-reception.json','adjudication/root-ui003-counterreview.json','adjudication/root-com004-counterreview.json','adjudication/root-com005-counterreview.json','adjudication/root-com006-counterreview.json']
 findings['separate_rejected_proposals']={'path':'adjudication/root-ui002-reception.json','ids':['GR8-UI-002'],'qualification':'Rejected original exception counterexample only; no whole-UI approval.'}
 findings['bounded_no_required_reception']={'path':'adjudication/root-binary-bounded-receptions.json','count':4,'qualification':'Only four finite negative claims; no full controller/resource/binary-domain or whole-review NO_REQUIRED_UPDATE.'}
 write('findings.json',findings)
