@@ -1,8 +1,9 @@
 """Read this exact review directory back through an incremental Git fetch.
 
 Use a disposable bare repository whose object store was snapshotted BEFORE the
-review commit. All new payload blobs and the new commit must be absent before
-fetch. Existing baseline pack files may be hardlinked; no baseline re-download.
+review commit. Changed/new payload blobs and the new commit must be absent before
+fetch. Unchanged payloads may reuse the supplied baseline. Existing baseline pack
+files may be hardlinked; no baseline re-download.
 Usage: python verify_remote.py --commit SHA --isolated-git-dir /tmp/r6a-remote.git
        --output /tmp/r6a-readback.json
 No reference code is imported or executed. The receipt stays outside this tree.
@@ -35,6 +36,7 @@ def exists(repo, obj):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--commit", required=True)
+    parser.add_argument("--base-commit", default="00296bf0d3f9db07a57356bcfa4c89c5ec1c4718")
     parser.add_argument("--isolated-git-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -46,16 +48,29 @@ def main():
     assert run("git", "rev-parse", "--is-bare-repository", cwd=isolated).strip() == b"true"
     assert run("git", "remote", "get-url", "origin", cwd=isolated).decode().strip() == ORIGIN
     commit = run("git", "rev-parse", f"{args.commit}^{{commit}}").decode().strip()
+    baseline = run("git", "rev-parse", f"{args.base_commit}^{{commit}}").decode().strip()
+    assert exists(isolated, baseline), "Baseline must already exist before fetch"
     assert not exists(isolated, commit), "Commit already existed: not a fresh remote reception"
+    previous = {}
+    for entry in run("git", "ls-tree", "-r", "-z", baseline, "--", directory).split(b"\0"):
+        if entry:
+            metadata, path = entry.split(b"\t", 1)
+            mode, kind, blob = metadata.decode().split()
+            assert kind == "blob"
+            previous[path.decode()] = {"mode": mode, "blob": blob}
     expected = {}
+    changed = []
     for entry in run("git", "ls-tree", "-r", "-z", commit, "--", directory).split(b"\0"):
         if not entry:
             continue
         metadata, path = entry.split(b"\t", 1)
         mode, kind, blob = metadata.decode().split()
         assert kind == "blob"
-        assert not exists(isolated, blob), "New blob already existed in isolated receiver"
-        expected[path.decode()] = {"mode": mode, "blob": blob}
+        row = {"mode": mode, "blob": blob}
+        expected[path.decode()] = row
+        if previous.get(path.decode()) != row:
+            assert not exists(isolated, blob), "Changed/new blob already existed in isolated receiver"
+            changed.append(path.decode())
     remote = run("git", "ls-remote", "--heads", "origin", "refs/heads/" + BRANCH).decode().split()
     assert remote[0] == commit
     subprocess.run(["git", "fetch", "--no-tags", "origin", commit], cwd=isolated, check=True)
@@ -84,13 +99,16 @@ def main():
     result = {"schema": "r8-r6-a-remote-readback/v1",
               "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
               "repository": ORIGIN, "branch": BRANCH, "commit": commit,
+              "baseline_commit": baseline,
               "workspace_tree": root_tree, "task_tree": task_tree,
-              "all_new_blobs_and_commit_absent_before_fetch": True,
+              "all_changed_new_blobs_and_commit_absent_before_fetch": True,
+              "changed_new_paths": changed,
               "no_alternates": True, "incremental_fetch_only": True,
               "complete_set_mode_blob_bytes_sha_tree_verified": True,
               "files": files, "files_verified": len(files),
               "bytes_verified": sum(x["bytes"] for x in files),
-              "semantic_completion_credit": 0, "semantic_state": "INCOMPLETE"}
+              "semantic_completion_credit": 0,
+              "semantic_state_from_report": "READY_FOR_PARENT_RECEPTION"}
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({k: v for k, v in result.items() if k != "files"}, ensure_ascii=False))
 
