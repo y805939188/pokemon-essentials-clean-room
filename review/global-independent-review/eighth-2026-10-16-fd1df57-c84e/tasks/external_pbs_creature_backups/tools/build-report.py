@@ -134,7 +134,7 @@ for i,(path,note) in enumerate(notes['dependencies'].items(),1):
                      clause_decomposition='NOT_ESTABLISHED' if repo==SPEC else 'CONTROL_FLOW_READ; CROSS_CHAIN_ACCEPTANCE_PENDING'))
     if repo==SPEC:
         ls=(SPEC/path).read_text().splitlines()
-        formal.append(dict(identity_id=key,path=path,full_text_read=True,
+        formal.append(dict(identity_id=key,path=path,full_text_read=(status=='FULL_READ'),
                            physical_nonblank_nonseparator_line_positions=[n for n,l in enumerate(ls,1) if l.strip() and not re.fullmatch(r'[| :\-]+',l.strip())],
                            semantic_clause_subassertion_denominator='NOT_ESTABLISHED',
                            unmapped_semantic_subassertions='NONZERO_NOT_ENUMERATED; includes unrelated clauses and undecomposed compound clauses',
@@ -202,7 +202,7 @@ for i,(copy,src) in enumerate(pinpaths.items(),1):
 counts['accepted_primary_sections']=0
 counts['unreceived_primary_sections']=counts['sections']
 counts['unread_or_partial_sections']=counts['AVAILABLE_UNREAD']+counts['PARTIAL_READ_NOT_ACCEPTED']
-counts['formal_full_text_read_files']=len(formal)
+counts['formal_full_text_read_files']=sum(x['full_text_read'] for x in formal)
 counts['reference_dependency_full_read_files']=sum(d['read_status']=='FULL_READ' and identities[d['identity_id']]['repo']==str(REF) for d in deps)
 counts['discovered_unread_dependency_files']=len(gaps)
 counts['behavior_executions']=0
@@ -220,28 +220,4 @@ write('reading-ledger.json',dict(schema='r8-task-reading-ledger/v1',utc=UTC,revi
  counts=counts,primary=ledgers,read_dependencies=deps,formal_read_decomposition_status=formal,
  semantic_subassertion_denominator='NOT_ESTABLISHED',metrics_table_representation_assurance=metrics_assurance,
  input_read_order=['I01','I02','I03','I04','I05'],input_full_reads=5))
-write('gaps.json',dict(schema='r8-task-gaps/v1',utc=UTC,status='REVIEW_INCOMPLETE',
- primary_unread=[dict(identity_id=x['identity_id'],path=x['path'],ranges=x['unread_ranges']) for x in ledgers if x['unread_ranges']],
- discovered_unread_dependencies=gaps,dependency_denominator_closed=False,
- further_available_unread=['Default/alternative move, item, type and ability records and their material consumers; no creature_b contribution received.',
- 'R6/R7 historical qualification/supplementary records beyond the fully read global prompt; historical current relation not independently restored.',
- 'Remaining formal, test-catalog, coverage, caller, persistence/reload and resource chains as expansion requires.'],
- unreceived=['All 6712 primary sections','All selected reverse assertions','All consumer/interface handoffs','Main independent disproof and final reception'],
- material_limit_claim=False,reason='These are available-but-unread or unaccepted work, not opaque/host/material limits. No infrastructure failure prevents continued reading.'))
-write('coverage.json',dict(schema='r8-task-coverage/v1',utc=UTC,counts=counts,formal_total_at_B8=131,
- semantic_forward_complete=False,semantic_reverse_complete=False,all_formal_clause_denominator='NOT_ESTABLISHED',
- known_closure_dependency_denominator=len(deps)+len(gaps),closure_dependency_denominator_exhaustive=False,
- classification_decisions=dict(required=0,optional=0,no_required_revision=0,policy=0,limit=0),
- local_questions=1,independently_decided_questions=0,NO_REQUIRED_UPDATE=False,update_started=False))
-
-progress=json.loads((ROOT/'progress.json').read_text())
-progress.update(status='FAILED',semantic_status='REVIEW_INCOMPLETE',failure_reason='Exhaustive assigned review not completed; exact available-unread and reception gaps remain.',
- start_utc='UNVERIFIED_EXACT_FIRST_ACTION',earliest_instrumented_utc='2026-10-16T07:56:45.625890+00:00',
- updated_utc=UTC,checkpoint_utc=UTC,end_utc='UNVERIFIED_UNTIL_TURN_END',
- process_state='Current reviewer context active when checkpoint written; no child launched.',
- read_complete_files=counts['FULL_READ_files'],partial_read_files=counts['PARTIAL_READ_files'],unread_files=counts['AVAILABLE_UNREAD_files'],
- read_complete_primary_sections=counts['READ_NOT_ACCEPTED'],unread_or_partial_primary_sections=counts['unread_or_partial_sections'],
- unreceived_primary_sections=counts['sections'],semantic_acceptance='PENDING_MAIN_REVIEWER',
- publication='Pending core commit and ordinary push; final publication record binds actual IDs.',update_started=False)
-write('progress.json',progress)
-print(json.dumps(dict(counts=counts,dependencies_read=len(deps),discovered_unread=len(gaps)),ensure_ascii=False))
+print(json.dumps(dict(counts=counts,dependencies_read=len(deps),discovered_dependencies=len(gaps)),ensure_ascii=False))
