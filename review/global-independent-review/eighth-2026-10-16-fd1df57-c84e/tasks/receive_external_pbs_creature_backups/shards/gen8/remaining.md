@@ -2,7 +2,7 @@
 
 本代独立主读与有限接收已经完成，状态INCOMPLETE_SHARED_INTERFACES_ONLY。P14:S0001–S0898、P15:S0001–S0339完整字面与具体同代继承全部已读；22953显式绑定、24088省略处置、46原子、HC-METRICS均已接。没有本代原文/字段/必要有界消费者未读集合，不再按早期checkpoint重做。真实记录、59批凭据及完整有效意义见report/semantic-reception/record ledger；原冻结readset和下附原prompt继续是完整合同，不复制8.7MB行政对象。
 
-仍未终签的是IF03、IF05、IF09。每条的必要共同定义、本代1237 producer、当前formal/实际receiver与采用的完整非作者事实已接；原完整接口对象保留在interfaces。最新实际取得的Gen5 77c68ef907bece03291accccf7c8d3f3f3bc7753、Gen6 3d4a8d13cedb8a63fe2add9f30b0939de21dc04b、Gen7 eaba99a190d9301d3a0d45447cf24ce041779083分别有准确报告blob/SHA绑定。Gen5/7完整本地主读报告收到，不把其735/1059原文算本人阅读；Gen6尚欠其原合同638基础（全部83形态锚点之外的P06记录，准确集合从其remaining.readset.json恢复），完整909 producer尚不成立。原接收者/主审接完Gen6及各代完整逐值贡献、前提、必要更正后，直接累计这三条接口；不新派一层review，不重审全系统。
+仍未终签的是IF03、IF05、IF09。每条的必要共同定义、本代1237 producer、当前formal/实际receiver与采用的完整非作者事实已接。最终实际取得Gen5 77c68ef907bece03291accccf7c8d3f3f3bc7753、Gen6 4d9fdaacc42cb061917d92578d3b247c03ca9739、Gen7 aa765be41e1a9ad978faeb6706f673364a0a3a75的完整有效报告，均已完成各自主读735/909/1059；原来的Gen6 638欠读不再是当前缺口。准确报告blob/SHA及本次实读凭据在interfaces，原读者与业务资格保持。未把三份报告或状态当作其它代全部逐值payload已经在本上下文接收。原接收者/主审在已有累计工作中导入各代适用完整值、前提、必要更正与本次最终精确贡献，再直接收口三条接口；不新派一层review，不重审全系统，也不把其它代主读重新分配给本片。
 
 接口欠项不是材料/宿主/权限limit，也不撤销本代阅读。所有其它代逐值事实仍归原主责读者；本次只取其真实有界贡献与资格，不按报告状态自动升级为跨代FULL。原主审还须实际读取本次最终提交，保留原实际审者并做最终累计/独立性资格；本片不签root canonical/task-final。
 

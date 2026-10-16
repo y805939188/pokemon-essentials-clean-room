@@ -30,7 +30,7 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，formal树 `f292698cdd4a8e7255
 
 当前新增成立的required/optional/policy/material-limit均0，不签全局NO_REQUIRED_UPDATE，也不创造新独立反证票。父既有2772字面、20有限命题、IF04/IF06、XPCB001有限NO_REQUIRED及历史optional/FLOAT/policy/limit/no-required保留原审者、原范围与强制后继更正，不重审第七轮27项。
 
-实际取得的同批producer为Gen5 `77c68ef907bece03291accccf7c8d3f3f3bc7753`、Gen6 `3d4a8d13cedb8a63fe2add9f30b0939de21dc04b`、最新Gen7 `eaba99a190d9301d3a0d45447cf24ce041779083`。Gen5/Gen7完整本地主读贡献报告已读，分别735/1059；其原审者及payload资格保留，未声称本人亲读其它代原文。Gen6报告只完成271/909，尚欠638基础。三个完整接口分别保留共同定义、本代完成、其它代事实、消费者formal及最终join。Gen6实缺、其余代完整逐值payload累计及原主审接收只阻塞对应接口；本代独立部分不撤销，不新增审查层。必要未接精确对象见remaining和interfaces。
+最终实际取得的同批producer为Gen5 `77c68ef907bece03291accccf7c8d3f3f3bc7753`、Gen6 `4d9fdaacc42cb061917d92578d3b247c03ca9739`、Gen7 `aa765be41e1a9ad978faeb6706f673364a0a3a75`。三者完整本地主读贡献报告已读，分别735/909/1059；Gen7更新采用此前完整报告加全部实际差异，不重复未变正文。末检新Gen6完整报告已解除旧638基础欠读，不把旧发布状态留作现在事实。各原审者及payload资格保留，未声称本人亲读其它代原文。三个完整接口分别保留共同定义、本代完成、其它代事实、消费者formal及最终join。其它代适用完整逐值payload尚未在本Gen8-only上下文全部导入，报告/状态并不自动替代值；既有原接收者/主审直接累计全部贡献并接收本片后终签，只阻塞对应接口，不撤销本代独立部分，不新增审查层。必要未接对象见remaining和interfaces。
 
 环境本身正常；GitHub连接器在三次peer tree请求返回Transport closed，但Git精确分支/提交读取成功并接续，未把它记为材料limit。错误cwd/旧spelling、未采用大输出截断及后继修复在reading-ledger保留，不倒填未知exit/私有完整平台流。model配置与原生Marshal/宿主/媒体/游戏/编译/导出/行为向量无实际运行证据，业务执行0。Git/Python/gzip只是证据工具。
 
