@@ -30,3 +30,5 @@ U13准确旧FAIL `3ef4854ef43eac92fd1dc57350e4cf6aa160082b` 与修后PASS `411b5
 可得本任务有效语义未读为0，真实材料/权限阻塞为0。主审尚未接收与未读严格分列。剩余未知：原生/动态桥、媒体/地图/完整宿主与Demo、实际输入/声音/像素、真实存读档/录像和完整独立模型；本任务新增行为执行全部0 / `NOT_EXECUTED`，没有重跑旧执行脚本或新解码二进制。请求gpt-6.1-sol/ultra/default普速/Fast关闭；实际model/effort/tier/speed/Fast及平台UUID均 `UNVERIFIED`，/root仅路由名。历史18次Ruby仍为12已知exit0、4非0、2未知，17进入定义/1未载入，含无效及重复，不算18成功。
 
 发布仅普通推送本专用分支，逐新增及保留的本任务载荷完整远端回读、mode/blob/bytes/SHA256/路径/tree对齐后才登记成功。旧fetch失败/中断及后继成功均保留。阅读实际UTC未独立捕获者仍 `UNVERIFIED_NOT_BACKFILLED`，台账生成UTC不倒填原始阅读时间。最终C/P、tree与报告目录身份由实际外部发布回执及最终响应绑定，不递归自哈希。
+
+核心发布已经完成：C `bf3d36645a55490de8f834f5e434606969a8d448`，workspace tree `13796129815b80b03c7464f21dce25bf36cd1bae`，本任务 tree `a6e3bfbeec1ee1d22dd700f4d5e2bfb455699989`。全部 1360 份载荷／75910449 字节已逐份完整远端回读，路径、mode、blob、bytes、SHA256一致；52个压缩readset对象解码身份复核通过。证据见 `publication/final-core-readback.json` 与 `publication/final-publication-receipt.json`。含本有限回执的最终P身份及P全部载荷回读由最终响应实际绑定，避免递归自引用。
