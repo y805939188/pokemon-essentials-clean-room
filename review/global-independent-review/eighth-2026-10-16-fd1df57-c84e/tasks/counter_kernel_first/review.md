@@ -60,3 +60,5 @@
 日志入口为 [progress.json](progress.json)、[events.jsonl](events.jsonl)。可用 `cat <本目录>/progress.json` 与 `tail -n 10 <本目录>/events.jsonl` 查询报告投影；collaboration.list_agents 查询真实可见任务状态。原平台工具流为私有流，本机没有暴露可导出的真实 session 日志/API，先前工具调用 UTC 未逐条回显，故不倒填。专属事件记录保留实际捕获 UTC。
 
 阅读信用限 reading-ledger 的实际范围：10 个参考文本文件全文，WP09/WP10 全文，另有完整相关单元和已恢复 Main 全文；其余文件未列区间没有全文信用。本报告不代替领域 owner 的整篇共享文件接收或 root 全量覆盖。三项静态建议已可裁决，root 最终分类、历史去重、必要共享接收与未来整改独立验收仍由对应主责处理。**UPDATE_NOT_STARTED**。
+
+元数据更正（2026-10-16T03:10:27.115842+00:00，同一 context 后继 turn）：Utilities 原请求595–633，固定R实际EOF为624；台账现分列 requested_range595–633 与 actual_read_range595–624。原工具输出已包含完整语言选择单元603–609；此次不增加语义/全文阅读信用，不改变三项裁决建议或 NOT_EXECUTED。原记录与已发布7956f5cb身份保留于 [correction.json](correction.json)。

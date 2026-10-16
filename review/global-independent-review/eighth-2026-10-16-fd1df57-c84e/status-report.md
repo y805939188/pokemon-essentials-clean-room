@@ -1,23 +1,25 @@
 # 第八轮全局 review 进行状态
 
-完整审查尚未完成，当前没有全局 PASS。`UPDATE_NOT_STARTED`。
+全量审查尚未完成，没有全局 PASS。`UPDATE_NOT_STARTED`。
 
-B8固定为fd1df570cad987dc3852a3b958f03916e317f7fe，tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。正式文件、R、main、原tag没有修改。报告分支的合法后继不替代B8。
+B8固定fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。正式/R/planning/audit/main/原tag保持只读；报告后继不替代B8。云端实际双checkout与Mac历史路径分列。
 
-完整库存R432（44906485bytes）、formal131（4364108bytes），各路径主责0遗漏/0重复。四planning已全文读并冻结87WP计划行、113Feature、18领域。395条声明知识依赖不是运行接口全集。原manifest的纯历史索引按用途处置；有效后继事实/资格仍需按精确来源接收。
+完整库存R432、formal131，固定blob全部核对。四planning全文读并冻结87WP计划行、113Feature、18领域；395声明知识依赖不是运行接口全集。真实source semantic unit/fact、formal atomic clause和全部消费者接口分母尚未闭合，不能拿方法/行/分号片段替代。
 
-当前已结束的六个实际上下文交付了限定成果：库存、历史恢复与资格、kernel、combat核心、creature-A、kernel独立反证。kernel13formal/77初始源、CORE6formal/16源、CRE-A7formal/11primary源全文读均有台账；它们明确仍有复合clause、其它数据、消费者和跨域未接收。不同任务重叠读取不能相加冒作全局唯一已读数。
+独立覆盖审计03:20:52切点收录全部已交ledger：R的414文本175全文、43局部、196无区间，另18binary按有限结构分列；formal46全文、14局部、71无区间。这是具名申报阅读范围，不是独立业务批准分子。已有结构解析、有限源事实及反证保留准确资格。切点以后AI、招式、设施、CRE-B与controller贡献仍在增长，未偷加到旧审计数。
 
-正在运行预检/二进制、combat独立反证、全分母接收审计、世界拓扑、UI导航与PBS-world全记录六任务。加root实际7个并发，当前工具容量7；没有人为增加更低并发上限。全部实际上下文请求gpt-6.1-sol/ultra/default普速/Fast off，实际无回显字段逐项UNVERIFIED。CLI已测因只读app-server初始化失败，新增CLI上下文0。
+13个结束的实际上下文已交限定成果：库存、历史恢复/资格、kernel、COM核心、CRE-A、kernel反证、预检/资源、COM反证、覆盖审计、world拓扑、UI导航、PBS-world记录、world反证。进程结束不表示这些整域已经完整接收。当前binary/controller、AI、招式、设施、CRE-B以及招式内部attributes_calling共6个实际子上下文，与root合计7个并发，符合现有工具实际容量。累计实际19个子上下文（含1个嵌套）、含root20；续审不重复算新审者。
 
-完整可派发合同：delegation/first-wave.json 17项，second-wave.json新增creature四片，third-wave.json新增历史四片，共25项。每项有完整prompt、逐载荷身份读集及独占写集。计划不等于实际启动；本协调者没有这些外部会话的启动回执。主线程可按实际服务容量代建，不重复创建已具名实际任务。新世界/UI/PBS实际审者在各自独立目录贡献相应部分，旧domain角色名不授语义接收。
+完整分工合同原25项在delegation/first-wave.json、second-wave.json、third-wave.json。com_ai、com_move、com_facility、creature_b已实际新启动；pbs_world由具名实际18文件全记录贡献承接，仍有跨域尾接口。world_full/ui_full/resource_media_serialized有具名局部重叠，未冒作全任务完成。其余20原计划在本协调者没有实际启动回执，外部会话状态UNVERIFIED；父会话如代建须先读progress/本映射，避免同写集冲突。CLI已测只读app-server初始化失败，新增CLI上下文0。未设人为更低并发上限。
 
-独立反证已经对kernel三提案与CRE一提案给出有限建议，root最终canonical去重/分类尚未完成。kernel002撤回WP02/KC05充分示例的错误指控，只保留穷尽启动门的精确范围。CORE两提案、world拓扑失败前缀、PBS数据断言、UI保存取消强断言等仍分别审查，不能把疑点数或建议数当最终必修数。
+root完整接收独立反证后，已对12个有限记录形成阶段裁决：11 required（2P2/9P3）、1 optional；这是已核子集，整个review最终required数量仍未知。详见adjudication/root-decisions.partial.json，含完整自然语言事实、前提/反例/普通对照/失败前缀、最小改动/保留scope/回归、原提案与实际不同审者的完整反证、输入原字节快照。COM002保留零可战斗wild边界，新稳定COM003承接正计数/完整原序构造与行动范围不一致；旧NPC根GIR-FD82-B002不重开。UI001的源事实确认，但同段已有确认前更改不回滚，合理阶段读法成立，采optional而非required。WORLD两项严格保留异常捕获继续或speed0单次立即观察、第二生命周期、保存分叉及真实宿主未知；PBS两项仅改统计用语/已知标记与运行未知分层。历史最终去重及跨域全量接收仍开放。
 
-严格覆盖审计发现现有reverse矩阵许多行没有事实link，方法/行/分号片段都不是最终atomic分母。所有已有FULL_READ、STRUCTURE_PARSED、库存身份核验、推导与业务观察分列；未读与未接收不能改成材料limit。controller1666与媒体/字体/messages等仍有真实可审未读。counter_kernel_first一条范围上限超过EOF正在作原请求/实际范围元数据更正，不因此凭空新增阅读或撤回其它有证实读。
+世界已有WP11的89条款行/304手工子断言；UI导航已有320有限事实及52向量；PBS-world18文件/2400记录/24980字段已实际全记录读，消费者尾链仍OPEN。controller1666记录/790模式的新实际审者正独立接收；260161有限字符串候选正按真实PE结构和用途处置，已定位新增可读程序，没有把剩余有限材料藏进L04。字体/SF2/messages仍有结构解析与真正语义未接收区别。旧manifest两段1413行的当前用途资格需逐段核，不以日期/无B8字符串排除有效规则。
 
-新参考/游戏/完整宿主/媒体观察0；CRE一过程Python数值探索exit0而缺开始UTC，保持探索1、业务验证信用0，原L14缺口不倒填。全部未实际运行的向量NOT_EXECUTED。静态工具运行与真实I/O另列，不冒充宿主等价。
+预检资源大证据无损压缩，15份新大载荷215423126原bytes→29497675容器bytes；全新隔离目标实际恢复15份并逐字节核hash/blob通过。原文件、失败输出和缓存未删除；恢复/远端容器读回不授语义信用。publication/RESTORING.md提供完整安全恢复方法。旧Git材料缺失已在隔离bare恢复，不能继续当假材料limit。
 
-材料访问障碍仅具名保留：Library云端ZIP 16531493bytes/SHA2566a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e未能通过官方helper下载（DNS失败），因此CLOUD-READ-FIRST/new cloud prompt/readiness/final binding/131MB recovery map尚未在此环境完整读。已请求固定Git commit/path替代。原完整36653bytes合同已全文读并核SHA；skill3598bytes同样已读核。R7/R6旧Git对象本地缺失已在隔离bare成功恢复7commit/15关键载荷，原假材料阻塞解除，剩余是真未读。
+唯一仍具名的新增输入障碍：Library ZIP libfile_4b51216024e48191b2cf3166a331583d、16531493bytes、SHA2566a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e因官方下载DNS失败尚未materialize；CLOUD-READ-FIRST、新cloud prompt、readiness/final binding/recovery map未在此环境完整读。已请求相同ZIP的固定Git commit/path。原完整36653bytes合同及3598bytes技能已全文读取核SHA。该障碍没有阻止固定源/正式/可恢复补充的独立审读。
 
-初始分工检查点7478d8daf357d569ac12bea211b4b5f257861930已普通push，54文件/916631bytes完整隔离远端读回通过；这是传输验证而非语义批准。最终语义core、最终完整整改handoff和全量完成验收尚未达到。报告本身可以修正/补齐；正式整改没有启动。
+全部请求gpt-6.1-sol/ultra/default普速/Fast off；实际无回显的model/effort/tier/speed/opaque平台ID逐项UNVERIFIED。R8新参考/完整宿主/Demo/原生媒体/真实存档观察0；CRE确有一次Python数值探索exit0而开始UTC缺失，保留实际探索1、验证信用0，不倒填L14。未执行向量均NOT_EXECUTED。Utilities超EOF实际范围已更正为595–624，原请求与旧发布身份保留，新增阅读信用0。
+
+前两个报告检查点7478d8daf357d569ac12bea211b4b5f257861930和7956f5cba2061702b30f3a021da47f386c92250f已普通push；后者264文件/18250159bytes已完整隔离远端读回VERIFIED。这是传输验证。最终语义core、完整中文整改handoff和全量完成验收尚未达到；没有启动正式整改。

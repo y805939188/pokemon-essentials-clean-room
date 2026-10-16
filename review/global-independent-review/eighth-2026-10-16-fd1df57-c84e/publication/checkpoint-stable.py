@@ -32,45 +32,39 @@ if cp.exists():
  raw=cp.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('creature_review-'+sha+'.json');target.write_bytes(raw)
  proposals.append({'origin_task':'creature_review','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'INDEPENDENT_RECOMMENDATION_RECEIVED_WAIT_ROOT_CANONICAL_ADJUDICATION','independent_review':'tasks/combat_review/adjudications-creature.json'})
 write('findings.json',{'schema':'gr8-findings/v3','utc':now,'proposals':proposals,'adjudicated_required':[],'required_count':None,'required_count_reason':'Whole review and root final canonical adjudication are incomplete; no NO_REQUIRED_UPDATE conclusion','independent_receptions':['tasks/counter_kernel_first/adjudications.json','tasks/combat_review/adjudications-creature.json'],'root_partial_counterreview':'coverage/root-counterreview-notes.json','update_started':False})
-completed=['inventory_denominator','history_current','kernel_review','combat_review','creature_review','counter_kernel_first']
-running=['preflight_resources','counter_combat_first','coverage_acceptance_audit','world_topology_audit','ui_navigation_audit','pbs_world_record_audit']
-state=load('progress.json');state.update(utc=now,status='RUNNING',semantic_completion='INCOMPLETE_NO_GLOBAL_PASS',pending_external_dispatchable_jobs=25,actual_spawned_child_contexts=12,actual_contexts_including_root=13,actual_active_collaboration_contexts_including_root=7)
+scope=load('publication/checkpoint-scope.json')
+completed=scope['completed'];running=scope['running']
+state=load('progress.json');state.update(utc=now,status='RUNNING',semantic_completion='INCOMPLETE_NO_GLOBAL_PASS',pending_original_dispatch_jobs_without_actual_start_here=20,actual_spawned_child_contexts=scope['actual_descendant_contexts_started'],actual_contexts_including_root=scope['actual_descendant_contexts_started']+1,actual_active_collaboration_contexts_including_root=scope['active_including_root'])
+state.pop('pending_external_dispatchable_jobs',None)
 state['tasks']={n:{'platform_entry':'/root/'+n,'process_status':'COMPLETED' if n in completed else 'RUNNING','semantic_status':'SCOPED_OUTPUT_WITH_OPEN_JOINS' if n in completed else 'IN_PROGRESS','outputs':'tasks/'+n,'requested':{'model':'gpt-6.1-sol','effort':'ultra','tier':'default','speed':'Fast off'},'actual':dict.fromkeys(['model','effort','tier','speed'],'UNVERIFIED')} for n in completed+running}
 state['external_cloud_start_receipts']='UNVERIFIED; no receipt in this coordinator. Planned count does not assert service capacity or external process state.'
+state['nested_running_contexts']=scope['nested_running']
+state['original_dispatch_actual_mapping']=scope['original_jobs_started_here']
+state['original_dispatch_scoped_overlaps']=scope['original_jobs_with_scoped_overlaps']
 state['proposal_count_at_snapshot']=len(proposals);state['behavior_executions']={'reference_observation':0,'host_demo':0,'native_media':0,'independent_numeric_model_exploration_processes':1,'numeric_model_verification_credit':0}
-state['report_metadata_corrections_pending']=[{'task':'counter_kernel_first','path':'reading-ledger.json','requested_range':[595,633],'actual_source_EOF':624,'action':'Preserve request, qualify actual read595-624; no additional reading credit; author followup pending slot.'}]
+state['report_metadata_corrections_pending']=[]
+state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','path':'reading-ledger.json','original_requested_range':[595,633],'actual_read_range':[595,624],'actual_source_EOF':624,'evidence':'tasks/counter_kernel_first/correction.json','reading_credit_added':0}]
+decisions=load('adjudication/root-decisions.partial.json')
+state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
+state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
+state['published_dispatch_checkpoint']='7956f5cba2061702b30f3a021da47f386c92250f'
+state['dispatch_remote_readback']={'files':264,'bytes':18250159,'status':'VERIFIED','evidence':'publication/r8-dispatch-readback-02.json','semantic_credit':'NONE'}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
-status='''# 第八轮全局 review 进行状态
-
-完整审查尚未完成，当前没有全局 PASS。`UPDATE_NOT_STARTED`。
-
-B8固定为fd1df570cad987dc3852a3b958f03916e317f7fe，tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。正式文件、R、main、原tag没有修改。报告分支的合法后继不替代B8。
-
-完整库存R432（44906485bytes）、formal131（4364108bytes），各路径主责0遗漏/0重复。四planning已全文读并冻结87WP计划行、113Feature、18领域。395条声明知识依赖不是运行接口全集。原manifest的纯历史索引按用途处置；有效后继事实/资格仍需按精确来源接收。
-
-当前已结束的六个实际上下文交付了限定成果：库存、历史恢复与资格、kernel、combat核心、creature-A、kernel独立反证。kernel13formal/77初始源、CORE6formal/16源、CRE-A7formal/11primary源全文读均有台账；它们明确仍有复合clause、其它数据、消费者和跨域未接收。不同任务重叠读取不能相加冒作全局唯一已读数。
-
-正在运行预检/二进制、combat独立反证、全分母接收审计、世界拓扑、UI导航与PBS-world全记录六任务。加root实际7个并发，当前工具容量7；没有人为增加更低并发上限。全部实际上下文请求gpt-6.1-sol/ultra/default普速/Fast off，实际无回显字段逐项UNVERIFIED。CLI已测因只读app-server初始化失败，新增CLI上下文0。
-
-完整可派发合同：delegation/first-wave.json 17项，second-wave.json新增creature四片，third-wave.json新增历史四片，共25项。每项有完整prompt、逐载荷身份读集及独占写集。计划不等于实际启动；本协调者没有这些外部会话的启动回执。主线程可按实际服务容量代建，不重复创建已具名实际任务。新世界/UI/PBS实际审者在各自独立目录贡献相应部分，旧domain角色名不授语义接收。
-
-独立反证已经对kernel三提案与CRE一提案给出有限建议，root最终canonical去重/分类尚未完成。kernel002撤回WP02/KC05充分示例的错误指控，只保留穷尽启动门的精确范围。CORE两提案、world拓扑失败前缀、PBS数据断言、UI保存取消强断言等仍分别审查，不能把疑点数或建议数当最终必修数。
-
-严格覆盖审计发现现有reverse矩阵许多行没有事实link，方法/行/分号片段都不是最终atomic分母。所有已有FULL_READ、STRUCTURE_PARSED、库存身份核验、推导与业务观察分列；未读与未接收不能改成材料limit。controller1666与媒体/字体/messages等仍有真实可审未读。counter_kernel_first一条范围上限超过EOF正在作原请求/实际范围元数据更正，不因此凭空新增阅读或撤回其它有证实读。
-
-新参考/游戏/完整宿主/媒体观察0；CRE一过程Python数值探索exit0而缺开始UTC，保持探索1、业务验证信用0，原L14缺口不倒填。全部未实际运行的向量NOT_EXECUTED。静态工具运行与真实I/O另列，不冒充宿主等价。
-
-材料访问障碍仅具名保留：Library云端ZIP 16531493bytes/SHA2566a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e未能通过官方helper下载（DNS失败），因此CLOUD-READ-FIRST/new cloud prompt/readiness/final binding/131MB recovery map尚未在此环境完整读。已请求固定Git commit/path替代。原完整36653bytes合同已全文读并核SHA；skill3598bytes同样已读核。R7/R6旧Git对象本地缺失已在隔离bare成功恢复7commit/15关键载荷，原假材料阻塞解除，剩余是真未读。
-
-初始分工检查点7478d8daf357d569ac12bea211b4b5f257861930已普通push，54文件/916631bytes完整隔离远端读回通过；这是传输验证而非语义批准。最终语义core、最终完整整改handoff和全量完成验收尚未达到。报告本身可以修正/补齐；正式整改没有启动。
-'''
+status=(root/'publication/checkpoint-status.md').read_text()
 (root/'status-report.md').write_text(status)
+findings=load('findings.json')
+findings['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'whole_review_required_count':None,'qualification':decisions['counts_qualification']}
+findings['independent_receptions']+=['tasks/counter_combat_first/adjudications.json','tasks/counter_world_first/adjudications.json','tasks/world_topology_audit/refutation-ui001.json','tasks/world_topology_audit/refutation-pbsw002.json','coverage/root-pbsw-001-counterreview.json']
+write('findings.json',findings)
+packed=load('publication/compressed-artifacts.json')
+packed_paths={r['original_path'] for r in packed['artifacts']}
 selected=[];local_only=[]
 for f in root.rglob('*'):
  if not f.is_file() or f.is_symlink():continue
  rel=f.relative_to(root);parts=rel.parts
- if parts[0] in ['inputs','delegation','publication'] or len(parts)==1 or rel.as_posix()=='coverage/root-counterreview-notes.json' or parts[:2]==('evidence','proposal-snapshots'):
+ if str(rel) in packed_paths:continue
+ if parts[0] in ['inputs','delegation','publication','adjudication'] or len(parts)==1 or rel.as_posix().startswith('coverage/root-') or parts[:2] in [('evidence','proposal-snapshots'),('evidence','adjudication-inputs'),('evidence','compressed')]:
   if f.name=='checkpoint-selection.json':continue
   selected.append(f);continue
  if len(parts)>2 and parts[0]=='tasks' and parts[1] in completed+['reference_metadata']:
