@@ -1,0 +1,281 @@
+{
+  "schema": "developer-metrics-complete-finite-contribution/v2",
+  "utc": "2026-10-16T07:19:38.383996+00:00",
+  "original_reader": "/root/developer_full_cloud",
+  "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+  "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+  "source_units": [
+    {
+      "path": "Data/Scripts/020_Debug/001_Editor screens/004_EditorScreens_SpritePositioning.rb",
+      "lines": [
+        1,
+        411
+      ],
+      "source_bytes": 13377,
+      "sha256": "7ef2c7a1d0a1de69608054dc3752306485913d20b4419cecd3e4b3986922b881",
+      "git_blob": "7bca3f9267744af568fb57c091ba6ce43172198f",
+      "original_reader": "/root/developer_full_cloud",
+      "source_read_qualification": "PERSONALLY_FULL_FILE_READ",
+      "complete_unit_text": "#===============================================================================\n#\n#===============================================================================\ndef findBottom(bitmap)\n  return 0 if !bitmap\n  (1..bitmap.height).each do |i|\n    bitmap.width.times do |j|\n      return bitmap.height - i if bitmap.get_pixel(j, bitmap.height - i).alpha > 0\n    end\n  end\n  return 0\nend\n\ndef pbAutoPositionAll\n  t = System.uptime\n  GameData::Species.each do |sp|\n    if System.uptime - t >= 5\n      t += 5\n      Graphics.update\n    end\n    metrics = GameData::SpeciesMetrics.get_species_form(sp.species, sp.form)\n    bitmap1 = GameData::Species.sprite_bitmap(sp.species, sp.form, nil, nil, nil, true)\n    bitmap2 = GameData::Species.sprite_bitmap(sp.species, sp.form)\n    if bitmap1&.bitmap   # Player's y\n      metrics.back_sprite[0] = 0\n      metrics.back_sprite[1] = (bitmap1.height - (findBottom(bitmap1.bitmap) + 1)) / 2\n    end\n    if bitmap2&.bitmap   # Foe's y\n      metrics.front_sprite[0] = 0\n      metrics.front_sprite[1] = (bitmap2.height - (findBottom(bitmap2.bitmap) + 1)) / 2\n      metrics.front_sprite[1] += 4   # Just because\n    end\n    metrics.front_sprite_altitude = 0   # Shouldn't be used\n    metrics.shadow_x              = 0\n    metrics.shadow_size           = 2\n    bitmap1&.dispose\n    bitmap2&.dispose\n  end\n  GameData::SpeciesMetrics.save\n  Compiler.write_pokemon_metrics\nend\n\n#===============================================================================\n#\n#===============================================================================\nclass SpritePositioner\n  def pbOpen\n    @sprites = {}\n    @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)\n    @viewport.z = 99999\n    battlebg   = \"Graphics/Battlebacks/indoor1_bg\"\n    playerbase = \"Graphics/Battlebacks/indoor1_base0\"\n    enemybase  = \"Graphics/Battlebacks/indoor1_base1\"\n    @sprites[\"battle_bg\"] = AnimatedPlane.new(@viewport)\n    @sprites[\"battle_bg\"].setBitmap(battlebg)\n    @sprites[\"battle_bg\"].z = 0\n    baseX, baseY = Battle::Scene.pbBattlerPosition(0)\n    @sprites[\"base_0\"] = IconSprite.new(baseX, baseY, @viewport)\n    @sprites[\"base_0\"].setBitmap(playerbase)\n    @sprites[\"base_0\"].x -= @sprites[\"base_0\"].bitmap.width / 2 if @sprites[\"base_0\"].bitmap\n    @sprites[\"base_0\"].y -= @sprites[\"base_0\"].bitmap.height if @sprites[\"base_0\"].bitmap\n    @sprites[\"base_0\"].z = 1\n    baseX, baseY = Battle::Scene.pbBattlerPosition(1)\n    @sprites[\"base_1\"] = IconSprite.new(baseX, baseY, @viewport)\n    @sprites[\"base_1\"].setBitmap(enemybase)\n    @sprites[\"base_1\"].x -= @sprites[\"base_1\"].bitmap.width / 2 if @sprites[\"base_1\"].bitmap\n    @sprites[\"base_1\"].y -= @sprites[\"base_1\"].bitmap.height / 2 if @sprites[\"base_1\"].bitmap\n    @sprites[\"base_1\"].z = 1\n    @sprites[\"messageBox\"] = IconSprite.new(0, Graphics.height - 96, @viewport)\n    @sprites[\"messageBox\"].setBitmap(\"Graphics/UI/Debug/battle_message\")\n    @sprites[\"messageBox\"].z = 2\n    @sprites[\"shadow_1\"] = IconSprite.new(0, 0, @viewport)\n    @sprites[\"shadow_1\"].z = 3\n    @sprites[\"pokemon_0\"] = PokemonSprite.new(@viewport)\n    @sprites[\"pokemon_0\"].setOffset(PictureOrigin::BOTTOM)\n    @sprites[\"pokemon_0\"].z = 4\n    @sprites[\"pokemon_1\"] = PokemonSprite.new(@viewport)\n    @sprites[\"pokemon_1\"].setOffset(PictureOrigin::BOTTOM)\n    @sprites[\"pokemon_1\"].z = 4\n    @sprites[\"info\"] = Window_UnformattedTextPokemon.new(\"\")\n    @sprites[\"info\"].viewport = @viewport\n    @sprites[\"info\"].visible  = false\n    @oldSpeciesIndex = 0\n    @species = nil   # This cannot be a species_form\n    @form = 0\n    @metricsChanged = false\n    refresh\n    @starting = true\n  end\n\n  def pbClose\n    if @metricsChanged && pbConfirmMessage(_INTL(\"Some metrics have been edited. Save changes?\"))\n      pbSaveMetrics\n      @metricsChanged = false\n    else\n      GameData::SpeciesMetrics.load   # Clear all changes to metrics\n    end\n    pbFadeOutAndHide(@sprites) { update }\n    pbDisposeSpriteHash(@sprites)\n    @viewport.dispose\n  end\n\n  def pbSaveMetrics\n    GameData::SpeciesMetrics.save\n    Compiler.write_pokemon_metrics\n  end\n\n  def update\n    pbUpdateSpriteHash(@sprites)\n  end\n\n  def refresh\n    if !@species\n      @sprites[\"pokemon_0\"].visible = false\n      @sprites[\"pokemon_1\"].visible = false\n      @sprites[\"shadow_1\"].visible = false\n      return\n    end\n    metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)\n    2.times do |i|\n      pos = Battle::Scene.pbBattlerPosition(i, 1)\n      @sprites[\"pokemon_#{i}\"].x = pos[0]\n      @sprites[\"pokemon_#{i}\"].y = pos[1]\n      metrics_data.apply_metrics_to_sprite(@sprites[\"pokemon_#{i}\"], i)\n      @sprites[\"pokemon_#{i}\"].visible = true\n      next if i != 1\n      @sprites[\"shadow_1\"].x = pos[0]\n      @sprites[\"shadow_1\"].y = pos[1]\n      if @sprites[\"shadow_1\"].bitmap\n        @sprites[\"shadow_1\"].x -= @sprites[\"shadow_1\"].bitmap.width / 2\n        @sprites[\"shadow_1\"].y -= @sprites[\"shadow_1\"].bitmap.height / 2\n      end\n      metrics_data.apply_metrics_to_sprite(@sprites[\"shadow_1\"], i, true)\n      @sprites[\"shadow_1\"].visible = true\n    end\n  end\n\n  def pbAutoPosition\n    metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)\n    old_back_y         = metrics_data.back_sprite[1]\n    old_front_y        = metrics_data.front_sprite[1]\n    old_front_altitude = metrics_data.front_sprite_altitude\n    bitmap1 = @sprites[\"pokemon_0\"].bitmap\n    bitmap2 = @sprites[\"pokemon_1\"].bitmap\n    new_back_y  = (bitmap1.height - (findBottom(bitmap1) + 1)) / 2\n    new_front_y = (bitmap2.height - (findBottom(bitmap2) + 1)) / 2\n    new_front_y += 4   # Just because\n    if new_back_y != old_back_y || new_front_y != old_front_y || old_front_altitude != 0\n      metrics_data.back_sprite[1]        = new_back_y\n      metrics_data.front_sprite[1]       = new_front_y\n      metrics_data.front_sprite_altitude = 0\n      @metricsChanged = true\n      refresh\n    end\n  end\n\n  def pbChangeSpecies(species, form)\n    @species = species\n    @form = form\n    species_data = GameData::Species.get_species_form(@species, @form)\n    return if !species_data\n    @sprites[\"pokemon_0\"].setSpeciesBitmap(@species, 0, @form, false, false, true)\n    @sprites[\"pokemon_1\"].setSpeciesBitmap(@species, 0, @form)\n    @sprites[\"shadow_1\"].setBitmap(GameData::Species.shadow_filename(@species, @form))\n  end\n\n  def pbShadowSize\n    pbChangeSpecies(@species, @form)\n    refresh\n    metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)\n    if pbResolveBitmap(sprintf(\"Graphics/Pokemon/Shadow/%s_%d\", metrics_data.species, metrics_data.form)) ||\n       pbResolveBitmap(sprintf(\"Graphics/Pokemon/Shadow/%s\", metrics_data.species))\n      pbMessage(\"This species has its own shadow sprite in Graphics/Pokemon/Shadow/. The shadow size metric cannot be edited.\")\n      return false\n    end\n    oldval = metrics_data.shadow_size\n    cmdvals = [0]\n    commands = [_INTL(\"None\")]\n    defindex = 0\n    i = 0\n    loop do\n      i += 1\n      fn = sprintf(\"Graphics/Pokemon/Shadow/%d\", i)\n      break if !pbResolveBitmap(fn)\n      cmdvals.push(i)\n      commands.push(i.to_s)\n      defindex = cmdvals.length - 1 if oldval == i\n    end\n    cw = Window_CommandPokemon.new(commands)\n    cw.index    = defindex\n    cw.viewport = @viewport\n    ret = false\n    oldindex = cw.index\n    loop do\n      Graphics.update\n      Input.update\n      cw.update\n      self.update\n      if cw.index != oldindex\n        oldindex = cw.index\n        metrics_data.shadow_size = cmdvals[cw.index]\n        pbChangeSpecies(@species, @form)\n        refresh\n      end\n      if Input.trigger?(Input::ACTION)   # Cycle to next option\n        pbPlayDecisionSE\n        @metricsChanged = true if metrics_data.shadow_size != oldval\n        ret = true\n        break\n      elsif Input.trigger?(Input::BACK)\n        metrics_data.shadow_size = oldval\n        pbPlayCancelSE\n        break\n      elsif Input.trigger?(Input::USE)\n        pbPlayDecisionSE\n        @metricsChanged = true if metrics_data.shadow_size != oldval\n        break\n      end\n    end\n    cw.dispose\n    return ret\n  end\n\n  def pbSetParameter(param)\n    return if !@species\n    return pbShadowSize if param == 2\n    if param == 4\n      pbAutoPosition\n      return false\n    end\n    metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)\n    case param\n    when 0\n      sprite = @sprites[\"pokemon_0\"]\n      xpos = metrics_data.back_sprite[0]\n      ypos = metrics_data.back_sprite[1]\n    when 1\n      sprite = @sprites[\"pokemon_1\"]\n      xpos = metrics_data.front_sprite[0]\n      ypos = metrics_data.front_sprite[1]\n    when 3\n      sprite = @sprites[\"shadow_1\"]\n      xpos = metrics_data.shadow_x\n      ypos = 0\n    end\n    oldxpos = xpos\n    oldypos = ypos\n    @sprites[\"info\"].visible = true\n    ret = false\n    loop do\n      sprite.visible = ((System.uptime * 8).to_i % 4) < 3   # Flash the selected sprite\n      Graphics.update\n      Input.update\n      self.update\n      case param\n      when 0 then @sprites[\"info\"].setTextToFit(\"Ally Position = #{xpos},#{ypos}\")\n      when 1 then @sprites[\"info\"].setTextToFit(\"Enemy Position = #{xpos},#{ypos}\")\n      when 3 then @sprites[\"info\"].setTextToFit(\"Shadow Position = #{xpos}\")\n      end\n      if (Input.repeat?(Input::UP) || Input.repeat?(Input::DOWN)) && param != 3\n        ypos += (Input.repeat?(Input::DOWN)) ? 1 : -1\n        case param\n        when 0 then metrics_data.back_sprite[1]  = ypos\n        when 1 then metrics_data.front_sprite[1] = ypos\n        end\n        refresh\n      end\n      if Input.repeat?(Input::LEFT) || Input.repeat?(Input::RIGHT)\n        xpos += (Input.repeat?(Input::RIGHT)) ? 1 : -1\n        case param\n        when 0 then metrics_data.back_sprite[0]  = xpos\n        when 1 then metrics_data.front_sprite[0] = xpos\n        when 3 then metrics_data.shadow_x        = xpos\n        end\n        refresh\n      end\n      if Input.repeat?(Input::ACTION) && param != 3   # Cycle to next option\n        @metricsChanged = true if xpos != oldxpos || ypos != oldypos\n        ret = true\n        pbPlayDecisionSE\n        break\n      elsif Input.repeat?(Input::BACK)\n        case param\n        when 0\n          metrics_data.back_sprite[0] = oldxpos\n          metrics_data.back_sprite[1] = oldypos\n        when 1\n          metrics_data.front_sprite[0] = oldxpos\n          metrics_data.front_sprite[1] = oldypos\n        when 3\n          metrics_data.shadow_x = oldxpos\n        end\n        pbPlayCancelSE\n        refresh\n        break\n      elsif Input.repeat?(Input::USE)\n        @metricsChanged = true if xpos != oldxpos || (param != 3 && ypos != oldypos)\n        pbPlayDecisionSE\n        break\n      end\n    end\n    @sprites[\"info\"].visible = false\n    sprite.visible = true\n    return ret\n  end\n\n  def pbMenu\n    refresh\n    cw = Window_CommandPokemon.new(\n      [_INTL(\"Set Ally Position\"),\n       _INTL(\"Set Enemy Position\"),\n       _INTL(\"Set Shadow Size\"),\n       _INTL(\"Set Shadow Position\"),\n       _INTL(\"Auto-Position Sprites\")]\n    )\n    cw.x        = Graphics.width - cw.width\n    cw.y        = Graphics.height - cw.height\n    cw.viewport = @viewport\n    ret = -1\n    loop do\n      Graphics.update\n      Input.update\n      cw.update\n      self.update\n      if Input.trigger?(Input::USE)\n        pbPlayDecisionSE\n        ret = cw.index\n        break\n      elsif Input.trigger?(Input::BACK)\n        pbPlayCancelSE\n        break\n      end\n    end\n    cw.dispose\n    return ret\n  end\n\n  def pbChooseSpecies\n    if @starting\n      pbFadeInAndShow(@sprites) { update }\n      @starting = false\n    end\n    cw = Window_CommandPokemonEx.newEmpty(0, 0, 260, 176, @viewport)\n    cw.rowHeight = 24\n    pbSetSmallFont(cw.contents)\n    cw.x = Graphics.width - cw.width\n    cw.y = Graphics.height - cw.height\n    allspecies = []\n    GameData::Species.each do |sp|\n      name = (sp.form == 0) ? sp.name : _INTL(\"{1} (form {2})\", sp.real_name, sp.form)\n      allspecies.push([sp.id, sp.species, sp.form, name]) if name && !name.empty?\n    end\n    allspecies.sort! { |a, b| a[3] <=> b[3] }\n    commands = []\n    allspecies.each { |sp| commands.push(sp[3]) }\n    cw.commands = commands\n    cw.index    = @oldSpeciesIndex\n    ret = false\n    oldindex = -1\n    loop do\n      Graphics.update\n      Input.update\n      cw.update\n      if cw.index != oldindex\n        oldindex = cw.index\n        pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])\n        refresh\n      end\n      self.update\n      if Input.trigger?(Input::BACK)\n        pbChangeSpecies(nil, nil)\n        refresh\n        break\n      elsif Input.trigger?(Input::USE)\n        pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])\n        ret = true\n        break\n      end\n    end\n    @oldSpeciesIndex = cw.index\n    cw.dispose\n    return ret\n  end\nend\n\n#===============================================================================\n#\n#===============================================================================\nclass SpritePositionerScreen\n  def initialize(scene)\n    @scene = scene\n  end\n\n  def pbStart\n    @scene.pbOpen\n    loop do\n      species = @scene.pbChooseSpecies\n      break if !species\n      loop do\n        command = @scene.pbMenu\n        break if command < 0\n        loop do\n          par = @scene.pbSetParameter(command)\n          break if !par\n          command = (command + 1) % 3\n        end\n      end\n    end\n    @scene.pbClose\n  end\nend\n"
+    },
+    {
+      "path": "Data/Scripts/010_Data/002_PBS data/010_SpeciesMetrics.rb",
+      "lines": [
+        1,
+        101
+      ],
+      "source_bytes": 3666,
+      "sha256": "84a1fd86d1d612a3e7c596686ca29727ae890cad8c39c3f349cbd180c2dffe1c",
+      "git_blob": "a0fc443199083ce201a86db382fc55bd38319dd8",
+      "original_reader": "/root/developer_full_cloud",
+      "source_read_qualification": "PERSONALLY_FULL_FILE_READ",
+      "complete_unit_text": "module GameData\n  class SpeciesMetrics\n    attr_reader   :id\n    attr_reader   :species\n    attr_reader   :form\n    attr_accessor :back_sprite\n    attr_accessor :front_sprite\n    attr_accessor :front_sprite_altitude\n    attr_accessor :shadow_x\n    attr_accessor :shadow_size\n    attr_reader   :pbs_file_suffix\n\n    DATA = {}\n    DATA_FILENAME = \"species_metrics.dat\"\n    PBS_BASE_FILENAME = \"pokemon_metrics\"\n\n    SCHEMA = {\n      \"SectionName\"         => [:id,                    \"eV\", :Species],\n      \"BackSprite\"          => [:back_sprite,           \"ii\"],\n      \"FrontSprite\"         => [:front_sprite,          \"ii\"],\n      \"FrontSpriteAltitude\" => [:front_sprite_altitude, \"i\"],\n      \"ShadowX\"             => [:shadow_x,              \"i\"],\n      \"ShadowSize\"          => [:shadow_size,           \"u\"]\n    }\n\n    extend ClassMethodsSymbols\n    include InstanceMethods\n\n    # @param species [Symbol, String]\n    # @param form [Integer]\n    # @return [self, nil]\n    def self.get_species_form(species, form)\n      return nil if !species || !form\n      validate species => [Symbol, String]\n      validate form => Integer\n      raise _INTL(\"Undefined species {1}.\", species) if !GameData::Species.exists?(species)\n      species = species.to_sym if species.is_a?(String)\n      if form > 0\n        trial = sprintf(\"%s_%d\", species, form).to_sym\n        if !DATA.has_key?(trial)\n          self.register({:id => species}) if !DATA[species]\n          self.register({\n            :id                    => trial,\n            :species               => species,\n            :form                  => form,\n            :back_sprite           => DATA[species].back_sprite.clone,\n            :front_sprite          => DATA[species].front_sprite.clone,\n            :front_sprite_altitude => DATA[species].front_sprite_altitude,\n            :shadow_x              => DATA[species].shadow_x,\n            :shadow_size           => DATA[species].shadow_size\n          })\n        end\n        return DATA[trial]\n      end\n      self.register({:id => species}) if !DATA[species]\n      return DATA[species]\n    end\n\n    def initialize(hash)\n      @id                    = hash[:id]\n      @species               = hash[:species]               || @id\n      @form                  = hash[:form]                  || 0\n      @back_sprite           = hash[:back_sprite]           || [0, 0]\n      @front_sprite          = hash[:front_sprite]          || [0, 0]\n      @front_sprite_altitude = hash[:front_sprite_altitude] || 0\n      @shadow_x              = hash[:shadow_x]              || 0\n      @shadow_size           = hash[:shadow_size]           || 2\n      @pbs_file_suffix       = hash[:pbs_file_suffix]       || \"\"\n    end\n\n    def apply_metrics_to_sprite(sprite, index, shadow = false)\n      if shadow\n        sprite.x += @shadow_x * 2 if (index & 1) == 1   # Foe Pokémon\n      elsif (index & 1) == 0   # Player's Pokémon\n        sprite.x += @back_sprite[0] * 2\n        sprite.y += @back_sprite[1] * 2\n      else                     # Foe Pokémon\n        sprite.x += @front_sprite[0] * 2\n        sprite.y += @front_sprite[1] * 2\n        sprite.y -= @front_sprite_altitude * 2\n      end\n    end\n\n    def shows_shadow?\n      return true\n#      return @front_sprite_altitude > 0\n    end\n\n    alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)\n    def get_property_for_PBS(key)\n      ret = __orig__get_property_for_PBS(key)\n      case key\n      when \"SectionName\"\n        ret = [@species, (@form > 0) ? @form : nil]\n      when \"FrontSpriteAltitude\"\n        ret = nil if ret == 0\n      end\n      return ret\n    end\n  end\nend\n"
+    },
+    {
+      "path": "Data/Scripts/021_Compiler/003_Compiler_WritePBS.rb",
+      "lines": [
+        291,
+        351
+      ],
+      "source_bytes": 31117,
+      "sha256": "37f2e79f29ce82d9f51305069fd08f10a976a6e4d855716767856687fbaa3d14",
+      "git_blob": "be1b3de320d0635d7eca1e24332973344188b53c",
+      "original_reader": "/root/developer_full_cloud",
+      "source_read_qualification": "PERSONALLY_FULL_FILE_READ",
+      "complete_unit_text": "  def write_pokemon_metrics\n    paths = []\n    GameData::SpeciesMetrics.each do |element|\n      next if element.form == 0\n      paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix)\n    end\n    paths.each_with_index do |element, i|\n      paths[i] = [sprintf(\"PBS/%s.txt\", GameData::SpeciesMetrics::PBS_BASE_FILENAME), element]\n      if !nil_or_empty?(element)\n        paths[i][0] = sprintf(\"PBS/%s_%s.txt\", GameData::SpeciesMetrics::PBS_BASE_FILENAME, element)\n      end\n    end\n    schema = GameData::SpeciesMetrics.schema\n    idx = 0\n    paths.each do |path|\n      write_pbs_file_message_start(path[0])\n      File.open(path[0], \"wb\") do |f|\n        add_PBS_header_to_file(f)\n        # Write each element in turn\n        GameData::SpeciesMetrics.each do |element|\n          next if element.pbs_file_suffix != path[1]\n          if element.form > 0\n            base_element = GameData::SpeciesMetrics.get(element.species)\n            next if element.back_sprite == base_element.back_sprite &&\n                    element.front_sprite == base_element.front_sprite &&\n                    element.front_sprite_altitude == base_element.front_sprite_altitude &&\n                    element.shadow_x == base_element.shadow_x &&\n                    element.shadow_size == base_element.shadow_size\n          end\n          echo \".\" if idx % 100 == 0\n          Graphics.update if idx % 500 == 0\n          idx += 1\n          f.write(\"\\#-------------------------------\\r\\n\")\n          if schema[\"SectionName\"]\n            f.write(\"[\")\n            pbWriteCsvRecord(element.get_property_for_PBS(\"SectionName\"), f, schema[\"SectionName\"])\n            f.write(\"]\\r\\n\")\n          else\n            f.write(\"[#{element.id}]\\r\\n\")\n          end\n          schema.each_key do |key|\n            next if key == \"SectionName\"\n            val = element.get_property_for_PBS(key)\n            next if val.nil?\n            if schema[key][1][0] == \"^\" && val.is_a?(Array)\n              val.each do |sub_val|\n                f.write(sprintf(\"%s = \", key))\n                pbWriteCsvRecord(sub_val, f, schema[key])\n                f.write(\"\\r\\n\")\n              end\n            else\n              f.write(sprintf(\"%s = \", key))\n              pbWriteCsvRecord(val, f, schema[key])\n              f.write(\"\\r\\n\")\n            end\n          end\n        end\n      end\n      process_pbs_file_message_end\n    end\n  end\n"
+    },
+    {
+      "path": "Data/Scripts/010_Data/001_GameData.rb",
+      "lines": [
+        78,
+        145
+      ],
+      "source_bytes": 9010,
+      "sha256": "577359664875c9e2ae78fc1b979409d28b4be932f6b5e8297de76a7df604db26",
+      "git_blob": "ccfd971a29b3bab107e2da6865ac0050ed3256b0",
+      "original_reader": "/root/developer_full_cloud",
+      "source_read_qualification": "PERSONALLY_FULL_FILE_READ",
+      "complete_unit_text": "  module ClassMethodsSymbols\n    def schema\n      return self::SCHEMA\n    end\n\n    def register(hash)\n      self::DATA[hash[:id]] = self.new(hash)\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [Boolean] whether the given other is defined as a self\n    def exists?(other)\n      return false if other.nil?\n      validate other => [Symbol, self, String]\n      other = other.id if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      return !self::DATA[other].nil?\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [self]\n    def get(other)\n      validate other => [Symbol, self, String]\n      return other if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      raise \"Unknown ID #{other}.\" unless self::DATA.has_key?(other)\n      return self::DATA[other]\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [self, nil]\n    def try_get(other)\n      return nil if other.nil?\n      validate other => [Symbol, self, String]\n      return other if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      return (self::DATA.has_key?(other)) ? self::DATA[other] : nil\n    end\n\n    # Returns the array of keys for the data.\n    # @return [Array]\n    def keys\n      return self::DATA.keys\n    end\n\n    # Yields all data in the order they were defined.\n    def each\n      self::DATA.each_value { |value| yield value }\n    end\n\n    # Yields all data in alphabetical order.\n    def each_alphabetically\n      keys = self::DATA.keys.sort { |a, b| self::DATA[a].real_name <=> self::DATA[b].real_name }\n      keys.each { |key| yield self::DATA[key] }\n    end\n\n    def count\n      return self::DATA.length\n    end\n\n    def load\n      const_set(:DATA, load_data(\"Data/#{self::DATA_FILENAME}\"))\n    end\n\n    def save\n      save_data(self::DATA, \"Data/#{self::DATA_FILENAME}\")\n    end\n  end\n"
+    }
+  ],
+  "facts": [
+    {
+      "id": "POS01",
+      "logical_lines": [
+        4,
+        11
+      ],
+      "assertion": "findBottom nil returns0; otherwise scan rows bottom upward and allx left→right, first alpha>0 returns row; transparent returns0. Host bitmap alpha values not executed."
+    },
+    {
+      "id": "POS02",
+      "logical_lines": [
+        13,
+        41
+      ],
+      "assertion": "Fullauto loops every Species/form registration, every5sec callback only at loop head. Obtains metrics lazily; backside true argument vsfront default; bitmap object and its bitmap truthy gate eachside."
+    },
+    {
+      "id": "POS03",
+      "logical_lines": [
+        23,
+        35
+      ],
+      "assertion": "Fullauto existing side resets x0 and y=(height−(bottom+1))/2, front adds4; missing side leaves itsx/y. Altitude0,shadowx0,size2 are unconditional perrecord, regardless of missing sides."
+    },
+    {
+      "id": "POS04",
+      "logical_lines": [
+        36,
+        41
+      ],
+      "assertion": "Fullauto disposes bothoptional bitmaps, then after entireloop savesmetrics archive→PBS. No outer ensure or transaction; intermediate later errors can preserve metrics memory and prevent finalsave."
+    },
+    {
+      "id": "POS05",
+      "logical_lines": [
+        47,
+        91
+      ],
+      "assertion": "pbOpen constructs background/bases/message/shadow/twoPokemonSprites/info, z and bottom origins, no species/form0/changedfalse; refresh hides if no species. Dependencies normal required; no claim actualmedia exists."
+    },
+    {
+      "id": "POS06",
+      "logical_lines": [
+        93,
+        109
+      ],
+      "assertion": "Normal close only asks save if changed true. changed+Yes: archive→PBS→clearflag; false orNo: registry.load. Then fade/dispose. Archive orPBS failure prevents laterflag reset/normalcleanup, does not rollback savedarchive."
+    },
+    {
+      "id": "POS07",
+      "logical_lines": [
+        115,
+        136
+      ],
+      "assertion": "Refresh obtains currentmetrics, resets eachpreview toBattleposition(i,1), applies x/y doubled offsets and front altitude; shadowcenter uses currentlybound bitmapdimensions then shadowx metric. It does not reloadshadowbitmap."
+    },
+    {
+      "id": "POS08",
+      "logical_lines": [
+        138,
+        156
+      ],
+      "assertion": "Singleauto immediately dereferences bothbitmap.height beforewriting, no nil guard. If either y differs OR altitude !=0 setsbothy+altitude0, flagtrue andrefresh; x/shadow unchanged. Nil does not promise silentpreserve."
+    },
+    {
+      "id": "POS09",
+      "logical_lines": [
+        158,
+        165
+      ],
+      "assertion": "Species change writesselectedspecies/form beforelookup; ifvalid loadsback/front/shadowresources. This is explicitshadowreload point."
+    },
+    {
+      "id": "POS10",
+      "logical_lines": [
+        167,
+        194
+      ],
+      "assertion": "Shadow page first reloads species/resources, refreshes, obtains metrics; species_form orspecies ownshadow availability refuses generic-size edit. OtherwiseNone0 + contiguous generic1.. until firstmissing, oldsize preselect if present; does not probe beyond hole."
+    },
+    {
+      "id": "POS11",
+      "logical_lines": [
+        197,
+        207
+      ],
+      "assertion": "Shadow browse indexchange writesmetrics.shadow_size immediately, reloadsspecies/shadowbitmap andrefreshes. This is live registry state, no workclone."
+    },
+    {
+      "id": "POS12",
+      "logical_lines": [
+        208,
+        222
+      ],
+      "assertion": "ACTION confirms, addschanged onlyifdifferent, returnstrue; USE confirmswithsameflagcondition, returnsfalse; BACK restoresoldmetricsize without resource reload or refresh, doesnotadd/clear existingflag. Pagewindow normallydisposed."
+    },
+    {
+      "id": "POS13",
+      "logical_lines": [
+        224,
+        305
+      ],
+      "assertion": "Position edit snapshots selected metric, arrows write percomponent, preview refresh; BACK restoresold andrefresh; USEconfirms noadvance; ACTIONadvance only first3editkinds, shadowx excluded. Existingflag is retained; changes confirmed settrue."
+    },
+    {
+      "id": "POS14",
+      "logical_lines": [
+        307,
+        384
+      ],
+      "assertion": "Main menu five parameterkinds plusauto/species; species/forms alphabetsort display. Selectioncancel preservesnil exit orold selection byactualcontroller; no arbitrarynewmetrics flag merelyforquery."
+    },
+    {
+      "id": "POS15",
+      "logical_lines": [
+        386,
+        411
+      ],
+      "assertion": "Controller opens→choosespecies→menu loop→normalclose. Advance true cycles (index+1)%3, auto returnsfalse anddoesnotadvance. No outerensure restoration certified."
+    },
+    {
+      "id": "MET01",
+      "logical_lines": [
+        32,
+        57
+      ],
+      "assertion": "Metrics.get_species_form validates species/form; only form > 0 enters shape lookup/creation; nonpositive forms use the base record. Missing positive form clones the base back/front arrays and copies altitude/shadow x/size. Suffix is omitted and defaults empty. This getter can mutate the registry without changing the editor flag."
+    },
+    {
+      "id": "MET02",
+      "logical_lines": [
+        59,
+        69
+      ],
+      "assertion": "Metrics ctor defaultsback/front[0,0],altitude0,shadowx0,size2,suffixempty,form0. Explicit0shadow size truthy retained."
+    },
+    {
+      "id": "MET03",
+      "logical_lines": [
+        71,
+        82
+      ],
+      "assertion": "Metric apply modifies given sprite only: playerbackx/y*2,foefrontx/y*2 minusaltitude*2; shadowonly foe shadowx*2. No broadcast to alreadycreated Battle scene consumers."
+    },
+    {
+      "id": "MET04",
+      "logical_lines": [
+        84,
+        99
+      ],
+      "assertion": "shows_shadow? always returns true. PBS SectionName is [species, form] only when form > 0, otherwise its second entry is nil. FrontSpriteAltitude 0 is omitted."
+    },
+    {
+      "id": "PBS01",
+      "logical_lines": [
+        291,
+        315
+      ],
+      "assertion": "write_pokemon_metrics picks paths solely by suffix set ofnon0metrics records. Baseonly collection selectsnooutputpath. Opens eachselectedpathwb andwritesheader BEFORE rows; existingfile maytruncateevenif allnon0rowswillbeskipped."
+    },
+    {
+      "id": "PBS02",
+      "logical_lines": [
+        316,
+        328
+      ],
+      "assertion": "Within each selected suffix path, iteration includes all matching records. Only form > 0 performs strict current-base lookup and skips the row when all five groups match. Form 0 is eligible without that comparison. Hypothetical negative form records also bypass this comparison; they are not normal positive-form PBS products. A skipped equal row does not unselect or undo truncation of its suffix path."
+    },
+    {
+      "id": "PBS03",
+      "logical_lines": [
+        329,
+        351
+      ],
+      "assertion": "Forretainedrows writesSectionName theneachschema nonnil property throughCSV; no catch acrossfilewrite. Latererrors retain archive/earlierfiles/possiblywrittenfileprefix; successmessage/close cleanup notguaranteed."
+    },
+    {
+      "id": "REG01",
+      "logical_lines": [
+        78,
+        145
+      ],
+      "assertion": "ClassMethodsSymbols register replaces DATA[id] withnew object; ctor receives nestedarrays directly. Save/load methods use archive perDATA_FILENAME; load const_set replaces registry object. No native dump/load testperformed."
+    },
+    {
+      "id": "FORMAL01",
+      "logical_lines": [
+        121,
+        167
+      ],
+      "assertion": "WP73B complete metric clauses andB19C016/WE17-20 explicitly distinguish suffix selection vsrow omission, archive-beforePBS, singlevsfullauto, missing/transparent bitmap, flag/sameconfirm, shadowBACKresourcebindingresidual; no mismatch found in this finite join."
+    }
+  ],
+  "premise": "Fixeddefaultcode/nooverrides; legaldata and normalspecifiedUI/resources/I/O unlessfailurecase. Source requests/symbolicbindings only. LiteralcurrentPBS records not part of this contribution.",
+  "formal_scope": {
+    "path": "deliverables/final-specification-set/demo-dx/wp73-b-world-editors.md",
+    "read": "FULL220lines",
+    "sha256": "624c021c96f2507495109cedb33f8fe3064bc34520b6b552d19f5de941e493b1",
+    "bounded_verified": "metric clauses121–167; associatedcatalog WE15–20/WE17supplement/B19C016"
+  },
+  "remaining": [
+    "Fullnativebitmapresolution/resources/pixels/hostunexecuted",
+    "AlldefaultmetricPBS674/sourcefilecontentnotpersonallyreadhere; receiverownsactualrecords",
+    "UnderlyingRPGsceneSpriteimplementationnotwholescopecertified",
+    "Originalfieldline ranges are logicanchors; source_units embeddedexacttext is authoritative"
+  ],
+  "execution": "NOT_EXECUTED",
+  "update": "UPDATE_NOT_STARTED",
+  "predecessor": {
+    "path": "metrics-complete-contribution.v1.json",
+    "sha256": "27c02823fc8be792cc3e7078133edcf71edb32ffd477d78bbc8dde6d2aa91e74",
+    "status": "PRESERVED; three overbroad non0 descriptions narrowed to actual positive-form guards after receiver readback"
+  },
+  "receiver_correction": {
+    "reviewer": "/root/pbs_creature_current_cloud",
+    "fact_scope": "MET01/MET04 positive-form guard; author additionally aligned PBS02 exact comparison guard",
+    "formal_change": "NONE; WP73 default legal domain unchanged",
+    "business": "NOT_EXECUTED"
+  }
+}

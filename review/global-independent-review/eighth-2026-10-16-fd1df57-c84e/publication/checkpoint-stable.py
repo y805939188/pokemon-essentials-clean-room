@@ -47,6 +47,18 @@ active_candidate=root/'tasks/core_atomic_reception/candidate-after-all-hits-word
 if active_candidate.exists():
  raw=active_candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('core_atomic_reception-'+sha+'.json');target.write_bytes(raw)
  proposals.append({'origin_task':'core_atomic_reception','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':'delegation/prompts/after-all-hits-existing-kernel-counterreview.md'})
+# Preserve complete newlyavailable active candidates without manufacturing reception.
+for task in ['core_atomic_reception','kernel_atomic_reception','facility_atomic_completion_cloud']:
+ for candidate in sorted((root/'tasks'/task).glob('candidate-*.json')):
+  raw=candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest()
+  if any(x.get('snapshot_sha256')==sha for x in proposals):continue
+  target=snap/(task+'-'+sha+'.json');target.write_bytes(raw)
+  proposals.append({'origin_task':task,'immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'WAIT_ACTUAL_COMPLETE_NONPROPOSER_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':None,'root_semantic_read_credit_from_snapshot':0})
+active_facility=root/'tasks/facility_atomic_completion_cloud/proposals.json'
+if active_facility.exists():
+ raw=active_facility.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('facility_atomic_completion_cloud-'+sha+'.json');target.write_bytes(raw)
+ for record in json.loads(raw).get('records',[]):
+  proposals.append({'origin_task':'facility_atomic_completion_cloud','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':record,'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':'delegation/prompts/recorded-scalar-existing-core-counterreview.md','root_semantic_read_credit_from_snapshot':0})
 write('findings.json',{'schema':'gr8-findings/v3','utc':now,'proposals':proposals,'adjudicated_required':[],'required_count':None,'required_count_reason':'Whole review and root final canonical adjudication are incomplete; no NO_REQUIRED_UPDATE conclusion','independent_receptions':['tasks/counter_kernel_first/adjudications.json','tasks/combat_review/adjudications-creature.json'],'root_partial_counterreview':'coverage/root-counterreview-notes.json','update_started':False})
 scope=load('publication/checkpoint-scope.json')
 completed=scope['completed'];running=scope['running']
@@ -55,7 +67,9 @@ state.pop('pending_external_dispatchable_jobs',None)
 state['tasks']={n:{'platform_entry':'/root/'+n,'process_status':'COMPLETED' if n in completed else 'RUNNING','semantic_status':'SCOPED_OUTPUT_WITH_OPEN_JOINS' if n in completed else 'IN_PROGRESS','outputs':'tasks/'+n,'requested':{'model':'gpt-6.1-sol','effort':'ultra','tier':'default','speed':'Fast off'},'actual':dict.fromkeys(['model','effort','tier','speed'],'UNVERIFIED')} for n in completed+running}
 for n in scope.get('exited_unpublished',[]):
  state['tasks'][n]={'platform_entry':'/root/'+n,'process_status':'COMPLETED','semantic_status':'SCOPED_OUTPUT_PENDING_PUBLICATION_AND_TASK_FINAL_RECEPTION','outputs':'tasks/'+n,'actual_configuration':'UNVERIFIED'}
-state['external_cloud_start_receipts']='UNVERIFIED; no receipt in this coordinator. Planned count does not assert service capacity or external process state.'
+state['external_cloud_start_receipts']='delegation/external-starts.current.json:9actualparentrelayedthreadIDs; externalcurrentprocessstatesUNVERIFIED'
+state['global_actual_contexts_with_external_receipts']=52
+state['global_logical_primary_not_started']=0
 state['additional_existing_context_running_tasks']=scope.get('additional_existing_context_running_tasks',[])
 state['nested_running_contexts']=scope['nested_running']
 state['nested_completed_contexts']=scope['nested_completed']
@@ -67,9 +81,9 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='30cfed0996003b6ebf4b5c51cc04f31ca9255440'
-state['dispatch_remote_readback']={'files':7663,'bytes':691064703,'status':'VERIFIED','evidence':'publication/r8-media-C-pokemon-contracts-readback-16.json','semantic_credit':'NONE'}
-state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':40,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':7,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_not_started_locally':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
+state['published_dispatch_checkpoint']='6c31240ade5c761b1f405958583a81ed140d4682'
+state['dispatch_remote_readback']={'files':7882,'bytes':750123110,'status':'VERIFIED','evidence':'publication/r8-com006-nine-dispatch-readback-17.json','semantic_credit':'NONE'}
+state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':41,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':8,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_without_local_context':9,'global_logical_primary_groups_not_started':0,'actual_external_primary_contexts':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
 status=(root/'publication/checkpoint-status.md').read_text()
@@ -96,6 +110,12 @@ for entry in findings['proposals']:
   entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
   entry['canonical_id']='GR8-COM-006'
   entry['root_decision_path']='adjudication/root-com006-counterreview.json'
+ elif rid == 'GR8-CAR-CAND-004':
+  entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
+  entry['root_decision_path']='adjudication/root-after-all-hits-reception.v1.json'
+ elif rid == 'GR8-KAR-001':
+  entry['root_status']='NO_REQUIRED_BOUNDED_NIL_LOOKUP_INPUT_SCOPE_SOURCE_FACT_RETAINED'
+  entry['root_decision_path']='adjudication/root-hash-default-scope-counterreview.v1.json'
  elif rid == 'GR8-UI-002':
   entry['root_status']='REJECTED_ORIGINAL_EXCEPTION_CANDIDATE_ONLY'
   entry['root_decision_path']='adjudication/root-ui002-reception.json'
@@ -108,6 +128,7 @@ findings['independent_receptions']+=['tasks/com_facility/adjudications-ai.json',
 findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json','adjudication/root-world003-counterreview.json','adjudication/root-world004-counterreview.json','adjudication/root-world-int001-reception.json','adjudication/root-world-int002-counterreview.json','adjudication/root-ui002-reception.json','adjudication/root-ui003-counterreview.json','adjudication/root-com004-counterreview.json','adjudication/root-com005-counterreview.json','adjudication/root-com006-counterreview.json']
 findings['separate_rejected_proposals']={'path':'adjudication/root-ui002-reception.json','ids':['GR8-UI-002'],'qualification':'Rejected original exception counterexample only; no whole-UI approval.'}
 findings['bounded_no_required_reception']={'path':'adjudication/root-binary-bounded-receptions.json','count':4,'qualification':'Only four finite negative claims; no full controller/resource/binary-domain or whole-review NO_REQUIRED_UPDATE.'}
+findings['separate_bounded_no_required_candidates']={'ids':['GR8-KAR-001','GR8-CAR-CAND-004'],'receipts':['adjudication/root-hash-default-scope-counterreview.v1.json','adjudication/root-after-all-hits-reception.v1.json'],'required_added':0,'optional_added':0,'global_qualification':'No whole-review NO_REQUIRED_UPDATE'}
 write('findings.json',findings)
 packed=load('publication/compressed-artifacts.json')
 packed_paths={r['original_path'] for r in packed['artifacts']}

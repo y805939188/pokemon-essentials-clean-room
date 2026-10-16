@@ -1,0 +1,9 @@
+# 单训练家录制快照帮助函数：真实非提出者有限反证完整合同
+
+实际reader既有/root/core_atomic_reception，与提出者/root/facility_atomic_completion_cloud真实不同；新增context/独立票0，不改名字冒新审者。请在当前自然单元后审，不移交/结束CORE完整主责。请求gpt-6.1-sol/ultra/default普速/Fastoff，actual无权威回显逐项UNVERIFIED。沿用已实际完整读global合同、适用AGENTS和review-SKILL；固定B8fd1df570cad987dc3852a3b958f03916e317f7fe/formaltreef292698cdd4a8e725525a9be6dc34b75faaf151e；R8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。
+
+完整proposal冻结evidence/adjudication-inputs/01a24c81f13bd69e00d0339427abf582320a90fff356d8409f82ff671a7a9f0f.json（12560B，SHA01a24c81f13bd69e00d0339427abf582320a90fff356d8409f82ff671a7a9f0f），源原件tasks/facility_atomic_completion_cloud/proposals.json。不用本概括代全部8节/字段、完整必要source/formal读。先核身份、分窗完整读无截断；已有本人同hash source全读可精确关联，不移他人sourceFULL。唯一额外写集tasks/counter_recorded_scalar_existing_core/。其它任务/source/formal/main/旧证据只读，无commit/push/install/spawn/Ruby/game/native，UPDATE_NOT_STARTED。
+
+候选GR8-FAC-001只directmetadatahelper接单个合法Player/NPCTrainer时未绑定i，正常Battle构造先数组正规化，普通设施无此缺陷。请尽力独立推翻required：完整WP58§3实际是否只承诺数组快照/默认录制，内部helper虽source定义可调用是否属于该已有合同；与完整global全可读定义审读义务、源事实应保留但是否要正式文档化要分开。不能由可调用或有bug一律升必修，不能由默认不调用一律豁免。核真实getter/构造/normalcallers、普通数组/单对象/空/错误type等最小相关对照、最早异常/此前已commit字段顺序、返回/效果边界、现正确正式表/相关WP39正常构造。不要全源搜样本替代完整方法，不扩大为整录制/设施通过。
+
+输出counterreview.json自足8节，包含有限裁定(scope/required可被否)、固定身份/真实全读账、独立derive对照/反例、最强双方及排除/保留、真实写点/consumer/失败prefix、最小未来handoff和正确保留、历史去重具名OPEN、实际执行/配置/原I-O或精确可恢复定位。实际UTC取工具，没跑行为NOT_EXECUTED；不得编I-O/时间/opaqueID。给bytes/SHA，root接收后最终有限分类，自己不能替root全局验收；完成有限counter回CORE全主责继续。原proposal和source都保留。
