@@ -1,0 +1,66 @@
+FILE R Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb L1-65/1321
+1 module Compiler
+2   module_function
+3 
+4   def compile_PBS_file_generic(game_data, *paths)
+5     if game_data.const_defined?(:OPTIONAL) && game_data::OPTIONAL
+6       return if paths.none? { |p| FileTest.exist?(p) }
+7     end
+8     game_data::DATA.clear
+9     schema = game_data.schema
+10     # Read from PBS file(s)
+11     paths.each do |path|
+12       compile_pbs_file_message_start(path)
+13       base_filename = game_data::PBS_BASE_FILENAME
+14       base_filename = base_filename[0] if base_filename.is_a?(Array)   # For Species
+15       file_suffix = File.basename(path, ".txt")[base_filename.length + 1, path.length] || ""
+16       File.open(path, "rb") do |f|
+17         FileLineData.file = path   # For error reporting
+18         # Read a whole section's lines at once, then run through this code.
+19         # contents is a hash containing all the XXX=YYY lines in that section, where
+20         # the keys are the XXX and the values are the YYY (as unprocessed strings).
+21         idx = 0
+22         pbEachFileSection(f, schema) do |contents, section_name|
+23           echo "." if idx % 100 == 0
+24           Graphics.update if idx % 500 == 0
+25           idx += 1
+26           data_hash = {
+27             :id              => section_name.to_sym,
+28             :pbs_file_suffix => file_suffix
+29           }
+30           # Go through schema hash of compilable data and compile this section
+31           schema.each_key do |key|
+32             FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+33             if key == "SectionName"
+34               data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+35               next
+36             end
+37             # Skip empty properties
+38             next if contents[key].nil?
+39             # Compile value for key
+40             if schema[key][1][0] == "^"
+41               contents[key].each do |val|
+42                 value = get_csv_record(val, schema[key])
+43                 value = nil if value.is_a?(Array) && value.empty?
+44                 data_hash[schema[key][0]] ||= []
+45                 data_hash[schema[key][0]].push(value)
+46               end
+47               data_hash[schema[key][0]].compact!
+48             else
+49               value = get_csv_record(contents[key], schema[key])
+50               value = nil if value.is_a?(Array) && value.empty?
+51               data_hash[schema[key][0]] = value
+52             end
+53           end
+54           # Validate and modify the compiled data
+55           yield false, data_hash if block_given?
+56           if game_data.exists?(data_hash[:id])
+57             raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+58           end
+59           # Add section's data to records
+60           game_data.register(data_hash)
+61         end
+62       end
+63       process_pbs_file_message_end
+64     end
+65     yield true, nil if block_given?
