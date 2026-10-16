@@ -1,3 +1,6 @@
+> 当前后继：**INCOMPLETE**。已实际阅读或由具名非作者读者接收 **5,870/10,697对（11,740字段）**；父个人433对与A/B/C的5,437对分列。D **4,827对**和固定213载荷用途/采用范围最终核对待完成。
+> 全部新实质接收、更正和限制见 [substantive-reception-2.md](continuation/substantive-reception-2.md)，精确子组提交/树/逐ID接收见 [parent-acceptance.json](continuation/received-parts/parent-acceptance.json)。下方前稿保留历史时点，旧未读计数不代表当前。没有整改、行为运行或根最终签收。
+
 # receive_external_localization_records 独立接收报告
 
 当前结论为 **INCOMPLETE / UPDATE_NOT_STARTED**，不能供主审作 task-final 签收。已完成实质有限审查与完整输入恢复；尚有可得业务值、原生产者贡献和历史接口未接收。本报告不宣称全局 PASS、NO_REQUIRED_UPDATE、整改验收或已关闭接口。

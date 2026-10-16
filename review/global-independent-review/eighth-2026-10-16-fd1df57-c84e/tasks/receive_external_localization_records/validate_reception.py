@@ -16,6 +16,14 @@ def main():
     assert sum(x['literal_read_here'] for x in f['primary_objects'])==439
     assert len(r['literal_record_reads'])==433
     assert len({x['id'] for x in r['literal_record_reads']})==433
+    named=read('continuation/received-parts/parent-acceptance.json')
+    own_ids={x['id'] for x in r['literal_record_reads']}
+    named_ids={x['id'] for x in named['records']}
+    pending=set(read('continuation/contracts/readsets/records_d.complete.json')['record_ids'])
+    assert len(named_ids)==len(named['records'])==5437 and not own_ids&named_ids
+    assert not (own_ids|named_ids)&pending and len(pending)==4827
+    assert own_ids|named_ids|pending=={x['id'] for x in f['primary_objects'] if x['kind']=='record'}
+    assert r['counts']['primary_distinct_pairs_actually_read_or_received']==len(own_ids|named_ids)==5870
     assert sum(x['kind']=='record' and not x['literal_read_here'] for x in f['primary_objects'])==10264
     assert len(f['image_methods'])==len(q['image_callers'])==36
     assert sum(len(x['matched_lines']) for x in f['image_methods'])==63
@@ -39,7 +47,7 @@ def main():
     prefix=str(T.relative_to(root))+'/'
     staged=subprocess.check_output(['git','diff','--cached','--name-only'],cwd=root).decode().splitlines()
     assert all(x.startswith(prefix) for x in staged),staged
-    out={'schema':'gr8-elr-mechanical-package-validation/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'result':'PASS_MECHANICAL_ONLY','source_semantic_credit':0,'business_execution':'NOT_EXECUTED','task_status':'INCOMPLETE','target_identity_files':213,'literal_records':433,'unread_literal_records':10264,'complete_image_methods':36,'final_interfaces_accepted':0,'UPDATE_NOT_STARTED':True}
+    out={'schema':'gr8-elr-mechanical-package-validation/v2','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'result':'PASS_MECHANICAL_ONLY','source_semantic_credit':0,'business_execution':'NOT_EXECUTED','task_status':'INCOMPLETE','target_identity_files':213,'parent_personal_literal_records':433,'named_reader_records_received':5437,'distinct_pairs_read_or_received':5870,'records_still_unreceived':4827,'complete_image_methods':36,'final_interfaces_accepted':0,'UPDATE_NOT_STARTED':True}
     (T/'evidence/package-validation.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
     print(json.dumps(out,ensure_ascii=False))
 if __name__=='__main__':main()
