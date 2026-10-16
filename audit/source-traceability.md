@@ -319,6 +319,9 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 | 批准输入 | `specs/overworld/wp15-resource-matching-and-audio.md`（当前身份 `de45aaf9`／25,152，完整身份见 manifest §1——含 GR-007 已闭合修订） |
 | 审查依据 | 2026-09-23 外部闭合复审 PASS_SCOPED（WP15-R01 关闭）；2026-10-01 GR-007（BGS 差异实际请求 BGM 淡出）有界复审闭合（`review/gr004-gr006-review-2026-10-01/`…… GR-007 见 gr007 系列复审报告，以 manifest §1 批准依据注记为准）；WP79 覆盖审查继承 |
 | 参考与已读 | 全文：`001_Technical/002_Files/001_FileTests.rb`（484）、`010_Data/002_PBS data/009_Species_files.rb`（246）、`007_Objects and windows/001_RPG_Cache.rb`（144）、`008_Audio/002_Audio_Play.rb`（278）；定点：`014_TrainerType.rb:60–95`、`006_Item.rb:74–107`、`002_Game_System.rb:44–250`、`004_Game_Map.rb:108–135`、`002_Scene_Map.rb:56–70`、`012_Overworld/001_Overworld.rb:403–435`；GR-007 定点：`002_Scene_Map.rb:56–75`、`002_Audio_Play.rb:70–89`、`002_Game_System.rb:113–123, 207–228` |
+| 第七轮定点来源（GR7-D07-001，仅静态） | 固定参考 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`：`reference/pokemon-essentials/mkxp.json:64–66` 声明 MIDI 独立音色库输入及随附身份 `soundfont.sf2`；本候选定点重读消费者：`Data/Scripts/001_Technical/002_Files/001_FileTests.rb:109–115, 181–236, 262–273`、`Data/Scripts/008_Audio/002_Audio_Play.rb:1–68, 102–118, 152–168, 202–233`、`Data/Scripts/004_Game classes/002_Game_System.rb:44–149, 153–249`、`Data/Scripts/008_Audio/001_Audio.rb:1–154`。它们分别限定字面/后缀查找、路由/提前返回、请求/登记/有限重试和时长，不证明音色库消费。 |
+| 第七轮原生及保留边界 | 固定 R 的 `Game.exe` 仅重新核完整文件身份；另读取 C2 `4580645dfbfec4a3c7ccbad56ae293cc619b0d25` 的 `tasks/R7-C11/challenges/native/forward-map.json` 既有有限接口/注册与具名未读依赖证据，未新读整份原生程序。L04 配置供应/分派、L09 接受/guard/合成/声音保持未知；原 SF2 全结构、独立复算、配置审查事实保留，本项不重审 SF2 算法，不指定未来格式/后端/API或旧兼容配置。 |
+| 第七轮候选与向量 | 正文 §7/§10、目录独立向量 `GR7-D07-001-S01` 与 F05-02 同步；C11-V01–V08、D07-SF-CFG-01–06 的逐项前提/结果/阶段保留于本批 `evidence/author/per-id.json`，行为全部 NOT_EXECUTED。候选待非作者核验和 R7-I 接收，不提升原批准及宿主状态。 |
 | 证据层级 | 已定位/静态确认/数据样本确认；无运行确认（媒体存在与播放 U01） |
 | 场景/向量 | 测试目录 RS01–RS20（含 GR-007 五组对照） |
 | 具名未验证 | 任何具体媒体文件存在与播放（U01）；动画位图缺失路径；战斗内音频/图形；宿主音频输出与暂停精度；缓存淘汰时机 |
@@ -1470,6 +1473,10 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 | 场景/向量 | 测试目录 AN 系列（AN-M01–M33，共 33 条） |
 | 具名未验证 | 编辑器实际运行表现与宿主窗口/素材行为（WP15/U01）；素材缺口（调试 UI 图、动画图、动画音效、动画档案、招式关联档案、动画目录均缺）下可视结果与失败形态；demo 入口可达性（WP77/U01） |
 
+**2026-10-15 第七轮 GR7-M17-001 候选追加（CANDIDATE_READY_NOT_REVIEWED）**：在上述历史批准身份之外，WP74 §18及测试目录TOOL-AN-01–17新增有限静态请求合同，未重写历史只读／批准／关闭结论。固定R 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b 的 animmaker.exe（10,240 bytes，SHA256 bbbcd909bcd2310078def29f4889f6203e0bc1c8f6500d216440774f832cd96b，blob 6977937ac7604ff237dea02d89c88f89b8f71830）及 animmaker.txt 为输入。采用已接非作者R7-C06的有限静态解码范围：15个方法体及11个异常处理条目，方法区间[592,2664)（含头部/对齐/异常表，各段不冒称连续指令）；token0600000e/0f的XML/输出循环与09/0b的图像/数值分支分别核对。C2 4580645dfbfec4a3c7ccbad56ae293cc619b0d25 的逻辑证据 tasks/R7-C06/logs/038-cil-decode.stdout（SHA256 e4a7c9ef36a53cc03646a0e233711264aac07a1f8f0a1dc798a0fd879c0dfc22）、039-cil-helpers.stdout（4dbb40c99eb477cdbaf750dabeef1a7842a2073a2d985c597c7bffa491b973f2）已在本作者容器定向恢复核验并读取，未在本次重跑其解码器或执行目标。原反证绑定 p02-33da3f93fd6480f9a050#/challenges/1、固定f622356f原七组合同保持为范围依据。
+
+新增事实为输入门、缺图仍保原槽、画布/双倍绘制算术、逐动画图像保存请求和失败前缀；既有五列192格并非新遗漏。交界定点读：005_AnimEditor_Functions.rb L1–183、004_AnimEditor_ExportImport.rb L1–147、002_Compiler_CompilePBS.rb L1260–1321，保留.anm类型门、停用RMXP转换、命名/缓存规则，无自动桥。SOURCE_STATIC／DERIVED_VECTOR与原解码器TOOL_VALIDATION分列；本作者参考/独立完整模型/宿主/Demo/native媒体/真实存档回放均0，向量NOT_EXECUTED。实际XML/图像库、透明/插值/编码、输出文件、错误格式化、清理及跨项回滚不保证，R6及当前L06/L07边界保留。完整作者范围、身份与未满足接收门见 candidates/R7-U10/evidence/author/；追加自身不授予独立PASS、ACCEPTED或CLOSED。
+
 ### T-WP75-01 《工程转换与作者工具》
 
 | 字段 | 内容 |
@@ -1482,6 +1489,8 @@ B01 实际整合 `93d0714ddfdb4900e946c0acd1cc80cf6431f0a0` 已由独立报告 `
 | 证据层级 | 已定位/静态确认/字面集合清点；无运行确认（治疗循环单命令可持续插入、转换非平稳跳过等静态推导未运行处如实保留） |
 | 场景/向量 | 测试目录 CV 系列（CV-M01–M30，共 30 条） |
 | 具名未验证 | demo缺地图数据与Graphics底图，地图类转换/更名原限制保持；knownpoint.bmp及selpoint.bmp为固定R根目录可读246字节8×8 BMP（身份/头部），默认区域底图仍缺失，浏览器/宿主/完整工具运行和Demo仍未证；外围工具extendtext效果未验证；编译诊断输出细节（WP04边界） |
+
+第七轮有限静态补充（GR7-M17-002）：固定R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` 的 `extendtext.exe`（4640字节，SHA256 `8aefdb578c521bc05e1bfae21f239a2e0f64a9d12fdd24527c3dc541cccb4efc`，blob `50f6ea5c2611101e22ed797483a3776da2afd90e`）：字节[1692,2764)业务/导入跳板、[3072,3348)数据，并定向核入口[1561,1684)及导入表。静态确认标记门、互斥分支、四目标独立请求与按钮只定位、缺席/假返回/退出前缀；见WP75 §14、测试目录R7-U11-EXT-01–12。`extendtext.txt`全文及解释器L120–195仅支撑原文档和诊断不启动边界。SOURCE_STATIC／DERIVED_VECTOR，程序/接口/模型/宿主/Demo均NOT_EXECUTED；R6 L07运行未知保持，原批准输入身份及CV-M29不变。
 
 ### T-WP76-01 《设施内容生成与模拟》
 
@@ -1825,7 +1834,7 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 | R6-DX-COMP-001 | 运行中直接编译与启动检查的导入、预删／诊断后删除、错误前缀及正常收尾分开，删除只是尝试。 落点：WP04 §3.3／§4.5／WP72 §10／WP75／KL37–39／DXCOMP-C01–03、坏招式／007／合法对照 | `Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb` 1335–1344；`Data/Scripts/021_Compiler/001_Compiler.rb` 1020–1037 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-COMP-002 | 合法编译可磁盘新而预载缓存旧，反写仍读旧缓存；冷缓存、显式失效与动画／连接独立缓存分开。 落点：WP04 §5.6／WP75／WP74／WP62／KL40–45／DXCOMP-C04–08及零有效名门 | `Data/Scripts/021_Compiler/001_Compiler.rb` 1020–1037；`Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb` 593–629 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-COMP-003 | 普通缩进独立注释预处理为空后仍可语法拒绝，专用训练家先处理略空；首节／节内及字段井号分层。 落点：WP04 §4.2／WP03 §5.1／KL33–35／KL46–50及列首井号／空行对照 | `Data/Scripts/021_Compiler/001_Compiler.rb` 72–77；`Data/Scripts/021_Compiler/001_Compiler.rb` 95–135 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
-| R6-DX-DEBUG-001 | Debug部分添加仍反馈请求数量，容量不足返回false不等于完全未入；取消／无限口袋／后段显示失败分开。 落点：WP72 §5.2／WP27／DG-U08-01–04、空／998／999容量 | `Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb` 778–797；`Data/Scripts/013_Items/008_PokemonBag.rb` 81–93 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
+| R6-DX-DEBUG-001 | Debug部分添加仍反馈请求数量，容量不足返回false不等于完全未入；取消／无限口袋／后段显示失败分开。 落点：WP72 §5.3／WP27（当前导航勘误：[GR7-H08-001](../review/remediation-seventh-20261015-prepare/current-navigation-errata.json)）／DG-U08-01–04、空／998／999容量 | `Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb` 778–797；`Data/Scripts/013_Items/008_PokemonBag.rb` 81–93 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-002 | 传送返回前同步地图／公共事件刷新，Refresh map直接置请求；随后消息微更新可消费，观察点按前缀限定。 落点：WP72 §2.3／§3.2／WP17 §7.2／DG-U08-05–08及取消／后项失败 | `Data/Scripts/020_Debug/003_Debug menus/002_Debug_MenuCommands.rb` 15–37；`Data/Scripts/004_Game classes/004_Game_Map.rb` 429–445 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-003 | F9新登记受消息、解释器和冰／瀑移动门约束，旧请求消费不重检新门；强制路线WAIT与自动移动标记不同。 落点：WP72 §2.1／WP12 §4.3／DG-U08-09–16及排队／暂停／调试关 | `Data/Scripts/003_Game processing/002_Scene_Map.rb` 190–209；`Data/Scripts/003_Game processing/002_Scene_Map.rb` 114–119 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
 | R6-DX-DEBUG-004 | AI零评分变化在全部输出门之前返回，旧缓冲保持；非零、独立打印和显式flush各有边界。 落点：WP72 §9／WP51／DG-U08-17–22、±1／门开关／文件失败 | `Data/Scripts/001_Technical/001_Debugging/001_PBDebug.rb` 60–69 | C组有限静态PASS；有限登记PASS；正式接受；CLOSED |
@@ -1842,3 +1851,46 @@ optional7、no-required7和6个独立兼容政策不纳入mandatory，M11-005可
 
 完整源／消费者、五组签名及独立有限验收见同步输入；正式接受限静态合同，不授新增运行证明。
 <!-- R6-CURRENT-SYNC-END -->
+
+## 第七轮 R7-U01 作者候选追溯（未独立复审）
+
+固定准备入口4bd152023b4bcb3dd5a3654deffe75aeebc40f10；完整合同f622356f3beb9e84ea8cff9db07c7fb382565d3f；固定正式B=e646432c644dec04d306842cc5a559a29c718fbc，参考R=8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b。此段是 candidates/R7-U01 镜像的待接收贡献，不能代替原报告或独立审者签名。逐文件原/新身份、双向条款与向量映射、有限新读范围见同批 evidence/author/artifact-manifest.json、per-id.json、read-ledger.json；恢复仅核传输身份。
+
+| 必修 | 新读固定参考范围（相对Data/Scripts） | 候选落点与保留 |
+| --- | --- | --- |
+| GR7-M01-001 | 010_Data/001_GameData.rb 1–242；002_PBS data中的TownMap、Metadata、PlayerMetadata、MapMetadata、DungeonTileset声明与构造；001_Hardcoded data/011_TerrainTag.rb；011_Battle/001_Battle/003_Battle_ExpAndMoveLearning.rb 1–48 | WP03 §3.1及generic测试GR7-M01-001-V1–V3；查找/相等分开。已接M03有限独立反证仍按其原已读/未读资格，本作者补读不追认它过去已读。EXPSHARE符号相等正确范围保留 |
+| GR7-J01-001 | 010_Data/002_PBS data/010_SpeciesMetrics.rb、011_ShadowPokemon.rb、020_DungeonParameters.rb；021_Compiler/002_Compiler_CompilePBS.rb 4–68、543–588、1196–1232；001_Compiler.rb 384–459、690–737、967–1117；003_Compiler_WritePBS.rb 23–65、291–359；008_Species.rb 267–274；014_Pokemon/003_Pokemon_ShadowPokemon.rb 32–39；012_Overworld/008_Overworld_RandomDungeons.rb 1063–1072；020_Debug/001_Editor screens/004_EditorScreens_SpritePositioning.rb 1–125 | WP03 §3.2／§5.1.2／§5.2、WP04 §4.2；generic完整J01-V01–V13与engine交叉索引。保留三个消费者、图块集合法整组、已有字段默认/克隆/后缀/PBS路径和保存失败前缀 |
+
+J01采用已接非作者反证counter-review.json（14,166字节，SHA256 272e946adc8151c4f53c44a561ee8b7e2c176102855e9949f26e0840b812cf63）的缩窄范围。R7-C03-E009/E010只作为旧地图anchor债务来历，R7-M01-F214/F224的源事实与错误正式anchor分开；本候选补充映射，不修改冻结M01/C03，不把原错误anchor重标完整SUPPORTED。
+
+全部新条款为SOURCE_STATIC／DERIVED_VECTOR；恢复、身份与目录机械校验仅为TOOL_VALIDATION。行为/参考程序执行仍NOT_EXECUTED，未运行恢复的参考脚本；本批宿主/Demo/native媒体/真实存档回放0、实际model/effort/tier/speed UNVERIFIED，L01–L14保持。待R7-I冻结candidate-input.json后由不同实际上下文复审；本作者不作独立PASS、正式接受或关闭结论。
+
+## 第七轮 U02 有界静态手柄资料候选（GR7-D06-001）
+
+这是固定 B `e646432c644dec04d306842cc5a559a29c718fbc` 上的隔离候选贡献，状态 CANDIDATE_READY_NOT_REVIEWED，待 R7-I 接收及另一实际 context 复审；不改既有历史批准。落点：[WP17 §6.1](../deliverables/final-specification-set/user-interface/wp17-messages-windows-input.md)、[UI 静态目录 R7-U02-DB/BT/AX](../deliverables/final-specification-set/test-catalog/user-interface-wp17-63-65-66-67-68-69-70-71.md)。
+
+参考固定 R：`Maruno17/pokemon-essentials@8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。`Game.exe` 完整文件 14,732,288 bytes，SHA-256 `5c75e92fcbb6ec50b9f8fc61913d751a8945d6a1fc69c3017c7b8686b532bf04`，Git blob `3f9b0654963334e033f59d34a42d52b12135feeb`。以下文件字节和 VA 范围均为左闭右开；只作数据/有界反汇编静态阅读，从未启动该程序。
+
+| 固定材料与精确范围 | 有界观察和消费者 |
+| --- | --- |
+| Game.exe bytes [9797195,9797501)，VA [0x14095944b,0x14095957d) | DB-0087 的实际映射请求样本；普通 a:b0、未知 misc1:b9 和其后 rightshoulder:b5 的字段顺序 |
+| Game.exe bytes [9797388,9797396)，VA [0x14095950c,0x140959514) | 未知目标样本 misc1:b9；范围 SHA-256 `36aac23c3495810ef967e0baed304c87fb28245744fcf1957f391f54aa4ddd39` |
+| Game.exe bytes [11552288,11552416)，VA [0x140b05c20,0x140b05ca0) | 15 个按钮目标名指针与终止空指针，逐个追读所指 NUL 结尾名称 |
+| Game.exe bytes [11552480,11552536)，VA [0x140b05ce0,0x140b05d18) | 6 个轴目标名指针与终止空指针，逐个追读所指 NUL 结尾名称 |
+| Game.exe bytes [11551187,11551195)、[11552166,11552264)、[11552416,11552461) | 上述指针实际名称所在字节补集：21 名均定向读取；逐名地址/身份在 `candidates/R7-U02/evidence/author/binary-static.json`，不复制厂商数据库 |
+| Game.exe bytes [3873328,3874736)，VA [0x1403b2630,0x1403b2bb0) | 有界字段解析与外层循环；未知名错误请求在 VA 0x1403b278e，普通 b0 分支经 0x1403b28e9 到追加路径 0x1403b28f9；分配失败 0x1403b2979 重置计数。外层 0x1403b2a70/0x1403b2a79 调用后清字段缓存并继续，不因该未知名中止整记录 |
+| Game.exe bytes [11551200,11551232)，VA [0x140b057e0,0x140b05800) | 未知控制器目标的错误消息请求身份；不认证消息显示 |
+| `mkxp.json` L31–47；`Data/Scripts/001_Technical/004_Input.rb` L1–31 | bindingNames 只供显示；逻辑别名、宿主查询、F8 更新顺序、鼠标守卫属于另层。没有从原生 a/back 等名跳接到 ACTION/USE/BACK |
+| B: WP17 全文；WP65 controls-help L1–61、title/load/options/pause §12 | 宿主输入未验证、帮助文案非物理绑定证明等正确边界保留；仅核本项必要消费者，不重授历史批准 |
+
+原非作者依据：冻结 `f622356f3beb9e84ea8cff9db07c7fb382565d3f` 的 U02 完整七组合同及 R7-C08 的 `C08-GR7-D06-001`（binding `p02-06fb1af35df48b7d0842`，原载荷 SHA-256 `2d7b2df0608ebe207cfc1c950ccab4059823a05385000a9a00ecb711d356d4ca`，成员字节 [32751,47148)）；晚到 D06 的原生物化前提仅缩窄支持面，不扩大最小合同。
+
+证据层级：BINARY_DATA_STATIC / NATIVE_DISASSEMBLY_STATIC / DERIVED_VECTOR；恢复和指针结构校验是 TOOL_VALIDATION，向量全部 NOT_EXECUTED。本容器只取得有界参考快照，未重新认证参考整树。CC04 实际注册/宿主查询桥仍未读；设备、后端选择、注册优先级、全 1923 记录字段语义与 76 字段/48 记录没有本独立签署，1666+257 和 731 Windows 只沿既有工具结构计数。未知名继续不证明所有失败保留全部前项，不证明全局回滚或物理 button9 失效。L01–L14、旧 56/92 与 27 项/13 批分母不变，未来兼容政策、宿主/Demo/媒体/真实存档仍分门待证。
+
+## 第七轮全部必修条款的累计接收入口
+
+第七轮作者候选段保留各自制作时点的原声明。当前状态及固定候选/实际审查身份见[累计接收登记](../review/remediation-seventh-20261015-prepare/integration/wave4/v1/public-reception.json)，作者证据按其中完整候选提交与精确路径读取。本次U03新context候选r2通过后，最后两项已按条款整合；当前27/27项、13/13批均已应用，原U03/U07/U10 r1流程WAIT及披露保留且未迁移。当前独立实际PASS与正式ACCEPTED19/27项、9/13批，CLOSED0；U03新实际IR、U06原context明确内容结论、U07实际IR及U10原context完整续审仍待接收。各批实际审查只绑定各自MI/FI，最终累计保留、共享/直接/传递/历史关闭仍单独登记。所有行为NOT_EXECUTED、宿主等运行0、有效配置UNVERIFIED、L01–L14、旧56/92及27项/13批分母保持；全部门完成前不merge main。
+
+## 第七轮必修整改最终接收（限定静态范围）
+
+以上作者候选与各准备波次的状态注记保留其制作时点；本段为本轮最终权威状态，见[完整报告](../review/remediation-seventh-20261015-prepare/completion/final-report.md)、[逐项关闭决定](../review/remediation-seventh-20261015-prepare/closure/final/decision.json)和[当前接收登记](../review/remediation-seventh-20261015-prepare/completion/current-public-reception.json)。27/27项、13/13批已完成合格候选审查、逐条实际整合、独立实际复审及根语义/共享/有限直接与传递依赖/具名历史接收，正式ACCEPTED及CLOSED均27/27项、13/13批。关闭仅限原缩窄必修静态规格更正；L01–L14、有效模型配置UNVERIFIED、全部本轮行为NOT_EXECUTED、新增宿主/Demo/原生媒体/真实存档回放0、较宽原生桥与兼容政策仍保留开放。原Reviewed/Inventoried媒体资格、旧56/92关闭边界、旧WAIT/失败/程序违例不被升级或抹除，7optional、2额外导航facet、1no-required、2policy未自动采用。本轮依最新用户AGENTS限制只发布整改分支，不合并main，不执行相关清理或本地同步。

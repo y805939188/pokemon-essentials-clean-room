@@ -1,0 +1,61 @@
+最终限定静态交付（2026-10-15T19:35:35.625075+00:00）：[最终报告](../../completion/final-report.md)、[逐项关闭](../../closure/final/decision.json)、[最终绑定](../../completion/final-delivery-binding.json)。本轮27/27项13/13批候选PASS、逐条实际整合、独立实际PASS、正式ACCEPTED和限定静态CLOSED全部完成；有限必修依赖剩余0。L01–L14、有效配置UNVERIFIED、本轮行为NOT_EXECUTED/新增运行0、较宽原生桥与未来政策仍开放。42个任务ID唯一，32个review结果版本及旧WAIT/失败/程序违例保留。只发布整改分支，按最新用户AGENTS禁止main合并和相关清理/本地同步；旧授权只留史。以下早期快照和固定MI/FI继续按各自时点解释。
+
+当前最终实际结果接收（2026-10-15T19:27:01.538890+00:00）：U03最终累计实际IR与U06原context明确完整续审均已逐文件核验接收。候选PASS、实际应用、独立实际PASS和正式ACCEPTED全部27/27项13/13批；CLOSED0，等待单独的最终精确依赖/共享/历史/累计保留关闭审计。42个任务ID唯一，所有结果已回收；32个review版本包括旧部分WAIT/程序违例，均保留。最新执行政策仍禁止本轮merge main及相关清理/本地同步；仅发布整改分支。所有行为NOT_EXECUTED、运行0、模型配置UNVERIFIED、L01–L14保持。以下旧快照按各自时点保留。
+
+当前执行限制（2026-10-15T18:43:07.312215+00:00）：用户最新AGENTS限制晚于历史合并授权，本轮禁止merge main，并暂停相关清理/本地同步；当前权威控制见governance/current-execution-policy.json。历史15:08授权原样保留，仅作历史证据。继续整改分支最终复审接收、依赖与累计回归、达标正式接受及普通提交/推送；任何仍有依赖的项不得提前关闭。U03/U06原任务等待实际结果，不重复创建。候选PASS/已应用27/27项13/13批，实际PASS/ACCEPTED23/27项11/13批，CLOSED0。下方较早快照和固定MI/FI内的旧合并计划不再授予当前main权限。
+
+当前最后两项调度登记（2026-10-15T18:40:25.900664+00:00）：U03新实际IR thread01a140d8-cab0-753f-83f9-3c18414ce035已由父会话创建；U06原thread01a1401c-1527-75c6-9a36-7bc9b3a00007续审turn01a140d9-0f0a-7559-983e-21717145aac0已启动，不另计审者。42个任务ID唯一，当前没有待创建请求。环境恢复保留原工作区/分支/成果。候选PASS及实际应用27/27项13/13批；独立实际PASS与ACCEPTED23/27项11/13批；CLOSED0。累计静态保留核验见closure/preflight/final-static-projection.json；这不是语义PASS。两份实际结果接收和全部关闭门完成前不merge main。以下旧快照按各自时点保留。
+
+当前正式接收（2026-10-15T17:13:23.547605+00:00）：U07独立实际IR及U10同context完整续审均已接收，原WAIT保留。候选PASS/实际应用27/27项13/13批；独立实际PASS及ACCEPTED23/27项11/13批；CLOSED0。仅U03两项新实际IR、U06两项原context明确完整结论尚待；所有已创建任务41个ID唯一，最后U03实际IR请求仍未获父创建ID，勿重复。closure/preflight/current-gate-matrix.json已列27项精确门，所有最终关闭和main合并保持未放行。以下旧快照按各自时点保留。
+
+当前全轮实际条款冻结（2026-10-15T16:20:22.378864+00:00）：候选PASS及实际已应用均27/27项13/13批；独立实际PASS/正式ACCEPTED19/27项9/13批；CLOSED0。最后U03新独立实际IR输入见integration/wave4/v1/ir-ready.json，未在本环境创建；U06原context续审输入见process-adjudications/R7-U06-IR-PROC-001/v1/same-context-continuation.md，程序违例保留、无PASS代签；U07实际结果待接收；U10原context续审父已启动。最新MI=94d5eb73f4508b8a8a54319040faa9aea5752059，FI=6a02773d62e36a295e9701a8d0ba5b5cb6441614。全部门完成前不merge main。以下旧快照按各自时点保留。
+
+当前接收登记（2026-10-15T16:12:54.827949+00:00）：候选PASS27/27项13/13批；实际已应用25/27项12/13批；独立实际PASS及ACCEPTED19/27项9/13批；CLOSED0。新U03r2已合格待最终整合/新IR；U06认证状态查询程序违例保留，根裁决允许原独立context完成内容并签新明确结论，现仍WAIT；U12同context完整续审已接收，旧部分WAIT保留；U10原实际IR已由父续接，U07实际IR待结果。全部已创建任务ID41个唯一，无重复创建。最终main合并门未满足。以下旧快照按各自时点保留。
+
+当前累计整合（2026-10-15T15:40:37.932388+00:00）：U07/U10新r2均合格并按条款整合，新16片段/7目标叠加既有贡献，U11旧工具组先于U10新工具组并存，先前已接受8份正文逐字保持。候选PASS/实际已应用25/27项12/13批；独立实际PASS及ACCEPTED5/27项3/13批；CLOSED0。两个新实际IR完整输入见integration/wave3/v1/ir-ready.json，未在本环境创建；原11任务全部确认创建，尚待U03r2和另7个wave2实际IR。最新MI=e54f54a2cb32e546eabd46aaf53ed45b30a8af89，FI=b98fa82f8a08b5630ac568cbe8c34f607f623cfb。全部门完成前不merge main。以下旧快照按各自时点保留。
+
+当前接收登记（2026-10-15T15:34:03.418956+00:00）：11个后续独立审者全部确认创建，UNKNOWN0；U07/U10新r2候选已接收合格，U09新实际IR已接收并正式接受。候选PASS25/27项12/13批；当前实际应用仍21/27项10/13批；实际独立PASS及ACCEPTED5/27项3/13批；CLOSED0。U07/U10将继续逐条整合并准备新IR；原11任务仍待U03r2和另7份实际IR。旧r1WAIT不豁免、不迁移。以下旧快照按各自时点保留。
+
+当前创建登记（2026-10-15T15:23:22.503907+00:00）：父会话确认3个候选r2与5个实际IR共8个新任务ID，已锁定防重复；U11/U12/U13实际IR创建UNKNOWN，仅父会话核对重试，不能当未创建再次派发。本环境创建0。用户15:08UTC授权全轮所有整改/独立复审/实际整合验收/依赖门完成后最终普通merge main，当前门未满足，不提前merge。候选PASS21/27项10/13批；已整合21/27项10/13批；实际PASS/ACCEPTED3/27项2/13批；CLOSED0。下方旧快照按各自时点保留。
+
+当前实际整合冻结：MI45c80832a41c1b56dcd7e9d93497758cbb7721de，FI13d76ba61838b13925ba9d41f58a6b047564d926。八批18项新实际R7-IR完整输入见integration/wave2/v1/ir-ready.json；三批6项流程资格新候选r2输入见review-rechecks/ready.json。全部11项任务仅准备未在本环境创建，父会话独占创建。候选PASS21/27项、10/13批；已逐条整合21/27项、10/13批；实际独立PASS及ACCEPTED3/27项、2/13批；CLOSED0。以下较早快照按各自时点保留。
+
+当前登记（2026-10-15T14:55:18.778554+00:00）：候选PASS 21/27项、10/13批；实际整合独立PASS及正式ACCEPTED均3/27项、2/13批；CLOSED0。U03/U07/U10因合同前AI辅助流程偏差保持WAIT，三份新context完整r2输入见review-rechecks/ready.json，未在整合者创建任务；原候选和旧报告保留。以下较早快照以各自时点解释。
+
+# 当前第七轮状态（历史记录保留）
+
+当前13批、27项的最新作者候选已全部接收并冻结；含U01旧候选的历史版本共14份。实际r1独立复审收到3份：U04两项PASS，U05一项PASS；U01旧M01有限PASS/J01FAIL保留，新返修a3938bbb另立r2，未继承旧PASS、未整合旧U01。
+
+U04/U05的3项、5份文档已按11hunk实际整合到b0eea808；实际输入冻结d9021aa2，新的R7-IR ultra完整文件在integration/U04-U05/v1/R7-IR-dispatch.md。仍无实际整合PASS、ACCEPTED、CLOSED。未改main。
+
+其余10批及U01返修版共11份具体ultra候选复审输入已就绪，见intake/20261015-author-wave/reviewer-dispatch-index.json。当前候选PASS为3/27项、2/13批；实际整合PASS、正式接受、关闭均0。源/行为向量未执行，模型有效配置UNVERIFIED，L01-L14保持。
+
+任务创建仅由父会话；根未创建模型任务。父会话若已创建本次请求须按其实际ID续接，不能因根未收到ID而重复创建。当前已知16个任务及12个待创建请求见delegation/task-registry/current.json。
+
+---
+
+## 以下为原开工与派发导航，旧计数保留生成时点
+
+# 当前状态：父会话已创建13作者及3候选审者，禁止重复创建
+
+当前任务ID以../task-registry/current.json为准；新创建10作者和3reviewer的执行进度尚未由整合者独立确认，等待父会话转交实际结果。以下派发资格与早期状态保留生成时点，不能再据它重复创建已登记任务。
+
+# 全部剩余作者并行派发与冻结后独立复审
+
+初始父回传成功创建：U01=01a13f52-add1-7706-b7ec-54e07e0d7013，U04=01a13f52-cc74-7568-9e75-85ac773c6015，U05=01a13f52-ecf8-73f9-8c9b-f5c164f0c017。事实来源是父会话回传；本环境没有重新查询账号任务服务。请求gpt-6.1-sol xhigh/default，实际模型/档位/速度回参仍UNVERIFIED。不要重复派发这三批。
+
+用户不设置并发任务数量上限。剩余U02/U03/U06/U07/U08/U09/U10/U11/U12/U13各自隔离candidates镜像和唯一分支，可全部并行创建；13批作者阻塞边0、镜像写写冲突0。这不是服务slot或实际创建回执。唯一创建者是父会话cloud_threads.create，本整合者创建0。新实际ID返回后再登记。
+
+完整自包含作者输入在authors/<批次>-author.md，固定合同f622356f、恢复658488c8、输入准备4bd15202，精确路径、规则/保留/向量、云端恢复、唯一输出分支和条件全部内含。10个作者仅向codex/r7-uXX-author-20261015-wave1普通提交/推送本批candidates；已有三批保留pilot1分支。候选分支从固定B建立，禁止推整合分支/main或force。运输授权覆盖旧精简入口不提交/推送限制，行为合同范围不变。
+
+7组共享实际目标产生19对去重批次冲突、39次文件内配对；含条件同步，不采用optional/policy。作者可并行不等于正式写入可无冲突并行。R7-I唯一按条款串行整合，保留累计贡献；完整路径/对端关系见conflict-relations.json。
+
+reviewers/<批次>-reviewer.md已为全部13批备好，要求gpt-6.1-sol ultra/default普通速度、新的不同实际context。U01/U04/U05真实候选已冻结，三个ultra审者也已由父会话创建，等待实际结果；其它10批审者仍待候选冻结。通用门：必须先取得作者实际完整结果，由R7-I核差异/身份并发布candidate-input.json不可变commit/tree，实际字段及门见candidate-freeze-requirements.json。未完成/inProgress、浮动分支、自审或只恢复固定原证据都不足以启动候选PASS。
+
+独立reviewer只写本批evidence/reviewer/r1，唯一分支codex/r7-uXX-reviewer-20261015-r1，基于B；不修作者镜像，不动正式文件。完整候选/证据由固定作者commit或经R7-I核验的平台产物读取到只读暂存目录，审者输入freeze必须额外由父会话绑定真实commit。13份模板现在只是未来有界输入，不是已启动/通过声明。
+
+候选PASS→R7-I实际整合→新的R7-IR审实际累计字节→正式ACCEPTED→共享接收/直接传递依赖/历史回归满足才CLOSED。R7-IR-after-integration.md同样等待真实integrated-input记录及commit/tree，不能以本轮作者或候选审者替代。有效配置、L01-L14、运行零验证及optional/policy分母保持；不合并main、不删历史、不提前关闭。
+
+原启动/完成回执、f622静态计划和旧零作者记录保留生成时点。当前派发状态以ledger.json和此目录parent-launch-receipt.json、dispatch-index.json为准。候选PASS/实际PASS/ACCEPTED/CLOSED仍为0/27项、0/13批；作者已启动3/13是不同维度。
+
+U01实际候选de550bb9、U05实际候选3acf3e23均已完整根接收，冻结提交 58c6427f2ba48aa7dd3b59d4ab1e40c54394fd3a；具体reviewer文件位于candidate-freezes/<批次>/reviewer-dispatch.md。作者已完成3/13，仍未产生候选独立PASS/实际整合PASS/ACCEPTED/CLOSED。
