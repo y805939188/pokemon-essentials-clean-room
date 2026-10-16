@@ -1,0 +1,23 @@
+# 第八轮全局 review 进行状态
+
+完整审查尚未完成，当前没有全局 PASS。`UPDATE_NOT_STARTED`。
+
+B8固定为fd1df570cad987dc3852a3b958f03916e317f7fe，tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。正式文件、R、main、原tag没有修改。报告分支的合法后继不替代B8。
+
+完整库存R432（44906485bytes）、formal131（4364108bytes），各路径主责0遗漏/0重复。四planning已全文读并冻结87WP计划行、113Feature、18领域。395条声明知识依赖不是运行接口全集。原manifest的纯历史索引按用途处置；有效后继事实/资格仍需按精确来源接收。
+
+当前已结束的六个实际上下文交付了限定成果：库存、历史恢复与资格、kernel、combat核心、creature-A、kernel独立反证。kernel13formal/77初始源、CORE6formal/16源、CRE-A7formal/11primary源全文读均有台账；它们明确仍有复合clause、其它数据、消费者和跨域未接收。不同任务重叠读取不能相加冒作全局唯一已读数。
+
+正在运行预检/二进制、combat独立反证、全分母接收审计、世界拓扑、UI导航与PBS-world全记录六任务。加root实际7个并发，当前工具容量7；没有人为增加更低并发上限。全部实际上下文请求gpt-6.1-sol/ultra/default普速/Fast off，实际无回显字段逐项UNVERIFIED。CLI已测因只读app-server初始化失败，新增CLI上下文0。
+
+完整可派发合同：delegation/first-wave.json 17项，second-wave.json新增creature四片，third-wave.json新增历史四片，共25项。每项有完整prompt、逐载荷身份读集及独占写集。计划不等于实际启动；本协调者没有这些外部会话的启动回执。主线程可按实际服务容量代建，不重复创建已具名实际任务。新世界/UI/PBS实际审者在各自独立目录贡献相应部分，旧domain角色名不授语义接收。
+
+独立反证已经对kernel三提案与CRE一提案给出有限建议，root最终canonical去重/分类尚未完成。kernel002撤回WP02/KC05充分示例的错误指控，只保留穷尽启动门的精确范围。CORE两提案、world拓扑失败前缀、PBS数据断言、UI保存取消强断言等仍分别审查，不能把疑点数或建议数当最终必修数。
+
+严格覆盖审计发现现有reverse矩阵许多行没有事实link，方法/行/分号片段都不是最终atomic分母。所有已有FULL_READ、STRUCTURE_PARSED、库存身份核验、推导与业务观察分列；未读与未接收不能改成材料limit。controller1666与媒体/字体/messages等仍有真实可审未读。counter_kernel_first一条范围上限超过EOF正在作原请求/实际范围元数据更正，不因此凭空新增阅读或撤回其它有证实读。
+
+新参考/游戏/完整宿主/媒体观察0；CRE一过程Python数值探索exit0而缺开始UTC，保持探索1、业务验证信用0，原L14缺口不倒填。全部未实际运行的向量NOT_EXECUTED。静态工具运行与真实I/O另列，不冒充宿主等价。
+
+材料访问障碍仅具名保留：Library云端ZIP 16531493bytes/SHA2566a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e未能通过官方helper下载（DNS失败），因此CLOUD-READ-FIRST/new cloud prompt/readiness/final binding/131MB recovery map尚未在此环境完整读。已请求固定Git commit/path替代。原完整36653bytes合同已全文读并核SHA；skill3598bytes同样已读核。R7/R6旧Git对象本地缺失已在隔离bare成功恢复7commit/15关键载荷，原假材料阻塞解除，剩余是真未读。
+
+初始分工检查点7478d8daf357d569ac12bea211b4b5f257861930已普通push，54文件/916631bytes完整隔离远端读回通过；这是传输验证而非语义批准。最终语义core、最终完整整改handoff和全量完成验收尚未达到。报告本身可以修正/补齐；正式整改没有启动。
