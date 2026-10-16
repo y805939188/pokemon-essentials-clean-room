@@ -1,0 +1,699 @@
+     1	#===============================================================================
+     2	# ** Game_System
+     3	#------------------------------------------------------------------------------
+     4	#  This class handles data surrounding the system. Backround music, etc.
+     5	#  is managed here as well. Refer to "$game_system" for the instance of
+     6	#  this class.
+     7	#===============================================================================
+     8	class Game_System
+     9	  attr_reader   :map_interpreter          # map event interpreter
+    10	  attr_reader   :battle_interpreter       # battle event interpreter
+    11	  attr_accessor :timer_start              # $stats.play_time when timer was started, or nil
+    12	  attr_accessor :timer_duration           # Time (in seconds) the timer is initially set to
+    13	  attr_accessor :save_disabled            # save forbidden
+    14	  attr_accessor :menu_disabled            # menu forbidden
+    15	  attr_accessor :encounter_disabled       # encounter forbidden
+    16	  attr_accessor :message_position         # text option: positioning
+    17	  attr_accessor :message_frame            # text option: window frame
+    18	  attr_accessor :save_count               # save count
+    19	  attr_accessor :magic_number             # magic number
+    20	  attr_accessor :autoscroll_x_speed
+    21	  attr_accessor :autoscroll_y_speed
+    22	  attr_accessor :bgm_position
+    23	
+    24	  def initialize
+    25	    @map_interpreter    = Interpreter.new(0, true)
+    26	    @battle_interpreter = Interpreter.new(0, false)
+    27	    @timer_start        = nil
+    28	    @timer_duration     = 0
+    29	    @save_disabled      = false
+    30	    @menu_disabled      = false
+    31	    @encounter_disabled = false
+    32	    @message_position   = 2
+    33	    @message_frame      = 0
+    34	    @save_count         = 0
+    35	    @magic_number       = 0
+    36	    @autoscroll_x_speed = 0
+    37	    @autoscroll_y_speed = 0
+    38	    @bgm_position       = 0
+    39	    @bgs_position       = 0
+    40	  end
+    41	
+    42	  #-----------------------------------------------------------------------------
+    43	
+    44	  def bgm_play(bgm, track = nil)
+    45	    old_pos = @bgm_position
+    46	    @bgm_position = 0
+    47	    bgm_play_internal(bgm, 0, track)
+    48	    @bgm_position = old_pos
+    49	  end
+    50	
+    51	  def bgm_play_internal2(name, volume, pitch, position, track = nil) # :nodoc:
+    52	    vol = volume
+    53	    vol *= $PokemonSystem.bgmvolume / 100.0
+    54	    vol = vol.to_i
+    55	    begin
+    56	      Audio.bgm_play(name, vol, pitch, position, track)
+    57	    rescue ArgumentError
+    58	      Audio.bgm_play(name, vol, pitch, 0, track)
+    59	    end
+    60	  end
+    61	
+    62	  def bgm_play_internal(bgm, position, track = nil) # :nodoc:
+    63	    if !track || track == 0
+    64	      @bgm_position = position if !@bgm_paused
+    65	      @playing_bgm = bgm&.clone
+    66	    end
+    67	    if bgm && bgm.name != ""
+    68	      if !@defaultBGM && FileTest.audio_exist?("Audio/BGM/" + bgm.name)
+    69	        bgm_play_internal2("Audio/BGM/" + bgm.name, bgm.volume, bgm.pitch, @bgm_position, track)
+    70	      end
+    71	    else
+    72	      if !track || track == 0
+    73	        @bgm_position = position if !@bgm_paused
+    74	        @playing_bgm = nil
+    75	      end
+    76	      Audio.bgm_stop(track) if !@defaultBGM
+    77	    end
+    78	    if @defaultBGM
+    79	      bgm_play_internal2("Audio/BGM/" + @defaultBGM.name,
+    80	                         @defaultBGM.volume, @defaultBGM.pitch, @bgm_position, track)
+    81	    end
+    82	    Graphics.frame_reset
+    83	  end
+    84	
+    85	  def bgm_pause(fadetime = 0.0) # :nodoc:
+    86	    pos = Audio.bgm_pos rescue 0
+    87	    self.bgm_fade(fadetime) if fadetime > 0.0
+    88	    @bgm_position = pos
+    89	    @bgm_paused   = true
+    90	  end
+    91	
+    92	  def bgm_unpause  # :nodoc:
+    93	    @bgm_position = 0
+    94	    @bgm_paused   = false
+    95	  end
+    96	
+    97	  def bgm_resume(bgm) # :nodoc:
+    98	    if @bgm_paused
+    99	      self.bgm_play_internal(bgm, @bgm_position)
+   100	      @bgm_position = 0
+   101	      @bgm_paused   = false
+   102	    end
+   103	  end
+   104	
+   105	  def bgm_stop(track = nil) # :nodoc:
+   106	    if !track || track == 0
+   107	      @bgm_position = 0 if !@bgm_paused
+   108	      @playing_bgm  = nil
+   109	    end
+   110	    Audio.bgm_stop(track) if !@defaultBGM
+   111	  end
+   112	
+   113	  def bgm_fade(time, track = nil) # :nodoc:
+   114	    if !track || track == 0
+   115	      @bgm_position = 0 if !@bgm_paused
+   116	      @playing_bgm = nil
+   117	    end
+   118	    Audio.bgm_fade((time * 1000).floor, track) if !@defaultBGM
+   119	  end
+   120	
+   121	  def playing_bgm
+   122	    return @playing_bgm
+   123	  end
+   124	
+   125	  # Saves the currently playing background music for later playback.
+   126	  def bgm_memorize
+   127	    @memorized_bgm = @playing_bgm
+   128	  end
+   129	
+   130	  # Plays the currently memorized background music
+   131	  def bgm_restore
+   132	    bgm_play(@memorized_bgm)
+   133	  end
+   134	
+   135	  # Returns an RPG::AudioFile object for the currently playing background music
+   136	  def getPlayingBGM
+   137	    return (@playing_bgm) ? @playing_bgm.clone : nil
+   138	  end
+   139	
+   140	  def setDefaultBGM(bgm, volume = 80, pitch = 100)
+   141	    bgm = RPG::AudioFile.new(bgm, volume, pitch) if bgm.is_a?(String)
+   142	    @defaultBGM = nil
+   143	    if bgm && bgm.name != ""
+   144	      self.bgm_play(bgm)
+   145	      @defaultBGM = bgm.clone
+   146	    else
+   147	      self.bgm_play(@playing_bgm)
+   148	    end
+   149	  end
+   150	
+   151	  #-----------------------------------------------------------------------------
+   152	
+   153	  def me_play(me)
+   154	    me = RPG::AudioFile.new(me) if me.is_a?(String)
+   155	    if me && me.name != ""
+   156	      if FileTest.audio_exist?("Audio/ME/" + me.name)
+   157	        vol = me.volume
+   158	        vol *= $PokemonSystem.bgmvolume / 100.0
+   159	        vol = vol.to_i
+   160	        Audio.me_play("Audio/ME/" + me.name, vol, me.pitch)
+   161	      end
+   162	    else
+   163	      Audio.me_stop
+   164	    end
+   165	    Graphics.frame_reset
+   166	  end
+   167	
+   168	  #-----------------------------------------------------------------------------
+   169	
+   170	  def bgs_play(bgs)
+   171	    @playing_bgs = (bgs.nil?) ? nil : bgs.clone
+   172	    if bgs && bgs.name != ""
+   173	      if FileTest.audio_exist?("Audio/BGS/" + bgs.name)
+   174	        vol = bgs.volume
+   175	        vol *= $PokemonSystem.sevolume / 100.0
+   176	        vol = vol.to_i
+   177	        Audio.bgs_play("Audio/BGS/" + bgs.name, vol, bgs.pitch)
+   178	      end
+   179	    else
+   180	      @bgs_position = 0
+   181	      @playing_bgs  = nil
+   182	      Audio.bgs_stop
+   183	    end
+   184	    Graphics.frame_reset
+   185	  end
+   186	
+   187	  def bgs_pause(fadetime = 0.0) # :nodoc:
+   188	    if fadetime > 0.0
+   189	      self.bgs_fade(fadetime)
+   190	    else
+   191	      self.bgs_stop
+   192	    end
+   193	    @bgs_paused = true
+   194	  end
+   195	
+   196	  def bgs_unpause  # :nodoc:
+   197	    @bgs_paused = false
+   198	  end
+   199	
+   200	  def bgs_resume(bgs) # :nodoc:
+   201	    if @bgs_paused
+   202	      self.bgs_play(bgs)
+   203	      @bgs_paused = false
+   204	    end
+   205	  end
+   206	
+   207	  def bgs_stop
+   208	    @bgs_position = 0
+   209	    @playing_bgs  = nil
+   210	    Audio.bgs_stop
+   211	  end
+   212	
+   213	  def bgs_fade(time)
+   214	    @bgs_position = 0
+   215	    @playing_bgs  = nil
+   216	    Audio.bgs_fade((time * 1000).floor)
+   217	  end
+   218	
+   219	  def playing_bgs
+   220	    return @playing_bgs
+   221	  end
+   222	
+   223	  def bgs_memorize
+   224	    @memorized_bgs = @playing_bgs
+   225	  end
+   226	
+   227	  def bgs_restore
+   228	    bgs_play(@memorized_bgs)
+   229	  end
+   230	
+   231	  def getPlayingBGS
+   232	    return (@playing_bgs) ? @playing_bgs.clone : nil
+   233	  end
+   234	
+   235	  #-----------------------------------------------------------------------------
+   236	
+   237	  def se_play(se)
+   238	    se = RPG::AudioFile.new(se) if se.is_a?(String)
+   239	    if se && se.name != "" && FileTest.audio_exist?("Audio/SE/" + se.name)
+   240	      vol = se.volume
+   241	      vol *= $PokemonSystem.sevolume / 100.0
+   242	      vol = vol.to_i
+   243	      Audio.se_play("Audio/SE/" + se.name, vol, se.pitch)
+   244	    end
+   245	  end
+   246	
+   247	  def se_stop
+   248	    Audio.se_stop
+   249	  end
+   250	
+   251	  #-----------------------------------------------------------------------------
+   252	
+   253	  def battle_bgm
+   254	    return (@battle_bgm) ? @battle_bgm : $data_system.battle_bgm
+   255	  end
+   256	
+   257	  attr_writer :battle_bgm
+   258	
+   259	  def battle_end_me
+   260	    return (@battle_end_me) ? @battle_end_me : $data_system.battle_end_me
+   261	  end
+   262	
+   263	  attr_writer :battle_end_me
+   264	
+   265	  #-----------------------------------------------------------------------------
+   266	
+   267	  def windowskin_name
+   268	    return $data_system.windowskin_name if @windowskin_name.nil?
+   269	    return @windowskin_name
+   270	  end
+   271	
+   272	  attr_writer :windowskin_name
+   273	
+   274	  def timer
+   275	    return 0 if !@timer_start || !$stats
+   276	    return @timer_duration - $stats.play_time + @timer_start
+   277	  end
+   278	
+   279	  def update
+   280	    if Input.trigger?(Input::SPECIAL) && pbCurrentEventCommentInput(1, "Cut Scene")
+   281	      event = @map_interpreter.get_self
+   282	      @map_interpreter.pbSetSelfSwitch(event.id, "A", true)
+   283	      @map_interpreter.command_end
+   284	      event.start
+   285	    end
+   286	  end
+   287	end
+     1	def pbStringToAudioFile(str)
+     2	  if str[/^(.*)\:\s*(\d+)\s*\:\s*(\d+)\s*$/]   # Of the format "XXX: ###: ###"
+     3	    file   = $1
+     4	    volume = $2.to_i
+     5	    pitch  = $3.to_i
+     6	    return RPG::AudioFile.new(file, volume, pitch)
+     7	  elsif str[/^(.*)\:\s*(\d+)\s*$/]             # Of the format "XXX: ###"
+     8	    file   = $1
+     9	    volume = $2.to_i
+    10	    return RPG::AudioFile.new(file, volume, 100)
+    11	  else
+    12	    return RPG::AudioFile.new(str, 100, 100)
+    13	  end
+    14	end
+    15	
+    16	# Converts an object to an audio file.
+    17	# str -- Either a string showing the filename or an RPG::AudioFile object.
+    18	# Possible formats for _str_:
+    19	# filename                        volume and pitch 100
+    20	# filename:volume           pitch 100
+    21	# filename:volume:pitch
+    22	# volume -- Volume of the file, up to 100
+    23	# pitch -- Pitch of the file, normally 100
+    24	def pbResolveAudioFile(str, volume = nil, pitch = nil)
+    25	  if str.is_a?(String)
+    26	    str = pbStringToAudioFile(str)
+    27	    str.volume = volume || 100
+    28	    str.pitch  = pitch || 100
+    29	  end
+    30	  if str.is_a?(RPG::AudioFile)
+    31	    if volume || pitch
+    32	      return RPG::AudioFile.new(str.name, volume || str.volume || 100,
+    33	                                pitch || str.pitch || 100)
+    34	    else
+    35	      return str
+    36	    end
+    37	  end
+    38	  return str
+    39	end
+    40	
+    41	#===============================================================================
+    42	
+    43	# Plays a BGM file.
+    44	# param -- Either a string showing the filename
+    45	# (relative to Audio/BGM/) or an RPG::AudioFile object.
+    46	# Possible formats for _param_:
+    47	# filename                        volume and pitch 100
+    48	# filename:volume           pitch 100
+    49	# filename:volume:pitch
+    50	# volume -- Volume of the file, up to 100
+    51	# pitch -- Pitch of the file, normally 100
+    52	def pbBGMPlay(param, volume = nil, pitch = nil)
+    53	  return if !param
+    54	  param = pbResolveAudioFile(param, volume, pitch)
+    55	  if param.name && param.name != ""
+    56	    if $game_system
+    57	      $game_system.bgm_play(param)
+    58	      return
+    59	    elsif (RPG.const_defined?(:BGM) rescue false)
+    60	      b = RPG::BGM.new(param.name, param.volume, param.pitch)
+    61	      if b.respond_to?("play")
+    62	        b.play
+    63	        return
+    64	      end
+    65	    end
+    66	    Audio.bgm_play(canonicalize("Audio/BGM/" + param.name), param.volume, param.pitch)
+    67	  end
+    68	end
+    69	
+    70	# Fades out or stops BGM playback. 'x' is the time in seconds to fade out.
+    71	def pbBGMFade(x = 0.0); pbBGMStop(x); end
+    72	
+    73	# Fades out or stops BGM playback. 'x' is the time in seconds to fade out.
+    74	def pbBGMStop(timeInSeconds = 0.0)
+    75	  if $game_system && timeInSeconds > 0.0
+    76	    $game_system.bgm_fade(timeInSeconds)
+    77	    return
+    78	  elsif $game_system
+    79	    $game_system.bgm_stop
+    80	    return
+    81	  elsif (RPG.const_defined?(:BGM) rescue false)
+    82	    begin
+    83	      (timeInSeconds > 0.0) ? RPG::BGM.fade((timeInSeconds * 1000).floor) : RPG::BGM.stop
+    84	      return
+    85	    rescue
+    86	    end
+    87	  end
+    88	  (timeInSeconds > 0.0) ? Audio.bgm_fade((timeInSeconds * 1000).floor) : Audio.bgm_stop
+    89	end
+    90	
+    91	#===============================================================================
+    92	
+    93	# Plays an ME file.
+    94	# param -- Either a string showing the filename
+    95	# (relative to Audio/ME/) or an RPG::AudioFile object.
+    96	# Possible formats for _param_:
+    97	# filename                        volume and pitch 100
+    98	# filename:volume           pitch 100
+    99	# filename:volume:pitch
+   100	# volume -- Volume of the file, up to 100
+   101	# pitch -- Pitch of the file, normally 100
+   102	def pbMEPlay(param, volume = nil, pitch = nil)
+   103	  return if !param
+   104	  param = pbResolveAudioFile(param, volume, pitch)
+   105	  if param.name && param.name != ""
+   106	    if $game_system
+   107	      $game_system.me_play(param)
+   108	      return
+   109	    elsif (RPG.const_defined?(:ME) rescue false)
+   110	      b = RPG::ME.new(param.name, param.volume, param.pitch)
+   111	      if b.respond_to?("play")
+   112	        b.play
+   113	        return
+   114	      end
+   115	    end
+   116	    Audio.me_play(canonicalize("Audio/ME/" + param.name), param.volume, param.pitch)
+   117	  end
+   118	end
+   119	
+   120	# Fades out or stops ME playback. 'x' is the time in seconds to fade out.
+   121	def pbMEFade(x = 0.0); pbMEStop(x); end
+   122	
+   123	# Fades out or stops ME playback. 'x' is the time in seconds to fade out.
+   124	def pbMEStop(timeInSeconds = 0.0)
+   125	  if $game_system && timeInSeconds > 0.0 && $game_system.respond_to?("me_fade")
+   126	    $game_system.me_fade(timeInSeconds)
+   127	    return
+   128	  elsif $game_system.respond_to?("me_stop")
+   129	    $game_system.me_stop(nil)
+   130	    return
+   131	  elsif (RPG.const_defined?(:ME) rescue false)
+   132	    begin
+   133	      (timeInSeconds > 0.0) ? RPG::ME.fade((timeInSeconds * 1000).floor) : RPG::ME.stop
+   134	      return
+   135	    rescue
+   136	    end
+   137	  end
+   138	  (timeInSeconds > 0.0) ? Audio.me_fade((timeInSeconds * 1000).floor) : Audio.me_stop
+   139	end
+   140	
+   141	#===============================================================================
+   142	
+   143	# Plays a BGS file.
+   144	# param -- Either a string showing the filename
+   145	# (relative to Audio/BGS/) or an RPG::AudioFile object.
+   146	# Possible formats for _param_:
+   147	# filename                        volume and pitch 100
+   148	# filename:volume           pitch 100
+   149	# filename:volume:pitch
+   150	# volume -- Volume of the file, up to 100
+   151	# pitch -- Pitch of the file, normally 100
+   152	def pbBGSPlay(param, volume = nil, pitch = nil)
+   153	  return if !param
+   154	  param = pbResolveAudioFile(param, volume, pitch)
+   155	  if param.name && param.name != ""
+   156	    if $game_system
+   157	      $game_system.bgs_play(param)
+   158	      return
+   159	    elsif (RPG.const_defined?(:BGS) rescue false)
+   160	      b = RPG::BGS.new(param.name, param.volume, param.pitch)
+   161	      if b.respond_to?("play")
+   162	        b.play
+   163	        return
+   164	      end
+   165	    end
+   166	    Audio.bgs_play(canonicalize("Audio/BGS/" + param.name), param.volume, param.pitch)
+   167	  end
+   168	end
+   169	
+   170	# Fades out or stops BGS playback. 'x' is the time in seconds to fade out.
+   171	def pbBGSFade(x = 0.0); pbBGSStop(x); end
+   172	
+   173	# Fades out or stops BGS playback. 'x' is the time in seconds to fade out.
+   174	def pbBGSStop(timeInSeconds = 0.0)
+   175	  if $game_system && timeInSeconds > 0.0
+   176	    $game_system.bgs_fade(timeInSeconds)
+   177	    return
+   178	  elsif $game_system
+   179	    $game_system.bgs_play(nil)
+   180	    return
+   181	  elsif (RPG.const_defined?(:BGS) rescue false)
+   182	    begin
+   183	      (timeInSeconds > 0.0) ? RPG::BGS.fade((timeInSeconds * 1000).floor) : RPG::BGS.stop
+   184	      return
+   185	    rescue
+   186	    end
+   187	  end
+   188	  (timeInSeconds > 0.0) ? Audio.bgs_fade((timeInSeconds * 1000).floor) : Audio.bgs_stop
+   189	end
+   190	
+   191	#===============================================================================
+   192	
+   193	# Plays an SE file.
+   194	# param -- Either a string showing the filename
+   195	# (relative to Audio/SE/) or an RPG::AudioFile object.
+   196	# Possible formats for _param_:
+   197	# filename                  volume and pitch 100
+   198	# filename:volume           pitch 100
+   199	# filename:volume:pitch
+   200	# volume -- Volume of the file, up to 100
+   201	# pitch -- Pitch of the file, normally 100
+   202	def pbSEPlay(param, volume = nil, pitch = nil)
+   203	  return if !param
+   204	  param = pbResolveAudioFile(param, volume, pitch)
+   205	  if param.name && param.name != ""
+   206	    if $game_system
+   207	      $game_system.se_play(param)
+   208	      return
+   209	    end
+   210	    if (RPG.const_defined?(:SE) rescue false)
+   211	      b = RPG::SE.new(param.name, param.volume, param.pitch)
+   212	      if b.respond_to?("play")
+   213	        b.play
+   214	        return
+   215	      end
+   216	    end
+   217	    Audio.se_play(canonicalize("Audio/SE/" + param.name), param.volume, param.pitch)
+   218	  end
+   219	end
+   220	
+   221	# Stops SE playback.
+   222	def pbSEFade(x = 0.0); pbSEStop(x); end
+   223	
+   224	# Stops SE playback.
+   225	def pbSEStop(_timeInSeconds = 0.0)
+   226	  if $game_system
+   227	    $game_system.se_stop
+   228	  elsif (RPG.const_defined?(:SE) rescue false)
+   229	    RPG::SE.stop rescue nil
+   230	  else
+   231	    Audio.se_stop
+   232	  end
+   233	end
+   234	
+   235	#===============================================================================
+   236	
+   237	# Plays a sound effect that plays when the player moves the cursor.
+   238	def pbPlayCursorSE
+   239	  if !nil_or_empty?($data_system&.cursor_se&.name)
+   240	    pbSEPlay($data_system.cursor_se)
+   241	  elsif FileTest.audio_exist?("Audio/SE/GUI sel cursor")
+   242	    pbSEPlay("GUI sel cursor", 80)
+   243	  end
+   244	end
+   245	
+   246	# Plays a sound effect that plays when a decision is confirmed or a choice is made.
+   247	def pbPlayDecisionSE
+   248	  if !nil_or_empty?($data_system&.decision_se&.name)
+   249	    pbSEPlay($data_system.decision_se)
+   250	  elsif FileTest.audio_exist?("Audio/SE/GUI sel decision")
+   251	    pbSEPlay("GUI sel decision", 80)
+   252	  end
+   253	end
+   254	
+   255	# Plays a sound effect that plays when a choice is canceled.
+   256	def pbPlayCancelSE
+   257	  if !nil_or_empty?($data_system&.cancel_se&.name)
+   258	    pbSEPlay($data_system.cancel_se)
+   259	  elsif FileTest.audio_exist?("Audio/SE/GUI sel cancel")
+   260	    pbSEPlay("GUI sel cancel", 80)
+   261	  end
+   262	end
+   263	
+   264	# Plays a buzzer sound effect.
+   265	def pbPlayBuzzerSE
+   266	  if !nil_or_empty?($data_system&.buzzer_se&.name)
+   267	    pbSEPlay($data_system.buzzer_se)
+   268	  elsif FileTest.audio_exist?("Audio/SE/GUI sel buzzer")
+   269	    pbSEPlay("GUI sel buzzer", 80)
+   270	  end
+   271	end
+   272	
+   273	# Plays a sound effect that plays when the player closes a menu.
+   274	def pbPlayCloseMenuSE
+   275	  if FileTest.audio_exist?("Audio/SE/GUI menu close")
+   276	    pbSEPlay("GUI menu close", 80)
+   277	  end
+   278	end
+     1	#===============================================================================
+     2	# ** Game_Screen
+     3	#-------------------------------------------------------------------------------
+     4	#  This class handles screen maintenance data, such as change in color tone,
+     5	#  flashing, etc. Refer to "$game_screen" for the instance of this class.
+     6	#===============================================================================
+     7	class Game_Screen
+     8	  attr_reader   :brightness         # brightness
+     9	  attr_reader   :tone               # color tone
+    10	  attr_reader   :flash_color        # flash color
+    11	  attr_reader   :shake              # shake positioning
+    12	  attr_reader   :pictures           # pictures
+    13	  attr_reader   :weather_type       # weather type
+    14	  attr_reader   :weather_max        # max number of weather sprites
+    15	  attr_accessor :weather_duration   # ticks in which the weather should fade in
+    16	
+    17	  def initialize
+    18	    @brightness        = 255
+    19	    @tone              = Tone.new(0, 0, 0, 0)
+    20	    @tone_target       = Tone.new(0, 0, 0, 0)
+    21	    @tone_duration     = 0
+    22	    @tone_timer_start  = nil
+    23	    @flash_color       = Color.new(0, 0, 0, 0)
+    24	    @flash_duration    = 0
+    25	    @flash_timer_start = nil
+    26	    @shake_power       = 0
+    27	    @shake_speed       = 0
+    28	    @shake_duration    = 0
+    29	    @shake             = 0
+    30	    @pictures          = [nil]
+    31	    (1..100).each { |i| @pictures.push(Game_Picture.new(i)) }
+    32	    @weather_type      = :None
+    33	    @weather_max       = 0.0
+    34	    @weather_duration  = 0
+    35	  end
+    36	
+    37	  # duration is time in 1/20ths of a second.
+    38	  def start_tone_change(tone, duration)
+    39	    if duration == 0
+    40	      @tone = tone.clone
+    41	      return
+    42	    end
+    43	    @tone_initial     = @tone.clone
+    44	    @tone_target      = tone.clone
+    45	    @tone_duration    = duration / 20.0
+    46	    @tone_timer_start = $stats.play_time
+    47	  end
+    48	
+    49	  # duration is time in 1/20ths of a second.
+    50	  def start_flash(color, duration)
+    51	    @flash_color         = color.clone
+    52	    @flash_initial_alpha = @flash_color.alpha
+    53	    @flash_duration      = duration / 20.0
+    54	    @flash_timer_start   = $stats.play_time
+    55	  end
+    56	
+    57	  # duration is time in 1/20ths of a second.
+    58	  def start_shake(power, speed, duration)
+    59	    @shake_power       = power
+    60	    @shake_speed       = speed
+    61	    @shake_duration    = duration / 20.0
+    62	    @shake_timer_start = $stats.play_time
+    63	  end
+    64	
+    65	  # duration is time in 1/20ths of a second.
+    66	  def weather(type, power, duration)
+    67	    @weather_type     = GameData::Weather.get(type).id
+    68	    @weather_max      = (power + 1) * RPG::Weather::MAX_SPRITES / 10
+    69	    @weather_duration = duration
+    70	  end
+    71	
+    72	  def update
+    73	    now = $stats.play_time
+    74	    if @tone_timer_start
+    75	      @tone.red = lerp(@tone_initial.red, @tone_target.red, @tone_duration, @tone_timer_start, now)
+    76	      @tone.green = lerp(@tone_initial.green, @tone_target.green, @tone_duration, @tone_timer_start, now)
+    77	      @tone.blue = lerp(@tone_initial.blue, @tone_target.blue, @tone_duration, @tone_timer_start, now)
+    78	      @tone.gray = lerp(@tone_initial.gray, @tone_target.gray, @tone_duration, @tone_timer_start, now)
+    79	      if now - @tone_timer_start >= @tone_duration
+    80	        @tone_initial = nil
+    81	        @tone_timer_start = nil
+    82	      end
+    83	    end
+    84	    if @flash_timer_start
+    85	      @flash_color.alpha = lerp(@flash_initial_alpha, 0, @flash_duration, @flash_timer_start, now)
+    86	      if now - @flash_timer_start >= @flash_duration
+    87	        @flash_initial_alpha = nil
+    88	        @flash_timer_start = nil
+    89	      end
+    90	    end
+    91	    if @shake_timer_start
+    92	      delta_t = now - @shake_timer_start
+    93	      movement_per_second = @shake_power * @shake_speed * 4
+    94	      limit = @shake_power * 2.5   # Maximum pixel displacement
+    95	      phase = (delta_t * movement_per_second / limit).to_i % 4
+    96	      case phase
+    97	      when 0, 2
+    98	        @shake = (movement_per_second * delta_t) % limit
+    99	        @shake *= -1 if phase == 2
+   100	      else
+   101	        @shake = limit - ((movement_per_second * delta_t) % limit)
+   102	        @shake *= -1 if phase == 3
+   103	      end
+   104	      if delta_t >= @shake_duration
+   105	        @shake_phase = phase if !@shake_phase || phase == 1 || phase == 3
+   106	        if phase != @shake_phase || @shake < 2
+   107	          @shake_timer_start = nil
+   108	          @shake = 0
+   109	        end
+   110	      end
+   111	    end
+   112	    if $game_temp.in_battle
+   113	      (51..100).each { |i| @pictures[i].update }
+   114	    else
+   115	      (1..50).each { |i|  @pictures[i].update }
+   116	    end
+   117	  end
+   118	end
+   119	
+   120	#===============================================================================
+   121	#
+   122	#===============================================================================
+   123	def pbToneChangeAll(tone, duration)
+   124	  $game_screen.start_tone_change(tone, duration)
+   125	  $game_screen.pictures.each { |picture| picture&.start_tone_change(tone, duration) }
+   126	end
+   127	
+   128	def pbFlash(color, frames)
+   129	  $game_screen.start_flash(color, frames)
+   130	end
+   131	
+   132	def pbShake(power, speed, frames)
+   133	  $game_screen.start_shake(power, speed, frames)
+   134	end

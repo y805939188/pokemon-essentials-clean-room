@@ -1,0 +1,410 @@
+     1	#===============================================================================
+     2	# This module is a little fix that works around PC hardware limitations. Since
+     3	# Essentials isn't working with software rendering anymore, it now has to deal
+     4	# with the limits of the GPU. For the most part this is no big deal, but people
+     5	# do have some really big tilesets.
+     6	#
+     7	# The fix is simple enough: If your tileset is too big, a new bitmap will be
+     8	# constructed with all the excess pixels sent to the image's right side. This
+     9	# basically means that you now have a limit far higher than you should ever
+    10	# actually need.
+    11	#
+    12	# Hardware limit   -> max tileset length:
+    13	# 1024px           -> 4096px
+    14	# 2048px           -> 16384px   (enough to get the normal limit)
+    15	# 4096px           -> 65536px   (enough to load pretty much any tileset)
+    16	# 8192px           -> 262144px
+    17	# 16384px          -> 1048576px (what most people have at this point)
+    18	#===============================================================================
+    19	class TilemapRenderer
+    20	  module TilesetWrapper
+    21	    TILESET_WIDTH        = SOURCE_TILE_WIDTH * TILESET_TILES_PER_ROW
+    22	    # Looks useless, but covers weird numbers given to mkxp.json or a funky driver
+    23	    MAX_TEX_SIZE         = (Bitmap.max_size / 1024) * 1024
+    24	    MAX_TEX_SIZE_BOOSTED = (MAX_TEX_SIZE**2) / TILESET_WIDTH
+    25	
+    26	    module_function
+    27	
+    28	    def wrapTileset(originalbmp)
+    29	      width = originalbmp.width
+    30	      height = originalbmp.height
+    31	      if width == TILESET_WIDTH && originalbmp.mega?
+    32	        columns = (height / MAX_TEX_SIZE.to_f).ceil
+    33	        if columns * TILESET_WIDTH > MAX_TEX_SIZE
+    34	          raise "Tileset is too long!\n\nSIZE: #{originalbmp.height}px\nHARDWARE LIMIT: #{MAX_TEX_SIZE}px\nBOOSTED LIMIT: #{MAX_TEX_SIZE_BOOSTED}px"
+    35	        end
+    36	        bmp = Bitmap.new(TILESET_WIDTH * columns, MAX_TEX_SIZE)
+    37	        remainder = height % MAX_TEX_SIZE
+    38	        remainder = MAX_TEX_SIZE if remainder == 0
+    39	        columns.times do |col|
+    40	          srcrect = Rect.new(0, col * MAX_TEX_SIZE, width, (col + 1 == columns) ? remainder : MAX_TEX_SIZE)
+    41	          bmp.blt(col * TILESET_WIDTH, 0, originalbmp, srcrect)
+    42	        end
+    43	        return bmp
+    44	      end
+    45	      return originalbmp
+    46	    end
+    47	
+    48	    def getWrappedRect(src_rect)
+    49	      ret = Rect.new(0, 0, 0, 0)
+    50	      col = (src_rect.y / MAX_TEX_SIZE.to_f).floor
+    51	      ret.x = (col * TILESET_WIDTH) + src_rect.x.clamp(0, TILESET_WIDTH)
+    52	      ret.y = src_rect.y % MAX_TEX_SIZE
+    53	      ret.width = src_rect.width.clamp(0, TILESET_WIDTH - src_rect.x)
+    54	      ret.height = src_rect.height.clamp(0, MAX_TEX_SIZE)
+    55	      return ret
+    56	    end
+    57	
+    58	    #---------------------------------------------------------------------------
+    59	
+    60	    private
+    61	
+    62	    def blitWrappedPixels(destX, destY, dest, src, srcrect)
+    63	      if srcrect.y + srcrect.width < MAX_TEX_SIZE
+    64	        # Save the processing power
+    65	        dest.blt(destX, destY, src, srcrect)
+    66	        return
+    67	      end
+    68	      merge = (srcrect.y % MAX_TEX_SIZE) > ((srcrect.y + srcrect.height) % MAX_TEX_SIZE)
+    69	      srcrect_mod = getWrappedRect(srcrect)
+    70	      if merge
+    71	        # FIXME: won't work on heights longer than two columns, but nobody should need
+    72	        # more than 32k pixels high at once anyway
+    73	        side = {
+    74	          :a => MAX_TEX_SIZE - srcrect_mod.y,
+    75	          :b => srcrect_mod.height - MAX_TEX_SIZE + srcrect_mod.y
+    76	        }
+    77	        dest.blt(destX, destY, src, Rect.new(srcrect_mod.x, srcrect_mod.y, srcrect_mod.width, side[:a]))
+    78	        dest.blt(destX, destY + side[:a], src, Rect.new(srcrect_mod.x + TILESET_WIDTH, 0, srcrect_mod.width, side[:b]))
+    79	      else
+    80	        dest.blt(destX, destY, src, srcrect_mod)
+    81	      end
+    82	    end
+    83	
+    84	    def stretchBlitWrappedPixels(destrect, dest, src, srcrect)
+    85	      if srcrect.y + srcrect.width < MAX_TEX_SIZE
+    86	        # Save the processing power
+    87	        dest.stretch_blt(destrect, src, srcrect)
+    88	        return
+    89	      end
+    90	      # Does a regular blit to a non-megasurface, then stretch_blts that to
+    91	      # the destination. Yes it is slow
+    92	      tmp = Bitmap.new(srcrect.width, srcrect.height)
+    93	      blitWrappedPixels(0, 0, tmp, src, srcrect)
+    94	      dest.stretch_blt(destrect, tmp, Rect.new(0, 0, srcrect.width, srcrect.height))
+    95	    end
+    96	  end
+    97	end
+     1	class TilemapRenderer
+     2	  module AutotileExpander
+     3	    MAX_TEXTURE_SIZE = (Bitmap.max_size / 1024) * 1024
+     4	
+     5	    module_function
+     6	
+     7	    # This doesn't allow for cache sizes smaller than 768, but if that applies
+     8	    # to you, you've got bigger problems.
+     9	    def expand(bitmap)
+    10	      return bitmap if bitmap.height == SOURCE_TILE_HEIGHT
+    11	      expanded_format = (bitmap.height == SOURCE_TILE_HEIGHT * 6)
+    12	      wrap = false
+    13	      if MAX_TEXTURE_SIZE < TILES_PER_AUTOTILE * SOURCE_TILE_HEIGHT
+    14	        wrap = true   # Each autotile will occupy two columns instead of one
+    15	      end
+    16	      frames_count = [bitmap.width / (3 * SOURCE_TILE_WIDTH), 1].max
+    17	      new_bitmap = Bitmap.new(frames_count * (wrap ? 2 : 1) * SOURCE_TILE_WIDTH,
+    18	                              TILES_PER_AUTOTILE * SOURCE_TILE_HEIGHT / (wrap ? 2 : 1))
+    19	      rect = Rect.new(0, 0, SOURCE_TILE_WIDTH / 2, SOURCE_TILE_HEIGHT / 2)
+    20	      TILES_PER_AUTOTILE.times do |id|
+    21	        pattern = TileDrawingHelper::AUTOTILE_PATTERNS[id >> 3][id % TILESET_TILES_PER_ROW]
+    22	        wrap_offset_x = (wrap && id >= TILES_PER_AUTOTILE / 2) ? SOURCE_TILE_WIDTH : 0
+    23	        wrap_offset_y = (wrap && id >= TILES_PER_AUTOTILE / 2) ? (TILES_PER_AUTOTILE / 2) * SOURCE_TILE_HEIGHT : 0
+    24	        frames_count.times do |frame|
+    25	          if expanded_format && [1, 2, 4, 8].include?(id)
+    26	            dest_x = frame * SOURCE_TILE_WIDTH * (wrap ? 2 : 1)
+    27	            dest_x += wrap_offset_x
+    28	            next if dest_x > MAX_TEXTURE_SIZE
+    29	            dest_y = id * SOURCE_TILE_HEIGHT
+    30	            dest_y -= wrap_offset_y
+    31	            next if dest_y > MAX_TEXTURE_SIZE
+    32	            case id
+    33	            when 1   # Top left corner
+    34	              new_bitmap.blt(dest_x, dest_y, bitmap,
+    35	                             Rect.new(frame * SOURCE_TILE_WIDTH * 3, SOURCE_TILE_HEIGHT * 4,
+    36	                                      SOURCE_TILE_WIDTH, SOURCE_TILE_HEIGHT))
+    37	            when 2   # Top right corner
+    38	              new_bitmap.blt(dest_x, dest_y, bitmap,
+    39	                             Rect.new(SOURCE_TILE_WIDTH + (frame * SOURCE_TILE_WIDTH * 3), SOURCE_TILE_HEIGHT * 4,
+    40	                                      SOURCE_TILE_WIDTH, SOURCE_TILE_HEIGHT))
+    41	            when 4   # Bottom right corner
+    42	              new_bitmap.blt(dest_x, dest_y, bitmap,
+    43	                             Rect.new(SOURCE_TILE_WIDTH + (frame * SOURCE_TILE_WIDTH * 3), SOURCE_TILE_HEIGHT * 5,
+    44	                                      SOURCE_TILE_WIDTH, SOURCE_TILE_HEIGHT))
+    45	            when 8   # Bottom left corner
+    46	              new_bitmap.blt(dest_x, dest_y, bitmap,
+    47	                             Rect.new(frame * SOURCE_TILE_WIDTH * 3, SOURCE_TILE_HEIGHT * 5,
+    48	                                      SOURCE_TILE_WIDTH, SOURCE_TILE_HEIGHT))
+    49	            end
+    50	            next
+    51	          end
+    52	          pattern.each_with_index do |src_chunk, i|
+    53	            real_src_chunk = src_chunk - 1
+    54	            dest_x = (i % 2) * SOURCE_TILE_WIDTH / 2
+    55	            dest_x += frame * SOURCE_TILE_WIDTH * (wrap ? 2 : 1)
+    56	            dest_x += wrap_offset_x
+    57	            next if dest_x > MAX_TEXTURE_SIZE
+    58	            dest_y = (i / 2) * SOURCE_TILE_HEIGHT / 2
+    59	            dest_y += id * SOURCE_TILE_HEIGHT
+    60	            dest_y -= wrap_offset_y
+    61	            next if dest_y > MAX_TEXTURE_SIZE
+    62	            rect.x = (real_src_chunk % 6) * SOURCE_TILE_WIDTH / 2
+    63	            rect.x += SOURCE_TILE_WIDTH * 3 * frame
+    64	            rect.y = (real_src_chunk / 6) * SOURCE_TILE_HEIGHT / 2
+    65	            new_bitmap.blt(dest_x, dest_y, bitmap, rect)
+    66	          end
+    67	        end
+    68	      end
+    69	      return new_bitmap
+    70	    end
+    71	  end
+    72	end
+     1	class TileDrawingHelper
+     2	  attr_accessor :tileset
+     3	  attr_accessor :autotiles
+     4	
+     5	  AUTOTILE_PATTERNS = [
+     6	    [[27, 28, 33, 34], [5, 28, 33, 34], [27,  6, 33, 34], [5,  6, 33, 34],
+     7	     [27, 28, 33, 12], [5, 28, 33, 12], [27,  6, 33, 12], [5,  6, 33, 12]],
+     8	    [[27, 28, 11, 34], [5, 28, 11, 34], [27,  6, 11, 34], [5,  6, 11, 34],
+     9	     [27, 28, 11, 12], [5, 28, 11, 12], [27,  6, 11, 12], [5,  6, 11, 12]],
+    10	    [[25, 26, 31, 32], [25,  6, 31, 32], [25, 26, 31, 12], [25,  6, 31, 12],
+    11	     [15, 16, 21, 22], [15, 16, 21, 12], [15, 16, 11, 22], [15, 16, 11, 12]],
+    12	    [[29, 30, 35, 36], [29, 30, 11, 36], [5, 30, 35, 36], [5, 30, 11, 36],
+    13	     [39, 40, 45, 46], [5, 40, 45, 46], [39,  6, 45, 46], [5,  6, 45, 46]],
+    14	    [[25, 30, 31, 36], [15, 16, 45, 46], [13, 14, 19, 20], [13, 14, 19, 12],
+    15	     [17, 18, 23, 24], [17, 18, 11, 24], [41, 42, 47, 48], [5, 42, 47, 48]],
+    16	    [[37, 38, 43, 44], [37,  6, 43, 44], [13, 18, 19, 24], [13, 14, 43, 44],
+    17	     [37, 42, 43, 48], [17, 18, 47, 48], [13, 18, 43, 48], [1,  2,  7,  8]]
+    18	  ]
+    19	
+    20	  # converts neighbors returned from tableNeighbors to tile indexes
+    21	  NEIGHBORS_TO_AUTOTILE_INDEX = [
+    22	    46, 44, 46, 44, 43, 41, 43, 40, 46, 44, 46, 44, 43, 41, 43, 40,
+    23	    42, 32, 42, 32, 35, 19, 35, 18, 42, 32, 42, 32, 34, 17, 34, 16,
+    24	    46, 44, 46, 44, 43, 41, 43, 40, 46, 44, 46, 44, 43, 41, 43, 40,
+    25	    42, 32, 42, 32, 35, 19, 35, 18, 42, 32, 42, 32, 34, 17, 34, 16,
+    26	    45, 39, 45, 39, 33, 31, 33, 29, 45, 39, 45, 39, 33, 31, 33, 29,
+    27	    37, 27, 37, 27, 23, 15, 23, 13, 37, 27, 37, 27, 22, 11, 22,  9,
+    28	    45, 39, 45, 39, 33, 31, 33, 29, 45, 39, 45, 39, 33, 31, 33, 29,
+    29	    36, 26, 36, 26, 21,  7, 21,  5, 36, 26, 36, 26, 20,  3, 20,  1,
+    30	    46, 44, 46, 44, 43, 41, 43, 40, 46, 44, 46, 44, 43, 41, 43, 40,
+    31	    42, 32, 42, 32, 35, 19, 35, 18, 42, 32, 42, 32, 34, 17, 34, 16,
+    32	    46, 44, 46, 44, 43, 41, 43, 40, 46, 44, 46, 44, 43, 41, 43, 40,
+    33	    42, 32, 42, 32, 35, 19, 35, 18, 42, 32, 42, 32, 34, 17, 34, 16,
+    34	    45, 38, 45, 38, 33, 30, 33, 28, 45, 38, 45, 38, 33, 30, 33, 28,
+    35	    37, 25, 37, 25, 23, 14, 23, 12, 37, 25, 37, 25, 22, 10, 22,  8,
+    36	    45, 38, 45, 38, 33, 30, 33, 28, 45, 38, 45, 38, 33, 30, 33, 28,
+    37	    36, 24, 36, 24, 21,  6, 21,  4, 36, 24, 36, 24, 20,  2, 20,  0
+    38	  ]
+    39	
+    40	  def self.tableNeighbors(data, x, y, layer = nil)
+    41	    return 0 if x < 0 || x >= data.xsize
+    42	    return 0 if y < 0 || y >= data.ysize
+    43	    if layer.nil?
+    44	      t = data[x, y]
+    45	    else
+    46	      t = data[x, y, layer]
+    47	    end
+    48	    xp1 = [x + 1, data.xsize - 1].min
+    49	    yp1 = [y + 1, data.ysize - 1].min
+    50	    xm1 = [x - 1, 0].max
+    51	    ym1 = [y - 1, 0].max
+    52	    i = 0
+    53	    if layer.nil?
+    54	      i |= 0x01 if data[  x, ym1] == t   # N
+    55	      i |= 0x02 if data[xp1, ym1] == t   # NE
+    56	      i |= 0x04 if data[xp1,   y] == t   # E
+    57	      i |= 0x08 if data[xp1, yp1] == t   # SE
+    58	      i |= 0x10 if data[  x, yp1] == t   # S
+    59	      i |= 0x20 if data[xm1, yp1] == t   # SW
+    60	      i |= 0x40 if data[xm1,   y] == t   # W
+    61	      i |= 0x80 if data[xm1, ym1] == t   # NW
+    62	    else
+    63	      i |= 0x01 if data[  x, ym1, layer] == t   # N
+    64	      i |= 0x02 if data[xp1, ym1, layer] == t   # NE
+    65	      i |= 0x04 if data[xp1,   y, layer] == t   # E
+    66	      i |= 0x08 if data[xp1, yp1, layer] == t   # SE
+    67	      i |= 0x10 if data[  x, yp1, layer] == t   # S
+    68	      i |= 0x20 if data[xm1, yp1, layer] == t   # SW
+    69	      i |= 0x40 if data[xm1,   y, layer] == t   # W
+    70	      i |= 0x80 if data[xm1, ym1, layer] == t   # NW
+    71	    end
+    72	    return i
+    73	  end
+    74	
+    75	  def self.fromTileset(tileset)
+    76	    bmtileset = pbGetTileset(tileset.tileset_name)
+    77	    bmautotiles = []
+    78	    7.times do |i|
+    79	      bmautotiles.push(pbGetAutotile(tileset.autotile_names[i]))
+    80	    end
+    81	    return self.new(bmtileset, bmautotiles)
+    82	  end
+    83	
+    84	  def initialize(tileset, autotiles)
+    85	    if tileset.mega?
+    86	      @tileset = TilemapRenderer::TilesetWrapper.wrapTileset(tileset)
+    87	      tileset.dispose
+    88	      @shouldWrap = true
+    89	    else
+    90	      @tileset = tileset
+    91	      @shouldWrap = false
+    92	    end
+    93	    @autotiles = autotiles
+    94	  end
+    95	
+    96	  def dispose
+    97	    @tileset&.dispose
+    98	    @tileset = nil
+    99	    @autotiles.each_with_index do |autotile, i|
+   100	      autotile.dispose
+   101	      @autotiles[i] = nil
+   102	    end
+   103	  end
+   104	
+   105	  def bltSmallAutotile(bitmap, x, y, cxTile, cyTile, id, frame)
+   106	    return if id >= 384 || frame < 0 || !@autotiles
+   107	    autotile = @autotiles[(id / 48) - 1]
+   108	    return if !autotile || autotile.disposed?
+   109	    cxTile = [cxTile / 2, 1].max
+   110	    cyTile = [cyTile / 2, 1].max
+   111	    if autotile.height == 32
+   112	      anim = frame * 32
+   113	      src_rect = Rect.new(anim, 0, 32, 32)
+   114	      bitmap.stretch_blt(Rect.new(x, y, cxTile * 2, cyTile * 2), autotile, src_rect)
+   115	    else
+   116	      anim = frame * 96
+   117	      id %= 48
+   118	      tiles = AUTOTILE_PATTERNS[id >> 3][id & 7]
+   119	      src = Rect.new(0, 0, 0, 0)
+   120	      4.times do |i|
+   121	        tile_position = tiles[i] - 1
+   122	        src.set(((tile_position % 6) * 16) + anim, (tile_position / 6) * 16, 16, 16)
+   123	        bitmap.stretch_blt(Rect.new((i % 2 * cxTile) + x, (i / 2 * cyTile) + y, cxTile, cyTile),
+   124	                           autotile, src)
+   125	      end
+   126	    end
+   127	  end
+   128	
+   129	  def bltSmallRegularTile(bitmap, x, y, cxTile, cyTile, id)
+   130	    return if id < 384 || !@tileset || @tileset.disposed?
+   131	    rect = Rect.new(((id - 384) % 8) * 32, ((id - 384) / 8) * 32, 32, 32)
+   132	    rect = TilemapRenderer::TilesetWrapper.getWrappedRect(rect) if @shouldWrap
+   133	    bitmap.stretch_blt(Rect.new(x, y, cxTile, cyTile), @tileset, rect)
+   134	  end
+   135	
+   136	  def bltSmallTile(bitmap, x, y, cxTile, cyTile, id, frame = 0)
+   137	    if id >= 384
+   138	      bltSmallRegularTile(bitmap, x, y, cxTile, cyTile, id)
+   139	    elsif id > 0
+   140	      bltSmallAutotile(bitmap, x, y, cxTile, cyTile, id, frame)
+   141	    end
+   142	  end
+   143	
+   144	  def bltAutotile(bitmap, x, y, id, frame)
+   145	    bltSmallAutotile(bitmap, x, y, 32, 32, id, frame)
+   146	  end
+   147	
+   148	  def bltRegularTile(bitmap, x, y, id)
+   149	    bltSmallRegularTile(bitmap, x, y, 32, 32, id)
+   150	  end
+   151	
+   152	  def bltTile(bitmap, x, y, id, frame = 0)
+   153	    if id >= 384
+   154	      bltRegularTile(bitmap, x, y, id)
+   155	    elsif id > 0
+   156	      bltAutotile(bitmap, x, y, id, frame)
+   157	    end
+   158	  end
+   159	end
+   160	
+   161	#===============================================================================
+   162	#
+   163	#===============================================================================
+   164	def createMinimap(mapid)
+   165	  map = load_data(sprintf("Data/Map%03d.rxdata", mapid)) rescue nil
+   166	  return Bitmap.new(32, 32) if !map
+   167	  bitmap = Bitmap.new(map.width * 4, map.height * 4)
+   168	  black = Color.black
+   169	  tilesets = $data_tilesets
+   170	  tileset = tilesets[map.tileset_id]
+   171	  return bitmap if !tileset
+   172	  helper = TileDrawingHelper.fromTileset(tileset)
+   173	  map.height.times do |y|
+   174	    map.width.times do |x|
+   175	      3.times do |z|
+   176	        id = map.data[x, y, z]
+   177	        id = 0 if !id
+   178	        helper.bltSmallTile(bitmap, x * 4, y * 4, 4, 4, id)
+   179	      end
+   180	    end
+   181	  end
+   182	  bitmap.fill_rect(0, 0, bitmap.width, 1, black)
+   183	  bitmap.fill_rect(0, bitmap.height - 1, bitmap.width, 1, black)
+   184	  bitmap.fill_rect(0, 0, 1, bitmap.height, black)
+   185	  bitmap.fill_rect(bitmap.width - 1, 0, 1, bitmap.height, black)
+   186	  return bitmap
+   187	end
+   188	
+   189	def bltMinimapAutotile(dstBitmap, x, y, srcBitmap, id)
+   190	  return if id >= 48 || !srcBitmap || srcBitmap.disposed?
+   191	  anim = 0
+   192	  cxTile = 3
+   193	  cyTile = 3
+   194	  tiles = TileDrawingHelper::AUTOTILE_PATTERNS[id >> 3][id & 7]
+   195	  src = Rect.new(0, 0, 0, 0)
+   196	  4.times do |i|
+   197	    tile_position = tiles[i] - 1
+   198	    src.set((tile_position % 6 * cxTile) + anim,
+   199	            tile_position / 6 * cyTile, cxTile, cyTile)
+   200	    dstBitmap.blt((i % 2 * cxTile) + x, (i / 2 * cyTile) + y, srcBitmap, src)
+   201	  end
+   202	end
+   203	
+   204	def passable?(passages, tile_id)
+   205	  return false if tile_id.nil?
+   206	  passage = passages[tile_id]
+   207	  return (passage && passage < 15)
+   208	end
+   209	
+   210	# Unused
+   211	def getPassabilityMinimap(mapid)
+   212	  map = load_data(sprintf("Data/Map%03d.rxdata", mapid))
+   213	  tileset = $data_tilesets[map.tileset_id]
+   214	  minimap = AnimatedBitmap.new("Graphics/UI/minimap_tiles")
+   215	  ret = Bitmap.new(map.width * 6, map.height * 6)
+   216	  passtable = Table.new(map.width, map.height)
+   217	  passages = tileset.passages
+   218	  map.width.times do |i|
+   219	    map.height.times do |j|
+   220	      pass = true
+   221	      [2, 1, 0].each do |z|
+   222	        if !passable?(passages, map.data[i, j, z])
+   223	          pass = false
+   224	          break
+   225	        end
+   226	      end
+   227	      passtable[i, j] = pass ? 1 : 0
+   228	    end
+   229	  end
+   230	  neighbors = TileDrawingHelper::NEIGHBORS_TO_AUTOTILE_INDEX
+   231	  map.width.times do |i|
+   232	    map.height.times do |j|
+   233	      next if passtable[i, j] != 0
+   234	      nb = TileDrawingHelper.tableNeighbors(passtable, i, j)
+   235	      tile = neighbors[nb]
+   236	      bltMinimapAutotile(ret, i * 6, j * 6, minimap.bitmap, tile)
+   237	    end
+   238	  end
+   239	  minimap.dispose
+   240	  return ret
+   241	end

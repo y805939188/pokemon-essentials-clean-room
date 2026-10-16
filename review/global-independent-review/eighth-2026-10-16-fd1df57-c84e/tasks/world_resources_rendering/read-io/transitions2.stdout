@@ -1,0 +1,580 @@
+   591	
+   592	  #=============================================================================
+   593	  # HGSS wild water
+   594	  #=============================================================================
+   595	  class RisingSplash < Transition_Base
+   596	    DURATION             = 1.25
+   597	    MAX_WAVE_AMPLITUDE   = 6
+   598	    WAVE_SPACING         = Math::PI / 10   # Density of overworld waves (20 strips per wave)
+   599	    WAVE_SPEED           = Math::PI * 10   # Speed of overworld waves going up the screen
+   600	    MAX_BUBBLE_AMPLITUDE = -32
+   601	    BUBBLES_WAVE_SPEED   = Math::PI * 2
+   602	
+   603	    def initialize_bitmaps
+   604	      @bubble_bitmap = RPG::Cache.transition("water_1")
+   605	      @splash_bitmap = RPG::Cache.transition("water_2")
+   606	      @black_bitmap  = RPG::Cache.transition("black_half")
+   607	      dispose if !@bubble_bitmap || !@splash_bitmap || !@black_bitmap
+   608	    end
+   609	
+   610	    def initialize_sprites
+   611	      @overworld_sprite.visible = false
+   612	      # Overworld strips (they go all wavy)
+   613	      rect = Rect.new(0, 0, Graphics.width, 2)
+   614	      (Graphics.height / 2).times do |i|
+   615	        @sprites[i] = new_sprite(0, i * 2, @overworld_bitmap)
+   616	        @sprites[i].z = 2
+   617	        rect.y = i * 2
+   618	        @sprites[i].src_rect = rect
+   619	      end
+   620	      # Bubbles
+   621	      @bubbles_sprite = new_sprite(0, Graphics.height, @bubble_bitmap)
+   622	      @bubbles_sprite.z = 3
+   623	      # Water splash
+   624	      @splash_sprite = new_sprite(0, Graphics.height, @splash_bitmap)
+   625	      @splash_sprite.z = 4
+   626	      # Foreground black
+   627	      @black_sprite = new_sprite(0, Graphics.height, @black_bitmap)
+   628	      @black_sprite.z      = 5
+   629	      @black_sprite.zoom_y = 2.0
+   630	    end
+   631	
+   632	    def set_up_timings
+   633	      @splash_rising_start = @duration * 0.5
+   634	      @black_rising_start  = @duration * 0.9
+   635	    end
+   636	
+   637	    def dispose_all
+   638	      # Dispose sprites
+   639	      @bubbles_sprite&.dispose
+   640	      @splash_sprite&.dispose
+   641	      @black_sprite&.dispose
+   642	      # Dispose bitmaps
+   643	      @bubble_bitmap&.dispose
+   644	      @splash_bitmap&.dispose
+   645	      @black_bitmap&.dispose
+   646	    end
+   647	
+   648	    def update_anim
+   649	      # Make overworld wave strips oscillate
+   650	      amplitude = MAX_WAVE_AMPLITUDE * [timer / 0.1, 1].min   # Build up to max in 0.1 seconds
+   651	      @sprites.each_with_index do |sprite, i|
+   652	        sprite.x = amplitude * Math.sin((timer * WAVE_SPEED) + (i * WAVE_SPACING))
+   653	      end
+   654	      # Move bubbles sprite up and oscillate side to side
+   655	      @bubbles_sprite.x = (Graphics.width - @bubble_bitmap.width) / 2
+   656	      @bubbles_sprite.x += MAX_BUBBLE_AMPLITUDE * Math.sin(timer * BUBBLES_WAVE_SPEED)
+   657	      @bubbles_sprite.y = Graphics.height * (1 - (timer * 1.2))
+   658	      # Move splash sprite up
+   659	      if timer >= @splash_rising_start
+   660	        proportion = (timer - @splash_rising_start) / (@duration - @splash_rising_start)
+   661	        @splash_sprite.y = Graphics.height * (1 - (proportion * 2))
+   662	      end
+   663	      # Move black sprite up
+   664	      if timer >= @black_rising_start
+   665	        proportion = (timer - @black_rising_start) / (@duration - @black_rising_start)
+   666	        @black_sprite.y = Graphics.height * (1 - proportion)
+   667	      end
+   668	    end
+   669	  end
+   670	
+   671	  #=============================================================================
+   672	  # HGSS trainer outdoor day
+   673	  #=============================================================================
+   674	  class TwoBallPass < Transition_Base
+   675	    DURATION = 1.0
+   676	
+   677	    def initialize_bitmaps
+   678	      @black_bitmap = RPG::Cache.transition("black_half")
+   679	      @ball_bitmap  = RPG::Cache.transition("ball_small")
+   680	      dispose if !@black_bitmap || !@ball_bitmap
+   681	    end
+   682	
+   683	    def initialize_sprites
+   684	      @overworld_sprite.x = Graphics.width / 2
+   685	      @overworld_sprite.y = Graphics.height / 2
+   686	      @overworld_sprite.ox = @overworld_bitmap.width / 2
+   687	      @overworld_sprite.oy = @overworld_bitmap.height / 2
+   688	      # Balls that roll across the screen
+   689	      @ball_sprites = []
+   690	      2.times do |i|
+   691	        x = ((1 - i) * Graphics.width) + ((1 - (i * 2)) * @ball_bitmap.width / 2)
+   692	        y = (Graphics.height + (((i * 2) - 1) * @ball_bitmap.width)) / 2
+   693	        @ball_sprites[i] = new_sprite(x, y, @ball_bitmap,
+   694	                                      @ball_bitmap.width / 2, @ball_bitmap.height / 2)
+   695	        @ball_sprites[i].z = 2
+   696	      end
+   697	      # Black foreground sprites
+   698	      2.times do |i|
+   699	        @sprites[i] = new_sprite((1 - (i * 2)) * Graphics.width, i * Graphics.height / 2, @black_bitmap)
+   700	        @sprites[i].z = 1
+   701	      end
+   702	      @sprites[2] = new_sprite(0, Graphics.height / 2, @black_bitmap, 0, @black_bitmap.height / 2)
+   703	      @sprites[2].z = 1
+   704	      @sprites[2].zoom_y = 0.0
+   705	    end
+   706	
+   707	    def set_up_timings
+   708	      @ball_start_x  = [@ball_sprites[0].x, @ball_sprites[1].x]
+   709	      @ball_roll_end = @duration * 0.4
+   710	    end
+   711	
+   712	    def dispose_all
+   713	      # Dispose sprites
+   714	      if @ball_sprites
+   715	        @ball_sprites.each { |s| s&.dispose }
+   716	        @ball_sprites.clear
+   717	      end
+   718	      # Dispose bitmaps
+   719	      @black_bitmap&.dispose
+   720	      @ball_bitmap&.dispose
+   721	    end
+   722	
+   723	    def update_anim
+   724	      if timer <= @ball_roll_end
+   725	        # Roll ball sprites across screen
+   726	        proportion = timer / @ball_roll_end
+   727	        total_distance = Graphics.width + @ball_bitmap.width
+   728	        @ball_sprites.each_with_index do |sprite, i|
+   729	          sprite.x = @ball_start_x[i] + (((2 * i) - 1) * (total_distance * proportion))
+   730	          sprite.angle = ((2 * i) - 1) * 360 * proportion * 2
+   731	        end
+   732	      else
+   733	        proportion = (timer - @ball_roll_end) / (@duration - @ball_roll_end)
+   734	        # Hide ball sprites
+   735	        if @ball_sprites[0].visible
+   736	          @ball_sprites.each { |s| s.visible = false }
+   737	        end
+   738	        # Zoom in overworld sprite
+   739	        @overworld_sprite.zoom_x = 1.0 + (proportion * proportion)   # Ends at 2x zoom
+   740	        @overworld_sprite.zoom_y = @overworld_sprite.zoom_x
+   741	        # Slide first two black bars across
+   742	        @sprites[0].x = Graphics.width * (1 - (proportion * proportion))
+   743	        @sprites[1].x = Graphics.width * ((proportion * proportion) - 1)
+   744	        # Expand third black bar
+   745	        @sprites[2].zoom_y = 2.0 * proportion * proportion   # Ends at 2x zoom
+   746	      end
+   747	    end
+   748	  end
+   749	
+   750	  #=============================================================================
+   751	  # HGSS trainer outdoor night
+   752	  #=============================================================================
+   753	  class SpinBallSplit < Transition_Base
+   754	    DURATION = 1.0
+   755	
+   756	    def initialize_bitmaps
+   757	      @black_bitmap = RPG::Cache.transition("black_half")
+   758	      @ball_bitmap  = RPG::Cache.transition("ball_large")
+   759	      dispose if !@black_bitmap || !@ball_bitmap
+   760	    end
+   761	
+   762	    def initialize_sprites
+   763	      @overworld_sprite.visible = false
+   764	      @overworld_sprites = []
+   765	      @black_sprites = []
+   766	      @ball_sprites = []
+   767	      2.times do |i|
+   768	        # Overworld sprites (they split apart)
+   769	        @overworld_sprites[i] = new_sprite(Graphics.width / 2, Graphics.height / 2, @overworld_bitmap,
+   770	                                           Graphics.width / 2, (1 - i) * Graphics.height / 2)
+   771	        @overworld_sprites[i].src_rect.set(0, i * Graphics.height / 2, Graphics.width, Graphics.height / 2)
+   772	        # Black sprites
+   773	        @black_sprites[i] = new_sprite((1 - i) * Graphics.width, i * Graphics.height / 2, @black_bitmap,
+   774	                                       i * @black_bitmap.width, 0)
+   775	        @black_sprites[i].z = 1
+   776	        # Ball sprites
+   777	        @ball_sprites[i] = new_sprite(Graphics.width / 2, Graphics.height / 2, @ball_bitmap,
+   778	                                      @ball_bitmap.width / 2, (1 - i) * @ball_bitmap.height / 2)
+   779	        @ball_sprites[i].z = 2
+   780	        @ball_sprites[i].zoom_x = 0.0
+   781	        @ball_sprites[i].zoom_y = 0.0
+   782	      end
+   783	    end
+   784	
+   785	    def set_up_timings
+   786	      @ball_spin_end = @duration * 0.4
+   787	      @slide_start   = @duration * 0.5
+   788	    end
+   789	
+   790	    def dispose_all
+   791	      # Dispose sprites
+   792	      if @overworld_sprites
+   793	        @overworld_sprites.each { |s| s&.dispose }
+   794	        @overworld_sprites.clear
+   795	      end
+   796	      if @black_sprites
+   797	        @black_sprites.each { |s| s&.dispose }
+   798	        @black_sprites.clear
+   799	      end
+   800	      if @ball_sprites
+   801	        @ball_sprites.each { |s| s&.dispose }
+   802	        @ball_sprites.clear
+   803	      end
+   804	      # Dispose bitmaps
+   805	      @black_bitmap&.dispose
+   806	      @ball_bitmap&.dispose
+   807	    end
+   808	
+   809	    def update_anim
+   810	      if timer < @ball_spin_end
+   811	        # Ball spin
+   812	        proportion = timer / @ball_spin_end
+   813	        @ball_sprites[0].zoom_x = proportion
+   814	        @ball_sprites[0].zoom_y = proportion
+   815	        @ball_sprites[0].angle = 360 * (1 - proportion)
+   816	      elsif timer < @slide_start
+   817	        # Fix zoom/angle of ball sprites
+   818	        if @ball_sprites[0].src_rect.height == @ball_bitmap.height
+   819	          @ball_sprites.each_with_index do |sprite, i|
+   820	            sprite.zoom_x = 1.0
+   821	            sprite.zoom_y = 1.0
+   822	            sprite.angle = 0
+   823	            sprite.src_rect.set(0, i * @ball_bitmap.height / 2,
+   824	                                @ball_bitmap.width, @ball_bitmap.height / 2)
+   825	          end
+   826	        end
+   827	      else
+   828	        # Split overworld/ball apart, move blackness in following them
+   829	        proportion = (timer - @slide_start) / (@duration - @slide_start)
+   830	        @overworld_sprites.each_with_index do |sprite, i|
+   831	          sprite.x = (0.5 + (((i * 2) - 1) * proportion * proportion)) * Graphics.width
+   832	          sprite.zoom_x = 1.0 + (proportion * proportion)   # Ends at 2x zoom
+   833	          sprite.zoom_y = sprite.zoom_x
+   834	          @black_sprites[i].x = sprite.x + ((1 - (i * 2)) * Graphics.width / 2)
+   835	          @ball_sprites[i].x = sprite.x
+   836	        end
+   837	      end
+   838	    end
+   839	  end
+   840	
+   841	  #=============================================================================
+   842	  # HGSS trainer indoor day
+   843	  #=============================================================================
+   844	  class ThreeBallDown < Transition_Base
+   845	    DURATION      = 2.0
+   846	    NUM_SPRITES_X = 8
+   847	    NUM_SPRITES_Y = 6
+   848	    TOTAL_SPRITES = NUM_SPRITES_X * NUM_SPRITES_Y
+   849	    BALL_START_Y_OFFSETS = [400, 0, 100]
+   850	
+   851	    def initialize_bitmaps
+   852	      @black_bitmap = RPG::Cache.transition("black_square")
+   853	      @ball_bitmap  = RPG::Cache.transition("ball_small")
+   854	      if !@black_bitmap || !@ball_bitmap
+   855	        dispose
+   856	        return
+   857	      end
+   858	      @zoom_x_target = Graphics.width.to_f / (@black_bitmap.width * NUM_SPRITES_X)
+   859	      @zoom_y_target = Graphics.height.to_f / (@black_bitmap.height * NUM_SPRITES_Y)
+   860	    end
+   861	
+   862	    def initialize_sprites
+   863	      @overworld_sprite.x = Graphics.width / 2
+   864	      @overworld_sprite.y = Graphics.height / 2
+   865	      @overworld_sprite.ox = @overworld_bitmap.width / 2
+   866	      @overworld_sprite.oy = @overworld_bitmap.height / 2
+   867	      # Black squares
+   868	      NUM_SPRITES_Y.times do |j|
+   869	        NUM_SPRITES_X.times do |i|
+   870	          idx_sprite = (j * NUM_SPRITES_X) + i
+   871	          @sprites[idx_sprite] = new_sprite(i * @black_bitmap.width * @zoom_x_target,
+   872	                                            j * @black_bitmap.height * @zoom_y_target, @black_bitmap)
+   873	          @sprites[idx_sprite].visible = false
+   874	        end
+   875	      end
+   876	      # Falling balls
+   877	      @ball_sprites = []
+   878	      3.times do |i|
+   879	        @ball_sprites[i] = new_sprite((Graphics.width / 2) + ((i - 1) * 160),
+   880	                                      -@ball_bitmap.height - BALL_START_Y_OFFSETS[i],
+   881	                                      @ball_bitmap, @ball_bitmap.width / 2, @ball_bitmap.height / 2)
+   882	        @ball_sprites[i].z = 2
+   883	      end
+   884	    end
+   885	
+   886	    def set_up_timings
+   887	      @black_appear_start = @duration * 0.2
+   888	      appear_order = [0, 4, 1, 6, 7, 2, 5, 3]
+   889	      period = @duration - @black_appear_start
+   890	      NUM_SPRITES_Y.times do |j|
+   891	        row_offset = NUM_SPRITES_Y - j - 1
+   892	        NUM_SPRITES_X.times do |i|
+   893	          idx_sprite = (j * NUM_SPRITES_X) + i
+   894	          @timings[idx_sprite] = period * ((row_offset * NUM_SPRITES_X) + appear_order[i]) / TOTAL_SPRITES
+   895	          @timings[idx_sprite] += @black_appear_start
+   896	        end
+   897	      end
+   898	    end
+   899	
+   900	    def dispose_all
+   901	      # Dispose sprites
+   902	      if @ball_sprites
+   903	        @ball_sprites.each { |s| s&.dispose }
+   904	        @ball_sprites.clear
+   905	      end
+   906	      # Dispose bitmaps
+   907	      @black_bitmap&.dispose
+   908	      @ball_bitmap&.dispose
+   909	    end
+   910	
+   911	    def update_anim
+   912	      if timer < @black_appear_start
+   913	        # Balls drop down screen while spinning
+   914	        proportion = timer / @black_appear_start
+   915	        @ball_sprites.each_with_index do |sprite, i|
+   916	          sprite.y = -@ball_bitmap.height - BALL_START_Y_OFFSETS[i]
+   917	          sprite.y += (Graphics.height + BALL_START_Y_OFFSETS.max + (@ball_bitmap.height * 2)) * proportion
+   918	          sprite.angle = 1.5 * 360 * proportion * ([1, -1][(i == 2) ? 0 : 1])
+   919	        end
+   920	      else
+   921	        if @ball_sprites[0].visible
+   922	          @ball_sprites.each { |s| s.visible = false }
+   923	        end
+   924	        # Black squares appear
+   925	        @timings.each_with_index do |timing, i|
+   926	          next if timing < 0 || timer < timing
+   927	          @sprites[i].visible = true
+   928	          @timings[i] = -1
+   929	        end
+   930	        # Zoom in overworld sprite
+   931	        proportion = (timer - @black_appear_start) / (@duration - @black_appear_start)
+   932	        @overworld_sprite.zoom_x = 1.0 + (proportion * proportion)   # Ends at 2x zoom
+   933	        @overworld_sprite.zoom_y = @overworld_sprite.zoom_x
+   934	      end
+   935	    end
+   936	  end
+   937	
+   938	  #=============================================================================
+   939	  # HGSS trainer indoor night
+   940	  # HGSS trainer cave
+   941	  #=============================================================================
+   942	  class BallDown < Transition_Base
+   943	    DURATION = 0.9
+   944	
+   945	    def initialize_bitmaps
+   946	      @black_bitmap = RPG::Cache.transition("black_half")
+   947	      @curve_bitmap = RPG::Cache.transition("black_curve")
+   948	      @ball_bitmap  = RPG::Cache.transition("ball_small")
+   949	      dispose if !@black_bitmap || !@curve_bitmap || !@ball_bitmap
+   950	    end
+   951	
+   952	    def initialize_sprites
+   953	      @overworld_sprite.x = Graphics.width / 2
+   954	      @overworld_sprite.y = Graphics.height / 2
+   955	      @overworld_sprite.ox = @overworld_bitmap.width / 2
+   956	      @overworld_sprite.oy = @overworld_bitmap.height / 2
+   957	      # Black sprites
+   958	      @sprites[0] = new_sprite(0, -@curve_bitmap.height, @black_bitmap, 0, @black_bitmap.height)
+   959	      @sprites[0].z = 1
+   960	      @sprites[0].zoom_y = 2.0
+   961	      @sprites[1] = new_sprite(0, -@curve_bitmap.height, @curve_bitmap)
+   962	      @sprites[1].z = 1
+   963	      # Ball sprite
+   964	      @ball_sprite = new_sprite(Graphics.width / 2, -@ball_bitmap.height / 2, @ball_bitmap,
+   965	                                @ball_bitmap.width / 2, @ball_bitmap.height / 2)
+   966	      @ball_sprite.z = 2
+   967	      @ball_sprite.zoom_x = 0.0
+   968	      @ball_sprite.zoom_y = 0.0
+   969	    end
+   970	
+   971	    def set_up_timings
+   972	      @ball_appear_end = @duration * 0.7
+   973	    end
+   974	
+   975	    def dispose_all
+   976	      # Dispose sprites
+   977	      @ball_sprite&.dispose
+   978	      # Dispose bitmaps
+   979	      @black_bitmap&.dispose
+   980	      @curve_bitmap&.dispose
+   981	      @ball_bitmap&.dispose
+   982	    end
+   983	
+   984	    def update_anim
+   985	      if timer <= @ball_appear_end
+   986	        # Make ball drop down and zoom in
+   987	        proportion = timer / @ball_appear_end
+   988	        @ball_sprite.y = (-@ball_bitmap.height / 2) + ((Graphics.height + (@ball_bitmap.height * 3)) * proportion * proportion)
+   989	        @ball_sprite.angle = -1.5 * 360 * proportion
+   990	        @ball_sprite.zoom_x = 3 * proportion * proportion
+   991	        @ball_sprite.zoom_y = @ball_sprite.zoom_x
+   992	      else
+   993	        @ball_sprite.visible = false
+   994	        # Black curve and blackness descends
+   995	        proportion = (timer - @ball_appear_end) / (@duration - @ball_appear_end)
+   996	        @sprites.each do |sprite|
+   997	          sprite.y = -@curve_bitmap.height + ((Graphics.height + @curve_bitmap.height) * proportion)
+   998	        end
+   999	        # Zoom in overworld sprite
+  1000	        @overworld_sprite.zoom_x = 1.0 + (proportion * proportion)   # Ends at 2x zoom
+  1001	        @overworld_sprite.zoom_y = @overworld_sprite.zoom_x
+  1002	      end
+  1003	    end
+  1004	  end
+  1005	
+  1006	  #=============================================================================
+  1007	  # HGSS trainer water day
+  1008	  #=============================================================================
+  1009	  class WavyThreeBallUp < Transition_Base
+  1010	    DURATION           = 1.1
+  1011	    BALL_OFFSETS       = [1.5, 3.25, 2.5]
+  1012	    MAX_WAVE_AMPLITUDE = 24
+  1013	    WAVE_SPACING       = Math::PI / 24   # Density of overworld waves (48 strips per wave)
+  1014	    WAVE_SPEED         = Math::PI * 4   # Speed of overworld waves going up the screen
+  1015	
+  1016	    def initialize_bitmaps
+  1017	      @black_bitmap = RPG::Cache.transition("black_half")
+  1018	      @ball_bitmap  = RPG::Cache.transition("ball_small")
+  1019	      dispose if !@black_bitmap || !@ball_bitmap
+  1020	    end
+  1021	
+  1022	    def initialize_sprites
+  1023	      @overworld_sprite.visible = false
+  1024	      # Overworld strips (they go all wavy)
+  1025	      rect = Rect.new(0, 0, Graphics.width, 4)
+  1026	      (Graphics.height / 4).times do |i|
+  1027	        @sprites[i] = new_sprite(0, i * 4, @overworld_bitmap)
+  1028	        @sprites[i].z = 2
+  1029	        rect.y = i * 4
+  1030	        @sprites[i].src_rect = rect
+  1031	      end
+  1032	      # Ball sprites
+  1033	      @ball_sprites = []
+  1034	      3.times do |i|
+  1035	        @ball_sprites[i] = new_sprite(((2 * i) + 1) * Graphics.width / 6,
+  1036	                                      BALL_OFFSETS[i] * Graphics.height,
+  1037	                                      @ball_bitmap, @ball_bitmap.width / 2, @ball_bitmap.height / 2)
+  1038	        @ball_sprites[i].z = 4
+  1039	      end
+  1040	      # Black columns that follow the ball sprites
+  1041	      @black_trail_sprites = []
+  1042	      3.times do |i|
+  1043	        @black_trail_sprites[i] = new_sprite((i - 1) * Graphics.width * 2 / 3,
+  1044	                                             BALL_OFFSETS[i] * Graphics.height, @black_bitmap)
+  1045	        @black_trail_sprites[i].z = 3
+  1046	        @black_trail_sprites[i].zoom_y = 2.0
+  1047	      end
+  1048	    end
+  1049	
+  1050	    def set_up_timings
+  1051	      @ball_rising_start = @duration * 0.4
+  1052	    end
+  1053	
+  1054	    def dispose_all
+  1055	      # Dispose sprites
+  1056	      if @ball_sprites
+  1057	        @ball_sprites.each { |s| s&.dispose }
+  1058	        @ball_sprites.clear
+  1059	      end
+  1060	      if @black_trail_sprites
+  1061	        @black_trail_sprites.each { |s| s&.dispose }
+  1062	        @black_trail_sprites.clear
+  1063	      end
+  1064	      # Dispose bitmaps
+  1065	      @black_bitmap&.dispose
+  1066	      @ball_bitmap&.dispose
+  1067	    end
+  1068	
+  1069	    def update_anim
+  1070	      # Make overworld wave strips oscillate
+  1071	      amplitude = MAX_WAVE_AMPLITUDE * [timer / 0.1, 1].min   # Build up to max in 0.1 seconds
+  1072	      @sprites.each_with_index do |sprite, i|
+  1073	        sprite.x = (1 - ((i % 2) * 2)) * amplitude * Math.sin((timer * WAVE_SPEED) + (i * WAVE_SPACING))
+  1074	      end
+  1075	      # Move balls and trailing blackness up
+  1076	      if timer >= @ball_rising_start
+  1077	        proportion = (timer - @ball_rising_start) / (@duration - @ball_rising_start)
+  1078	        @ball_sprites.each_with_index do |sprite, i|
+  1079	          sprite.y = (BALL_OFFSETS[i] * Graphics.height) - (Graphics.height * 3.5 * proportion)
+  1080	          sprite.angle = [-1, -1, 1][i] * 360 * 2 * proportion
+  1081	          @black_trail_sprites[i].y = sprite.y
+  1082	          @black_trail_sprites[i].y = 0 if @black_trail_sprites[i].y < 0
+  1083	        end
+  1084	      end
+  1085	    end
+  1086	  end
+  1087	
+  1088	  #=============================================================================
+  1089	  # HGSS trainer water night
+  1090	  #=============================================================================
+  1091	  class WavySpinBall < Transition_Base
+  1092	    DURATION           = 1.0
+  1093	    MAX_WAVE_AMPLITUDE = 24
+  1094	    WAVE_SPACING       = Math::PI / 24   # Density of overworld waves (48 strips per wave)
+  1095	    WAVE_SPEED         = Math::PI * 4   # Speed of overworld waves going up the screen
+  1096	
+  1097	    def initialize_bitmaps
+  1098	      @black_bitmap = RPG::Cache.transition("black_half")
+  1099	      @ball_bitmap  = RPG::Cache.transition("ball_large")
+  1100	      dispose if !@black_bitmap || !@ball_bitmap
+  1101	    end
+  1102	
+  1103	    def initialize_sprites
+  1104	      @overworld_sprite.visible = false
+  1105	      # Overworld strips (they go all wavy)
+  1106	      rect = Rect.new(0, 0, Graphics.width, 4)
+  1107	      (Graphics.height / 4).times do |i|
+  1108	        @sprites[i] = new_sprite(0, i * 4, @overworld_bitmap)
+  1109	        @sprites[i].z = 2
+  1110	        rect.y = i * 4
+  1111	        @sprites[i].src_rect = rect
+  1112	      end
+  1113	      # Ball sprite
+  1114	      @ball_sprite = new_sprite(Graphics.width / 2, Graphics.height / 2, @ball_bitmap,
+  1115	                                @ball_bitmap.width / 2, @ball_bitmap.height / 2)
+  1116	      @ball_sprite.z = 3
+  1117	      @ball_sprite.opacity = 0
+  1118	      # Black sprite
+  1119	      @black_sprite = new_sprite(Graphics.width / 2, Graphics.height / 2, @black_bitmap,
+  1120	                                 @black_bitmap.width / 2, @black_bitmap.height / 2)
+  1121	      @black_sprite.z = 4
+  1122	      @black_sprite.zoom_x = 0.0
+  1123	      @black_sprite.zoom_y = 0.0
+  1124	    end
+  1125	
+  1126	    def set_up_timings
+  1127	      @ball_appear_end    = @duration * 0.4
+  1128	      @black_appear_start = @duration * 0.5
+  1129	    end
+  1130	
+  1131	    def dispose_all
+  1132	      # Dispose sprites
+  1133	      @ball_sprite&.dispose
+  1134	      @black_sprite&.dispose
+  1135	      # Dispose bitmaps
+  1136	      @black_bitmap&.dispose
+  1137	      @ball_bitmap&.dispose
+  1138	    end
+  1139	
+  1140	    def update_anim
+  1141	      # Make overworld wave strips oscillate
+  1142	      amplitude = MAX_WAVE_AMPLITUDE * [timer / 0.1, 1].min   # Build up to max in 0.1 seconds
+  1143	      @sprites.each_with_index do |sprite, i|
+  1144	        sprite.x = (1 - ((i % 2) * 2)) * amplitude * Math.sin((timer * WAVE_SPEED) + (i * WAVE_SPACING))
+  1145	      end
+  1146	      if timer <= @ball_appear_end
+  1147	        # Fade in ball while spinning
+  1148	        proportion = timer / @ball_appear_end
+  1149	        @ball_sprite.opacity = 255 * proportion
+  1150	        @ball_sprite.angle = -360 * proportion
+  1151	      elsif timer <= @black_appear_start
+  1152	        # Fix opacity/angle of ball sprite
+  1153	        @ball_sprite.opacity = 255
+  1154	        @ball_sprite.angle = 0
+  1155	      else
+  1156	        # Spread blackness from centre
+  1157	        proportion = (timer - @black_appear_start) / (@duration - @black_appear_start)
+  1158	        @black_sprite.zoom_x = proportion
+  1159	        @black_sprite.zoom_y = proportion * 2
+  1160	      end
+  1161	    end
+  1162	  end
+  1163	
+  1164	  #=============================================================================
+  1165	  # HGSS double trainers
+  1166	  #=============================================================================
+  1167	  class FourBallBurst < Transition_Base
+  1168	    DURATION = 0.9
+  1169	
+  1170	    def initialize_bitmaps

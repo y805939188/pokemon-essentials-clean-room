@@ -1,0 +1,707 @@
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class BattleType
+     5	  def pbCreateBattle(scene, trainer1, trainer2)
+     6	    return Battle.new(scene, trainer1.party, trainer2.party, trainer1, trainer2)
+     7	  end
+     8	end
+     9	
+    10	#===============================================================================
+    11	#
+    12	#===============================================================================
+    13	class BattleTower < BattleType
+    14	  def pbCreateBattle(scene, trainer1, trainer2)
+    15	    return RecordedBattle.new(scene, trainer1.party, trainer2.party, trainer1, trainer2)
+    16	  end
+    17	end
+    18	
+    19	#===============================================================================
+    20	#
+    21	#===============================================================================
+    22	class BattlePalace < BattleType
+    23	  def pbCreateBattle(scene, trainer1, trainer2)
+    24	    return RecordedBattle::BattlePalaceBattle.new(scene, trainer1.party, trainer2.party, trainer1, trainer2)
+    25	  end
+    26	end
+    27	
+    28	#===============================================================================
+    29	#
+    30	#===============================================================================
+    31	class BattleArena < BattleType
+    32	  def pbCreateBattle(scene, trainer1, trainer2)
+    33	    return RecordedBattle::BattleArenaBattle.new(scene, trainer1.party, trainer2.party, trainer1, trainer2)
+    34	  end
+    35	end
+    36	
+    37	#===============================================================================
+    38	#
+    39	#===============================================================================
+    40	def pbOrganizedBattleEx(opponent, challengedata)
+    41	  # Skip battle if holding Ctrl in Debug mode
+    42	  if Input.press?(Input::CTRL) && $DEBUG
+    43	    pbMessage(_INTL("SKIPPING BATTLE..."))
+    44	    pbMessage(_INTL("AFTER WINNING..."))
+    45	    pbMessage(opponent.lose_text || "...")
+    46	    $game_temp.last_battle_record = nil
+    47	    pbMEStop
+    48	    return true
+    49	  end
+    50	  $player.heal_party
+    51	  # Remember original data, to be restored after battle
+    52	  challengedata = PokemonChallengeRules.new if !challengedata
+    53	  oldlevels = challengedata.adjustLevels($player.party, opponent.party)
+    54	  olditems  = $player.party.transform { |p| p.item_id }
+    55	  olditems2 = opponent.party.transform { |p| p.item_id }
+    56	  # Create the battle scene (the visual side of it)
+    57	  scene = BattleCreationHelperMethods.create_battle_scene
+    58	  # Create the battle class (the mechanics side of it)
+    59	  battle = challengedata.createBattle(scene, $player, opponent)
+    60	  battle.internalBattle = false
+    61	  # Set various other properties in the battle class
+    62	  BattleCreationHelperMethods.prepare_battle(battle)
+    63	  # Perform the battle itself
+    64	  decision = 0
+    65	  pbBattleAnimation(pbGetTrainerBattleBGM(opponent)) do
+    66	    pbSceneStandby { decision = battle.pbStartBattle }
+    67	  end
+    68	  Input.update
+    69	  # Restore both parties to their original levels
+    70	  challengedata.unadjustLevels($player.party, opponent.party, oldlevels)
+    71	  # Heal both parties and restore their original items
+    72	  $player.party.each_with_index do |pkmn, i|
+    73	    pkmn.heal
+    74	    pkmn.makeUnmega
+    75	    pkmn.makeUnprimal
+    76	    pkmn.item = olditems[i]
+    77	  end
+    78	  opponent.party.each_with_index do |pkmn, i|
+    79	    pkmn.heal
+    80	    pkmn.makeUnmega
+    81	    pkmn.makeUnprimal
+    82	    pkmn.item = olditems2[i]
+    83	  end
+    84	  # Save the record of the battle
+    85	  $game_temp.last_battle_record = nil
+    86	  if [1, 2, 5].include?(decision)   # if win, loss or draw
+    87	    $game_temp.last_battle_record = battle.pbDumpRecord
+    88	  end
+    89	  case decision
+    90	  when 1   # Won
+    91	    $stats.trainer_battles_won += 1
+    92	  when 2, 3, 5   # Lost, fled, draw
+    93	    $stats.trainer_battles_lost += 1
+    94	  end
+    95	  # Return true if the player won the battle, and false if any other result
+    96	  return (decision == 1)
+    97	end
+    98	
+    99	#===============================================================================
+   100	# Methods that record and play back a battle.
+   101	#===============================================================================
+   102	def pbRecordLastBattle
+   103	  $PokemonGlobal.lastbattle = $game_temp.last_battle_record
+   104	  $game_temp.last_battle_record = nil
+   105	end
+   106	
+   107	def pbPlayLastBattle
+   108	  pbPlayBattle($PokemonGlobal.lastbattle)
+   109	end
+   110	
+   111	def pbPlayBattle(battledata)
+   112	  return if !battledata
+   113	  scene = BattleCreationHelperMethods.create_battle_scene
+   114	  scene.abortable = true
+   115	  lastbattle = Marshal.restore(battledata)
+   116	  case lastbattle[0]
+   117	  when BattleChallenge::BATTLE_TOWER_ID
+   118	    battleplayer = RecordedBattle::PlaybackBattle.new(scene, lastbattle)
+   119	  when BattleChallenge::BATTLE_PALACE_ID
+   120	    battleplayer = RecordedBattle::BattlePalacePlaybackBattle.new(scene, lastbattle)
+   121	  when BattleChallenge::BATTLE_ARENA_ID
+   122	    battleplayer = RecordedBattle::BattleArenaPlaybackBattle.new(scene, lastbattle)
+   123	  end
+   124	  bgm = RecordedBattle::PlaybackHelper.pbGetBattleBGM(lastbattle)
+   125	  pbBattleAnimation(bgm) do
+   126	    pbSceneStandby { battleplayer.pbStartBattle }
+   127	  end
+   128	end
+   129	
+   130	#===============================================================================
+   131	# Debug playback methods.
+   132	#===============================================================================
+   133	def pbDebugPlayBattle
+   134	  params = ChooseNumberParams.new
+   135	  params.setRange(0, 500)
+   136	  params.setInitialValue(0)
+   137	  params.setCancelValue(-1)
+   138	  num = pbMessageChooseNumber(_INTL("Choose a battle."), params)
+   139	  pbPlayBattleFromFile(sprintf("Battles/Battle%03d.dat", num)) if num >= 0
+   140	end
+   141	
+   142	def pbPlayBattleFromFile(filename)
+   143	  pbRgssOpen(filename, "rb") { |f| pbPlayBattle(f.read) }
+   144	end
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class SafariState
+     5	  attr_accessor :ballcount
+     6	  attr_accessor :captures
+     7	  attr_accessor :decision
+     8	  attr_accessor :steps
+     9	
+    10	  def initialize
+    11	    @start      = nil
+    12	    @ballcount  = 0
+    13	    @captures   = 0
+    14	    @inProgress = false
+    15	    @steps      = 0
+    16	    @decision   = 0
+    17	  end
+    18	
+    19	  def pbReceptionMap
+    20	    return @inProgress ? @start[0] : 0
+    21	  end
+    22	
+    23	  def inProgress?
+    24	    return @inProgress
+    25	  end
+    26	
+    27	  def pbGoToStart
+    28	    if $scene.is_a?(Scene_Map)
+    29	      pbFadeOutIn do
+    30	        $game_temp.player_transferring   = true
+    31	        $game_temp.transition_processing = true
+    32	        $game_temp.player_new_map_id    = @start[0]
+    33	        $game_temp.player_new_x         = @start[1]
+    34	        $game_temp.player_new_y         = @start[2]
+    35	        $game_temp.player_new_direction = 2
+    36	        pbDismountBike
+    37	        $scene.transfer_player
+    38	      end
+    39	    end
+    40	  end
+    41	
+    42	  def pbStart(ballcount)
+    43	    @start      = [$game_map.map_id, $game_player.x, $game_player.y, $game_player.direction]
+    44	    @ballcount  = ballcount
+    45	    @inProgress = true
+    46	    @steps      = Settings::SAFARI_STEPS
+    47	  end
+    48	
+    49	  def pbEnd
+    50	    @start      = nil
+    51	    @ballcount  = 0
+    52	    @captures   = 0
+    53	    @inProgress = false
+    54	    @steps      = 0
+    55	    @decision   = 0
+    56	    $game_map.need_refresh = true
+    57	  end
+    58	end
+    59	
+    60	#===============================================================================
+    61	#
+    62	#===============================================================================
+    63	def pbInSafari?
+    64	  if pbSafariState.inProgress?
+    65	    # Reception map is handled separately from safari map since the reception
+    66	    # map can be outdoors, with its own grassy patches.
+    67	    reception = pbSafariState.pbReceptionMap
+    68	    return true if $game_map.map_id == reception
+    69	    return true if $game_map.metadata&.safari_map
+    70	  end
+    71	  return false
+    72	end
+    73	
+    74	def pbSafariState
+    75	  $PokemonGlobal.safariState = SafariState.new if !$PokemonGlobal.safariState
+    76	  return $PokemonGlobal.safariState
+    77	end
+    78	
+    79	#===============================================================================
+    80	#
+    81	#===============================================================================
+    82	EventHandlers.add(:on_enter_map, :end_safari_game,
+    83	  proc { |_old_map_id|
+    84	    pbSafariState.pbEnd if !pbInSafari?
+    85	  }
+    86	)
+    87	
+    88	EventHandlers.add(:on_player_step_taken_can_transfer, :safari_game_counter,
+    89	  proc { |handled|
+    90	    # handled is an array: [nil]. If [true], a transfer has happened because of
+    91	    # this event, so don't do anything that might cause another one
+    92	    next if handled[0]
+    93	    next if Settings::SAFARI_STEPS == 0 || !pbInSafari? || pbSafariState.decision != 0
+    94	    pbSafariState.steps -= 1
+    95	    next if pbSafariState.steps > 0
+    96	    pbMessage("\\se[Safari Zone end]" + _INTL("PA: Ding-dong!") + "\1")
+    97	    pbMessage(_INTL("PA: Your safari game is over!"))
+    98	    pbSafariState.decision = 1
+    99	    pbSafariState.pbGoToStart
+   100	    handled[0] = true
+   101	  }
+   102	)
+   103	
+   104	#===============================================================================
+   105	#
+   106	#===============================================================================
+   107	EventHandlers.add(:on_calling_wild_battle, :safari_battle,
+   108	  proc { |pkmn, handled|
+   109	    # handled is an array: [nil]. If [true] or [false], the battle has already
+   110	    # been overridden (the boolean is its outcome), so don't do anything that
+   111	    # would override it again
+   112	    next if !handled[0].nil?
+   113	    next if !pbInSafari?
+   114	    handled[0] = pbSafariBattle(pkmn)
+   115	  }
+   116	)
+   117	
+   118	def pbSafariBattle(pkmn, level = 1)
+   119	  # Generate a wild Pokémon based on the species and level
+   120	  pkmn = pbGenerateWildPokemon(pkmn, level) if !pkmn.is_a?(Pokemon)
+   121	  foeParty = [pkmn]
+   122	  # Calculate who the trainer is
+   123	  playerTrainer = $player
+   124	  # Create the battle scene (the visual side of it)
+   125	  scene = BattleCreationHelperMethods.create_battle_scene
+   126	  # Create the battle class (the mechanics side of it)
+   127	  battle = SafariBattle.new(scene, playerTrainer, foeParty)
+   128	  battle.ballCount = pbSafariState.ballcount
+   129	  BattleCreationHelperMethods.prepare_battle(battle)
+   130	  # Perform the battle itself
+   131	  decision = 0
+   132	  pbBattleAnimation(pbGetWildBattleBGM(foeParty), 0, foeParty) do
+   133	    pbSceneStandby { decision = battle.pbStartBattle }
+   134	  end
+   135	  Input.update
+   136	  # Update Safari game data based on result of battle
+   137	  pbSafariState.ballcount = battle.ballCount
+   138	  if pbSafariState.ballcount <= 0
+   139	    if decision != 2   # Last Safari Ball was used to catch the wild Pokémon
+   140	      pbMessage(_INTL("Announcer: You're out of Safari Balls! Game over!"))
+   141	    end
+   142	    pbSafariState.decision = 1
+   143	    pbSafariState.pbGoToStart
+   144	  end
+   145	  # Save the result of the battle in Game Variable 1
+   146	  #    0 - Undecided or aborted
+   147	  #    2 - Player ran out of Safari Balls
+   148	  #    3 - Player or wild Pokémon ran from battle, or player forfeited the match
+   149	  #    4 - Wild Pokémon was caught
+   150	  if decision == 4
+   151	    $stats.safari_pokemon_caught += 1
+   152	    pbSafariState.captures += 1
+   153	    $stats.most_captures_per_safari_game = [$stats.most_captures_per_safari_game, pbSafariState.captures].max
+   154	  end
+   155	  pbSet(1, decision)
+   156	  # Used by the Poké Radar to update/break the chain
+   157	  EventHandlers.trigger(:on_wild_battle_end, pkmn.species_data.id, pkmn.level, decision)
+   158	  # Return the outcome of the battle
+   159	  return decision
+   160	end
+   161	
+   162	#===============================================================================
+   163	#
+   164	#===============================================================================
+   165	class PokemonPauseMenu
+   166	  alias __safari_pbShowInfo pbShowInfo unless method_defined?(:__safari_pbShowInfo)
+   167	
+   168	  def pbShowInfo
+   169	    __safari_pbShowInfo
+   170	    return if !pbInSafari?
+   171	    if Settings::SAFARI_STEPS <= 0
+   172	      @scene.pbShowInfo(_INTL("Balls: {1}", pbSafariState.ballcount))
+   173	    else
+   174	      @scene.pbShowInfo(_INTL("Steps: {1}/{2}\nBalls: {3}",
+   175	                              pbSafariState.steps, Settings::SAFARI_STEPS, pbSafariState.ballcount))
+   176	    end
+   177	  end
+   178	end
+   179	
+   180	MenuHandlers.add(:pause_menu, :quit_safari_game, {
+   181	  "name"      => _INTL("Quit"),
+   182	  "order"     => 60,
+   183	  "condition" => proc { next pbInSafari? },
+   184	  "effect"    => proc { |menu|
+   185	    menu.pbHideMenu
+   186	    if pbConfirmMessage(_INTL("Would you like to leave the Safari Game right now?"))
+   187	      menu.pbEndScene
+   188	      pbSafariState.decision = 1
+   189	      pbSafariState.pbGoToStart
+   190	      next true
+   191	    end
+   192	    menu.pbRefresh
+   193	    menu.pbShowMenu
+   194	    next false
+   195	  }
+   196	})
+   335	    pbBugContestState.pbClearIfEnded
+   336	  }
+   337	)
+   338	
+   339	EventHandlers.add(:on_leave_map, :end_bug_contest,
+   340	  proc { |new_map_id, new_map|
+   341	    next if !pbInBugContest? || !pbBugContestState.pbOffLimits?(new_map_id)
+   342	    # Clear bug contest if player flies/warps/teleports out of the contest
+   343	    pbBugContestState.pbEnd(true)
+   344	  }
+   345	)
+   346	
+   347	#===============================================================================
+   348	#
+   349	#===============================================================================
+   350	EventHandlers.add(:on_calling_wild_battle, :bug_contest_battle,
+   351	  proc { |pkmn, handled|
+   352	    # handled is an array: [nil]. If [true] or [false], the battle has already
+   353	    # been overridden (the boolean is its outcome), so don't do anything that
+   354	    # would override it again
+   355	    next if !handled[0].nil?
+   356	    next if !pbInBugContest?
+   357	    handled[0] = pbBugContestBattle(pkmn)
+   358	  }
+   359	)
+   360	
+   361	def pbBugContestBattle(pkmn, level = 1)
+   362	  # Record information about party Pokémon to be used at the end of battle (e.g.
+   363	  # comparing levels for an evolution check)
+   364	  EventHandlers.trigger(:on_start_battle)
+   365	  # Generate a wild Pokémon based on the species and level
+   366	  pkmn = pbGenerateWildPokemon(pkmn, level) if !pkmn.is_a?(Pokemon)
+   367	  foeParty = [pkmn]
+   368	  # Calculate who the trainers and their party are
+   369	  playerTrainer     = [$player]
+   370	  playerParty       = $player.party
+   371	  playerPartyStarts = [0]
+   372	  # Create the battle scene (the visual side of it)
+   373	  scene = BattleCreationHelperMethods.create_battle_scene
+   374	  # Create the battle class (the mechanics side of it)
+   375	  battle = BugContestBattle.new(scene, playerParty, foeParty, playerTrainer, nil)
+   376	  battle.party1starts = playerPartyStarts
+   377	  battle.ballCount    = pbBugContestState.ballcount
+   378	  setBattleRule("single")
+   379	  BattleCreationHelperMethods.prepare_battle(battle)
+   380	  # Perform the battle itself
+   381	  decision = 0
+   382	  pbBattleAnimation(pbGetWildBattleBGM(foeParty), 0, foeParty) do
+   383	    decision = battle.pbStartBattle
+   384	    BattleCreationHelperMethods.after_battle(decision, true)
+   385	    if [2, 5].include?(decision)   # Lost or drew
+   386	      $game_system.bgm_unpause
+   387	      $game_system.bgs_unpause
+   388	      pbBugContestStartOver
+   389	    end
+   390	  end
+   391	  Input.update
+   392	  # Update Bug Contest game data based on result of battle
+   393	  pbBugContestState.ballcount = battle.ballCount
+   394	  if pbBugContestState.ballcount == 0
+   395	    pbMessage(_INTL("ANNOUNCER:  The Bug-Catching Contest is over!"))
+   396	    pbBugContestState.pbStartJudging
+   397	  end
+   398	  # Save the result of the battle in Game Variable 1
+   399	  BattleCreationHelperMethods.set_outcome(decision, 1)
+   400	  # Used by the Poké Radar to update/break the chain
+   401	  EventHandlers.trigger(:on_wild_battle_end, pkmn.species_data.id, pkmn.level, decision)
+   402	  # Return false if the player lost or drew the battle, and true if any other result
+   403	  return (decision != 2 && decision != 5)
+   404	end
+   405	
+   406	#===============================================================================
+   407	#
+   408	#===============================================================================
+   409	class PokemonPauseMenu
+   410	  alias __bug_contest_pbShowInfo pbShowInfo unless method_defined?(:__bug_contest_pbShowInfo)
+   411	
+   412	  def pbShowInfo
+   413	    __bug_contest_pbShowInfo
+   414	    return if !pbInBugContest?
+   415	    if pbBugContestState.lastPokemon
+   416	      @scene.pbShowInfo(_INTL("Caught: {1}\nLevel: {2}\nBalls: {3}",
+   417	                              pbBugContestState.lastPokemon.speciesName,
+   418	                              pbBugContestState.lastPokemon.level,
+   419	                              pbBugContestState.ballcount))
+   420	    else
+   205	    return Battle::Scene.new
+   206	  end
+   207	
+   208	  # Sets up various battle parameters and applies special rules.
+   209	  def prepare_battle(battle)
+   210	    battleRules = $game_temp.battle_rules
+   211	    # The size of the battle, i.e. how many Pokémon on each side (default: "single")
+   212	    battle.setBattleMode(battleRules["size"]) if !battleRules["size"].nil?
+   213	    # Whether the game won't black out even if the player loses (default: false)
+   214	    battle.canLose = battleRules["canLose"] if !battleRules["canLose"].nil?
+   215	    # Whether the player can choose to run from the battle (default: true)
+   216	    battle.canRun = battleRules["canRun"] if !battleRules["canRun"].nil?
+   217	    # Whether the player can manually choose to switch out Pokémon (default: true)
+   218	    battle.canSwitch = battleRules["canSwitch"] if !battleRules["canSwitch"].nil?
+   219	    # Whether wild Pokémon always try to run from battle (default: nil)
+   220	    battle.rules["alwaysflee"] = battleRules["roamerFlees"]
+   221	    # Whether Pokémon gain Exp/EVs from defeating/catching a Pokémon (default: true)
+   222	    battle.expGain = battleRules["expGain"] if !battleRules["expGain"].nil?
+   223	    # Whether the player gains/loses money at the end of the battle (default: true)
+   224	    battle.moneyGain = battleRules["moneyGain"] if !battleRules["moneyGain"].nil?
+   225	    # Whether Poké Balls cannot be thrown at all
+   226	    battle.disablePokeBalls = battleRules["disablePokeBalls"] if !battleRules["disablePokeBalls"].nil?
+   227	    # Whether the player is asked what to do with a new Pokémon when their party is full
+   228	    battle.sendToBoxes = $PokemonSystem.sendtoboxes if Settings::NEW_CAPTURE_CAN_REPLACE_PARTY_MEMBER
+   229	    battle.sendToBoxes = 2 if battleRules["forceCatchIntoParty"]
+   230	    # Whether the player is able to switch when an opponent's Pokémon faints
+   231	    battle.switchStyle = ($PokemonSystem.battlestyle == 0)
+   232	    battle.switchStyle = battleRules["switchStyle"] if !battleRules["switchStyle"].nil?
+   233	    # Whether battle animations are shown
+   234	    battle.showAnims = ($PokemonSystem.battlescene == 0)
+   235	    battle.showAnims = battleRules["battleAnims"] if !battleRules["battleAnims"].nil?
+   236	    # Terrain
+   237	    if battleRules["defaultTerrain"].nil?
+   238	      if Settings::OVERWORLD_WEATHER_SETS_BATTLE_TERRAIN
+   239	        case $game_screen.weather_type
+   240	        when :Storm
+   241	          battle.defaultTerrain = :Electric
+   242	        when :Fog
+   243	          battle.defaultTerrain = :Misty
+   244	        end
+   245	      end
+   246	    else
+   247	      battle.defaultTerrain = battleRules["defaultTerrain"]
+   248	    end
+   249	    # Weather
+   250	    if battleRules["defaultWeather"].nil?
+   251	      case GameData::Weather.get($game_screen.weather_type).category
+   252	      when :Rain, :Storm
+   253	        battle.defaultWeather = :Rain
+   254	      when :Hail
+   255	        battle.defaultWeather = :Hail
+   256	      when :Sandstorm
+   257	        battle.defaultWeather = :Sandstorm
+   258	      when :Sun
+   259	        battle.defaultWeather = :Sun
+   260	      end
+   261	    else
+   262	      battle.defaultWeather = battleRules["defaultWeather"]
+   263	    end
+   264	    # Environment
+   265	    if battleRules["environment"].nil?
+   266	      battle.environment = pbGetEnvironment
+   267	    else
+   268	      battle.environment = battleRules["environment"]
+   269	    end
+   270	    # Backdrop graphic filename
+   271	    if !battleRules["backdrop"].nil?
+   272	      backdrop = battleRules["backdrop"]
+   273	    elsif $PokemonGlobal.nextBattleBack
+   274	      backdrop = $PokemonGlobal.nextBattleBack
+   275	    elsif $PokemonGlobal.surfing
+   276	      backdrop = "water"   # This applies wherever you are, including in caves
+   277	    elsif $game_map.metadata
+   278	      back = $game_map.metadata.battle_background
+   279	      backdrop = back if back && back != ""
+   280	    end
+   281	    backdrop = "indoor1" if !backdrop
+   282	    battle.backdrop = backdrop
+   283	    # Choose a name for bases depending on environment
+   284	    if battleRules["base"].nil?
+   285	      environment_data = GameData::Environment.try_get(battle.environment)
+   286	      base = environment_data.battle_base if environment_data
+   287	    else
+   288	      base = battleRules["base"]
+   289	    end
+   290	    battle.backdropBase = base if base
+   291	    # Time of day
+   292	    if $game_map.metadata&.battle_environment == :Cave
+   293	      battle.time = 2   # This makes Dusk Balls work properly in caves
+   294	    elsif Settings::TIME_SHADING
+   295	      timeNow = pbGetTimeNow
+   296	      if PBDayNight.isNight?(timeNow)
+   297	        battle.time = 2
+   298	      elsif PBDayNight.isEvening?(timeNow)
+   299	        battle.time = 1
+   300	      else
+   301	        battle.time = 0
+   302	      end
+   303	    end
+   304	  end
+   305	
+   306	  def after_battle(outcome, can_lose)
+   307	    $player.party.each do |pkmn|
+   308	      pkmn.statusCount = 0 if pkmn.status == :POISON   # Bad poison becomes regular
+   355	  # Used when walking in tall grass, hence the additional code.
+   356	  def self.start(*args, can_override: false)
+   357	    foe_party = WildBattle.generate_foes(*args)
+   358	    # Potentially call a different WildBattle.start-type method instead (for
+   359	    # roaming Pokémon, Safari battles, Bug Contest battles)
+   360	    if foe_party.length == 1 && can_override
+   361	      handled = [nil]
+   362	      EventHandlers.trigger(:on_calling_wild_battle, foe_party[0], handled)
+   363	      return handled[0] if !handled[0].nil?
+   364	    end
+   365	    # Perform the battle
+   366	    outcome = WildBattle.start_core(*foe_party)
+   367	    # Used by the Poké Radar to update/break the chain
+   368	    if foe_party.length == 1 && can_override
+   369	      EventHandlers.trigger(:on_wild_battle_end, foe_party[0].species, foe_party[0].level, outcome)
+   370	    end
+   371	    # Return false if the player lost or drew the battle, and true if any other result
+   372	    return outcome != 2 && outcome != 5
+   373	  end
+   374	
+   375	  def self.start_core(*args)
+   376	    outcome_variable = $game_temp.battle_rules["outcomeVar"] || 1
+   377	    can_lose         = $game_temp.battle_rules["canLose"] || false
+   378	    # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode
+   379	    if BattleCreationHelperMethods.skip_battle?
+   380	      return BattleCreationHelperMethods.skip_battle(outcome_variable)
+   381	    end
+   382	    # Record information about party Pokémon to be used at the end of battle
+   383	    # (e.g. comparing levels for an evolution check)
+   384	    EventHandlers.trigger(:on_start_battle)
+   385	    # Generate array of foes
+   386	    foe_party = WildBattle.generate_foes(*args)
+   387	    # Generate information for the player and partner trainer(s)
+   388	    player_trainers, ally_items, player_party, player_party_starts = BattleCreationHelperMethods.set_up_player_trainers(foe_party)
+   389	    # Create the battle scene (the visual side of it)
+   390	    scene = BattleCreationHelperMethods.create_battle_scene
+   391	    # Create the battle class (the mechanics side of it)
+   392	    battle = Battle.new(scene, player_party, foe_party, player_trainers, nil)
+   393	    battle.party1starts = player_party_starts
+   394	    battle.ally_items   = ally_items
+   395	    # Set various other properties in the battle class
+   396	    setBattleRule("#{foe_party.length}v#{foe_party.length}") if $game_temp.battle_rules["size"].nil?
+   397	    BattleCreationHelperMethods.prepare_battle(battle)
+   398	    $game_temp.clear_battle_rules
+   399	    # Perform the battle itself
+   400	    outcome = 0
+   401	    pbBattleAnimation(pbGetWildBattleBGM(foe_party), (foe_party.length == 1) ? 0 : 2, foe_party) do
+   402	      pbSceneStandby { outcome = battle.pbStartBattle }
+   403	      BattleCreationHelperMethods.after_battle(outcome, can_lose)
+   404	    end
+   405	    Input.update
+   406	    # Save the result of the battle in a Game Variable (1 by default)
+   407	    BattleCreationHelperMethods.set_outcome(outcome, outcome_variable)
+   408	    return outcome
+   409	  end
+   410	
+   411	  def self.generate_foes(*args)
+   412	    ret = []
+   413	    species_id = nil
+   414	    args.each do |arg|
+   415	      case arg
+   416	      when Pokemon
+   417	        raise _INTL("Species {1} was given but not a level.", species_id) if species_id
+   418	        ret.push(arg)
+   419	      when Array
+   420	        raise _INTL("Species {1} was given but not a level.", species_id) if species_id
+   421	        species = GameData::Species.get(arg[0]).id
+   422	        pkmn = pbGenerateWildPokemon(species, arg[1])
+   423	        ret.push(pkmn)
+   424	      else
+   425	        if species_id   # Expecting level
+   426	          if !arg.is_a?(Integer) || !(1..GameData::GrowthRate.max_level).include?(arg)
+   427	            raise _INTL("Expected a level (1..{1}) but {2} is not a number or not a valid level.", GameData::GrowthRate.max_level, arg)
+   428	          end
+   429	          ret.push(pbGenerateWildPokemon(species_id, arg))
+   430	          species_id = nil
+   431	        else   # Expecting species ID
+   453	    # and it is possible to have a double battle (the player has 2+ able Pokémon
+   454	    # or has a partner trainer), then record this first NPC trainer into
+   455	    # $game_temp.waiting_trainer and end this method. That second NPC event will
+   456	    # then trigger and cause the battle to happen against this first trainer and
+   457	    # themselves.
+   458	    if !$game_temp.waiting_trainer && pbMapInterpreterRunning? && pbCanDoubleBattle?
+   459	      thisEvent = pbMapInterpreter.get_self
+   460	      # Find all other triggered trainer events
+   461	      triggeredEvents = $game_player.pbTriggeredTrainerEvents([2], false, true)
+   462	      otherEvent = []
+   463	      triggeredEvents.each do |i|
+   464	        next if i.id == thisEvent.id
+   465	        next if $game_self_switches[[$game_map.map_id, i.id, "A"]]
+   466	        otherEvent.push(i)
+   467	      end
+   468	      # If there is exactly 1 other triggered trainer event, this trainer can be
+   469	      # stored up to battle with that one
+   470	      if otherEvent.length == 1
+   471	        trainers, _items, _end_speeches, _party, _party_starts = TrainerBattle.generate_foes(*args)
+   472	        # If this is just 1 trainer with 6 or fewer Pokémon, it can be stored up
+   473	        # to battle alongside the other trainer
+   474	        if trainers.length == 1 && trainers[0].party.length <= Settings::MAX_PARTY_SIZE
+   475	          $game_temp.waiting_trainer = [trainers[0], thisEvent.id]
+   476	          return false
+   477	        end
+   478	      end
+   479	    end
+   480	    # Perform the battle
+   481	    if $game_temp.waiting_trainer
+   482	      new_args = args + [$game_temp.waiting_trainer[0]]
+   483	      outcome = TrainerBattle.start_core(*new_args)
+   484	      pbMapInterpreter.pbSetSelfSwitch($game_temp.waiting_trainer[1], "A", true) if outcome == 1
+   485	      $game_temp.waiting_trainer = nil
+   486	    else
+   487	      outcome = TrainerBattle.start_core(*args)
+   488	    end
+   489	    # Return true if the player won the battle, and false if any other result
+   490	    return outcome == 1
+   491	  end
+   492	
+   493	  def self.start_core(*args)
+   494	    outcome_variable = $game_temp.battle_rules["outcomeVar"] || 1
+   495	    can_lose         = $game_temp.battle_rules["canLose"] || false
+   496	    # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode
+   497	    if BattleCreationHelperMethods.skip_battle?
+   498	      return BattleCreationHelperMethods.skip_battle(outcome_variable, true)
+   499	    end
+   500	    # Record information about party Pokémon to be used at the end of battle (e.g.
+   501	    # comparing levels for an evolution check)
+   502	    EventHandlers.trigger(:on_start_battle)
+   503	    # Generate information for the foes
+   504	    foe_trainers, foe_items, foe_party, foe_party_starts = TrainerBattle.generate_foes(*args)
+   505	    # Generate information for the player and partner trainer(s)
+   506	    player_trainers, ally_items, player_party, player_party_starts = BattleCreationHelperMethods.set_up_player_trainers(foe_party)
+   507	    # Create the battle scene (the visual side of it)
+   508	    scene = BattleCreationHelperMethods.create_battle_scene
+   509	    # Create the battle class (the mechanics side of it)
+   510	    battle = Battle.new(scene, player_party, foe_party, player_trainers, foe_trainers)
+   511	    battle.party1starts = player_party_starts
+   512	    battle.party2starts = foe_party_starts
+   513	    battle.ally_items   = ally_items
+   514	    battle.items        = foe_items
+   515	    # Set various other properties in the battle class
+   516	    setBattleRule("#{foe_trainers.length}v#{foe_trainers.length}") if $game_temp.battle_rules["size"].nil?
+   517	    BattleCreationHelperMethods.prepare_battle(battle)
+   518	    $game_temp.clear_battle_rules
+   519	    # Perform the battle itself
+   520	    outcome = 0
+   521	    pbBattleAnimation(pbGetTrainerBattleBGM(foe_trainers), (battle.singleBattle?) ? 1 : 3, foe_trainers) do
+   522	      pbSceneStandby { outcome = battle.pbStartBattle }
+   523	      BattleCreationHelperMethods.after_battle(outcome, can_lose)
+   524	    end
+   525	    Input.update
+   526	    # Save the result of the battle in a Game Variable (1 by default)
+   527	    BattleCreationHelperMethods.set_outcome(outcome, outcome_variable, true)
+   528	    return outcome
+   529	  end
+   530	
+   531	  def self.generate_foes(*args)
+   532	    trainer_array = []
+   533	    foe_items     = []
+   534	    pokemon_array = []
+   535	    party_starts  = []
+   536	    trainer_type = nil
+   537	    trainer_name = nil
+   538	    args.each_with_index do |arg, i|
+   539	      case arg
+   540	      when NPCTrainer
+   541	        raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+   542	        trainer_array.push(arg)
+   543	        foe_items.push(arg.items)
+   544	        party_starts.push(pokemon_array.length)
+   545	        arg.party.each { |pkmn| pokemon_array.push(pkmn) }
+   546	      when Array   # [trainer type, trainer name, version number, speech (optional)]
+   547	        raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+   548	        trainer = pbLoadTrainer(arg[0], arg[1], arg[2])
+   549	        pbMissingTrainer(arg[0], arg[1], arg[2]) if !trainer
+   550	        trainer = pbLoadTrainer(arg[0], arg[1], arg[2]) if !trainer   # Try again
+   551	        raise _INTL("Trainer for data '{1}' is not defined.", arg) if !trainer
+   552	        EventHandlers.trigger(:on_trainer_load, trainer)

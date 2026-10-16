@@ -1,0 +1,20 @@
+import json,datetime,hashlib,shutil
+from pathlib import Path
+D=Path(__file__).parent;R=Path('/workspace/pokemon-essentials')
+N=datetime.datetime.now(datetime.timezone.utc).isoformat()
+facts=[]
+def g(k,sources,consumer,claims):
+ for i,c in enumerate(claims,1):facts.append({'id':f'{k}.{i:02}','source':sources,'consumers':consumer,'claim':c,'premises':'固定R、普通对象与被指明分支正常；局部源请求不是运行成功或全异常恢复。','spec':['WP59 §4 世界天气意图保存及编辑提交','WP15/WP16与通用保存/数据编译交界'],'evidence':'SOURCE_STATIC','execution':'NOT_EXECUTED'})
+g('WRR-SUP-SAVE',[{'path':'Data/Scripts/002_Save data/001_SaveData.rb','lines':[1,82]},{'path':'Data/Scripts/002_Save data/002_SaveData_Value.rb','lines':[1,284]},{'path':'Data/Scripts/002_Save data/004_Game_SaveValues.rb','lines':[1,127]}],['Screen.weather intent','Game.load_all_values','Scene_Map/Spriteset_Global'],[
+'game_screen登记ensure_class Game_Screen。','save回调返回完整$game_screen对象。','load回调直接把读入对象赋$game_screen。','new_game值为新Game_Screen。','game_screen未声明bootup加载。','compile_save_hash按所有登记顺序运行save回调。','save回调先取value再校验class。','同ID后写覆盖hash键，但不阻止此前save回调。','save_to_file在compile正常后才打开wb。','Marshal.dump对象图到已截断目标；本段无事务回滚。','read先Marshal.load首对象。','首对象Hash就直接使用。','旧顺序格式按注册from_old_format取值。','当前game_screen默认登记没有from_old_format。','load_all_values跳已loaded登记。','键在时经类型校验再调用loadproc。','loadproc正常后才置loaded真。','缺键且有new_gameproc时创建新值。','mark_values_as_unloaded会把非bootup的game_screen标未加载。','新游戏只在未loaded或reset指定时取new_game值。','Game_Screen天气type/max/duration因此作为该对象状态保存/装回；不是另存RPG::Weather显示粒子实例。','Scene地图创建全局显示时用恢复屏幕意图再按类型门应用。','物理文件、Marshal/native接受、全部转换、真实读档运行未执行。'])
+g('WRR-SUP-PBS',[{'path':'Data/Scripts/021_Compiler/001_Compiler.rb','lines':[[255,293],[384,484],[690,842]]},{'path':'Data/Scripts/021_Compiler/003_Compiler_WritePBS.rb','lines':[[4,21],[688,727]]},{'path':'Data/Scripts/010_Data/001_GameData.rb','lines':[235,242]},{'path':'Data/Scripts/010_Data/002_PBS data/018_MapMetadata.rb','lines':[1,138]}],['WeatherEffectProperty','editor final save','PBS compile/register/save'],[
+'天气字段schema先天气enum再无符号概率整数。','enum通过GameData::Weather登记查验。','概率u分支拒负数，不附100上限。','split_csv_line拆逗号并按引号组合、strip、compact。','map metadata实例保存weather输入值。','普通get_property_for_PBS只返回schema响应字段。','nil天气仍返回nil。','write_map_metadata跳nil字段。','因此编辑最终保存清天气时PBS不写Weather行。','非nilWeather数组flatten后按eu依次写。','enum以Weather.get(value).id.to_s。','第二整数按inspect写十进制文本。','输出分量用逗号分隔。','文件目标按唯一pbs_file_suffix分组。','空suffix是PBS/map_metadata.txt，非空加后缀。','写元数据以wb按登记逐记录/逐schema键输出。','中途文件/回调错误保已达到的输出前缀，无事务回滚保证。','选None/取消在属性缓冲为nil，外层不保存仍不提交，此前176天气事实保持。'])
+srcs={}
+for f in facts:
+ for s in f['source']:
+  p=s['path'];b=(R/p).read_bytes();srcs[p]={'path':p,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'commit':'8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b'}
+evo=D.parent/'ui_full/evolution-last-back-interface.json';b=evo.read_bytes();(D/'evolution-last-back.received.json').write_bytes(b)
+j=json.loads(b);packet={'path':'evolution-last-back.received.json','source':str(evo),'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b),'status':'FULL_SELECTED_PACKET_RECEIVED_BOUNDED','assertions':sum(len(u['facts']) for u in j['received_semantic_units']),'personal_evolution_source_full_read':False}
+supp={'schema':'gr8-resources-frozen-v1-supplement/v1','utc':N,'reader':'/root/world_resources_rendering','base_manifest':'frozen-v1/manifest.json','base_bytes_unchanged':True,'facts':facts,'new_source_atoms':len(facts),'source_identities':list(srcs.values()),'received_evolution_packet':packet,'qualification':'Additional source-static facts after frozen base only. Peer and parent must actually read this separate supplement before counting reception; no added full-domain or host approval.','business_execution':'NOT_EXECUTED','update_status':'UPDATE_NOT_STARTED'}
+(D/'supplement-v1.json').write_text(json.dumps(supp,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'new_source_atoms':len(facts),'evolution_received_atoms':packet['assertions'],'sha256':hashlib.sha256((D/'supplement-v1.json').read_bytes()).hexdigest(),'bytes':(D/'supplement-v1.json').stat().st_size}))

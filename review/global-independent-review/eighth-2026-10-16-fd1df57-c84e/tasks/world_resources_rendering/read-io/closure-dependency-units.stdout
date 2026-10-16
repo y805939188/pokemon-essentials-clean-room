@@ -1,0 +1,321 @@
+   220	      if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+   221	        line = line[3, line.length - 3]
+   222	      end
+   223	      line.force_encoding(Encoding::UTF_8)
+   224	      line = prepline(line)
+   225	      yield line, lineno if !line[/^\#/] && !line[/^\s*$/]
+   226	      lineno += 1
+   227	    end
+   228	  end
+   229	
+   230	  # Used for map_connections.txt, phone.txt, regional_dexes.txt, encounters.txt,
+   231	  # trainers.txt and dungeon_tilesets.txt
+   232	  def pbCompilerEachPreppedLine(filename)
+   233	    File.open(filename, "rb") do |f|
+   234	      FileLineData.file = filename
+   235	      lineno = 1
+   236	      f.each_line do |line|
+   237	        if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+   238	          line = line[3, line.length - 3]
+   239	        end
+   240	        line.force_encoding(Encoding::UTF_8)
+   241	        line = prepline(line)
+   242	        if !line[/^\#/] && !line[/^\s*$/]
+   243	          FileLineData.setLine(line, lineno)
+   244	          yield line, lineno
+   245	        end
+   246	        lineno += 1
+   247	      end
+   248	    end
+   249	  end
+   250	
+   251	  #=============================================================================
+   252	  # Splits a string containing comma-separated values into an array of those
+   253	  # values.
+   254	  #=============================================================================
+   255	  def split_csv_line(string)
+   256	    # Split the string into an array of values, using a comma as the separator
+   257	    values = string.split(",")
+   258	    # Check for quote marks in each value, as we may need to recombine some values
+   259	    # to make proper results
+   260	    (0...values.length).each do |i|
+   261	      value = values[i]
+   262	      next if !value || value.empty?
+   263	      quote_count = value.count('"')
+   264	      if quote_count != 0
+   265	        # Quote marks found in value
+   266	        (i...(values.length - 1)).each do |j|
+   267	          quote_count = values[i].count('"')
+   268	          if quote_count == 2 && value.start_with?('\\"') && values[i].end_with?('\\"')
+   269	            # Two quote marks around the whole value; remove them
+   270	            values[i] = values[i][2..-3]
+   271	            break
+   272	          elsif quote_count.even?
+   273	            break
+   274	          end
+   275	          # Odd number of quote marks in value; concatenate the next value to it and
+   276	          # see if that's any better
+   277	          values[i] += "," + values[j + 1]
+   278	          values[j + 1] = nil
+   279	        end
+   280	        # Recheck for enclosing quote marks to remove
+   281	        if quote_count != 2
+   282	          if value.count('"') == 2 && value.start_with?('\\"') && value.end_with?('\\"')
+   283	            values[i] = values[i][2..-3]
+   284	          end
+   285	        end
+   286	      end
+   287	      # Remove leading and trailing whitespace from value
+   288	      values[i].strip!
+   289	    end
+   290	    # Remove nil values caused by concatenating values above
+   291	    values.compact!
+   292	    return values
+   293	  end
+   294	
+   295	  #=============================================================================
+   296	  # Convert a string to certain kinds of values
+   297	  #=============================================================================
+   298	  # Unused
+   299	  # NOTE: This method is about 10 times slower than split_csv_line.
+   300	  def csvfield!(str)
+   301	    ret = ""
+   302	    str.sub!(/^\s*/, "")
+   303	    if str[0, 1] == "\""
+   304	      str[0, 1] = ""
+   305	      escaped = false
+   306	      fieldbytes = 0
+   307	      str.scan(/./) do |s|
+   308	        fieldbytes += s.length
+   309	        break if s == "\"" && !escaped
+   310	        if s == "\\" && !escaped
+   675	            end
+   676	          end
+   677	        end
+   678	      end
+   679	      process_pbs_file_message_end
+   680	    end
+   681	  end
+   682	
+   683	  #=============================================================================
+   684	  # Save map metadata data to PBS file
+   685	  # NOTE: Doesn't use write_PBS_file_generic because it writes the RMXP map name
+   686	  #       next to the section header for each map.
+   687	  #=============================================================================
+   688	  def write_map_metadata
+   689	    paths = get_all_PBS_file_paths(GameData::MapMetadata)
+   690	    map_infos = pbLoadMapInfos
+   691	    schema = GameData::MapMetadata.schema
+   692	    idx = 0
+   693	    paths.each do |path|
+   694	      write_pbs_file_message_start(path[0])
+   695	      File.open(path[0], "wb") do |f|
+   696	        add_PBS_header_to_file(f)
+   697	        GameData::MapMetadata.each do |element|
+   698	          next if element.pbs_file_suffix != path[1]
+   699	          echo "." if idx % 100 == 0
+   700	          Graphics.update if idx % 500 == 0
+   701	          idx += 1
+   702	          f.write("\#-------------------------------\r\n")
+   703	          map_name = (map_infos && map_infos[element.id]) ? map_infos[element.id].name : nil
+   704	          f.write(sprintf("[%03d]", element.id))
+   705	          f.write(sprintf("   # %s", map_name)) if map_name
+   706	          f.write("\r\n")
+   707	          schema.each_key do |key|
+   708	            next if key == "SectionName"
+   709	            val = element.get_property_for_PBS(key)
+   710	            next if val.nil?
+   711	            if schema[key][1][0] == "^" && val.is_a?(Array)
+   712	              val.each do |sub_val|
+   713	                f.write(sprintf("%s = ", key))
+   714	                pbWriteCsvRecord(sub_val, f, schema[key])
+   715	                f.write("\r\n")
+   716	              end
+   717	            else
+   718	              f.write(sprintf("%s = ", key))
+   719	              pbWriteCsvRecord(val, f, schema[key])
+   720	              f.write("\r\n")
+   721	            end
+   722	          end
+   723	        end
+   724	      end
+   725	      process_pbs_file_message_end
+   726	    end
+   727	  end
+   728	
+   729	  #=============================================================================
+   730	  # Save dungeon tileset contents data to PBS file
+   731	  # NOTE: Doesn't use write_PBS_file_generic because it writes the tileset name
+   732	  #       next to the section header for each tileset.
+   733	  #=============================================================================
+   734	  def write_dungeon_tilesets
+   735	    paths = get_all_PBS_file_paths(GameData::DungeonTileset)
+   736	    schema = GameData::DungeonTileset.schema
+   737	    tilesets = load_data("Data/Tilesets.rxdata")
+   738	    paths.each do |path|
+   739	      write_pbs_file_message_start(path[0])
+   740	      File.open(path[0], "wb") do |f|
+     1	module GameData
+     2	  class SpeciesMetrics
+     3	    attr_reader   :id
+     4	    attr_reader   :species
+     5	    attr_reader   :form
+     6	    attr_accessor :back_sprite
+     7	    attr_accessor :front_sprite
+     8	    attr_accessor :front_sprite_altitude
+     9	    attr_accessor :shadow_x
+    10	    attr_accessor :shadow_size
+    11	    attr_reader   :pbs_file_suffix
+    12	
+    13	    DATA = {}
+    14	    DATA_FILENAME = "species_metrics.dat"
+    15	    PBS_BASE_FILENAME = "pokemon_metrics"
+    16	
+    17	    SCHEMA = {
+    18	      "SectionName"         => [:id,                    "eV", :Species],
+    19	      "BackSprite"          => [:back_sprite,           "ii"],
+    20	      "FrontSprite"         => [:front_sprite,          "ii"],
+    21	      "FrontSpriteAltitude" => [:front_sprite_altitude, "i"],
+    22	      "ShadowX"             => [:shadow_x,              "i"],
+    23	      "ShadowSize"          => [:shadow_size,           "u"]
+    24	    }
+    25	
+    26	    extend ClassMethodsSymbols
+    27	    include InstanceMethods
+    28	
+    29	    # @param species [Symbol, String]
+    30	    # @param form [Integer]
+    31	    # @return [self, nil]
+    32	    def self.get_species_form(species, form)
+    33	      return nil if !species || !form
+    34	      validate species => [Symbol, String]
+    35	      validate form => Integer
+    36	      raise _INTL("Undefined species {1}.", species) if !GameData::Species.exists?(species)
+    37	      species = species.to_sym if species.is_a?(String)
+    38	      if form > 0
+    39	        trial = sprintf("%s_%d", species, form).to_sym
+    40	        if !DATA.has_key?(trial)
+    41	          self.register({:id => species}) if !DATA[species]
+    42	          self.register({
+    43	            :id                    => trial,
+    44	            :species               => species,
+    45	            :form                  => form,
+    46	            :back_sprite           => DATA[species].back_sprite.clone,
+    47	            :front_sprite          => DATA[species].front_sprite.clone,
+    48	            :front_sprite_altitude => DATA[species].front_sprite_altitude,
+    49	            :shadow_x              => DATA[species].shadow_x,
+    50	            :shadow_size           => DATA[species].shadow_size
+    51	          })
+    52	        end
+    53	        return DATA[trial]
+    54	      end
+    55	      self.register({:id => species}) if !DATA[species]
+    56	      return DATA[species]
+    57	    end
+    58	
+    59	    def initialize(hash)
+    60	      @id                    = hash[:id]
+    61	      @species               = hash[:species]               || @id
+    62	      @form                  = hash[:form]                  || 0
+    63	      @back_sprite           = hash[:back_sprite]           || [0, 0]
+    64	      @front_sprite          = hash[:front_sprite]          || [0, 0]
+    65	      @front_sprite_altitude = hash[:front_sprite_altitude] || 0
+    66	      @shadow_x              = hash[:shadow_x]              || 0
+    67	      @shadow_size           = hash[:shadow_size]           || 2
+    68	      @pbs_file_suffix       = hash[:pbs_file_suffix]       || ""
+    69	    end
+    70	
+    71	    def apply_metrics_to_sprite(sprite, index, shadow = false)
+    72	      if shadow
+    73	        sprite.x += @shadow_x * 2 if (index & 1) == 1   # Foe Pokémon
+    74	      elsif (index & 1) == 0   # Player's Pokémon
+    75	        sprite.x += @back_sprite[0] * 2
+    76	        sprite.y += @back_sprite[1] * 2
+    77	      else                     # Foe Pokémon
+    78	        sprite.x += @front_sprite[0] * 2
+    79	        sprite.y += @front_sprite[1] * 2
+    80	        sprite.y -= @front_sprite_altitude * 2
+    81	      end
+    82	    end
+    83	
+    84	    def shows_shadow?
+    85	      return true
+    86	#      return @front_sprite_altitude > 0
+    87	    end
+    88	
+    89	    alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+    90	    def get_property_for_PBS(key)
+    91	      ret = __orig__get_property_for_PBS(key)
+    92	      case key
+    93	      when "SectionName"
+    94	        ret = [@species, (@form > 0) ? @form : nil]
+    95	      when "FrontSpriteAltitude"
+    96	        ret = nil if ret == 0
+    97	      end
+    98	      return ret
+    99	    end
+   100	  end
+   101	end
+   285	      cw.visible = (!dw.busy?)
+   286	      pbUpdate(cw)
+   287	      dw.update
+   288	      if Input.trigger?(Input::BACK) && defaultValue >= 0
+   289	        if dw.busy?
+   290	          pbPlayDecisionSE if dw.pausing?
+   291	          dw.resume
+   292	        else
+   293	          cw.dispose
+   294	          dw.text = ""
+   295	          return defaultValue
+   296	        end
+   297	      elsif Input.trigger?(Input::USE)
+   298	        if dw.busy?
+   299	          pbPlayDecisionSE if dw.pausing?
+   300	          dw.resume
+   301	        else
+   302	          cw.dispose
+   303	          dw.text = ""
+   304	          return cw.index
+   305	        end
+   306	      end
+   307	    end
+   308	  end
+   309	
+   310	  #=============================================================================
+   311	  # Sprites
+   312	  #=============================================================================
+   313	  def pbAddSprite(id, x, y, filename, viewport)
+   314	    sprite = @sprites[id] || IconSprite.new(x, y, viewport)
+   315	    if filename
+   316	      sprite.setBitmap(filename) rescue nil
+   317	    end
+   318	    @sprites[id] = sprite
+   319	    return sprite
+   320	  end
+   321	
+   322	  def pbAddPlane(id, filename, viewport)
+   323	    sprite = AnimatedPlane.new(viewport)
+   324	    if filename
+   325	      sprite.setBitmap(filename)
+   326	    end
+   327	    @sprites[id] = sprite
+   328	    return sprite
+   329	  end
+   330	
+   331	  def pbDisposeSprites
+   332	    pbDisposeSpriteHash(@sprites)
+   333	  end
+   334	
+   335	  # Used by Ally Switch.
+   336	  def pbSwapBattlerSprites(idxA, idxB)
+   337	    @sprites["pokemon_#{idxA}"], @sprites["pokemon_#{idxB}"] = @sprites["pokemon_#{idxB}"], @sprites["pokemon_#{idxA}"]
+   338	    @sprites["shadow_#{idxA}"], @sprites["shadow_#{idxB}"] = @sprites["shadow_#{idxB}"], @sprites["shadow_#{idxA}"]
+Data/Scripts/007_Objects and windows/011_Messages.rb:545:    pbSEPlay(pbStringToAudioFile(startSE))
+Data/Scripts/007_Objects and windows/011_Messages.rb:627:        pbSEPlay(pbStringToAudioFile(param))
+Data/Scripts/007_Objects and windows/011_Messages.rb:629:        pbMEPlay(pbStringToAudioFile(param))
+Data/Scripts/007_Objects and windows/011_Messages.rb:666:    pbSEPlay(pbStringToAudioFile(specialCloseSE))
+Data/Scripts/007_Objects and windows/009_Planes.rb:44:  def setBitmap(file, hue = 0)
+Data/Scripts/007_Objects and windows/007_BitmapSprite.rb:141:class IconSprite < Sprite
+Data/Scripts/007_Objects and windows/007_BitmapSprite.rb:176:  def setBitmap(file, hue = 0)
+Data/Scripts/007_Objects and windows/006_SpriteWindow_pictures.rb:40:  def setBitmap(file, hue = 0)
+Data/Scripts/007_Objects and windows/006_SpriteWindow_pictures.rb:92:  def setBitmap(pathOrBitmap, hue = 0)

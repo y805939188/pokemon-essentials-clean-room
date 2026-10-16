@@ -1,0 +1,590 @@
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	module Graphics
+     5	  @@transition = nil
+     6	  STOP_WHILE_TRANSITION = true
+     7	
+     8	  unless defined?(transition_KGC_SpecialTransition)
+     9	    class << Graphics
+    10	      alias transition_KGC_SpecialTransition transition
+    11	    end
+    12	
+    13	    class << Graphics
+    14	      alias update_KGC_SpecialTransition update
+    15	    end
+    16	  end
+    17	
+    18	  # duration is in 1/20ths of a second
+    19	  def self.transition(duration = 8, filename = "", vague = 20)
+    20	    duration = duration.floor
+    21	    if judge_special_transition(duration, filename)
+    22	      duration = 0
+    23	      filename = ""
+    24	    end
+    25	    duration *= Graphics.frame_rate / 20   # For default fade-in animation, must be in frames
+    26	    begin
+    27	      transition_KGC_SpecialTransition(duration, filename, vague)
+    28	    rescue Exception
+    29	      transition_KGC_SpecialTransition(duration, "", vague) if filename != ""
+    30	    end
+    31	    if STOP_WHILE_TRANSITION && !@_interrupt_transition
+    32	      while @@transition && !@@transition.disposed?
+    33	        update
+    34	      end
+    35	    end
+    36	  end
+    37	
+    38	  def self.update
+    39	    update_KGC_SpecialTransition
+    40	    @@transition.update if @@transition && !@@transition.disposed?
+    41	    @@transition = nil if @@transition&.disposed?
+    42	  end
+    43	
+    44	  def self.judge_special_transition(duration, filename)
+    45	    return false if @_interrupt_transition
+    46	    ret = true
+    47	    if @@transition && !@@transition.disposed?
+    48	      @@transition.dispose
+    49	      @@transition = nil
+    50	    end
+    51	    duration /= 20.0   # Turn into seconds
+    52	    dc = File.basename(filename).downcase
+    53	    case dc
+    54	    # Other coded transitions
+    55	    when "breakingglass"    then @@transition = Transitions::BreakingGlass.new(duration)
+    56	    when "rotatingpieces"   then @@transition = Transitions::ShrinkingPieces.new(duration, true)
+    57	    when "shrinkingpieces"  then @@transition = Transitions::ShrinkingPieces.new(duration, false)
+    58	    when "splash"           then @@transition = Transitions::SplashTransition.new(duration, 9.6)
+    59	    when "random_stripe_v"  then @@transition = Transitions::RandomStripeTransition.new(duration, 0)
+    60	    when "random_stripe_h"  then @@transition = Transitions::RandomStripeTransition.new(duration, 1)
+    61	    when "zoomin"           then @@transition = Transitions::ZoomInTransition.new(duration)
+    62	    when "scrolldown"       then @@transition = Transitions::ScrollScreen.new(duration, 2)
+    63	    when "scrollleft"       then @@transition = Transitions::ScrollScreen.new(duration, 4)
+    64	    when "scrollright"      then @@transition = Transitions::ScrollScreen.new(duration, 6)
+    65	    when "scrollup"         then @@transition = Transitions::ScrollScreen.new(duration, 8)
+    66	    when "scrolldownleft"   then @@transition = Transitions::ScrollScreen.new(duration, 1)
+    67	    when "scrolldownright"  then @@transition = Transitions::ScrollScreen.new(duration, 3)
+    68	    when "scrollupleft"     then @@transition = Transitions::ScrollScreen.new(duration, 7)
+    69	    when "scrollupright"    then @@transition = Transitions::ScrollScreen.new(duration, 9)
+    70	    when "mosaic"           then @@transition = Transitions::MosaicTransition.new(duration)
+    71	    # HGSS transitions
+    72	    when "snakesquares"     then @@transition = Transitions::SnakeSquares.new(duration)
+    73	    when "diagonalbubbletl" then @@transition = Transitions::DiagonalBubble.new(duration, 0)
+    74	    when "diagonalbubbletr" then @@transition = Transitions::DiagonalBubble.new(duration, 1)
+    75	    when "diagonalbubblebl" then @@transition = Transitions::DiagonalBubble.new(duration, 2)
+    76	    when "diagonalbubblebr" then @@transition = Transitions::DiagonalBubble.new(duration, 3)
+    77	    when "risingsplash"     then @@transition = Transitions::RisingSplash.new(duration)
+    78	    when "twoballpass"      then @@transition = Transitions::TwoBallPass.new(duration)
+    79	    when "spinballsplit"    then @@transition = Transitions::SpinBallSplit.new(duration)
+    80	    when "threeballdown"    then @@transition = Transitions::ThreeBallDown.new(duration)
+    81	    when "balldown"         then @@transition = Transitions::BallDown.new(duration)
+    82	    when "wavythreeballup"  then @@transition = Transitions::WavyThreeBallUp.new(duration)
+    83	    when "wavyspinball"     then @@transition = Transitions::WavySpinBall.new(duration)
+    84	    when "fourballburst"    then @@transition = Transitions::FourBallBurst.new(duration)
+    85	    when "vstrainer"        then @@transition = Transitions::VSTrainer.new(duration)
+    86	    when "vselitefour"      then @@transition = Transitions::VSEliteFour.new(duration)
+    87	    when "rocketgrunt"      then @@transition = Transitions::RocketGrunt.new(duration)
+    88	    when "vsrocketadmin"    then @@transition = Transitions::VSRocketAdmin.new(duration)
+    89	    # Graphic transitions
+    90	    when "fadetoblack"      then @@transition = Transitions::FadeToBlack.new(duration)
+    91	    when "fadefromblack"    then @@transition = Transitions::FadeFromBlack.new(duration)
+    92	    else                         ret = false
+    93	    end
+    94	    Graphics.frame_reset if ret
+    95	    return ret
+    96	  end
+    97	end
+    98	
+    99	#===============================================================================
+   100	# Screen transition animation classes.
+   101	#===============================================================================
+   102	module Transitions
+   103	  #=============================================================================
+   104	  # A base class that all other screen transition animations inherit from.
+   105	  #=============================================================================
+   106	  class Transition_Base
+   107	    DURATION = nil
+   108	
+   109	    def initialize(duration, *args)
+   110	      @disposed = false
+   111	      if duration <= 0
+   112	        @disposed = true
+   113	        return
+   114	      end
+   115	      @duration = self.class::DURATION || duration
+   116	      @parameters = args
+   117	      @timer_start = System.uptime
+   118	      @overworld_bitmap = $game_temp.background_bitmap
+   119	      initialize_bitmaps
+   120	      return if disposed?
+   121	      @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+   122	      @viewport.z = 99999
+   123	      @sprites = []
+   124	      @overworld_sprite = new_sprite(0, 0, @overworld_bitmap)
+   125	      @overworld_sprite.z = -1
+   126	      initialize_sprites
+   127	      @timings = []
+   128	      set_up_timings
+   129	    end
+   130	
+   131	    def new_sprite(x, y, bitmap, ox = 0, oy = 0)
+   132	      s = Sprite.new(@viewport)
+   133	      s.x = x
+   134	      s.y = y
+   135	      s.ox = ox
+   136	      s.oy = oy
+   137	      s.bitmap = bitmap
+   138	      return s
+   139	    end
+   140	
+   141	    def timer
+   142	      return System.uptime - @timer_start
+   143	    end
+   144	
+   145	    def dispose
+   146	      return if disposed?
+   147	      dispose_all
+   148	      @sprites.each { |s| s&.dispose }
+   149	      @sprites.clear
+   150	      @overworld_sprite.dispose
+   151	      @overworld_bitmap&.dispose
+   152	      @viewport&.dispose
+   153	      @disposed = true
+   154	    end
+   155	
+   156	    def disposed?; return @disposed; end
+   157	
+   158	    def update
+   159	      return if disposed?
+   160	      if timer >= @duration
+   161	        dispose
+   162	        return
+   163	      end
+   164	      update_anim
+   165	    end
+   166	
+   167	    def initialize_bitmaps; end
+   168	    def initialize_sprites; end
+   169	    def set_up_timings;     end
+   170	    def dispose_all;        end
+   171	    def update_anim;        end
+   172	  end
+   173	
+   174	  #=============================================================================
+   175	  #
+   176	  #=============================================================================
+   177	  class BreakingGlass < Transition_Base
+   178	    NUM_SPRITES_X = 8
+   179	    NUM_SPRITES_Y = 6
+   180	
+   181	    def initialize_sprites
+   182	      @overworld_sprite.visible = false
+   183	      # Overworld sprites
+   184	      sprite_width = @overworld_bitmap.width / NUM_SPRITES_X
+   185	      sprite_height = @overworld_bitmap.height / NUM_SPRITES_Y
+   186	      NUM_SPRITES_Y.times do |j|
+   187	        NUM_SPRITES_X.times do |i|
+   188	          idx_sprite = (j * NUM_SPRITES_X) + i
+   189	          @sprites[idx_sprite] = new_sprite(i * sprite_width, j * sprite_height, @overworld_bitmap)
+   190	          @sprites[idx_sprite].src_rect.set(i * sprite_width, j * sprite_height, sprite_width, sprite_height)
+   191	        end
+   192	      end
+   193	    end
+   194	
+   195	    def set_up_timings
+   196	      @start_y = []
+   197	      NUM_SPRITES_Y.times do |j|
+   198	        NUM_SPRITES_X.times do |i|
+   199	          idx_sprite = (j * NUM_SPRITES_X) + i
+   200	          @start_y[idx_sprite] = @sprites[idx_sprite].y
+   201	          @timings[idx_sprite] = 0.5 + rand
+   202	        end
+   203	      end
+   204	    end
+   205	
+   206	    def update_anim
+   207	      proportion = timer / @duration
+   208	      @sprites.each_with_index do |sprite, i|
+   209	        sprite.y = @start_y[i] + (Graphics.height * @timings[i] * proportion * proportion)
+   210	        sprite.opacity = 255 * (1 - proportion)
+   211	      end
+   212	    end
+   213	  end
+   214	
+   215	  #=============================================================================
+   216	  #
+   217	  #=============================================================================
+   218	  class ShrinkingPieces < Transition_Base
+   219	    NUM_SPRITES_X = 8
+   220	    NUM_SPRITES_Y = 6
+   221	
+   222	    def initialize_sprites
+   223	      @overworld_sprite.visible = false
+   224	      # Overworld sprites
+   225	      sprite_width = @overworld_bitmap.width / NUM_SPRITES_X
+   226	      sprite_height = @overworld_bitmap.height / NUM_SPRITES_Y
+   227	      NUM_SPRITES_Y.times do |j|
+   228	        NUM_SPRITES_X.times do |i|
+   229	          idx_sprite = (j * NUM_SPRITES_X) + i
+   230	          @sprites[idx_sprite] = new_sprite((i + 0.5) * sprite_width, (j + 0.5) * sprite_height,
+   231	                                            @overworld_bitmap, sprite_width / 2, sprite_height / 2)
+   232	          @sprites[idx_sprite].src_rect.set(i * sprite_width, j * sprite_height, sprite_width, sprite_height)
+   233	        end
+   234	      end
+   235	    end
+   236	
+   237	    def update_anim
+   238	      proportion = timer / @duration
+   239	      @sprites.each_with_index do |sprite, i|
+   240	        sprite.zoom_x = (1 - proportion).to_f
+   241	        sprite.zoom_y = sprite.zoom_x
+   242	        if @parameters[0]   # Rotation
+   243	          direction = (1 - (2 * (((i / NUM_SPRITES_X) + (i % NUM_SPRITES_X)) % 2)))
+   244	          sprite.angle = direction * 360 * 2 * proportion
+   245	        end
+   246	      end
+   247	    end
+   248	  end
+   249	
+   250	  #=============================================================================
+   251	  #
+   252	  #=============================================================================
+   253	  class SplashTransition < Transition_Base
+   254	    NUM_SPRITES_X = 16
+   255	    NUM_SPRITES_Y = 12
+   256	    SPEED         = 40
+   257	
+   258	    def initialize_sprites
+   259	      @overworld_sprite.visible = false
+   260	      # Black background
+   261	      @black_sprite = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+   262	      @black_sprite.bitmap.fill_rect(0, 0, Graphics.width, Graphics.height, Color.black)
+   263	      # Overworld sprites
+   264	      sprite_width = @overworld_bitmap.width / NUM_SPRITES_X
+   265	      sprite_height = @overworld_bitmap.height / NUM_SPRITES_Y
+   266	      NUM_SPRITES_Y.times do |j|
+   267	        NUM_SPRITES_X.times do |i|
+   268	          idx_sprite = (j * NUM_SPRITES_X) + i
+   269	          @sprites[idx_sprite] = new_sprite((i + 0.5) * sprite_width, (j + 0.5) * sprite_height,
+   270	                                            @overworld_bitmap, sprite_width / 2, sprite_height / 2)
+   271	          @sprites[idx_sprite].src_rect.set(i * sprite_width, j * sprite_height, sprite_width, sprite_height)
+   272	        end
+   273	      end
+   274	    end
+   275	
+   276	    def set_up_timings
+   277	      @start_positions = []
+   278	      @move_vectors = []
+   279	      vague = (@parameters[0] || 9.6) * SPEED
+   280	      NUM_SPRITES_Y.times do |j|
+   281	        NUM_SPRITES_X.times do |i|
+   282	          idx_sprite = (j * NUM_SPRITES_X) + i
+   283	          spr = @sprites[idx_sprite]
+   284	          @start_positions[idx_sprite] = [spr.x, spr.y]
+   285	          dx = spr.x - (Graphics.width / 2)
+   286	          dy = spr.y - (Graphics.height / 2)
+   287	          move_x = move_y = 0
+   288	          if dx == 0 && dy == 0
+   289	            move_x = (dx == 0) ? rand_sign * vague : dx * SPEED * 1.5
+   290	            move_y = (dy == 0) ? rand_sign * vague : dy * SPEED * 1.5
+   291	          else
+   292	            radius = Math.sqrt((dx**2) + (dy**2))
+   293	            move_x = dx * vague / radius
+   294	            move_y = dy * vague / radius
+   295	          end
+   296	          move_x += (rand - 0.5) * vague
+   297	          move_y += (rand - 0.5) * vague
+   298	          @move_vectors[idx_sprite] = [move_x, move_y]
+   299	        end
+   300	      end
+   301	    end
+   302	
+   303	    def update_anim
+   304	      proportion = timer / @duration
+   305	      @sprites.each_with_index do |sprite, i|
+   306	        sprite.x = @start_positions[i][0] + (@move_vectors[i][0] * proportion)
+   307	        sprite.y = @start_positions[i][1] + (@move_vectors[i][1] * proportion)
+   308	        sprite.opacity = 384 * (1 - proportion)
+   309	      end
+   310	    end
+   311	
+   312	    #---------------------------------------------------------------------------
+   313	
+   314	    private
+   315	
+   316	    def rand_sign
+   317	      return (rand(2) == 0) ? 1 : -1
+   318	    end
+   319	  end
+   320	
+   321	  #=============================================================================
+   322	  #
+   323	  #=============================================================================
+   324	  class RandomStripeTransition < Transition_Base
+   325	    STRIPE_WIDTH = 2
+   326	
+   327	    def initialize_sprites
+   328	      @overworld_sprite.visible = false
+   329	      # Overworld sprites
+   330	      if @parameters[0] == 0   # Vertical stripes
+   331	        sprite_width = STRIPE_WIDTH
+   332	        sprite_height = @overworld_bitmap.height
+   333	        num_stripes_x = @overworld_bitmap.width / STRIPE_WIDTH
+   334	        num_stripes_y = 1
+   335	      else   # Horizontal stripes
+   336	        sprite_width = @overworld_bitmap.width
+   337	        sprite_height = STRIPE_WIDTH
+   338	        num_stripes_x = 1
+   339	        num_stripes_y = @overworld_bitmap.height / STRIPE_WIDTH
+   340	      end
+   341	      num_stripes_y.times do |j|
+   342	        num_stripes_x.times do |i|
+   343	          idx_sprite = (j * num_stripes_x) + i
+   344	          @sprites[idx_sprite] = new_sprite(i * sprite_width, j * sprite_height, @overworld_bitmap)
+   345	          @sprites[idx_sprite].src_rect.set(i * sprite_width, j * sprite_height, sprite_width, sprite_height)
+   346	        end
+   347	      end
+   348	    end
+   349	
+   350	    def set_up_timings
+   351	      @sprites.length.times do |i|
+   352	        @timings[i] = @duration * i / @sprites.length
+   353	      end
+   354	      @timings.shuffle!
+   355	    end
+   356	
+   357	    def update_anim
+   358	      @sprites.each_with_index do |sprite, i|
+   359	        next if @timings[i] < 0 || timer < @timings[i]
+   360	        sprite.visible = false
+   361	        @timings[i] = -1
+   362	      end
+   363	    end
+   364	  end
+   365	
+   366	  #=============================================================================
+   367	  #
+   368	  #=============================================================================
+   369	  class ZoomInTransition < Transition_Base
+   370	    def initialize_sprites
+   371	      @overworld_sprite.x = Graphics.width / 2
+   372	      @overworld_sprite.y = Graphics.height / 2
+   373	      @overworld_sprite.ox = @overworld_bitmap.width / 2
+   374	      @overworld_sprite.oy = @overworld_bitmap.height / 2
+   375	    end
+   376	
+   377	    def update_anim
+   378	      proportion = timer / @duration
+   379	      @overworld_sprite.zoom_x = 1 + (7 * proportion)
+   380	      @overworld_sprite.zoom_y = @overworld_sprite.zoom_x
+   381	      @overworld_sprite.opacity = 255 * (1 - proportion)
+   382	    end
+   383	  end
+   384	
+   385	  #=============================================================================
+   386	  #
+   387	  #=============================================================================
+   388	  class ScrollScreen < Transition_Base
+   389	    def update_anim
+   390	      proportion = timer / @duration
+   391	      if (@parameters[0] % 3) != 2
+   392	        @overworld_sprite.x = [1, -1, 0][@parameters[0] % 3] * Graphics.width * proportion
+   393	      end
+   394	      if ((@parameters[0] - 1) / 3) != 1
+   395	        @overworld_sprite.y = [1, 0, -1][(@parameters[0] - 1) / 3] * Graphics.height * proportion
+   396	      end
+   397	    end
+   398	  end
+   399	
+   400	  #=============================================================================
+   401	  #
+   402	  #=============================================================================
+   403	  class MosaicTransition < Transition_Base
+   404	    MAX_PIXELLATION_FACTOR = 16
+   405	
+   406	    def initialize_bitmaps
+   407	      @buffer_original = @overworld_bitmap.clone   # Copy of original, never changes
+   408	      @buffer_temp = @overworld_bitmap.clone       # "Clipboard" holding shrunken overworld
+   409	    end
+   410	
+   411	    def set_up_timings
+   412	      @start_black_fade = @duration * 0.8
+   413	    end
+   414	
+   415	    def dispose_all
+   416	      @buffer_original&.dispose
+   417	      @buffer_temp&.dispose
+   418	    end
+   419	
+   420	    def update_anim
+   421	      proportion = timer / @duration
+   422	      inv_proportion = 1 / (1 + (proportion * (MAX_PIXELLATION_FACTOR - 1)))
+   423	      new_size_rect = Rect.new(0, 0, @overworld_bitmap.width * inv_proportion,
+   424	                               @overworld_bitmap.height * inv_proportion)
+   425	      # Take all of buffer_original, shrink it and put it into buffer_temp
+   426	      @buffer_temp.stretch_blt(new_size_rect,
+   427	                               @buffer_original, Rect.new(0, 0, @overworld_bitmap.width, @overworld_bitmap.height))
+   428	      # Take shrunken area from buffer_temp and stretch it into buffer
+   429	      @overworld_bitmap.stretch_blt(Rect.new(0, 0, @overworld_bitmap.width, @overworld_bitmap.height),
+   430	                                    @buffer_temp, new_size_rect)
+   431	      if timer >= @start_black_fade
+   432	        @overworld_sprite.opacity = 255 * (1 - ((timer - @start_black_fade) / (@duration - @start_black_fade)))
+   433	      end
+   434	    end
+   435	  end
+   436	
+   437	  #=============================================================================
+   438	  #
+   439	  #=============================================================================
+   440	  class FadeToBlack < Transition_Base
+   441	    def update_anim
+   442	      @overworld_sprite.opacity = 255 * (1 - (timer / @duration))
+   443	    end
+   444	  end
+   445	
+   446	  #=============================================================================
+   447	  #
+   448	  #=============================================================================
+   449	  class FadeFromBlack < Transition_Base
+   450	    def update_anim
+   451	      @overworld_sprite.opacity = 255 * timer / @duration
+   452	    end
+   453	  end
+   454	
+   455	  #=============================================================================
+   456	  # HGSS wild outdoor
+   457	  #=============================================================================
+   458	  class SnakeSquares < Transition_Base
+   459	    DURATION      = 1.25
+   460	    TIME_TO_ZOOM  = 0.2   # In seconds
+   461	    NUM_SPRITES_X = 8
+   462	    NUM_SPRITES_Y = 6   # Must be an even number
+   463	    TOTAL_SPRITES = NUM_SPRITES_X * NUM_SPRITES_Y
+   464	
+   465	    def initialize_bitmaps
+   466	      @black_bitmap = RPG::Cache.transition("black_square")
+   467	      if !@black_bitmap
+   468	        @disposed = true
+   469	        return
+   470	      end
+   471	      @zoom_x_target = Graphics.width.to_f / (@black_bitmap.width * NUM_SPRITES_X)
+   472	      @zoom_y_target = Graphics.height.to_f / (@black_bitmap.height * NUM_SPRITES_Y)
+   473	    end
+   474	
+   475	    def initialize_sprites
+   476	      NUM_SPRITES_Y.times do |j|
+   477	        NUM_SPRITES_X.times do |i|
+   478	          idx_sprite = (j * NUM_SPRITES_X) + i
+   479	          if idx_sprite >= TOTAL_SPRITES / 2
+   480	            sprite_x = ((j.odd?) ? i : (NUM_SPRITES_X - i - 1)) * @black_bitmap.width
+   481	          else
+   482	            sprite_x = ((j.even?) ? i : (NUM_SPRITES_X - i - 1)) * @black_bitmap.width
+   483	          end
+   484	          sprite_x += @black_bitmap.width / 2
+   485	          @sprites[idx_sprite] = new_sprite(sprite_x, j * @black_bitmap.height * @zoom_y_target,
+   486	                                            @black_bitmap, @black_bitmap.width / 2)
+   487	          @sprites[idx_sprite].zoom_y  = @zoom_y_target
+   488	          @sprites[idx_sprite].visible = false
+   489	        end
+   490	      end
+   491	    end
+   492	
+   493	    def set_up_timings
+   494	      time_between_zooms = (@duration - TIME_TO_ZOOM) * 2 / (TOTAL_SPRITES - 1)
+   495	      NUM_SPRITES_Y.times do |j|
+   496	        NUM_SPRITES_X.times do |i|
+   497	          idx_sprite = (j * NUM_SPRITES_X) + i
+   498	          idx_from_start = (idx_sprite >= TOTAL_SPRITES / 2) ? TOTAL_SPRITES - 1 - idx_sprite : idx_sprite
+   499	          @timings[idx_sprite] = time_between_zooms * idx_from_start
+   500	        end
+   501	      end
+   502	    end
+   503	
+   504	    def dispose_all
+   505	      @black_bitmap.dispose
+   506	    end
+   507	
+   508	    def update_anim
+   509	      @sprites.each_with_index do |sprite, i|
+   510	        next if @timings[i] < 0 || timer < @timings[i]
+   511	        sprite.visible = true
+   512	        sprite.zoom_x = @zoom_x_target * (timer - @timings[i]) / TIME_TO_ZOOM
+   513	        if sprite.zoom_x >= @zoom_x_target
+   514	          sprite.zoom_x = @zoom_x_target
+   515	          @timings[i] = -1
+   516	        end
+   517	      end
+   518	    end
+   519	  end
+   520	
+   521	  #=============================================================================
+   522	  # HGSS wild indoor day (origin=0)
+   523	  # HGSS wild indoor night (origin=3)
+   524	  # HGSS wild cave (origin=3)
+   525	  #=============================================================================
+   526	  class DiagonalBubble < Transition_Base
+   527	    DURATION      = 1.25
+   528	    TIME_TO_ZOOM  = 0.2   # In seconds
+   529	    NUM_SPRITES_X = 8
+   530	    NUM_SPRITES_Y = 6
+   531	    TOTAL_SPRITES = NUM_SPRITES_X * NUM_SPRITES_Y
+   532	
+   533	    def initialize_bitmaps
+   534	      @bitmap = RPG::Cache.transition("black_square")
+   535	      if !@bitmap
+   536	        @disposed = true
+   537	        return
+   538	      end
+   539	      @zoom_x_target = Graphics.width.to_f / (@bitmap.width * NUM_SPRITES_X)
+   540	      @zoom_y_target = Graphics.height.to_f / (@bitmap.height * NUM_SPRITES_Y)
+   541	    end
+   542	
+   543	    def initialize_sprites
+   544	      NUM_SPRITES_Y.times do |j|
+   545	        NUM_SPRITES_X.times do |i|
+   546	          idx_sprite = (j * NUM_SPRITES_X) + i
+   547	          @sprites[idx_sprite] = new_sprite(((i * @bitmap.width) + (@bitmap.width / 2)) * @zoom_x_target,
+   548	                                            ((j * @bitmap.height) + (@bitmap.height / 2)) * @zoom_y_target,
+   549	                                            @bitmap, @bitmap.width / 2, @bitmap.height / 2)
+   550	          @sprites[idx_sprite].visible = false
+   551	        end
+   552	      end
+   553	    end
+   554	
+   555	    def set_up_timings
+   556	      NUM_SPRITES_Y.times do |j|
+   557	        NUM_SPRITES_X.times do |i|
+   558	          idx_from_start = (j * NUM_SPRITES_X) + i   # Top left -> bottom right
+   559	          case @parameters[0]   # Origin
+   560	          when 1   # Top right -> bottom left
+   561	            idx_from_start = (j * NUM_SPRITES_X) + NUM_SPRITES_X - i - 1
+   562	          when 2   # Bottom left -> top right
+   563	            idx_from_start = TOTAL_SPRITES - 1 - ((j * NUM_SPRITES_X) + NUM_SPRITES_X - i - 1)
+   564	          when 3   # Bottom right -> top left
+   565	            idx_from_start = TOTAL_SPRITES - 1 - idx_from_start
+   566	          end
+   567	          dist = i + (j.to_f * (NUM_SPRITES_X - 1) / (NUM_SPRITES_Y - 1))
+   568	          @timings[idx_from_start] = (dist / ((NUM_SPRITES_X - 1) * 2)) * (@duration - TIME_TO_ZOOM)
+   569	        end
+   570	      end
+   571	    end
+   572	
+   573	    def dispose_all
+   574	      @bitmap.dispose
+   575	    end
+   576	
+   577	    def update_anim
+   578	      @sprites.each_with_index do |sprite, i|
+   579	        next if @timings[i] < 0 || timer < @timings[i]
+   580	        sprite.visible = true
+   581	        size = (timer - @timings[i]) / TIME_TO_ZOOM
+   582	        sprite.zoom_x = @zoom_x_target * size
+   583	        sprite.zoom_y = @zoom_y_target * size
+   584	        next if size < 1.0
+   585	        sprite.zoom_x = @zoom_x_target
+   586	        sprite.zoom_y = @zoom_y_target
+   587	        @timings[i] = -1
+   588	      end
+   589	    end
+   590	  end

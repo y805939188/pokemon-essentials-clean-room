@@ -1,0 +1,308 @@
+3:分类：Engine/Overworld Integration。本文件描述 overworld 画面必须满足的可观察规则：地图如何被绘制、角色与物品如何呈现、天气与屏幕效果如何叠加、场景切换时哪些可见状态保持或重建。全部内容为静态证据；一切实际视觉结果、动画时序与宿主输出均未运行验证（见 `../scope-statement.md`）。
+9:**范围**：① 地图绘制（图块层、自动图块动画、显示偏移与滚动、邻图拼接、优先级/桥/反射分层）；② 角色与附属呈现（角色图与图块图、图案帧、灌木深度、反射、冲浪基点、动态阴影、日夜着色）；③ 天气与屏幕效果（天气类型与淡入、色调/闪烁/震动、雾与全景、计时器与图片）；④ 场景刷新与视觉过渡（地图切换时可见内容的重建与保持、转场入口）。
+18:- **优先级与分层**：图块按优先级决定 Z 序；桥、反射、雾、天气、画面效果各有固定分层。
+60:- 居中脚本包装：先校验目标在当前地图内，再校验速度落在0–6范围；任一失败输出对应诊断并返回，不改镜头或新建卷动。当前中心已等于目标时直接返回；速度0一次写入，1–6按双轴计时等待。SnapEdges可使目标无法真正位于屏中心。以玩家为目标的包装沿同一校验与等待规则。**居中距离须保留每轴初始显示状态的整数／浮点前提**，不能只凭数值写成0就认定连续除法：整数屏幕宽高W/H给中心偏移 Bx＝2(W−32)、By＝2(H−32)（子像素）；每轴起始显示Ca、目标格坐标za，该轴当前中心qa在Ca为整数时是⌊(Ca+Ba)/128⌋，在Ca为浮点时为连续商(Ca+Ba)/128。该轴卷动距离为za−qa，未钳边终点为Ca+128(za−qa)，名义时长为其绝对格数×T(s)。混合轴分别取各自商；负整数商也向下取整，不能向0截断。连续终点128za−Ba只适用于该轴连续除法前提；地图建立可产生整数显示，途中插值/带小数的卷动可产生浮点显示，二者均不预设为唯一正常状态。512×384屏幕、目标(10,8)、SnapEdges假，整数(0,0)给中心(7,5)、距离(3,3)、终点(384,384)、速度4各.6秒；.5秒到(320,320)仍在途。浮点(0.0,0.0)给中心(7.5,5.5)、距离(2.5,2.5)、终点(320.0,320.0)、各.5秒。横轴整数0／纵轴浮点0.0则终点(384,320)、时长.6/.5秒。目标(0,0)、整数起点(−961,−705)时中心商(−1,−1)，终点(−833,−577)、速度4各.2秒；相同数值的浮点起点则终点(−960,−704)，不合并这两个状态。
+64:源追溯：固定R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，`004_Game classes/004_Game_Map.rb` 323–394、439–460、497–565（blob `3fda78303080bf7be450d110ecaf9df834bec691`）；`010_Data/002_PBS data/018_MapMetadata.rb` 15/46/105（`0f9bd8a556d8f352148da0047e7d387c625a544c`）；`016_UI/020_UI_PokeMart.rb` 242–244/299–320/345–362（`e91b66e29e0b26b691ec5b8f4c06d5902f4911e7`）。路径均以 `Data/Scripts/` 为根；203及线性时间端点另定点核 `003_Game processing/004_Interpreter_Commands.rb` 784–789、`001_Technical/002_RubyUtilities.rb` 62–78、400–406；初始整数显示的消费者另核 `004_Game classes/008_Game_Player.rb` 12–13、254–264。未重新全域检索数值运算覆写，沿固定独立报告的限定文本结论；此数学是兼容状态／输入输出合同，不规定未来数值类型或实现结构。静态向量见 GR3-CAM01–GR3-CAM18。
+83:高192扩展源的图样1/2/4/8分别直接取32×32矩形(0,128)/(32,128)/(32,160)/(0,160)，横坐标另加96×帧号；其余沿表。图样改变只约束可见结果，不规定必须更新源矩形或采用某个渲染器。
+111:| 主层 | 0 | 地图、事件、玩家、跟随者、雾（排序值 3000）、天气（相对 +1） |
+128:- **反射**：玩家及名称含 reflection 的角色可有倒影；用水平镜像与180°旋转形成净垂直翻转，保持上移2像素的锚点偏移。排序 −50（玩家再+1）。非玩家 `reflection(非负整数)` 固定高度，其余跟随桥高度。高度>0 时叠色(48,96,160,255)、不透明度沿父值，TIME_SHADING 开启则隐藏；高度0 时叠色(224,224,224,96)、不透明度为父值×3/4，不另乘3/4亮度。父不透明度128时两分支分别128/96。父不可见时不呈现倒影。
+137:- 画面级天气色调与日夜色调分别作用于不同逻辑显示层（天气在其叠加层，角色在主层）。
+144:| 04 | −60,−70,−5,50 |
+149:| 19–20 | −15,−60,−10,20 |
+152:四通道均按分钟/60在当前与下一整点间线性插值，23点下一小时回绕0。缓存需要重算时读取当前宿主时钟；缓存有效期由运行时钟计30秒，不能在缓存未过期时承诺新时刻值立即出现。明暗度另取当天分钟m，午后换为1440−m，结果为整数向下取整(255×m/720)。无天气叠加、户外、TIME_SHADING开启且缓存需刷新时：00:00色调(−70,−90,15,55)，06:30为(−40,−50,−35,50)、明暗138；12:00色调0、明暗255；18:30为(−10,−45,−15,10)。06:30两端相同，不能单独证明插值边界。
+163:| 定位 | 位置0/1/2为目标顶/中/底：x是目标图中心，y为目标图顶、半高或全高（有效高度>1）。屏幕位置3在有视口时为其宽/2、高−160，无视口为320/240；只保留兼容锚点，不要求固定视口组织。 |
+186:## 5. 天气与屏幕效果（C）
+188:### 5.1 天气
+190:- **天气类型**：注册 9 种——None、Rain、Storm、Snow、Blizzard、Sandstorm、HeavyRain、Sun、Fog；类别归并为 Rain（含 Storm/HeavyRain）/Hail（Snow/Blizzard）/Sandstorm/Sun/Fog/None；各类型登记粒子/叠层图形与色调过程；Rain 类有自动浇水树果的玩法消费（交界，不展开）。
+191:- **设置语义**（天气设置入口：类型、强度、时长三参）：类型经数据注册校验；强度 → **粒子上限＝（强度＋1）×6**（以粒子上限总数 60 为基准的比例）；时长保存为天气淡入标记——**正时长启用固定阶段淡入，时长为 0 时立即切换**（不是实际时长数值）。
+192:- **淡入/切换**：淡入入口只在**类型变化**时被画面整体更新流程调用；入口内**先判「正在淡入则返回」**，再判「类型与上限均无变化则返回」，之后才看时长——**不是任何 0 时长请求都能立即切换**：已有过渡在途时新请求被守卫拒绝，旧目标与当前过渡继续（屏幕保留新请求，后续全局更新按类型比较重新判断；不能写成已立刻生效，也不能写成一定永久丢弃）。通过守卫后：正时长按**固定阶段时序**推进（阶段按帧时增量累积，并受旧天气时间偏移影响——旧类型为 None 时 +2、旧类型无叠层时 +1；结束另须旧粒子不再可见）：旧粒子基础阶段 **1–3**、旧色调 0–2、旧叠层 0–1、新粒子 2–4、新色调 3–5、新叠层 4–5（相对阶段，非传入时长的比例）；时长非正走立即切换分支。None 类型上限归零。
+193:- **同类型强度变化（参考快照行为）**：屏幕记录的类型与上限都会更新，但画面整体更新流程**仅在当前天气对象的类型与屏幕类型不同**时才调用淡入入口——同类型仅改强度时，天气对象不会再次收到新上限，**可见粒子上限不能据源码保证刷新**（天气对象内部的「同类型同上限则返回」分支只有被调用时才有效，不是全局消费者保证）。
+194:- **滚动跟随**：天气显示层偏移跟随地图显示偏移；跨图时按相对偏移平移天气粒子保持连续（无连接偏移则归零重置）。
+195:- **地图天气**：地图元数据的天气字段驱动的设置入口（字段存在性在案；消费者链未穷尽，具名未验证）。
+197:### 5.1.1 默认天气数据与特殊更新
+199:下表 s 为稳定天气的粒子强度（0–60），速度单位像素/秒；未给的粒子透明度变化和叠层速度为0。资源身份在天气图目录下，身份不同不证明实际像素不同。
+201:| 身份/编号/类别 | 粒子资源；叠层资源 | 粒子速度x,y；叠层速度x,y | 基础色调R,G,B,Gray |
+204:| Rain/1/Rain | rain_1…rain_4；无 | −600,2400；0,0 | −s/2,−s/2,−s/2,10 |
+205:| Storm/2/Rain | storm_1…storm_4；无 | −3600,3600；0,0 | −3s/4,−3s/4,−3s/4,10 |
+207:| Blizzard/4/Hail | blizzard_1…blizzard_4；blizzard_tile | −720,240；−1200,600 | 3s/4,3s/4,3s/4,0 |
+209:| HeavyRain/6/Rain | storm_1…storm_4；无 | −3600,3600；0,0 | −3s/4,−3s/4,−3s/4,10 |
+213:Rain类别从0起偶数粒子为雨滴，奇数为最后资源的水花：水花不沿雨滴速度移动；寿命到期的重置当次透明度255并立即返回（如新寿命0.40秒），不执行普通隐藏门；仅普通且本次未重置的更新按剩余寿命<0.2秒时透明度255，否则0（剩余0.30→0、0.19→255）。Snow横移另叠加与屏幕高度比例相关的加速及随机扰动，纵移按索引模6的[2,1,1,0,0,−1]作基础速度的十分比调整；所以基础速度不是所有雪粒子的唯一实际位移。
+241:- **计时器**：业务剩余=初始秒数−当前游戏秒数+起点。起点存在才显示（数值0起点也是存在），负剩余显示夹0，显示格式为两位分钟:秒；达到0不清运行标志。停止清起点、隐藏，业务读数0；不要求清旧初始秒数。起点100、初始61、当前101得到60、显示01:00；开始0秒仍显示00:00。
+258:  2. **全局显示内容**（玩家、跟随者、天气、图片、计时器的显示）：传送时**保持不重建**，由各自驱动源继续驱动；天气偏移按相对偏移调整、无连接偏移归零重置（§5.1）。
+315:- **基线默认**：标准 8 自动图块（帧 5/20 秒）；额外自动图块表为空；无天气（None）；雾/全景按地图字段；日夜着色按 `TIME_SHADING` 与户外标记；反射按地形与名称模式。
+323:- 地图切换无连接偏移：网格与天气全量重绘/重置（§3.1、§5.1）。
+326:- 天气类型未注册：按数据身份校验规则报错。
+331:静态推导场景（未运行）见测试目录 [`../test-catalog/engine-overworld-wp16.md`](../test-catalog/engine-overworld-wp16.md) 的 WR01–WR17、B04-W及XC系列及 GR3-CAM01–GR3-CAM18（滚动/单位换算与量化/拼接/切图/自动图块/桥/反射/天气守卫三态/同类型强度/跨图天气/日夜着色/传送状态边界/震动/镜头计时与钳边）；所有向量 `NOT_EXECUTED`。
+341:3. 地图元数据天气字段的完整消费者链。
+   148	- **编辑器**：属性选择器**可**选 :None、也**可**取消——**两者的属性设置都返回 nil**（编辑缓冲值变为 nil、以「-」展示）；概率为 0–100 的数字选择。该 nil 只是**编辑值**：仅当属性列表最终由**外层保存**路径提交时，才用编辑缓冲重建并登记地图元数据；外层不保存（取消属性列表）→ 原记录保留。因此「选 None」并保存后等价于**清除该字段**（无天气），**不是「保留原值」**。
+   149	- **运行时判定**：进入地图时以 0–99 抽样 < 概率才采用该天气，否则保持 :None——概率 0 → 不可能；100 → 必中；缺失字段 → :None。
+   150	
+   151	### 4.3 应用管线（进入地图时）
+   152	
+   153	1. 仅在**旧地图存在且与当前不同**（真实转移）时触发；同图刷新不重掷。
+   154	2. 默认新天气＝:None；若当前地图元数据有天气且以 0–99 抽样 < 概率 → 取该类型。
+   155	3. **与当前世界天气类型相同则跳过**（不产生渐入/重置；同类型仅改强度不会经显示层刷新，见 §4.5）。
+   156	4. 否则局部写类型、power9（强度60）、duration0。真实连接边缘跨图在进入通知后另写duration20，显示后读正值并选择既有固定渐变；显式跨图转移重建显示且无这次连接后写时保持0。因此局部0不等于任意换图最终立即。正在渐变时守卫阻止打断，类型相同/旧图0等跳过门保留；20不是20秒。
+   157	- 天气意图（类型/强度/时长）只存在于屏幕状态；显示层每帧只在意图**类型** ≠ 显示类型时启动渐入——**意图强度/参数的单独变化不会触发该显示刷新**。
+   158	- **无自动过期**：世界天气一旦设定，**没有计时器使其自行结束**；改变只能来自下一次转移（重掷）或事件命令（§4.4）。
+   159	
+   160	### 4.4 事件命令入口
+   161	
+   162	- 解释器命令 236（设定天气效果）：参数＝（类型, power, duration）→ 直接写天气意图；power 0–9 映射意图强度 `(p＋1)×6`（6–60）。**duration 的语义按消费者实际行为登记**：`＝0` 走立即切换；**正数只用于「选择渐入路径」**——正值大小**不参与**渐入计时（渐入按显示层的固定分段时间线推进，§4.5），**名义结束阈值与 duration 数值无关**（None→非 None 对照下名义约 3 秒）。命令可在任意地图使用、不看元数据、不重掷概率（事件责任）。
+   163	- 调试菜单可读写战斗天气（战斗环境规格；与本节世界天气不同源）。
+   164	
+   165	### 4.5 显示层（行为摘要，非渲染实现）
+   166	
+   167	- **渐入由类型差异触发**：仅当意图类型 ≠ 显示类型才渐入；同一类型仅改意图强度时该路径不被调用，**显示强度不随之更新**（静态边界；不对 0/9 做算术映射代替消费者效果）。
+   168	- **固定分段时间线**：渐入按固定分界常量推进（旧平铺淡出→旧色调段→旧粒子衰减→新粒子/新色调/新平铺的固定先后），**正值 duration 不改变各段长度**；渐入**结束还要求旧粒子全部不可见**（等待旧粒子自然消亡），「名义结束时间」以分段常量与起始天气偏移（0/1/2 段）推算——None→非 None 对照下名义约 3 秒；实际帧边界保留（运行未决）。
+   169	- 每帧：粒子系统上限 60；粒子按数据速率移动、出界重置（雨/雪按方向从屏幕右/上重生）；平铺层在旧色调段后换层且随摄像机原点滚动（跨地图连接有偏移）；雨的水花索引特殊。
+   170	- 风暴闪光、太阳脉冲、雪摆动和水花按§4.1参数与特殊更新；雾只覆盖平铺层，既有固定渐变阶段保持。
+   171	- 世界天气显示随地图摄像机坐标更新偏移；不规定实例数或对象归属。
+   172	
+   173	### 4.6 消费者与交界
+   174	
+   175	- 遭遇率/等级修正与「按天气类别降遭遇」的特性（遭遇规格引用类别）；
+   176	- 树果自动浇水（树果规格；`:Rain` 类别）；
+   177	- 进化方法按天气类别检查（进化规格）；
+   178	- 回复/驱散类场地招式的「天气阻挡」：**甜味（SweetScent）在当前世界天气 ≠ :None 时被拒**（§5.4）——本文件自己的交界；
+   179	- 战斗天气映射为独立系统（战斗环境规格）；本文件只固定「世界天气标识与战斗标识不通用」。
+   270	**FLY 可选回调的成对静态对照**：直接工具输入合法非空目的地 D=(目标图M,7,5)、可用个体、非空逃脱点 E、初始 fly_count=N；场景/资源/演出、目标图与坐标、地图转移、自动 BGM 和刷新均正常，无其它位置或相关状态写入。回调不写位置/相关领域状态但在该调用处抛普通异常，且演出边界清理正常结束时：统计已为 N+1，已落位(M,7,5,下)，音乐/刷新前缀已发生；随后的 0.25 秒等待未请求，清逃脱点、清飞行目的地、工具正常 true 返回均未达，E 与 D 保留。演出边界清理不吞异常、不执行这两个记录清理；异常继续向调用者传播。若另有合法安排的、尚未处置的地点窗更新机会，保留的 D 仍先于延迟计时重置/消息/换图处置门使更新返回；这只是条件式读者结果，**不声明未处理异常后游戏继续运行**。
+   271	
+   272	反向同一输入仅改为无可选回调，或回调不改位置/相关领域状态且正常返回，并固定后续等待、演出边界及记录清理正常：依表请求等待、先清 E 再清 D，最后工具正常返回 true。若另有合法地点窗更新机会，飞行目的地门解除，曾延迟的窗才按既有次序重置计时并检查后续门（WT36）。可选回调是直接工具支持的输入；固定普通菜单/道具调用点未见传入该回调，真实菜单、事件、插件异常路径及媒体/宿主恢复未证。两例均为未执行的静态设计（WT39–WT40），不扩充全部宿主异常合同。
+   273	
+   274	**瀑布实际启动门**：玩家面朝上，且面向地形为瀑布或瀑布顶，才增加上溯统计、置 ascending_waterfall=true、through=true；门不成立不启动。直接工具在徽章/成员/确认通过后仍可返回 true，即使启动门未过；菜单资格只查徽章与面向瀑布，不查朝向，效果亦可 true 但未启动。向右面向瀑布为 true/无启动对照；向上面向瀑布顶时直接确认工具可启动、菜单拒绝、普通交互仅描述。后续逐步推进及状态恢复引用移动规格。
+   275	
+   276	### 5.8 逃脱点生产与洞穴演出
+   277	
+   278	洞穴进入先写逃脱点，再演出；洞穴退出先清逃脱点，再演出。记录为当前图、身后一格、相反方向。图31、玩家(10,8)时：上→(31,10,9,下)，下→(31,10,7,上)，左→(31,11,8,右)，右→(31,9,8,左)。DIG/逃脱绳使用记录方向；身后格有效是前提，生产入口不保证其有效，洞穴包装本身不执行地图转移或证明 Demo 事件可达。
+   279	
+   280	合法屏幕对象与正常场景下，洞穴演出有 15 层矩形：屏幕宽高为 W/H，水平内缩单位 a=(W/2−12)/15，垂直内缩单位 b=(H/2−10)/15；第 k 层（0–14）边界为 (ka,kb,W−2ka,H−2kb)，由外到内覆盖。第一段名义 0.4 秒：进入灰阶从 255 向 0，退出反向；第 k 层从 k×0.4/15 秒才开始自身 0.4 秒颜色推进并夹住端点，所以不保证全部层在第一段末已到终色。
+   281	
+   282	随后请求进入时屏幕 RGB 色调 (−255,−255,−255)、退出时 (255,255,255)，持续参数 0；第二段名义 0.4 秒把黑/白覆盖透明度 0→255。之后请求屏幕色调恢复为 (0,0,0,0)、持续参数 8，再名义等待 0.1 秒；恢复是请求，不保证 0.1 秒内已完成。演出有图形/输入更新机会，没有地图更新承诺；正常结束释放演出资源。颜色/几何/请求是静态合同，实际素材、渲染、宿主时序与 Demo 均未验证。
+   283	
+   284	## 6. 规则与不变量
+   285	
+   286	1. 时间无游戏内状态：每次读取取宿主时间；时段谓词可由调用方传入时间（缺省当前）；五个细分谓词**不构成互补分区**。
+   287	2. 季节只由月份 `(m−1) % 4` 推导；不读取日期。
+   288	3. 明暗色调缓存 30 秒；**关闭 TIME_SHADING 时色调接口返回既有缓存**（冷缓存才为零；此前已算出的非零缓存关闭后仍非零），明暗度函数仍可用；日夜色调应用接口在非地图场景**直接返回、不清对象色调**，地图色调只应用于室外地图的地图场景（§3.5）。
+   289	4. 世界天气意图（类型/强度/**渐入标志**）作为当前世界显示意图保留；显示层**只在类型不同时**渐入（同类型强度变化不触发该刷新）；**无自动过期**；power 语义 0–9 → 意图强度 6–60；**duration 仅分 0/正数两义**（§4.4/§4.5）。
+   290	5. 进入地图的天气重掷只在真实转移触发一次：默认 :None、概率判定、相同**类型**跳过；PBS 概率无编译器上限；**编辑器：None/取消→编辑值 nil，外层保存才提交（保存即清字段）**。
+   291	6. 能力按招式身份区分；资格判定与执行效果均可用才有可用能力；未支持的WHIRLPOOL等会在入口被筛除，不规定注册表或执行响应结构。
+   292	7. 各入口按相同徽章资格规则判定；调试模式与徽章号 < 0 恒真；计数/特定徽章配置切换「计数 vs 特定徽章」语义；DIG/HEADBUTT/SWEETSCENT/TELEPORT 不受徽章门。
+   293	8. 界面能力流程的效果层不重复资格检查；直接工具自带检查；两者的世界副作用差异按 §5.3 表登记（CUT/ROCKSMASH 最显著）。
+   294	9. 冲浪、潜水、瀑布升降、闪光、治疗点与逃脱点的领域状态/保存归属保持；力量使用与遭遇修正按地图重置并可保存，统计全局累计。这里规定状态生存期，不规定全局对象或地图容器结构。
+   295	10. 场地能力对遭遇系统的同步点（SURF 开始/结束重置步计数；HEADBUTT/ROCKSMASH/SWEETSCENT 请求遭遇；遭遇规格引用）。
+   296	
+   297	## 7. 边界与失败
+   298	
+   299	- 时间倒退（宿主时钟回拨）：日期比较「不同日」即可触发每日效果（病毒每日、事件过期判定以时间戳差为准）；本文件不作因果保证，按比较语义登记。
+   300	- 时段边界：h＝10–13 无细分谓词命中；h＝20 同时满足 day 的补集与 night（day＝20 起为假、night＝20 起为真）。
+   301	- 天气：概率 0 与缺失均得 :None；同图不重掷；转移到「无天气字段」的地图会**清除**原有天气（默认 :None）；事件命令可无视元数据设定任意类型/强度。
+   302	- 天气演出期间再改天气：显示层渐入中再次渐入被忽略（进行中的渐入不打断），意图值更替要在其渐入完成后才被采纳（渐入守卫先行返回）。
+   303	- 徽章：所需编号超出已定义徽章数时，特定徽章资格按假值处理（缺失视为假值）；计数模式下 badge_count 与具体徽章数量无关（可达 0–8＋）。
+   304	- 能力别名缺失：未注册招式在快捷列表**可见位置**被静默筛除（不报错）；调试模式只绕开**被检查函数内**的徽章检查与「缺省个体时查找队伍会招式者」门，**不绕过快捷菜单的收集条件**（逐个体要求「非蛋且掌握对应招式」——即使调试模式，若没有任何非蛋会 FLY 成员，FLY 不会进入候选），也不绕地形/状态/事件名条件（§5.1 第 2 条）。
+   305	- DIG/TELEPORT/FLY 成功且正常返回的清点按§5.7顺序；FLY须满足正常回调、等待及清理前提，地图转移完成不替代整个工具正常返回；失败/回调异常或改写不补事务保证。有效地图场景/显示、map_changed为真且新图announce_location为真时，地点窗仍按WP16§5.5的前图同名与NO_SIGNPOSTS禁配对规则抑制或请求。FLY目的地尚未清除时延迟守卫优先；曾延迟的窗在清除后重启计时，正常更新的消息或换图处置门保持。
+   306	- SURF 临时状态（GR4-M03-002）：`surf_base_coords` 与 `ending_surf` 可跨更新机会保留。上水先提交冲浪/计数/基点，再尝试前跳；前跳被拒时不回滚，也不启动本次跳跃计时。正常201场景消费保留冲浪/潜水，直接默认转移清这两个载具标记，但转移链、落位和载具刷新均没有独立清临时基点/结束标记的写入。须有地图场景中的玩家步后通知且基点非空才清基点；结束标记为真才额外取消载具、重置遭遇、恢复地图BGM并清结束标记（[WP12 §5.2](wp12-terrain-movement-vehicles.md)、WP61 §3.2）。因此无合格通知/其它写入时，失败上水后同图201的转移正常返回可保留旧基点；游泳仍真时显示输入取旧基点，而非新玩家坐标（[WP11 §4](wp11-map-topology-transfer.md)、WP16 §4.3）。人工结束标记真会先阻止解释器到达正常201，只用于直接转移/等待门条件对照；不宣称默认永久卡死、真实像素或Demo可达。GR4-SF01–GR4-SF07 全为 `NOT_EXECUTED`；未来是否主动清理的兼容政策另定，不作为固定参考事实。固定R追溯：`Data/Scripts/012_Overworld/004_Overworld_FieldMoves.rb` 705–751，`004_Game classes/006_Game_Character.rb` 767–799、935–983，`008_Game_Player.rb` 188–193、262–266、575–592，`003_Game processing/002_Scene_Map.rb` 72–101、121–133、165–175，`003_Interpreter.rb` 116–123，`005_Sprites/005_Sprite_SurfBase.rb` 44–79。
+   307	- 摇树：面向事件在确认与执行之间消失 → **执行路径在再次取事件后为空时直接访问坐标 → 抛异常**（统计可能已＋1，无安全失败消息；§5.4）。
+   308	- 返回形式分级：显式布尔／无值／内部末值／异常／失败前写入（§5.4）——不给统一全域保证。
+   309	- 同类型强度：稳定天气仅改 power → 意图变化但显示刷新不触发（§4.5）。
+   310	- 编辑器：选 None/取消只改编辑值；不保存不提交，保存则字段被清（§4.2）。
+   311	- 所有「真实地图/事件可达性」与宿主媒体表现：运行未决（U01）。
+   312	
+   313	## 8. 默认行为与配置变体
+   314	
+   315	| 配置/数据 | 当前默认 | 影响 |
+   316	| --- | --- | --- |
+   317	| `TIME_SHADING` | true | 地图色调、战斗背景时段计算；关闭时色调接口**返回既有缓存**（冷缓存才为零，§3.5） |
+   318	| `FIELD_MOVES_COUNT_BADGES` | true | 徽章门语义（计数 vs 特定） |
+   319	| `BADGE_FOR_CUT/FLASH/ROCKSMASH/SURF/FLY/STRENGTH/DIVE/WATERFALL` | 1/2/3/4/5/6/7/8 | 各族徽章门；可整体改 false 用具体徽章号 |
+   320	| 地图元数据 Weather | 无默认（缺省 :None） | [类型,概率]；PBS 概率无上限；**编辑器 None/取消→nil、保存才提交（保存即清字段）** |
+   321	| 天气数据 | 9 种固定注册 | 类别/图形/速率/色调 |
+   322	| 时段边界 | 5/10/14/17/20 等 | §3.2 |
+   323	| 季节映射 | 月号取模 | §3.3 |
+   324	| 色调缓存 | 30 秒 | §3.5 |
+   325	| 摇树概率档 | 8/5/1（十分制） | §5.5 |
+   326	
+   327	未验证组合：真实地图天气编排与 Demo 事件（U01）；宿主时钟精度/时区（运行）；战斗天气映射组合（战斗环境规格）；插件对时间/天气的覆写。
+   328	
+   329	## 9. 示例场景与测试目录
+   330	
+   350	          fraction = (@fade_time - [FADE_NEW_TILES_START - @time_shift, 0].max) / (FADE_NEW_TILES_END - FADE_NEW_TILES_START)
+   351	          sprite.opacity = 255 * fraction
+   352	        else
+   353	          sprite.opacity = 0
+   354	        end
+   355	      else
+   356	        sprite.opacity = (@max > 0) ? 255 : 0
+   357	      end
+   358	    end
+   359	
+   360	    # Set tone of viewport (general screen brightening/darkening)
+   361	    def update_screen_tone
+   362	      weather_type = @type
+   363	      weather_max = @max
+   364	      fraction = 1
+   365	      tone_red = 0
+   366	      tone_green = 0
+   367	      tone_blue = 0
+   368	      tone_gray = 0
+   369	      # Get base tone
+   370	      if @fading
+   371	        if @type == @target_type   # Just changing max
+   372	          if @fade_time >= [FADE_NEW_TONE_START - @time_shift, 0].max &&
+   373	             @fade_time < [FADE_NEW_TONE_END - @time_shift, 0].max
+   374	            weather_max = @target_max
+   375	            fract = (@fade_time - [FADE_NEW_TONE_START - @time_shift, 0].max) / (FADE_NEW_TONE_END - FADE_NEW_TONE_START)
+   376	            tone_red = @target_tone.red + ((1 - fract) * (@old_tone.red - @target_tone.red))
+   377	            tone_green = @target_tone.green + ((1 - fract) * (@old_tone.green - @target_tone.green))
+   378	            tone_blue = @target_tone.blue + ((1 - fract) * (@old_tone.blue - @target_tone.blue))
+   379	            tone_gray = @target_tone.gray + ((1 - fract) * (@old_tone.gray - @target_tone.gray))
+   380	          else
+   381	            tone_red = @viewport.tone.red
+   382	            tone_green = @viewport.tone.green
+   383	            tone_blue = @viewport.tone.blue
+   384	            tone_gray = @viewport.tone.gray
+   385	          end
+   386	        elsif @time_shift < 2 && @fade_time >= FADE_OLD_TONE_START && @fade_time < FADE_OLD_TONE_END
+   387	          weather_max = @old_max
+   388	          fraction = ((@fade_time - FADE_OLD_TONE_START) / (FADE_OLD_TONE_END - FADE_OLD_TONE_START)).clamp(0, 1)
+   389	          fraction = 1 - fraction
+   390	          tone_red = @old_tone.red
+   391	          tone_green = @old_tone.green
+   392	          tone_blue = @old_tone.blue
+   393	          tone_gray = @old_tone.gray
+   394	        elsif @fade_time >= [FADE_NEW_TONE_START - @time_shift, 0].max
+   395	          weather_type = @target_type
+   396	          weather_max = @target_max
+   397	          fraction = ((@fade_time - [FADE_NEW_TONE_START - @time_shift, 0].max) / (FADE_NEW_TONE_END - FADE_NEW_TONE_START)).clamp(0, 1)
+   398	          tone_red = @target_tone.red
+   399	          tone_green = @target_tone.green
+   400	          tone_blue = @target_tone.blue
+   401	          tone_gray = @target_tone.gray
+   402	        end
+   403	      else
+   404	        base_tone = get_weather_tone(weather_type, weather_max)
+   405	        tone_red = base_tone.red
+   406	        tone_green = base_tone.green
+   407	        tone_blue = base_tone.blue
+   408	        tone_gray = base_tone.gray
+   409	      end
+   410	      # Modify base tone
+   411	      if weather_type == :Sun
+   412	        @sun_magnitude = weather_max if @sun_magnitude != weather_max && @sun_magnitude != -weather_max
+   413	        @sun_magnitude *= -1 if (@sun_magnitude > 0 && @sun_strength > @sun_magnitude) ||
+   414	                                (@sun_magnitude < 0 && @sun_strength < 0)
+   415	        @sun_strength += @sun_magnitude.to_f * Graphics.delta / 0.8   # 0.8 seconds per half flash
+   416	        tone_red += @sun_strength
+   417	        tone_green += @sun_strength
+   418	        tone_blue += @sun_strength / 2
+   419	      end
+   420	      # Apply screen tone
+   421	      @viewport.tone.set(tone_red * fraction, tone_green * fraction,
+   422	                         tone_blue * fraction, tone_gray * fraction)
+   423	    end
+   424	
+   425	    def update_fading
+   426	      return if !@fading
+   427	      old_fade_time = @fade_time
+   428	      @fade_time += Graphics.delta
+   429	      # Change tile bitmaps
+   430	      if @type != @target_type
+   431	        tile_change_threshold = [FADE_OLD_TONE_END - @time_shift, 0].max
+   432	        if old_fade_time <= tile_change_threshold && @fade_time > tile_change_threshold
+   433	          @tile_x = @tile_y = 0.0
+   434	          if @weatherTypes[@target_type] && @weatherTypes[@target_type][2].length > 0
+   435	            w = @weatherTypes[@target_type][2][0].width
+   436	            h = @weatherTypes[@target_type][2][0].height
+   437	            @tiles_wide = (Graphics.width.to_f / w).ceil + 1
+   438	            @tiles_tall = (Graphics.height.to_f / h).ceil + 1
+   439	            ensureTiles
+   440	            @tiles.each_with_index { |sprite, i| set_tile_bitmap(sprite, i, @target_type) }
+   441	          else
+   442	            @tiles_wide = @tiles_tall = 0
+   443	          end
+   444	        end
+   445	      end
+   446	      # Reduce the number of old weather particles
+   447	      if @max > 0 && @fade_time >= [FADE_OLD_PARTICLES_START - @time_shift, 0].max
+   448	        fraction = (@fade_time - [FADE_OLD_PARTICLES_START - @time_shift, 0].max) / (FADE_OLD_PARTICLES_END - FADE_OLD_PARTICLES_START)
+   449	        @max = @old_max * (1 - fraction)
+   450	        # NOTE: Sprite visibilities aren't updated here; a sprite is allowed to
+   451	        #       die off naturally in def reset_sprite_position.
+   452	      end
+   453	      # Increase the number of new weather particles
+   454	      if @new_max < @target_max && @fade_time >= [FADE_NEW_PARTICLES_START - @time_shift, 0].max
+   455	        fraction = (@fade_time - [FADE_NEW_PARTICLES_START - @time_shift, 0].max) / (FADE_NEW_PARTICLES_END - FADE_NEW_PARTICLES_START)
+   456	        @new_max = (@target_max * fraction).floor
+   457	        @new_sprites.each_with_index { |sprite, i| sprite.visible = (i < @new_max) if sprite }
+   458	      end
+   459	      # End fading
+   460	      if @fade_time >= ((@target_type == :None) ? FADE_OLD_PARTICLES_END : FADE_NEW_TILES_END) - @time_shift &&
+   461	         @sprites.none? { |sprite| sprite.visible }
+   462	        @type                 = @target_type
+   463	        @max                  = @target_max
+   464	        @target_type          = nil
+   465	        @target_max           = nil
+   466	        @old_max              = nil
+   467	        @new_max              = nil
+   468	        @old_tone             = nil
+   469	        @target_tone          = nil
+   470	        @fade_time            = 0.0
+   471	        @time_shift           = 0
+   472	        @sprites.each { |sprite| sprite&.dispose }
+   473	        @sprites              = @new_sprites
+   474	        @new_sprites          = []
+   475	        @sprite_lifetimes     = @new_sprite_lifetimes
+   476	        @new_sprite_lifetimes = []
+   477	        @fading               = false
+   478	      end
+   479	    end
+   480	
+   481	    def update
+   482	      update_fading
+   483	      update_screen_tone
+   484	      # Storm flashes
+   485	      if @type == :Storm && !@fading
+   486	        if @time_until_flash > 0
+   487	          @time_until_flash -= Graphics.delta
+   488	          if @time_until_flash <= 0
+   489	            @viewport.flash(Color.new(255, 255, 255, 230), rand(2..4) * 20)
+   490	          end
+   491	        end
+   492	        if @time_until_flash <= 0
+   493	          @time_until_flash = rand(1..12) * 0.5   # 0.5-6 seconds
+   494	        end
+   495	      end
+   496	      @viewport.update
+   497	      # Update weather particles (raindrops, snowflakes, etc.)
+   498	      if @weatherTypes[@type] && @weatherTypes[@type][1].length > 0
+   499	        ensureSprites
+   500	        MAX_SPRITES.times do |i|
+   501	          update_sprite_position(@sprites[i], i, false)
+   502	        end
+   503	      elsif @sprites.length > 0
+   504	        @sprites.each { |sprite| sprite&.dispose }
+   505	        @sprites.clear
+   506	      end
+   507	      # Update new weather particles (while fading in only)
+   508	      if @fading && @weatherTypes[@target_type] && @weatherTypes[@target_type][1].length > 0
+   509	        ensureSprites
+   510	        MAX_SPRITES.times do |i|
+   511	          update_sprite_position(@new_sprites[i], i, true)
+   512	        end
+   513	      elsif @new_sprites.length > 0
+   514	        @new_sprites.each { |sprite| sprite&.dispose }
+   515	        @new_sprites.clear
+   516	      end
+   517	      # Update weather tiles (sandstorm/blizzard/fog tiled overlay)
+   518	      if @tiles_wide > 0 && @tiles_tall > 0
+   519	        ensureTiles
+   520	        recalculate_tile_positions
+   521	        @tiles.each_with_index { |sprite, i| update_tile_position(sprite, i) }
+   522	      elsif @tiles.length > 0
+   523	        @tiles.each { |sprite| sprite&.dispose }
+   524	        @tiles.clear
+   525	      end
+   526	    end
+   527	  end
+   528	end

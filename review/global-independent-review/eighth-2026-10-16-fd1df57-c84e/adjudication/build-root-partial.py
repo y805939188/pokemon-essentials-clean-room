@@ -49,6 +49,7 @@ world003_counter, w003b = take("adjudication/root-world003-counterreview.json")
 world_int_reception, wintb = take("adjudication/root-world-int001-reception.json")
 world_int002, wint002b = take("adjudication/root-world-int002-counterreview.json")
 ui003_counter, ui003b = take("adjudication/root-ui003-counterreview.json")
+world004_counter, w004b = take("adjudication/root-world004-counterreview.json")
 
 records = []
 def add(id_, classification, severity, reason, evidence, binding, *, proposer=None, reviewer=None, extra=None):
@@ -200,6 +201,14 @@ add("GR8-UI-003", "optional", None,
            "origin_proposal_id": "GR8-UI-003.v1", "required_rejected": True,
            "optional_adoption": "USER_DECISION; not automatically adopted"})
 
+add("GR8-WORLD-004", "required", "P3",
+    "采纳单一跨稿引用限定修正：WP61§3.3将Repel比较者写可战，但同篇可战排濒死，正确WP36及默认配置却选首非蛋可濒死。合法濒死50/后续可战10/野生20默认仍拒绝，不能被更早无可战门排除。只校正WP61括注，保持WP36、计数/续用/雷达/能力/GR011，不强制新增目录测试。",
+    world004_counter["complete_proposal"], world004_counter["proposal_binding"],
+    proposer="/root/world_full", reviewer="/root",
+    extra={"independent_counterreview": world004_counter,
+           "independent_counterreview_binding": w004b,
+           "exact_history_dedup": "PENDING; no old closure reopened"})
+
 counts = {"required": sum(r["classification"] == "required" for r in records),
           "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
           "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),
@@ -209,18 +218,18 @@ out = {
     "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe", "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
     "status": "PARTIAL_REVIEW_NO_GLOBAL_PASS", "whole_review_required_count": None,
     "bounded_counts": counts,
-    "counts_qualification": "仅此已接收22项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
+    "counts_qualification": "仅此已接收23项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
     "records": records, "root_read_complete_payloads": inputs,
     "root_read_credit": "完整独立反证/提案文件的综合接收，不冒充root已逐个重读其全部原source/formal，也不授其它领域覆盖。PBSW001另有root真实独立全读证据。",
-    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本22项required/optional或全域NO_REQUIRED_UPDATE。",
+    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本23项required/optional或全域NO_REQUIRED_UPDATE。",
     "separate_rejected_original_candidate": "adjudication/root-ui002-reception.json: GR8-UI-002 v1异常反例已驳回，不计required/optional，不自动替换为显示缺项。",
     "pending_proposals_outside_this_receipt": ["后续新提案仍持续进入；全量未读、跨域及历史接收尚未完成。"],
     "actual_configuration": dict.fromkeys(["model", "effort", "tier", "speed", "opaque_platform_id"], "UNVERIFIED"),
     "requested_configuration": {"model": "gpt-6.1-sol", "effort": "ultra", "tier": "default", "speed": "normal/Fast off"},
     "behavior_execution_credit": 0, "update_started": False, "final_marker": "UPDATE_NOT_STARTED",
 }
-assert len(records) == 22 and len({r["id"] for r in records}) == 22
-assert sum(r["classification"] == "required" for r in records) == 18
+assert len(records) == 23 and len({r["id"] for r in records}) == 23
+assert sum(r["classification"] == "required" for r in records) == 19
 p = ROOT / "adjudication/root-decisions.partial.json"
 p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
 print(json.dumps({"path": str(p), "bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "status": out["status"], "bounded_counts": out["bounded_counts"]}, ensure_ascii=False))

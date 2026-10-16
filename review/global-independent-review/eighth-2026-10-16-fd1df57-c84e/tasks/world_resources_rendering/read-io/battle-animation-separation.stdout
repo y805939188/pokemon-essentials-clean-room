@@ -1,0 +1,226 @@
+   824	  def pbDisplayPaused(msg, &block)
+   825	    @scene.pbDisplayPausedMessage(msg, &block)
+   826	  end
+   827	
+   828	  def pbDisplayConfirm(msg)
+   829	    return @scene.pbDisplayConfirmMessage(msg)
+   830	  end
+   831	
+   832	  # defaultValue of -1 means "can't cancel". If it's 0 or greater, returns that
+   833	  # value when pressing the "Back" button.
+   834	  def pbShowCommands(msg, commands, defaultValue = -1)
+   835	    return @scene.pbShowCommands(msg, commands, defaultValue)
+   836	  end
+   837	
+   838	  def pbAnimation(move, user, targets, hitNum = 0)
+   839	    @scene.pbAnimation(move, user, targets, hitNum) if @showAnims
+   840	  end
+   841	
+   842	  def pbCommonAnimation(name, user = nil, targets = nil)
+   843	    @scene.pbCommonAnimation(name, user, targets) if @showAnims
+   844	  end
+   845	
+   846	  def pbShowAbilitySplash(battler, delay = false, logTrigger = true)
+   847	    PBDebug.log("[Ability triggered] #{battler.pbThis}'s #{battler.abilityName}") if logTrigger
+   848	    return if !Scene::USE_ABILITY_SPLASH
+   849	    @scene.pbShowAbilitySplash(battler)
+   850	    if delay
+   851	      timer_start = System.uptime
+   852	      until System.uptime - timer_start >= 1   # 1 second
+   853	        @scene.pbUpdate
+   854	      end
+   360	    return if !ball
+   361	    # Data box disappear animation
+   362	    dataBoxAnim = Animation::DataBoxDisappear.new(@sprites, @viewport, idxBattler)
+   363	    timer_start = System.uptime
+   364	    loop do
+   365	      dataBoxAnim.update
+   366	      ball.opacity = lerp(255, 0, 1.0, timer_start, System.uptime)
+   367	      pbUpdate
+   368	      break if dataBoxAnim.animDone? && ball.opacity <= 0
+   369	    end
+   370	    dataBoxAnim.dispose
+   371	  end
+   372	
+   373	  def pbThrowAndDeflect(ball, idxBattler)
+   374	    @briefMessage = false
+   375	    throwAnim = Animation::PokeballThrowDeflect.new(
+   376	      @sprites, @viewport, ball, @battle.battlers[idxBattler]
+   377	    )
+   378	    loop do
+   379	      throwAnim.update
+   380	      pbUpdate
+   381	      break if throwAnim.animDone?
+   382	    end
+   383	    throwAnim.dispose
+   384	  end
+   385	
+   386	  #=============================================================================
+   387	  # Hides all battler shadows before yielding to a move animation, and then
+   388	  # restores the shadows afterwards
+   389	  #=============================================================================
+   390	  def pbSaveShadows
+   391	    # Remember which shadows were visible
+   392	    shadows = Array.new(@battle.battlers.length) do |i|
+   393	      shadow = @sprites["shadow_#{i}"]
+   394	      ret = (shadow) ? shadow.visible : false
+   395	      shadow.visible = false if shadow
+   396	      next ret
+   397	    end
+   398	    # Yield to other code, i.e. playing an animation
+   399	    yield
+   400	    # Restore shadow visibility
+   401	    @battle.battlers.length.times do |i|
+   402	      shadow = @sprites["shadow_#{i}"]
+   403	      shadow.visible = shadows[i] if shadow
+   404	    end
+   405	  end
+   406	
+   407	  #=============================================================================
+   408	  # Loads a move/common animation
+   409	  #=============================================================================
+   410	  # Returns the animation ID to use for a given move/user. Returns nil if that
+   411	  # move has no animations defined for it.
+   412	  def pbFindMoveAnimDetails(move2anim, moveID, idxUser, hitNum = 0)
+   413	    real_move_id = GameData::Move.try_get(moveID)&.id || moveID
+   414	    noFlip = false
+   415	    if (idxUser & 1) == 0   # On player's side
+   416	      anim = move2anim[0][real_move_id]
+   417	    else                # On opposing side
+   418	      anim = move2anim[1][real_move_id]
+   419	      noFlip = true if anim
+   420	      anim = move2anim[0][real_move_id] if !anim
+   421	    end
+   422	    return [anim + hitNum, noFlip] if anim
+   423	    return nil
+   424	  end
+   425	
+   426	  # Returns the animation ID to use for a given move. If the move has no
+   427	  # animations, tries to use a default move animation depending on the move's
+   428	  # type. If that default move animation doesn't exist, trues to use Tackle's
+   429	  # move animation. Returns nil if it can't find any of these animations to use.
+   430	  def pbFindMoveAnimation(moveID, idxUser, hitNum)
+   431	    begin
+   432	      move2anim = pbLoadMoveToAnim
+   433	      # Find actual animation requested (an opponent using the animation first
+   434	      # looks for an OppMove version then a Move version)
+   435	      anim = pbFindMoveAnimDetails(move2anim, moveID, idxUser, hitNum)
+   436	      return anim if anim
+   437	      # Actual animation not found, get the default animation for the move's type
+   438	      moveData = GameData::Move.get(moveID)
+   439	      target_data = GameData::Target.get(moveData.target)
+   440	      moveType = moveData.type
+   441	      moveKind = moveData.category
+   442	      moveKind += 3 if target_data.num_targets > 1 || target_data.affects_foe_side
+   443	      moveKind += 3 if moveData.status? && target_data.num_targets > 0
+   444	      # [one target physical, one target special, user status,
+   445	      #  multiple targets physical, multiple targets special, non-user status]
+   446	      typeDefaultAnim = {
+   447	        :NORMAL   => [:TACKLE,       :SONICBOOM,    :DEFENSECURL, :EXPLOSION,  :SWIFT,        :TAILWHIP],
+   448	        :FIGHTING => [:MACHPUNCH,    :AURASPHERE,   :DETECT,      nil,         nil,           nil],
+   449	        :FLYING   => [:WINGATTACK,   :GUST,         :ROOST,       nil,         :AIRCUTTER,    :FEATHERDANCE],
+   450	        :POISON   => [:POISONSTING,  :SLUDGE,       :ACIDARMOR,   nil,         :ACID,         :POISONPOWDER],
+   451	        :GROUND   => [:SANDTOMB,     :MUDSLAP,      nil,          :EARTHQUAKE, :EARTHPOWER,   :MUDSPORT],
+   452	        :ROCK     => [:ROCKTHROW,    :POWERGEM,     :ROCKPOLISH,  :ROCKSLIDE,  nil,           :SANDSTORM],
+   453	        :BUG      => [:TWINEEDLE,    :BUGBUZZ,      :QUIVERDANCE, nil,         :STRUGGLEBUG,  :STRINGSHOT],
+   454	        :GHOST    => [:LICK,         :SHADOWBALL,   :GRUDGE,      nil,         nil,           :CONFUSERAY],
+   455	        :STEEL    => [:IRONHEAD,     :MIRRORSHOT,   :IRONDEFENSE, nil,         nil,           :METALSOUND],
+   456	        :FIRE     => [:FIREPUNCH,    :EMBER,        :SUNNYDAY,    nil,         :INCINERATE,   :WILLOWISP],
+   457	        :WATER    => [:CRABHAMMER,   :WATERGUN,     :AQUARING,    nil,         :SURF,         :WATERSPORT],
+   458	        :GRASS    => [:VINEWHIP,     :MEGADRAIN,    :COTTONGUARD, :RAZORLEAF,  nil,           :SPORE],
+   459	        :ELECTRIC => [:THUNDERPUNCH, :THUNDERSHOCK, :CHARGE,      nil,         :DISCHARGE,    :THUNDERWAVE],
+   460	        :PSYCHIC  => [:ZENHEADBUTT,  :CONFUSION,    :CALMMIND,    nil,         :SYNCHRONOISE, :MIRACLEEYE],
+   461	        :ICE      => [:ICEPUNCH,     :ICEBEAM,      :MIST,        nil,         :POWDERSNOW,   :HAIL],
+   462	        :DRAGON   => [:DRAGONCLAW,   :DRAGONRAGE,   :DRAGONDANCE, nil,         :TWISTER,      nil],
+   463	        :DARK     => [:PURSUIT,      :DARKPULSE,    :HONECLAWS,   nil,         :SNARL,        :EMBARGO],
+   464	        :FAIRY    => [:TACKLE,       :FAIRYWIND,    :MOONLIGHT,   nil,         :SWIFT,        :SWEETKISS]
+   465	      }
+   466	      if typeDefaultAnim[moveType]
+   467	        anims = typeDefaultAnim[moveType]
+   468	        if GameData::Move.exists?(anims[moveKind])
+   469	          anim = pbFindMoveAnimDetails(move2anim, anims[moveKind], idxUser)
+   470	        end
+   471	        if !anim && moveKind >= 3 && GameData::Move.exists?(anims[moveKind - 3])
+   472	          anim = pbFindMoveAnimDetails(move2anim, anims[moveKind - 3], idxUser)
+   473	        end
+   474	        if !anim && GameData::Move.exists?(anims[2])
+   475	          anim = pbFindMoveAnimDetails(move2anim, anims[2], idxUser)
+   476	        end
+   477	      end
+   478	      return anim if anim
+   479	      # Default animation for the move's type not found, use Tackle's animation
+   480	      if GameData::Move.exists?(:TACKLE)
+   481	        return pbFindMoveAnimDetails(move2anim, :TACKLE, idxUser)
+   482	      end
+   483	    rescue
+   484	    end
+   485	    return nil
+   486	  end
+   487	
+   488	  #=============================================================================
+   489	  # Plays a move/common animation
+   490	  #=============================================================================
+   491	  # Plays a move animation.
+   492	  def pbAnimation(moveID, user, targets, hitNum = 0)
+   493	    animID = pbFindMoveAnimation(moveID, user.index, hitNum)
+   494	    return if !animID
+   495	    anim = animID[0]
+   496	    target = (targets.is_a?(Array)) ? targets[0] : targets
+   497	    animations = pbLoadBattleAnimations
+   498	    return if !animations
+   499	    pbSaveShadows do
+   500	      if animID[1]   # On opposing side and using OppMove animation
+   501	        pbAnimationCore(animations[anim], target, user, true)
+   502	      else           # On player's side, and/or using Move animation
+   503	        pbAnimationCore(animations[anim], user, target)
+   504	      end
+   505	    end
+   506	  end
+   507	
+   508	  # Plays a common animation.
+   509	  def pbCommonAnimation(animName, user = nil, target = nil)
+   510	    return if nil_or_empty?(animName)
+   511	    target = target[0] if target.is_a?(Array)
+   512	    animations = pbLoadBattleAnimations
+   513	    return if !animations
+   514	    animations.each do |a|
+   515	      next if !a || a.name != "Common:" + animName
+   516	      pbAnimationCore(a, user, target || user)
+   517	      return
+   518	    end
+   519	  end
+   520	
+   521	  def pbAnimationCore(animation, user, target, oppMove = false)
+   522	    return if !animation
+   523	    @briefMessage = false
+   524	    userSprite   = (user) ? @sprites["pokemon_#{user.index}"] : nil
+   525	    targetSprite = (target) ? @sprites["pokemon_#{target.index}"] : nil
+   526	    # Remember the original positions of Pokémon sprites
+   527	    oldUserX = (userSprite) ? userSprite.x : 0
+   528	    oldUserY = (userSprite) ? userSprite.y : 0
+   529	    oldTargetX = (targetSprite) ? targetSprite.x : oldUserX
+   530	    oldTargetY = (targetSprite) ? targetSprite.y : oldUserY
+   531	    # Create the animation player
+   532	    animPlayer = PBAnimationPlayerX.new(animation, user, target, self, oppMove)
+   533	    # Apply a transformation to the animation based on where the user and target
+   534	    # actually are. Get the centres of each sprite.
+   535	    userHeight = (userSprite&.bitmap && !userSprite.bitmap.disposed?) ? userSprite.bitmap.height : 128
+   536	    if targetSprite
+   537	      targetHeight = (targetSprite.bitmap && !targetSprite.bitmap.disposed?) ? targetSprite.bitmap.height : 128
+   538	    else
+   539	      targetHeight = userHeight
+   540	    end
+   541	    animPlayer.setLineTransform(
+   542	      FOCUSUSER_X, FOCUSUSER_Y, FOCUSTARGET_X, FOCUSTARGET_Y,
+   543	      oldUserX, oldUserY - (userHeight / 2), oldTargetX, oldTargetY - (targetHeight / 2)
+   544	    )
+   545	    # Play the animation
+   546	    animPlayer.start
+   547	    loop do
+   548	      animPlayer.update
+   549	      pbUpdate
+   550	      break if animPlayer.animDone?
+   551	    end
+   552	    animPlayer.dispose
+430:  def pbFindMoveAnimation(moveID, idxUser, hitNum)
+521:  def pbAnimationCore(animation, user, target, oppMove = false)
