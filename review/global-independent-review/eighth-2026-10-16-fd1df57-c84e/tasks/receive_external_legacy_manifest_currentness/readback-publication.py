@@ -65,7 +65,7 @@ def main():
              'bare':str(BARE),'remote_only_no_alternates':True,'exact_set':True,
              'files':verified,'file_count':len(verified),'bytes':sum(r['bytes'] for r in verified),
              'operations':operations,'all_modes_blobs_bytes_sha256_match':True,
-             'semantic_credit':0,'task_semantic_status':'INCOMPLETE','update_started':False}
+             'semantic_credit':0,'task_semantic_status':json.loads(subprocess.check_output(git+['show',args.commit+':'+PREFIX+'/publication.json'],cwd=REPO))['status'],'update_started':False}
     if args.receipt:
         rel=Path(args.receipt)
         assert not rel.is_absolute() and '..' not in rel.parts
