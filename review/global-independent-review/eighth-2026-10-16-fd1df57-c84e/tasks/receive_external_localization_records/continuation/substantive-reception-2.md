@@ -73,3 +73,7 @@ ItemBall先strict get/正数量、portion单复数、Bag.add后成功/口袋消�
 三species原四行头已单独读完，未读D记录仍4827；全部18头现已读或接收。I01/I02/I05/I06及I07的目标历史资格贡献已完成有限接收；I03/I04只等D实际记录/别名接收。I07对原56/37原合同未收的声明完整保留给主审，绝不改写成那些历史正文已通过。
 
 普通提交40652b316a4d1ef7a1fe5ec3dc3081c74705b895完整远端回读462文件/63406340字节，checkout tree b4b6d2e08f01c84d708813296973e766f7791dd9，task tree32b55f37b55179a69086311aac967f24b58a4c68；凭据publication-interface2.receipt.json。后继工具修正-r/-z仅解决非ASCII路径身份核对，失败保留，不是业务测试。D实际结果未到前仍INCOMPLETE，持续等待与接收。
+
+后继核验将3,324个必要字段组合的11,647个字段槽逐项接到真实读者：6,058原语料字面槽已接收、150新字面槽已读、3,330缺席槽已读，2,109原语料槽等待D。这只是4,827条D记录的别名接合，不增加另一批记录分母。35路径没有实际空s字段。A/B/C对d14a合同基线的实际变化分别仅18/19/14路径，全部在各自parts写集；只复用已取固定提交，未重造传输身份或重复逐字阅读。
+
+环境断连通知后实际命令b2a7f1成功exit0，可继续；见environment-status.json。后继51db82bdcfd30980efdfa164ba705df5b11ad5c9已普通push并完整回读472载荷/65155023字节，checkout tree0be61792875579a06683fd371207e8f7a7951cad，task tree954a619aeaaaafc6ce77128d6aa134b50e177bbb，凭据publication-purpose.receipt.json。该保全不改变D未接收或ROOT最终签收边界。

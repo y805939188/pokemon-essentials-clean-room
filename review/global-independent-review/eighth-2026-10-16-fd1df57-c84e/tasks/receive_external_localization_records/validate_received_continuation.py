@@ -122,6 +122,14 @@ def pbs():
                 assert r[3] == r[1]
             for f, ref in zip(fields, r[5]):
                 actual = source['fields'].get(f)
+                is_form = p['family'] == 'species' and 'forms' in p['path']
+                if is_form and (f == 'Name' or (actual is None and f in ['Category','Pokedex'])):
+                    expected_ref = ['BASE', r[3][0], f]
+                elif actual is not None:
+                    expected_ref = ['RAW', fields.index(f)]
+                else:
+                    expected_ref = ['DEFAULT', family['base_missing'][fields.index(f)]]
+                assert ref == expected_ref
                 if ref[0] == 'RAW': assert ref[1] == fields.index(f) and actual is not None
                 elif ref[0] == 'DEFAULT':
                     assert actual is None and ref[1] == family['base_missing'][fields.index(f)]
@@ -138,6 +146,8 @@ def pbs():
         for ordinal, (source, r) in enumerate(zip(rawrows, p['records']), 1):
             assert ordinal == r[0] and source['header'] == r[1]
             assert [source['fields'][f][1] for f in ['Name', 'Description']] == r[3]
+            assert r[2][0] <= source['start'] <= r[2][1]
+            assert all(r[2][0] <= source['fields'][f][0] <= r[2][1] for f in ['Name','Description'])
         checked.append({'path': p['path'], 'records': len(rawrows), 'all_name_description_values_match': True})
     save('continuation/pbs-field-binding/provider-comparison.json', {
         'scope': 'Eight provided finite localization projections; remaining27 receive only own required-field projection, not full PBS records.',
