@@ -6,12 +6,26 @@ scratch=Path('/workspace/scratch')/name
 if scratch.exists():raise SystemExit('readback target already exists; use new isolated name')
 scratch.mkdir(mode=0o700)
 cache=scratch/'input-object-cache';(cache/'info').mkdir(parents=True)
-(cache/'pack').symlink_to(repo/'.git/objects/pack',target_is_directory=True)
+source_cache=Path(sys.argv[3]) if len(sys.argv)>3 else Path('/workspace/scratch/r8-readback-b8-only-cache.git')
+cache_scope_raw=(source_cache/'cache-input-scope.json').read_bytes()
+cache_scope=json.loads(cache_scope_raw)
+assert cache_scope['allowed_commit_closure']=='fd1df570cad987dc3852a3b958f03916e317f7fe'
+assert cache_scope['actual_pack_object_ids_equal_exact_B8_closure'] is True
+assert not (source_cache/'objects/info/alternates').exists()
+assert {p.name for p in (source_cache/'objects/pack').iterdir()}=={entry['name'] for entry in cache_scope['pack_files']}
+for entry in cache_scope['pack_files']:
+ pack_file=source_cache/'objects/pack'/entry['name']
+ digest=hashlib.sha256()
+ with pack_file.open('rb') as stream:
+  for chunk in iter(lambda:stream.read(1024*1024),b''):digest.update(chunk)
+ assert pack_file.stat().st_size==entry['bytes'] and digest.hexdigest()==entry['sha256']
+(cache/'pack').symlink_to(source_cache/'objects/pack',target_is_directory=True)
 bare=scratch/'remote.git'
 events=[]
 def run(args,check=True):
+ start=datetime.datetime.now(datetime.timezone.utc).isoformat()
  p=subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
- events.append({'command':args,'exit':p.returncode,'stdout':p.stdout.decode('utf-8','replace')[:2000],'stderr':p.stderr.decode('utf-8','replace')[:2000]})
+ events.append({'command':args,'start_utc':start,'end_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'exit':p.returncode,'stdout':p.stdout.decode('utf-8','replace'),'stderr':p.stderr.decode('utf-8','replace')})
  if check and p.returncode:raise RuntimeError(events[-1])
  return p
 run(['git','init','--bare',str(bare)])
@@ -49,6 +63,6 @@ if manifest_path in by_path:
   assert len(raw)==row['original_bytes'] and hashlib.sha256(raw).hexdigest()==row['original_sha256']
   assert subprocess.check_output(['git','hash-object','--stdin'],input=raw).decode().strip()==row['original_git_blob']
   restored.append({'original_path':row['original_path'],'mode':row['original_mode'],'bytes':len(raw),'sha256':row['original_sha256'],'git_blob':row['original_git_blob'],'container_path':row['container_path'],'readback':'REMOTE_CONTAINER_FULLY_READ_AND_EXACT_ORIGINAL_BYTES_VERIFIED'})
-receipt={'schema':'gr8-remote-readback/v2','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':commit,'report_tree':tree,'remote':'https://github.com/y805939188/pokemon-essentials-clean-room.git','isolated_git_dir':str(bare),'old_input_cache':'Only preexisting packed input objects, excluding current report loose objects; target commit proved absent before fetch','files':rows,'count':len(rows),'bytes':sum(x['bytes'] for x in rows),'compressed_originals':restored,'compressed_original_count':len(restored),'compressed_original_bytes':sum(r['bytes'] for r in restored),'status':'VERIFIED','semantic_credit':'NONE: transport byte verification only','events':events,'update_started':False}
+receipt={'schema':'gr8-remote-readback/v3','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':commit,'report_tree':tree,'remote':'https://github.com/y805939188/pokemon-essentials-clean-room.git','isolated_git_dir':str(bare),'old_input_cache':'Exact fixed B8 ancestor object closure only; pack membership and bytes checked, no alternates; target commit proved absent before actual full-SHA remote fetch','cache_scope_sha256':hashlib.sha256(cache_scope_raw).hexdigest(),'cache_scope':cache_scope,'verifier_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'files':rows,'count':len(rows),'bytes':sum(x['bytes'] for x in rows),'compressed_originals':restored,'compressed_original_count':len(restored),'compressed_original_bytes':sum(r['bytes'] for r in restored),'status':'VERIFIED','semantic_credit':'NONE: transport byte verification only','events':events,'update_started':False}
 out=root/'publication'/(name+'.json');out.write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({k:receipt[k] for k in ['commit','report_tree','count','bytes','status']},ensure_ascii=False))

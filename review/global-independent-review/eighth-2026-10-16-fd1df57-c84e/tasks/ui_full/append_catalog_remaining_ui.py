@@ -1,0 +1,133 @@
+"""Explicit manual remaining UI claims; table indexing never supplies semantic credit."""
+import json,datetime
+from pathlib import Path
+B=Path(__file__).parent;p=B/'catalog-mapping.json';d=json.loads(p.read_text());path=Path(d['identity']['path']);rows={}
+for n,line in enumerate(path.read_text().splitlines(),1):
+ if line.startswith('| '):rows.setdefault(line.split('|')[1].strip(),[]).append((n,line))
+items=[]
+def a(id,units,text):items.append((id,units.split(',') if units else [],text.split(' / ')))
+for id,units,text in [
+('U05-TX01','UI67-U004','忙非暂停计时不足USE/可取消BACK仅恢复 / 字数速度计时不变 / 不选不取消 / 确认同'),
+('U05-TX02','UI67-U003','普通/暂停USE推进至边界不同列表 / 普通1秒暂停非末3秒保持'),
+('U05-TX03','UI67-U004','中间暂停USE/BACK仅解除 / 不全显不返选项'),
+('U05-TX04','UI67-U004','全显USE0 / BACK1 / default-1忙BACK不恢复 / 初Yes及可中止不自动保持'),
+('U05-AR01','UI67-U005','初count0心技0基线100 / 首提示后假 / 1/2不判 / 3技3体100双倒 / 补Eevee保count3技3基线提示'),
+('U05-AR02','UI67-U005','4无提示count4技4体115双倒 / 补Bulba基线100 / 5count5技5体105双倒决定5 / 不复位旧历史不重开'),
+('U05-RF01','UI67-U008','2扣0退1终退2 / T满一次治疗 / 退款不清消费身份 / 不只未执行退款'),
+('U05-RF02','UI67-U008','野怪撑过下轮直清 / 或使用者失能先清 / 两者最终1不再退'),
+('U05-RF03','UI67-U008','容量拒当次无加内部错 / 保扣治或先退款 / 不保后续清理恢复退出 / 不推默认满'),
+('U05-NG01','UI67-U014','毒型80首击目标δ先提交 / JABO20 U81→61 T耗JABO / ORAN10 U71及记录持久写 / 第二击空物品身份首次失败早第二HP / 保PP首击持物 / 不保恢复终局退出窗口 / AI预测不运行证据'),
+('R4-CM01','UI17-U036','普通帮助BACK优先可取消2返1 / 负取消返-1 / USE不覆盖0'),
+('R4-CM02','UI17-U036','cancel0双键USE确认0 / 仅BACK等待'),
+('R4-CM03','UI17-U036','单USE0 / 单BACK1'),
+('R4-CM04','UI17-U020,UI17-U036','先repeat0→1更新help / 同轮USE返1 / 不套数量单分支'),
+('R4-NM01','UI17-U019,UI17-U032','USE+BACK及USE确认1 / 仅BACK-1 / USE先出口'),
+('R4-NM02','UI17-U019,UI17-U032','先UP1→2 / 加不加BACK同轮USE确认2'),
+('R4-NM03','UI17-U019,UI17-U032','定范围3编辑4 / USE越界蜂鸣留等 / BACK该轮不处理 / 后单BACK-1'),
+('R4-NM04','UI17-U032','事件UP+USE+BACK确认2写变量刷新 / 单BACK写初1 / 非通用-1'),
+('R4-SK01','UI17-U004,UI17-U015','Selected优先 / 无选项配置首项 / 不后备'),
+('R4-SK02','UI17-U004,UI17-U015','Selected缺冷读Custom / 保存逻辑结果后仍Custom'),
+('R4-SK03','UI17-U004,UI17-U015','Selected及system缺/空/无记录均SystemWindow'),
+('R4-SK04','UI17-U004,UI17-U015','再缺System选Blue01 / 再缺Blue空并后读空'),
+('R4-SK05','UI17-U015','显式Missing空不冷退Custom / 单窗亦不自动冷链 / 旧释放后像素未知'),
+('R4-SK06','UI17-U015,UI65-U008','消息空标签清窗皮肤 / 预览先写选项显式空再消费 / 不从空名推所有窗无皮肤'),
+('R4-WR01','UI17-U027','AB宽12仍一行 / B x8 / 不硬拆长串'),
+('R4-WR02','UI17-U027','A B词起点12 / 20+2超12整体B下行'),
+('R4-WR03','UI17-U027','显式换行两行 / 短A一行'),
+('R4-WR04','UI17-U028','pg一般路径AB一行 / A B两行 / 显式两行 / pg无字不保证同像素'),
+('R4-WR05','UI17-U027,UI17-U028','20+2=22一行 / >21 B下 / 两路径同逻辑不裸20'),
+('R4-WR06','UI17-U018,UI17-U027','生成换行才满行暂停 / 连AB超宽不新行 / 摘要34A宽272连续同一行 / 显式换行新行 / 不专滚不证可见'),
+('R4-AN01','UI67-U016','默认EMBER10 / 精确40加hit2得42'),
+('R4-AN02','UI67-U016','删EMBER选SUNNY20 / 再删选TACKLE30'),
+('R4-AN03','UI67-U016','三候选映射尽空静默 / 与库缺不同阶段'),
+('R4-AN04','UI67-U016','敌Opp11优先无翻 / 缺Opp共用10'),
+('R4-AN05','UI67-U016','多目标本INCIN40 / 缺退单EMBER10 / 身份未登跳过 / 原始类别不世代重判'),
+('R4-AN06','UI67-U016','默认hit2仍10 / Off领域跳 / 库缺播放返 / 条件不合并非实际播放'),
+('U06-M10-001-A','UI17-U043,UI17-U050','三行两可见确认忙暂停USE/BACK不解除 / 无真假返回 / 循环更新非应用崩溃'),
+('U06-M10-001-B','UI17-U043','共享普通第三行忙暂停 / brief不越busy门'),
+('U06-M10-001-C','UI17-U043','短A或AB全显共享USE返BACK不返 / brief可返 / 确认USEYes BACKNo'),
+('U06-M10-001-D','UI17-U035,UI17-U043,UI17-U050','PartySummary普通/店确认/通用消息可恢复暂停 / 静态帮助非逐字USEBACK可关'),
+('U06-M10-001-E','UI65-U017,UILC-U018','PC丢弃确认尚未删 / PC取出已储存删袋加 / 净化统计ShadowHyper缎带已写 / 后招EV经验未到 / 不保证后序清理'),
+('U06-M10-002-A','UI67-U016','招式保存隐藏全部影子正常返复混合 / Common不清第三 / 核心位置origin恢复另义'),
+('U06-M10-002-B','UI67-U016','无映射无库早退不隐藏 / 核心异常无必恢复 / 标真非像素'),
+('U06-M10-004-A','UILC-U024','8/20=.4目标 / 不保证8或24刷新及墙钟 / BGMfade2及释放标记恢复序'),
+('U06-M10-004-B','UILC-U024','首次标假USE不能跳 / 自然结束才写'),
+('U06-M10-006-A','UI65-U020','稳定页USE翻下一 / 末页USE退出'),
+('U06-M10-006-B','UI65-U020','稳定页BACK无回调不改不退'),
+('U06-M10-006-C','UI65-U020','BACK+USE仅空BACK / 抑USE页不变'),
+('U06-M10-006-D','UI65-U020','过渡确认回调清不推进 / 新页完成重挂后USE推进'),
+('U06-M10-007-A','UILC-U013','LEFT1,-1,false旧届 / RIGHT1,0,true旧届 / 继续号K+1 / 不写历史K'),
+('U06-M10-007-B','UILC-U013','LEFT届1员-1旧届false退出'),
+('U06-M10-007-C','UILC-U013','RIGHT届0员1旧届true继续'),
+('U06-M10-007-D','UILC-U013','BACK先退 / 无该轮导航'),
+('U06-M10-010-A','UI17-U034','opfalse/startnil默认决定音'),
+('U06-M10-010-B','UI17-U034','optrue/startnil无默认决定音'),
+('U06-M10-010-C','UI17-U034','opfalse/startE请求E'),
+('U06-M10-010-D','UI17-U034','optrue/startE请求E'),
+('U06-M10-010-E','UI17-U034','optrue/start空先分支 / 不交SE不补默认'),
+('U06-M10-010-F','UI17-U034','opfalse/start空也不交不补默认'),
+('U06-M11-003-D','UI63-U006','地图逻辑先上到新治疗点同轮USE新三元组 / BACK更先nil / 更新后旧插值未完不按钮'),
+('U06-M11-003-E','UI63-U009','移动先DOWN重排BAC / USE胜BACK落定 / DOWNBACK还原ABC索引0'),
+('U06-M11-003-G','UI63-U002','Gear DOWN+USE确认原Map不先Phone / Triad组牌BACK撤最近不补选见实际minigames有限完整接收'),
+('U06-M11-003-I','UI63-U006','mode1 USE不返回仍挡ACTION / mode0无USE分支可ACTION切 / BACK优先退出'),
+('U06-M11-003-L','UI63-U009','移动DOWN后ACTION落定胜BACK / 普通先更新ACTION入移动不关不命令'),
+('U06-M11-005-MAP','UI63-U006','发起当轮先逻辑可按钮 / 后续读回未到拒输入 / 到点同轮恢复 / 名义.1非墙钟判定'),
+('JXN-NAME05','UI65-U002,UI17-U031','预览先服务再存档名共享消耗Alice / 新名Bob不重载仍Alice / 全局Alice先服务则预览Bob不覆 / 保材料独立可变等全部前提'),
+('U10-CP01','UI67-U007','盒同A / 队BCDEF / N未入 / 四记忆未移'),
+('U10-CP02','UI67-U007','暂停正常返四记忆先移清尾 / 再N第六 / 入队提示后初物回填'),
+('U10-CP03','UI67-U007','SendBox存N / 原队不删 / 不移替换记忆'),
+('U10-CP04','UI67-U007','选人BACK去向菜单 / A未离场存删 / 记忆未移N待 / 先图鉴名不撤'),
+('U10-CP05','UI67-U007','send2无送盒 / 去向BACK99循环 / 选人不可取消 / 正常仍CP01/02'),
+('U10-CP06','UI67-U007','消息受控异常保A已盒已删 / 记忆未移N未队 / 不保队列清终局恢复 / 非默认取消'),
+('U10-CP07','UI67-U007','N第六已队 / 四记忆已移清 / 入队暂停新初物空 / 正常返才X'),
+('U10-CP08','UI67-U007','直接双满存盒失败默认Peer无消息能力失败 / 早于删A / 非CP06 / 已图鉴离场前缀保'),
+('U10-CP09','UI67-U004','send0 BACK99送N盒 / 原队记忆不变 / 不同选人BACK回菜单'),
+('U10-SF01','UI67-U005','队1盒全满放 / 球10→9刷新投掷请求 / 捕获后正常接收才队2非保证'),
+('U10-SF02','UI67-U005','队6盒全满拒 / 球10无投 / 提示返重显无本回末逃逸'),
+('U10-SF03','UI67-U005','队6盒有空放 / 球9刷新投 / 成功正常才盒 / 无满队换入问'),
+('U10-SF04','UI67-U005','放后异常保扣9不保证退或接收退出 / 拒提示异常未扣但重显未知'),
+('U10-SF05','UI67-U005','Run结局3 / 末球失败先球尽2非逃逸 / 因子成功4保持')]:a(id,units,text)
+for id,units,text in [
+('R7-U02-SS01','UI17-U049','目录有先生成N / 不建目录 / 仅A主请求返后资源真音 / 不B'),
+('R7-U02-SS02','UI17-U049','生成N建相对Screenshots / A请求 / 返后条件音'),
+('R7-U02-SS03','UI17-U049','资源假主请求不变 / 返后检查无音'),
+('R7-U02-SS04','UI17-U049','目录查/建普通捕获错 / 不重取名 / B解析N一次请求 / 正常返后条件音'),
+('R7-U02-SS05','UI17-U049','主截图错先A后B同名一次 / 外部主前缀未知 / 不保回退成功'),
+('R7-U02-SS06','UI17-U049','回退目录首次错传播 / 未回退截图无音 / 无二次回退'),
+('R7-U02-SS07','UI17-U049','回退截图错传播 / 无音检查不再试 / 外部已前缀不撤'),
+('R7-U02-SS08','UI17-U049','取时或命名错在保护前 / 不回退不音'),
+('R7-U02-SS09','UI17-U049','相同毫秒可同N / 不保唯一原子覆盖像素文件'),
+('R7-U02-SS10','UI17-U049','F8无沿无请求非取消 / 有沿无额外确认取消'),
+('R7-U02-SS11','UI17-U049','截图正常返后资源/音错保请求 / 不回滚不保音恢复'),
+('R7-U02-SS12','UI17-U049','退出重启不属捕获族不保证回退发声返 / 不改普通失败'),
+('R7-U02-IN01','UI17-U043','循环内图形输入后出口 / 可见恢复返回 / 无本地尾刷'),
+('R7-U02-IN02','UI17-U043','BACK不退 / brief不忙可返无统一尾刷 / 忙门保持'),
+('R7-U02-IN03','UI17-U043','确认BACKNo USEYes / 释放恢复后无本地尾刷'),
+('R7-U02-IN04','UI17-U050','PartySummary各合法出口保循环刷 / 不补统一尾刷 / 忙四态不改'),
+('R7-U02-IN05','UI17-U035','通用循环后与包装收尾显式刷 / 不保证嵌套仅一次 / 不推广专用'),
+('R7-U02-IN06','UI17-U036','普通选项释放后尾刷 / USE索引BACK2→1或负-1 / cancel0不退'),
+('R7-U02-IN07','UI17-U036','help存在正常循环释放尾刷 / 帮助取消码保持 / 缺命令另路'),
+('R7-U02-IN08','UI17-U036','自由RETURN编辑文ESC原文 / 关输入释放后尾刷 / host事件未执行'),
+('R7-U02-IN09','UI17-U043','静态help循环刷恢复可见再尾刷 / 与共享普通不同'),
+('R7-U02-IN10','UI17-U036','nil普通立即0 / help缺命令不循环 / 不套正常尾刷 / 空数组仍循环'),
+('R7-U02-IN11','UI17-U018,UI17-U043','四态及业务前缀原前提保持 / 未返忙暂停不假正常出口'),
+('R7-U02-IN12','UI17-U035,UI17-U036','块组件错保已前缀 / 释放关输入尾刷可能未到 / 无通用ensure不认证异常恢复'),
+('R7-U02-IN13','','98/99/100注释额外图形0/终后1/终前1 / 解释器101冻结防护非尾输入 / WAIT116及异常深度门完整界限保 / 仅有限WI接收不源码全读'),
+('R7-U02-DB01','','selected-parser普通分配 / a追加 / misc1请求错误不追加 / 后rightshoulder继续追加 / 既有不撤 / 非实际错窗设备USE'),
+('R7-U02-DB02','','识别后分配失败可清绑定计数 / 不同未知名继续 / 非全部前项保 / 非注册全回滚或设备'),
+('R7-U02-DB03','','字段解析无交互取消 / 游戏BACK消费者另合同 / 非字段撤销'),
+('R7-U02-DB04','','目标a/back不等逻辑ACTION/USE/BACK / help不证明绑定 / 更宽桥及设备未授'),
+('R7-U02-DB05','','旧1666+257及731仅结构计数 / 全字段76/48优先级没独立签署 / 退出0非硬件批准')]:a(id,units,text)
+# Twenty-one manually enumerated finite target identities, not source-parsed data.
+buttons=['a','b','x','y','back','guide','start','leftstick','rightstick','leftshoulder','rightshoulder','dpup','dpdown','dpleft','dpright']
+axes=['leftx','lefty','rightx','righty','lefttrigger','righttrigger']
+for j,name in enumerate(buttons,1):a(f'R7-U02-BT{j:02d}','',f'按钮目标{name}有限表命中 / b0源且selected-parser及分配正常才到追加 / 非设备游戏逻辑')
+for j,name in enumerate(axes,1):a(f'R7-U02-AX{j:02d}','',f'轴目标{name}有限表命中 / a0源且selected-parser及分配正常才到追加 / 非设备游戏逻辑')
+for id,units,atoms in items:
+ assert len(rows[id])==1;n,line=rows[id][0];key='UI:'+id;assert not any(x['original_id']==id for x in d['vectors'])
+ peer=[]
+ if id.startswith('R7-U02-DB') or id.startswith('R7-U02-BT') or id.startswith('R7-U02-AX'):peer=['peer-reception.json exact root BIN001 bounded object; source-to-SDL layer distinct from final native query bridge']
+ if id=='R7-U02-IN13':peer=['WI finite interpreter receipt; no own full interpreter credit']
+ if id=='U06-M11-003-G':peer=['minigames-reception.json exact Triad vector contribution']
+ d['vectors'].append({'id':key,'original_id':id,'family':'UI_SUPPLEMENT','formal':{'path':str(path),'line':n,'complete_row':line},'source_units':units,'peer_fact_scope':peer,'assertions':[{'id':key+f'.{j:02d}','claim':s,'evidence':'DERIVED_VECTOR','execution':'NOT_EXECUTED'} for j,s in enumerate(atoms,1)],'premises':'All row original fields and complete section public premises retained, including legal finite input, no competition, normal dependencies and entry-specific failure prefixes. Bounded peer credit remains separate from own source full read. No host/media/real saving/Demo/historical approval granted.','status':'MANUAL_STATIC_RECONCILIATION_WITH_EXPLICIT_BOUNDED_PEER_AND_HOST_LIMITS','business':'NOT_EXECUTED'})
+d['vector_count']=len(d['vectors']);d['atomic_assertions']=sum(len(x['assertions']) for x in d['vectors']);d['utc']=datetime.datetime.now(datetime.timezone.utc).isoformat();p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n');print(json.dumps({'added':len(items),'total_vectors':d['vector_count'],'total_atoms':d['atomic_assertions']}))
