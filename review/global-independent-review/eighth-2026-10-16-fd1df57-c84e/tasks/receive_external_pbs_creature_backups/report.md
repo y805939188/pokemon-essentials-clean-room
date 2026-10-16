@@ -1,6 +1,6 @@
 # pbs_creature_backups 独立接收报告
 
-任务状态：**INCOMPLETE**。本上下文没有完整接收全部当前有效语义，不能给出 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`。已完成的有限接收、可得未读和运行边界分别见下文；原作者的 `FULL_READ` 不转记为本接收者的阅读。`UPDATE_NOT_STARTED`。
+任务状态：**READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE**。已按四个真实独立主读贡献和既有直接接收完成本任务6712记录、212原子、4头声明及12个规定有限接口。root canonical/task-final仍由原主审终签；原作者及其它读者的实读不转记为本上下文亲读。`UPDATE_NOT_STARTED`，全部行为`NOT_EXECUTED`。
 
 合同提交为 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。唯一目标为 `b6f12ecfbe006ef0f2ea463d6689d78094915e75`，checkout tree 为 `fd4d9ee5b2abcd583cd9e180c3f0502e7172e58e`，原任务 tree 为 `b840da3155ee4ade9414e313061f38a188f5ba3b`。从独立 bare 仓库普通 fetch 该准确提交，逐项恢复了 readset 中全部 32 个普通载荷、36,522,662 字节；路径集合、mode、blob、bytes、SHA256 和两级 tree 均匹配。见 `recovery.json`。恢复和机械检查的语义信用为 0。
 
@@ -8,7 +8,48 @@
 
 已全文读取本任务 prompt、完整 readset、241 行全局 prompt、297 行根 AGENTS 和完整指定 skill。指定 skill 仅在适用的最终态技术文档修订中使用，不替代审计合同；本任务不修正规正文。全部写入限本任务目录。
 
-## 累计接收更新：Gen5
+## 四代累计接收与必要接口完成
+
+已实际接收Gen7 `aa765be41e1a9ad978faeb6706f673364a0a3a75`（1059记录/20488绑定/19774处置/58原子/HC-ENCOUNTER）及Gen8 `1f4504d849caa15e25decb49640e1e66fbcc4932`（1237记录/22953绑定/24088处置/46原子/HC-METRICS）。84和24个完整文件分别从新的独立远端bare回读，精确集合、mode/blob/bytes/SHA与checkout/task tree相合；全部原样保存在本目录received/。本次Gen6的23文件与100archive成员也已完整核对。没有执行任何恢复脚本或参考实现。
+
+| 独立实际原文读者 | 记录 | 显式绑定 | 省略处置 |
+| --- | ---: | ---: | ---: |
+| 本接收上下文：既有Encounter/metrics | 2772 | 11872 | 2696 |
+| Gen5：01a144a2-cdca-74e0-a8b6-5f8e90d95021 | 735 | 15811 | 12137 |
+| Gen6：01a144a2-f115-7357-815c-37ff4bb71008 | 909 | 17943 | 16618 |
+| Gen7：父平台派发01a144a3-0dee-733e-a9a4-e379313fc01f | 1059 | 20488 | 19774 |
+| Gen8：01a144a3-2a91-70f0-af3a-b232b52c602f | 1237 | 22953 | 24088 |
+| 累计有限接收 | **6712** | **89067** | **75313** |
+
+四代实际完整主读、具体同代继承及必要消费者资格按原reader保留，root未重复3940条基础/形态原文。Gen7子报告UUID自回显仍UNVERIFIED，不能倒填；其归属使用主审先前实际平台派发的明确线程ID，主审保留最终平台核验。其它实际模型/effort/tier/speed/Fast仍UNVERIFIED。所有212原子、4头的有限含义已接，人口不相加成PASS分母；每条record的最终task批准仍OPEN_NOT_SIGNED。
+
+十个原先未接有限接口已逐一完成四代适用值与必要外域接合，详见现行interfaces.json的逐接口完整意义和具体证据。IF01接发现/显式激活/编译/反写/载入及失败前缀；IF02接形态/getter/handler/Mega/Primal；IF03接既有metrics及实际scene/hatch/trade/cry/资源门；IF05接既有Encounter登记/快照/选择/生成/WildBattle；IF07接具体alias/Seen/Last/UI/whole-object保存；IF08接成长/学习/EV/进化；IF09接具体三池/身份赋值/使用谓词/持久值；CD-I01接谱系/熏香/蛋字段及真实生成/孵化入口；CD-I06接本方必要parser/compiler/export/default输入；ELR-I03接本合同selector指定的8份备份Species全部本地化字段、空值/默认/继承、collector/getter域及激活前提。既有IF04/IF06沿原有限资格保留，合计12有限接口，无新增独立票。
+
+完整采用Gen8提供的10组原producer业务对象及每个前提、失败、remaining/accepted=false，另直接接CREB的5完整事实/006_Item_Mail强制伴件，以及当前PBS_CURRENT本地化Species完整家族合同/空值反例。Developer metrics v2的24完整事实和MET01/MET04/PBS02更正为本上下文已实际完整读取的精确不变对象，保留复用。原ELR35文件/语言语料/63caller、creature_d其它PBS及全外域审批/个人未读不由这些有限接合清零。目标central-contract-projection明确ELR本方文件子分母为8，未重新分派其它27文件。本任务无剩余可得未接的主责/必要有限consumer对象；全局canonical仍属于主审。
+
+证据更正均显式保留：TWISTER不能跨Moves/Tutor说重复教学；任意持Mega石不是裸MegaMove路径禁门；触发概率成功只是return true，reset由独立入口/调用者完成；Species编译只对Types去重，Tutor重复保留。新增定位澄清：Gen8请求Capture206–275越过真实EOF271，完整pbCaptureCalc实际206–263；本接收者按实际末行补读206–271，不授虚构行信用。它们都是证据/定位限定，当前规格已正确，无新required/optional/policy或全局NO_REQUIRED_UPDATE票。
+
+必要WildBattle三个方法354–442、完整Scene_Initialize1–191及pbCaptureCalc206–263已另作直接末端核对：现有Pokemon对象不再生成；skip/override/core/end前缀分开；场景创建影子对象不保证可见或资源成功；catch_rate只是捕获计算输入且可被显式参数覆盖。所有正常分支仍受固定B8/R、有效依赖/之前调用成功、无插件覆写前提，原生/媒体/磁盘/宿主/行为均NOT_EXECUTED，不能用未执行冒充失败或材料limit。
+
+后续仅需原主审读取本完整交付，在既定全局队列完成root canonical/task-final签收；没有整改、合并main、改tag或新增审查层。下面保留各先前时点快照，旧INCOMPLETE和旧剩余数不代表当前状态。
+
+## Gen5＋Gen6 接收时点（历史快照）
+
+已接不同实际主读者 `01a144a2-f115-7357-815c-37ff4bb71008` 的Gen6固定贡献 `4d9fdaacc42cb061917d92578d3b247c03ca9739`。23文件从新的独立远端bare完整回读，checkout/tree、精确path/mode/blob/bytes/SHA和集合相合；两份archive共100成员均完整读取并核清单。23个原件完整恢复在 `received/gen6/4d9fdaacc42cb061917d92578d3b247c03ca9739/`，未执行其中脚本。见 `received-gen6.json`。
+
+Gen6主责909记录（721基础＋188形态）、17943显式绑定、16618省略/具体同代继承、71有限原子及HC-FORM已接。实际主读者的83完整基础锚点、188形态和86片638基础的完整有序长表/正文及逐属性处置由其真实读片承担；本上下文不重复909原始记录，不倒填早期遗失的chunk/exit或实际配置。接受依据是完整实质断言、具体必要消费者意义/当前条款/反例/失败范围和实际阅读凭证，生成/身份核对或通用RECEIVED模板本身信用为0。
+
+当前累计主责字面收到 **4416/6712**（原2772＋Gen5 735＋Gen6 909），显式绑定45626/89067，省略处置31451/75313，有限原子108/212（80字段facet＋28跨链命题），头声明2/4。尚欠Gen7/Gen8的2296记录、43441绑定、43862省略、104原子、2头及10完整接口；这些人口分列，不相加成PASS。全部record的root最终task接收仍OPEN。
+
+Gen5与Gen6的1644主责输入已按各自同代基础、具体覆盖/缺省及同一固定R的必要定义累计接合，未把两代输入混合、以同名替换锚点或自动激活备份。共同形态/getter/handler/Mega/Primal、alias与保存规则保留其全部前提：三池全缺才继承；裸查询不是战斗许可；普通/提示与simple setter不同；Gen6 G31整对象装载与Gen5 G32验证/盘写/转换失败前缀接合后仍不承诺内部图兼容或全图回滚。四条KYUREM静态实例P03:S0079/0080、P07:S0129/0130均是source FormName=nil、alias1/2接收者White/Black有名；普通register归1/2，recentseen归0。该0不改source存储形态；行为未运行。所有default模板仅按所属Species解释，不授SpeciesMetrics额外事实。
+
+两项证据更正完整保留并直接反核：P06:S0384的TutorMoves只一项TWISTER，Moves另有等级1项，排除原notes的“repeatedTWISTERtutor”；固定PBS_CURRENT mega组的“MegaMove path fails with any held mega stone”不采用，完整Pokemon#getMegaForm与Battler#hasMega支持来源simple形态匹配后的首个石OR已知招式分支，不增加该持石门。原件与当前正式规格不改，无新正式提案、无新独立裁决票，也未签整组NO_REQUIRED_UPDATE。
+
+IF01/IF02/IF07/ELR-I03/CD-I06增加已接Gen5/Gen6生产侧和必要有限消费者接合；Gen6对Gen5“只读报告未导入完整值”的历史个人资格保留，由本接收者已有Gen5真实主责贡献承担当前累计值。两个完整接口IF02/IF07仍待Gen7/Gen8，其他原接口列明的外域累计资格也不由有限对象升级为整域FULL。Gen6对旧Gen8快照的字面数量描述不作为本账本当前人口；其完整producer未接的结论保持。环境无实际阻塞，整体仍 **INCOMPLETE / UPDATE_NOT_STARTED**，所有行为 **NOT_EXECUTED**，root最终签收仍由主审负责。
+
+以下Gen5段保留发布 `261ca5db20ba82981bc663c95c674e9505c0691f` 时点的累计快照；当前剩余人口以前段及现行账本为准。
+
+## Gen5 接收时点（历史快照）
 
 已实际接收不同上下文 `01a144a2-cdca-74e0-a8b6-5f8e90d95021` 的固定贡献 `77c68ef907bece03291accccf7c8d3f3f3bc7753`。完整25文件从独立远端bare逐字节回读，并原样恢复到 `received/gen5/77c68ef907bece03291accccf7c8d3f3f3bc7753/`；集合、mode/blob/bytes/SHA及checkout/task tree一致。该步骤本身语义信用为0，接收依据为已读实质报告、17条完整原子、头声明、读片凭证、逐形态理由、接口及执行/提案限定，见 `received-gen5.json`。
 

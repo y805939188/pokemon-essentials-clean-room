@@ -50,6 +50,7 @@ def main():
     remote_task_tree=run(command+['rev-parse',commit+':'+TASK]).decode().strip()
     assert local_tree==remote_tree and local_task_tree==remote_task_tree
     original=json.loads(Path(TASK+'/recovery.json').read_text())
+    task_status=json.loads(run(local+['show',commit+':'+TASK+'/reception-ledger.json']))['status']
     input_blobs={r['git_blob'] for r in original['files']}
     rows=[]
     for path,(mode,blob) in sorted(actual.items()):
@@ -67,9 +68,9 @@ def main():
         fetch_exit=fetch.returncode,fetch_stdout=fetch.stdout.decode(),fetch_stderr=fetch.stderr.decode(),
         collection_exact=True,files=rows,count=len(rows),bytes=sum(r['bytes'] for r in rows),
         all_authored_report_blobs_read_from_new_remote_store=True,unchanged_input_alias_cache_count=sum(r['byte_read_origin']=='EXACT_TARGET_INDEPENDENT_REMOTE_CACHE' for r in rows),
-        semantic_credit=0,behavior_execution='NOT_EXECUTED',task_status='INCOMPLETE')
+        semantic_credit=0,behavior_execution='NOT_EXECUTED',task_status=task_status)
     receipt.write_text(json.dumps(output,ensure_ascii=False,indent=2)+'\n')
-    print(json.dumps(dict(receipt=str(receipt),commit=commit,checkout_tree=remote_tree,task_tree=remote_task_tree,count=len(rows),bytes=output['bytes'],collection_exact=True,task_status='INCOMPLETE')))
+    print(json.dumps(dict(receipt=str(receipt),commit=commit,checkout_tree=remote_tree,task_tree=remote_task_tree,count=len(rows),bytes=output['bytes'],collection_exact=True,task_status=task_status)))
 
 if __name__ == '__main__':
     main()
