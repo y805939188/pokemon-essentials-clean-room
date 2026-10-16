@@ -1,8 +1,8 @@
 # H-EARLY-QUALIFICATIONS 非作者接收报告
 
-**结论：INCOMPLETE。不得据本报告签 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 现已接收tail独立12个完整合同/78原schema、14非必修处置/6政策/13限制及其历史限定；其余80个R5 producer、早期历史和必要组合仍待实际输出。没有完成目标全部有效语义接收。报告已给出的“必需未读0”不作为本次独立真值。根最终 canonical、task-final 和全局结论仍由主审独占。
+**结论：INCOMPLETE。不得据本报告签 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 现已收齐三方真实独立贡献：92个R5合同/568原schema，并接合21共享/18依赖的当前具名事实；14非必修处置/6政策/13限制保留。父本地early_r1_r4完整历史输出尚未收到，必要历史桥及根最终签收仍OPEN。报告已给出的“必需未读0”不作为本次独立真值。根最终 canonical、task-final 和全局结论仍由主审独占。
 
-以下初检查点与冻结阶段记录保留历史；当前累积接收以末尾“tail实际贡献接收”及reception-ledger的current_independent_contributions为准。
+以下初检查点与冻结阶段记录保留历史；当前累积接收以末尾“R5三方实际贡献及有限组合”及reception-ledger的current_independent_contributions为准。
 
 ## 身份、范围与证据
 
@@ -94,3 +94,15 @@ L01–L13原完整33行及运行/政策边界已读，按历史资格保留：�
 两项问题已有非提出者独立确认：EVIDENCE-001确认行政分类缺口且本地28个业务长值已补读，B8精确关联28/28不是行为证明，C021/C022/经济/个体外部上下文继续待接；POLICY-002确认单尾LF静态例外，未来兼容仍未定。两项不计B8新必修，主审最终canonical处置仍待。原错误、FAIL、MISMATCH、未执行及旧激活阶段全部保留。
 
 当前已收的是12/92个本地主责和78/568原schema的有效限定贡献，14处置/6政策/13限制；本次行为执行0。仍等待已派发的U01/U02、U03/U06及父本地early_r1_r4实际成果。21共享与18依赖先保留逐事实OPEN，后续仅接合实际贡献及必要接口；不从四个任务名推READY。初冻结FROZEN_NOT_STARTED是历史时点，本context仍spawn0。详细固定引用、逐集合和剩余在reception-ledger current_independent_contributions，整task仍INCOMPLETE/UPDATE_NOT_STARTED，根最终签收由主审负责。
+
+## R5三方实际贡献及有限组合
+
+已进一步取得并接收U01/U02 `f62c26cd86e38e45429b1a0b9fd637b8c10fff59`（tree `df2c32edd3841eec8dadaf8f3a3c51e5c10baaa1`，子树 `e39e923a5b396f94507d28446145fd33cea81f0d`，23文件/1,639,772B）及core `93b0c4e457f10ffd4df3bf97d543254c232bfc68`（tree `aeaa538880d55fbad9e780b2c0e66c62e801e411`，子树 `96ce9a007cf99b1e9e8666d7b6948043524e5fe3`，17文件/970,671B）。真实context分别为 `01a144a2-6391-7388-bd56-eef0d345301c`、`01a144a2-801a-7779-8aeb-03d0ee85b027`，均不同于目标作者。本context没有spawn。仅使用固定Git对象，没有合并/复制其目录。
+
+U01/U02的48份完整独立论证和294条检查理由已读，逐条与其主账本精确关联；294原/当前/接受字段的规范化身份、要求与冻结完整对象核同。core的32份完整本地论证、196原要求/限定后继、历史/反证/限制和incoming理由已逐段读完。三方primary为48/32/12、原schema为294/196/78，互不重叠且恰覆盖冻结92/568；原native410与附加158分别计量。所有identity/装配/去重校验信用0；这是接收真实独立贡献，不把本整合者记成再次全文重审原全系统。
+
+M05-006已真实给出Pocket/Price/FieldUse/BattleUse缺省1/0/0/0、Flags空以及原字段/数量/有效消费/图标的独立规则，现接合U01-011/preserve/01及U01-016/static/06、preserve/01三个引用。严格枚举文本0拒绝与内部缺省0不混，原U01 OPEN保留其生成时点。U01共享说明个别泛称按准确主责ID使用：SHARED-02的六列顺序归004，029为训练家专用输入管线；SHARED-06混合连接归027，JXN-001为共享可变地图名。两方实际完整理由均已到，不因措辞把事实转签另一ID，也不回写原报告。
+
+在既已读的tail完整21共享scope/18依赖意义上，按三方实际producer/consumer及必要共同上下文写出39条各自的组合理由，见 `interfaces.json#/current_R5_finite_combinations`。R5具名producer/consumer差集为0；有界接合保留三行取消/显示前缀、WING旧FAIL/新一行与59复用、两导航MISMATCH、六族body-LF排除、loader/保存/消息/战斗/媒体各自失败前缀。没有以四个组状态或端点计数自动签组合，也不把21组合升级为21全文件fresh read。来源tail“0/80”和各源OPEN均保留为原时点，当前状态另记。
+
+本次R5范围新增B8必修提案0，静态/行为模型/宿主/Demo执行仍0。两项接收证据问题已有非提出者确认，经济/个体/schema/editor当前贡献现已相接；原C021/C022及R4 Summary/EG的必要早期历史资格仍待父本地early_r1_r4实际输出。不是材料/权限/宿主阻塞，也不扩为重审全系统。当前任务仍INCOMPLETE/UPDATE_NOT_STARTED；root canonical与task-final由主审独占。
