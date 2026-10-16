@@ -45,6 +45,10 @@ hist_proposals, hpb = take("tasks/history_current/findings.json")
 hist_counter, hcb = take("adjudication/root-hist-001-counterreview.json")
 hist_facets_counter, hfcb = take("adjudication/root-history-facets-counterreview.json")
 u12_counter, u12b = take("adjudication/root-u12-receipt-scope-counterreview.json")
+world003_counter, w003b = take("adjudication/root-world003-counterreview.json")
+world_int_reception, wintb = take("adjudication/root-world-int001-reception.json")
+world_int002, wint002b = take("adjudication/root-world-int002-counterreview.json")
+ui003_counter, ui003b = take("adjudication/root-ui003-counterreview.json")
 
 records = []
 def add(id_, classification, severity, reason, evidence, binding, *, proposer=None, reviewer=None, extra=None):
@@ -166,6 +170,36 @@ add("GR8-HIST-U12-RECEIPT-SCOPE-001", "optional", None,
            "required_rejected": True, "optional_adoption": "USER_DECISION; not automatically adopted",
            "historical_reopening": False, "required_formal_write_set": []})
 
+add("GR8-WORLD-003", "required", "P3",
+    "采纳有限跳跃组合定义补全。直接零偏移跳跃可在下一合格普通轮次仍活动，而无普通移动计时；末端ACTION/SPECIAL及已有调用消费不另检查跳跃。完整WP12/WP13事件正文未把静止精确定义为该有限门，须原位补齐，保留消息早退、登记/消费分层、顺序和请求级别；不保证完整UI、跳跃清理或Demo。",
+    world003_counter["complete_proposal"], world003_counter["input_binding"],
+    proposer="/root/world_full", reviewer="/root",
+    extra={"independent_counterreview": world003_counter,
+           "independent_counterreview_binding": w003b})
+add("GR8-WORLD-INT-001", "required", "P3",
+    "采纳有限117生产绑定缺项：携父事件编号但子取当前图，父保持原绑定。连接A/B例为子[B,7]与父[A,7]；失联仅清编号，子[B,0]/父[A,0]。一般启动身份正文不足以唯一给出该生产前提；保留角色当前图选择、缺省脚本键、同图/缺记录/深度/异常与无存档运行限定。",
+    world_int_reception["complete_proposal"], world_int_reception["proposal_binding"],
+    proposer="/root/world_interpreter", reviewer="/root/world_full",
+    extra={"independent_counterreview": world_int_reception["complete_independent_counterreview"],
+           "independent_counterreview_binding": world_int_reception["counterreview_binding"],
+           "root_reception": world_int_reception, "root_reception_binding": wintb})
+
+add("GR8-WORLD-INT-002", "required", "P3",
+    "采纳直接119缺目标的有限正常控制补全：正常带终止项列表无命中时，119不改当前位置而返回继续，外层到下一命令；同列表命中跳过A而缺目标执行A/B的对照成立。当前119失败栏和未决整体未知过宽，须收窄；保留宿主未运行、末尾先结束、首命中/有限向后及101预读独立规则，不新增未来作者校验policy。",
+    world_int002["complete_proposal"], world_int002["proposal_binding"],
+    proposer="/root/world_interpreter", reviewer="/root",
+    extra={"independent_counterreview": world_int002,
+           "independent_counterreview_binding": wint002b})
+
+add("GR8-UI-003", "optional", None,
+    "保留Shadow INFO未满级仍按普通经验请求底条的真实源事实，拒绝新增required。完整WP66A的Exp区可合理限于被心量表/文案替换的经验数字区域，非Shadow正向条款未独立禁止Shadow底条；WP23成长概述也无全部图层禁令。可选澄清普通经验进度与saved_exp区别，不强制新增测试或领域修订。",
+    ui003_counter["complete_proposal"], ui003_counter["proposal_binding"],
+    proposer="/root/ui_full", reviewer="/root",
+    extra={"independent_counterreview": ui003_counter,
+           "independent_counterreview_binding": ui003b,
+           "origin_proposal_id": "GR8-UI-003.v1", "required_rejected": True,
+           "optional_adoption": "USER_DECISION; not automatically adopted"})
+
 counts = {"required": sum(r["classification"] == "required" for r in records),
           "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
           "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),
@@ -175,17 +209,18 @@ out = {
     "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe", "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
     "status": "PARTIAL_REVIEW_NO_GLOBAL_PASS", "whole_review_required_count": None,
     "bounded_counts": counts,
-    "counts_qualification": "仅此已接收18项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
+    "counts_qualification": "仅此已接收22项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
     "records": records, "root_read_complete_payloads": inputs,
     "root_read_credit": "完整独立反证/提案文件的综合接收，不冒充root已逐个重读其全部原source/formal，也不授其它领域覆盖。PBSW001另有root真实独立全读证据。",
-    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本18项required/optional或全域NO_REQUIRED_UPDATE。",
+    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本22项required/optional或全域NO_REQUIRED_UPDATE。",
+    "separate_rejected_original_candidate": "adjudication/root-ui002-reception.json: GR8-UI-002 v1异常反例已驳回，不计required/optional，不自动替换为显示缺项。",
     "pending_proposals_outside_this_receipt": ["后续新提案仍持续进入；全量未读、跨域及历史接收尚未完成。"],
     "actual_configuration": dict.fromkeys(["model", "effort", "tier", "speed", "opaque_platform_id"], "UNVERIFIED"),
     "requested_configuration": {"model": "gpt-6.1-sol", "effort": "ultra", "tier": "default", "speed": "normal/Fast off"},
     "behavior_execution_credit": 0, "update_started": False, "final_marker": "UPDATE_NOT_STARTED",
 }
-assert len(records) == 18 and len({r["id"] for r in records}) == 18
-assert sum(r["classification"] == "required" for r in records) == 15
+assert len(records) == 22 and len({r["id"] for r in records}) == 22
+assert sum(r["classification"] == "required" for r in records) == 18
 p = ROOT / "adjudication/root-decisions.partial.json"
 p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
 print(json.dumps({"path": str(p), "bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "status": out["status"], "bounded_counts": out["bounded_counts"]}, ensure_ascii=False))
