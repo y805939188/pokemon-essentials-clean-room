@@ -47,3 +47,5 @@
 ## 8. 历史资格与剩余
 
 R6 原 optional、R7 原 required 与限定静态 CLOSED 均保留。R6 原 31 项与 R7 37 项是不同人口，本报告未接收其全部本体。更广历史／manifest／接口文字的未读在 remaining-objects.exact.json 与 reception-ledger.json 逐项保留；它们是可得未接收，材料缺失为 0。仅本有限反证可供主审审理，本任务整体仍 INCOMPLETE；UPDATE_NOT_STARTED。
+
+后继资格说明：上段记录本八节反证形成时的INCOMPLETE接收阶段，不改写为历史通过。现A/B/C/D固定贡献及必要接口已接收，整个任务的当前状态见report.md与reception-ledger.json，已为READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。该后继不扩大本八节反证的有限事实范围，不代主审裁决，也不改变UPDATE_NOT_STARTED及NOT_EXECUTED。

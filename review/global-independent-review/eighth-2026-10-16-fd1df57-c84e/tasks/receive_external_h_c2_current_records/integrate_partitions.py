@@ -51,6 +51,8 @@ NOTES={
 def read(p):return json.loads(p.read_text())
 def write(p,v):p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(v,ensure_ascii=False,indent=2)+'\n')
 def main():
+    if (T/'partition-receptions/D/accepted-contribution.json').exists():
+        raise SystemExit('D final reception already assembled; this historical A/B/C-only serializer must not regress its final status.')
     accepted=[];contributions={}
     for name,identity in PARTITIONS.items():
         P=T/'.work'/('partition-'+name);out=T/'partition-receptions'/name

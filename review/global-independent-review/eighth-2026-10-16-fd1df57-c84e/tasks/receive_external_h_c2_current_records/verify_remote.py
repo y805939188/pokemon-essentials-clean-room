@@ -31,6 +31,7 @@ def main():
             d=gzip.decompress(data);od=gzip.decompress(own);assert d==od;r['decoded']=digest(d);r['decoded_identity_verified']=True
         rows.append(r)
         if len(rows)%10==0:print('remote files verified',len(rows),flush=True)
-    out={'schema':'gr8.report.remote-readback/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':a.commit,'checkout_tree':remote_tree,'task_tree':task_tree,'bare':str(bare),'alternates':False,'exact_path_mode_blob_collection_equal':True,'files':rows,'file_count':len(rows),'bytes':sum(r['bytes'] for r in rows),'semantic_credit':0,'task_semantic_status':'INCOMPLETE','update_started':False}
+    progress=json.loads(remote('show',a.commit+':'+PREFIX+'/progress.json'))
+    out={'schema':'gr8.report.remote-readback/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'commit':a.commit,'checkout_tree':remote_tree,'task_tree':task_tree,'bare':str(bare),'alternates':False,'exact_path_mode_blob_collection_equal':True,'files':rows,'file_count':len(rows),'bytes':sum(r['bytes'] for r in rows),'semantic_credit':0,'task_semantic_status':progress['status'],'update_started':progress['update_started']}
     Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n');print(json.dumps({k:v for k,v in out.items() if k!='files'}),flush=True)
 if __name__=='__main__':main()
