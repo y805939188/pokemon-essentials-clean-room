@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--commit", required=True)
     parser.add_argument("--base", default=CONTRACT)
     parser.add_argument("--output")
+    parser.add_argument("--api-evidence", help="Exact commit/tree responses from connected GitHub read-only fetch")
     args = parser.parse_args()
     commit = git("rev-parse", args.commit + "^{commit}").decode().strip()
     base = git("rev-parse", args.base + "^{commit}").decode().strip()
@@ -44,10 +45,11 @@ def main():
     workspace_tree = git("rev-parse", commit + "^{tree}").decode().strip()
     group_tree = git("rev-parse", commit + ":" + GROUP).decode().strip()
     api = "https://api.github.com/repos/" + REPO + "/git/"
-    remote_commit = json.loads(fetch(api + "commits/" + commit))
+    supplied_api = json.loads(Path(args.api_evidence).read_text()) if args.api_evidence else None
+    remote_commit = supplied_api["commit"] if supplied_api else json.loads(fetch(api + "commits/" + commit))
     assert remote_commit["sha"] == commit
     assert remote_commit["tree"]["sha"] == workspace_tree
-    remote_tree = json.loads(fetch(api + "trees/" + group_tree + "?recursive=1"))
+    remote_tree = supplied_api["group_tree"] if supplied_api else json.loads(fetch(api + "trees/" + group_tree + "?recursive=1"))
     assert remote_tree["sha"] == group_tree and not remote_tree.get("truncated")
     expected = {}
     for line in git("ls-tree", "-r", "-z", commit, GROUP).split(b"\0"):
@@ -93,6 +95,8 @@ def main():
                "changed_bytes_read_back": sum(f["bytes"] for f in files),
                "files": files, "semantic_credit": 0, "business_execution": 0,
                "qualification": "Transport identity only. S22 remains INCOMPLETE. Parent task-final signature retained."}
+    if supplied_api:
+        receipt["api_evidence"] = supplied_api
     encoded = json.dumps(receipt, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         output = (OWN / args.output).resolve()
