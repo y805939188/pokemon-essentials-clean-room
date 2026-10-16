@@ -12,14 +12,27 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 
 TASK = 'review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/handoff_preparation_cloud'
 BRANCH = 'codex/r8-handoff-preparation-20261016'
+COMMANDS = []
 
 
 def run(args, cwd=None):
+    start = datetime.datetime.now(datetime.timezone.utc).isoformat()
     p = subprocess.run(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    row = {'argv': args, 'cwd': str(cwd) if cwd else None,
+           'start_utc': start, 'end_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+           'exit': p.returncode}
+    for label, data in [('stdout', p.stdout), ('stderr', p.stderr)]:
+        row[label] = {'bytes': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+        if len(data) <= 8192:
+            row[label]['base64'] = base64.b64encode(data).decode('ascii')
+        else:
+            row[label]['complete_recovery'] = 'Exact fixed Git object stdout; recover with this argv at its bound commit/object, verify bytes/SHA256. Task blobs are fully present in the published subtree.'
+    COMMANDS.append(row)
     if p.returncode:
         raise RuntimeError(json.dumps({'command': args[:2], 'exit': p.returncode,
                                        'stderr': p.stderr.decode(errors='replace')}))
@@ -121,6 +134,12 @@ def main():
         'compressed_restore': compressed, 'raw_payloads_restored': restored,
         'semantic_credit': 0, 'behavior_credit': 0, 'update_started': False,
         'root_core': 'PENDING_ROOT_CORE_FREEZE',
+        'tool_versions': {'git': run(['git', '--version']).decode().strip(),
+                          'python': sys.version},
+        'executor': {'argv': [sys.executable, *sys.argv],
+                     'script_sha256': sha(Path(__file__).read_bytes()),
+                     'script_bytes': len(Path(__file__).read_bytes())},
+        'command_io': COMMANDS,
         'self_identity_rule': 'This receipt binds an earlier fixed commit; its own later publication is bound externally.'
     }
     Path(args.output).write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n')
