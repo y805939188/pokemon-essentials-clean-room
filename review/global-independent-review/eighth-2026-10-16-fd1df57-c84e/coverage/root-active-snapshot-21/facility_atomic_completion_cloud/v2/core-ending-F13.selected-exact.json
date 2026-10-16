@@ -1,0 +1,84 @@
+{
+  "schema": "facility-selected-core-ending-original-fields/v2",
+  "original": {
+    "path": "tasks/core_atomic_reception/creature-item-learning-ending-forward.v1.json",
+    "bytes": 28123,
+    "sha256": "81ac63c8528f31c830f32ec3ecd31ce74a5f4ffd15f286b2e46488ddf934a5ba"
+  },
+  "envelope": {
+    "schema": "car-creature-item-learning-ending-forward/v1",
+    "utc": "2026-10-16T06:19:19.840037+00:00",
+    "actual_reader": "/root/core_atomic_reception",
+    "business_execution": "NOT_EXECUTED",
+    "update_status": "UPDATE_NOT_STARTED",
+    "global_approval": false
+  },
+  "facts": [
+    {
+      "id": "CAR-CRE-F13",
+      "source_units": [
+        "ending",
+        "records",
+        "bound_item"
+      ],
+      "premise": "Reached pbEndOfBattle with valid current battle parties and initialItems mappings; ordinary completion of previous outcome messages/capture storage/Pokerus handling.",
+      "fact": "End routine calls pbRecordAndStoreCaughtPokemon before capture-decision money, Pokerus, scene end and cleanup. After scene.pbEndBattle each extant Battler cancels unused choice then triggers active ability OnSwitchOut with end-of-battle=true. Only pbParty(0) each nonnil Pokemon is passed to Peer.pbOnLeavingBattle(...,usedInBattle[0][i],true), THEN its item is assigned initialItems[0][i]. No equivalent party(1) restore loop occurs here. party(0) may be merged ordinary player+partner array, as earlier supplement clarified; do not rename it global player party universally.",
+      "receiver": "Persistent Pokemon item assignment executes after Peer for each member in order. Missing mapped entry yields nil and clears via Pokemon.item setter; mapping shifts caused by capture storage require that earlier CAA exact join, not assumed stable from identity.",
+      "failure_prefix": "Storage/scene/cancel/ability/Peer exceptions can prevent all or later members restoring; earlier members already restored. Return decision only after cleanup loop normal completion.",
+      "open": [
+        "UI end scene and item Bag refund actual complete receivers",
+        "Concrete Peer MultipleForms handlers",
+        "All item transfer producers outside this bounded packet",
+        "save/reload"
+      ]
+    }
+  ],
+  "sources": {
+    "ending": {
+      "path": "Data/Scripts/011_Battle/001_Battle/002_Battle_StartAndEnd.rb",
+      "range": [
+        405,
+        512
+      ],
+      "content": "  def pbEndOfBattle\n    oldDecision = @decision\n    @decision = 4 if @decision == 1 && wildBattle? && @caughtPokemon.length > 0\n    case oldDecision\n    ##### WIN #####\n    when 1\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Player won =====\")\n      PBDebug.log(\"\")\n      if trainerBattle?\n        @scene.pbTrainerBattleSuccess\n        case @opponent.length\n        when 1\n          pbDisplayPaused(_INTL(\"You defeated {1}!\", @opponent[0].full_name))\n        when 2\n          pbDisplayPaused(_INTL(\"You defeated {1} and {2}!\", @opponent[0].full_name,\n                                @opponent[1].full_name))\n        when 3\n          pbDisplayPaused(_INTL(\"You defeated {1}, {2} and {3}!\", @opponent[0].full_name,\n                                @opponent[1].full_name, @opponent[2].full_name))\n        end\n        @opponent.each_with_index do |trainer, i|\n          @scene.pbShowOpponent(i)\n          msg = trainer.lose_text\n          msg = \"...\" if !msg || msg.empty?\n          pbDisplayPaused(msg.gsub(/\\\\[Pp][Nn]/, pbPlayer.name))\n        end\n        PBDebug.log(\"\")\n      end\n      # Gain money from winning a trainer battle, and from Pay Day\n      pbGainMoney if @decision != 4\n      # Hide remaining trainer\n      @scene.pbShowOpponent(@opponent.length) if trainerBattle? && @caughtPokemon.length > 0\n    ##### LOSE, DRAW #####\n    when 2, 5\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Player lost =====\") if @decision == 2\n      PBDebug.log_header(\"===== Player drew with opponent =====\") if @decision == 5\n      PBDebug.log(\"\")\n      if @internalBattle\n        pbDisplayPaused(_INTL(\"You have no more Pokémon that can fight!\"))\n        if trainerBattle?\n          case @opponent.length\n          when 1\n            pbDisplayPaused(_INTL(\"You lost against {1}!\", @opponent[0].full_name))\n          when 2\n            pbDisplayPaused(_INTL(\"You lost against {1} and {2}!\",\n                                  @opponent[0].full_name, @opponent[1].full_name))\n          when 3\n            pbDisplayPaused(_INTL(\"You lost against {1}, {2} and {3}!\",\n                                  @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))\n          end\n        end\n        # Lose money from losing a battle\n        pbLoseMoney\n        pbDisplayPaused(_INTL(\"You blacked out!\")) if !@canLose\n      elsif @decision == 2   # Lost in a Battle Frontier battle\n        if @opponent\n          @opponent.each_with_index do |trainer, i|\n            @scene.pbShowOpponent(i)\n            msg = trainer.win_text\n            msg = \"...\" if !msg || msg.empty?\n            pbDisplayPaused(msg.gsub(/\\\\[Pp][Nn]/, pbPlayer.name))\n          end\n          PBDebug.log(\"\")\n        end\n      end\n    ##### CAUGHT WILD POKÉMON #####\n    when 4\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Pokémon caught =====\")\n      PBDebug.log(\"\")\n      @scene.pbWildBattleSuccess if !Settings::GAIN_EXP_FOR_CAPTURE\n    end\n    # Register captured Pokémon in the Pokédex, and store them\n    pbRecordAndStoreCaughtPokemon\n    # Collect Pay Day money in a wild battle that ended in a capture\n    pbGainMoney if @decision == 4\n    # Pass on Pokérus within the party\n    if @internalBattle\n      infected = []\n      $player.party.each_with_index do |pkmn, i|\n        infected.push(i) if pkmn.pokerusStage == 1\n      end\n      infected.each do |idxParty|\n        strain = $player.party[idxParty].pokerusStrain\n        if idxParty > 0 && $player.party[idxParty - 1].pokerusStage == 0 && rand(3) == 0   # 33%\n          $player.party[idxParty - 1].givePokerus(strain)\n        end\n        if idxParty < $player.party.length - 1 && $player.party[idxParty + 1].pokerusStage == 0 && rand(3) == 0   # 33%\n          $player.party[idxParty + 1].givePokerus(strain)\n        end\n      end\n    end\n    # Clean up battle stuff\n    @scene.pbEndBattle(@decision)\n    @battlers.each do |b|\n      next if !b\n      pbCancelChoice(b.index)   # Restore unused items to Bag\n      Battle::AbilityEffects.triggerOnSwitchOut(b.ability, b, true) if b.abilityActive?\n    end\n    pbParty(0).each_with_index do |pkmn, i|\n      next if !pkmn\n      @peer.pbOnLeavingBattle(self, pkmn, @usedInBattle[0][i], true)   # Reset form\n      pkmn.item = @initialItems[0][i]\n    end\n    return @decision\n  end\n",
+      "file_bytes": 23136,
+      "file_lines": 568,
+      "file_sha256": "e7d7b37b0a60fe4489f4252642abba52085ed344115acc36f42cf675e5fc1ee1",
+      "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+      "actual_reader": "/root/core_atomic_reception",
+      "reading": "PERSONALLY_FULL_FILE_READ"
+    },
+    "records": {
+      "path": "Data/Scripts/011_Battle/002_Battler/001_Battle_Battler.rb",
+      "range": [
+        664,
+        690
+      ],
+      "content": "  def initialItem\n    return @battle.initialItems[@index & 1][@pokemonIndex]\n  end\n\n  def setInitialItem(value)\n    item_data = GameData::Item.try_get(value)\n    new_item = (item_data) ? item_data.id : nil\n    @battle.initialItems[@index & 1][@pokemonIndex] = new_item\n  end\n\n  def recycleItem\n    return @battle.recycleItems[@index & 1][@pokemonIndex]\n  end\n\n  def setRecycleItem(value)\n    item_data = GameData::Item.try_get(value)\n    new_item = (item_data) ? item_data.id : nil\n    @battle.recycleItems[@index & 1][@pokemonIndex] = new_item\n  end\n\n  def belched?\n    return @battle.belch[@index & 1][@pokemonIndex]\n  end\n\n  def setBelched\n    @battle.belch[@index & 1][@pokemonIndex] = true\n  end\n",
+      "file_bytes": 24627,
+      "file_lines": 777,
+      "file_sha256": "8bc4ae29ebef89d45bae20449632d454a6bed75f0116c9bc039f6e3f00675922",
+      "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+      "actual_reader": "/root/core_atomic_reception",
+      "reading": "PERSONALLY_FULL_FILE_READ"
+    },
+    "bound_item": {
+      "path": "Data/Scripts/011_Battle/002_Battler/001_Battle_Battler.rb",
+      "range": [
+        81,
+        89
+      ],
+      "content": "  def item\n    return GameData::Item.try_get(@item_id)\n  end\n\n  def item=(value)\n    new_item = GameData::Item.try_get(value)\n    @item_id = (new_item) ? new_item.id : nil\n    @pokemon.item = @item_id if @pokemon\n  end\n",
+      "file_bytes": 24627,
+      "file_lines": 777,
+      "file_sha256": "8bc4ae29ebef89d45bae20449632d454a6bed75f0116c9bc039f6e3f00675922",
+      "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+      "actual_reader": "/root/core_atomic_reception",
+      "reading": "PERSONALLY_FULL_FILE_READ"
+    }
+  },
+  "qualification": "Only selected F13 and three complete units; other4facts/7sources NOT received through this projection."
+}
