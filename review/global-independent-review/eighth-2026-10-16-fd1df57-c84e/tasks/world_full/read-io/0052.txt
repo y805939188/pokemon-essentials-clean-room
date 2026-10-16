@@ -1,0 +1,267 @@
+  841       neighbours |= 0x40 if is_neighbour.call(x - 1,     y)   # W
+  842       neighbours |= 0x80 if is_neighbour.call(x - 1, y - 1)   # NW
+  843       case FLOOR_NEIGHBOURS_TO_WALL[neighbours]
+  844       when -1 then return :error   # Needs special attention
+  845       when 1  then return (layer == 0) ? :wall_1 : :upper_wall_1
+  846       when 2  then return (layer == 0) ? :wall_2 : :upper_wall_2
+  847       when 3  then return (layer == 0) ? :wall_3 : :upper_wall_3
+  848       when 4  then return (layer == 0) ? :wall_4 : :upper_wall_4
+  849       when 6  then return (layer == 0) ? :wall_6 : :upper_wall_6
+  850       when 7  then return (layer == 0) ? :wall_7 : :upper_wall_7
+  851       when 8  then return (layer == 0) ? :wall_8 : :upper_wall_8
+  852       when 9  then return (layer == 0) ? :wall_9 : :upper_wall_9
+  853       when 11 then return (layer == 0) ? :wall_in_1 : :upper_wall_in_1
+  854       when 13 then return (layer == 0) ? :wall_in_3 : :upper_wall_in_3
+  855       when 17 then return (layer == 0) ? :wall_in_7 : :upper_wall_in_7
+  856       when 19 then return (layer == 0) ? :wall_in_9 : :upper_wall_in_9
+  857       end
+  858       return :void if neighbours == 0 || layer == 1
+  859       return :corridor
+  860     end
+  861 
+  862     def paint_decorations(maxWidth, maxHeight)
+  863       # Large patches (grass/sandy area)
+  864       if @tileset.has_decoration?(:floor_patch)
+  865         (maxHeight / @parameters.cell_height).times do |j|
+  866           (maxWidth / @parameters.cell_width).times do |i|
+  867             next if rand(100) >= @parameters.floor_patch_chance
+  868             # Random placing of floor patch tiles
+  869             mid_x = (i * @parameters.cell_width) + rand(@parameters.cell_width)
+  870             mid_y = (j * @parameters.cell_height) + rand(@parameters.cell_height)
+  871             ((mid_y - @parameters.floor_patch_radius)..(mid_y + @parameters.floor_patch_radius)).each do |y|
+  872               ((mid_x - @parameters.floor_patch_radius)..(mid_x + @parameters.floor_patch_radius)).each do |x|
+  873                 if @tileset.floor_patch_under_walls
+  874                   next if !tile_is_ground?(@map_data[x + @buffer_x, y + @buffer_y, 0])
+  875                 else
+  876                   next if !tile_is_ground?(@map_data.value(x + @buffer_x, y + @buffer_y))
+  877                 end
+  878                 if (((mid_x - 1)..(mid_x + 1)).include?(x) && ((mid_y - 1)..(mid_y + 1)).include?(y)) ||
+  879                    rand(100) < @parameters.floor_patch_chance
+  880                   @map_data[x + @buffer_x, y + @buffer_y, 0] = :floor_patch
+  881                 end
+  882               end
+  883             end
+  884             # Smoothing of placed floor patch tiles
+  885             ((mid_y - @parameters.floor_patch_radius)..(mid_y + @parameters.floor_patch_radius)).each do |y|
+  886               ((mid_x - @parameters.floor_patch_radius)..(mid_x + @parameters.floor_patch_radius)).each do |x|
+  887                 if @map_data[x + @buffer_x, y + @buffer_y, 0] == :floor_patch
+  888                   adj_count = 0
+  889                   adj_count += 1 if @map_data[x + @buffer_x - 1, y + @buffer_y, 0] == :floor_patch
+  890                   adj_count += 1 if @map_data[x + @buffer_x, y + @buffer_y - 1, 0] == :floor_patch
+  891                   adj_count += 1 if @map_data[x + @buffer_x + 1, y + @buffer_y, 0] == :floor_patch
+  892                   adj_count += 1 if @map_data[x + @buffer_x, y + @buffer_y + 1, 0] == :floor_patch
+  893                   if adj_count == 0 || (adj_count == 1 && rand(100) < @parameters.floor_patch_smooth_rate * 2)
+  894                     @map_data[x + @buffer_x, y + @buffer_y, 0] = :corridor
+  895                   end
+  896                 else
+  897                   if @tileset.floor_patch_under_walls
+  898                     next if !tile_is_ground?(@map_data[x + @buffer_x, y + @buffer_y, 0])
+  899                   else
+  900                     next if !tile_is_ground?(@map_data.value(x + @buffer_x, y + @buffer_y))
+  901                   end
+  902                   adj_count = 0
+  903                   adj_count += 1 if @map_data[x + @buffer_x - 1, y + @buffer_y, 0] == :floor_patch
+  904                   adj_count += 1 if @map_data[x + @buffer_x, y + @buffer_y - 1, 0] == :floor_patch
+  905                   adj_count += 1 if @map_data[x + @buffer_x + 1, y + @buffer_y, 0] == :floor_patch
+  906                   adj_count += 1 if @map_data[x + @buffer_x, y + @buffer_y + 1, 0] == :floor_patch
+  907                   if adj_count >= 2 && rand(100) < adj_count * @parameters.floor_patch_smooth_rate
+  908                     @map_data[x + @buffer_x, y + @buffer_y, 0] = :floor_patch
+  909                   end
+  910                 end
+  911               end
+  912             end
+  913           end
+  914         end
+  915       end
+  916       # 2x2 floor decoration (crater)
+  917       if @tileset.has_decoration?(:floor_decoration_large)
+  918         ((maxWidth * maxHeight) / @parameters.floor_decoration_large_density).times do
+  919           x = rand(maxWidth)
+  920           y = rand(maxHeight)
+  921           next if @map_data.value(x + @buffer_x, y + @buffer_y) != :room ||
+  922                   @map_data.value(x + @buffer_x + 1, y + @buffer_y) != :room ||
+  923                   @map_data.value(x + @buffer_x, y + @buffer_y + 1) != :room ||
+  924                   @map_data.value(x + @buffer_x + 1, y + @buffer_y + 1) != :room
+  925           4.times do |c|
+  926             cx = x + @buffer_x + (c % 2)
+  927             cy = y + @buffer_y + (c / 2)
+  928             @map_data[cx, cy, 0] = (c == 0) ? :floor_decoration_large : :ignore
+  929           end
+  930         end
+  931       end
+  932       # 1x1 floor decoration
+  933       if @tileset.has_decoration?(:floor_decoration)
+  934         ((@usable_width * @usable_height) / @parameters.floor_decoration_density).times do
+  935           x = rand(@usable_width)
+  936           y = rand(@usable_height)
+  937           next if !coord_is_ground?(@buffer_x + x, @buffer_y + y)
+  938           @map_data[x + @buffer_x, y + @buffer_y, 0] = :floor_decoration
+  939         end
+  940       end
+  941       # 2x2 void decoration (crevice)
+  942       if @tileset.has_decoration?(:void_decoration_large)
+  943         ((@width * @height) / @parameters.void_decoration_large_density).times do
+  944           x = rand(@width - 1)
+  945           y = rand(@height - 1)
+  946           next if @map_data.value(x, y) != :void ||
+  947                   @map_data.value(x + 1, y) != :void ||
+  948                   @map_data.value(x, y + 1) != :void ||
+  949                   @map_data.value(x + 1, y + 1) != :void
+  950           4.times do |c|
+  951             cx = x + (c % 2)
+  952             cy = y + (c / 2)
+  953             @map_data[cx, cy, 0] = (c == 0) ? :void_decoration_large : :ignore
+  954           end
+  955         end
+  956       end
+  957       # 1x1 void decoration (rock)
+  958       if @tileset.has_decoration?(:void_decoration)
+  959         ((@width * @height) / @parameters.void_decoration_density).times do
+  960           x = rand(@width)
+  961           y = rand(@height)
+  962           next if @map_data.value(x, y) != :void
+  963           @map_data[x, y, 0] = :void_decoration
+  964         end
+  965       end
+  966     end
+  967 
+  968     def paint_wall_top_tiles(maxWidth, maxHeight)
+  969       return if !@tileset.has_decoration?(:wall_top)
+  970       maxWidth.times do |x|
+  971         maxHeight.times do |y|
+  972           next if ![:wall_2, :wall_in_1, :wall_in_3].include?(@map_data[x + @buffer_x, y + 1 + @buffer_y, 1])
+  973           @map_data[x + @buffer_x, y + @buffer_y, 2] = :wall_top
+  974         end
+  975       end
+  976     end
+  977 
+  978     #===========================================================================
+  979 
+  980     # Convert dungeon layout into proper map tiles from a tileset, and modifies
+  981     # the given map's data accordingly.
+  982     def generateMapInPlace(map)
+  983       map.width.times do |i|
+  984         map.height.times do |j|
+  985           3.times do |layer|
+  986             tile_type = @map_data[i, j, layer]
+  987             tile_type = :floor if [:room, :corridor].include?(tile_type)
+  988             case tile_type
+  989             when :ignore
+  990             when :none
+  991               map.data[i, j, layer] = 0
+  992             when :void_decoration_large, :floor_decoration_large
+  993               4.times do |c|
+  994                 tile = @tileset.get_random_tile_of_type(tile_type, self, i, j, layer)
+  995                 tile += (c % 2) + (8 * (c / 2)) if tile >= 384   # Regular tile
+  996                 map.data[i + (c % 2), j + (c / 2), layer] = tile
+  997               end
+  998             else
+  999               tile = @tileset.get_random_tile_of_type(tile_type, self, i, j, layer)
+ 1000               map.data[i, j, layer] = tile
+ 1001             end
+ 1002           end
+ 1003         end
+ 1004       end
+ 1005     end
+ 1006 
+ 1007     # Returns a random room tile a random room where an event of the given size
+ 1008     # can be placed. Events cannot be placed adjacent to or overlapping each
+ 1009     # other, and can't be placed right next to the wall of a room (to prevent
+ 1010     # them blocking a corridor).
+ 1011     def get_random_room_tile(occupied_tiles, event_width = 1, event_height = 1)
+ 1012       valid_rooms = @room_rects.clone
+ 1013       valid_rooms.delete_if { |rect| rect[2] <= event_width + 1 || rect[3] <= event_height + 1 }
+ 1014       return nil if valid_rooms.empty?
+ 1015       1000.times do
+ 1016         room = valid_rooms.sample
+ 1017         x = 1 + rand(room[2] - event_width - 1)
+ 1018         y = 1 + rand(room[3] - event_height - 1)
+ 1019         valid_placement = true
+ 1020         event_width.times do |i|
+ 1021           event_height.times do |j|
+ 1022             if occupied_tiles.any? { |item| (item[0] - (room[0] + x + i)).abs < 2 && (item[1] - (room[1] + y + j)).abs < 2 }
+ 1023               valid_placement = false
+ 1024             end
+ 1025             break if !valid_placement
+ 1026           end
+ 1027           break if !valid_placement
+ 1028         end
+ 1029         next if !valid_placement
+ 1030         # Found valid placement; use it
+ 1031         event_width.times do |i|
+ 1032           event_height.times do |j|
+ 1033             occupied_tiles.push([room[0] + x + i, room[1] + y + j])
+ 1034           end
+ 1035         end
+ 1036         return [room[0] + x, room[1] + y + event_height - 1]
+ 1037       end
+ 1038       return nil
+ 1039     end
+ 1040   end
+ 1041 end
+ 1042 
+ 1043 #===============================================================================
+ 1044 # Variables that determine which dungeon parameters to use to generate a random
+ 1045 # dungeon.
+ 1046 #===============================================================================
+ 1047 class PokemonGlobalMetadata
+ 1048   attr_writer   :dungeon_area, :dungeon_version
+ 1049   attr_accessor :dungeon_rng_seed
+ 1050 
+ 1051   def dungeon_area
+ 1052     return @dungeon_area || :none
+ 1053   end
+ 1054 
+ 1055   def dungeon_version
+ 1056     return @dungeon_version || 0
+ 1057   end
+ 1058 end
+ 1059 
+ 1060 #===============================================================================
+ 1061 # Code that generates a random dungeon layout, and implements it in a given map.
+ 1062 #===============================================================================
+ 1063 EventHandlers.add(:on_game_map_setup, :random_dungeon,
+ 1064   proc { |map_id, map, _tileset_data|
+ 1065     next if !GameData::MapMetadata.try_get(map_id)&.random_dungeon
+ 1066     # Generate a random dungeon
+ 1067     tileset_data = GameData::DungeonTileset.try_get(map.tileset_id)
+ 1068     params = GameData::DungeonParameters.try_get($PokemonGlobal.dungeon_area,
+ 1069                                                  $PokemonGlobal.dungeon_version)
+ 1070     dungeon = RandomDungeon::Dungeon.new(params.cell_count_x, params.cell_count_y,
+ 1071                                          tileset_data, params)
+ 1072     dungeon.generate
+ 1073     map.width = dungeon.width
+ 1074     map.height = dungeon.height
+ 1075     map.data.resize(map.width, map.height, 3)
+ 1076     dungeon.generateMapInPlace(map)
+ 1077     failed = false
+ 1078     100.times do |i|
+ 1079       failed = false
+ 1080       occupied_tiles = []
+ 1081       # Reposition events
+ 1082       map.events.each_value do |event|
+ 1083         event_width = 1
+ 1084         event_height = 1
+ 1085         if event.name[/size\((\d+),(\d+)\)/i]
+ 1086           event_width = $~[1].to_i
+ 1087           event_height = $~[2].to_i
+ 1088         end
+ 1089         tile = dungeon.get_random_room_tile(occupied_tiles, event_width, event_height)
+ 1090         failed = true if !tile
+ 1091         break if failed
+ 1092         event.x = tile[0]
+ 1093         event.y = tile[1]
+ 1094       end
+ 1095       next if failed
+ 1096       # Reposition the player
+ 1097       tile = dungeon.get_random_room_tile(occupied_tiles)
+ 1098       next if !tile
+ 1099       $game_temp.player_new_x = tile[0]
+ 1100       $game_temp.player_new_y = tile[1]
+ 1101       break
+ 1102     end
+ 1103     if failed
+ 1104       raise _INTL("Couldn't place all events and the player in rooms.")
+ 1105     end
+ 1106   }
+ 1107 )

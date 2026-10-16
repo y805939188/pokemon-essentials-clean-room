@@ -1,0 +1,330 @@
+    1 #===============================================================================
+    2 # Hidden move handlers
+    3 #===============================================================================
+    4 module HiddenMoveHandlers
+    5   CanUseMove     = MoveHandlerHash.new
+    6   ConfirmUseMove = MoveHandlerHash.new
+    7   UseMove        = MoveHandlerHash.new
+    8 
+    9   def self.addCanUseMove(item, proc);     CanUseMove.add(item, proc);     end
+   10   def self.addConfirmUseMove(item, proc); ConfirmUseMove.add(item, proc); end
+   11   def self.addUseMove(item, proc);        UseMove.add(item, proc);        end
+   12 
+   13   def self.hasHandler(item)
+   14     return !CanUseMove[item].nil? && !UseMove[item].nil?
+   15   end
+   16 
+   17   # Returns whether move can be used
+   18   def self.triggerCanUseMove(item, pokemon, showmsg)
+   19     return false if !CanUseMove[item]
+   20     return CanUseMove.trigger(item, pokemon, showmsg)
+   21   end
+   22 
+   23   # Returns whether the player confirmed that they want to use the move
+   24   def self.triggerConfirmUseMove(item, pokemon)
+   25     return true if !ConfirmUseMove[item]
+   26     return ConfirmUseMove.trigger(item, pokemon)
+   27   end
+   28 
+   29   # Returns whether move was used
+   30   def self.triggerUseMove(item, pokemon)
+   31     return false if !UseMove[item]
+   32     return UseMove.trigger(item, pokemon)
+   33   end
+   34 end
+   35 
+   36 #===============================================================================
+   37 #
+   38 #===============================================================================
+   39 def pbCanUseHiddenMove?(pkmn, move, showmsg = true)
+   40   return HiddenMoveHandlers.triggerCanUseMove(move, pkmn, showmsg)
+   41 end
+   42 
+   43 def pbConfirmUseHiddenMove(pokemon, move)
+   44   return HiddenMoveHandlers.triggerConfirmUseMove(move, pokemon)
+   45 end
+   46 
+   47 def pbUseHiddenMove(pokemon, move)
+   48   return HiddenMoveHandlers.triggerUseMove(move, pokemon)
+   49 end
+   50 
+   51 # Unused
+   52 def pbHiddenMoveEvent
+   53   EventHandlers.trigger(:on_player_interact)
+   54 end
+   55 
+   56 def pbCheckHiddenMoveBadge(badge = -1, showmsg = true)
+   57   return true if badge < 0   # No badge requirement
+   58   return true if $DEBUG
+   59   if (Settings::FIELD_MOVES_COUNT_BADGES) ? $player.badge_count >= badge : $player.badges[badge]
+   60     return true
+   61   end
+   62   pbMessage(_INTL("Sorry, a new Badge is required.")) if showmsg
+   63   return false
+   64 end
+   65 
+   66 #===============================================================================
+   67 # Hidden move animation
+   68 #===============================================================================
+   69 def pbHiddenMoveAnimation(pokemon)
+   70   return false if !pokemon
+   71   viewport = Viewport.new(0, 0, Graphics.width, 0)
+   72   viewport.z = 99999
+   73   # Set up sprites
+   74   bg = Sprite.new(viewport)
+   75   bg.bitmap = RPG::Cache.ui("Field move/bg")
+   76   sprite = PokemonSprite.new(viewport)
+   77   sprite.setOffset(PictureOrigin::CENTER)
+   78   sprite.setPokemonBitmap(pokemon)
+   79   sprite.x = Graphics.width + (sprite.bitmap.width / 2)
+   80   sprite.y = bg.bitmap.height / 2
+   81   sprite.z = 1
+   82   sprite.visible = false
+   83   strobebitmap = AnimatedBitmap.new("Graphics/UI/Field move/strobes")
+   84   strobes = []
+   85   strobes_start_x = []
+   86   strobes_timers = []
+   87   15.times do |i|
+   88     strobe = BitmapSprite.new(52, 16, viewport)
+   89     strobe.bitmap.blt(0, 0, strobebitmap.bitmap, Rect.new(0, (i % 2) * 16, 52, 16))
+   90     strobe.z = (i.even? ? 2 : 0)
+   91     strobe.visible = false
+   92     strobes.push(strobe)
+   93   end
+   94   strobebitmap.dispose
+   95   # Do the animation
+   96   phase = 1
+   97   timer_start = System.uptime
+   98   loop do
+   99     Graphics.update
+  100     Input.update
+  101     sprite.update
+  102     case phase
+  103     when 1   # Expand viewport height from zero to full
+  104       viewport.rect.y = lerp(Graphics.height / 2, (Graphics.height - bg.bitmap.height) / 2,
+  105                              0.25, timer_start, System.uptime)
+  106       viewport.rect.height = Graphics.height - (viewport.rect.y * 2)
+  107       bg.oy = (bg.bitmap.height - viewport.rect.height) / 2
+  108       if viewport.rect.y == (Graphics.height - bg.bitmap.height) / 2
+  109         phase = 2
+  110         sprite.visible = true
+  111         timer_start = System.uptime
+  112       end
+  113     when 2   # Slide Pokémon sprite in from right to centre
+  114       sprite.x = lerp(Graphics.width + (sprite.bitmap.width / 2), Graphics.width / 2,
+  115                       0.4, timer_start, System.uptime)
+  116       if sprite.x == Graphics.width / 2
+  117         phase = 3
+  118         pokemon.play_cry
+  119         timer_start = System.uptime
+  120       end
+  121     when 3   # Wait
+  122       if System.uptime - timer_start >= 0.75
+  123         phase = 4
+  124         timer_start = System.uptime
+  125       end
+  126     when 4   # Slide Pokémon sprite off from centre to left
+  127       sprite.x = lerp(Graphics.width / 2, -(sprite.bitmap.width / 2),
+  128                       0.4, timer_start, System.uptime)
+  129       if sprite.x == -(sprite.bitmap.width / 2)
+  130         phase = 5
+  131         sprite.visible = false
+  132         timer_start = System.uptime
+  133       end
+  134     when 5   # Shrink viewport height from full to zero
+  135       viewport.rect.y = lerp((Graphics.height - bg.bitmap.height) / 2, Graphics.height / 2,
+  136                              0.25, timer_start, System.uptime)
+  137       viewport.rect.height = Graphics.height - (viewport.rect.y * 2)
+  138       bg.oy = (bg.bitmap.height - viewport.rect.height) / 2
+  139       phase = 6 if viewport.rect.y == Graphics.height / 2
+  140     end
+  141     # Constantly stream the strobes across the screen
+  142     strobes.each_with_index do |strobe, i|
+  143       strobe.ox = strobe.viewport.rect.x
+  144       strobe.oy = strobe.viewport.rect.y
+  145       if !strobe.visible   # Initial placement of strobes
+  146         randomY = 16 * (1 + rand((bg.bitmap.height / 16) - 2))
+  147         strobe.y = randomY + ((Graphics.height - bg.bitmap.height) / 2)
+  148         strobe.x = rand(Graphics.width)
+  149         strobe.visible = true
+  150         strobes_start_x[i] = strobe.x
+  151         strobes_timers[i] = System.uptime
+  152       elsif strobe.x < Graphics.width   # Move strobe right
+  153         strobe.x = strobes_start_x[i] + lerp(0, Graphics.width * 2, 0.8, strobes_timers[i], System.uptime)
+  154       else   # Strobe is off the screen, reposition it to the left of the screen
+  155         randomY = 16 * (1 + rand((bg.bitmap.height / 16) - 2))
+  156         strobe.y = randomY + ((Graphics.height - bg.bitmap.height) / 2)
+  157         strobe.x = -strobe.bitmap.width - rand(Graphics.width / 4)
+  158         strobes_start_x[i] = strobe.x
+  159         strobes_timers[i] = System.uptime
+  160       end
+  161     end
+  162     pbUpdateSceneMap
+  163     break if phase == 6
+  164   end
+  165   sprite.dispose
+  166   strobes.each { |strobe| strobe.dispose }
+  167   strobes.clear
+  168   bg.dispose
+  169   viewport.dispose
+  170   return true
+  171 end
+  172 
+  173 #===============================================================================
+  174 # Cut
+  175 #===============================================================================
+  176 def pbCut
+  177   move = :CUT
+  178   movefinder = $player.get_pokemon_with_move(move)
+  179   if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_CUT, false) || (!$DEBUG && !movefinder)
+  180     pbMessage(_INTL("This tree looks like it can be cut down."))
+  181     return false
+  182   end
+  183   if pbConfirmMessage(_INTL("This tree looks like it can be cut down!\nWould you like to cut it?"))
+  184     $stats.cut_count += 1
+  185     speciesname = (movefinder) ? movefinder.name : $player.name
+  186     pbMessage(_INTL("{1} used {2}!", speciesname, GameData::Move.get(move).name))
+  187     pbHiddenMoveAnimation(movefinder)
+  188     return true
+  189   end
+  190   return false
+  191 end
+  192 
+  193 HiddenMoveHandlers::CanUseMove.add(:CUT, proc { |move, pkmn, showmsg|
+  194   next false if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_CUT, showmsg)
+  195   facingEvent = $game_player.pbFacingEvent
+  196   if !facingEvent || !facingEvent.name[/cuttree/i]
+  197     pbMessage(_INTL("You can't use that here.")) if showmsg
+  198     next false
+  199   end
+  200   next true
+  201 })
+  202 
+  203 HiddenMoveHandlers::UseMove.add(:CUT, proc { |move, pokemon|
+  204   if !pbHiddenMoveAnimation(pokemon)
+  205     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+  206   end
+  207   $stats.cut_count += 1
+  208   facingEvent = $game_player.pbFacingEvent
+  209   pbSmashEvent(facingEvent) if facingEvent
+  210   next true
+  211 })
+  212 
+  213 def pbSmashEvent(event)
+  214   return if !event
+  215   if event.name[/cuttree/i]
+  216     pbSEPlay("Cut")
+  217   elsif event.name[/smashrock/i]
+  218     pbSEPlay("Rock Smash")
+  219   end
+  220   pbMoveRoute(event, [PBMoveRoute::WAIT, 2,
+  221                       PBMoveRoute::TURN_LEFT, PBMoveRoute::WAIT, 2,
+  222                       PBMoveRoute::TURN_RIGHT, PBMoveRoute::WAIT, 2,
+  223                       PBMoveRoute::TURN_UP, PBMoveRoute::WAIT, 2])
+  224   pbWait(0.4)
+  225   event.erase
+  226   $PokemonMap&.addErasedEvent(event.id)
+  227 end
+  228 
+  229 #===============================================================================
+  230 # Dig
+  231 #===============================================================================
+  232 HiddenMoveHandlers::CanUseMove.add(:DIG, proc { |move, pkmn, showmsg|
+  233   escape = ($PokemonGlobal.escapePoint rescue nil)
+  234   if !escape || escape == []
+  235     pbMessage(_INTL("You can't use that here.")) if showmsg
+  236     next false
+  237   end
+  238   if !$game_player.can_map_transfer_with_follower?
+  239     pbMessage(_INTL("It can't be used when you have someone with you.")) if showmsg
+  240     next false
+  241   end
+  242   next true
+  243 })
+  244 
+  245 HiddenMoveHandlers::ConfirmUseMove.add(:DIG, proc { |move, pkmn|
+  246   escape = ($PokemonGlobal.escapePoint rescue nil)
+  247   next false if !escape || escape == []
+  248   mapname = pbGetMapNameFromId(escape[0])
+  249   next pbConfirmMessage(_INTL("Want to escape from here and return to {1}?", mapname))
+  250 })
+  251 
+  252 HiddenMoveHandlers::UseMove.add(:DIG, proc { |move, pokemon|
+  253   escape = ($PokemonGlobal.escapePoint rescue nil)
+  254   if escape
+  255     if !pbHiddenMoveAnimation(pokemon)
+  256       pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+  257     end
+  258     pbFadeOutIn do
+  259       $game_temp.player_new_map_id    = escape[0]
+  260       $game_temp.player_new_x         = escape[1]
+  261       $game_temp.player_new_y         = escape[2]
+  262       $game_temp.player_new_direction = escape[3]
+  263       pbDismountBike
+  264       $scene.transfer_player
+  265       $game_map.autoplay
+  266       $game_map.refresh
+  267     end
+  268     pbEraseEscapePoint
+  269     next true
+  270   end
+  271   next false
+  272 })
+  273 
+  274 #===============================================================================
+  275 # Dive
+  276 #===============================================================================
+  277 def pbDive
+  278   map_metadata = $game_map.metadata
+  279   return false if !map_metadata || !map_metadata.dive_map_id
+  280   move = :DIVE
+  281   movefinder = $player.get_pokemon_with_move(move)
+  282   if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_DIVE, false) || (!$DEBUG && !movefinder)
+  283     pbMessage(_INTL("The sea is deep here. A Pokémon may be able to go underwater."))
+  284     return false
+  285   end
+  286   if pbConfirmMessage(_INTL("The sea is deep here. Would you like to use Dive?"))
+  287     speciesname = (movefinder) ? movefinder.name : $player.name
+  288     pbMessage(_INTL("{1} used {2}!", speciesname, GameData::Move.get(move).name))
+  289     pbHiddenMoveAnimation(movefinder)
+  290     pbFadeOutIn do
+  291       $game_temp.player_new_map_id    = map_metadata.dive_map_id
+  292       $game_temp.player_new_x         = $game_player.x
+  293       $game_temp.player_new_y         = $game_player.y
+  294       $game_temp.player_new_direction = $game_player.direction
+  295       $PokemonGlobal.surfing = false
+  296       $PokemonGlobal.diving  = true
+  297       $stats.dive_count += 1
+  298       pbUpdateVehicle
+  299       $scene.transfer_player(false)
+  300       $game_map.autoplay
+  301       $game_map.refresh
+  302     end
+  303     return true
+  304   end
+  305   return false
+  306 end
+  307 
+  308 def pbSurfacing
+  309   return if !$PokemonGlobal.diving
+  310   surface_map_id = nil
+  311   GameData::MapMetadata.each do |map_data|
+  312     next if !map_data.dive_map_id || map_data.dive_map_id != $game_map.map_id
+  313     surface_map_id = map_data.id
+  314     break
+  315   end
+  316   return if !surface_map_id
+  317   move = :DIVE
+  318   movefinder = $player.get_pokemon_with_move(move)
+  319   if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_DIVE, false) || (!$DEBUG && !movefinder)
+  320     pbMessage(_INTL("Light is filtering down from above. A Pokémon may be able to surface here."))
+  321     return false
+  322   end
+  323   if pbConfirmMessage(_INTL("Light is filtering down from above. Would you like to use Dive?"))
+  324     speciesname = (movefinder) ? movefinder.name : $player.name
+  325     pbMessage(_INTL("{1} used {2}!", speciesname, GameData::Move.get(move).name))
+  326     pbHiddenMoveAnimation(movefinder)
+  327     pbFadeOutIn do
+  328       $game_temp.player_new_map_id    = surface_map_id
+  329       $game_temp.player_new_x         = $game_player.x
+  330       $game_temp.player_new_y         = $game_player.y

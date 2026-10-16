@@ -1,0 +1,250 @@
+    1 #===============================================================================
+    2 # Represents a planted berry. Stored in $PokemonGlobal.eventvars.
+    3 #===============================================================================
+    4 class BerryPlantData
+    5   attr_accessor :new_mechanics        # false for Gen 3, true for Gen 4
+    6   attr_accessor :berry_id
+    7   attr_accessor :mulch_id             # Gen 4 mechanics
+    8   attr_accessor :time_alive
+    9   attr_accessor :time_last_updated
+   10   attr_accessor :growth_stage
+   11   attr_accessor :replant_count
+   12   attr_accessor :watered_this_stage   # Gen 3 mechanics
+   13   attr_accessor :watering_count       # Gen 3 mechanics
+   14   attr_accessor :moisture_level       # Gen 4 mechanics
+   15   attr_accessor :yield_penalty        # Gen 4 mechanics
+   16 
+   17   def initialize
+   18     reset
+   19   end
+   20 
+   21   def reset(planting = false)
+   22     @new_mechanics      = Settings::NEW_BERRY_PLANTS
+   23     @berry_id           = nil
+   24     @mulch_id           = nil if !planting
+   25     @time_alive         = 0
+   26     @time_last_updated  = 0
+   27     @growth_stage       = 0
+   28     @replant_count      = 0
+   29     @watered_this_stage = false
+   30     @watering_count     = 0
+   31     @moisture_level     = 100
+   32     @yield_penalty      = 0
+   33   end
+   34 
+   35   def plant(berry_id)
+   36     reset(true)
+   37     @berry_id          = berry_id
+   38     @growth_stage      = 1
+   39     @time_last_updated = pbGetTimeNow.to_i
+   40   end
+   41 
+   42   def replant
+   43     @time_alive         = 0
+   44     @growth_stage       = 2
+   45     @replant_count      += 1
+   46     @watered_this_stage = false
+   47     @watering_count     = 0
+   48     @moisture_level     = 100
+   49     @yield_penalty      = 0
+   50   end
+   51 
+   52   def planted?
+   53     return @growth_stage > 0
+   54   end
+   55 
+   56   def growing?
+   57     return @growth_stage > 0 && @growth_stage < 5
+   58   end
+   59 
+   60   def grown?
+   61     return @growth_stage >= 5
+   62   end
+   63 
+   64   def replanted?
+   65     return @replant_count > 0
+   66   end
+   67 
+   68   def moisture_stage
+   69     return 0 if !@new_mechanics
+   70     return 2 if @moisture_level > 50
+   71     return 1 if @moisture_level > 0
+   72     return 0
+   73   end
+   74 
+   75   def water
+   76     @moisture_level = 100
+   77     if !@watered_this_stage
+   78       @watered_this_stage = true
+   79       @watering_count += 1
+   80     end
+   81   end
+   82 
+   83   def berry_yield
+   84     data = GameData::BerryPlant.get(@berry_id)
+   85     if @new_mechanics
+   86       return [data.maximum_yield * (5 - @yield_penalty) / 5, data.minimum_yield].max
+   87     elsif @watering_count > 0
+   88       ret = (data.maximum_yield - data.minimum_yield) * (@watering_count - 1)
+   89       ret += rand(1 + data.maximum_yield - data.minimum_yield)
+   90       return (ret / 4) + data.minimum_yield
+   91     end
+   92     return data.minimum_yield
+   93   end
+   94 
+   95   # Old mechanics only update a plant when its map is loaded. New mechanics
+   96   # update it every frame while its map is loaded.
+   97   def update
+   98     return if !planted?
+   99     time_now = pbGetTimeNow
+  100     time_delta = time_now.to_i - @time_last_updated
+  101     return if time_delta <= 0
+  102     new_time_alive = @time_alive + time_delta
+  103     # Get all growth data
+  104     plant_data = GameData::BerryPlant.get(@berry_id)
+  105     time_per_stage = plant_data.hours_per_stage * 3600   # In seconds
+  106     drying_per_hour = plant_data.drying_per_hour
+  107     max_replants = GameData::BerryPlant::NUMBER_OF_REPLANTS
+  108     stages_growing = GameData::BerryPlant::NUMBER_OF_GROWTH_STAGES
+  109     stages_fully_grown = GameData::BerryPlant::NUMBER_OF_FULLY_GROWN_STAGES
+  110     case @mulch_id
+  111     when :GROWTHMULCH
+  112       time_per_stage = (time_per_stage * 0.75).to_i
+  113       drying_per_hour = (drying_per_hour * 1.5).ceil
+  114     when :DAMPMULCH
+  115       time_per_stage = (time_per_stage * 1.25).to_i
+  116       drying_per_hour /= 2
+  117     when :GOOEYMULCH
+  118       max_replants = (max_replants * 1.5).ceil
+  119     when :STABLEMULCH
+  120       stages_fully_grown = (stages_fully_grown * 1.5).ceil
+  121     end
+  122     # Do replants
+  123     done_replant = false
+  124     loop do
+  125       stages_this_life = stages_growing + stages_fully_grown - (replanted? ? 1 : 0)
+  126       break if new_time_alive < stages_this_life * time_per_stage
+  127       if @replant_count >= max_replants
+  128         reset
+  129         return
+  130       end
+  131       replant
+  132       done_replant = true
+  133       new_time_alive -= stages_this_life * time_per_stage
+  134     end
+  135     # Update how long plant has been alive for
+  136     old_growth_stage = @growth_stage
+  137     @time_alive = new_time_alive
+  138     @growth_stage = 1 + (@time_alive / time_per_stage)
+  139     @growth_stage += 1 if replanted?   # Replants start at stage 2
+  140     @time_last_updated = time_now.to_i
+  141     # Record watering (old mechanics), and apply drying out per hour (new mechanics)
+  142     if @new_mechanics
+  143       old_growth_hour = (done_replant) ? 0 : (@time_alive - time_delta) / 3600
+  144       new_growth_hour = @time_alive / 3600
+  145       if new_growth_hour > old_growth_hour
+  146         (new_growth_hour - old_growth_hour).times do
+  147           if @moisture_level > 0
+  148             @moisture_level -= drying_per_hour
+  149           else
+  150             @yield_penalty += 1
+  151           end
+  152         end
+  153       end
+  154     else
+  155       old_growth_stage = 0 if done_replant
+  156       new_growth_stage = [@growth_stage, stages_growing + 1].min
+  157       @watered_this_stage = false if new_growth_stage > old_growth_stage
+  158       water if $game_screen && GameData::Weather.get($game_screen.weather_type).category == :Rain
+  159     end
+  160   end
+  161 end
+  162 
+  163 #===============================================================================
+  164 #
+  165 #===============================================================================
+  166 class BerryPlantMoistureSprite
+  167   def initialize(event, map, viewport = nil)
+  168     @event          = event
+  169     @map            = map
+  170     @sprite         = IconSprite.new(0, 0, viewport)
+  171     @sprite.ox      = 16
+  172     @sprite.oy      = 24
+  173     @moisture_stage = -1   # -1 = none, 0 = dry, 1 = damp, 2 = wet
+  174     @disposed       = false
+  175     update_graphic
+  176   end
+  177 
+  178   def dispose
+  179     @sprite.dispose
+  180     @map      = nil
+  181     @event    = nil
+  182     @disposed = true
+  183   end
+  184 
+  185   def disposed?
+  186     return @disposed
+  187   end
+  188 
+  189   def update_graphic
+  190     case @moisture_stage
+  191     when -1 then @sprite.setBitmap("")
+  192     when 0  then @sprite.setBitmap("Graphics/Characters/berrytreedry")
+  193     when 1  then @sprite.setBitmap("Graphics/Characters/berrytreedamp")
+  194     when 2  then @sprite.setBitmap("Graphics/Characters/berrytreewet")
+  195     end
+  196   end
+  197 
+  198   def update
+  199     return if !@sprite || !@event
+  200     new_moisture = -1
+  201     berry_plant = @event.variable
+  202     if berry_plant.is_a?(BerryPlantData) && berry_plant.planted?
+  203       new_moisture = berry_plant.moisture_stage
+  204     end
+  205     if new_moisture != @moisture_stage
+  206       @moisture_stage = new_moisture
+  207       update_graphic
+  208     end
+  209     @sprite.update
+  210     @sprite.x      = ScreenPosHelper.pbScreenX(@event)
+  211     @sprite.y      = ScreenPosHelper.pbScreenY(@event)
+  212     @sprite.zoom_x = ScreenPosHelper.pbScreenZoomX(@event)
+  213     @sprite.zoom_y = @sprite.zoom_x
+  214     pbDayNightTint(@sprite)
+  215   end
+  216 end
+  217 
+  218 #===============================================================================
+  219 #
+  220 #===============================================================================
+  221 class BerryPlantSprite
+  222   def initialize(event, map, _viewport)
+  223     @event     = event
+  224     @map       = map
+  225     @old_stage = 0
+  226     @disposed  = false
+  227     berry_plant = event.variable
+  228     return if !berry_plant
+  229     @old_stage = berry_plant.growth_stage
+  230     @event.character_name = ""
+  231     update_plant(berry_plant)
+  232     set_event_graphic(berry_plant, true)   # Set the event's graphic
+  233   end
+  234 
+  235   def dispose
+  236     @event    = nil
+  237     @map      = nil
+  238     @disposed = true
+  239   end
+  240 
+  241   def disposed?
+  242     @disposed
+  243   end
+  244 
+  245   def set_event_graphic(berry_plant, full_check = false)
+  246     return if !berry_plant || (berry_plant.growth_stage == @old_stage && !full_check)
+  247     case berry_plant.growth_stage
+  248     when 0
+  249       @event.character_name = ""
+  250     else

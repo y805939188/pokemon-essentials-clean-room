@@ -1,0 +1,350 @@
+    1 class Game_Character
+    2   attr_reader   :id
+    3   attr_reader   :original_x
+    4   attr_reader   :original_y
+    5   attr_reader   :x
+    6   attr_reader   :y
+    7   attr_reader   :real_x
+    8   attr_reader   :real_y
+    9   attr_writer   :x_offset   # In pixels, positive shifts sprite to the right
+   10   attr_writer   :y_offset   # In pixels, positive shifts sprite down
+   11   attr_accessor :width
+   12   attr_accessor :height
+   13   attr_accessor :sprite_size
+   14   attr_reader   :tile_id
+   15   attr_accessor :character_name
+   16   attr_accessor :character_hue
+   17   attr_accessor :opacity
+   18   attr_reader   :blend_type
+   19   attr_accessor :direction
+   20   attr_accessor :pattern
+   21   attr_accessor :pattern_surf
+   22   attr_accessor :lock_pattern
+   23   attr_reader   :move_route_forcing
+   24   attr_accessor :through
+   25   attr_accessor :animation_id
+   26   attr_accessor :transparent
+   27   attr_reader   :move_speed
+   28   attr_reader   :jump_speed
+   29   attr_accessor :walk_anime
+   30   attr_writer   :bob_height
+   31 
+   32   def initialize(map = nil)
+   33     @map                       = map
+   34     @id                        = 0
+   35     @original_x                = 0
+   36     @original_y                = 0
+   37     @x                         = 0
+   38     @y                         = 0
+   39     @real_x                    = 0
+   40     @real_y                    = 0
+   41     @x_offset                  = 0
+   42     @y_offset                  = 0
+   43     @width                     = 1
+   44     @height                    = 1
+   45     @sprite_size               = [Game_Map::TILE_WIDTH, Game_Map::TILE_HEIGHT]
+   46     @tile_id                   = 0
+   47     @character_name            = ""
+   48     @character_hue             = 0
+   49     @opacity                   = 255
+   50     @blend_type                = 0
+   51     @direction                 = 2
+   52     @pattern                   = 0
+   53     @pattern_surf              = 0
+   54     @lock_pattern              = false
+   55     @move_route_forcing        = false
+   56     @through                   = false
+   57     @animation_id              = 0
+   58     @transparent               = false
+   59     @original_direction        = 2
+   60     @original_pattern          = 0
+   61     @move_type                 = 0
+   62     self.move_speed            = 3
+   63     self.move_frequency        = 6
+   64     self.jump_speed            = 3
+   65     @move_route                = nil
+   66     @move_route_index          = 0
+   67     @original_move_route       = nil
+   68     @original_move_route_index = 0
+   69     @walk_anime                = true    # Whether character should animate while moving
+   70     @step_anime                = false   # Whether character should animate while still
+   71     @direction_fix             = false
+   72     @always_on_top             = false
+   73     @anime_count               = 0   # Time since pattern was last changed
+   74     @stop_count                = 0   # Time since character last finished moving
+   75     @bumping                   = false   # Used by the player only when walking into something
+   76     @jump_peak                 = 0   # Max height while jumping
+   77     @jump_distance             = 0   # Total distance of jump
+   78     @jump_fraction             = 0   # How far through a jump we currently are (0-1)
+   79     @jumping_on_spot           = false
+   80     @bob_height                = 0
+   81     @wait_count                = 0
+   82     @wait_start                = nil
+   83     @moved_this_frame          = false
+   84     @moveto_happened           = false
+   85     @locked                    = false
+   86     @prelock_direction         = 0
+   87   end
+   88 
+   89   def x_offset; return @x_offset || 0; end
+   90   def y_offset; return @y_offset || 0; end
+   91 
+   92   def at_coordinate?(check_x, check_y)
+   93     return check_x >= @x && check_x < @x + @width &&
+   94            check_y > @y - @height && check_y <= @y
+   95   end
+   96 
+   97   def in_line_with_coordinate?(check_x, check_y)
+   98     return (check_x >= @x && check_x < @x + @width) ||
+   99            (check_y > @y - @height && check_y <= @y)
+  100   end
+  101 
+  102   def each_occupied_tile
+  103     (@x...(@x + @width)).each do |i|
+  104       ((@y - @height + 1)..@y).each do |j|
+  105         yield i, j
+  106       end
+  107     end
+  108   end
+  109 
+  110   def move_speed=(val)
+  111     @move_speed = val
+  112     # Time taken to traverse one tile (in seconds) for each speed:
+  113     #   1 => 1.0
+  114     #   2 => 0.5
+  115     #   3 => 0.25    # Walking speed
+  116     #   4 => 0.125   # Running speed (2x walking speed)
+  117     #   5 => 0.1     # Cycling speed (1.25x running speed)
+  118     #   6 => 0.05
+  119     case val
+  120     when 6 then @move_time = 0.05
+  121     when 5 then @move_time = 0.1
+  122     else        @move_time = 2.0 / (2**val)
+  123     end
+  124   end
+  125 
+  126   # Takes the same values as move_speed above.
+  127   def jump_speed=(val)
+  128     @jump_speed = val
+  129     case val
+  130     when 6 then @jump_time = 0.05
+  131     when 5 then @jump_time = 0.1
+  132     else        @jump_time = 2.0 / (2**val)
+  133     end
+  134   end
+  135 
+  136   # Returns time in seconds for one full cycle (4 frames) of an animating
+  137   # charset to show. Two frames are shown per movement across one tile.
+  138   def pattern_update_speed
+  139     return @jump_time * 2 if jumping?
+  140     ret = @move_time * 2
+  141     ret *= 2 if @move_speed >= 5   # Cycling speed or faster; slower animation
+  142     return ret
+  143   end
+  144 
+  145   def move_frequency=(val)
+  146     return if val == @move_frequency
+  147     @move_frequency = val
+  148     # Time in seconds to wait between each action in a move route (not forced).
+  149     # Specifically, this is the time to wait after the character stops moving
+  150     # because of the previous action.
+  151     #   1 => 4.75 seconds
+  152     #   2 => 3.6 seconds
+  153     #   3 => 2.55 seconds
+  154     #   4 => 1.6 seconds
+  155     #   5 => 0.75 seconds
+  156     #   6 => 0 seconds, i.e. continuous movement
+  157     @command_delay = (40 - (val * 2)) * (6 - val) / 40.0
+  158   end
+  159 
+  160   def bob_height
+  161     @bob_height = 0 if !@bob_height
+  162     return @bob_height
+  163   end
+  164 
+  165   def lock
+  166     return if @locked
+  167     @prelock_direction = 0   # Was @direction but disabled
+  168     turn_toward_player
+  169     @locked = true
+  170   end
+  171 
+  172   def minilock
+  173     @prelock_direction = 0   # Was @direction but disabled
+  174     @locked = true
+  175   end
+  176 
+  177   def lock?
+  178     return @locked
+  179   end
+  180 
+  181   def unlock
+  182     return unless @locked
+  183     @locked = false
+  184     @direction = @prelock_direction if !@direction_fix && @prelock_direction != 0
+  185   end
+  186 
+  187   #=============================================================================
+  188   # Information from map data
+  189   #=============================================================================
+  190   def map
+  191     return (@map) ? @map : $game_map
+  192   end
+  193 
+  194   def terrain_tag
+  195     return self.map.terrain_tag(@x, @y)
+  196   end
+  197 
+  198   def bush_depth
+  199     return @bush_depth || 0
+  200   end
+  201 
+  202   def calculate_bush_depth
+  203     if @tile_id > 0 || @always_on_top || jumping?
+  204       @bush_depth = 0
+  205       return
+  206     end
+  207     this_map = (self.map.valid?(@x, @y)) ? [self.map, @x, @y] : $map_factory&.getNewMap(@x, @y, self.map.map_id)
+  208     if this_map && this_map[0].deepBush?(this_map[1], this_map[2])
+  209       xbehind = @x + (@direction == 4 ? 1 : @direction == 6 ? -1 : 0)
+  210       ybehind = @y + (@direction == 8 ? 1 : @direction == 2 ? -1 : 0)
+  211       if moving?
+  212         behind_map = (self.map.valid?(xbehind, ybehind)) ? [self.map, xbehind, ybehind] : $map_factory&.getNewMap(xbehind, ybehind, self.map.map_id)
+  213         @bush_depth = Game_Map::TILE_HEIGHT if behind_map[0].deepBush?(behind_map[1], behind_map[2])
+  214       else
+  215         @bush_depth = Game_Map::TILE_HEIGHT
+  216       end
+  217     elsif this_map && this_map[0].bush?(this_map[1], this_map[2]) && !moving?
+  218       @bush_depth = 12
+  219     else
+  220       @bush_depth = 0
+  221     end
+  222   end
+  223 
+  224   def fullPattern
+  225     case self.direction
+  226     when 2 then return self.pattern
+  227     when 4 then return self.pattern + 4
+  228     when 6 then return self.pattern + 8
+  229     when 8 then return self.pattern + 12
+  230     end
+  231     return 0
+  232   end
+  233 
+  234   #=============================================================================
+  235   # Passability
+  236   #=============================================================================
+  237   def passable?(x, y, d, strict = false)
+  238     new_x = x + (d == 6 ? 1 : d == 4 ? -1 : 0)
+  239     new_y = y + (d == 2 ? 1 : d == 8 ? -1 : 0)
+  240     return false unless self.map.valid?(new_x, new_y)
+  241     return true if @through
+  242     if strict
+  243       return false unless self.map.passableStrict?(x, y, d, self)
+  244       return false unless self.map.passableStrict?(new_x, new_y, 10 - d, self)
+  245     else
+  246       return false unless self.map.passable?(x, y, d, self)
+  247       return false unless self.map.passable?(new_x, new_y, 10 - d, self)
+  248     end
+  249     self.map.events.each_value do |event|
+  250       next if self == event || !event.at_coordinate?(new_x, new_y) || event.through
+  251       return false if self != $game_player || event.character_name != ""
+  252     end
+  253     if $game_player.x == new_x && $game_player.y == new_y &&
+  254        !$game_player.through && @character_name != ""
+  255       return false
+  256     end
+  257     return true
+  258   end
+  259 
+  260   def can_move_from_coordinate?(start_x, start_y, dir, strict = false)
+  261     case dir
+  262     when 2, 8   # Down, up
+  263       y_diff = (dir == 8) ? @height - 1 : 0
+  264       (start_x...(start_x + @width)).each do |i|
+  265         return false if !passable?(i, start_y - y_diff, dir, strict)
+  266       end
+  267       return true
+  268     when 4, 6   # Left, right
+  269       x_diff = (dir == 6) ? @width - 1 : 0
+  270       ((start_y - @height + 1)..start_y).each do |i|
+  271         return false if !passable?(start_x + x_diff, i, dir, strict)
+  272       end
+  273       return true
+  274     when 1, 3   # Down diagonals
+  275       # Treated as moving down first and then horizontally, because that
+  276       # describes which tiles the character's feet touch
+  277       (start_x...(start_x + @width)).each do |i|
+  278         return false if !passable?(i, start_y, 2, strict)
+  279       end
+  280       x_diff = (dir == 3) ? @width - 1 : 0
+  281       ((start_y - @height + 1)..start_y).each do |i|
+  282         return false if !passable?(start_x + x_diff, i + 1, dir + 3, strict)
+  283       end
+  284       return true
+  285     when 7, 9   # Up diagonals
+  286       # Treated as moving horizontally first and then up, because that describes
+  287       # which tiles the character's feet touch
+  288       x_diff = (dir == 9) ? @width - 1 : 0
+  289       ((start_y - @height + 1)..start_y).each do |i|
+  290         return false if !passable?(start_x + x_diff, i, dir - 3, strict)
+  291       end
+  292       x_tile_offset = (dir == 9) ? 1 : -1
+  293       (start_x...(start_x + @width)).each do |i|
+  294         return false if !passable?(i + x_tile_offset, start_y - @height + 1, 8, strict)
+  295       end
+  296       return true
+  297     end
+  298     return false
+  299   end
+  300 
+  301   def can_move_in_direction?(dir, strict = false)
+  302     return can_move_from_coordinate?(@x, @y, dir, strict)
+  303   end
+  304 
+  305   #=============================================================================
+  306   # Screen position of the character
+  307   #=============================================================================
+  308   def screen_x
+  309     ret = ((@real_x.to_f - self.map.display_x) / Game_Map::X_SUBPIXELS).round
+  310     ret += @width * Game_Map::TILE_WIDTH / 2
+  311     ret += self.x_offset
+  312     return ret
+  313   end
+  314 
+  315   def screen_y_ground
+  316     ret = ((@real_y.to_f - self.map.display_y) / Game_Map::Y_SUBPIXELS).round
+  317     ret += Game_Map::TILE_HEIGHT
+  318     return ret
+  319   end
+  320 
+  321   def screen_y
+  322     ret = screen_y_ground
+  323     if jumping?
+  324       jump_progress = (@jump_fraction - 0.5).abs   # 0.5 to 0 to 0.5
+  325       ret += @jump_peak * ((4 * (jump_progress**2)) - 1)
+  326     end
+  327     ret += self.y_offset
+  328     return ret
+  329   end
+  330 
+  331   def screen_z(height = 0)
+  332     return 999 if @always_on_top
+  333     z = screen_y_ground
+  334     if @tile_id > 0
+  335       begin
+  336         return z + (self.map.priorities[@tile_id] * 32)
+  337       rescue
+  338         raise "Event's graphic is an out-of-range tile (event #{@id}, map #{self.map.map_id})"
+  339       end
+  340     end
+  341     # Add z if height exceeds 32
+  342     return z + ((height > Game_Map::TILE_HEIGHT) ? Game_Map::TILE_HEIGHT - 1 : 0)
+  343   end
+  344 
+  345   #=============================================================================
+  346   # Movement
+  347   #=============================================================================
+  348   def moving?
+  349     return !@move_timer.nil?
+  350   end

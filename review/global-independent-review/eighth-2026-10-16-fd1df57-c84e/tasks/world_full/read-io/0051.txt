@@ -1,0 +1,280 @@
+  561             x1 += 1
+  562           end
+  563           x = x1
+  564         end
+  565       end
+  566       # Check for unflooded floor tiles
+  567       maxHeight.times do |y|
+  568         maxWidth.times do |x|
+  569           next if visited[(y * maxWidth) + x] || !tile_is_ground?(@map_data[x + @buffer_x, y + @buffer_y, 0])
+  570           @need_redraw = true
+  571           break
+  572         end
+  573         break if @need_redraw
+  574       end
+  575     end
+  576 
+  577     # Fixes (most) situations where it isn't immediately obvious how to draw a
+  578     # wall around a floor area.
+  579     def resolve_wall_error(x, y, layer = 0)
+  580       if layer == 0
+  581         is_neighbour = lambda { |til| return tile_is_ground?(til) }
+  582       else
+  583         is_neighbour = lambda { |til| return tile_is_wall?(til) }
+  584       end
+  585       tile = {
+  586         :wall_1    => (layer == 0) ? :wall_1 : :upper_wall_1,
+  587         :wall_2    => (layer == 0) ? :wall_2 : :upper_wall_2,
+  588         :wall_3    => (layer == 0) ? :wall_3 : :upper_wall_3,
+  589         :wall_4    => (layer == 0) ? :wall_4 : :upper_wall_4,
+  590         :wall_6    => (layer == 0) ? :wall_6 : :upper_wall_6,
+  591         :wall_7    => (layer == 0) ? :wall_7 : :upper_wall_7,
+  592         :wall_8    => (layer == 0) ? :wall_8 : :upper_wall_8,
+  593         :wall_9    => (layer == 0) ? :wall_9 : :upper_wall_9,
+  594         :wall_in_1 => (layer == 0) ? :wall_in_1 : :upper_wall_in_1,
+  595         :wall_in_3 => (layer == 0) ? :wall_in_3 : :upper_wall_in_3,
+  596         :wall_in_7 => (layer == 0) ? :wall_in_7 : :upper_wall_in_7,
+  597         :wall_in_9 => (layer == 0) ? :wall_in_9 : :upper_wall_in_9,
+  598         :corridor  => (layer == 0) ? :corridor : :void
+  599       }
+  600       neighbours = 0
+  601       neighbours |= 0x01 if is_neighbour.call(@map_data.value(x,     y - 1))   # N
+  602       neighbours |= 0x02 if is_neighbour.call(@map_data.value(x + 1, y - 1))   # NE
+  603       neighbours |= 0x04 if is_neighbour.call(@map_data.value(x + 1,     y))   # E
+  604       neighbours |= 0x08 if is_neighbour.call(@map_data.value(x + 1, y + 1))   # SE
+  605       neighbours |= 0x10 if is_neighbour.call(@map_data.value(x,     y + 1))   # S
+  606       neighbours |= 0x20 if is_neighbour.call(@map_data.value(x - 1, y + 1))   # SW
+  607       neighbours |= 0x40 if is_neighbour.call(@map_data.value(x - 1,     y))   # W
+  608       neighbours |= 0x80 if is_neighbour.call(@map_data.value(x - 1, y - 1))   # NW
+  609       case neighbours
+  610       when 34
+  611         # --f   floor tile (dashes are walls)
+  612         # -o-   this tile
+  613         # f--   floor tile
+  614         if @map_data.value(x - 1, y - 1) == :void
+  615           @map_data[x, y, 1] = tile[:wall_in_3]
+  616           @map_data[x - 1, y, 1] = tile[:wall_in_7]
+  617           @map_data[x, y - 1, 1] = tile[:wall_in_7]
+  618           @map_data.set_wall(x - 1, y - 1, tile[:wall_7])
+  619         elsif @map_data.value(x + 1, y + 1) == :void
+  620           @map_data[x, y, 1] = tile[:wall_in_7]
+  621           @map_data[x + 1, y, 1] = tile[:wall_in_3]
+  622           @map_data[x, y + 1, 1] = tile[:wall_in_3]
+  623           @map_data.set_wall(x + 1, y + 1, tile[:wall_3])
+  624         elsif @map_data[x, y - 1, 1] == tile[:wall_4] && @map_data[x - 1, y, 1] == tile[:wall_in_9]
+  625           @map_data[x, y, 1] = tile[:wall_in_3]
+  626           @map_data[x, y - 1, 1] = tile[:wall_in_7]
+  627           @map_data.set_ground(x - 1, y, tile[:corridor])
+  628           @map_data[x - 1, y - 1, 1] = (@map_data[x - 1, y - 1, 1] == tile[:wall_6]) ? tile[:wall_in_9] : tile[:wall_8]
+  629         elsif @map_data[x, y - 1, 1] == tile[:wall_in_1] && @map_data[x - 1, y, 1] == tile[:wall_8]
+  630           @map_data[x, y, 1] = tile[:wall_in_3]
+  631           @map_data.set_ground(x, y - 1, tile[:corridor])
+  632           @map_data[x - 1, y, 1] = tile[:wall_in_7]
+  633           @map_data[x - 1, y - 1, 1] = (@map_data[x - 1, y - 1, 1] == tile[:wall_2]) ? tile[:wall_in_1] : tile[:wall_4]
+  634         elsif @map_data[x, y - 1, 1] == tile[:wall_in_1] && @map_data[x - 1, y, 1] == tile[:wall_in_9]
+  635           @map_data[x, y, 1] = tile[:wall_in_3]
+  636           @map_data.set_ground(x, y - 1, tile[:corridor])
+  637           @map_data.set_ground(x - 1, y, tile[:corridor])
+  638           if @map_data[x - 1, y - 1, 1] == :error
+  639             @map_data[x - 1, y - 1, 1] = tile[:wall_in_7]
+  640           else
+  641             @map_data.set_ground(x - 1, y - 1, tile[:corridor])
+  642           end
+  643         elsif @map_data[x, y + 1, 1] == tile[:wall_6] && @map_data[x + 1, y, 1] == tile[:wall_in_1]
+  644           @map_data[x, y, 1] = tile[:wall_in_7]
+  645           @map_data[x, y + 1, 1] = tile[:wall_in_3]
+  646           @map_data.set_ground(x + 1, y, tile[:corridor])
+  647           @map_data[x + 1, y + 1, 1] = (@map_data[x + 1, y + 1, 1] == tile[:wall_4]) ? tile[:wall_in_1] : tile[:wall_2]
+  648         elsif @map_data[x, y + 1, 1] == tile[:wall_in_9] && @map_data[x + 1, y, 1] == tile[:wall_2]
+  649           @map_data[x, y, 1] = tile[:wall_in_7]
+  650           @map_data.set_ground(x, y + 1, tile[:corridor])
+  651           @map_data[x + 1, y, 1] = tile[:wall_in_3]
+  652           @map_data[x + 1, y + 1, 1] = (@map_data[x + 1, y + 1, 1] == tile[:wall_8]) ? tile[:wall_in_9] : tile[:wall_6]
+  653         elsif @map_data[x, y + 1, 1] == tile[:wall_in_9] && @map_data[x + 1, y, 1] == tile[:wall_in_1]
+  654           @map_data[x, y, 1] = tile[:wall_in_7]
+  655           @map_data.set_ground(x, y + 1, tile[:corridor])
+  656           @map_data.set_ground(x + 1, y, tile[:corridor])
+  657           if @map_data[x + 1, y + 1, 1] == :error
+  658             @map_data[x + 1, y + 1, 1] = tile[:wall_in_3]
+  659           else
+  660             @map_data.set_ground(x + 1, y + 1, tile[:corridor])
+  661           end
+  662         else
+  663           # Tile error can't be resolved; will redraw map
+  664           @need_redraw = true
+  665         end
+  666       when 136
+  667         # f--   floor tile (dashes are walls)
+  668         # -o-   this tile
+  669         # --f   floor tile
+  670         if @map_data.value(x - 1, y + 1) == :void
+  671           @map_data[x, y, 1] = tile[:wall_in_9]
+  672           @map_data[x - 1, y, 1] = tile[:wall_in_1]
+  673           @map_data[x, y + 1, 1] = tile[:wall_in_1]
+  674           @map_data.set_wall(x - 1, y + 1, tile[:wall_1])
+  675         elsif @map_data.value(x + 1, y - 1) == :void
+  676           @map_data[x, y, 1] = tile[:wall_in_1]
+  677           @map_data[x + 1, y, 1] = tile[:wall_in_9]
+  678           @map_data[x, y - 1, 1] = tile[:wall_in_9]
+  679           @map_data.set_wall(x + 1, y - 1, tile[:wall_9])
+  680         elsif @map_data[x, y - 1, 1] == tile[:wall_6] && @map_data[x + 1, y, 1] == tile[:wall_in_7]
+  681           @map_data[x, y, 1] = tile[:wall_in_1]
+  682           @map_data[x, y - 1, 1] = tile[:wall_in_9]
+  683           @map_data.set_ground(x + 1, y, tile[:corridor])
+  684           @map_data[x + 1, y - 1, 1] = (@map_data[x + 1, y - 1, 1] == tile[:wall_4]) ? tile[:wall_in_7] : tile[:wall_8]
+  685         elsif @map_data[x, y - 1, 1] == tile[:wall_in_3] && @map_data[x + 1, y, 1] == tile[:wall_8]
+  686           @map_data[x, y, 1] = tile[:wall_in_1]
+  687           @map_data.set_ground(x, y - 1, tile[:corridor])
+  688           @map_data[x + 1, y, 1] = tile[:wall_in_9]
+  689           @map_data[x + 1, y - 1, 1] = (@map_data[x + 1, y - 1, 1] == tile[:wall_2]) ? tile[:wall_in_3] : tile[:wall_6]
+  690         elsif @map_data[x, y - 1, 1] == tile[:wall_in_3] && @map_data[x + 1, y, 1] == tile[:wall_in_7]
+  691           @map_data[x, y, 1] = tile[:wall_in_1]
+  692           @map_data.set_ground(x, y - 1, tile[:corridor])
+  693           @map_data.set_ground(x + 1, y, tile[:corridor])
+  694           if @map_data[x + 1, y - 1, 1] == :error
+  695             @map_data[x + 1, y - 1, 1] = tile[:wall_in_9]
+  696           else
+  697             @map_data.set_ground(x + 1, y - 1, tile[:corridor])
+  698           end
+  699         elsif @map_data[x, y + 1, 1] == tile[:wall_4] && @map_data[x - 1, y, 1] == tile[:wall_in_3]
+  700           @map_data[x, y, 1] = tile[:wall_in_9]
+  701           @map_data[x, y + 1, 1] = tile[:wall_in_1]
+  702           @map_data.set_ground(x - 1, y, tile[:corridor])
+  703           @map_data[x - 1, y + 1, 1] = (@map_data[x - 1, y + 1, 1] == tile[:wall_6]) ? tile[:wall_in_3] : tile[:wall_2]
+  704         elsif @map_data[x, y + 1, 1] == tile[:wall_in_7] && @map_data[x - 1, y, 1] == tile[:wall_2]
+  705           @map_data[x, y, 1] = tile[:wall_in_9]
+  706           @map_data.set_ground(x, y + 1, tile[:corridor])
+  707           @map_data[x - 1, y, 1] = tile[:wall_in_1]
+  708           @map_data[x - 1, y + 1, 1] = (@map_data[x - 1, y + 1, 1] == tile[:wall_8]) ? tile[:wall_in_7] : tile[:wall_4]
+  709         elsif @map_data[x, y + 1, 1] == tile[:wall_in_7] && @map_data[x - 1, y, 1] == tile[:wall_in_3]
+  710           @map_data[x, y, 1] = tile[:wall_in_9]
+  711           @map_data.set_ground(x, y + 1, tile[:corridor])
+  712           @map_data.set_ground(x - 1, y, tile[:corridor])
+  713           if @map_data[x - 1, y + 1, 1] == :error
+  714             @map_data[x - 1, y + 1, 1] = tile[:wall_in_1]
+  715           else
+  716             @map_data.set_ground(x - 1, y + 1, tile[:corridor])
+  717           end
+  718         else
+  719           # Tile error can't be resolved; will redraw map
+  720           @need_redraw = true
+  721         end
+  722       else
+  723         @need_redraw = true
+  724         raise "can't resolve error"
+  725       end
+  726     end
+  727 
+  728     #===========================================================================
+  729 
+  730     # Draws a cell's contents, which is an underlying pattern based on
+  731     # tile_layout (the corridors), and possibly a room on top of that.
+  732     def paint_node_contents(cell_x, cell_y, node)
+  733       # Draw corridors connecting this room
+  734       paint_connections(cell_x, cell_y, node.edge_pattern)
+  735       # Generate a randomly placed room
+  736       paint_room(cell_x, cell_y) if node.room?
+  737     end
+  738 
+  739     def paint_ground_rect(x, y, width, height, tile)
+  740       height.times do |j|
+  741         width.times do |i|
+  742           @map_data[x + i, y + j, 0] = tile
+  743         end
+  744       end
+  745     end
+  746 
+  747     # Draws corridors leading from the node at (cell_x, cell_y).
+  748     def paint_connections(cell_x, cell_y, pattern)
+  749       x_offset = (@parameters.cell_width - @parameters.corridor_width) / 2
+  750       y_offset = (@parameters.cell_height - @parameters.corridor_width) / 2
+  751       if @parameters.random_corridor_shift
+  752         variance = @parameters.corridor_width
+  753         variance /= 2 if @tileset.snap_to_large_grid
+  754         if variance > 1
+  755           x_shift = rand(variance) - (variance / 2)
+  756           y_shift = rand(variance) - (variance / 2)
+  757           if @tileset.snap_to_large_grid
+  758             x_shift *= 2
+  759             y_shift *= 2
+  760           end
+  761           x_offset += x_shift
+  762           y_offset += y_shift
+  763         end
+  764       end
+  765       if @tileset.snap_to_large_grid
+  766         x_offset += 1 if x_offset.odd?
+  767         y_offset += 1 if y_offset.odd?
+  768       end
+  769       if (pattern & RandomDungeon::EdgeMasks::NORTH) == 0
+  770         paint_ground_rect(cell_x + x_offset, cell_y,
+  771                           @parameters.corridor_width, y_offset + @parameters.corridor_width,
+  772                           :corridor)
+  773       end
+  774       if (pattern & RandomDungeon::EdgeMasks::SOUTH) == 0
+  775         paint_ground_rect(cell_x + x_offset, cell_y + y_offset,
+  776                           @parameters.corridor_width, @parameters.cell_height - y_offset,
+  777                           :corridor)
+  778       end
+  779       if (pattern & RandomDungeon::EdgeMasks::EAST) == 0
+  780         paint_ground_rect(cell_x + x_offset, cell_y + y_offset,
+  781                           @parameters.cell_width - x_offset, @parameters.corridor_width,
+  782                           :corridor)
+  783       end
+  784       if (pattern & RandomDungeon::EdgeMasks::WEST) == 0
+  785         paint_ground_rect(cell_x, cell_y + y_offset,
+  786                           x_offset + @parameters.corridor_width, @parameters.corridor_width,
+  787                           :corridor)
+  788       end
+  789     end
+  790 
+  791     # Draws a room at (cell_x, cell_y).
+  792     def paint_room(cell_x, cell_y)
+  793       width, height = @parameters.rand_room_size
+  794       return if width <= 0 || height <= 0
+  795       if @tileset.snap_to_large_grid
+  796         width += (width <= @parameters.cell_width / 2) ? 1 : -1 if width.odd?
+  797         height += (height <= @parameters.cell_height / 2) ? 1 : -1 if height.odd?
+  798       end
+  799       center_x, center_y = @parameters.rand_cell_center
+  800       x = cell_x + center_x - (width / 2)
+  801       y = cell_y + center_y - (height / 2)
+  802       if @tileset.snap_to_large_grid
+  803         x += 1 if x.odd?
+  804         y += 1 if y.odd?
+  805       end
+  806       x = x.clamp(@buffer_x, @usable_width - @buffer_x - width)
+  807       y = y.clamp(@buffer_y, @usable_height - @buffer_y - height)
+  808       @room_rects.push([x, y, width, height])
+  809       paint_ground_rect(x, y, width, height, :room)
+  810     end
+  811 
+  812     def paint_walls_around_ground(x, y, layer, errors)
+  813       (-1..1).each do |j|
+  814         (-1..1).each do |i|
+  815           next if i == 0 && j == 0
+  816           next if @map_data[x + i, y + j, 0] != :void
+  817           tile = get_wall_tile_for_coord(x + i, y + j, layer)
+  818           if [:void, :corridor].include?(tile)
+  819             @map_data[x + i, y + j, 0] = tile
+  820           else
+  821             @map_data.set_wall(x + i, y + j, tile)
+  822           end
+  823           errors.push([x + i, y + j]) if tile == :error
+  824         end
+  825       end
+  826     end
+  827 
+  828     def get_wall_tile_for_coord(x, y, layer = 0)
+  829       if layer == 0
+  830         is_neighbour = lambda { |x2, y2| return tile_is_ground?(@map_data.value(x2, y2)) }
+  831       else
+  832         is_neighbour = lambda { |x2, y2| return tile_is_wall?(@map_data[x2, y2, 1]) }
+  833       end
+  834       neighbours = 0
+  835       neighbours |= 0x01 if is_neighbour.call(x,     y - 1)   # N
+  836       neighbours |= 0x02 if is_neighbour.call(x + 1, y - 1)   # NE
+  837       neighbours |= 0x04 if is_neighbour.call(x + 1,     y)   # E
+  838       neighbours |= 0x08 if is_neighbour.call(x + 1, y + 1)   # SE
+  839       neighbours |= 0x10 if is_neighbour.call(x,     y + 1)   # S
+  840       neighbours |= 0x20 if is_neighbour.call(x - 1, y + 1)   # SW

@@ -16,24 +16,24 @@ def write(name, value):
     (root / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 scope = read("publication/checkpoint-scope.json")
-for name in ["binary_ruby_zlib_remaining", "world_resources_rendering", "ui_minigames", "binary_remaining_texts"]:
+for name in ["binary_ruby_zlib_remaining", "world_resources_rendering", "ui_minigames", "binary_remaining_texts", "world_catalog_remaining", "world_full", "ui_wp66"]:
     if name not in scope["completed"]:
         scope["completed"].append(name)
-scope["running"] = ["world_full", "ui_full", "coverage_acceptance_incremental", "world_catalog_remaining", "ui_wp66", "kernel_atomic_reception"]
-scope.update(utc=now, actual_descendant_contexts_started=35, active_including_root=7, exited_unpublished=[])
-for name in ["coverage_acceptance_incremental", "world_catalog_remaining", "ui_wp66", "kernel_atomic_reception"]:
+scope["running"] = ["ui_full", "coverage_acceptance_incremental", "kernel_atomic_reception", "core_atomic_reception", "resource_media_serialized_cloud", "creature_a_atomic_reception"]
+scope.update(utc=now, actual_descendant_contexts_started=38, active_including_root=7, exited_unpublished=[])
+for name in ["coverage_acceptance_incremental", "world_catalog_remaining", "ui_wp66", "kernel_atomic_reception", "core_atomic_reception", "resource_media_serialized_cloud", "creature_a_atomic_reception"]:
     scope["supplemental_actual_started"][name] = "/root/" + name
 scope["completed_selector_qualification"] = "Publication-eligible scoped exited outputs; no task-wide final acceptance inferred."
-assert 1 + len(scope["completed"]) + len(scope["running"]) + len(scope["nested_completed"]) == 36
+assert 1 + len(scope["completed"]) + len(scope["running"]) + len(scope["nested_completed"]) == 39
 write("publication/checkpoint-scope.json", scope)
 
 support = read("delegation/additional-supporting-dispatch.json")
 for job in support["jobs"]:
-    job.update(state="ACTUAL_NEW_CONTEXT_RUNNING", actual_starts=1, actual_entry="/root/" + job["id"], actual_configuration="UNVERIFIED", authoritative_spawn_utc="UNVERIFIED", state_observed_utc=now)
+    job.update(state=("EXITED_SCOPED_OUTPUT_TASK_FINAL_RECEPTION_OPEN" if job["id"] == "world_catalog_remaining" else "ACTUAL_NEW_CONTEXT_RUNNING"), actual_starts=1, actual_entry="/root/" + job["id"], actual_configuration="UNVERIFIED", authoritative_spawn_utc="UNVERIFIED", state_observed_utc=now)
 support.update(actual_starts=2, utc=now, qualification="Two actual different contexts; source primary denominator unchanged. Opaque IDs and authoritative creation UTC were not returned.")
 write("delegation/additional-supporting-dispatch.json", support)
 ui = read("delegation/ui-wp66-supporting-dispatch.json")
-ui.update(state="ACTUAL_NEW_CONTEXT_RUNNING", actual_entry="/root/ui_wp66", actual_starts=1, actual_start_utc="UNVERIFIED_NO_AUTHORITATIVE_CREATION_TIMESTAMP_RETURNED", state_observed_utc=now, startup_receipt="Actual collaboration.spawn_agent returned canonical /root/ui_wp66; reviewer subsequently confirmed full contract/readset identity and baseline.")
+ui.update(state="EXITED_SCOPED_OUTPUT_PARENT_ACTUAL_RECEPTION_IN_PROGRESS", actual_entry="/root/ui_wp66", actual_starts=1, actual_start_utc="UNVERIFIED_NO_AUTHORITATIVE_CREATION_TIMESTAMP_RETURNED", state_observed_utc=now, startup_receipt="Actual collaboration.spawn_agent returned canonical /root/ui_wp66; reviewer subsequently confirmed full contract/readset identity and baseline.")
 write("delegation/ui-wp66-supporting-dispatch.json", ui)
 
 plan = read("delegation/current-plan.json")
@@ -46,30 +46,30 @@ for job in plan["frozen_ui_splits_not_started"]:
         job.update(state="ACTUAL_SUPPORTING_CONTEXT_RUNNING_PRIMARY_RETAINED_BY_PARENT", actual_starts=1, actual_entry="/root/ui_wp66", dispatch="delegation/ui-wp66-supporting-dispatch.json")
     elif job["id"] == "ui_minigames":
         job["state"] = "EXITED_SCOPED_OUTPUT_PARENT_ACTUAL_RECEPTION_IN_PROGRESS"
-plan.update(utc=now, execution_leaf_plan_count_including_binary_supplement=39, supplemental_active_plan_count=4, pending_not_started_current_plans=19,
-            state_qualification="31 primary leaves plus2 binary supplement/child plus3 supporting and3 atomic-completion plans=39 execution plans; actual contexts36, RUNNING7, exited29.17 parent-reserved primary plans and2 new atomic-completion plans have no actual start. Plans and contexts are different populations.",
-            all_concrete_not_started_action_plans={"parent_reserved_primary":17,"frozen_supporting":2,"sum":19,"retired_never_started_ui_splits":2,"additional_semantic_completion_contracts":"3FROZEN_1ACTUAL_2NOT_STARTED"},
+plan.update(utc=now, execution_leaf_plan_count_including_binary_supplement=39, supplemental_active_plan_count=6, pending_not_started_current_plans=13,
+            state_qualification="31 primary leaves plus2 binary supplement/child plus3 supporting and3 atomic-completion plans=39 execution plans; actual contexts39, RUNNING7, exited32.13 logical primary groups have no local actual start;17 original parent routes remain without external receipts, including4 groups with local cloud/root routes. All3 atomic completion reviewers actual; existing root scopes add0 contexts. Plans and contexts are different populations.",
+            all_concrete_not_started_action_plans={"logical_primary_without_local_start":13,"frozen_atomic_completion_without_start":0,"logical_sum":13,"original_parent_routes_without_external_receipts":17,"concrete_not_started_routes_including_parent_and_atomic":17,"retired_never_started_ui_splits":2,"additional_semantic_completion_contracts":"3FROZEN_3ACTUAL"},
             additional_supporting_plans="delegation/additional-supporting-dispatch.json:2actual;delegation/ui-wp66-supporting-dispatch.json:1actual")
 write("delegation/current-plan.json", plan)
 
 registry = read("delegation/task-registry.current.json")
-registry.update(as_of_utc=now, unique_actual_contexts_including_root=36, unique_actual_child_contexts=35, RUNNING=7,
-                EXITED_PENDING_TASK_FINAL_RECEPTION=29, TASK_FINAL_ACCEPTED=0, active=["/root"]+["/root/"+n for n in scope["running"]],
-                planned_execution_leaves=39, planned_primary_leaves=31, plans_with_actual_context_or_scoped_output=20,
-                NOT_STARTED_PLANS=19, NOT_STARTED_PLANS_qualification="17 parent-reserved primary plans;3 supporting contexts actually started;2 retired UI proposals never started. Three atomic-completion contracts frozen, kernel actual start, core and CRE-A not started.",
-                all_concrete_not_started_action_plans=19, retired_ui_proposed_splits_never_started=2,
-                additional_supporting_jobs_frozen_not_started=2, all_concrete_not_started_action_plans_qualified="17 frozen parent primary plans plus2 frozen atomic-completion plans; actual kernel completion reviewer started.",
-                latest_verified_report_commit="cab9deade98ff3038f4d8002531958fd74bd5fbd", latest_verified_report_tree="1c71c4e0c112c2e62cbc426c98b3775b03e37b7b")
-registry["latest_remote_readback"]={"files":3692,"bytes":345072665,"receipt":"publication/r8-world-decisions-audit-inputs-readback-11.json"}
-registry["latest_complete_remote_verified_checkpoint"]={"commit":registry["latest_verified_report_commit"],"report_tree":registry["latest_verified_report_tree"],"files":3692,"bytes":345072665,"compressed_original_count":47,"compressed_original_bytes":597667564,"receipt":registry["latest_remote_readback"]["receipt"]}
+registry.update(as_of_utc=now, unique_actual_contexts_including_root=39, unique_actual_child_contexts=38, RUNNING=7,
+                EXITED_PENDING_TASK_FINAL_RECEPTION=32, TASK_FINAL_ACCEPTED=0, active=["/root"]+["/root/"+n for n in scope["running"]],
+                planned_execution_leaves=39, planned_primary_leaves=31, plans_with_actual_context_or_scoped_output=26,
+                NOT_STARTED_PLANS=13, NOT_STARTED_PLANS_qualification="13 logical primary groups not started locally.17 original parent routes have no external start receipts;4 groups have distinct local routes (resource cloud child and3 existing root scopes). All3 atomic reviewers actual.",
+                all_concrete_not_started_action_plans=17, retired_ui_proposed_splits_never_started=2,
+                additional_supporting_jobs_frozen_not_started=0, all_concrete_not_started_action_plans_qualified="17 original parent routes without external receipts remain unstarted routes;4 groups have actual distinct local routes. Logical primary pending13; root scopes add0 contexts.",
+                latest_verified_report_commit="523fb2fc2d86a9a8b3b79d9e595d932201b28c96", latest_verified_report_tree="72be4f67d1960998cc2caab794a5734f6cb97371")
+registry["latest_remote_readback"]={"files":5813,"bytes":488669562,"receipt":"publication/r8-binary-atomic-contracts-readback-12.json"}
+registry["latest_complete_remote_verified_checkpoint"]={"commit":registry["latest_verified_report_commit"],"report_tree":registry["latest_verified_report_tree"],"files":5813,"bytes":488669562,"compressed_original_count":99,"compressed_original_bytes":1114905184,"receipt":registry["latest_remote_readback"]["receipt"]}
 registry["bounded_findings"].update(required=19, required_P2=2, required_P3=17, optional=4)
 registry["current_global_unique_full_partial_unread"]="UNVERIFIED_PENDING_SEMANTIC_QUALIFICATION; independent incremental declared interval union318Rfull/15partial/81noexactrange and96Ffull/4partial/31noexactrange is mechanical only, not FULL_READ/actual reception."
-tracked=set(subprocess.check_output(["git","-C",str(repo),"ls-tree","-r","--name-only","cab9deade98ff3038f4d8002531958fd74bd5fbd"]).decode().splitlines())
+tracked=set(subprocess.check_output(["git","-C",str(repo),"ls-tree","-r","--name-only","523fb2fc2d86a9a8b3b79d9e595d932201b28c96"]).decode().splitlines())
 registry["exited"]=[]
 for entry,output in [("/root/"+n,"tasks/"+n+"/") for n in scope["completed"]]+[(x["entry"],x["outputs"]) for x in scope["nested_completed"]]:
     prefix=str(root.relative_to(repo))+"/"+output.rstrip("/")+"/"
     count=sum(x.startswith(prefix) for x in tracked)
-    registry["exited"].append({"logical_context":entry,"process":"EXITED","task_final_acceptance":"NOT_SIGNED","outputs":output,"tracked_report_file_count_at_cab9":count,"workspace_only_delivery":count==0,"qualification":"Scoped outputs and finite receptions do not imply task-wide final acceptance."})
+    registry["exited"].append({"logical_context":entry,"process":"EXITED","task_final_acceptance":"NOT_SIGNED","outputs":output,"tracked_report_file_count_at_523fb2fc":count,"workspace_only_delivery":count==0,"qualification":"Scoped outputs and finite receptions do not imply task-wide final acceptance."})
 registry["actual_supporting_jobs"]=["/root/coverage_acceptance_incremental","/root/world_catalog_remaining","/root/ui_wp66","/root/kernel_atomic_reception"]
 write("delegation/task-registry.current.json",registry)
 
@@ -81,9 +81,9 @@ B8固定fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree751dfde81048c81
 
 库存R432、formal131、B8当前有效范围980固定；全部87WP计划行、113features、18domains、395声明边和9跨域义务另列，不能当真实语义原子/接口最终分母。新增量审计独立核301输入快照289不同SHA；声明行区间机械union为R414text的318全区间/15局部/81无精确范围，另18binary；F131为96全区间/4局部/31无精确范围。该数不是实际全文语义或完整接收分子。审计仍在逐记录资格核验，真正当前全局FULL_READ/未接收为UNVERIFIED。旧03:20切点仅历史。KER2219、CORE994、CRE-A1430旧定位仍有明确未反查/消费者待接收，准确后继合同准备中。
 
-本协调树累计36个真实上下文=根+35child（含2实际嵌套），RUNNING7、退出待任务级最终接收29、任务级最终接收0、实际context失败/中断0。运行者root、world_full、ui_full、coverage_acceptance_incremental、world_catalog_remaining、ui_wp66、kernel_atomic_reception。27顶层和2嵌套已退出，限定成果和有限问题接收单独登记。请求gpt-6.1-sol/ultra/default普速/Fast off；actual model/effort/tier/speed/Fast/opaqueID无权威回显各UNVERIFIED，不查认证/额度。两PBS及一CLI失败尝试创建0context；父四计划调用中断无创建回执。外部未知状态UNVERIFIED。实际可见容量7，不设更低上限。
+本协调树累计39个真实上下文=根+38child（含2实际嵌套），RUNNING7、退出待任务级最终接收32、任务级最终接收0、实际context失败/中断0。运行者root、ui_full、coverage_acceptance_incremental、kernel_atomic_reception、core_atomic_reception、resource_media_serialized_cloud、creature_a_atomic_reception。30顶层和2嵌套已退出，限定成果和有限问题接收单独登记。请求gpt-6.1-sol/ultra/default普速/Fast off；actual model/effort/tier/speed/Fast/opaqueID无权威回显各UNVERIFIED，不查认证/额度。两PBS及一CLI失败尝试创建0context；父四计划调用中断无创建回执。外部未知状态UNVERIFIED。实际可见容量7，不设更低上限。
 
-31primary leaves+2binary续审/子片+3真实supporting+3新atomic-completion计划=39execution plans，不能混同实际context数。19明确待启动=17父保留主责+CORE/CRE-A原子接收2片；KERNEL新原子接收已实际启动。17父完整固定prompt/readset和独占写集在delegation/parent-pending-dispatch.json，新增三片完整合同身份在delegation/atomic-completion-dispatch.json；收到父实际回执/释放前不重复创建其17写集。同名WP66旧拟primary拆分曾退休且0start，现首次创建真实独立supporting审者，父UI仍总接收51R18F/catalog；另2UI拟拆分仍退休且0start。两supporting增量审计/世界catalog已实际启动。未启动的可审材料不能标宿主limit。
+31primary leaves+2binary续审/子片+3真实supporting+3新atomic-completion计划=39execution plans，不能混同实际context数。13逻辑primary组尚无本地实际启动；KERNEL、CORE、CRE-A原子接收已实际启动。原17父保留路线仍无外部回执，resource组另有本地云端独占路线真实启动，另外reference_metadata/formal_shared/world_activities由既有root独立写证据路线推进，新增context0，因此不称17逻辑组全部未启动。原保留目录不触碰，新route可能与未来真实父context接合。17父完整固定prompt/readset和独占写集在delegation/parent-pending-dispatch.json，新增三片完整合同身份在delegation/atomic-completion-dispatch.json；收到父实际回执/释放前不重复创建其17写集。同名WP66旧拟primary拆分曾退休且0start，现首次创建真实独立supporting审者，父UI仍总接收51R18F/catalog；另2UI拟拆分仍退休且0start。两supporting增量审计/世界catalog已实际启动。未启动的可审材料不能标宿主limit。
 
 root有界裁决23项=19required（2P2、17P3）+4optional，全轮最终required未知。WORLD004仅WP61§3.3可战限定词与默认首非蛋成员不符，最小写集不扩WP36/catalog；WORLD003/INT001/INT002有完整非提出者反证。历史去重和全局接收仍OPEN。UI003底部经验条静态事实成立，但全文可合理限定经验数字区域，optional；UI002原异常候选经真实不同context反证驳回，原字节/撤回/接收保留，不能自动升级其它显示事实。另4BIN finite no-required不是全域NO_REQUIRED_UPDATE。
 
@@ -95,7 +95,7 @@ binary原57948出处/41849不同字面由Game父37041+Ruby/zlib子20907实际分
 
 Library ZIP libfile_4b51216024e48191b2cf3166a331583d，16531493B/SHA6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e，官方materialize下载DNS失败尚未恢复，CLOUD-READ-FIRST/新cloud prompt/readiness/finalbinding/recoverymap本环境未实读；请求同ZIP固定Git路径仍待。原36653B完整合同和3598B skill已全文读并核SHA；障碍不阻塞其余可得固定材料。
 
-最近完整远端传输验收cab9deade98ff3038f4d8002531958fd74bd5fbd，RRtree1c71c4e0c112c2e62cbc426c98b3775b03e37b7b，3692files345072665B及47gzip597667564原始解码B全部一致，publication/r8-world-decisions-audit-inputs-readback-11.json。首次普通push因Git proxy503失败后普通重试成功，失败原记录保留；缩写SHA旧fetch失败不授信用。新状态/后继证据将独立普通push并全字节回读。完整语义core、全中文整改handoff和最终远端验收均未完成；不自动整改或合并main。
+最近完整远端传输验收523fb2fc2d86a9a8b3b79d9e595d932201b28c96，RRtree72be4f67d1960998cc2caab794a5734f6cb97371，5813files488669562B及99gzip1114905184原始解码B全部一致，publication/r8-binary-atomic-contracts-readback-12.json。首次普通push因Git proxy503失败后普通重试成功，失败原记录保留；缩写SHA旧fetch失败不授信用。新状态/后继证据将独立普通push并全字节回读。完整语义core、全中文整改handoff和最终远端验收均未完成；不自动整改或合并main。
 """
 (root/"publication/checkpoint-status.md").write_text(status)
-print(json.dumps({"utc":now,"actual_contexts":36,"running":7,"exited":29,"eligible_completed_top_level":len(scope["completed"]),"frozen_parent_not_started":17,"atomic_completion_not_started":2,"semantic_credit":"NONE"}))
+print(json.dumps({"utc":now,"actual_contexts":39,"running":7,"exited":32,"eligible_completed_top_level":len(scope["completed"]),"frozen_parent_not_started":17,"atomic_completion_not_started":0,"semantic_credit":"NONE"}))

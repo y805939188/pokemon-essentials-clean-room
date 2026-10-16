@@ -1,0 +1,280 @@
+  281       [2, 1, 0].each do |layer|
+  282         return @array[layer][(y * @width) + x] if @array[layer][(y * @width) + x] != :none
+  283       end
+  284       return ret
+  285     end
+  286 
+  287     def clear
+  288       @array.each_with_index do |arr, layer|
+  289         (@width * @height).times { |i| arr[i] = (layer == 0) ? :void : :none }
+  290       end
+  291     end
+  292 
+  293     def set_wall(x, y, value)
+  294       @array[0][(y * @width) + x] = :room
+  295       @array[1][(y * @width) + x] = value
+  296     end
+  297 
+  298     def set_ground(x, y, value)
+  299       @array[0][(y * @width) + x] = value
+  300       @array[1][(y * @width) + x] = :none
+  301     end
+  302 
+  303     def write
+  304       ret = ""
+  305       @height.times do |y|
+  306         @width.times do |x|
+  307           ret += TEXT_SYMBOLS[value(x, y)] || "\e[30m\e[41m?\e[0m"
+  308         end
+  309         ret += "\n"
+  310       end
+  311       return ret
+  312     end
+  313   end
+  314 
+  315   #=============================================================================
+  316   # The main dungeon generator class.
+  317   #=============================================================================
+  318   class Dungeon
+  319     attr_accessor :width, :height
+  320     alias xsize width
+  321     alias ysize height
+  322     attr_accessor :parameters, :rng_seed
+  323     attr_accessor :tileset
+  324 
+  325     # 0 is none (index 0 only) or corridor/floor
+  326     # -1 are tile combinations that need special attention
+  327     # Other numbers correspond to tile types (see def get_wall_tile_for_coord)
+  328     FLOOR_NEIGHBOURS_TO_WALL = [
+  329       0, 2, 1, 2, 4, 11, 4, 11, 7, 9, 4, 11, 4, 11, 4, 11,
+  330       8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+  331       9, 13, -1, 13, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+  332       8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+  333       6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  334       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  335       6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  336       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  337       3, 2, 2, 2, 11, 11, 11, 11, -1, 11, 11, 11, 11, 11, 11, 11,
+  338       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  339       6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  340       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  341       6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  342       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  343       6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+  344       19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0
+  345     ]
+  346 
+  347     def initialize(width, height, tileset, parameters = nil)
+  348       @tileset     = tileset
+  349       @buffer_x    = ((Graphics.width.to_f / Game_Map::TILE_WIDTH) / 2).ceil
+  350       @buffer_y    = ((Graphics.height.to_f / Game_Map::TILE_HEIGHT) / 2).ceil
+  351       if @tileset.snap_to_large_grid
+  352         @buffer_x += 1 if @buffer_x.odd?
+  353         @buffer_y += 1 if @buffer_x.odd?
+  354       end
+  355       @parameters = parameters || GameData::DungeonParameters.new({})
+  356       if @tileset.snap_to_large_grid
+  357         @parameters.cell_width -= 1 if @parameters.cell_width.odd?
+  358         @parameters.cell_height -= 1 if @parameters.cell_height.odd?
+  359         @parameters.corridor_width += (@parameters.corridor_width == 1) ? 1 : -1 if @parameters.corridor_width.odd?
+  360       end
+  361       if width >= 20
+  362         @width = width
+  363       else
+  364         @width = (width * @parameters.cell_width) + (2 * @buffer_x)
+  365         @width += 1 if @tileset.snap_to_large_grid && @width.odd?
+  366       end
+  367       if height >= 20
+  368         @height = height
+  369       else
+  370         @height = (height * @parameters.cell_height) + (2 * @buffer_y)
+  371         @height += 1 if @tileset.snap_to_large_grid && @height.odd?
+  372       end
+  373       @usable_width = @width
+  374       @usable_height = @height
+  375       if @tileset.snap_to_large_grid
+  376         @usable_width  -= 1 if @usable_width.odd?
+  377         @usable_height -= 1 if @usable_height.odd?
+  378       end
+  379       @room_rects = []
+  380       @map_data    = DungeonLayout.new(@width, @height)
+  381       @need_redraw = false
+  382     end
+  383 
+  384     def [](x, y, layer = nil)
+  385       return @map_data.value(x, y) if layer.nil?
+  386       return @map_data[x, y, layer]
+  387     end
+  388 
+  389     def []=(x, y, layer, value)
+  390       @map_data[x, y, layer] = value
+  391     end
+  392 
+  393     def write
+  394       return @map_data.write
+  395     end
+  396 
+  397     #===========================================================================
+  398 
+  399     # Returns whether the given coordinates are a room floor that isn't too
+  400     # close to a corridor. For positioning events/the player upon entering.
+  401     def isRoom?(x, y)
+  402       return false if @map_data.value(x, y) != :room
+  403       (-1..1).each do |i|
+  404         (-1..1).each do |j|
+  405           next if i == 0 && j == 0
+  406           return false if @map_data.value(x + i, y + j) == :corridor
+  407         end
+  408       end
+  409       return true   # No surrounding tiles are corridor floor
+  410     end
+  411 
+  412     def tile_is_ground?(value)
+  413       return [:room, :corridor].include?(value)
+  414     end
+  415 
+  416     # Lower wall tiles only.
+  417     def tile_is_wall?(value)
+  418       return [:wall_1, :wall_2, :wall_3, :wall_4, :wall_6, :wall_7, :wall_8, :wall_9,
+  419               :wall_in_1, :wall_in_3, :wall_in_7, :wall_in_9].include?(value)
+  420     end
+  421 
+  422     def coord_is_ground?(x, y)
+  423       return tile_is_ground?(@map_data[x, y, 0]) && !tile_is_wall?(@map_data[x, y, 1])
+  424     end
+  425 
+  426     #===========================================================================
+  427 
+  428     def generate
+  429       @rng_seed = @parameters.rng_seed || $PokemonGlobal.dungeon_rng_seed || Random.new_seed
+  430       $PokemonGlobal.dungeon_rng_seed = nil
+  431       Random.srand(@rng_seed)
+  432       maxWidth = @usable_width - (@buffer_x * 2)
+  433       maxHeight = @usable_height - (@buffer_y * 2)
+  434       return if maxWidth < 0 || maxHeight < 0
+  435       loop do
+  436         @need_redraw = false
+  437         @map_data.clear
+  438         # Generate the basic layout of the map
+  439         generate_layout(maxWidth, maxHeight)
+  440         next if @need_redraw
+  441         # Draw walls
+  442         generate_walls(maxWidth, maxHeight)
+  443         next if @need_redraw
+  444         # Draw decorations
+  445         paint_decorations(maxWidth, maxHeight)
+  446         # Draw wall top tiles
+  447         paint_wall_top_tiles(maxWidth, maxHeight)
+  448         break   # if !@need_redraw
+  449       end
+  450     end
+  451 
+  452     def generate_layout(maxWidth, maxHeight)
+  453       cellWidth = @parameters.cell_width
+  454       cellHeight = @parameters.cell_height
+  455       # Map is too small, make the whole map a room
+  456       if maxWidth < cellWidth || maxHeight < cellHeight
+  457         paint_ground_rect(@buffer_x, @buffer_y, maxWidth, maxHeight, :room)
+  458         return
+  459       end
+  460       # Generate connections between cells
+  461       maze = Maze.new(maxWidth / cellWidth, maxHeight / cellHeight, @parameters)
+  462       maze.generate_layout
+  463       # If no rooms were generated, make the whole map a room
+  464       if maze.room_count == 0
+  465         paint_ground_rect(@buffer_x, @buffer_y, maxWidth, maxHeight, :room)
+  466         return
+  467       end
+  468       # Draw each cell's contents in turn (room and corridors)
+  469       (maxHeight / cellHeight).times do |y|
+  470         (maxWidth / cellWidth).times do |x|
+  471           paint_node_contents(@buffer_x + (x * cellWidth), @buffer_y + (y * cellHeight), maze.get_node(x, y))
+  472         end
+  473       end
+  474       check_for_isolated_rooms
+  475     end
+  476 
+  477     def generate_walls(maxWidth, maxHeight)
+  478       # Lower layer
+  479       errors = []
+  480       maxHeight.times do |y|
+  481         maxWidth.times do |x|
+  482           next if !coord_is_ground?(@buffer_x + x, @buffer_y + y)
+  483           paint_walls_around_ground(@buffer_x + x, @buffer_y + y, 0, errors)
+  484         end
+  485       end
+  486       # Check for error tiles
+  487       errors.each do |coord|
+  488         resolve_wall_error(coord[0], coord[1], 0)
+  489         break if @need_redraw
+  490       end
+  491       return if @need_redraw
+  492       return if !@tileset.double_walls
+  493       # Upper layer
+  494       errors = []
+  495       (maxHeight + 2).times do |y|
+  496         (maxWidth + 2).times do |x|
+  497           next if !tile_is_wall?(@map_data[@buffer_x + x - 1, @buffer_y + y - 1, 1])
+  498           paint_walls_around_ground(@buffer_x + x - 1, @buffer_y + y - 1, 1, errors)
+  499         end
+  500       end
+  501       # Check for error tiles
+  502       errors.each do |coord|
+  503         resolve_wall_error(coord[0], coord[1], 1)
+  504         break if @need_redraw
+  505       end
+  506     end
+  507 
+  508     #===========================================================================
+  509 
+  510     # Determines whether all floor tiles are contiguous. Sets @need_redraw if
+  511     # there are 2+ floor regions that are isolated from each other.
+  512     def check_for_isolated_rooms
+  513       # Get a floor tile as a starting position
+  514       start = nil
+  515       maxWidth = @usable_width - (@buffer_x * 2)
+  516       maxHeight = @usable_height - (@buffer_y * 2)
+  517       maxHeight.times do |y|
+  518         maxWidth.times do |x|
+  519           next if !tile_is_ground?(@map_data[x + @buffer_x, y + @buffer_y, 0])
+  520           start = [x, y]
+  521           break
+  522         end
+  523         break if start
+  524       end
+  525       if !start
+  526         @need_redraw = true
+  527         return
+  528       end
+  529       # Flood fill (https://en.wikipedia.org/wiki/Flood_fill#Span_Filling)
+  530       to_check = [
+  531         [start[0], start[0], start[1], 1],
+  532         [start[0], start[0], start[1] - 1, -1]
+  533       ]
+  534       visited = []
+  535       loop do
+  536         break if to_check.empty?
+  537         checking = to_check.shift
+  538         x1, x2, y, dy = checking
+  539         x = x1
+  540         if !visited[(y * maxWidth) + x] && tile_is_ground?(@map_data[x + @buffer_x, y + @buffer_y, 0])
+  541           loop do
+  542             break if visited[(y * maxWidth) + x - 1] || !tile_is_ground?(@map_data[x - 1 + @buffer_x, y + @buffer_y, 0])
+  543             visited[(y * maxWidth) + x - 1] = true
+  544             x -= 1
+  545           end
+  546         end
+  547         to_check.push([x, x1 - 1, y - dy, -dy]) if x < x1
+  548         loop do
+  549           break if x1 > x2
+  550           loop do
+  551             break if visited[(y * maxWidth) + x1] || !tile_is_ground?(@map_data[x1 + @buffer_x, y + @buffer_y, 0])
+  552             visited[(y * maxWidth) + x1] = true
+  553             to_check.push([x, x1, y + dy, dy])
+  554             to_check.push([x2 + 1, x1, y - dy, -dy]) if x1 > x2
+  555             x1 += 1
+  556           end
+  557           x1 += 1
+  558           loop do
+  559             break if x1 >= x2
+  560             break if !visited[(y * maxWidth) + x1] && tile_is_ground?(@map_data[x1 + @buffer_x, y + @buffer_y, 0])

@@ -1,0 +1,265 @@
+  301 
+  302   def terrain_tag(x, y, countBridge = false)
+  303     if valid?(x, y)
+  304       [2, 1, 0].each do |i|
+  305         tile_id = data[x, y, i]
+  306         next if tile_id == 0
+  307         terrain = GameData::TerrainTag.try_get(@terrain_tags[tile_id])
+  308         next if terrain.id == :None || terrain.ignore_passability
+  309         next if !countBridge && terrain.bridge && $PokemonGlobal.bridge == 0
+  310         return terrain
+  311       end
+  312     end
+  313     return GameData::TerrainTag.get(:None)
+  314   end
+  315 
+  316   # Unused.
+  317   def check_event(x, y)
+  318     self.events.each_value do |event|
+  319       return event.id if event.at_coordinate?(x, y)
+  320     end
+  321   end
+  322 
+  323   def display_x=(value)
+  324     return if @display_x == value
+  325     @display_x = value
+  326     if metadata&.snap_edges
+  327       max_x = (self.width - (Graphics.width.to_f / TILE_WIDTH)) * REAL_RES_X
+  328       @display_x = [0, [@display_x, max_x].min].max
+  329     end
+  330     $map_factory&.setMapsInRange
+  331   end
+  332 
+  333   def display_y=(value)
+  334     return if @display_y == value
+  335     @display_y = value
+  336     if metadata&.snap_edges
+  337       max_y = (self.height - (Graphics.height.to_f / TILE_HEIGHT)) * REAL_RES_Y
+  338       @display_y = [0, [@display_y, max_y].min].max
+  339     end
+  340     $map_factory&.setMapsInRange
+  341   end
+  342 
+  343   def scroll_up(distance)
+  344     self.display_y -= distance
+  345   end
+  346 
+  347   def scroll_down(distance)
+  348     self.display_y += distance
+  349   end
+  350 
+  351   def scroll_left(distance)
+  352     self.display_x -= distance
+  353   end
+  354 
+  355   def scroll_right(distance)
+  356     self.display_x += distance
+  357   end
+  358 
+  359   # speed is:
+  360   #   1: moves 1 tile in 1.6 seconds
+  361   #   2: moves 1 tile in 0.8 seconds
+  362   #   3: moves 1 tile in 0.4 seconds
+  363   #   4: moves 1 tile in 0.2 seconds
+  364   #   5: moves 1 tile in 0.1 seconds
+  365   #   6: moves 1 tile in 0.05 seconds
+  366   def start_scroll(direction, distance, speed = 4)
+  367     return if direction <= 0 || direction == 5 || direction >= 10
+  368     if [1, 3, 4, 6, 7, 9].include?(direction)   # horizontal
+  369       @scroll_distance_x = distance
+  370       @scroll_distance_x *= -1 if [1, 4, 7].include?(direction)
+  371     end
+  372     if [1, 2, 3, 7, 8, 9].include?(direction)   # vertical
+  373       @scroll_distance_y = distance
+  374       @scroll_distance_y *= -1 if [7, 8, 9].include?(direction)
+  375     end
+  376     @scroll_speed = speed
+  377     @scroll_start_x = display_x
+  378     @scroll_start_y = display_y
+  379     @scroll_timer_start = System.uptime
+  380   end
+  381 
+  382   # The two distances can be positive or negative.
+  383   def start_scroll_custom(distance_x, distance_y, speed = 4)
+  384     return if distance_x == 0 && distance_y == 0
+  385     @scroll_distance_x = distance_x
+  386     @scroll_distance_y = distance_y
+  387     @scroll_speed = speed
+  388     @scroll_start_x = display_x
+  389     @scroll_start_y = display_y
+  390     @scroll_timer_start = System.uptime
+  391   end
+  392 
+  393   def scrolling?
+  394     return (@scroll_distance_x || 0) != 0 || (@scroll_distance_y || 0) != 0
+  395   end
+  396 
+  397   # duration is time in 1/20ths of a second.
+  398   def start_fog_tone_change(tone, duration)
+  399     if duration == 0
+  400       @fog_tone = tone.clone
+  401       return
+  402     end
+  403     @fog_tone_initial = @fog_tone.clone
+  404     @fog_tone_target = tone.clone
+  405     @fog_tone_duration = duration / 20.0
+  406     @fog_tone_timer_start = $stats.play_time
+  407   end
+  408 
+  409   # duration is time in 1/20ths of a second.
+  410   def start_fog_opacity_change(opacity, duration)
+  411     if duration == 0
+  412       @fog_opacity = opacity.to_f
+  413       return
+  414     end
+  415     @fog_opacity_initial = @fog_opacity
+  416     @fog_opacity_target = opacity.to_f
+  417     @fog_opacity_duration = duration / 20.0
+  418     @fog_opacity_timer_start = $stats.play_time
+  419   end
+  420 
+  421   def set_tile(x, y, layer, id = 0)
+  422     self.data[x, y, layer] = id
+  423   end
+  424 
+  425   def erase_tile(x, y, layer)
+  426     set_tile(x, y, layer, 0)
+  427   end
+  428 
+  429   def refresh
+  430     @events.each_value do |event|
+  431       event.refresh
+  432     end
+  433     @common_events.each_value do |common_event|
+  434       common_event.refresh
+  435     end
+  436     @need_refresh = false
+  437   end
+  438 
+  439   def update
+  440     uptime_now = System.uptime
+  441     play_now = $stats.play_time
+  442     # Refresh maps if necessary
+  443     if $map_factory
+  444       $map_factory.maps.each { |i| i.refresh if i.need_refresh }
+  445       $map_factory.setCurrentMap
+  446     end
+  447     # If scrolling
+  448     if (@scroll_distance_x || 0) != 0
+  449       duration = @scroll_distance_x.abs * TILE_WIDTH.to_f / (10 * (2**@scroll_speed))
+  450       scroll_offset = lerp(0, @scroll_distance_x, duration, @scroll_timer_start, uptime_now)
+  451       self.display_x = @scroll_start_x + (scroll_offset * REAL_RES_X)
+  452       @scroll_distance_x = 0 if scroll_offset == @scroll_distance_x
+  453     end
+  454     if (@scroll_distance_y || 0) != 0
+  455       duration = @scroll_distance_y.abs * TILE_HEIGHT.to_f / (10 * (2**@scroll_speed))
+  456       scroll_offset = lerp(0, @scroll_distance_y, duration, @scroll_timer_start, uptime_now)
+  457       self.display_y = @scroll_start_y + (scroll_offset * REAL_RES_Y)
+  458       @scroll_distance_y = 0 if scroll_offset == @scroll_distance_y
+  459     end
+  460     # Only update events that are on-screen
+  461     if !$game_temp.in_menu
+  462       @events.each_value { |event| event.update }
+  463     end
+  464     # Update common events
+  465     @common_events.each_value { |common_event| common_event.update }
+  466     # Update fog
+  467     @fog_scroll_last_update_timer = uptime_now if !@fog_scroll_last_update_timer
+  468     scroll_mult = (uptime_now - @fog_scroll_last_update_timer) * 5
+  469     @fog_ox -= @fog_sx * scroll_mult
+  470     @fog_oy -= @fog_sy * scroll_mult
+  471     @fog_scroll_last_update_timer = uptime_now
+  472     if @fog_tone_timer_start
+  473       @fog_tone.red = lerp(@fog_tone_initial.red, @fog_tone_target.red, @fog_tone_duration, @fog_tone_timer_start, play_now)
+  474       @fog_tone.green = lerp(@fog_tone_initial.green, @fog_tone_target.green, @fog_tone_duration, @fog_tone_timer_start, play_now)
+  475       @fog_tone.blue = lerp(@fog_tone_initial.blue, @fog_tone_target.blue, @fog_tone_duration, @fog_tone_timer_start, play_now)
+  476       @fog_tone.gray = lerp(@fog_tone_initial.gray, @fog_tone_target.gray, @fog_tone_duration, @fog_tone_timer_start, play_now)
+  477       if play_now - @fog_tone_timer_start >= @fog_tone_duration
+  478         @fog_tone_initial = nil
+  479         @fog_tone_timer_start = nil
+  480       end
+  481     end
+  482     if @fog_opacity_timer_start
+  483       @fog_opacity = lerp(@fog_opacity_initial, @fog_opacity_target, @fog_opacity_duration, @fog_opacity_timer_start, play_now)
+  484       if play_now - @fog_opacity_timer_start >= @fog_opacity_duration
+  485         @fog_opacity_initial = nil
+  486         @fog_opacity_timer_start = nil
+  487       end
+  488     end
+  489   end
+  490 end
+  491 
+  492 #===============================================================================
+  493 #
+  494 #===============================================================================
+  495 # Scroll the map in the given direction by the given distance at the (optional)
+  496 # given speed.
+  497 def pbScrollMap(direction, distance, speed = 4)
+  498   if speed == 0
+  499     if [1, 2, 3].include?(direction)
+  500       $game_map.scroll_down(distance * Game_Map::REAL_RES_Y)
+  501     elsif [7, 8, 9].include?(direction)
+  502       $game_map.scroll_up(distance * Game_Map::REAL_RES_Y)
+  503     end
+  504     if [3, 6, 9].include?(direction)
+  505       $game_map.scroll_right(distance * Game_Map::REAL_RES_X)
+  506     elsif [1, 4, 7].include?(direction)
+  507       $game_map.scroll_left(distance * Game_Map::REAL_RES_X)
+  508     end
+  509   else
+  510     $game_map.start_scroll(direction, distance, speed)
+  511     loop do
+  512       Graphics.update
+  513       Input.update
+  514       pbUpdateSceneMap
+  515       break if !$game_map.scrolling?
+  516     end
+  517   end
+  518 end
+  519 
+  520 # Scroll the map to center on the given coordinates at the (optional) given
+  521 # speed. The scroll can happen in up to two parts, depending on where the target
+  522 # is relative to the current location: an initial diagonal movement and a
+  523 # following cardinal (vertical/horizontal) movement.
+  524 def pbScrollMapTo(x, y, speed = 4)
+  525   if !$game_map.valid?(x, y)
+  526     print "pbScrollMapTo: given x,y is invalid"
+  527     return
+  528   elsif !(0..6).include?(speed)
+  529     print "pbScrollMapTo: invalid speed (0-6 only)"
+  530     return
+  531   end
+  532   # Get tile coordinates that the screen is currently scrolled to
+  533   screen_offset_x = (Graphics.width - Game_Map::TILE_WIDTH) * Game_Map::X_SUBPIXELS / 2
+  534   screen_offset_y = (Graphics.height - Game_Map::TILE_HEIGHT) * Game_Map::Y_SUBPIXELS / 2
+  535   current_tile_x = ($game_map.display_x + screen_offset_x) / Game_Map::REAL_RES_X
+  536   current_tile_y = ($game_map.display_y + screen_offset_y) / Game_Map::REAL_RES_Y
+  537   offset_x = x - current_tile_x
+  538   offset_y = y - current_tile_y
+  539   return if offset_x == 0 && offset_y == 0
+  540   if speed == 0
+  541     if offset_y > 0
+  542       $game_map.scroll_down(offset_y.abs * Game_Map::REAL_RES_Y)
+  543     elsif offset_y < 0
+  544       $game_map.scroll_up(offset_y.abs * Game_Map::REAL_RES_Y)
+  545     end
+  546     if offset_x > 0
+  547       $game_map.scroll_right(offset_x.abs * Game_Map::REAL_RES_X)
+  548     elsif offset_x < 0
+  549       $game_map.scroll_left(offset_x.abs * Game_Map::REAL_RES_X)
+  550     end
+  551   else
+  552     $game_map.start_scroll_custom(offset_x, offset_y, speed)
+  553     loop do
+  554       Graphics.update
+  555       Input.update
+  556       pbUpdateSceneMap
+  557       break if !$game_map.scrolling?
+  558     end
+  559   end
+  560 end
+  561 
+  562 # Scroll the map to center on the player at the (optional) given speed.
+  563 def pbScrollMapToPlayer(speed = 4)
+  564   pbScrollMapTo($game_player.x, $game_player.y, speed)
+  565 end

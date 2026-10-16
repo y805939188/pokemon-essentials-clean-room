@@ -1,0 +1,280 @@
+    1 #===============================================================================
+    2 # Code that generates a random dungeon layout, and implements it in a given map.
+    3 #===============================================================================
+    4 module RandomDungeon
+    5   #=============================================================================
+    6   # Bitwise values used to keep track of the generation of node connections.
+    7   #=============================================================================
+    8   module EdgeMasks
+    9     NORTH = 1
+   10     EAST  = 2
+   11     SOUTH = 4
+   12     WEST  = 8
+   13   end
+   14 
+   15   #=============================================================================
+   16   # A node in a randomly generated dungeon. There is one node per cell, and
+   17   # nodes are connected to each other.
+   18   #=============================================================================
+   19   class MazeNode
+   20     def initialize
+   21       @visitable = false
+   22       @visited   = false
+   23       @room      = false
+   24       block_all_edges   # A bit being 1 means its edge is NOT connected to the adjacent node
+   25     end
+   26 
+   27     def edge_pattern;       return @edges;            end
+   28     def block_edge(e);      @edges |= e;              end
+   29     def connect_edge(e);    @edges &= ~e;             end
+   30     def block_all_edges;    @edges = 15;              end
+   31     def connect_all_edges;  @edges = 0;               end
+   32     def edge_blocked?(e);   return (@edges & e) != 0; end
+   33     def all_edges_blocked?; return @edges != 0;       end
+   34     def visitable?;         return @visitable;        end
+   35     def set_visitable;      @visitable = true;        end
+   36     def visited?;           return @visited;          end
+   37     def set_visited;        @visited = true;          end
+   38     def room?;              return @room;             end
+   39     def set_room;           @room = true;             end
+   40   end
+   41 
+   42   #=============================================================================
+   43   # Maze generator. Given the number of nodes horizontally and vertically in a
+   44   # map, connects all the nodes together.
+   45   #=============================================================================
+   46   class Maze
+   47     attr_accessor :node_count_x, :node_count_y
+   48 
+   49     DIRECTIONS = [EdgeMasks::NORTH, EdgeMasks::SOUTH, EdgeMasks::EAST, EdgeMasks::WEST]
+   50 
+   51     def initialize(cw, ch, parameters)
+   52       raise ArgumentError.new if cw == 0 || ch == 0
+   53       @node_count_x = cw
+   54       @node_count_y = ch
+   55       @parameters = parameters
+   56       @nodes = Array.new(@node_count_x * @node_count_y) { MazeNode.new }
+   57     end
+   58 
+   59     def valid_node?(x, y)
+   60       return x >= 0 && x < @node_count_x && y >= 0 && y < @node_count_y
+   61     end
+   62 
+   63     def get_node(x, y)
+   64       return @nodes[(y * @node_count_x) + x] if valid_node?(x, y)
+   65       return nil
+   66     end
+   67 
+   68     def node_visited?(x, y)
+   69       return true if !valid_node?(x, y) || !@nodes[(y * @node_count_x) + x].visitable?
+   70       return @nodes[(y * @node_count_x) + x].visited?
+   71     end
+   72 
+   73     def set_node_visited(x, y)
+   74       @nodes[(y * @node_count_x) + x].set_visited if valid_node?(x, y)
+   75     end
+   76 
+   77     def node_edge_blocked?(x, y, edge)
+   78       return false if !valid_node?(x, y)
+   79       return @nodes[(y * @node_count_x) + x].edge_blocked?(edge)
+   80     end
+   81 
+   82     def connect_node_edges(x, y, edge)
+   83       return if !valid_node?(x, y)
+   84       @nodes[(y * @node_count_x) + x].connect_edge(edge)
+   85       new_x, new_y, new_edge = get_coords_in_direction(x, y, edge, true)
+   86       raise ArgumentError.new if new_edge == 0
+   87       @nodes[(new_y * @node_count_x) + new_x].connect_edge(new_edge) if valid_node?(new_x, new_y)
+   88     end
+   89 
+   90     def room_count
+   91       ret = 0
+   92       @nodes.each { |node| ret += 1 if node.room? }
+   93       return ret
+   94     end
+   95 
+   96     def get_coords_in_direction(x, y, dir, include_direction = false)
+   97       new_x = x
+   98       new_y = y
+   99       new_dir = 0
+  100       case dir
+  101       when EdgeMasks::NORTH
+  102         new_dir = EdgeMasks::SOUTH
+  103         new_y -= 1
+  104       when EdgeMasks::SOUTH
+  105         new_dir = EdgeMasks::NORTH
+  106         new_y += 1
+  107       when EdgeMasks::WEST
+  108         new_dir = EdgeMasks::EAST
+  109         new_x -= 1
+  110       when EdgeMasks::EAST
+  111         new_dir = EdgeMasks::WEST
+  112         new_x += 1
+  113       end
+  114       return new_x, new_y, new_dir if include_direction
+  115       return new_x, new_y
+  116     end
+  117 
+  118     #===========================================================================
+  119 
+  120     def generate_layout
+  121       # Set visitable nodes
+  122       visitable_nodes = set_visitable_nodes
+  123       # Generate connections between all nodes
+  124       generate_depth_first_maze(visitable_nodes)
+  125       add_more_connections
+  126       # Spawn rooms in some nodes
+  127       spawn_rooms(visitable_nodes)
+  128     end
+  129 
+  130     # Returns whether the node at (x, y) is active in the given layout.
+  131     def check_active_node(x, y, layout)
+  132       case layout
+  133       when :no_corners
+  134         return false if [0, @node_count_x - 1].include?(x) && [0, @node_count_y - 1].include?(y)
+  135       when :ring
+  136         return false if x > 0 && x < @node_count_x - 1 && y > 0 && y < @node_count_y - 1
+  137       when :antiring
+  138         return false if x == 0 || x == @node_count_x - 1 || y == 0 || y == @node_count_y - 1
+  139       when :plus
+  140         return false if x != @node_count_x / 2 && y != @node_count_y / 2
+  141       when :diagonal_up
+  142         return false if (x + y - @node_count_y + 1).abs >= 2
+  143       when :diagonal_down
+  144         return false if (x - y).abs >= 2
+  145       when :cross
+  146         return false if (x - y).abs >= 2 && (x + y - @node_count_y + 1).abs >= 2
+  147       when :quadrants
+  148         return false if (x == 0 || x == @node_count_x - 1) && y >= 2 && y < @node_count_y - 2
+  149         return false if (y == 0 || y == @node_count_y - 1) && x >= 2 && x < @node_count_x - 2
+  150       end
+  151       return true
+  152     end
+  153 
+  154     def set_visitable_nodes
+  155       visitable_nodes = []
+  156       @node_count_y.times do |y|
+  157         @node_count_x.times do |x|
+  158           next if !check_active_node(x, y, @parameters.node_layout)
+  159           @nodes[(y * @node_count_x) + x].set_visitable
+  160           visitable_nodes.push([x, y])
+  161         end
+  162       end
+  163       return visitable_nodes
+  164     end
+  165 
+  166     def generate_depth_first_maze(visitable_nodes)
+  167       # Pick a cell to start in
+  168       start = visitable_nodes.sample
+  169       sx = start[0]
+  170       sy = start[1]
+  171       # Generate a maze
+  172       connect_nodes_and_recurse_depth_first(sx, sy, 0)
+  173     end
+  174 
+  175     def connect_nodes_and_recurse_depth_first(x, y, depth)
+  176       set_node_visited(x, y)
+  177       dirs = DIRECTIONS.shuffle
+  178       4.times do |c|
+  179         dir = dirs[c]
+  180         cx, cy = get_coords_in_direction(x, y, dir)
+  181         next if node_visited?(cx, cy)
+  182         connect_node_edges(x, y, dir)
+  183         connect_nodes_and_recurse_depth_first(cx, cy, depth + 1)
+  184       end
+  185     end
+  186 
+  187     def add_more_connections
+  188       return if @parameters.extra_connections_count == 0
+  189       possible_conns = []
+  190       @node_count_x.times do |x|
+  191         @node_count_y.times do |y|
+  192           node = @nodes[(y * @node_count_x) + x]
+  193           next if !node.visitable?
+  194           DIRECTIONS.each do |dir|
+  195             next if !node.edge_blocked?(dir)
+  196             cx, cy, cdir = get_coords_in_direction(x, y, dir, true)
+  197             new_node = get_node(cx, cy)
+  198             next if !new_node || !new_node.visitable? || !new_node.edge_blocked?(cdir)
+  199             possible_conns.push([x, y, dir])
+  200           end
+  201         end
+  202       end
+  203       possible_conns.sample(@parameters.extra_connections_count).each do |conn|
+  204         connect_node_edges(*conn)
+  205       end
+  206     end
+  207 
+  208     def spawn_rooms(visitable_nodes)
+  209       roomable_nodes = []
+  210       visitable_nodes.each { |coord| roomable_nodes.push(coord) if check_active_node(*coord, @parameters.room_layout) }
+  211       room_count = [roomable_nodes.length * @parameters.room_chance / 100, 1].max
+  212       return if room_count == 0
+  213       rooms = roomable_nodes.sample(room_count)
+  214       rooms.each { |coords| @nodes[(coords[1] * @node_count_x) + coords[0]].set_room }
+  215     end
+  216   end
+  217 
+  218   #=============================================================================
+  219   # Arrays of tile types in the dungeon map.
+  220   #=============================================================================
+  221   class DungeonLayout
+  222     attr_accessor :width, :height
+  223     alias xsize width
+  224     alias ysize height
+  225 
+  226     # Used for debugging when printing out an ASCII image of the dungeon
+  227     TEXT_SYMBOLS = {
+  228       :void                   => "#",
+  229       :room                   => " ",
+  230       :corridor               => " ",
+  231       :void_decoration        => "#",
+  232       :void_decoration_large  => "#",
+  233       :floor_decoration       => " ",
+  234       :floor_decoration_large => " ",
+  235       :floor_patch            => " ",
+  236       :wall_top               => " ",
+  237       :wall_1                 => Console.markup_style("=", bg: :brown),
+  238       :wall_2                 => Console.markup_style("=", bg: :brown),
+  239       :wall_3                 => Console.markup_style("=", bg: :brown),
+  240       :wall_4                 => Console.markup_style("=", bg: :brown),
+  241       :wall_6                 => Console.markup_style("=", bg: :brown),
+  242       :wall_7                 => Console.markup_style("=", bg: :brown),
+  243       :wall_8                 => Console.markup_style("=", bg: :brown),
+  244       :wall_9                 => Console.markup_style("=", bg: :brown),
+  245       :wall_in_1              => Console.markup_style("=", bg: :brown),
+  246       :wall_in_3              => Console.markup_style("=", bg: :brown),
+  247       :wall_in_7              => Console.markup_style("=", bg: :brown),
+  248       :wall_in_9              => Console.markup_style("=", bg: :brown),
+  249       :upper_wall_1           => Console.markup_style("~", bg: :gray),
+  250       :upper_wall_2           => Console.markup_style("~", bg: :gray),
+  251       :upper_wall_3           => Console.markup_style("~", bg: :gray),
+  252       :upper_wall_4           => Console.markup_style("~", bg: :gray),
+  253       :upper_wall_6           => Console.markup_style("~", bg: :gray),
+  254       :upper_wall_7           => Console.markup_style("~", bg: :gray),
+  255       :upper_wall_8           => Console.markup_style("~", bg: :gray),
+  256       :upper_wall_9           => Console.markup_style("~", bg: :gray),
+  257       :upper_wall_in_1        => Console.markup_style("~", bg: :gray),
+  258       :upper_wall_in_3        => Console.markup_style("~", bg: :gray),
+  259       :upper_wall_in_7        => Console.markup_style("~", bg: :gray),
+  260       :upper_wall_in_9        => Console.markup_style("~", bg: :gray)
+  261     }
+  262 
+  263     def initialize(width, height)
+  264       @width  = width
+  265       @height = height
+  266       @array  = [[], [], []]
+  267       clear
+  268     end
+  269 
+  270     def [](x, y, layer)
+  271       return @array[layer][(y * @width) + x]
+  272     end
+  273 
+  274     def []=(x, y, layer, value)
+  275       @array[layer][(y * @width) + x] = value
+  276     end
+  277 
+  278     def value(x, y)
+  279       return :void if x < 0 || x >= @width || y < 0 || y >= @height
+  280       ret = :void

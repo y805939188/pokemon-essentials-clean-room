@@ -14,6 +14,10 @@ outdir = root / "evidence/compressed"
 outdir.mkdir(parents=True, exist_ok=True)
 rows = []
 excluded_caches = []
+previous_manifest = root / "publication/compressed-artifacts.json"
+previous = json.loads(previous_manifest.read_text()) if previous_manifest.exists() else {"artifacts": []}
+previous_by_path = {row["original_path"]: row for row in previous["artifacts"]}
+reused = 0
 for name in scope["completed"]:
     for p in sorted((root / "tasks" / name).rglob("*")):
         if not p.is_file() or p.is_symlink():
@@ -26,6 +30,15 @@ for name in scope["completed"]:
             continue
         raw = p.read_bytes()
         sha = hashlib.sha256(raw).hexdigest()
+        old = previous_by_path.get(str(rel))
+        if old and old["original_sha256"] == sha and old["original_bytes"] == len(raw):
+            container = root / old["container_path"]
+            packed = container.read_bytes()
+            assert len(packed) == old["container_bytes"]
+            assert hashlib.sha256(packed).hexdigest() == old["container_sha256"]
+            rows.append(old)
+            reused += 1
+            continue
         packed = gzip.compress(raw, compresslevel=9, mtime=0)
         assert gzip.decompress(packed) == raw
         target = outdir / (sha + ".gz")
@@ -44,6 +57,7 @@ for name in scope["completed"]:
 manifest = {"schema": "gr8-lossless-large-evidence/v1", "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "artifacts": rows, "count": len(rows), "original_bytes": sum(r["original_bytes"] for r in rows),
             "container_bytes": sum(r["container_bytes"] for r in rows),
+            "unchanged_previously_roundtrip_verified_containers_reused": reused,
             "local_only_reproducible_cache_paths": excluded_caches,
             "cache_qualification": "Exact historical caches and nested bare repository are not new report evidence; current recovery selections/receipts retain original fixed objects. Nothing deleted.",
             "source_originals_modified": False, "update_started": False}

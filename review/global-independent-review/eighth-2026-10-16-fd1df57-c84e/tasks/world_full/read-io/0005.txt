@@ -1,0 +1,296 @@
+  321     return false if events.length == 0
+  322     ret = false
+  323     events.each do |event|
+  324       event.start
+  325       ret = true if event.starting
+  326     end
+  327     return ret
+  328   end
+  329 
+  330   # Trigger event(s) at the same coordinates as self with the appropriate
+  331   # trigger(s) that can be triggered
+  332   def check_event_trigger_here(triggers)
+  333     result = false
+  334     # If event is running
+  335     return result if $game_system.map_interpreter.running?
+  336     # All event loops
+  337     $game_map.events.each_value do |event|
+  338       # If event coordinates and triggers are consistent
+  339       next if !event.at_coordinate?(@x, @y)
+  340       next if !triggers.include?(event.trigger)
+  341       # If starting determinant is same position event (other than jumping)
+  342       next if event.jumping? || !event.over_trigger?
+  343       event.start
+  344       result = true if event.starting
+  345     end
+  346     return result
+  347   end
+  348 
+  349   # Front Event Starting Determinant
+  350   def check_event_trigger_there(triggers)
+  351     result = false
+  352     # If event is running
+  353     return result if $game_system.map_interpreter.running?
+  354     # Calculate front event coordinates
+  355     new_x = @x + (@direction == 6 ? 1 : @direction == 4 ? -1 : 0)
+  356     new_y = @y + (@direction == 2 ? 1 : @direction == 8 ? -1 : 0)
+  357     return false if !$game_map.valid?(new_x, new_y)
+  358     # All event loops
+  359     $game_map.events.each_value do |event|
+  360       next if !triggers.include?(event.trigger)
+  361       # If event coordinates and triggers are consistent
+  362       next if !event.at_coordinate?(new_x, new_y)
+  363       # If starting determinant is front event (other than jumping)
+  364       next if event.jumping? || event.over_trigger?
+  365       event.start
+  366       result = true if event.starting
+  367     end
+  368     # If fitting event is not found
+  369     if result == false && $game_map.counter?(new_x, new_y)
+  370       # Calculate coordinates of 1 tile further away
+  371       new_x += (@direction == 6 ? 1 : @direction == 4 ? -1 : 0)
+  372       new_y += (@direction == 2 ? 1 : @direction == 8 ? -1 : 0)
+  373       return false if !$game_map.valid?(new_x, new_y)
+  374       # All event loops
+  375       $game_map.events.each_value do |event|
+  376         next if !triggers.include?(event.trigger)
+  377         # If event coordinates and triggers are consistent
+  378         next if !event.at_coordinate?(new_x, new_y)
+  379         # If starting determinant is front event (other than jumping)
+  380         next if event.jumping? || event.over_trigger?
+  381         event.start
+  382         result = true if event.starting
+  383       end
+  384     end
+  385     return result
+  386   end
+  387 
+  388   # Touch Event Starting Determinant
+  389   def check_event_trigger_touch(dir)
+  390     result = false
+  391     return result if $game_system.map_interpreter.running?
+  392     # All event loops
+  393     x_offset = (dir == 4) ? -1 : (dir == 6) ? 1 : 0
+  394     y_offset = (dir == 8) ? -1 : (dir == 2) ? 1 : 0
+  395     $game_map.events.each_value do |event|
+  396       next if ![1, 2].include?(event.trigger)   # Player touch, event touch
+  397       # If event coordinates and triggers are consistent
+  398       next if !event.at_coordinate?(@x + x_offset, @y + y_offset)
+  399       if event.name[/(?:sight|trainer)\((\d+)\)/i]
+  400         distance = $~[1].to_i
+  401         next if !pbEventCanReachPlayer?(event, self, distance)
+  402       elsif event.name[/counter\((\d+)\)/i]
+  403         distance = $~[1].to_i
+  404         next if !pbEventFacesPlayer?(event, self, distance)
+  405       end
+  406       # If starting determinant is front event (other than jumping)
+  407       next if event.jumping? || event.over_trigger?
+  408       event.start
+  409       result = true if event.starting
+  410     end
+  411     return result
+  412   end
+  413 
+  414   #-----------------------------------------------------------------------------
+  415 
+  416   def update
+  417     last_real_x = @real_x
+  418     last_real_y = @real_y
+  419     @last_terrain_tag = pbTerrainTag
+  420     super
+  421     update_stop if $game_temp.in_menu && @stopped_last_frame
+  422     update_screen_position(last_real_x, last_real_y)
+  423     # Update dependent events
+  424     if (!@moved_last_frame || @stopped_last_frame) && (moving? || jumping?) && !@bumping
+  425       $game_temp.followers.move_followers
+  426     end
+  427     $game_temp.followers.update
+  428     update_event_triggering
+  429   end
+  430 
+  431   def update_command_new
+  432     dir = Input.dir4
+  433     if $PokemonGlobal.forced_movement?
+  434       move_forward
+  435     elsif !pbMapInterpreterRunning? && !$game_temp.message_window_showing &&
+  436           !$game_temp.in_mini_update && !$game_temp.in_menu
+  437       # Move player in the direction the directional button is being pressed
+  438       if @moved_last_frame ||
+  439          (dir > 0 && dir == @lastdir && System.uptime - @lastdirframe >= 0.075)
+  440         case dir
+  441         when 2 then move_down
+  442         when 4 then move_left
+  443         when 6 then move_right
+  444         when 8 then move_up
+  445         end
+  446       elsif dir != @lastdir
+  447         case dir
+  448         when 2 then turn_down
+  449         when 4 then turn_left
+  450         when 6 then turn_right
+  451         when 8 then turn_up
+  452         end
+  453       end
+  454       # Record last direction input
+  455       @lastdirframe = System.uptime if dir != @lastdir
+  456       @lastdir = dir
+  457     end
+  458   end
+  459 
+  460   def update_move
+  461     if !@moved_last_frame || @stopped_last_frame   # Started a new step
+  462       if $PokemonGlobal.ice_sliding || @last_terrain_tag.ice
+  463         set_movement_type(:ice_sliding)
+  464       elsif $PokemonGlobal.descending_waterfall
+  465         set_movement_type(:descending_waterfall)
+  466       elsif $PokemonGlobal.ascending_waterfall
+  467         set_movement_type(:ascending_waterfall)
+  468       else
+  469         faster = can_run?
+  470         if $PokemonGlobal&.diving
+  471           set_movement_type((faster) ? :diving_fast : :diving)
+  472         elsif $PokemonGlobal&.surfing
+  473           set_movement_type((faster) ? :surfing_fast : :surfing)
+  474         elsif $PokemonGlobal&.bicycle
+  475           set_movement_type((faster) ? :cycling_fast : :cycling)
+  476         else
+  477           set_movement_type((faster) ? :running : :walking)
+  478         end
+  479       end
+  480       if jumping?
+  481         if $PokemonGlobal&.diving
+  482           set_movement_type(:diving_jumping)
+  483         elsif $PokemonGlobal&.surfing
+  484           set_movement_type(:surfing_jumping)
+  485         elsif $PokemonGlobal&.bicycle
+  486           set_movement_type(:cycling_jumping)
+  487         else
+  488           set_movement_type(:jumping)   # Walking speed/charset while jumping
+  489         end
+  490       end
+  491     end
+  492     was_jumping = jumping?
+  493     super
+  494     if was_jumping && !jumping? && !@transparent && (@tile_id > 0 || @character_name != "")
+  495       if !$PokemonGlobal.surfing || $game_temp.ending_surf
+  496         spriteset = $scene.spriteset(map_id)
+  497         spriteset&.addUserAnimation(Settings::DUST_ANIMATION_ID, self.x, self.y, true, 1)
+  498       end
+  499     end
+  500   end
+  501 
+  502   def update_stop
+  503     if @stopped_last_frame
+  504       if $PokemonGlobal&.diving
+  505         set_movement_type(:diving_stopped)
+  506       elsif $PokemonGlobal&.surfing
+  507         set_movement_type(:surfing_stopped)
+  508       elsif $PokemonGlobal&.bicycle
+  509         set_movement_type(:cycling_stopped)
+  510       else
+  511         set_movement_type(:walking_stopped)
+  512       end
+  513     end
+  514     super
+  515   end
+  516 
+  517   def update_pattern
+  518     if $PokemonGlobal&.surfing || $PokemonGlobal&.diving
+  519       bob_pattern = (4 * System.uptime / SURF_BOB_DURATION).to_i % 4
+  520       @pattern = bob_pattern if !@lock_pattern
+  521       @pattern_surf = bob_pattern
+  522       @bob_height = (bob_pattern >= 2) ? 2 : 0
+  523       @anime_count = 0
+  524     else
+  525       @bob_height = 0
+  526       super
+  527     end
+  528   end
+  529 
+  530   # Track the player on-screen as they move.
+  531   def update_screen_position(last_real_x, last_real_y)
+  532     return if self.map.scrolling? || !(@moved_last_frame || @moved_this_frame)
+  533     if (@real_x < last_real_x && @real_x < $game_map.display_x + SCREEN_CENTER_X) ||
+  534        (@real_x > last_real_x && @real_x > $game_map.display_x + SCREEN_CENTER_X)
+  535       self.map.display_x += @real_x - last_real_x
+  536     end
+  537     if (@real_y < last_real_y && @real_y < $game_map.display_y + SCREEN_CENTER_Y) ||
+  538        (@real_y > last_real_y && @real_y > $game_map.display_y + SCREEN_CENTER_Y)
+  539       self.map.display_y += @real_y - last_real_y
+  540     end
+  541   end
+  542 
+  543   def update_event_triggering
+  544     return if moving? || jumping? || $PokemonGlobal.forced_movement?
+  545     # Try triggering events upon walking into them/in front of them
+  546     if @moved_this_frame
+  547       $game_temp.followers.turn_followers
+  548       result = pbCheckEventTriggerFromDistance([2])
+  549       # Event determinant is via touch of same position event
+  550       result |= check_event_trigger_here([1, 2])
+  551       # No events triggered, try other event triggers upon finishing a step
+  552       pbOnStepTaken(result)
+  553     end
+  554   end
+  555 end
+  556 
+  557 #===============================================================================
+  558 #
+  559 #===============================================================================
+  560 def pbGetPlayerCharset(charset, trainer = nil, force = false)
+  561   trainer = $player if !trainer
+  562   outfit = (trainer) ? trainer.outfit : 0
+  563   return nil if !force && $game_player&.charsetData &&
+  564                 $game_player.charsetData[0] == trainer.character_ID &&
+  565                 $game_player.charsetData[1] == charset &&
+  566                 $game_player.charsetData[2] == outfit
+  567   $game_player.charsetData = [trainer.character_ID, charset, outfit] if $game_player
+  568   ret = charset
+  569   if pbResolveBitmap("Graphics/Characters/" + ret + "_" + outfit.to_s)
+  570     ret = ret + "_" + outfit.to_s
+  571   end
+  572   return ret
+  573 end
+  574 
+  575 def pbUpdateVehicle
+  576   if $PokemonGlobal&.diving
+  577     $game_player.set_movement_type(:diving_stopped)
+  578   elsif $PokemonGlobal&.surfing
+  579     $game_player.set_movement_type(:surfing_stopped)
+  580   elsif $PokemonGlobal&.bicycle
+  581     $game_player.set_movement_type(:cycling_stopped)
+  582   else
+  583     $game_player.set_movement_type(:walking_stopped)
+  584   end
+  585 end
+  586 
+  587 def pbCancelVehicles(destination = nil, cancel_swimming = true)
+  588   $PokemonGlobal.surfing = false if cancel_swimming
+  589   $PokemonGlobal.diving  = false if cancel_swimming
+  590   $PokemonGlobal.bicycle = false if !destination || !pbCanUseBike?(destination)
+  591   pbUpdateVehicle
+  592 end
+  593 
+  594 def pbCanUseBike?(map_id)
+  595   map_metadata = GameData::MapMetadata.try_get(map_id)
+  596   return false if !map_metadata
+  597   return map_metadata.always_bicycle || map_metadata.can_bicycle || map_metadata.outdoor_map
+  598 end
+  599 
+  600 def pbMountBike
+  601   return if $PokemonGlobal.bicycle
+  602   $PokemonGlobal.bicycle = true
+  603   $stats.cycle_count += 1
+  604   pbUpdateVehicle
+  605   bike_bgm = GameData::Metadata.get.bicycle_BGM
+  606   pbCueBGM(bike_bgm, 0.4) if bike_bgm
+  607   pbSEPlay("Bicycle")
+  608   pbPokeRadarCancel
+  609 end
+  610 
+  611 def pbDismountBike
+  612   return if !$PokemonGlobal.bicycle
+  613   $PokemonGlobal.bicycle = false
+  614   pbUpdateVehicle
+  615   $game_map.autoplayAsCue
+  616 end

@@ -1,0 +1,239 @@
+  511     battle.party1starts = player_party_starts
+  512     battle.party2starts = foe_party_starts
+  513     battle.ally_items   = ally_items
+  514     battle.items        = foe_items
+  515     # Set various other properties in the battle class
+  516     setBattleRule("#{foe_trainers.length}v#{foe_trainers.length}") if $game_temp.battle_rules["size"].nil?
+  517     BattleCreationHelperMethods.prepare_battle(battle)
+  518     $game_temp.clear_battle_rules
+  519     # Perform the battle itself
+  520     outcome = 0
+  521     pbBattleAnimation(pbGetTrainerBattleBGM(foe_trainers), (battle.singleBattle?) ? 1 : 3, foe_trainers) do
+  522       pbSceneStandby { outcome = battle.pbStartBattle }
+  523       BattleCreationHelperMethods.after_battle(outcome, can_lose)
+  524     end
+  525     Input.update
+  526     # Save the result of the battle in a Game Variable (1 by default)
+  527     BattleCreationHelperMethods.set_outcome(outcome, outcome_variable, true)
+  528     return outcome
+  529   end
+  530 
+  531   def self.generate_foes(*args)
+  532     trainer_array = []
+  533     foe_items     = []
+  534     pokemon_array = []
+  535     party_starts  = []
+  536     trainer_type = nil
+  537     trainer_name = nil
+  538     args.each_with_index do |arg, i|
+  539       case arg
+  540       when NPCTrainer
+  541         raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+  542         trainer_array.push(arg)
+  543         foe_items.push(arg.items)
+  544         party_starts.push(pokemon_array.length)
+  545         arg.party.each { |pkmn| pokemon_array.push(pkmn) }
+  546       when Array   # [trainer type, trainer name, version number, speech (optional)]
+  547         raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+  548         trainer = pbLoadTrainer(arg[0], arg[1], arg[2])
+  549         pbMissingTrainer(arg[0], arg[1], arg[2]) if !trainer
+  550         trainer = pbLoadTrainer(arg[0], arg[1], arg[2]) if !trainer   # Try again
+  551         raise _INTL("Trainer for data '{1}' is not defined.", arg) if !trainer
+  552         EventHandlers.trigger(:on_trainer_load, trainer)
+  553         trainer.lose_text = arg[3] if arg[3] && !arg[3].empty?
+  554         trainer_array.push(trainer)
+  555         foe_items.push(trainer.items)
+  556         party_starts.push(pokemon_array.length)
+  557         trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+  558       else
+  559         if trainer_name   # Expecting version number
+  560           if !arg.is_a?(Integer) || arg < 0
+  561             raise _INTL("Expected a trainer version number (0 or higher) but {1} is not a number or not a valid value.", arg)
+  562           end
+  563           trainer = pbLoadTrainer(trainer_type, trainer_name, arg)
+  564           pbMissingTrainer(trainer_type, trainer_name, arg) if !trainer
+  565           trainer = pbLoadTrainer(trainer_type, trainer_name, arg) if !trainer   # Try again
+  566           raise _INTL("Trainer for data '{1}, {2}, {3}' is not defined.", trainer_type, trainer_name, arg) if !trainer
+  567           EventHandlers.trigger(:on_trainer_load, trainer)
+  568           trainer_array.push(trainer)
+  569           foe_items.push(trainer.items)
+  570           party_starts.push(pokemon_array.length)
+  571           trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+  572           trainer_type = nil
+  573           trainer_name = nil
+  574         elsif trainer_type   # Expecting trainer name
+  575           if !arg.is_a?(String) || arg.strip.empty?
+  576             raise _INTL("Expected a trainer name but '{1}' is not a valid name.", arg)
+  577           end
+  578           if args[i + 1].is_a?(Integer)   # Version number is next
+  579             trainer_name = arg.strip
+  580           else
+  581             trainer = pbLoadTrainer(trainer_type, arg)
+  582             pbMissingTrainer(trainer_type, arg, 0) if !trainer
+  583             trainer = pbLoadTrainer(trainer_type, arg) if !trainer   # Try again
+  584             raise _INTL("Trainer for data '{1}, {2}' is not defined.", trainer_type, arg) if !trainer
+  585             EventHandlers.trigger(:on_trainer_load, trainer)
+  586             trainer_array.push(trainer)
+  587             foe_items.push(trainer.items)
+  588             party_starts.push(pokemon_array.length)
+  589             trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+  590             trainer_type = nil
+  591           end
+  592         else   # Expecting trainer type
+  593           if !GameData::TrainerType.exists?(arg)
+  594             raise _INTL("Trainer type {1} does not exist.", arg)
+  595           end
+  596           trainer_type = arg
+  597         end
+  598       end
+  599     end
+  600     raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+  601     return trainer_array, foe_items, pokemon_array, party_starts
+  602   end
+  603 end
+  604 
+  605 #===============================================================================
+  606 # After battles
+  607 #===============================================================================
+  608 EventHandlers.add(:on_end_battle, :evolve_and_black_out,
+  609   proc { |decision, canLose|
+  610     # Check for evolutions
+  611     pbEvolutionCheck if Settings::CHECK_EVOLUTION_AFTER_ALL_BATTLES ||
+  612                         (decision != 2 && decision != 5)   # not a loss or a draw
+  613     $game_temp.party_levels_before_battle = nil
+  614     $game_temp.party_critical_hits_dealt = nil
+  615     $game_temp.party_direct_damage_taken = nil
+  616     # Check for blacking out or gaining Pickup/Huney Gather items
+  617     case decision
+  618     when 1, 4   # Win, capture
+  619       $player.pokemon_party.each do |pkmn|
+  620         pbPickup(pkmn)
+  621         pbHoneyGather(pkmn)
+  622       end
+  623     when 2, 5   # Lose, draw
+  624       if !canLose
+  625         $game_system.bgm_unpause
+  626         $game_system.bgs_unpause
+  627         pbStartOver
+  628       end
+  629     end
+  630   }
+  631 )
+  632 
+  633 def pbEvolutionCheck
+  634   $player.party.each_with_index do |pkmn, i|
+  635     next if !pkmn || pkmn.egg?
+  636     next if pkmn.fainted? && !Settings::CHECK_EVOLUTION_FOR_FAINTED_POKEMON
+  637     # Find an evolution
+  638     new_species = nil
+  639     if new_species.nil? && $game_temp.party_levels_before_battle &&
+  640        $game_temp.party_levels_before_battle[i] &&
+  641        $game_temp.party_levels_before_battle[i] < pkmn.level
+  642       new_species = pkmn.check_evolution_on_level_up
+  643     end
+  644     new_species = pkmn.check_evolution_after_battle(i) if new_species.nil?
+  645     next if new_species.nil?
+  646     # Evolve Pokémon if possible
+  647     evo = PokemonEvolutionScene.new
+  648     evo.pbStartScreen(pkmn, new_species)
+  649     evo.pbEvolution
+  650     evo.pbEndScreen
+  651   end
+  652 end
+  653 
+  654 def pbDynamicItemList(*args)
+  655   ret = []
+  656   args.each { |arg| ret.push(arg) if GameData::Item.exists?(arg) }
+  657   return ret
+  658 end
+  659 
+  660 # Common items to find via Pickup. Items from this list are added to the pool in
+  661 # order, starting from a point dependng on the Pokémon's level. The number of
+  662 # items added is how many probabilities are in the PICKUP_COMMON_ITEM_CHANCES
+  663 # array below.
+  664 # There must be 9 + PICKUP_COMMON_ITEM_CHANCES.length number of items in this
+  665 # array (18 by default). The 9 is actually (100 / num_rarity_levels) - 1, where
+  666 # num_rarity_levels is in def pbPickup below.
+  667 PICKUP_COMMON_ITEMS = [
+  668   :POTION,        # Levels 1-10
+  669   :ANTIDOTE,      # Levels 1-10, 11-20
+  670   :SUPERPOTION,   # Levels 1-10, 11-20, 21-30
+  671   :GREATBALL,     # Levels 1-10, 11-20, 21-30, 31-40
+  672   :REPEL,         # Levels 1-10, 11-20, 21-30, 31-40, 41-50
+  673   :ESCAPEROPE,    # Levels 1-10, 11-20, 21-30, 31-40, 41-50, 51-60
+  674   :FULLHEAL,      # Levels 1-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70
+  675   :HYPERPOTION,   # Levels 1-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71-80
+  676   :ULTRABALL,     # Levels 1-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71-80, 81-90
+  677   :REVIVE,        # Levels       11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71-80, 81-90, 91-100
+  678   :RARECANDY,     # Levels              21-30, 31-40, 41-50, 51-60, 61-70, 71-80, 81-90, 91-100
+  679   :SUNSTONE,      # Levels                     31-40, 41-50, 51-60, 61-70, 71-80, 81-90, 91-100
+  680   :MOONSTONE,     # Levels                            41-50, 51-60, 61-70, 71-80, 81-90, 91-100
+  681   :HEARTSCALE,    # Levels                                   51-60, 61-70, 71-80, 81-90, 91-100
+  682   :FULLRESTORE,   # Levels                                          61-70, 71-80, 81-90, 91-100
+  683   :MAXREVIVE,     # Levels                                                 71-80, 81-90, 91-100
+  684   :PPUP,          # Levels                                                        81-90, 91-100
+  685   :MAXELIXIR      # Levels                                                               91-100
+  686 ]
+  687 # Chances to get each item added to the pool from the array above.
+  688 PICKUP_COMMON_ITEM_CHANCES = [30, 10, 10, 10, 10, 10, 10, 4, 4]
+  689 # Rare items to find via Pickup. Items from this list are added to the pool in
+  690 # order, starting from a point dependng on the Pokémon's level. The number of
+  691 # items added is how many probabilities are in the PICKUP_RARE_ITEM_CHANCES
+  692 # array below.
+  693 # There must be 9 + PICKUP_RARE_ITEM_CHANCES.length number of items in this
+  694 # array (11 by default). The 9 is actually (100 / num_rarity_levels) - 1, where
+  695 # num_rarity_levels is in def pbPickup below.
+  696 PICKUP_RARE_ITEMS = [
+  697   :HYPERPOTION,   # Levels 1-10
+  698   :NUGGET,        # Levels 1-10, 11-20
+  699   :KINGSROCK,     # Levels       11-20, 21-30
+  700   :FULLRESTORE,   # Levels              21-30, 31-40
+  701   :ETHER,         # Levels                     31-40, 41-50
+  702   :IRONBALL,      # Levels                            41-50, 51-60
+  703   :DESTINYKNOT,   # Levels                                   51-60, 61-70
+  704   :ELIXIR,        # Levels                                          61-70, 71-80
+  705   :DESTINYKNOT,   # Levels                                                 71-80, 81-90
+  706   :LEFTOVERS,     # Levels                                                        81-90, 91-100
+  707   :DESTINYKNOT    # Levels                                                               91-100
+  708 ]
+  709 # Chances to get each item added to the pool from the array above.
+  710 PICKUP_RARE_ITEM_CHANCES = [1, 1]
+  711 
+  712 # Try to gain an item after a battle if a Pokemon has the ability Pickup.
+  713 def pbPickup(pkmn)
+  714   return if pkmn.egg? || !pkmn.hasAbility?(:PICKUP)
+  715   return if pkmn.hasItem?
+  716   return unless rand(100) < 10   # 10% chance for Pickup to trigger
+  717   num_rarity_levels = 10
+  718   # Ensure common and rare item lists contain defined items
+  719   common_items = pbDynamicItemList(*PICKUP_COMMON_ITEMS)
+  720   rare_items = pbDynamicItemList(*PICKUP_RARE_ITEMS)
+  721   return if common_items.length < num_rarity_levels - 1 + PICKUP_COMMON_ITEM_CHANCES.length
+  722   return if rare_items.length < num_rarity_levels - 1 + PICKUP_RARE_ITEM_CHANCES.length
+  723   # Determine the starting point for adding items from the above arrays into the
+  724   # pool
+  725   start_index = [([100, pkmn.level].min - 1) * num_rarity_levels / 100, 0].max
+  726   # Generate a pool of items depending on the Pokémon's level
+  727   items = []
+  728   PICKUP_COMMON_ITEM_CHANCES.length.times { |i| items.push(common_items[start_index + i]) }
+  729   PICKUP_RARE_ITEM_CHANCES.length.times { |i| items.push(rare_items[start_index + i]) }
+  730   # Randomly choose an item from the pool to give to the Pokémon
+  731   all_chances = PICKUP_COMMON_ITEM_CHANCES + PICKUP_RARE_ITEM_CHANCES
+  732   rnd = rand(all_chances.sum)
+  733   cumul = 0
+  734   all_chances.each_with_index do |c, i|
+  735     cumul += c
+  736     next if rnd >= cumul
+  737     pkmn.item = items[i]
+  738     break
+  739   end
+  740 end
+  741 
+  742 # Try to gain a Honey item after a battle if a Pokemon has the ability Honey Gather.
+  743 def pbHoneyGather(pkmn)
+  744   return if !GameData::Item.exists?(:HONEY)
+  745   return if pkmn.egg? || !pkmn.hasAbility?(:HONEYGATHER) || pkmn.hasItem?
+  746   chance = 5 + (((pkmn.level - 1) / 10) * 5)
+  747   return unless rand(100) < chance
+  748   pkmn.item = :HONEY
+  749 end

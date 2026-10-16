@@ -1,0 +1,214 @@
+  241     index = @list[index].indent
+  242     loop do
+  243       index -= 1
+  244       return index + 1 if @list[index].indent == indent
+  245     end
+  246   end
+  247 
+  248   def pbBreakLoop(index)
+  249     indent = @list[index].indent
+  250     temp_index = index
+  251     loop do
+  252       temp_index += 1
+  253       return index + 1 if temp_index >= @list.size - 1
+  254       return temp_index + 1 if @list[temp_index].code == 413 &&
+  255                                @list[temp_index].indent < indent
+  256     end
+  257   end
+  258 
+  259   def pbJumpToLabel(index, label_name)
+  260     temp_index = 0
+  261     loop do
+  262       return index + 1 if temp_index >= @list.size - 1
+  263       return temp_index + 1 if @list[temp_index].code == 118 &&
+  264                                @list[temp_index].parameters[0] == label_name
+  265       temp_index += 1
+  266     end
+  267   end
+  268 
+  269   def follower_move_route(id = nil)
+  270     @follower_move_route = true
+  271     @follower_move_route_id = id
+  272   end
+  273 
+  274   def follower_animation(id = nil)
+  275     @follower_animation = true
+  276     @follower_animation_id = id
+  277   end
+  278 
+  279   def end_follower_overrides
+  280     @follower_move_route = false
+  281     @follower_move_route_id = nil
+  282     @follower_animation = false
+  283     @follower_animation_id = nil
+  284   end
+  285 
+  286   # Helper function that shows a picture in a script.
+  287   def pbShowPicture(number, name, origin, x, y, zoomX = 100, zoomY = 100, opacity = 255, blendType = 0)
+  288     number += ($game_temp.in_battle ? 50 : 0)
+  289     $game_screen.pictures[number].show(name, origin, x, y, zoomX, zoomY, opacity, blendType)
+  290   end
+  291 
+  292   # Erases an event and adds it to the list of erased events so that
+  293   # it can stay erased when the game is saved then loaded again.
+  294   def pbEraseThisEvent
+  295     if $game_map.events[@event_id]
+  296       $game_map.events[@event_id].erase
+  297       $PokemonMap&.addErasedEvent(@event_id)
+  298     end
+  299     @index += 1
+  300     return true
+  301   end
+  302 
+  303   # Runs a common event.
+  304   def pbCommonEvent(id)
+  305     common_event = $data_common_events[id]
+  306     return if !common_event
+  307     if $game_temp.in_battle
+  308       $game_system.battle_interpreter.setup(common_event.list, 0)
+  309     else
+  310       interp = Interpreter.new
+  311       interp.setup(common_event.list, 0)
+  312       loop do
+  313         Graphics.update
+  314         Input.update
+  315         interp.update
+  316         pbUpdateSceneMap
+  317         break if !interp.running?
+  318       end
+  319     end
+  320   end
+  321 
+  322   # Sets another event's self switch (eg. pbSetSelfSwitch(20, "A", true) ).
+  323   def pbSetSelfSwitch(eventid, switch_name, value, mapid = -1)
+  324     mapid = @map_id if mapid < 0
+  325     old_value = $game_self_switches[[mapid, eventid, switch_name]]
+  326     $game_self_switches[[mapid, eventid, switch_name]] = value
+  327     if value != old_value && $map_factory.hasMap?(mapid)
+  328       $map_factory.getMap(mapid, false).need_refresh = true
+  329     end
+  330   end
+  331 
+  332   def tsOff?(c)
+  333     return get_self.tsOff?(c)
+  334   end
+  335   alias isTempSwitchOff? tsOff?
+  336 
+  337   def tsOn?(c)
+  338     return get_self.tsOn?(c)
+  339   end
+  340   alias isTempSwitchOn? tsOn?
+  341 
+  342   def setTempSwitchOn(c)
+  343     get_self.setTempSwitchOn(c)
+  344   end
+  345 
+  346   def setTempSwitchOff(c)
+  347     get_self.setTempSwitchOff(c)
+  348   end
+  349 
+  350   def getVariable(*arg)
+  351     if arg.length == 0
+  352       return nil if !$PokemonGlobal.eventvars
+  353       return $PokemonGlobal.eventvars[[@map_id, @event_id]]
+  354     else
+  355       return $game_variables[arg[0]]
+  356     end
+  357   end
+  358 
+  359   def setVariable(*arg)
+  360     if arg.length == 1
+  361       $PokemonGlobal.eventvars = {} if !$PokemonGlobal.eventvars
+  362       $PokemonGlobal.eventvars[[@map_id, @event_id]] = arg[0]
+  363     else
+  364       $game_variables[arg[0]] = arg[1]
+  365       $game_map.need_refresh = true
+  366     end
+  367   end
+  368 
+  369   def pbGetPokemon(id)
+  370     return $player.party[pbGet(id)]
+  371   end
+  372 
+  373   def pbSetEventTime(*arg)
+  374     $PokemonGlobal.eventvars = {} if !$PokemonGlobal.eventvars
+  375     time = pbGetTimeNow
+  376     time = time.to_i
+  377     pbSetSelfSwitch(@event_id, "A", true)
+  378     $PokemonGlobal.eventvars[[@map_id, @event_id]] = time
+  379     arg.each do |otherevt|
+  380       pbSetSelfSwitch(otherevt, "A", true)
+  381       $PokemonGlobal.eventvars[[@map_id, otherevt]] = time
+  382     end
+  383   end
+  384 
+  385   # Used in boulder events. Allows an event to be pushed.
+  386   def pbPushThisEvent(strength = false)
+  387     event = get_self
+  388     old_x  = event.x
+  389     old_y  = event.y
+  390     # Apply strict version of passable, which treats tiles that are passable
+  391     # only from certain directions as fully impassible
+  392     return if !event.can_move_in_direction?($game_player.direction, true)
+  393     $stats.strength_push_count += 1
+  394     case $game_player.direction
+  395     when 2 then event.move_down
+  396     when 4 then event.move_left
+  397     when 6 then event.move_right
+  398     when 8 then event.move_up
+  399     end
+  400     $PokemonMap&.addMovedEvent(@event_id)
+  401     if old_x != event.x || old_y != event.y
+  402       pbSEPlay("Strength push") if strength
+  403       $game_player.lock
+  404       loop do
+  405         Graphics.update
+  406         Input.update
+  407         pbUpdateSceneMap
+  408         break if !event.moving?
+  409       end
+  410       $game_player.unlock
+  411     end
+  412   end
+  413 
+  414   def pbPushThisBoulder
+  415     pbPushThisEvent(true) if $PokemonMap.strengthUsed
+  416     return true
+  417   end
+  418 
+  419   def pbSmashThisEvent
+  420     event = get_self
+  421     pbSmashEvent(event) if event
+  422     @index += 1
+  423     return true
+  424   end
+  425 
+  426   def pbTrainerIntro(symbol)
+  427     return true if $DEBUG && !GameData::TrainerType.exists?(symbol)
+  428     tr_type = GameData::TrainerType.get(symbol).id
+  429     pbGlobalLock
+  430     pbPlayTrainerIntroBGM(tr_type)
+  431     return true
+  432   end
+  433 
+  434   def pbTrainerEnd
+  435     pbGlobalUnlock
+  436     event = get_self
+  437     event&.erase_route
+  438   end
+  439 
+  440   def setPrice(item, buy_price = -1, sell_price = -1)
+  441     item = GameData::Item.get(item).id
+  442     $game_temp.mart_prices[item] = [-1, -1] if !$game_temp.mart_prices[item]
+  443     $game_temp.mart_prices[item][0] = buy_price if buy_price > 0
+  444     if sell_price >= 0   # 0=can't sell
+  445       $game_temp.mart_prices[item][1] = sell_price * 2
+  446     elsif buy_price > 0
+  447       $game_temp.mart_prices[item][1] = buy_price
+  448     end
+  449   end
+  450 
+  451   def setSellPrice(item, sell_price)
+  452     setPrice(item, -1, sell_price)
+  453   end
+  454 end
