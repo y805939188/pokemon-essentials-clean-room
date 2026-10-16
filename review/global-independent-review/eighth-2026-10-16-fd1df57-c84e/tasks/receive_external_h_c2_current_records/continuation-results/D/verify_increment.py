@@ -66,7 +66,7 @@ def main():
       'transport':'Git HTTPS partial bare; full bytes of every own D member, no old repository payload body download',
       'exact_set_and_all_mode_blob_bytes_SHA_equal':True,'files':rows,
       'files_count':len(rows),'total_bytes':sum(x['bytes'] for x in rows),
-      'increment_paths':all_delta,'semantic_credit':0,'semantic_status':'INCOMPLETE',
+      'increment_paths':all_delta,'semantic_credit':0,'semantic_status':json.loads(git(['show',args.commit+':'+REL+'/progress.json'],True))['status'],
       'behavior_execution':0,'UPDATE_NOT_STARTED':True}
     destination.parent.mkdir(parents=True,exist_ok=True)
     destination.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
