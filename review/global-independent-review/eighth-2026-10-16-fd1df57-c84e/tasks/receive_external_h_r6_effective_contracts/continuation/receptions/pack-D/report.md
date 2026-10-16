@@ -1,5 +1,9 @@
 # R8 r6_d 独立有限接收
 
+2026-10-16 续读进行中：D 的14项原合同七组及原提案、当前整记录和94个案例字段现已全部实际读过；详见 [continuation-progress.json](continuation-progress.json)。必要源码/B8链已继续补读；3个换行锚与48个资源键值的独立数据对照见 [localization-material.json](evidence/localization-material.json)。它只解码原始数据、比较明确字节，不执行参考函数或模型。共同历史字段、29边、optional和最终接口门仍在推进，尚不授整包 READY。
+
+以下为 `8285b224d82a3764a11c46c50ec1624b18f1abf9` 阶段报告，保留其生成时点；其中“尚未全文读主对象”的欠项已由上述续读替代，其余欠项不能凭该进度自动关闭。
+
 状态：**INCOMPLETE**。UPDATE_NOT_STARTED。本交付含可复用的有界实读结果和精确欠读，不能供父接收者签整包 READY、三接口完成或 B8 全局 PASS。
 
 实际上下文 `01a144b3-d62b-73db-9634-1e8f46bcc028`，不同于目标作者 `01a143b2-d42d-7797-8bbe-c60266de7007`；自行 spawn 0。合同固定 `9a3eac8900fea93fee562d520a98edaf1e232fe6`，tree `b3a100a771b4e8a4f28e7dc27583f7a30ba0505b`。用户指定分支 `codex/r8-final-r6-d-20261016` 覆盖内嵌旧分支名；写入仅本 pack-D 目录。
