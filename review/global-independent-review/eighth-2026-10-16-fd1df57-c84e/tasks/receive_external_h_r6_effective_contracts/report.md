@@ -1,0 +1,57 @@
+# receive_external_h_r6_effective_contracts：独立接收报告
+
+**INCOMPLETE。** 完整输入身份恢复已完成；本次没有完成全部有效语义、历史原证据和必要消费者的独立接收，不能签 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`、B8 全局 PASS 或 `NO_REQUIRED_UPDATE`。正式整改、main 合并、旧提案改写均为0，`UPDATE_NOT_STARTED`。最终 canonical 与 task-final 仍由主审负责。
+
+## 固定对象、独立性及保护
+
+合同提交 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232` 的完整专用 prompt、全局 prompt、review-SKILL 和根 AGENTS 已实际读到全文。完整 readset 的所有身份字段按其运输用途解析并逐条验证；初次超大展示被截断，未授业务全文信用，随后指令分别完整补读。字段用途及逐条核验见 `readset-field-disposition.json` 和 `recovery-manifest.json`。
+
+当前实际 context 的 `CODEX_THREAD_ID` / `CODEX_SESSION_ID` 均回显 `01a14466-155c-72ec-8a9a-e5ecde63f004`，不同于目标作者 `01a143b2-d42d-7797-8bbe-c60266de7007`；依据见 `execution-context.json`。没有自行 spawn，没有新增审者投票。请求 gpt-6.1-sol / ultra / default普速 / Fast off；实际 model、effort、tier、speed、Fast 均无权威回显，逐项 `UNVERIFIED`。UUID 回显不证明模型配置。
+
+仓库实际位置 `/workspace/pokemon-essentials-clean-room`，R 位于 `/workspace/pokemon-essentials`。B8 固定 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c81390f89a65ca1d1a565ba8e1ca`，formal tree `f292698cdd4a8e725525a9be6dc34b75faaf151e`。实时远端 main 与交付 tag 均解析到 B8；本地没有 main / origin/main 引用，未伪称已检查其缓存同步。R HEAD 为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。本次使用的源、B8 文件逐份以固定 Git 字节对照当前文件，身份见 `source-clause-reading.json`。保护目录 tracked diff 为0；本地只有本任务新增目录。历史 Mac 的备份、其它 worktree 和平台全局活动未在本机重做，仍不外推。
+
+唯一分支 `codex/r8-receive-h-r6-effective-contracts-20261016`，从固定合同提交建立；唯一仓库写集为本任务目录。原作者目录、公共台账、正式目录、planning/audit、R、main/tag 均未写入。
+
+## 身份恢复与实际阅读分别计数
+
+在本任务新建 bare 仓库普通 fetch 精确目标 `a96ec67a948e3fc86b25ad407cd977b6752e2d77`，没有以分支未来 HEAD 代替。恢复到本目录 `recovered/`，而非主审缓存或原作者目录。全部1364路径 / 76848323字节的集合、mode、blob、bytes、SHA256逐份一致。目标 checkout tree 为 `b96beef6b5c613648f0246b80c275ee4b1cc0eef`，目标任务 tree 为 `13da8f32ed027e052c2097ae2dd10e59c2e33233`。`recover_fixed.py` 是本次自有适配，恢复前已完整阅读原恢复 helper；未执行任何恢复的旧脚本或游戏。
+
+60载荷角色 / 52不同 gzip 解码对象 / 含角色重复的44241376字节全部核解码身份。原件在 `recovered/`，可审解码值在 `decoded/`；所有生成和校验均为 `TOOL_VALIDATION`，reading credit 为0。626398终值不是本次语义通过分母。
+
+| 人口 | 本次实际阅读/核对 | 完整语义接收 |
+| --- | --- | --- |
+| 60角色、52不同解码对象 | 14角色已全文或精确同轮别名；其中13不同对象155645字节；其余46角色未全文 | 0/60，均未签整个角色的全部外指事实 |
+| 56合同、14批 | F002完整七组及原提案1；其余55未完整读 | 0/56完整任务接收 |
+| 351完整case对象 | F002的7个完整case及必要源/B8有界核对；其余344未读 | 0/351完整任务接收 |
+| 110边 | 仅读取一个完整schema实例；未完成逐110边内容与证据接收 | 0/110 |
+| 3联合接口 | F002必要事实完成定向接合；其它两个必要源与消费者未审；整体签收未完成 | 0/3 |
+
+以上人口不相加。全文读取一个历史报告不等于接受其全部源结论。精确14角色为6、15（同字节别名6）、19、20、21、22、39、40、41、42、47、56、57、58；每对象完整含义、身份及实际回显凭证分列在 `reading-ledger.json`。35只读 `/scope_contracts/1`，37只读 `/records/5`，59只读 `/per56/5`。主报告、两份U13旧FAIL/修后PASS、U01/U02/U13当前小结及具名历史局部的读取另列，未冲抵60角色的剩余。
+
+## F002的实质核对
+
+`F002-independent-reception.json` 逐事实记录完整原合同、7个当前案例、生产/读值/选择/确认/提交和后继开始消费者，以及源与B8定位。完整必要方法含结束行，尤其队伍多选1051–1139、最终判断194–223、标准样本229–239、报名包装38–50、队伍提交200–203及开始205–229；没有把截断方法当完整。
+
+1. 原始默认人数0、最少1、无成员/整队限制时，A/B能通过存在性前门并分别选入；最后确认仍先下限后上限，正长度因max0拒绝，空选择因min1拒绝。加入行为不能证明能成功确认。
+2. 加入容量门只有界面读值为正且已选达到该读值时生效。1/3正常对照保留加入顺序、拒绝新增和恰等且刚新增时移CONFIRM。焦点转移不提交。
+3. 原始规则构造−1时界面读值通过公开最大长度得到6；标准样本构造−1时界面直接读−1，但最终最大长度仍6。显式set人数−1又夹为1。七员终门拒绝不证明普通UI能选择七员。
+4. `nil`取消不提交，包装精确返回nil；替换界面或工具返回`[]`时会提交空报名，再返回false。会话中还立即替换活动队伍；未开始则供后继开始在其它前提成功后消费。不能把空数组当取消，也不承诺普通UI能确认空数组。
+5. 当前B8的WP54 §2、WP66-A §4.6和QC-Q48/Q49、WS-W28/W29/W35已明确这些边界。最强无需新增正式必修解释是现行跨篇合同已覆盖；旧R6缺口不能按旧版本句子重开。未新增GR8必修。
+
+`RECEPTION-EVIDENCE-001` 保留汇总“零/原始负数绕过新增上限”及“raw -1 reader versus Standard clamped bound”的歧义，并给出上面的精确类/读值/最终长度对照。英语raw可解释为存储值，故不直接认定新的正式错误；本次不采用将其理解为“原始规则构造−1也绕过容量门”的宽泛解释。详细U13合同、R和B8支持精确规则，原目标汇总文本没有修改。
+
+完整读取了PARTY-004原支持假说、普通对照、失败假说及最终反证撤销；保留NO_REQUIRED，不继承旧stale Entry命令结论。E原报告和structured verdict、5c原报告以及U13两阶段报告已读：候选允许WP66-A后置，但未完成不能授actual；E的actual报告后来才明确解除该门。它们是准确历史资格，不能替代本次全量接口签收。
+
+## 历史、执行与确切剩余
+
+Float facet与父必修分开；7政策未选择，14原limits原ID与恢复条件保留，optional8原完整提案仍没有本次全读，不能写成已接收。U13旧FAIL删除SF30 d/e、错误R5路径说明、工具证明强度及后继修复均全文保留；F002候选接收门不是候选allowlist违规。5c接受资格与b7接受、4df关闭不同；原false/null/pending保持生成时点。H10曾spawn3及续轮2的历史违规与INC-R6-001分别保留，本任务spawn0。
+
+历史18次Ruby仍为12已知exit0、4非0、2未知，17进入定义/1未加载，含无效替身和重复；没有转入本轮执行数。本次新增参考行为、独立行为模型、完整宿主/Demo、真实存读档/录像、媒体及外部服务均0 / `NOT_EXECUTED`。自有索引器首次假定四个接收JSON有相同case字段而KeyError失败，已保留 `tool-failures.json` 并修正，后继结构核验不倒填首次成功。
+
+**实际未读未接收仍开放。** `remaining-work.json` 精确列46未全文角色、55未全文合同、344未读案例及110尚未逐边审读对象；每项都有固定载荷和pointer。三接口及全部完整接收仍开放，F002定向核定也不升级整个U13或其它共享对象。`case-index.json`完整枚举351对象；生成不授阅读信用。原38e78d快照作为保留历史，不当新债，也未被覆盖。
+
+本次上下文/输出容量没有完成整个冻结语义人口，故交付状态如实为INCOMPLETE；可得未读不是材料不可得。当前不可得材料阻塞0，未读材料均已恢复。原生宿主、真实媒体/地图/Demo、外部状态等只是相应观察限制，不能为上述阅读债免责。没有因本次容量边界宣布任务完成；下一实际独立接收必须从这些确切剩余继续。
+
+## 发布边界
+
+只普通commit/push本专用报告分支。语义core先冻结，后继有限发布回执绑定实际core；所有本目录新增载荷须独立远端完整回读，逐路径/mode/blob/bytes/SHA256及任务tree验证。最终发布P身份和最后回读结果由最终响应外部绑定，避免自身未来commit/tree递归哈希。发布传输完成不改变本报告的INCOMPLETE语义结论。
