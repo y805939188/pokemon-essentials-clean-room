@@ -39,6 +39,10 @@ active_candidate=root/'tasks/core_atomic_reception/candidate-straighten-facing.v
 if active_candidate.exists():
  raw=active_candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('core_atomic_reception-'+sha+'.json');target.write_bytes(raw)
  proposals.append({'origin_task':'core_atomic_reception','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION','canonical_id':'GR8-COM-005','independent_review':'adjudication/root-com005-counterreview.json'})
+active_candidate=root/'tasks/core_atomic_reception/candidate-powder-damage-gates.v1.json'
+if active_candidate.exists():
+ raw=active_candidate.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('core_atomic_reception-'+sha+'.json');target.write_bytes(raw)
+ proposals.append({'origin_task':'core_atomic_reception','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':json.loads(raw),'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':None})
 write('findings.json',{'schema':'gr8-findings/v3','utc':now,'proposals':proposals,'adjudicated_required':[],'required_count':None,'required_count_reason':'Whole review and root final canonical adjudication are incomplete; no NO_REQUIRED_UPDATE conclusion','independent_receptions':['tasks/counter_kernel_first/adjudications.json','tasks/combat_review/adjudications-creature.json'],'root_partial_counterreview':'coverage/root-counterreview-notes.json','update_started':False})
 scope=load('publication/checkpoint-scope.json')
 completed=scope['completed'];running=scope['running']
@@ -48,6 +52,7 @@ state['tasks']={n:{'platform_entry':'/root/'+n,'process_status':'COMPLETED' if n
 for n in scope.get('exited_unpublished',[]):
  state['tasks'][n]={'platform_entry':'/root/'+n,'process_status':'COMPLETED','semantic_status':'SCOPED_OUTPUT_PENDING_PUBLICATION_AND_TASK_FINAL_RECEPTION','outputs':'tasks/'+n,'actual_configuration':'UNVERIFIED'}
 state['external_cloud_start_receipts']='UNVERIFIED; no receipt in this coordinator. Planned count does not assert service capacity or external process state.'
+state['additional_existing_context_running_tasks']=scope.get('additional_existing_context_running_tasks',[])
 state['nested_running_contexts']=scope['nested_running']
 state['nested_completed_contexts']=scope['nested_completed']
 state['original_dispatch_actual_mapping']=scope['original_jobs_started_here']
@@ -58,9 +63,9 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='8362441bff0d6da1b11a8894c784dc08f61e67f0'
-state['dispatch_remote_readback']={'files':6549,'bytes':554645238,'status':'VERIFIED','evidence':'publication/r8-com004-root-primaries-audit-readback-14-retry2.json','semantic_credit':'NONE'}
-state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':40,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':7,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_not_started_locally':11,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
+state['published_dispatch_checkpoint']='771444809e5d8c4d1d15aa1fceae4cf813cab716'
+state['dispatch_remote_readback']={'files':7149,'bytes':614821805,'status':'VERIFIED','evidence':'publication/r8-font-ui-com005-developer-readback-15.json','semantic_credit':'NONE'}
+state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':40,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':7,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_not_started_locally':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
 status=(root/'publication/checkpoint-status.md').read_text()
