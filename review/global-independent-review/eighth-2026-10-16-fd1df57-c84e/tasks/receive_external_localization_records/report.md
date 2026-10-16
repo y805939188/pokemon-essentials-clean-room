@@ -94,3 +94,5 @@ ItemSprites原宣称1–164而真实EOF157，父已全文读157，不追授原�
 核心六件为本报告、frozen-denominator.json、reading-ledger.json、reception-ledger.json、interfaces.json、proposal-counters.json。原固定目标213件/18,637,972字节逐mode/blob/bytes/SHA/tree完整恢复，见evidence/target-recovery.json，原件不修改。原全部新增差异尾空白检查返回2，原输入不修剪，输出在evidence/diff-check-original.json；新撰内容另作检查，不混写为全检查通过。
 
 最终接合见 [final-integration.md](continuation/final-integration.md)，机械一致性见evidence/package-validation.json。前期INCOMPLETE证据和substantive-reception-2.md旧D待收文字仅代表原时点，以本报告及最终台账为当前。普通commit/push后在无alternates独立对象库逐文件读取全部载荷，核集合/mode/blob/bytes/SHA/checkout tree/task tree。固定发布身份由发布凭据和最终消息绑定；正文不伪造自身未来hash。根最终签收仍交主审。
+
+完成态核心已普通push并完整远端回读：C c699d3642655a8e50038162e48dd60fcfeda1ced，checkout tree e887ab6ce9ea8fa6ba532247e5a63d2d293363f0，task tree e0f88179413c569911a253b327e3c1baa27e7d07，494文件 / 78,941,469字节。逐文件凭据为 [final-core-remote-readback.json](continuation/final-core-remote-readback.json)，SHA256 f3bd40bd4fe6e6e993e886850e488e1b4349eecb3bdb88c88df57307d6bff6c7。本收据后继提交仅绑定已验证核心，最终分支头仍另作完整隔离远端回读并由最终消息给出，避免递归自身hash。
