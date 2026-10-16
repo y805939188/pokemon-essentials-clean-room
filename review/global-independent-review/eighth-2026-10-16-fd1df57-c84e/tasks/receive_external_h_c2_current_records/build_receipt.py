@@ -11,6 +11,8 @@ def read(name):return json.loads((T/name).read_text())
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat()
 def identity(b):return {'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'git_blob':hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()}
 def main():
+    if (T/'additional-receptions.json').exists():
+        raise SystemExit('Historical two-record serializer; use continue_receipt.py after continuation.')
     selfid=os.environ.get('CODEX_THREAD_ID','UNVERIFIED')
     assert selfid!='01a143b2-b02d-7094-808b-a4e9de51301b'
     config={'model':'UNVERIFIED','effort':'UNVERIFIED','tier':'UNVERIFIED','speed':'UNVERIFIED','Fast':'UNVERIFIED','UUID':selfid}

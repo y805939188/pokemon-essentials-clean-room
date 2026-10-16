@@ -1,6 +1,6 @@
 # 第八轮 H-C2 当前记录非作者接收报告
 
-**INCOMPLETE；UPDATE_NOT_STARTED。** 本次完整接收 2/37 canonical（GR7-M01-001、GR7-J16-002）及其完整原提案／必要反证、14/259 中文组；其余 35 canonical、245 组仍可得未接收。原继承 31 非必修对象中只完整接收 R6-C-P02，余 30 个 OPEN。未以恢复、作者旧签字、生成视图或历史 PASS 代替语义阅读，不能给出 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。
+**INCOMPLETE；UPDATE_NOT_STARTED。** 本次完整接收 4/37 canonical（GR7-M01-001、GR7-M13-001、GR7-M13-002、GR7-J16-002）及其完整原提案／必要反证、28/259 中文组；其余 33 canonical、231 组仍可得未接收。原继承 31 非必修对象中完整接收 R6-C-P02 与 R6-UI-PARTY-003，余 29 个 OPEN。未以恢复、作者旧签字、生成视图或历史 PASS 代替语义阅读，不能给出 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。
 
 ## 固定输入、身份及权限
 
@@ -22,15 +22,19 @@ B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`／tree `751dfde81048c81390f89a65ca
 
 满槽源请求为 RGBA64/200/248/192，名义.2秒；实际经验先写，再进入场景等待。前序音效或子请求失败只保已提交／已交付前缀，没有回滚或全部子精灵成功保证。当前两处中性“闪光”正确；1.75秒比例、.2秒、音效、无条立即完成、Effects Off仍播放、K22/K35正确范围保留。
 
+**GR7-M13-001：** 完整七组、原M13提案、C04独立反证、C19单项完整资格、别名原null、C13完整同值与外层字段、B8三个完整逐ID关闭对象均已接收。完整领域减/恢复HP方法读到结束行21/35，经完整hp setter先同步领域/持久个体，再到场景/数据框呈现。默认Pikachu基础HP35、L50、HP IV12/EV0及不禁IV/EV可得合法总HP101。颜色读取补间小数h，阈值是floor(T/2)、floor(T/4)，数字临时取整没有写回h。新读的完整HP公式/重算和既有完整DataBox/lerp/场景更新，支持当前WP67-A及HP01–04的51→50／26→25、偶数/静止整数、数字显示开关与Effects Off控制。当前正确条款保留，无新整改或运行认证。
+
+**GR7-M13-002／R6-UI-PARTY-003：** 完整R7七组／原提案／C04同根反证、R6原完整对象／原提案，以及9aa固定原storage非提出者报告的完整单项和全部共同资格已读，未接受其余三项未读body。原反证的强制后继限定保留：先在普通态赋实际经验，再makeShadow；反序只加saved_exp，不能构造非零当前条。Pikachu1165的165/331和Bulbasaur33的1/2都在旧非零域内，非新根或升级理由。完整Summary初绘117–182、drawPage/INFO303–479、蛋对照481–540、导航1270–1336、Screen1343–1353及收尾209–215，连完整Shadow扩展、GrowthRate、Shadow数据查询、实际经验比例与图片helper1138–1151均已实读。Shadow只替换经验文字，条门在该分支之外；宽0仍先加载素材并交绘制，满级/蛋才跳过。当前WP66-A文字仍保可选解释空间，optional/P3/NOT_STARTED及实际像素未知保留；WP23和战斗K23/K58不被误改。新增源身份/完整范围与判断见additional-receptions.json、source-readings.json。
+
 **GR8-HIST-C2-001：** 提供完整八节非提出者反证，建议 `NO_REQUIRED_BOUNDED_SCOPE`，主审待裁。R6可选请求精度、R7两处色词最低更正、旧错driver资格是三个贡献。所读别名／关闭对象确未具名连接R6-C-P02，但相同源观察不自动使不同修订义务矛盾；当前正文和 optional 未采用可以并存。本报告已经明确两次关系，可供本轮接收；不据此重开旧27或重复改正确正文。详见 counterreview-hist-c2-001.md；它不等于根已接受或全局 NO_REQUIRED_UPDATE。
 
-**完整用途文字：** C2 file2/3/4/7/8/17/23/24 八项已按当前历史用途读全；file24为完整值加身份原子分列，不声称逐字词法全文。它们保留R7当时库存／覆盖／根接收／执行／接口／14项限制后继／两可选facet的准确资格。原指向程序、事实、条款本体不因已读索引获得本任务新批准。R6原完整14 limits尚未读，不能由C17后继文字替代。其余五项部分、十二项可得未读，见逐载荷 ledger。
+**完整用途文字：** C2 file2/3/4/7/8/17/23/24 八项已按当前历史用途读全；file24为完整值加身份原子分列，不声称逐字词法全文。它们保留R7当时库存／覆盖／根接收／执行／接口／14项限制后继／两可选facet的准确资格。原指向程序、事实、条款本体不因已读索引获得本任务新批准。R6原完整14 limits尚未读，不能由C17后继文字替代。其余六项部分、十一项可得未读，见逐载荷 ledger。
 
 ## 精确欠项与限制分开
 
-frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json 对35个必要未接收对象逐个给canonical／原提案pointer及原完整source/formal定位集合；reception-ledger.json逐项列出状态，未把它们藏在总数中。C13只接两条与本人已读七组精确同值，完整其它35条及交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata仍OPEN。完整别名其余行、C19完整性记录及全历史资格当前值也未获本接收者签收。
+frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json 对33个必要未接收对象逐个给canonical／原提案pointer及原完整source/formal定位集合；reception-ledger.json逐项列出状态，未把它们藏在总数中。C13接四条完整外层字段及与本人已读七组精确同值，完整其它33条及交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata仍OPEN。别名/C19四个已接收条目以外的当前值及全历史资格仍未获本接收者签收。
 
-本次完整接收容量未覆盖全部冻结人口，整体必须保持 INCOMPLETE。材料缺失0、权限阻塞0，剩余属于**可得未读／未接收**。没有把它们改成L01–L14、out-of-scope、NO_REQUIRED或“解析已通过”。continuation/ 中给父会话完整固定合同、全readset及精确互斥对象分区的直接派发材料；本任务没有自行启动任何分区。父会话仍需持续完成相应实读与接口接收，最终canonical及task-final签字仍归主审。
+本次完整接收容量未覆盖全部冻结人口，整体必须保持 INCOMPLETE。材料缺失0、权限阻塞0，剩余属于**可得未读／未接收**。没有把它们改成L01–L14、out-of-scope、NO_REQUIRED或“解析已通过”。continuation-v2/ 中四份完整prompt/readset及manifest已固定在64cfde5aa3f6b25adc7291b2c2e880d87baf1ebd，并完成106文件／7497653B隔离远端回读。A/B/C分别12/10/11 canonical，D负责29原继承对象与全部尚余当前用途/接口；root保留的两canonical及一legacy本次已实际补完，合计4+33=37、2+29=31。旧continuation/五分区草稿保留历史，新派发只用v2四分区；本任务没有自行启动任何分区，父实际派发状态UNVERIFIED。父会话仍需持续完成相应实读与接口接收，最终canonical及task-final签字仍归主审。
 
 相关宿主／GPU／声音／实际媒体／Demo／真实保存观察均 NOT_EXECUTED，新行为执行0。R7既有1进程10输入的Ruby谓词和R6旧18尝试只保原局部资格，不转成本任务新增执行。未实读的外域及原读者日志不按“宿主未知”豁免。
 
@@ -38,4 +42,4 @@ frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31�
 
 逐片实际显示及读后说明在 view-state.json／views/，source-readings.json 给完整固定字节身份、实际范围、完整方法结束行和已发生截断／失败及补读。所有自动生成／哈希／恢复均 reading0。original-recovery.json、target-recovery.json、record0-extras-recovery.json 保留编码／解码／原始载荷身份；恢复方法只解析数据，不导入旧脚本。已知未读精确列明，未编造批量“人工通过”。
 
-报告 core 与后继 publication.json 分开，后者绑定实际 core C/tree 和完整远端逐文件读回；最终发布 C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告 INCOMPLETE 状态。
+报告 core 与后继发布凭据分开。publication.json保存原两条接收core与94文件完整远端读回；本次追加core由publication.continued.json绑定实际C/tree及完整逐文件读回；最终发布 C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告 INCOMPLETE 状态。
