@@ -1,0 +1,228 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/003_Game processing/003_Interpreter.rb", "range": [1, 227], "file_lines": 454, "bytes": 13280, "sha256": "2e6f60ca2cc39db70263d67619398c8a76c88c83dc28dee159259c74cb3e268d", "began_utc": "2026-10-16T03:42:27.908203+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # ** Interpreter
+00003 #-------------------------------------------------------------------------------
+00004 #  This interpreter runs event commands. This class is used within the
+00005 #  Game_System class and the Game_Event class.
+00006 #===============================================================================
+00007 class Interpreter
+00008   # Object Initialization
+00009   #     depth : nest depth
+00010   #     main  : main flag
+00011   def initialize(depth = 0, main = false)
+00012     @depth = depth
+00013     @main  = main
+00014     if depth > 100
+00015       print("Common event call has exceeded maximum limit.")
+00016       exit
+00017     end
+00018     clear
+00019   end
+00020 
+00021   def inspect
+00022     str = super.chop
+00023     str << sprintf(" @event_id: %d>", @event_id)
+00024     return str
+00025   end
+00026 
+00027   def clear
+00028     @map_id             = 0       # map ID when starting up
+00029     @event_id           = 0
+00030     @message_waiting    = false   # waiting for message to end
+00031     @move_route_waiting = false   # waiting for move completion
+00032     @wait_count         = 0
+00033     @wait_start         = nil
+00034     @child_interpreter  = nil
+00035     @branch             = {}
+00036     @buttonInput        = false
+00037     @hidden_choices     = []
+00038     @renamed_choices    = []
+00039     end_follower_overrides
+00040   end
+00041 
+00042   # Event Setup
+00043   #     list     : list of event commands
+00044   #     event_id : event ID
+00045   def setup(list, event_id, map_id = nil)
+00046     clear
+00047     @map_id = map_id || $game_map.map_id
+00048     @event_id = event_id
+00049     @list = list
+00050     @index = 0
+00051     @branch.clear
+00052   end
+00053 
+00054   def setup_starting_event
+00055     $game_map.refresh if $game_map.need_refresh
+00056     # Set up common event if one wants to start
+00057     if $game_temp.common_event_id > 0
+00058       setup($data_common_events[$game_temp.common_event_id].list, 0)
+00059       $game_temp.common_event_id = 0
+00060       return
+00061     end
+00062     # Check all map events for one that wants to start, and set it up
+00063     $game_map.events.each_value do |event|
+00064       next if !event.starting
+00065       if event.trigger < 3   # Isn't autorun or parallel processing
+00066         event.lock
+00067         event.clear_starting
+00068       end
+00069       setup(event.list, event.id, event.map.map_id)
+00070       return
+00071     end
+00072     # Check all common events for one that is autorun, and set it up
+00073     $data_common_events.compact.each do |common_event|
+00074       next if common_event.trigger != 1 || !$game_switches[common_event.switch_id]
+00075       setup(common_event.list, 0)
+00076       return
+00077     end
+00078   end
+00079 
+00080   def running?
+00081     return !@list.nil?
+00082   end
+00083 
+00084   def update
+00085     @loop_count = 0
+00086     loop do
+00087       @loop_count += 1
+00088       if @loop_count > 100   # Call Graphics.update for freeze prevention
+00089         Graphics.update
+00090         @loop_count = 0
+00091       end
+00092       # If this interpreter's map isn't the current map or connected to it,
+00093       # forget this interpreter's event ID
+00094       if $game_map.map_id != @map_id && !$map_factory.areConnected?($game_map.map_id, @map_id)
+00095         @event_id = 0
+00096       end
+00097       # Update child interpreter if one exists
+00098       if @child_interpreter
+00099         @child_interpreter.update
+00100         @child_interpreter = nil if !@child_interpreter.running?
+00101         return if @child_interpreter
+00102       end
+00103       # Do nothing if a message is being shown
+00104       return if @message_waiting
+00105       # Do nothing if any event or the player is in the middle of a move route
+00106       if @move_route_waiting
+00107         return if $game_player.move_route_forcing
+00108         $game_map.events.each_value do |event|
+00109           return if event.move_route_forcing
+00110         end
+00111         $game_temp.followers.each_follower do |event, follower|
+00112           return if event.move_route_forcing
+00113         end
+00114         @move_route_waiting = false
+00115       end
+00116       # Do nothing if the player is jumping out of surfing
+00117       return if $game_temp.ending_surf
+00118       # Do nothing while waiting
+00119       if @wait_count > 0
+00120         return if System.uptime - @wait_start < @wait_count
+00121         @wait_count = 0
+00122         @wait_start = nil
+00123       end
+00124       # Do nothing if the pause menu is going to open
+00125       return if $game_temp.menu_calling
+00126       # If there are no commands in the list, try to find something that wants to run
+00127       if @list.nil?
+00128         setup_starting_event if @main
+00129         return if @list.nil?   # Couldn't find anything that wants to run
+00130       end
+00131       # Execute the next command
+00132       return if execute_command == false
+00133       # Move to the next @index
+00134       @index += 1
+00135     end
+00136   end
+00137 
+00138   def execute_script(script)
+00139     begin
+00140       result = eval(script)
+00141       return result
+00142     rescue Exception
+00143       e = $!
+00144       raise if e.is_a?(SystemExit) || e.class.to_s == "Reset"
+00145       event = get_self
+00146       # Gather text for error message
+00147       message = pbGetExceptionMessage(e)
+00148       backtrace_text = ""
+00149       if e.is_a?(SyntaxError)
+00150         script.each_line do |line|
+00151           line.gsub!(/\s+$/, "")
+00152           if line[/^\s*\(/]
+00153             message += "\r\n***Line '#{line}' shouldn't begin with '('. Try putting the '('\r\n"
+00154             message += "at the end of the previous line instead, or using 'extendtext.exe'."
+00155           end
+00156         end
+00157       else
+00158         backtrace_text += "\r\n"
+00159         backtrace_text += "Backtrace:"
+00160         e.backtrace[0, 10].each { |i| backtrace_text += "\r\n#{i}" }
+00161         backtrace_text.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+00162         backtrace_text += "\r\n"
+00163       end
+00164       # Assemble error message
+00165       err = "Script error in Interpreter\r\n"
+00166       if $game_map
+00167         map_name = (pbGetBasicMapNameFromId($game_map.map_id) rescue nil) || "???"
+00168         if event
+00169           err = "Script error in event #{event.id} (coords #{event.x},#{event.y}), map #{$game_map.map_id} (#{map_name})\r\n"
+00170         else
+00171           err = "Script error in Common Event, map #{$game_map.map_id} (#{map_name})\r\n"
+00172         end
+00173       end
+00174       err += "Exception: #{e.class}\r\n"
+00175       err += "Message: #{message}\r\n\r\n"
+00176       err += "***Full script:\r\n#{script}"   # \r\n"
+00177       err += backtrace_text
+00178       # Raise error
+00179       raise EventScriptError.new(err)
+00180     end
+00181   end
+00182 
+00183   def get_character(parameter = 0)
+00184     case parameter
+00185     when -1   # player
+00186       return $game_player
+00187     when 0    # this event
+00188       events = $game_map.events
+00189       return (events) ? events[@event_id] : nil
+00190     else      # specific event
+00191       events = $game_map.events
+00192       return (events) ? events[parameter] : nil
+00193     end
+00194   end
+00195 
+00196   def get_player
+00197     return get_character(-1)
+00198   end
+00199 
+00200   def get_self
+00201     return get_character(0)
+00202   end
+00203 
+00204   def get_event(parameter)
+00205     return get_character(parameter)
+00206   end
+00207 
+00208   # Freezes all events on the map (for use at the beginning of common events)
+00209   def pbGlobalLock
+00210     $game_map.events.each_value { |event| event.minilock }
+00211   end
+00212 
+00213   # Unfreezes all events on the map (for use at the end of common events)
+00214   def pbGlobalUnlock
+00215     $game_map.events.each_value { |event| event.unlock }
+00216   end
+00217 
+00218   # Gets the next index in the interpreter, ignoring certain commands between messages
+00219   def pbNextIndex(index)
+00220     return -1 if !@list || @list.length == 0
+00221     i = index + 1
+00222     loop do
+00223       return i if i >= @list.length - 1
+00224       case @list[i].code
+00225       when 118, 108, 408   # Label, Comment
+00226         i += 1
+00227       when 413             # Repeat Above

@@ -1,0 +1,219 @@
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 def pbBattleChallenge
+00005   $PokemonGlobal.challenge = BattleChallenge.new if !$PokemonGlobal.challenge
+00006   return $PokemonGlobal.challenge
+00007 end
+00008 
+00009 def pbBattleChallengeBattle
+00010   return pbBattleChallenge.pbBattle
+00011 end
+00012 
+00013 # Used in events
+00014 def pbHasEligible?(*arg)
+00015   return pbBattleChallenge.rules.ruleset.hasValidTeam?($player.party)
+00016 end
+00017 
+00018 #===============================================================================
+00019 #
+00020 #===============================================================================
+00021 def pbGetBTTrainers(challengeID)
+00022   trlists = (load_data("Data/trainer_lists.dat") rescue [])
+00023   trlists.each { |tr| return tr[0] if !tr[5] && tr[2].include?(challengeID) }
+00024   trlists.each { |tr| return tr[0] if tr[5] }   # is default list
+00025   return []
+00026 end
+00027 
+00028 def pbGetBTPokemon(challengeID)
+00029   trlists = (load_data("Data/trainer_lists.dat") rescue [])
+00030   trlists.each { |tr| return tr[1] if !tr[5] && tr[2].include?(challengeID) }
+00031   trlists.each { |tr| return tr[1] if tr[5] }   # is default list
+00032   return []
+00033 end
+00034 
+00035 #===============================================================================
+00036 #
+00037 #===============================================================================
+00038 def pbEntryScreen(*arg)
+00039   retval = false
+00040   pbFadeOutIn do
+00041     scene = PokemonParty_Scene.new
+00042     screen = PokemonPartyScreen.new(scene, $player.party)
+00043     ret = screen.pbPokemonMultipleEntryScreenEx(pbBattleChallenge.rules.ruleset)
+00044     # Set party
+00045     pbBattleChallenge.setParty(ret) if ret
+00046     # Continue (return true) if Pokémon were chosen
+00047     retval = (ret && ret.length > 0)
+00048   end
+00049   return retval
+00050 end
+00051 
+00052 #===============================================================================
+00053 #
+00054 #===============================================================================
+00055 class Game_Player < Game_Character
+00056   def moveto2(x, y)
+00057     @x = x
+00058     @y = y
+00059     @real_x = @x * Game_Map::REAL_RES_X
+00060     @real_y = @y * Game_Map::REAL_RES_Y
+00061     @prelock_direction = 0
+00062   end
+00063 end
+00064 
+00065 #===============================================================================
+00066 #
+00067 #===============================================================================
+00068 class Game_Event
+00069   def pbInChallenge?
+00070     return pbBattleChallenge.pbInChallenge?
+00071   end
+00072 end
+00073 
+00074 #===============================================================================
+00075 #
+00076 #===============================================================================
+00077 def pbBattleChallengeGraphic(event)
+00078   nextTrainer = pbBattleChallenge.nextTrainer
+00079   bttrainers = pbGetBTTrainers(pbBattleChallenge.currentChallenge)
+00080   filename = GameData::TrainerType.charset_filename_brief((bttrainers[nextTrainer][0] rescue nil))
+00081   begin
+00082     filename = "NPC 01" if nil_or_empty?(filename)
+00083     bitmap = AnimatedBitmap.new("Graphics/Characters/" + filename)
+00084     bitmap.dispose
+00085     event.character_name = filename
+00086   rescue
+00087     event.character_name = "NPC 01"
+00088   end
+00089 end
+00090 
+00091 def pbBattleChallengeBeginSpeech
+00092   return "..." if !pbBattleChallenge.pbInProgress?
+00093   bttrainers = pbGetBTTrainers(pbBattleChallenge.currentChallenge)
+00094   tr = bttrainers[pbBattleChallenge.nextTrainer]
+00095   return (tr) ? pbGetMessageFromHash(MessageTypes::FRONTIER_INTRO_SPEECHES, tr[2]) : "..."
+00096 end
+00097 
+00098 #===============================================================================
+00099 #
+00100 #===============================================================================
+00101 class PBPokemon
+00102   attr_accessor :species
+00103   attr_accessor :item
+00104   attr_accessor :nature
+00105   attr_accessor :move1
+00106   attr_accessor :move2
+00107   attr_accessor :move3
+00108   attr_accessor :move4
+00109   attr_accessor :ev
+00110 
+00111   # This method is how each Pokémon is compiled from the PBS files listing
+00112   # Battle Tower/Cup Pokémon.
+00113   def self.fromInspected(str)
+00114     insp = str.gsub(/^\s+/, "").gsub(/\s+$/, "")
+00115     pieces = insp.split(/\s*;\s*/)
+00116     species = (GameData::Species.exists?(pieces[0])) ? GameData::Species.get(pieces[0]).id : nil
+00117     item = (GameData::Item.exists?(pieces[1])) ? GameData::Item.get(pieces[1]).id : nil
+00118     nature = (GameData::Nature.exists?(pieces[2])) ? GameData::Nature.get(pieces[2]).id : nil
+00119     ev = pieces[3].split(/\s*,\s*/)
+00120     ev_array = []
+00121     ev.each do |stat|
+00122       case stat.upcase
+00123       when "HP"          then ev_array.push(:HP)
+00124       when "ATK"         then ev_array.push(:ATTACK)
+00125       when "DEF"         then ev_array.push(:DEFENSE)
+00126       when "SA", "SPATK" then ev_array.push(:SPECIAL_ATTACK)
+00127       when "SD", "SPDEF" then ev_array.push(:SPECIAL_DEFENSE)
+00128       when "SPD"         then ev_array.push(:SPEED)
+00129       end
+00130     end
+00131     moves = pieces[4].split(/\s*,\s*/)
+00132     moveid = []
+00133     Pokemon::MAX_MOVES.times do |i|
+00134       move_data = GameData::Move.try_get(moves[i])
+00135       moveid.push(move_data.id) if move_data
+00136     end
+00137     moveid.push(GameData::Move.keys.first) if moveid.length == 0   # Get any one move
+00138     return self.new(species, item, nature, moveid[0], moveid[1], moveid[2], moveid[3], ev_array)
+00139   end
+00140 
+00141   def self.fromPokemon(pkmn)
+00142     mov1 = (pkmn.moves[0]) ? pkmn.moves[0].id : nil
+00143     mov2 = (pkmn.moves[1]) ? pkmn.moves[1].id : nil
+00144     mov3 = (pkmn.moves[2]) ? pkmn.moves[2].id : nil
+00145     mov4 = (pkmn.moves[3]) ? pkmn.moves[3].id : nil
+00146     ev_array = []
+00147     GameData::Stat.each_main do |s|
+00148       ev_array.push(s.id) if pkmn.ev[s.id] > 60
+00149     end
+00150     return self.new(pkmn.species, pkmn.item_id, pkmn.nature,
+00151                     mov1, mov2, mov3, mov4, ev_array)
+00152   end
+00153 
+00154   def initialize(species, item, nature, move1, move2, move3, move4, ev)
+00155     @species = species
+00156     itm = GameData::Item.try_get(item)
+00157     @item    = itm ? itm.id : nil
+00158     @nature  = nature
+00159     @move1   = move1
+00160     @move2   = move2
+00161     @move3   = move3
+00162     @move4   = move4
+00163     @ev      = ev
+00164   end
+00165 
+00166   def inspect
+00167     c1 = GameData::Species.get(@species).id
+00168     c2 = (@item) ? GameData::Item.get(@item).id : ""
+00169     c3 = (@nature) ? GameData::Nature.get(@nature).id : ""
+00170     evlist = ""
+00171     @ev.each do |stat|
+00172       evlist += "," if evlist != ""
+00173       evlist += stat.real_name_brief
+00174     end
+00175     c4 = (@move1) ? GameData::Move.get(@move1).id : ""
+00176     c5 = (@move2) ? GameData::Move.get(@move2).id : ""
+00177     c6 = (@move3) ? GameData::Move.get(@move3).id : ""
+00178     c7 = (@move4) ? GameData::Move.get(@move4).id : ""
+00179     return "#{c1};#{c2};#{c3};#{evlist};#{c4},#{c5},#{c6},#{c7}"
+00180   end
+00181 
+00182   # Unused.
+00183   def tocompact
+00184     return "#{species},#{item},#{nature},#{move1},#{move2},#{move3},#{move4},#{ev}"
+00185   end
+00186 
+00187 #  def _dump(depth)
+00188 #    return [@species, @item, @nature, @move1, @move2, @move3, @move4, @ev].pack("vvCvvvvC")
+00189 #  end
+00190 
+00191 #  def self._load(str)
+00192 #    data = str.unpack("vvCvvvvC")
+00193 #    return self.new(data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7])
+00194 #  end
+00195 
+00196   def convertMove(move)
+00197     move = :FRUSTRATION if move == :RETURN && GameData::Move.exists?(:FRUSTRATION)
+00198     return move
+00199   end
+00200 
+00201   def createPokemon(level, iv, trainer)
+00202     pkmn = Pokemon.new(@species, level, trainer, false)
+00203     pkmn.item = @item
+00204     pkmn.personalID = rand(2**16) | (rand(2**16) << 16)
+00205     pkmn.nature = nature
+00206     pkmn.happiness = 0
+00207     pkmn.moves.push(Pokemon::Move.new(self.convertMove(@move1)))
+00208     pkmn.moves.push(Pokemon::Move.new(self.convertMove(@move2))) if @move2
+00209     pkmn.moves.push(Pokemon::Move.new(self.convertMove(@move3))) if @move3
+00210     pkmn.moves.push(Pokemon::Move.new(self.convertMove(@move4))) if @move4
+00211     pkmn.moves.compact!
+00212     if ev.length > 0
+00213       ev.each { |stat| pkmn.ev[stat] = Pokemon::EV_LIMIT / ev.length }
+00214     end
+00215     GameData::Stat.each_main { |s| pkmn.iv[s.id] = iv }
+00216     pkmn.calc_stats
+00217     return pkmn
+00218   end
+00219 end

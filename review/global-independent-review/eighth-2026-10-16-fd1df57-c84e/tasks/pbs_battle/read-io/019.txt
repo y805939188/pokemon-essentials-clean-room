@@ -1,0 +1,126 @@
+00001 # The Game module contains methods for saving and loading the game.
+00002 module Game
+00003   # Initializes various global variables and loads the game data.
+00004   def self.initialize
+00005     $game_temp          = Game_Temp.new
+00006     $game_system        = Game_System.new
+00007     $data_animations    = load_data("Data/Animations.rxdata")
+00008     $data_tilesets      = load_data("Data/Tilesets.rxdata")
+00009     $data_common_events = load_data("Data/CommonEvents.rxdata")
+00010     $data_system        = load_data("Data/System.rxdata")
+00011     pbLoadBattleAnimations
+00012     GameData.load_all
+00013     map_file = sprintf("Data/Map%03d.rxdata", $data_system.start_map_id)
+00014     if $data_system.start_map_id == 0 || !pbRgssExists?(map_file)
+00015       raise _INTL("No starting position was set in the map editor.")
+00016     end
+00017   end
+00018 
+00019   # Loads bootup data from save file (if it exists) or creates bootup data (if
+00020   # it doesn't).
+00021   def self.set_up_system
+00022     save_data = (SaveData.exists?) ? SaveData.read_from_file(SaveData::FILE_PATH) : {}
+00023     if save_data.empty?
+00024       SaveData.initialize_bootup_values
+00025     else
+00026       SaveData.load_bootup_values(save_data)
+00027     end
+00028     # Set resize factor
+00029     pbSetResizeFactor([$PokemonSystem.screensize, 4].min)
+00030     # Set language (and choose language if there is no save file)
+00031     if !Settings::LANGUAGES.empty?
+00032       $PokemonSystem.language = pbChooseLanguage if save_data.empty? && Settings::LANGUAGES.length >= 2
+00033       MessageTypes.load_message_files(Settings::LANGUAGES[$PokemonSystem.language][1])
+00034     end
+00035   end
+00036 
+00037   # Called when starting a new game. Initializes global variables
+00038   # and transfers the player into the map scene.
+00039   def self.start_new
+00040     if $game_map&.events
+00041       $game_map.events.each_value { |event| event.clear_starting }
+00042     end
+00043     $game_temp.common_event_id = 0 if $game_temp
+00044     $game_temp.begun_new_game = true
+00045     pbMapInterpreter&.clear
+00046     pbMapInterpreter&.setup(nil, 0, 0)
+00047     $scene = Scene_Map.new
+00048     SaveData.load_new_game_values
+00049     $game_temp.last_uptime_refreshed_play_time = System.uptime
+00050     $stats.play_sessions += 1
+00051     $map_factory = PokemonMapFactory.new($data_system.start_map_id)
+00052     $game_player.moveto($data_system.start_x, $data_system.start_y)
+00053     $game_player.refresh
+00054     $PokemonEncounters = PokemonEncounters.new
+00055     $PokemonEncounters.setup($game_map.map_id)
+00056     $game_map.autoplay
+00057     $game_map.update
+00058   end
+00059 
+00060   # Loads the game from the given save data and starts the map scene.
+00061   # @param save_data [Hash] hash containing the save data
+00062   # @raise [SaveData::InvalidValueError] if an invalid value is being loaded
+00063   def self.load(save_data)
+00064     validate save_data => Hash
+00065     SaveData.load_all_values(save_data)
+00066     $game_temp.last_uptime_refreshed_play_time = System.uptime
+00067     $stats.play_sessions += 1
+00068     self.load_map
+00069     pbAutoplayOnSave
+00070     $game_map.update
+00071     $PokemonMap.updateMap
+00072     $scene = Scene_Map.new
+00073   end
+00074 
+00075   # Loads and validates the map. Called when loading a saved game.
+00076   def self.load_map
+00077     $game_map = $map_factory.map
+00078     magic_number_matches = ($game_system.magic_number == $data_system.magic_number)
+00079     if !magic_number_matches || $PokemonGlobal.safesave
+00080       pbMapInterpreter.setup(nil, 0) if pbMapInterpreterRunning?
+00081       begin
+00082         $map_factory.setup($game_map.map_id)
+00083       rescue Errno::ENOENT
+00084         if $DEBUG
+00085           pbMessage(_INTL("Map {1} was not found.", $game_map.map_id))
+00086           map = pbWarpToMap
+00087           exit unless map
+00088           $map_factory.setup(map[0])
+00089           $game_player.moveto(map[1], map[2])
+00090         else
+00091           raise _INTL("The map was not found. The game cannot continue.")
+00092         end
+00093       end
+00094       $game_player.center($game_player.x, $game_player.y)
+00095     else
+00096       $map_factory.setMapChanged($game_map.map_id)
+00097     end
+00098     if $game_map.events.nil?
+00099       raise _INTL("The map is corrupt. The game cannot continue.")
+00100     end
+00101     $PokemonEncounters = PokemonEncounters.new
+00102     $PokemonEncounters.setup($game_map.map_id)
+00103     pbUpdateVehicle
+00104   end
+00105 
+00106   # Saves the game. Returns whether the operation was successful.
+00107   # @param save_file [String] the save file path
+00108   # @param safe [Boolean] whether $PokemonGlobal.safesave should be set to true
+00109   # @return [Boolean] whether the operation was successful
+00110   # @raise [SaveData::InvalidValueError] if an invalid value is being saved
+00111   def self.save(save_file = SaveData::FILE_PATH, safe: false)
+00112     validate save_file => String, safe => [TrueClass, FalseClass]
+00113     $PokemonGlobal.safesave = safe
+00114     $game_system.save_count += 1
+00115     $game_system.magic_number = $data_system.magic_number
+00116     $stats.set_time_last_saved
+00117     begin
+00118       SaveData.save_to_file(save_file)
+00119       Graphics.frame_reset
+00120     rescue IOError, SystemCallError
+00121       $game_system.save_count -= 1
+00122       return false
+00123     end
+00124     return true
+00125   end
+00126 end

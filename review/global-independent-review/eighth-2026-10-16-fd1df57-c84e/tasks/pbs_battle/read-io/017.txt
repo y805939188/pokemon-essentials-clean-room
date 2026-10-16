@@ -1,0 +1,115 @@
+00511   def write_trainer_lists(path = "PBS/battle_facility_lists.txt")
+00512     trainerlists = load_data("Data/trainer_lists.dat") rescue nil
+00513     return if !trainerlists
+00514     write_pbs_file_message_start(path)
+00515     File.open(path, "wb") do |f|
+00516       add_PBS_header_to_file(f)
+00517       trainerlists.each do |tr|
+00518         echo "."
+00519         f.write("\#-------------------------------\r\n")
+00520         f.write(((tr[5]) ? "[DefaultTrainerList]" : "[TrainerList]") + "\r\n")
+00521         f.write("Trainers = " + tr[3] + "\r\n")
+00522         f.write("Pokemon = " + tr[4] + "\r\n")
+00523         f.write("Challenges = " + tr[2].join(",") + "\r\n") if !tr[5]
+00524         write_battle_tower_trainers(tr[0], "PBS/" + tr[3])
+00525         write_battle_tower_pokemon(tr[1], "PBS/" + tr[4])
+00526       end
+00527     end
+00528     process_pbs_file_message_end
+00529   end
+00530 
+00531   #=============================================================================
+00532   # Save Battle Tower trainer data to PBS file
+00533   #=============================================================================
+00534   def write_battle_tower_trainers(bttrainers, filename)
+00535     return if !bttrainers || !filename
+00536     btTrainersRequiredTypes = {
+00537       "Type"          => [0, "e", nil],   # Specifies a trainer
+00538       "Name"          => [1, "s"],
+00539       "BeginSpeech"   => [2, "s"],
+00540       "EndSpeechWin"  => [3, "s"],
+00541       "EndSpeechLose" => [4, "s"],
+00542       "PokemonNos"    => [5, "*u"]
+00543     }
+00544     File.open(filename, "wb") do |f|
+00545       add_PBS_header_to_file(f)
+00546       bttrainers.length.times do |i|
+00547         next if !bttrainers[i]
+00548         f.write("\#-------------------------------\r\n")
+00549         f.write(sprintf("[%03d]\r\n", i))
+00550         btTrainersRequiredTypes.each_key do |key|
+00551           schema = btTrainersRequiredTypes[key]
+00552           record = bttrainers[i][schema[0]]
+00553           next if record.nil?
+00554           f.write(sprintf("%s = ", key))
+00555           case key
+00556           when "Type"
+00557             f.write(record.to_s)
+00558           when "PokemonNos"
+00559             f.write(record.join(","))   # pbWriteCsvRecord somehow won't work here
+00560           else
+00561             pbWriteCsvRecord(record, f, schema)
+00562           end
+00563           f.write("\r\n")
+00564         end
+00565       end
+00566     end
+00567     Graphics.update
+00568   end
+00569 
+00570   #=============================================================================
+00571   # Save Battle Tower Pokémon data to PBS file
+00572   #=============================================================================
+00573   def write_battle_tower_pokemon(btpokemon, filename)
+00574     return if !btpokemon || !filename
+00575     species = {}
+00576     moves   = {}
+00577     items   = {}
+00578     natures = {}
+00579     evs = {
+00580       :HP              => "HP",
+00581       :ATTACK          => "ATK",
+00582       :DEFENSE         => "DEF",
+00583       :SPECIAL_ATTACK  => "SA",
+00584       :SPECIAL_DEFENSE => "SD",
+00585       :SPEED           => "SPD"
+00586     }
+00587     File.open(filename, "wb") do |f|
+00588       add_PBS_header_to_file(f)
+00589       f.write("\#-------------------------------\r\n")
+00590       btpokemon.length.times do |i|
+00591         Graphics.update if i % 500 == 0
+00592         pkmn = btpokemon[i]
+00593         c1 = (species[pkmn.species]) ? species[pkmn.species] : (species[pkmn.species] = GameData::Species.get(pkmn.species).species.to_s)
+00594         c2 = nil
+00595         if pkmn.item && GameData::Item.exists?(pkmn.item)
+00596           c2 = (items[pkmn.item]) ? items[pkmn.item] : (items[pkmn.item] = GameData::Item.get(pkmn.item).id.to_s)
+00597         end
+00598         c3 = (natures[pkmn.nature]) ? natures[pkmn.nature] : (natures[pkmn.nature] = GameData::Nature.get(pkmn.nature).id.to_s)
+00599         evlist = ""
+00600         pkmn.ev.each_with_index do |stat, j|
+00601           evlist += "," if j > 0
+00602           evlist += evs[stat]
+00603         end
+00604         c4 = c5 = c6 = c7 = ""
+00605         [pkmn.move1, pkmn.move2, pkmn.move3, pkmn.move4].each_with_index do |move, j|
+00606           next if !move
+00607           text = (moves[move]) ? moves[move] : (moves[move] = GameData::Move.get(move).id.to_s)
+00608           case j
+00609           when 0 then c4 = text
+00610           when 1 then c5 = text
+00611           when 2 then c6 = text
+00612           when 3 then c7 = text
+00613           end
+00614         end
+00615         f.write("#{c1};#{c2};#{c3};#{evlist};#{c4},#{c5},#{c6},#{c7}\r\n")
+00616       end
+00617     end
+00618     Graphics.update
+00619   end
+00620 
+00621   #=============================================================================
+00622   # Save metadata data to PBS file
+00623   # NOTE: Doesn't use write_PBS_file_generic because it contains data for two
+00624   #       different GameData classes.
+00625   #=============================================================================

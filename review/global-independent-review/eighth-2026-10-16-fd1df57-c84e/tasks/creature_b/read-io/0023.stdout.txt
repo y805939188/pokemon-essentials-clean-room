@@ -1,0 +1,271 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/006_Item.rb", "range": [1, 270], "file_lines": 270, "bytes": 12359, "sha256": "57ebf5f8137f69ebcbd4c545aebba5659838bd3509cdf9e520b2f7175b54ef94", "began_utc": "2026-10-16T03:29:54.293814+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 module GameData
+00002   class Item
+00003     attr_reader :id
+00004     attr_reader :real_name
+00005     attr_reader :real_name_plural
+00006     attr_reader :real_portion_name
+00007     attr_reader :real_portion_name_plural
+00008     attr_reader :pocket
+00009     attr_reader :price
+00010     attr_reader :sell_price
+00011     attr_reader :bp_price
+00012     attr_reader :field_use
+00013     attr_reader :battle_use
+00014     attr_reader :flags
+00015     attr_reader :consumable
+00016     attr_reader :show_quantity
+00017     attr_reader :move
+00018     attr_reader :real_description
+00019     attr_reader :pbs_file_suffix
+00020 
+00021     DATA = {}
+00022     DATA_FILENAME = "items.dat"
+00023     PBS_BASE_FILENAME = "items"
+00024 
+00025     SCHEMA = {
+00026       "SectionName"       => [:id,                       "m"],
+00027       "Name"              => [:real_name,                "s"],
+00028       "NamePlural"        => [:real_name_plural,         "s"],
+00029       "PortionName"       => [:real_portion_name,        "s"],
+00030       "PortionNamePlural" => [:real_portion_name_plural, "s"],
+00031       "Pocket"            => [:pocket,                   "v"],
+00032       "Price"             => [:price,                    "u"],
+00033       "SellPrice"         => [:sell_price,               "u"],
+00034       "BPPrice"           => [:bp_price,                 "u"],
+00035       "FieldUse"          => [:field_use,                "e", {"OnPokemon" => 1, "Direct" => 2,
+00036                                                                "TM" => 3, "HM" => 4, "TR" => 5}],
+00037       "BattleUse"         => [:battle_use,               "e", {"OnPokemon" => 1, "OnMove" => 2,
+00038                                                                "OnBattler" => 3, "OnFoe" => 4, "Direct" => 5}],
+00039       "Flags"             => [:flags,                    "*s"],
+00040       "Consumable"        => [:consumable,               "b"],
+00041       "ShowQuantity"      => [:show_quantity,            "b"],
+00042       "Move"              => [:move,                     "e", :Move],
+00043       "Description"       => [:real_description,         "q"]
+00044     }
+00045 
+00046     extend ClassMethodsSymbols
+00047     include InstanceMethods
+00048 
+00049     def self.editor_properties
+00050       field_use_array = [_INTL("Can't use in field")]
+00051       self.schema["FieldUse"][2].each { |key, value| field_use_array[value] = key if !field_use_array[value] }
+00052       battle_use_array = [_INTL("Can't use in battle")]
+00053       self.schema["BattleUse"][2].each { |key, value| battle_use_array[value] = key if !battle_use_array[value] }
+00054       return [
+00055         ["ID",                ReadOnlyProperty,                        _INTL("ID of this item (used as a symbol like :XXX).")],
+00056         ["Name",              ItemNameProperty,                        _INTL("Name of this item as displayed by the game.")],
+00057         ["NamePlural",        ItemNameProperty,                        _INTL("Plural name of this item as displayed by the game.")],
+00058         ["PortionName",       ItemNameProperty,                        _INTL("Name of a portion of this item as displayed by the game.")],
+00059         ["PortionNamePlural", ItemNameProperty,                        _INTL("Name of 2 or more portions of this item as displayed by the game.")],
+00060         ["Pocket",            PocketProperty,                          _INTL("Pocket in the Bag where this item is stored.")],
+00061         ["Price",             LimitProperty.new(Settings::MAX_MONEY),  _INTL("Purchase price of this item.")],
+00062         ["SellPrice",         LimitProperty2.new(Settings::MAX_MONEY), _INTL("Sell price of this item. If blank, is half the purchase price.")],
+00063         ["BPPrice",           LimitProperty.new(Settings::MAX_BATTLE_POINTS), _INTL("Purchase price of this item in Battle Points (BP).")],
+00064         ["FieldUse",          EnumProperty.new(field_use_array),       _INTL("How this item can be used outside of battle.")],
+00065         ["BattleUse",         EnumProperty.new(battle_use_array),      _INTL("How this item can be used within a battle.")],
+00066         ["Flags",             StringListProperty,                      _INTL("Words/phrases that can be used to group certain kinds of items.")],
+00067         ["Consumable",        BooleanProperty,                         _INTL("Whether this item is consumed after use.")],
+00068         ["ShowQuantity",      BooleanProperty,                         _INTL("Whether the Bag shows how many of this item are in there.")],
+00069         ["Move",              MoveProperty,                            _INTL("Move taught by this HM, TM or TR.")],
+00070         ["Description",       StringProperty,                          _INTL("Description of this item.")]
+00071       ]
+00072     end
+00073 
+00074     def self.icon_filename(item)
+00075       return "Graphics/Items/back" if item.nil?
+00076       item_data = self.try_get(item)
+00077       return "Graphics/Items/000" if item_data.nil?
+00078       # Check for files
+00079       ret = sprintf("Graphics/Items/%s", item_data.id)
+00080       return ret if pbResolveBitmap(ret)
+00081       # Check for TM/HM type icons
+00082       if item_data.is_machine?
+00083         prefix = "machine"
+00084         if item_data.is_HM?
+00085           prefix = "machine_hm"
+00086         elsif item_data.is_TR?
+00087           prefix = "machine_tr"
+00088         end
+00089         move_type = GameData::Move.get(item_data.move).type
+00090         type_data = GameData::Type.get(move_type)
+00091         ret = sprintf("Graphics/Items/%s_%s", prefix, type_data.id)
+00092         return ret if pbResolveBitmap(ret)
+00093         if !item_data.is_TM?
+00094           ret = sprintf("Graphics/Items/machine_%s", type_data.id)
+00095           return ret if pbResolveBitmap(ret)
+00096         end
+00097       end
+00098       return "Graphics/Items/000"
+00099     end
+00100 
+00101     def self.held_icon_filename(item)
+00102       item_data = self.try_get(item)
+00103       return nil if !item_data
+00104       name_base = (item_data.is_mail?) ? "mail" : "item"
+00105       # Check for files
+00106       ret = sprintf("Graphics/UI/Party/icon_%s_%s", name_base, item_data.id)
+00107       return ret if pbResolveBitmap(ret)
+00108       return sprintf("Graphics/UI/Party/icon_%s", name_base)
+00109     end
+00110 
+00111     def self.mail_filename(item)
+00112       item_data = self.try_get(item)
+00113       return nil if !item_data
+00114       # Check for files
+00115       ret = sprintf("Graphics/UI/Mail/mail_%s", item_data.id)
+00116       return pbResolveBitmap(ret) ? ret : nil
+00117     end
+00118 
+00119     def initialize(hash)
+00120       @id                       = hash[:id]
+00121       @real_name                = hash[:real_name]        || "Unnamed"
+00122       @real_name_plural         = hash[:real_name_plural] || "Unnamed"
+00123       @real_portion_name        = hash[:real_portion_name]
+00124       @real_portion_name_plural = hash[:real_portion_name_plural]
+00125       @pocket                   = hash[:pocket]           || 1
+00126       @price                    = hash[:price]            || 0
+00127       @sell_price               = hash[:sell_price]       || (@price / 2)
+00128       @bp_price                 = hash[:bp_price]         || 1
+00129       @field_use                = hash[:field_use]        || 0
+00130       @battle_use               = hash[:battle_use]       || 0
+00131       @flags                    = hash[:flags]            || []
+00132       @consumable               = hash[:consumable]
+00133       @consumable               = !is_important? if @consumable.nil?
+00134       @show_quantity            = hash[:show_quantity]
+00135       @move                     = hash[:move]
+00136       @real_description         = hash[:real_description] || "???"
+00137       @pbs_file_suffix          = hash[:pbs_file_suffix]  || ""
+00138     end
+00139 
+00140     # @return [String] the translated name of this item
+00141     def name
+00142       return pbGetMessageFromHash(MessageTypes::ITEM_NAMES, @real_name)
+00143     end
+00144 
+00145     # @return [String] the translated plural version of the name of this item
+00146     def name_plural
+00147       return pbGetMessageFromHash(MessageTypes::ITEM_NAME_PLURALS, @real_name_plural)
+00148     end
+00149 
+00150     # @return [String] the translated portion name of this item
+00151     def portion_name
+00152       return pbGetMessageFromHash(MessageTypes::ITEM_PORTION_NAMES, @real_portion_name) if @real_portion_name
+00153       return name
+00154     end
+00155 
+00156     # @return [String] the translated plural version of the portion name of this item
+00157     def portion_name_plural
+00158       return pbGetMessageFromHash(MessageTypes::ITEM_PORTION_NAME_PLURALS, @real_portion_name_plural) if @real_portion_name_plural
+00159       return name_plural
+00160     end
+00161 
+00162     # @return [String] the translated description of this item
+00163     def description
+00164       return pbGetMessageFromHash(MessageTypes::ITEM_DESCRIPTIONS, @real_description)
+00165     end
+00166 
+00167     def has_flag?(flag)
+00168       return @flags.any? { |f| f.downcase == flag.downcase }
+00169     end
+00170 
+00171     def is_TM?;              return @field_use == 3; end
+00172     def is_HM?;              return @field_use == 4; end
+00173     def is_TR?;              return @field_use == 5; end
+00174     def is_machine?;         return is_TM? || is_HM? || is_TR?; end
+00175     def is_mail?;            return has_flag?("Mail") || has_flag?("IconMail"); end
+00176     def is_icon_mail?;       return has_flag?("IconMail"); end
+00177     def is_poke_ball?;       return has_flag?("PokeBall") || has_flag?("SnagBall"); end
+00178     def is_snag_ball?;       return has_flag?("SnagBall") || (is_poke_ball? && $player.has_snag_machine); end
+00179     def is_berry?;           return has_flag?("Berry"); end
+00180     def is_key_item?;        return has_flag?("KeyItem"); end
+00181     def is_evolution_stone?; return has_flag?("EvolutionStone"); end
+00182     def is_fossil?;          return has_flag?("Fossil"); end
+00183     def is_apricorn?;        return has_flag?("Apricorn"); end
+00184     def is_gem?;             return has_flag?("TypeGem"); end
+00185     def is_mulch?;           return has_flag?("Mulch"); end
+00186     def is_mega_stone?;      return has_flag?("MegaStone"); end   # Does NOT include Red Orb/Blue Orb
+00187     def is_scent?;           return has_flag?("Scent"); end
+00188 
+00189     def is_important?
+00190       return true if is_key_item? || is_HM? || is_TM?
+00191       return false
+00192     end
+00193 
+00194     def can_hold?; return !is_important?; end
+00195 
+00196     def consumed_after_use?
+00197       return !is_important? && @consumable
+00198     end
+00199 
+00200     def show_quantity?
+00201       return @show_quantity || !is_important?
+00202     end
+00203 
+00204     def unlosable?(species, ability)
+00205       return false if species == :ARCEUS && ability != :MULTITYPE
+00206       return false if species == :SILVALLY && ability != :RKSSYSTEM
+00207       combos = {
+00208         :ARCEUS    => [:FISTPLATE,   :FIGHTINIUMZ,
+00209                        :SKYPLATE,    :FLYINIUMZ,
+00210                        :TOXICPLATE,  :POISONIUMZ,
+00211                        :EARTHPLATE,  :GROUNDIUMZ,
+00212                        :STONEPLATE,  :ROCKIUMZ,
+00213                        :INSECTPLATE, :BUGINIUMZ,
+00214                        :SPOOKYPLATE, :GHOSTIUMZ,
+00215                        :IRONPLATE,   :STEELIUMZ,
+00216                        :FLAMEPLATE,  :FIRIUMZ,
+00217                        :SPLASHPLATE, :WATERIUMZ,
+00218                        :MEADOWPLATE, :GRASSIUMZ,
+00219                        :ZAPPLATE,    :ELECTRIUMZ,
+00220                        :MINDPLATE,   :PSYCHIUMZ,
+00221                        :ICICLEPLATE, :ICIUMZ,
+00222                        :DRACOPLATE,  :DRAGONIUMZ,
+00223                        :DREADPLATE,  :DARKINIUMZ,
+00224                        :PIXIEPLATE,  :FAIRIUMZ],
+00225         :SILVALLY  => [:FIGHTINGMEMORY,
+00226                        :FLYINGMEMORY,
+00227                        :POISONMEMORY,
+00228                        :GROUNDMEMORY,
+00229                        :ROCKMEMORY,
+00230                        :BUGMEMORY,
+00231                        :GHOSTMEMORY,
+00232                        :STEELMEMORY,
+00233                        :FIREMEMORY,
+00234                        :WATERMEMORY,
+00235                        :GRASSMEMORY,
+00236                        :ELECTRICMEMORY,
+00237                        :PSYCHICMEMORY,
+00238                        :ICEMEMORY,
+00239                        :DRAGONMEMORY,
+00240                        :DARKMEMORY,
+00241                        :FAIRYMEMORY],
+00242         :GIRATINA  => [:GRISEOUSORB],
+00243         :GENESECT  => [:BURNDRIVE, :CHILLDRIVE, :DOUSEDRIVE, :SHOCKDRIVE],
+00244         :KYOGRE    => [:BLUEORB],
+00245         :GROUDON   => [:REDORB],
+00246         :ZACIAN    => [:RUSTEDSWORD],
+00247         :ZAMAZENTA => [:RUSTEDSHIELD]
+00248       }
+00249       return combos[species]&.include?(@id)
+00250     end
+00251 
+00252     alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+00253     def get_property_for_PBS(key)
+00254       key = "SectionName" if key == "ID"
+00255       ret = __orig__get_property_for_PBS(key)
+00256       case key
+00257       when "SellPrice"
+00258         ret = nil if ret == @price / 2
+00259       when "BPPrice"
+00260         ret = nil if ret == 1
+00261       when "FieldUse", "BattleUse"
+00262         ret = nil if ret == 0
+00263       when "Consumable"
+00264         ret = @consumable
+00265         ret = nil if ret || is_important?   # Only return false, only for non-important items
+00266       end
+00267       return ret
+00268     end
+00269   end
+00270 end

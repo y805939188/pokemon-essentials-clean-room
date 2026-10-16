@@ -1,0 +1,380 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb", "range": [272, 650], "file_lines": 1321, "bytes": 54958, "sha256": "d24fe0388c78e4ab321dbfb6248c454fb3fe99933305c26bf2639068113dfbae", "began_utc": "2026-10-16T03:35:15.149935+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00272   end
+00273 
+00274   def validate_compiled_berry_plant(hash)
+00275   end
+00276 
+00277   def validate_all_compiled_berry_plants
+00278   end
+00279 
+00280   #=============================================================================
+00281   # Compile Pokémon data
+00282   #=============================================================================
+00283   def compile_pokemon(*paths)
+00284     compile_PBS_file_generic(GameData::Species, *paths) do |final_validate, hash|
+00285       (final_validate) ? validate_all_compiled_pokemon : validate_compiled_pokemon(hash)
+00286     end
+00287   end
+00288 
+00289   # NOTE: This method is also called by def validate_compiled_pokemon_form
+00290   #       below, and since a form's hash can contain very little data, don't
+00291   #       assume any data exists.
+00292   def validate_compiled_pokemon(hash)
+00293     # Convert base stats array to a hash
+00294     if hash[:base_stats].is_a?(Array)
+00295       new_stats = {}
+00296       GameData::Stat.each_main do |s|
+00297         new_stats[s.id] = (hash[:base_stats][s.pbs_order] || 1) if s.pbs_order >= 0
+00298       end
+00299       hash[:base_stats] = new_stats
+00300     end
+00301     # Convert EVs array to a hash
+00302     if hash[:evs].is_a?(Array)
+00303       new_evs = {}
+00304       hash[:evs].each { |val| new_evs[val[0]] = val[1] }
+00305       GameData::Stat.each_main { |s| new_evs[s.id] ||= 0 }
+00306       hash[:evs] = new_evs
+00307     end
+00308     # Convert height and weight to integer values of tenths of a unit
+00309     hash[:height] = [(hash[:height] * 10).round, 1].max if hash[:height]
+00310     hash[:weight] = [(hash[:weight] * 10).round, 1].max if hash[:weight]
+00311     # Ensure evolutions have a parameter if they need one (don't need to ensure
+00312     # the parameter makes sense; that happens below)
+00313     if hash[:evolutions]
+00314       hash[:evolutions].each do |evo|
+00315         FileLineData.setSection(hash[:id].to_s, "Evolution", "Evolution = #{evo[0]},#{evo[1]}")   # For error reporting
+00316         param_type = GameData::Evolution.get(evo[1]).parameter
+00317         next if evo[2] || param_type.nil?
+00318         raise _INTL("Evolution method {1} requires a parameter, but none was given.", evo[1]) + "\n" + FileLineData.linereport
+00319       end
+00320     end
+00321     # Record all evolutions as not being prevolutions
+00322     if hash[:evolutions].is_a?(Array)
+00323       hash[:evolutions].each { |evo| evo[3] = false }
+00324     end
+00325     # Remove duplicate types
+00326     if hash[:types].is_a?(Array)
+00327       hash[:types].uniq!
+00328       hash[:types].compact!
+00329     end
+00330   end
+00331 
+00332   def validate_all_compiled_pokemon
+00333     # Enumerate all offspring species (this couldn't be done earlier)
+00334     GameData::Species.each do |species|
+00335       FileLineData.setSection(species.id.to_s, "Offspring", nil)   # For error reporting
+00336       offspring = species.offspring
+00337       offspring.each_with_index do |sp, i|
+00338         offspring[i] = cast_csv_value(sp, "e", :Species)
+00339       end
+00340     end
+00341     # Enumerate all evolution species and parameters (this couldn't be done earlier)
+00342     GameData::Species.each do |species|
+00343       FileLineData.setSection(species.id.to_s, "Evolutions", nil)   # For error reporting
+00344       species.evolutions.each do |evo|
+00345         evo[0] = cast_csv_value(evo[0], "e", :Species)
+00346         param_type = GameData::Evolution.get(evo[1]).parameter
+00347         if param_type.nil?
+00348           evo[2] = nil
+00349         elsif param_type == Integer
+00350           evo[2] = cast_csv_value(evo[2], "u")
+00351         elsif param_type != String
+00352           evo[2] = cast_csv_value(evo[2], "e", param_type)
+00353         end
+00354       end
+00355     end
+00356     # Add prevolution "evolution" entry for all evolved species
+00357     all_evos = {}
+00358     GameData::Species.each do |species|   # Build a hash of prevolutions for each species
+00359       species.evolutions.each do |evo|
+00360         all_evos[evo[0]] = [species.species, evo[1], evo[2], true] if !all_evos[evo[0]]
+00361       end
+00362     end
+00363     GameData::Species.each do |species|   # Distribute prevolutions
+00364       species.evolutions.push(all_evos[species.species].clone) if all_evos[species.species]
+00365     end
+00366     # Get species names/descriptions for translating
+00367     species_names = []
+00368     species_form_names = []
+00369     species_categories = []
+00370     species_pokedex_entries = []
+00371     GameData::Species.each do |species|
+00372       species_names.push(species.real_name)
+00373       species_form_names.push(species.real_form_name)
+00374       species_categories.push(species.real_category)
+00375       species_pokedex_entries.push(species.real_pokedex_entry)
+00376     end
+00377     MessageTypes.setMessagesAsHash(MessageTypes::SPECIES_NAMES, species_names)
+00378     MessageTypes.setMessagesAsHash(MessageTypes::SPECIES_FORM_NAMES, species_form_names)
+00379     MessageTypes.setMessagesAsHash(MessageTypes::SPECIES_CATEGORIES, species_categories)
+00380     MessageTypes.setMessagesAsHash(MessageTypes::POKEDEX_ENTRIES, species_pokedex_entries)
+00381   end
+00382 
+00383   #=============================================================================
+00384   # Compile Pokémon forms data
+00385   # NOTE: Doesn't use compile_PBS_file_generic because it needs its own schema
+00386   #       and shouldn't clear GameData::Species at the start.
+00387   #=============================================================================
+00388   def compile_pokemon_forms(*paths)
+00389     schema = GameData::Species.schema(true)
+00390     # Read from PBS file(s)
+00391     paths.each do |path|
+00392       compile_pbs_file_message_start(path)
+00393       file_suffix = File.basename(path, ".txt")[GameData::Species::PBS_BASE_FILENAME[1].length + 1, path.length] || ""
+00394       File.open(path, "rb") do |f|
+00395         FileLineData.file = path   # For error reporting
+00396         # Read a whole section's lines at once, then run through this code.
+00397         # contents is a hash containing all the XXX=YYY lines in that section, where
+00398         # the keys are the XXX and the values are the YYY (as unprocessed strings).
+00399         idx = 0
+00400         pbEachFileSection(f, schema) do |contents, section_name|
+00401           echo "." if idx % 100 == 0
+00402           Graphics.update if idx % 500 == 0
+00403           idx += 1
+00404           data_hash = {
+00405             :id              => section_name.to_sym,
+00406             :pbs_file_suffix => file_suffix
+00407           }
+00408           # Go through schema hash of compilable data and compile this section
+00409           schema.each_key do |key|
+00410             FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+00411             if key == "SectionName"
+00412               data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+00413               next
+00414             end
+00415             # Skip empty properties
+00416             next if contents[key].nil?
+00417             # Compile value for key
+00418             if schema[key][1][0] == "^"
+00419               contents[key].each do |val|
+00420                 value = get_csv_record(val, schema[key])
+00421                 value = nil if value.is_a?(Array) && value.empty?
+00422                 data_hash[schema[key][0]] ||= []
+00423                 data_hash[schema[key][0]].push(value)
+00424               end
+00425               data_hash[schema[key][0]].compact!
+00426             else
+00427               value = get_csv_record(contents[key], schema[key])
+00428               value = nil if value.is_a?(Array) && value.empty?
+00429               data_hash[schema[key][0]] = value
+00430             end
+00431           end
+00432           # Validate and modify the compiled data
+00433           validate_compiled_pokemon_form(data_hash)
+00434           if GameData::Species.exists?(data_hash[:id])
+00435             raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+00436           end
+00437           # Add section's data to records
+00438           GameData::Species.register(data_hash)
+00439         end
+00440       end
+00441       process_pbs_file_message_end
+00442     end
+00443     validate_all_compiled_pokemon_forms
+00444     # Save all data
+00445     GameData::Species.save
+00446   end
+00447 
+00448   def validate_compiled_pokemon_form(hash)
+00449     # Split species and form into their own values, generate compound ID from them
+00450     hash[:species] = hash[:id][0]
+00451     hash[:form] = hash[:id][1]
+00452     hash[:id] = sprintf("%s_%d", hash[:species].to_s, hash[:form]).to_sym
+00453     if !GameData::Species.exists?(hash[:species])
+00454       raise _INTL("Undefined species ID '{1}'.", hash[:species]) + "\n" + FileLineData.linereport
+00455     elsif GameData::Species.exists?(hash[:id])
+00456       raise _INTL("Form {1} for species ID '{2}' is defined twice.", hash[:form], hash[:species]) + "\n" + FileLineData.linereport
+00457     end
+00458     # Perform the same validations on this form as for a regular species
+00459     validate_compiled_pokemon(hash)
+00460     # Inherit undefined properties from base species
+00461     base_data = GameData::Species.get(hash[:species])
+00462     [:real_name, :real_category, :real_pokedex_entry, :base_exp, :growth_rate,
+00463      :gender_ratio, :catch_rate, :happiness, :hatch_steps, :incense, :height,
+00464      :weight, :color, :shape, :habitat, :generation].each do |property|
+00465       hash[property] = base_data.send(property) if hash[property].nil?
+00466     end
+00467     [:types, :base_stats, :evs, :tutor_moves, :egg_moves, :abilities,
+00468      :hidden_abilities, :egg_groups, :offspring, :flags].each do |property|
+00469       hash[property] = base_data.send(property).clone if hash[property].nil?
+00470     end
+00471     if !hash[:moves].is_a?(Array) || hash[:moves].length == 0
+00472       hash[:moves] ||= []
+00473       base_data.moves.each { |m| hash[:moves].push(m.clone) }
+00474     end
+00475     if !hash[:evolutions].is_a?(Array) || hash[:evolutions].length == 0
+00476       hash[:evolutions] ||= []
+00477       base_data.evolutions.each { |e| hash[:evolutions].push(e.clone) }
+00478     end
+00479     if hash[:wild_item_common].nil? && hash[:wild_item_uncommon].nil? &&
+00480        hash[:wild_item_rare].nil?
+00481       hash[:wild_item_common] = base_data.wild_item_common.clone
+00482       hash[:wild_item_uncommon] = base_data.wild_item_uncommon.clone
+00483       hash[:wild_item_rare] = base_data.wild_item_rare.clone
+00484     end
+00485   end
+00486 
+00487   def validate_all_compiled_pokemon_forms
+00488     # Enumerate all evolution parameters (this couldn't be done earlier)
+00489     GameData::Species.each do |species|
+00490       FileLineData.setSection(species.id.to_s, "Evolutions", nil)   # For error reporting
+00491       species.evolutions.each do |evo|
+00492         param_type = GameData::Evolution.get(evo[1]).parameter
+00493         if param_type.nil?
+00494           evo[2] = nil
+00495         elsif param_type == Integer
+00496           evo[2] = cast_csv_value(evo[2], "u") if evo[2].is_a?(String)
+00497         elsif param_type != String
+00498           evo[2] = cast_csv_value(evo[2], "e", param_type) if evo[2].is_a?(String)
+00499         end
+00500       end
+00501     end
+00502     # Add prevolution "evolution" entry for all evolved species
+00503     all_evos = {}
+00504     GameData::Species.each do |species|   # Build a hash of prevolutions for each species
+00505       species.evolutions.each do |evo|
+00506         next if evo[3]
+00507         all_evos[evo[0]] = [species.species, evo[1], evo[2], true] if !all_evos[evo[0]]
+00508         if species.form > 0
+00509           all_evos[[evo[0], species.form]] = [species.species, evo[1], evo[2], true] if !all_evos[[evo[0], species.form]]
+00510         end
+00511       end
+00512     end
+00513     GameData::Species.each do |species|   # Distribute prevolutions
+00514       prevo_data = all_evos[[species.species, species.base_form]] || all_evos[species.species]
+00515       next if !prevo_data
+00516       # Record what species evolves from
+00517       species.evolutions.delete_if { |evo| evo[3] }
+00518       species.evolutions.push(prevo_data.clone)
+00519       # Record that the prevolution can evolve into species
+00520       prevo = GameData::Species.get(prevo_data[0])
+00521       if prevo.evolutions.none? { |evo| !evo[3] && evo[0] == species.species }
+00522         prevo.evolutions.push([species.species, :None, nil])
+00523       end
+00524     end
+00525     # Get species names/descriptions for translating
+00526     species_form_names = []
+00527     species_categories = []
+00528     species_pokedex_entries = []
+00529     GameData::Species.each do |species|
+00530       next if species.form == 0
+00531       species_form_names.push(species.real_form_name)
+00532       species_categories.push(species.real_category)
+00533       species_pokedex_entries.push(species.real_pokedex_entry)
+00534     end
+00535     MessageTypes.addMessagesAsHash(MessageTypes::SPECIES_FORM_NAMES, species_form_names)
+00536     MessageTypes.addMessagesAsHash(MessageTypes::SPECIES_CATEGORIES, species_categories)
+00537     MessageTypes.addMessagesAsHash(MessageTypes::POKEDEX_ENTRIES, species_pokedex_entries)
+00538   end
+00539 
+00540   #=============================================================================
+00541   # Compile Pokémon metrics data
+00542   #=============================================================================
+00543   def compile_pokemon_metrics(*paths)
+00544     compile_PBS_file_generic(GameData::SpeciesMetrics, *paths) do |final_validate, hash|
+00545       (final_validate) ? validate_all_compiled_pokemon_metrics : validate_compiled_pokemon_metrics(hash)
+00546     end
+00547   end
+00548 
+00549   def validate_compiled_pokemon_metrics(hash)
+00550     # Split species and form into their own values, generate compound ID from them
+00551     if hash[:id].is_a?(Array)
+00552       hash[:species] = hash[:id][0]
+00553       hash[:form] = hash[:id][1] || 0
+00554       if hash[:form] == 0
+00555         hash[:id] = hash[:species]
+00556       else
+00557         hash[:id] = sprintf("%s_%d", hash[:species].to_s, hash[:form]).to_sym
+00558       end
+00559     end
+00560   end
+00561 
+00562   def validate_all_compiled_pokemon_metrics
+00563   end
+00564 
+00565   #=============================================================================
+00566   # Compile Shadow Pokémon data
+00567   #=============================================================================
+00568   def compile_shadow_pokemon(*paths)
+00569     compile_PBS_file_generic(GameData::ShadowPokemon, *paths) do |final_validate, hash|
+00570       (final_validate) ? validate_all_compiled_shadow_pokemon : validate_compiled_shadow_pokemon(hash)
+00571     end
+00572   end
+00573 
+00574   def validate_compiled_shadow_pokemon(hash)
+00575     # Split species and form into their own values, generate compound ID from them
+00576     if hash[:id].is_a?(Array)
+00577       hash[:species] = hash[:id][0]
+00578       hash[:form] = hash[:id][1] || 0
+00579       if hash[:form] == 0
+00580         hash[:id] = hash[:species]
+00581       else
+00582         hash[:id] = sprintf("%s_%d", hash[:species].to_s, hash[:form]).to_sym
+00583       end
+00584     end
+00585   end
+00586 
+00587   def validate_all_compiled_shadow_pokemon
+00588   end
+00589 
+00590   #=============================================================================
+00591   # Compile Regional Dexes
+00592   #=============================================================================
+00593   def compile_regional_dexes(*paths)
+00594     dex_lists = []
+00595     paths.each do |path|
+00596       compile_pbs_file_message_start(path)
+00597       section = nil
+00598       pbCompilerEachPreppedLine(path) do |line, line_no|
+00599         Graphics.update if line_no % 200 == 0
+00600         if line[/^\s*\[\s*(\d+)\s*\]\s*$/]
+00601           section = $~[1].to_i
+00602           if dex_lists[section]
+00603             raise _INTL("Dex list number {1} is defined at least twice.", section) + "\n" + FileLineData.linereport
+00604           end
+00605           dex_lists[section] = []
+00606         else
+00607           raise _INTL("Expected a section at the beginning of the file.") + "\n" + FileLineData.linereport if !section
+00608           species_list = line.split(",")
+00609           species_list.each do |species|
+00610             next if !species || species.empty?
+00611             s = parseSpecies(species)
+00612             dex_lists[section].push(s)
+00613           end
+00614         end
+00615       end
+00616       process_pbs_file_message_end
+00617     end
+00618     # Check for duplicate species in a Regional Dex
+00619     dex_lists.each_with_index do |list, index|
+00620       unique_list = list.uniq
+00621       next if list == unique_list
+00622       list.each_with_index do |s, i|
+00623         next if unique_list[i] == s
+00624         raise _INTL("Dex list number {1} has species {2} listed twice.", index, s) + "\n" + FileLineData.linereport
+00625       end
+00626     end
+00627     # Save all data
+00628     save_data(dex_lists, "Data/regional_dexes.dat")
+00629   end
+00630 
+00631   #=============================================================================
+00632   # Compile ribbon data
+00633   #=============================================================================
+00634   def compile_ribbons(*paths)
+00635     compile_PBS_file_generic(GameData::Ribbon, *paths) do |final_validate, hash|
+00636       (final_validate) ? validate_all_compiled_ribbons : validate_compiled_ribbon(hash)
+00637     end
+00638   end
+00639 
+00640   def validate_compiled_ribbon(hash)
+00641   end
+00642 
+00643   def validate_all_compiled_ribbons
+00644     # Get ribbon names/descriptions for translating
+00645     ribbon_names = []
+00646     ribbon_descriptions = []
+00647     GameData::Ribbon.each do |ribbon|
+00648       ribbon_names.push(ribbon.real_name)
+00649       ribbon_descriptions.push(ribbon.real_description)
+00650     end

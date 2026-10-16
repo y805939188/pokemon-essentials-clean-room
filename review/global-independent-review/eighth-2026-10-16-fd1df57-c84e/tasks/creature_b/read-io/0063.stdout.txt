@@ -1,0 +1,332 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/016_UI_ReadyMenu.rb", "range": [1, 331], "file_lines": 331, "bytes": 9903, "sha256": "8ec85bb3f8629340e6e459961fbf08c8081e645b5a4d14e4e5ab0be966897bbb", "began_utc": "2026-10-16T03:34:10.577613+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 class ReadyMenuButton < Sprite
+00005   attr_reader :index   # ID of button
+00006   attr_reader :selected
+00007   attr_reader :side
+00008 
+00009   def initialize(index, command, selected, side, viewport = nil)
+00010     super(viewport)
+00011     @index = index
+00012     @command = command   # Item/move ID, name, mode (T move/F item), pkmnIndex
+00013     @selected = selected
+00014     @side = side
+00015     if @command[2]
+00016       @button = AnimatedBitmap.new("Graphics/UI/Ready Menu/icon_movebutton")
+00017     else
+00018       @button = AnimatedBitmap.new("Graphics/UI/Ready Menu/icon_itembutton")
+00019     end
+00020     @contents = Bitmap.new(@button.width, @button.height / 2)
+00021     self.bitmap = @contents
+00022     pbSetSystemFont(self.bitmap)
+00023     if @command[2]
+00024       @icon = PokemonIconSprite.new($player.party[@command[3]], viewport)
+00025       @icon.setOffset(PictureOrigin::CENTER)
+00026     else
+00027       @icon = ItemIconSprite.new(0, 0, @command[0], viewport)
+00028     end
+00029     @icon.z = self.z + 1
+00030     refresh
+00031   end
+00032 
+00033   def dispose
+00034     @button.dispose
+00035     @contents.dispose
+00036     @icon.dispose
+00037     super
+00038   end
+00039 
+00040   def visible=(val)
+00041     @icon.visible = val
+00042     super(val)
+00043   end
+00044 
+00045   def selected=(val)
+00046     oldsel = @selected
+00047     @selected = val
+00048     refresh if oldsel != val
+00049   end
+00050 
+00051   def side=(val)
+00052     oldsel = @side
+00053     @side = val
+00054     refresh if oldsel != val
+00055   end
+00056 
+00057   def refresh
+00058     sel = (@selected == @index && (@side == 0) == @command[2])
+00059     self.y = ((Graphics.height - (@button.height / 2)) / 2) - ((@selected - @index) * ((@button.height / 2) + 4))
+00060     if @command[2]   # Pokémon
+00061       self.x = (sel) ? 0 : -16
+00062       @icon.x = self.x + 52
+00063       @icon.y = self.y + 32
+00064     else   # Item
+00065       self.x = (sel) ? Graphics.width - @button.width : Graphics.width + 16 - @button.width
+00066       @icon.x = self.x + 32
+00067       @icon.y = self.y + (@button.height / 4)
+00068     end
+00069     self.bitmap.clear
+00070     rect = Rect.new(0, (sel) ? @button.height / 2 : 0, @button.width, @button.height / 2)
+00071     self.bitmap.blt(0, 0, @button.bitmap, rect)
+00072     textx = 164
+00073     if !@command[2]
+00074       textx = (GameData::Item.get(@command[0]).is_important?) ? 146 : 124
+00075     end
+00076     textpos = [
+00077       [@command[1], textx, 24, :center, Color.new(248, 248, 248), Color.new(40, 40, 40), :outline]
+00078     ]
+00079     if !@command[2] && !GameData::Item.get(@command[0]).is_important?
+00080       qty = $bag.quantity(@command[0])
+00081       if qty > 99
+00082         textpos.push([_INTL(">99"), 230, 24, :right,
+00083                       Color.new(248, 248, 248), Color.new(40, 40, 40), :outline])
+00084       else
+00085         textpos.push([_INTL("x{1}", qty), 230, 24, :right,
+00086                       Color.new(248, 248, 248), Color.new(40, 40, 40), :outline])
+00087       end
+00088     end
+00089     pbDrawTextPositions(self.bitmap, textpos)
+00090   end
+00091 
+00092   def update
+00093     @icon&.update
+00094     super
+00095   end
+00096 end
+00097 
+00098 #===============================================================================
+00099 #
+00100 #===============================================================================
+00101 class PokemonReadyMenu_Scene
+00102   attr_reader :sprites
+00103 
+00104   def pbStartScene(commands)
+00105     @commands = commands
+00106     @movecommands = []
+00107     @itemcommands = []
+00108     @commands[0].length.times do |i|
+00109       @movecommands.push(@commands[0][i][1])
+00110     end
+00111     @commands[1].length.times do |i|
+00112       @itemcommands.push(@commands[1][i][1])
+00113     end
+00114     @index = $bag.ready_menu_selection
+00115     if @index[0] >= @movecommands.length && @movecommands.length > 0
+00116       @index[0] = @movecommands.length - 1
+00117     end
+00118     if @index[1] >= @itemcommands.length && @itemcommands.length > 0
+00119       @index[1] = @itemcommands.length - 1
+00120     end
+00121     if @index[2] == 0 && @movecommands.length == 0
+00122       @index[2] = 1
+00123     elsif @index[2] == 1 && @itemcommands.length == 0
+00124       @index[2] = 0
+00125     end
+00126     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00127     @viewport.z = 99999
+00128     @sprites = {}
+00129     @sprites["cmdwindow"] = Window_CommandPokemon.new((@index[2] == 0) ? @movecommands : @itemcommands)
+00130     @sprites["cmdwindow"].height = 192
+00131     @sprites["cmdwindow"].visible = false
+00132     @sprites["cmdwindow"].viewport = @viewport
+00133     @commands[0].length.times do |i|
+00134       @sprites["movebutton#{i}"] = ReadyMenuButton.new(i, @commands[0][i], @index[0], @index[2], @viewport)
+00135     end
+00136     @commands[1].length.times do |i|
+00137       @sprites["itembutton#{i}"] = ReadyMenuButton.new(i, @commands[1][i], @index[1], @index[2], @viewport)
+00138     end
+00139     pbSEPlay("GUI menu open")
+00140   end
+00141 
+00142   def pbShowMenu
+00143     @sprites["cmdwindow"].visible = false
+00144     @commands[0].length.times do |i|
+00145       @sprites["movebutton#{i}"].visible = true
+00146     end
+00147     @commands[1].length.times do |i|
+00148       @sprites["itembutton#{i}"].visible = true
+00149     end
+00150   end
+00151 
+00152   def pbHideMenu
+00153     @sprites["cmdwindow"].visible = false
+00154     @commands[0].length.times do |i|
+00155       @sprites["movebutton#{i}"].visible = false
+00156     end
+00157     @commands[1].length.times do |i|
+00158       @sprites["itembutton#{i}"].visible = false
+00159     end
+00160   end
+00161 
+00162   def pbShowCommands
+00163     ret = -1
+00164     cmdwindow = @sprites["cmdwindow"]
+00165     cmdwindow.commands = (@index[2] == 0) ? @movecommands : @itemcommands
+00166     cmdwindow.index    = @index[@index[2]]
+00167     cmdwindow.visible  = false
+00168     loop do
+00169       pbUpdate
+00170       if Input.trigger?(Input::LEFT) && @index[2] == 1 && @movecommands.length > 0
+00171         @index[2] = 0
+00172         pbChangeSide
+00173       elsif Input.trigger?(Input::RIGHT) && @index[2] == 0 && @itemcommands.length > 0
+00174         @index[2] = 1
+00175         pbChangeSide
+00176       elsif Input.trigger?(Input::BACK)
+00177         pbPlayCloseMenuSE
+00178         ret = -1
+00179         break
+00180       elsif Input.trigger?(Input::USE)
+00181         ret = [@index[2], cmdwindow.index]
+00182         break
+00183       end
+00184     end
+00185     return ret
+00186   end
+00187 
+00188   def pbEndScene
+00189     pbDisposeSpriteHash(@sprites)
+00190     @viewport.dispose
+00191   end
+00192 
+00193   def pbChangeSide
+00194     @commands[0].length.times do |i|
+00195       @sprites["movebutton#{i}"].side = @index[2]
+00196     end
+00197     @commands[1].length.times do |i|
+00198       @sprites["itembutton#{i}"].side = @index[2]
+00199     end
+00200     @sprites["cmdwindow"].commands = (@index[2] == 0) ? @movecommands : @itemcommands
+00201     @sprites["cmdwindow"].index = @index[@index[2]]
+00202   end
+00203 
+00204   def pbRefresh; end
+00205 
+00206   def pbUpdate
+00207     oldindex = @index[@index[2]]
+00208     @index[@index[2]] = @sprites["cmdwindow"].index
+00209     if @index[@index[2]] != oldindex
+00210       case @index[2]
+00211       when 0
+00212         @commands[0].length.times do |i|
+00213           @sprites["movebutton#{i}"].selected = @index[@index[2]]
+00214         end
+00215       when 1
+00216         @commands[1].length.times do |i|
+00217           @sprites["itembutton#{i}"].selected = @index[@index[2]]
+00218         end
+00219       end
+00220     end
+00221     pbUpdateSpriteHash(@sprites)
+00222     Graphics.update
+00223     Input.update
+00224     pbUpdateSceneMap
+00225   end
+00226 end
+00227 
+00228 #===============================================================================
+00229 #
+00230 #===============================================================================
+00231 class PokemonReadyMenu
+00232   def initialize(scene)
+00233     @scene = scene
+00234   end
+00235 
+00236   def pbHideMenu
+00237     @scene.pbHideMenu
+00238   end
+00239 
+00240   def pbShowMenu
+00241     @scene.pbRefresh
+00242     @scene.pbShowMenu
+00243   end
+00244 
+00245   def pbStartReadyMenu(moves, items)
+00246     commands = [[], []]   # Moves, items
+00247     moves.each do |i|
+00248       commands[0].push([i[0], GameData::Move.get(i[0]).name, true, i[1]])
+00249     end
+00250     commands[0].sort! { |a, b| a[1] <=> b[1] }
+00251     items.each do |i|
+00252       commands[1].push([i, GameData::Item.get(i).name, false])
+00253     end
+00254     commands[1].sort! { |a, b| a[1] <=> b[1] }
+00255     @scene.pbStartScene(commands)
+00256     loop do
+00257       command = @scene.pbShowCommands
+00258       break if command == -1
+00259       if command[0] == 0   # Use a move
+00260         move = commands[0][command[1]][0]
+00261         user = $player.party[commands[0][command[1]][3]]
+00262         if move == :FLY
+00263           ret = nil
+00264           pbFadeOutInWithUpdate(99999, @scene.sprites) do
+00265             pbHideMenu
+00266             scene = PokemonRegionMap_Scene.new(-1, false)
+00267             screen = PokemonRegionMapScreen.new(scene)
+00268             ret = screen.pbStartFlyScreen
+00269             pbShowMenu if !ret
+00270           end
+00271           if ret
+00272             $game_temp.fly_destination = ret
+00273             $game_temp.in_menu = false
+00274             pbUseHiddenMove(user, move)
+00275             break
+00276           end
+00277         else
+00278           pbHideMenu
+00279           if pbConfirmUseHiddenMove(user, move)
+00280             $game_temp.in_menu = false
+00281             pbUseHiddenMove(user, move)
+00282             break
+00283           else
+00284             pbShowMenu
+00285           end
+00286         end
+00287       else   # Use an item
+00288         item = commands[1][command[1]][0]
+00289         pbHideMenu
+00290         if ItemHandlers.triggerConfirmUseInField(item)
+00291           $game_temp.in_menu = false
+00292           break if pbUseKeyItemInField(item)
+00293           $game_temp.in_menu = true
+00294         end
+00295       end
+00296       pbShowMenu
+00297     end
+00298     @scene.pbEndScene
+00299   end
+00300 end
+00301 
+00302 #===============================================================================
+00303 # Using a registered item
+00304 #===============================================================================
+00305 def pbUseKeyItem
+00306   moves = [:CUT, :DEFOG, :DIG, :DIVE, :FLASH, :FLY, :HEADBUTT, :ROCKCLIMB,
+00307            :ROCKSMASH, :SECRETPOWER, :STRENGTH, :SURF, :SWEETSCENT, :TELEPORT,
+00308            :WATERFALL, :WHIRLPOOL]
+00309   real_moves = []
+00310   moves.each do |move|
+00311     $player.party.each_with_index do |pkmn, i|
+00312       next if pkmn.egg? || !pkmn.hasMove?(move)
+00313       real_moves.push([move, i]) if pbCanUseHiddenMove?(pkmn, move, false)
+00314     end
+00315   end
+00316   real_items = []
+00317   $bag.registered_items.each do |i|
+00318     itm = GameData::Item.get(i).id
+00319     real_items.push(itm) if $bag.has?(itm)
+00320   end
+00321   if real_items.length == 0 && real_moves.length == 0
+00322     pbMessage(_INTL("An item in the Bag can be registered to this key for instant use."))
+00323   else
+00324     $game_temp.in_menu = true
+00325     $game_map.update
+00326     sscene = PokemonReadyMenu_Scene.new
+00327     sscreen = PokemonReadyMenu.new(sscene)
+00328     sscreen.pbStartReadyMenu(real_moves, real_items)
+00329     $game_temp.in_menu = false
+00330   end
+00331 end

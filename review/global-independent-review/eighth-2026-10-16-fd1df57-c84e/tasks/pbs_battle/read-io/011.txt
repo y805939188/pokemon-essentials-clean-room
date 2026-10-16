@@ -1,0 +1,261 @@
+00255   def split_csv_line(string)
+00256     # Split the string into an array of values, using a comma as the separator
+00257     values = string.split(",")
+00258     # Check for quote marks in each value, as we may need to recombine some values
+00259     # to make proper results
+00260     (0...values.length).each do |i|
+00261       value = values[i]
+00262       next if !value || value.empty?
+00263       quote_count = value.count('"')
+00264       if quote_count != 0
+00265         # Quote marks found in value
+00266         (i...(values.length - 1)).each do |j|
+00267           quote_count = values[i].count('"')
+00268           if quote_count == 2 && value.start_with?('\\"') && values[i].end_with?('\\"')
+00269             # Two quote marks around the whole value; remove them
+00270             values[i] = values[i][2..-3]
+00271             break
+00272           elsif quote_count.even?
+00273             break
+00274           end
+00275           # Odd number of quote marks in value; concatenate the next value to it and
+00276           # see if that's any better
+00277           values[i] += "," + values[j + 1]
+00278           values[j + 1] = nil
+00279         end
+00280         # Recheck for enclosing quote marks to remove
+00281         if quote_count != 2
+00282           if value.count('"') == 2 && value.start_with?('\\"') && value.end_with?('\\"')
+00283             values[i] = values[i][2..-3]
+00284           end
+00285         end
+00286       end
+00287       # Remove leading and trailing whitespace from value
+00288       values[i].strip!
+00289     end
+00290     # Remove nil values caused by concatenating values above
+00291     values.compact!
+00292     return values
+00293   end
+00294 
+00295   #=============================================================================
+00296   # Convert a string to certain kinds of values
+00297   #=============================================================================
+00298   # Unused
+00299   # NOTE: This method is about 10 times slower than split_csv_line.
+00300   def csvfield!(str)
+00301     ret = ""
+00302     str.sub!(/^\s*/, "")
+00303     if str[0, 1] == "\""
+00304       str[0, 1] = ""
+00305       escaped = false
+00306       fieldbytes = 0
+00307       str.scan(/./) do |s|
+00308         fieldbytes += s.length
+00309         break if s == "\"" && !escaped
+00310         if s == "\\" && !escaped
+00311           escaped = true
+00312         else
+00313           ret += s
+00314           escaped = false
+00315         end
+00316       end
+00317       str[0, fieldbytes] = ""
+00318       if !str[/^\s*,/] && !str[/^\s*$/]
+00319         raise _INTL("Invalid quoted field (in: {1}).", str) + "\n" + FileLineData.linereport
+00320       end
+00321       str[0, str.length] = $~.post_match
+00322     else
+00323       if str[/,/]
+00324         str[0, str.length] = $~.post_match
+00325         ret = $~.pre_match
+00326       else
+00327         ret = str.clone
+00328         str[0, str.length] = ""
+00329       end
+00330       ret.gsub!(/\s+$/, "")
+00331     end
+00332     return ret
+00333   end
+00334 
+00335   # Unused
+00336   def csvBoolean!(str, _line = -1)
+00337     field = csvfield!(str)
+00338     return true if field[/^(?:1|TRUE|YES|Y)$/i]
+00339     return false if field[/^(?:0|FALSE|NO|N)$/i]
+00340     raise _INTL("Field '{1}' is not a Boolean value (true, false, 1, 0).", field) + "\n" + FileLineData.linereport
+00341   end
+00342 
+00343   # Unused
+00344   def csvInt!(str, _line = -1)
+00345     ret = csvfield!(str)
+00346     if !ret[/^\-?\d+$/]
+00347       raise _INTL("Field '{1}' is not an integer.", ret) + "\n" + FileLineData.linereport
+00348     end
+00349     return ret.to_i
+00350   end
+00351 
+00352   # Unused
+00353   def csvPosInt!(str, _line = -1)
+00354     ret = csvfield!(str)
+00355     if !ret[/^\d+$/]
+00356       raise _INTL("Field '{1}' is not a positive integer.", ret) + "\n" + FileLineData.linereport
+00357     end
+00358     return ret.to_i
+00359   end
+00360 
+00361   # Unused
+00362   def csvFloat!(str, _line = -1)
+00363     ret = csvfield!(str)
+00364     return Float(ret) rescue raise _INTL("Field '{1}' is not a number.", ret) + "\n" + FileLineData.linereport
+00365   end
+00366 
+00367   # Unused
+00368   def csvEnumField!(value, enumer, _key, _section)
+00369     ret = csvfield!(value)
+00370     return checkEnumField(ret, enumer)
+00371   end
+00372 
+00373   # Unused
+00374   def csvEnumFieldOrInt!(value, enumer, _key, _section)
+00375     ret = csvfield!(value)
+00376     return ret.to_i if ret[/\-?\d+/]
+00377     return checkEnumField(ret, enumer)
+00378   end
+00379 
+00380   # Turns a value (a string) into another data type as determined by the given
+00381   # schema.
+00382   # @param value [String]
+00383   # @param schema [String]
+00384   def cast_csv_value(value, schema, enumer = nil)
+00385     case schema.downcase
+00386     when "i"   # Integer
+00387       if !value || !value[/^\-?\d+$/]
+00388         raise _INTL("Field '{1}' is not an integer.", value) + "\n" + FileLineData.linereport
+00389       end
+00390       return value.to_i
+00391     when "u"   # Positive integer or zero
+00392       if !value || !value[/^\d+$/]
+00393         raise _INTL("Field '{1}' is not a positive integer or 0.", value) + "\n" + FileLineData.linereport
+00394       end
+00395       return value.to_i
+00396     when "v"   # Positive integer
+00397       if !value || !value[/^\d+$/]
+00398         raise _INTL("Field '{1}' is not a positive integer.", value) + "\n" + FileLineData.linereport
+00399       end
+00400       if value.to_i == 0
+00401         raise _INTL("Field '{1}' must be greater than 0.", value) + "\n" + FileLineData.linereport
+00402       end
+00403       return value.to_i
+00404     when "x"   # Hexadecimal number
+00405       if !value || !value[/^[A-F0-9]+$/i]
+00406         raise _INTL("Field '{1}' is not a hexadecimal number.", value) + "\n" + FileLineData.linereport
+00407       end
+00408       return value.hex
+00409     when "f"   # Floating point number
+00410       if !value || !value[/^\-?^\d*\.?\d*$/]
+00411         raise _INTL("Field '{1}' is not a number.", value) + "\n" + FileLineData.linereport
+00412       end
+00413       return value.to_f
+00414     when "b"   # Boolean
+00415       return true if value && value[/^(?:1|TRUE|YES|Y)$/i]
+00416       return false if value && value[/^(?:0|FALSE|NO|N)$/i]
+00417       raise _INTL("Field '{1}' is not a Boolean value (true, false, 1, 0).", value) + "\n" + FileLineData.linereport
+00418     when "n"   # Name
+00419       if !value || !value[/^(?![0-9])\w+$/]
+00420         raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+00421       end
+00422     when "s"   # String
+00423     when "q"   # Unformatted text
+00424     when "m"   # Symbol
+00425       if !value || !value[/^(?![0-9])\w+$/]
+00426         raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+00427       end
+00428       return value.to_sym
+00429     when "e"   # Enumerable
+00430       return checkEnumField(value, enumer)
+00431     when "y"   # Enumerable or integer
+00432       return value.to_i if value && value[/^\-?\d+$/]
+00433       return checkEnumField(value, enumer)
+00434     end
+00435     return value
+00436   end
+00437 
+00438   def checkEnumField(ret, enumer)
+00439     case enumer
+00440     when Module
+00441       begin
+00442         if nil_or_empty?(ret) || !enumer.const_defined?(ret)
+00443           raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00444         end
+00445       rescue NameError
+00446         raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00447       end
+00448       return enumer.const_get(ret.to_sym)
+00449     when Symbol, String
+00450       if !Kernel.const_defined?(enumer.to_sym) && GameData.const_defined?(enumer.to_sym)
+00451         enumer = GameData.const_get(enumer.to_sym)
+00452         begin
+00453           if nil_or_empty?(ret) || !enumer.exists?(ret.to_sym)
+00454             raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00455           end
+00456         rescue NameError
+00457           raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00458         end
+00459         return ret.to_sym
+00460       end
+00461       enumer = Object.const_get(enumer.to_sym)
+00462       begin
+00463         if nil_or_empty?(ret) || !enumer.const_defined?(ret)
+00464           raise _INTL("Undefined value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00465         end
+00466       rescue NameError
+00467         raise _INTL("Incorrect value {1} in {2}.", ret, enumer.name) + "\n" + FileLineData.linereport
+00468       end
+00469       return enumer.const_get(ret.to_sym)
+00470     when Array
+00471       idx = (nil_or_empty?(ret)) ? -1 : findIndex(enumer) { |item| ret == item }
+00472       if idx < 0
+00473         raise _INTL("Undefined value {1} (expected one of: {2}).", ret, enumer.inspect) + "\n" + FileLineData.linereport
+00474       end
+00475       return idx
+00476     when Hash
+00477       value = (nil_or_empty?(ret)) ? nil : enumer[ret]
+00478       if value.nil?
+00479         raise _INTL("Undefined value {1} (expected one of: {2}).", ret, enumer.keys.inspect) + "\n" + FileLineData.linereport
+00480       end
+00481       return value
+00482     end
+00483     raise _INTL("Enumeration not defined.") + "\n" + FileLineData.linereport
+00484   end
+00485 
+00486   # Unused
+00487   def checkEnumFieldOrNil(ret, enumer)
+00488     case enumer
+00489     when Module
+00490       return nil if nil_or_empty?(ret) || !(enumer.const_defined?(ret) rescue false)
+00491       return enumer.const_get(ret.to_sym)
+00492     when Symbol, String
+00493       if GameData.const_defined?(enumer.to_sym)
+00494         enumer = GameData.const_get(enumer.to_sym)
+00495         return nil if nil_or_empty?(ret) || !enumer.exists?(ret.to_sym)
+00496         return ret.to_sym
+00497       end
+00498       enumer = Object.const_get(enumer.to_sym)
+00499       return nil if nil_or_empty?(ret) || !(enumer.const_defined?(ret) rescue false)
+00500       return enumer.const_get(ret.to_sym)
+00501     when Array
+00502       idx = findIndex(enumer) { |item| ret == item }
+00503       return nil if idx < 0
+00504       return idx
+00505     when Hash
+00506       return enumer[ret]
+00507     end
+00508     return nil
+00509   end
+00510 
+00511   #=============================================================================
+00512   # Convert a string to values using a schema
+00513   #=============================================================================
+00514   # Unused
+00515   # @deprecated This method is slated to be removed in v22.

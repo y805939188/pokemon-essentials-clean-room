@@ -1,0 +1,285 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/002_Save data/002_SaveData_Value.rb", "range": [1, 284], "file_lines": 284, "bytes": 9616, "sha256": "fe873c1af03557b56746d0c62b6fd7fcc690930d2ba8dd63868c115fe4783c74", "began_utc": "2026-10-16T03:33:03.915046+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 module SaveData
+00002   # Contains Value objects for each save element.
+00003   # Populated during runtime by SaveData.register calls.
+00004   # @type [Array<Value>]
+00005   @values = []
+00006 
+00007   # An error raised if an invalid save value is being saved or loaded.
+00008   class InvalidValueError < RuntimeError; end
+00009 
+00010   #=============================================================================
+00011   # Represents a single value in save data.
+00012   # New values are added using {SaveData.register}.
+00013   class Value
+00014     # @return [Symbol] the value id
+00015     attr_reader :id
+00016 
+00017     # @param id [Symbol] value id
+00018     def initialize(id, &block)
+00019       validate id => Symbol, block => Proc
+00020       @id = id
+00021       @loaded = false
+00022       @load_in_bootup = false
+00023       @reset_on_new_game = false
+00024       instance_eval(&block)
+00025       raise "No save_value defined for save value #{id.inspect}" if @save_proc.nil?
+00026       raise "No load_value defined for save value #{id.inspect}" if @load_proc.nil?
+00027     end
+00028 
+00029     # @param value [Object] value to check
+00030     # @return [Boolean] whether the given value is valid
+00031     def valid?(value)
+00032       return true if @ensured_class.nil?
+00033       return value.is_a?(Object.const_get(@ensured_class))
+00034     end
+00035 
+00036     # Calls the value's load proc with the given argument passed into it.
+00037     # @param value [Object] load proc argument
+00038     # @raise [InvalidValueError] if an invalid value is being loaded
+00039     def load(value)
+00040       validate_value(value)
+00041       @load_proc.call(value)
+00042       @loaded = true
+00043     end
+00044 
+00045     # Calls the value's save proc and returns its value.
+00046     # @return [Object] save proc value
+00047     # @raise [InvalidValueError] if an invalid value is being saved
+00048     def save
+00049       value = @save_proc.call
+00050       validate_value(value)
+00051       return value
+00052     end
+00053 
+00054     # @return [Boolean] whether the value has a new game value proc defined
+00055     def has_new_game_proc?
+00056       return @new_game_value_proc.is_a?(Proc)
+00057     end
+00058 
+00059     # Calls the save value's load proc with the value fetched
+00060     # from the defined new game value proc.
+00061     # @raise (see #load)
+00062     def load_new_game_value
+00063       unless self.has_new_game_proc?
+00064         raise "Save value #{@id.inspect} has no new_game_value defined"
+00065       end
+00066       self.load(@new_game_value_proc.call)
+00067     end
+00068 
+00069     # @return [Boolean] whether the value should be loaded during bootup
+00070     def load_in_bootup?
+00071       return @load_in_bootup
+00072     end
+00073 
+00074     def reset_on_new_game
+00075       @reset_on_new_game = true
+00076     end
+00077 
+00078     def reset_on_new_game?
+00079       return @reset_on_new_game
+00080     end
+00081 
+00082     # @return [Boolean] whether the value has been loaded
+00083     def loaded?
+00084       return @loaded
+00085     end
+00086 
+00087     # Marks value as unloaded.
+00088     def mark_as_unloaded
+00089       @loaded = false
+00090     end
+00091 
+00092     # Uses the {#from_old_format} proc to select the correct data from
+00093     # +old_format+ and return it.
+00094     # Returns nil if the proc is undefined.
+00095     # @param old_format [Array] old format to load value from
+00096     # @return [Object] data from the old format
+00097     def get_from_old_format(old_format)
+00098       return nil if @old_format_get_proc.nil?
+00099       return @old_format_get_proc.call(old_format)
+00100     end
+00101 
+00102     #---------------------------------------------------------------------------
+00103 
+00104     private
+00105 
+00106     # Raises an {InvalidValueError} if the given value is invalid.
+00107     # @param value [Object] value to check
+00108     # @raise [InvalidValueError] if the value is invalid
+00109     def validate_value(value)
+00110       return if self.valid?(value)
+00111       raise InvalidValueError, "Save value #{@id.inspect} is not a #{@ensured_class} (#{value.class.name} given)"
+00112     end
+00113 
+00114     # @!group Configuration
+00115 
+00116     # If present, ensures that the value is of the given class.
+00117     # @param class_name [Symbol] class to enforce
+00118     # @see SaveData.register
+00119     def ensure_class(class_name)
+00120       validate class_name => Symbol
+00121       @ensured_class = class_name
+00122     end
+00123 
+00124     # Defines how the loaded value is placed into a global variable.
+00125     # Requires a block with the loaded value as its parameter.
+00126     # @see SaveData.register
+00127     def load_value(&block)
+00128       raise ArgumentError, "No block given to load_value" unless block_given?
+00129       @load_proc = block
+00130     end
+00131 
+00132     # Defines what is saved into save data. Requires a block.
+00133     # @see SaveData.register
+00134     def save_value(&block)
+00135       raise ArgumentError, "No block given to save_value" unless block_given?
+00136       @save_proc = block
+00137     end
+00138 
+00139     # If present, defines what the value is set to at the start of a new game.
+00140     # @see SaveData.register
+00141     def new_game_value(&block)
+00142       raise ArgumentError, "No block given to new_game_value" unless block_given?
+00143       @new_game_value_proc = block
+00144     end
+00145 
+00146     # If present, sets the value to be loaded during bootup.
+00147     # @see SaveData.register
+00148     def load_in_bootup
+00149       @load_in_bootup = true
+00150     end
+00151 
+00152     # If present, defines how the value should be fetched from the pre-v19
+00153     # save format. Requires a block with the old format array as its parameter.
+00154     # @see SaveData.register
+00155     def from_old_format(&block)
+00156       raise ArgumentError, "No block given to from_old_format" unless block_given?
+00157       @old_format_get_proc = block
+00158     end
+00159 
+00160     # @!endgroup
+00161   end
+00162 
+00163   #=============================================================================
+00164   # Registers a {Value} to be saved into save data.
+00165   # Takes a block which defines the value's saving ({Value#save_value})
+00166   # and loading ({Value#load_value}) procedures.
+00167   #
+00168   # It is also possible to provide a proc for fetching the value
+00169   # from the pre-v19 format ({Value#from_old_format}), define
+00170   # a value to be set upon starting a new game with {Value#new_game_value}
+00171   # and ensure that the saved and loaded value is of the correct
+00172   # class with {Value#ensure_class}.
+00173   #
+00174   # Values can be registered to be loaded on bootup with
+00175   # {Value#load_in_bootup}. If a new_game_value proc is defined, it
+00176   # will be called when the game is launched for the first time,
+00177   # or if the save data does not contain the value in question.
+00178   #
+00179   # @example Registering a new value
+00180   #   SaveData.register(:foo) do
+00181   #     ensure_class :Foo
+00182   #     save_value { $foo }
+00183   #     load_value { |value| $foo = value }
+00184   #     new_game_value { Foo.new }
+00185   #   end
+00186   # @example Registering a value to be loaded on bootup
+00187   #   SaveData.register(:bar) do
+00188   #     load_in_bootup
+00189   #     save_value { $bar }
+00190   #     load_value { |value| $bar = value }
+00191   #     new_game_value { Bar.new }
+00192   #   end
+00193   # @param id [Symbol] value id
+00194   # @yield the block of code to be saved as a Value
+00195   def self.register(id, &block)
+00196     validate id => Symbol
+00197     unless block_given?
+00198       raise ArgumentError, "No block given to SaveData.register"
+00199     end
+00200     @values << Value.new(id, &block)
+00201   end
+00202 
+00203   def self.unregister(id)
+00204     validate id => Symbol
+00205     @values.delete_if { |value| value.id == id }
+00206   end
+00207 
+00208   # @param save_data [Hash] save data to validate
+00209   # @return [Boolean] whether the given save data is valid
+00210   def self.valid?(save_data)
+00211     validate save_data => Hash
+00212     return @values.all? { |value| value.valid?(save_data[value.id]) }
+00213   end
+00214 
+00215   # Loads values from the given save data.
+00216   # An optional condition can be passed.
+00217   # @param save_data [Hash] save data to load from
+00218   # @param condition_block [Proc] optional condition
+00219   # @api private
+00220   def self.load_values(save_data, &condition_block)
+00221     @values.each do |value|
+00222       next if block_given? && !condition_block.call(value)
+00223       if save_data.has_key?(value.id)
+00224         value.load(save_data[value.id])
+00225       elsif value.has_new_game_proc?
+00226         value.load_new_game_value
+00227       end
+00228     end
+00229   end
+00230 
+00231   # Loads the values from the given save data by
+00232   # calling each {Value} object's {Value#load_value} proc.
+00233   # Values that are already loaded are skipped.
+00234   # If a value does not exist in the save data and has
+00235   # a {Value#new_game_value} proc defined, that value
+00236   # is loaded instead.
+00237   # @param save_data [Hash] save data to load
+00238   # @raise [InvalidValueError] if an invalid value is being loaded
+00239   def self.load_all_values(save_data)
+00240     validate save_data => Hash
+00241     load_values(save_data) { |value| !value.loaded? }
+00242   end
+00243 
+00244   # Marks all values that aren't loaded on bootup as unloaded.
+00245   def self.mark_values_as_unloaded
+00246     @values.each do |value|
+00247       value.mark_as_unloaded if !value.load_in_bootup? || value.reset_on_new_game?
+00248     end
+00249   end
+00250 
+00251   # Loads each value from the given save data that has
+00252   # been set to be loaded during bootup. Done when a save file exists.
+00253   # @param save_data [Hash] save data to load
+00254   # @raise [InvalidValueError] if an invalid value is being loaded
+00255   def self.load_bootup_values(save_data)
+00256     validate save_data => Hash
+00257     load_values(save_data) { |value| !value.loaded? && value.load_in_bootup? }
+00258   end
+00259 
+00260   # Goes through each value with {Value#load_in_bootup} enabled and loads their
+00261   # new game value, if one is defined. Done when no save file exists.
+00262   def self.initialize_bootup_values
+00263     @values.each do |value|
+00264       next unless value.load_in_bootup?
+00265       value.load_new_game_value if value.has_new_game_proc? && !value.loaded?
+00266     end
+00267   end
+00268 
+00269   # Loads each {Value}'s new game value, if one is defined. Done when starting a
+00270   # new game.
+00271   def self.load_new_game_values
+00272     @values.each do |value|
+00273       value.load_new_game_value if value.has_new_game_proc? && (!value.loaded? || value.reset_on_new_game?)
+00274     end
+00275   end
+00276 
+00277   # @return [Hash{Symbol => Object}] a hash representation of the save data
+00278   # @raise [InvalidValueError] if an invalid value is being saved
+00279   def self.compile_save_hash
+00280     save_data = {}
+00281     @values.each { |value| save_data[value.id] = value.save }
+00282     return save_data
+00283   end
+00284 end

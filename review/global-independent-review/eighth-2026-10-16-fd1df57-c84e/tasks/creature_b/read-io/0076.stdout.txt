@@ -1,0 +1,322 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb", "range": [1001, 1321], "file_lines": 1321, "bytes": 54958, "sha256": "d24fe0388c78e4ab321dbfb6248c454fb3fe99933305c26bf2639068113dfbae", "began_utc": "2026-10-16T03:35:22.614258+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+01001           rsection[0] = []
+01002         end
+01003         if FileTest.exist?("PBS/" + rsection[1])
+01004           filename = "PBS/" + rsection[1]
+01005           rsection[1] = []
+01006           pbCompilerEachCommentedLine(filename) do |line, _lineno|
+01007             rsection[1].push(PBPokemon.fromInspected(line))
+01008           end
+01009         else
+01010           rsection[1] = []
+01011         end
+01012         rsection[2] = [] if !rsection[2]
+01013         while rsection[2].include?("")
+01014           rsection[2].delete("")
+01015         end
+01016         rsection[2].compact!
+01017         sections.push(rsection)
+01018       end
+01019     end
+01020     save_data(sections, "Data/trainer_lists.dat")
+01021     process_pbs_file_message_end
+01022   end
+01023 
+01024   def compile_battle_tower_trainers(filename)
+01025     sections = []
+01026     requiredtypes = {
+01027       "Type"          => [0, "e", :TrainerType],
+01028       "Name"          => [1, "s"],
+01029       "BeginSpeech"   => [2, "s"],
+01030       "EndSpeechWin"  => [3, "s"],
+01031       "EndSpeechLose" => [4, "s"],
+01032       "PokemonNos"    => [5, "*u"]
+01033     }
+01034     trainernames  = []
+01035     beginspeech   = []
+01036     endspeechwin  = []
+01037     endspeechlose = []
+01038     if FileTest.exist?(filename)
+01039       File.open(filename, "rb") do |f|
+01040         FileLineData.file = filename
+01041         pbEachFileSection(f) do |section, name|
+01042           rsection = []
+01043           section.each_key do |key|
+01044             FileLineData.setSection(name, key, section[key])
+01045             schema = requiredtypes[key]
+01046             next if !schema
+01047             record = get_csv_record(section[key], schema)
+01048             rsection[schema[0]] = record
+01049           end
+01050           trainernames.push(rsection[1])
+01051           beginspeech.push(rsection[2])
+01052           endspeechwin.push(rsection[3])
+01053           endspeechlose.push(rsection[4])
+01054           sections.push(rsection)
+01055         end
+01056       end
+01057     end
+01058     MessageTypes.addMessagesAsHash(MessageTypes::TRAINER_NAMES, trainernames)
+01059     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_INTRO_SPEECHES, beginspeech)
+01060     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, endspeechwin)
+01061     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, endspeechlose)
+01062     return sections
+01063   end
+01064 
+01065   #=============================================================================
+01066   # Compile metadata
+01067   # NOTE: Doesn't use compile_PBS_file_generic because it contains data for two
+01068   #       different GameData classes.
+01069   #=============================================================================
+01070   def compile_metadata(*paths)
+01071     GameData::Metadata::DATA.clear
+01072     GameData::PlayerMetadata::DATA.clear
+01073     global_schema = GameData::Metadata.schema
+01074     player_schema = GameData::PlayerMetadata.schema
+01075     paths.each do |path|
+01076       compile_pbs_file_message_start(path)
+01077       file_suffix = File.basename(path, ".txt")[GameData::Metadata::PBS_BASE_FILENAME.length + 1, path.length] || ""
+01078       # Read from PBS file
+01079       File.open(path, "rb") do |f|
+01080         FileLineData.file = path   # For error reporting
+01081         # Read a whole section's lines at once, then run through this code.
+01082         # contents is a hash containing all the XXX=YYY lines in that section, where
+01083         # the keys are the XXX and the values are the YYY (as unprocessed strings).
+01084         idx = 0
+01085         pbEachFileSection(f) do |contents, section_name|
+01086           echo "." if idx % 100 == 0
+01087           Graphics.update if idx % 500 == 0
+01088           idx += 1
+01089           schema = (section_name.to_i == 0) ? global_schema : player_schema
+01090           data_hash = {
+01091             :id              => section_name.to_sym,
+01092             :pbs_file_suffix => file_suffix
+01093           }
+01094           # Go through schema hash of compilable data and compile this section
+01095           schema.each_key do |key|
+01096             FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+01097             if key == "SectionName"
+01098               data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+01099               next
+01100             end
+01101             # Skip empty properties
+01102             next if contents[key].nil?
+01103             # Compile value for key
+01104             if schema[key][1][0] == "^"
+01105               contents[key].each do |val|
+01106                 value = get_csv_record(val, schema[key])
+01107                 value = nil if value.is_a?(Array) && value.empty?
+01108                 data_hash[schema[key][0]] ||= []
+01109                 data_hash[schema[key][0]].push(value)
+01110               end
+01111               data_hash[schema[key][0]].compact!
+01112             else
+01113               value = get_csv_record(contents[key], schema[key])
+01114               value = nil if value.is_a?(Array) && value.empty?
+01115               data_hash[schema[key][0]] = value
+01116             end
+01117           end
+01118           # Validate and modify the compiled data
+01119           if data_hash[:id] == 0
+01120             validate_compiled_global_metadata(data_hash)
+01121             if GameData::Metadata.exists?(data_hash[:id])
+01122               raise _INTL("Global metadata ID '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+01123             end
+01124           else
+01125             validate_compiled_player_metadata(data_hash)
+01126             if GameData::PlayerMetadata.exists?(data_hash[:id])
+01127               raise _INTL("Player metadata ID '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+01128             end
+01129           end
+01130           # Add section's data to records
+01131           if data_hash[:id] == 0
+01132             GameData::Metadata.register(data_hash)
+01133           else
+01134             GameData::PlayerMetadata.register(data_hash)
+01135           end
+01136         end
+01137       end
+01138       process_pbs_file_message_end
+01139     end
+01140     validate_all_compiled_metadata
+01141     # Save all data
+01142     GameData::Metadata.save
+01143     GameData::PlayerMetadata.save
+01144   end
+01145 
+01146   def validate_compiled_global_metadata(hash)
+01147     if hash[:home].nil?
+01148       raise _INTL("The entry 'Home' is required in metadata.txt section 0.") + "\n" + FileLineData.linereport
+01149     end
+01150   end
+01151 
+01152   def validate_compiled_player_metadata(hash)
+01153   end
+01154 
+01155   # Should be used to check both global metadata and player character metadata.
+01156   def validate_all_compiled_metadata
+01157     # Ensure global metadata is defined
+01158     if !GameData::Metadata.exists?(0)
+01159       raise _INTL("Global metadata is not defined in metadata.txt but should be.") + "\n" + FileLineData.linereport
+01160     end
+01161     # Ensure player character 1's metadata is defined
+01162     if !GameData::PlayerMetadata.exists?(1)
+01163       raise _INTL("Metadata for player character 1 is not defined in metadata.txt but should be.") + "\n" + FileLineData.linereport
+01164     end
+01165     # Get storage creator's name for translating
+01166     storage_creator = [GameData::Metadata.get.real_storage_creator]
+01167     MessageTypes.setMessagesAsHash(MessageTypes::STORAGE_CREATOR_NAME, storage_creator)
+01168   end
+01169 
+01170   #=============================================================================
+01171   # Compile map metadata
+01172   #=============================================================================
+01173   def compile_map_metadata(*paths)
+01174     compile_PBS_file_generic(GameData::MapMetadata, *paths) do |final_validate, hash|
+01175       (final_validate) ? validate_all_compiled_map_metadata : validate_compiled_map_metadata(hash)
+01176     end
+01177   end
+01178 
+01179   def validate_compiled_map_metadata(hash)
+01180     # Give the map its RMXP map name if it doesn't define its own
+01181     if nil_or_empty?(hash[:real_name])
+01182       hash[:real_name] = pbLoadMapInfos[hash[:id]].name
+01183     end
+01184   end
+01185 
+01186   def validate_all_compiled_map_metadata
+01187     # Get map names for translating
+01188     map_names = []
+01189     GameData::MapMetadata.each { |map| map_names[map.id] = map.real_name }
+01190     MessageTypes.setMessagesAsHash(MessageTypes::MAP_NAMES, map_names)
+01191   end
+01192 
+01193   #=============================================================================
+01194   # Compile dungeon tileset data
+01195   #=============================================================================
+01196   def compile_dungeon_tilesets(*paths)
+01197     compile_PBS_file_generic(GameData::DungeonTileset, *paths) do |final_validate, hash|
+01198       (final_validate) ? validate_all_compiled_dungeon_tilesets : validate_compiled_dungeon_tileset(hash)
+01199     end
+01200   end
+01201 
+01202   def validate_compiled_dungeon_tileset(hash)
+01203   end
+01204 
+01205   def validate_all_compiled_dungeon_tilesets
+01206   end
+01207 
+01208   #=============================================================================
+01209   # Compile dungeon parameters data
+01210   #=============================================================================
+01211   def compile_dungeon_parameters(*paths)
+01212     compile_PBS_file_generic(GameData::DungeonParameters, *paths) do |final_validate, hash|
+01213       (final_validate) ? validate_all_compiled_dungeon_parameters : validate_compiled_dungeon_parameters(hash)
+01214     end
+01215   end
+01216 
+01217   def validate_compiled_dungeon_parameters(hash)
+01218     # Split area and version into their own values, generate compound ID from them
+01219     hash[:area] = hash[:id][0]
+01220     hash[:version] = hash[:id][1] || 0
+01221     if hash[:version] == 0
+01222       hash[:id] = hash[:area]
+01223     else
+01224       hash[:id] = sprintf("%s_%d", hash[:area].to_s, hash[:version]).to_sym
+01225     end
+01226     if GameData::DungeonParameters.exists?(hash[:id])
+01227       raise _INTL("Version {1} of dungeon area {2} is defined twice.", hash[:version], hash[:area]) + "\n" + FileLineData.linereport
+01228     end
+01229   end
+01230 
+01231   def validate_all_compiled_dungeon_parameters
+01232   end
+01233 
+01234   #=============================================================================
+01235   # Compile phone messages
+01236   #=============================================================================
+01237   def compile_phone(*paths)
+01238     compile_PBS_file_generic(GameData::PhoneMessage, *paths) do |final_validate, hash|
+01239       (final_validate) ? validate_all_compiled_phone_contacts : validate_compiled_phone_contact(hash)
+01240     end
+01241   end
+01242 
+01243   def validate_compiled_phone_contact(hash)
+01244     # Split trainer type/name/version into their own values, generate compound ID from them
+01245     if hash[:id].strip.downcase == "default"
+01246       hash[:id] = "default"
+01247       hash[:trainer_type] = hash[:id]
+01248     else
+01249       line_data = get_csv_record(hash[:id], [nil, "esU", :TrainerType])
+01250       hash[:trainer_type] = line_data[0]
+01251       hash[:real_name] = line_data[1]
+01252       hash[:version] = line_data[2] || 0
+01253       hash[:id] = [hash[:trainer_type], hash[:real_name], hash[:version]]
+01254     end
+01255   end
+01256 
+01257   def validate_all_compiled_phone_contacts
+01258     # Get all phone messages for translating
+01259     messages = []
+01260     GameData::PhoneMessage.each do |contact|
+01261       [:intro, :intro_morning, :intro_afternoon, :intro_evening, :body, :body1,
+01262        :body2, :battle_request, :battle_remind, :end].each do |msg_type|
+01263         msgs = contact.send(msg_type)
+01264         next if !msgs || msgs.length == 0
+01265         msgs.each { |msg| messages.push(msg) }
+01266       end
+01267     end
+01268     MessageTypes.setMessagesAsHash(MessageTypes::PHONE_MESSAGES, messages)
+01269   end
+01270 
+01271   #=============================================================================
+01272   # Compile battle animations
+01273   #=============================================================================
+01274   def compile_animations
+01275     Console.echo_li(_INTL("Compiling animations..."))
+01276     begin
+01277       pbanims = load_data("Data/PkmnAnimations.rxdata")
+01278     rescue
+01279       pbanims = PBAnimations.new
+01280     end
+01281     changed = false
+01282     move2anim = [{}, {}]
+01283 #    anims = load_data("Data/Animations.rxdata")
+01284 #    for anim in anims
+01285 #      next if !anim || anim.frames.length == 1
+01286 #      found = false
+01287 #      for i in 0...pbanims.length
+01288 #        if pbanims[i] && pbanims[i].id == anim.id
+01289 #          found = true if pbanims[i].array.length > 1
+01290 #          break
+01291 #        end
+01292 #      end
+01293 #      pbanims[anim.id] = pbConvertRPGAnimation(anim) if !found
+01294 #    end
+01295     idx = 0
+01296     pbanims.length.times do |i|
+01297       echo "." if idx % 100 == 0
+01298       Graphics.update if idx % 500 == 0
+01299       idx += 1
+01300       next if !pbanims[i]
+01301       if pbanims[i].name[/^OppMove\:\s*(.*)$/]
+01302         if GameData::Move.exists?($~[1])
+01303           moveid = GameData::Move.get($~[1]).id
+01304           changed = true if !move2anim[0][moveid] || move2anim[1][moveid] != i
+01305           move2anim[1][moveid] = i
+01306         end
+01307       elsif pbanims[i].name[/^Move\:\s*(.*)$/]
+01308         if GameData::Move.exists?($~[1])
+01309           moveid = GameData::Move.get($~[1]).id
+01310           changed = true if !move2anim[0][moveid] || move2anim[0][moveid] != i
+01311           move2anim[0][moveid] = i
+01312         end
+01313       end
+01314     end
+01315     if changed
+01316       save_data(move2anim, "Data/move2anim.dat")
+01317       save_data(pbanims, "Data/PkmnAnimations.rxdata")
+01318     end
+01319     process_pbs_file_message_end
+01320   end
+01321 end

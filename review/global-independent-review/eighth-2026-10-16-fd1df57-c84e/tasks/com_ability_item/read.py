@@ -1,0 +1,5 @@
+import sys,pathlib,json,datetime,hashlib,subprocess
+out=pathlib.Path(__file__).parent
+repo,path,start,end=sys.argv[1],sys.argv[2],int(sys.argv[3]),int(sys.argv[4]);p=pathlib.Path(repo)/path;b=p.read_bytes();ls=b.decode('utf-8-sig').splitlines();end=min(end,len(ls));s='\n'.join(f'{i+1:5} {ls[i]}' for i in range(start-1,end))+'\n'
+d=out/'io';d.mkdir(exist_ok=True);fn=d/f'read-{len(list(d.glob("read-*.json")))+1:04}.json'
+r={'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'repo':repo,'path':path,'range':[start,end],'total_lines':len(ls),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'blob':subprocess.check_output(['git','-C',repo,'hash-object',str(p)]).decode().strip(),'command':sys.argv,'stdout':s,'stderr':'','exit':0,'kind':'SOURCE_STATIC_READ_CAPTURE','semantic_credit':'Actual displayed continuous range only; parsing/capture alone does not grant semantic acceptance.'};fn.write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n');print(s,end='');print('READ_EVIDENCE',fn)

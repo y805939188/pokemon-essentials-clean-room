@@ -1,0 +1,299 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/003_Game processing/005_Event_Handlers.rb", "range": [1, 298], "file_lines": 298, "bytes": 8483, "sha256": "591b86e8f97517f3ac5570816cdb7ad89cdd43bfde17ee348b5fa258c67a9c33", "began_utc": "2026-10-16T03:29:59.114908+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Defines an event that procedures can subscribe to.
+00003 #===============================================================================
+00004 class Event
+00005   def initialize
+00006     @callbacks = []
+00007   end
+00008 
+00009   # Sets an event handler for this event and removes all other event handlers.
+00010   def set(method)
+00011     @callbacks.clear
+00012     @callbacks.push(method)
+00013   end
+00014 
+00015   # Removes an event handler procedure from the event.
+00016   def -(other)
+00017     @callbacks.delete(other)
+00018     return self
+00019   end
+00020 
+00021   # Adds an event handler procedure from the event.
+00022   def +(other)
+00023     return self if @callbacks.include?(other)
+00024     @callbacks.push(other)
+00025     return self
+00026   end
+00027 
+00028   # Clears the event of event handlers.
+00029   def clear
+00030     @callbacks.clear
+00031   end
+00032 
+00033   # Triggers the event and calls all its event handlers.  Normally called only
+00034   # by the code where the event occurred.
+00035   # The first argument is the sender of the event, the second argument contains
+00036   # the event's parameters. If three or more arguments are given, this method
+00037   # supports the following callbacks:
+00038   # proc { |sender,params| } where params is an array of the other parameters, and
+00039   # proc { |sender,arg0,arg1,...| }
+00040   def trigger(*arg)
+00041     arglist = arg[1, arg.length]
+00042     @callbacks.each do |callback|
+00043       if callback.arity > 2 && arg.length == callback.arity
+00044         # Retrofitted for callbacks that take three or more arguments
+00045         callback.call(*arg)
+00046       else
+00047         callback.call(arg[0], arglist)
+00048       end
+00049     end
+00050   end
+00051 
+00052   # Triggers the event and calls all its event handlers. Normally called only
+00053   # by the code where the event occurred. The first argument is the sender of
+00054   # the event, the other arguments are the event's parameters.
+00055   def trigger2(*arg)
+00056     @callbacks.each do |callback|
+00057       callback.call(*arg)
+00058     end
+00059   end
+00060 end
+00061 
+00062 #===============================================================================
+00063 # Same as class Event, but each registered proc has a name (a symbol) so it can
+00064 # be referenced individually.
+00065 #===============================================================================
+00066 class NamedEvent
+00067   def initialize
+00068     @callbacks = {}
+00069   end
+00070 
+00071   # Adds an event handler procedure from the event.
+00072   def add(key, proc)
+00073     @callbacks[key] = proc
+00074   end
+00075 
+00076   # Removes an event handler procedure from the event.
+00077   def remove(key)
+00078     @callbacks.delete(key)
+00079   end
+00080 
+00081   # Clears the event of event handlers.
+00082   def clear
+00083     @callbacks.clear
+00084   end
+00085 
+00086   # Triggers the event and calls all its event handlers. Normally called only
+00087   # by the code where the event occurred.
+00088   def trigger(*args)
+00089     @callbacks.each_value { |callback| callback.call(*args) }
+00090   end
+00091 end
+00092 
+00093 #===============================================================================
+00094 # A class that stores code that can be triggered. Each piece of code has an
+00095 # associated ID, which can be anything that can be used as a key in a hash.
+00096 #===============================================================================
+00097 class HandlerHash
+00098   def initialize
+00099     @hash = {}
+00100   end
+00101 
+00102   def [](id)
+00103     return @hash[id] if id && @hash[id]
+00104     return nil
+00105   end
+00106 
+00107   def add(id, handler = nil, &handlerBlock)
+00108     if ![Proc, Hash].include?(handler.class) && !block_given?
+00109       raise ArgumentError, "#{self.class.name} for #{id.inspect} has no valid handler (#{handler.inspect} was given)"
+00110     end
+00111     @hash[id] = handler || handlerBlock if id && !id.empty?
+00112   end
+00113 
+00114   def copy(src, *dests)
+00115     handler = self[src]
+00116     return if !handler
+00117     dests.each { |dest| add(dest, handler) }
+00118   end
+00119 
+00120   def remove(key)
+00121     @hash.delete(key)
+00122   end
+00123 
+00124   def clear
+00125     @hash.clear
+00126   end
+00127 
+00128   def each
+00129     @hash.each_pair { |key, value| yield key, value }
+00130   end
+00131 
+00132   def keys
+00133     return @hash.keys.clone
+00134   end
+00135 
+00136   # NOTE: The call does not pass id as a parameter to the proc/block.
+00137   def trigger(id, *args)
+00138     handler = self[id]
+00139     return handler&.call(*args)
+00140   end
+00141 end
+00142 
+00143 #===============================================================================
+00144 # A stripped-down version of class HandlerHash which only deals with IDs that
+00145 # are symbols. Also contains an add_ifs hash for code that applies to multiple
+00146 # IDs (determined by its condition proc).
+00147 #===============================================================================
+00148 class HandlerHashSymbol
+00149   def initialize
+00150     @hash    = {}
+00151     @add_ifs = {}
+00152   end
+00153 
+00154   def [](sym)
+00155     sym = sym.id if !sym.is_a?(Symbol) && sym.respond_to?("id")
+00156     return @hash[sym] if sym && @hash[sym]
+00157     @add_ifs.each_value do |add_if|
+00158       return add_if[1] if add_if[0].call(sym)
+00159     end
+00160     return nil
+00161   end
+00162 
+00163   def add(sym, handler = nil, &handlerBlock)
+00164     if ![Proc, Hash].include?(handler.class) && !block_given?
+00165       raise ArgumentError, "#{self.class.name} for #{sym.inspect} has no valid handler (#{handler.inspect} was given)"
+00166     end
+00167     @hash[sym] = handler || handlerBlock if sym
+00168   end
+00169 
+00170   def addIf(sym, conditionProc, handler = nil, &handlerBlock)
+00171     if ![Proc, Hash].include?(handler.class) && !block_given?
+00172       raise ArgumentError, "addIf call for #{sym} in #{self.class.name} has no valid handler (#{handler.inspect} was given)"
+00173     end
+00174     @add_ifs[sym] = [conditionProc, handler || handlerBlock]
+00175   end
+00176 
+00177   def copy(src, *dests)
+00178     handler = self[src]
+00179     return if !handler
+00180     dests.each { |dest| add(dest, handler) }
+00181   end
+00182 
+00183   def remove(key)
+00184     @hash.delete(key)
+00185   end
+00186 
+00187   def clear
+00188     @hash.clear
+00189     @add_ifs.clear
+00190   end
+00191 
+00192   def trigger(sym, *args)
+00193     sym = sym.id if !sym.is_a?(Symbol) && sym.respond_to?("id")
+00194     handler = self[sym]
+00195     return handler&.call(sym, *args)
+00196   end
+00197 end
+00198 
+00199 #===============================================================================
+00200 # A specialised version of class HandlerHash which only deals with IDs that are
+00201 # constants in a particular class or module. That class or module must be
+00202 # defined when creating an instance of this class.
+00203 # Unused.
+00204 #===============================================================================
+00205 class HandlerHashEnum
+00206   def initialize(mod)
+00207     @mod         = mod
+00208     @hash        = {}
+00209     @addIfs      = []
+00210     @symbolCache = {}
+00211   end
+00212 
+00213   # 'sym' can be an ID or symbol.
+00214   def [](sym)
+00215     id = fromSymbol(sym)
+00216     ret = nil
+00217     ret = @hash[id] if id && @hash[id]   # Real ID from the item
+00218     symbol = toSymbol(sym)
+00219     ret = @hash[symbol] if symbol && @hash[symbol]   # Symbol or string
+00220     unless ret
+00221       @addIfs.each do |addif|
+00222         return addif[1] if addif[0].call(id)
+00223       end
+00224     end
+00225     return ret
+00226   end
+00227 
+00228   def fromSymbol(sym)
+00229     return sym unless sym.is_a?(Symbol) || sym.is_a?(String)
+00230     mod = Object.const_get(@mod) rescue nil
+00231     return nil if !mod
+00232     return mod.const_get(sym.to_sym) rescue nil
+00233   end
+00234 
+00235   def toSymbol(sym)
+00236     return sym.to_sym if sym.is_a?(Symbol) || sym.is_a?(String)
+00237     ret = @symbolCache[sym]
+00238     return ret if ret
+00239     mod = Object.const_get(@mod) rescue nil
+00240     return nil if !mod
+00241     mod.constants.each do |key|
+00242       next if mod.const_get(key) != sym
+00243       ret = key.to_sym
+00244       @symbolCache[sym] = ret
+00245       break
+00246     end
+00247     return ret
+00248   end
+00249 
+00250   # 'sym' can be an ID or symbol.
+00251   def add(sym, handler = nil, &handlerBlock)
+00252     if ![Proc, Hash].include?(handler.class) && !block_given?
+00253       raise ArgumentError, "#{self.class.name} for #{sym.inspect} has no valid handler (#{handler.inspect} was given)"
+00254     end
+00255     id = fromSymbol(sym)
+00256     @hash[id] = handler || handlerBlock if id
+00257     symbol = toSymbol(sym)
+00258     @hash[symbol] = handler || handlerBlock if symbol
+00259   end
+00260 
+00261   def addIf(conditionProc, handler = nil, &handlerBlock)
+00262     if ![Proc, Hash].include?(handler.class) && !block_given?
+00263       raise ArgumentError, "addIf call for #{self.class.name} has no valid handler (#{handler.inspect} was given)"
+00264     end
+00265     @addIfs.push([conditionProc, handler || handlerBlock])
+00266   end
+00267 
+00268   def copy(src, *dests)
+00269     handler = self[src]
+00270     return if !handler
+00271     dests.each { |dest| self.add(dest, handler) }
+00272   end
+00273 
+00274   def clear
+00275     @hash.clear
+00276     @addIfs.clear
+00277   end
+00278 
+00279   def trigger(sym, *args)
+00280     handler = self[sym]
+00281     return (handler) ? handler.call(fromSymbol(sym), *args) : nil
+00282   end
+00283 end
+00284 
+00285 #===============================================================================
+00286 #
+00287 #===============================================================================
+00288 class SpeciesHandlerHash < HandlerHashSymbol
+00289 end
+00290 
+00291 class AbilityHandlerHash < HandlerHashSymbol
+00292 end
+00293 
+00294 class ItemHandlerHash < HandlerHashSymbol
+00295 end
+00296 
+00297 class MoveHandlerHash < HandlerHashSymbol
+00298 end

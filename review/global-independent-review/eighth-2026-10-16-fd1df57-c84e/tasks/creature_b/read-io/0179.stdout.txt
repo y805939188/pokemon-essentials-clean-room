@@ -1,0 +1,207 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/008_UI_Pokegear.rb", "range": [1, 206], "file_lines": 206, "bytes": 5692, "sha256": "2c9a4212e0154d477b8b783dd03a6abb7ae1a4bca1fbac1d8f314054e8231530", "began_utc": "2026-10-16T04:06:55.409071+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 class PokegearButton < Sprite
+00005   attr_reader :index
+00006   attr_reader :name
+00007   attr_reader :selected
+00008 
+00009   TEXT_BASE_COLOR = Color.new(248, 248, 248)
+00010   TEXT_SHADOW_COLOR = Color.new(40, 40, 40)
+00011 
+00012   def initialize(command, x, y, viewport = nil)
+00013     super(viewport)
+00014     @image = command[0]
+00015     @name  = command[1]
+00016     @selected = false
+00017     if $player.female? && pbResolveBitmap("Graphics/UI/Pokegear/icon_button_f")
+00018       @button = AnimatedBitmap.new("Graphics/UI/Pokegear/icon_button_f")
+00019     else
+00020       @button = AnimatedBitmap.new("Graphics/UI/Pokegear/icon_button")
+00021     end
+00022     @contents = Bitmap.new(@button.width, @button.height)
+00023     self.bitmap = @contents
+00024     self.x = x - (@button.width / 2)
+00025     self.y = y
+00026     pbSetSystemFont(self.bitmap)
+00027     refresh
+00028   end
+00029 
+00030   def dispose
+00031     @button.dispose
+00032     @contents.dispose
+00033     super
+00034   end
+00035 
+00036   def selected=(val)
+00037     oldsel = @selected
+00038     @selected = val
+00039     refresh if oldsel != val
+00040   end
+00041 
+00042   def refresh
+00043     self.bitmap.clear
+00044     rect = Rect.new(0, 0, @button.width, @button.height / 2)
+00045     rect.y = @button.height / 2 if @selected
+00046     self.bitmap.blt(0, 0, @button.bitmap, rect)
+00047     textpos = [
+00048       [@name, rect.width / 2, (rect.height / 2) - 10, :center, TEXT_BASE_COLOR, TEXT_SHADOW_COLOR]
+00049     ]
+00050     pbDrawTextPositions(self.bitmap, textpos)
+00051     imagepos = [
+00052       [sprintf("Graphics/UI/Pokegear/icon_%s", @image), 18, 10]
+00053     ]
+00054     pbDrawImagePositions(self.bitmap, imagepos)
+00055   end
+00056 end
+00057 
+00058 #===============================================================================
+00059 #
+00060 #===============================================================================
+00061 class PokemonPokegear_Scene
+00062   def pbUpdate
+00063     @commands.length.times do |i|
+00064       @sprites["button#{i}"].selected = (i == @index)
+00065     end
+00066     pbUpdateSpriteHash(@sprites)
+00067   end
+00068 
+00069   def pbStartScene(commands)
+00070     @commands = commands
+00071     @index = 0
+00072     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00073     @viewport.z = 99999
+00074     @sprites = {}
+00075     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+00076     if $player.female? && pbResolveBitmap("Graphics/UI/Pokegear/bg_f")
+00077       @sprites["background"].setBitmap("Graphics/UI/Pokegear/bg_f")
+00078     else
+00079       @sprites["background"].setBitmap("Graphics/UI/Pokegear/bg")
+00080     end
+00081     @commands.length.times do |i|
+00082       @sprites["button#{i}"] = PokegearButton.new(@commands[i], Graphics.width / 2, 0, @viewport)
+00083       button_height = @sprites["button#{i}"].bitmap.height / 2
+00084       @sprites["button#{i}"].y = ((Graphics.height - (@commands.length * button_height)) / 2) + (i * button_height)
+00085     end
+00086     pbFadeInAndShow(@sprites) { pbUpdate }
+00087   end
+00088 
+00089   def pbScene
+00090     ret = -1
+00091     loop do
+00092       Graphics.update
+00093       Input.update
+00094       pbUpdate
+00095       if Input.trigger?(Input::BACK)
+00096         pbPlayCloseMenuSE
+00097         break
+00098       elsif Input.trigger?(Input::USE)
+00099         pbPlayDecisionSE
+00100         ret = @index
+00101         break
+00102       elsif Input.trigger?(Input::UP)
+00103         pbPlayCursorSE if @commands.length > 1
+00104         @index -= 1
+00105         @index = @commands.length - 1 if @index < 0
+00106       elsif Input.trigger?(Input::DOWN)
+00107         pbPlayCursorSE if @commands.length > 1
+00108         @index += 1
+00109         @index = 0 if @index >= @commands.length
+00110       end
+00111     end
+00112     return ret
+00113   end
+00114 
+00115   def pbEndScene
+00116     pbFadeOutAndHide(@sprites) { pbUpdate }
+00117     dispose
+00118   end
+00119 
+00120   def dispose
+00121     pbDisposeSpriteHash(@sprites)
+00122     @viewport.dispose
+00123   end
+00124 end
+00125 
+00126 #===============================================================================
+00127 #
+00128 #===============================================================================
+00129 class PokemonPokegearScreen
+00130   def initialize(scene)
+00131     @scene = scene
+00132   end
+00133 
+00134   def pbStartScreen
+00135     # Get all commands
+00136     command_list = []
+00137     commands = []
+00138     MenuHandlers.each_available(:pokegear_menu) do |option, hash, name|
+00139       command_list.push([hash["icon_name"] || "", name])
+00140       commands.push(hash)
+00141     end
+00142     @scene.pbStartScene(command_list)
+00143     # Main loop
+00144     end_scene = false
+00145     loop do
+00146       choice = @scene.pbScene
+00147       if choice < 0
+00148         end_scene = true
+00149         break
+00150       end
+00151       break if commands[choice]["effect"].call(@scene)
+00152     end
+00153     @scene.pbEndScene if end_scene
+00154   end
+00155 end
+00156 
+00157 #===============================================================================
+00158 #
+00159 #===============================================================================
+00160 MenuHandlers.add(:pokegear_menu, :map, {
+00161   "name"      => _INTL("Map"),
+00162   "icon_name" => "map",
+00163   "order"     => 10,
+00164   "effect"    => proc { |menu|
+00165     pbFadeOutIn do
+00166       scene = PokemonRegionMap_Scene.new(-1, false)
+00167       screen = PokemonRegionMapScreen.new(scene)
+00168       ret = screen.pbStartScreen
+00169       if ret
+00170         $game_temp.fly_destination = ret
+00171         menu.dispose
+00172         next 99999
+00173       end
+00174     end
+00175     next $game_temp.fly_destination
+00176   }
+00177 })
+00178 
+00179 MenuHandlers.add(:pokegear_menu, :phone, {
+00180   "name"      => _INTL("Phone"),
+00181   "icon_name" => "phone",
+00182   "order"     => 20,
+00183 #  "condition" => proc { next $PokemonGlobal.phone && $PokemonGlobal.phone.contacts.length > 0 },
+00184   "effect"    => proc { |menu|
+00185     pbFadeOutIn do
+00186       scene = PokemonPhone_Scene.new
+00187       screen = PokemonPhoneScreen.new(scene)
+00188       screen.pbStartScreen
+00189     end
+00190     next false
+00191   }
+00192 })
+00193 
+00194 MenuHandlers.add(:pokegear_menu, :jukebox, {
+00195   "name"      => _INTL("Jukebox"),
+00196   "icon_name" => "jukebox",
+00197   "order"     => 30,
+00198   "effect"    => proc { |menu|
+00199     pbFadeOutIn do
+00200       scene = PokemonJukebox_Scene.new
+00201       screen = PokemonJukeboxScreen.new(scene)
+00202       screen.pbStartScreen
+00203     end
+00204     next false
+00205   }
+00206 })

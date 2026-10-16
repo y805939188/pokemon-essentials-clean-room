@@ -1,0 +1,333 @@
+00516   def pbGetCsvRecord(rec, lineno, schema)
+00517     Deprecation.warn_method("pbGetCsvRecord", "v22", "get_csv_record")
+00518     record = []
+00519     repeat = false
+00520     schema_length = schema[1].length
+00521     start = 0
+00522     case schema[1][0, 1]
+00523     when "*"
+00524       repeat = true
+00525       start = 1
+00526     when "^"
+00527       start = 1
+00528       schema_length -= 1
+00529     end
+00530     subarrays = repeat && schema[1].length > 2
+00531     loop do
+00532       subrecord = []
+00533       (start...schema[1].length).each do |i|
+00534         chr = schema[1][i, 1]
+00535         case chr
+00536         when "i"   # Integer
+00537           subrecord.push(csvInt!(rec, lineno))
+00538         when "I"   # Optional integer
+00539           field = csvfield!(rec)
+00540           if nil_or_empty?(field)
+00541             subrecord.push(nil)
+00542           elsif !field[/^\-?\d+$/]
+00543             raise _INTL("Field '{1}' is not an integer.", field) + "\n" + FileLineData.linereport
+00544           else
+00545             subrecord.push(field.to_i)
+00546           end
+00547         when "u"   # Positive integer or zero
+00548           subrecord.push(csvPosInt!(rec, lineno))
+00549         when "U"   # Optional positive integer or zero
+00550           field = csvfield!(rec)
+00551           if nil_or_empty?(field)
+00552             subrecord.push(nil)
+00553           elsif !field[/^\d+$/]
+00554             raise _INTL("Field '{1}' must be 0 or greater.", field) + "\n" + FileLineData.linereport
+00555           else
+00556             subrecord.push(field.to_i)
+00557           end
+00558         when "v"   # Positive integer
+00559           field = csvPosInt!(rec, lineno)
+00560           raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport if field == 0
+00561           subrecord.push(field)
+00562         when "V"   # Optional positive integer
+00563           field = csvfield!(rec)
+00564           if nil_or_empty?(field)
+00565             subrecord.push(nil)
+00566           elsif !field[/^\d+$/]
+00567             raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport
+00568           elsif field.to_i == 0
+00569             raise _INTL("Field '{1}' must be greater than 0.", field) + "\n" + FileLineData.linereport
+00570           else
+00571             subrecord.push(field.to_i)
+00572           end
+00573         when "x"   # Hexadecimal number
+00574           field = csvfield!(rec)
+00575           if !field[/^[A-Fa-f0-9]+$/]
+00576             raise _INTL("Field '{1}' is not a hexadecimal number.", field) + "\n" + FileLineData.linereport
+00577           end
+00578           subrecord.push(field.hex)
+00579         when "X"   # Optional hexadecimal number
+00580           field = csvfield!(rec)
+00581           if nil_or_empty?(field)
+00582             subrecord.push(nil)
+00583           elsif !field[/^[A-Fa-f0-9]+$/]
+00584             raise _INTL("Field '{1}' is not a hexadecimal number.", field) + "\n" + FileLineData.linereport
+00585           else
+00586             subrecord.push(field.hex)
+00587           end
+00588         when "f"   # Floating point number
+00589           subrecord.push(csvFloat!(rec, lineno))
+00590         when "F"   # Optional floating point number
+00591           field = csvfield!(rec)
+00592           if nil_or_empty?(field)
+00593             subrecord.push(nil)
+00594           elsif !field[/^\-?^\d*\.?\d*$/]
+00595             raise _INTL("Field '{1}' is not a floating point number.", field) + "\n" + FileLineData.linereport
+00596           else
+00597             subrecord.push(field.to_f)
+00598           end
+00599         when "b"   # Boolean
+00600           subrecord.push(csvBoolean!(rec, lineno))
+00601         when "B"   # Optional Boolean
+00602           field = csvfield!(rec)
+00603           if nil_or_empty?(field)
+00604             subrecord.push(nil)
+00605           elsif field[/^1|[Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|[Tt]|[Yy]$/]
+00606             subrecord.push(true)
+00607           else
+00608             subrecord.push(false)
+00609           end
+00610         when "n"   # Name
+00611           field = csvfield!(rec)
+00612           if !field[/^(?![0-9])\w+$/]
+00613             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+00614           end
+00615           subrecord.push(field)
+00616         when "N"   # Optional name
+00617           field = csvfield!(rec)
+00618           if nil_or_empty?(field)
+00619             subrecord.push(nil)
+00620           elsif !field[/^(?![0-9])\w+$/]
+00621             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+00622           else
+00623             subrecord.push(field)
+00624           end
+00625         when "s"   # String
+00626           subrecord.push(csvfield!(rec))
+00627         when "S"   # Optional string
+00628           field = csvfield!(rec)
+00629           subrecord.push((nil_or_empty?(field)) ? nil : field)
+00630         when "q"   # Unformatted text
+00631           subrecord.push(rec)
+00632           rec = ""
+00633         when "Q"   # Optional unformatted text
+00634           if nil_or_empty?(rec)
+00635             subrecord.push(nil)
+00636           else
+00637             subrecord.push(rec)
+00638             rec = ""
+00639           end
+00640         when "m"   # Symbol
+00641           field = csvfield!(rec)
+00642           if !field[/^(?![0-9])\w+$/]
+00643             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+00644           end
+00645           subrecord.push(field.to_sym)
+00646         when "M"   # Optional symbol
+00647           field = csvfield!(rec)
+00648           if nil_or_empty?(field)
+00649             subrecord.push(nil)
+00650           elsif !field[/^(?![0-9])\w+$/]
+00651             raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", field) + "\n" + FileLineData.linereport
+00652           else
+00653             subrecord.push(field.to_sym)
+00654           end
+00655         when "e"   # Enumerable
+00656           subrecord.push(csvEnumField!(rec, schema[2 + i - start], "", FileLineData.linereport))
+00657         when "E"   # Optional enumerable
+00658           field = csvfield!(rec)
+00659           subrecord.push(checkEnumFieldOrNil(field, schema[2 + i - start]))
+00660         when "y"   # Enumerable or integer
+00661           field = csvfield!(rec)
+00662           subrecord.push(csvEnumFieldOrInt!(field, schema[2 + i - start], "", FileLineData.linereport))
+00663         when "Y"   # Optional enumerable or integer
+00664           field = csvfield!(rec)
+00665           if nil_or_empty?(field)
+00666             subrecord.push(nil)
+00667           elsif field[/^\-?\d+$/]
+00668             subrecord.push(field.to_i)
+00669           else
+00670             subrecord.push(checkEnumFieldOrNil(field, schema[2 + i - start]))
+00671           end
+00672         end
+00673       end
+00674       if !subrecord.empty?
+00675         if subarrays
+00676           record.push(subrecord)
+00677         else
+00678           record.concat(subrecord)
+00679         end
+00680       end
+00681       break if repeat && nil_or_empty?(rec)
+00682       break unless repeat
+00683     end
+00684     return (!repeat && schema_length == 1) ? record[0] : record
+00685   end
+00686 
+00687   #=============================================================================
+00688   # Convert a string to values using a schema
+00689   #=============================================================================
+00690   def get_csv_record(rec, schema)
+00691     ret = []
+00692     repeat = false
+00693     start = 0
+00694     schema_length = schema[1].length
+00695     case schema[1][0, 1]   # First character in schema
+00696     when "*"
+00697       repeat = true
+00698       start = 1
+00699     when "^"
+00700       start = 1
+00701       schema_length -= 1
+00702     end
+00703     subarrays = repeat && schema[1].length - start > 1   # Whether ret is an array of arrays
+00704     # Split the string on commas into an array of values to apply the schema to
+00705     values = split_csv_line(rec)
+00706     # Apply the schema to each value in the line
+00707     idx = -1   # Index of value to look at in values
+00708     loop do
+00709       record = []
+00710       (start...schema[1].length).each do |i|
+00711         idx += 1
+00712         sche = schema[1][i, 1]
+00713         if sche[/[A-Z]/]   # Upper case = optional
+00714           if nil_or_empty?(values[idx])
+00715             record.push(nil)
+00716             next
+00717           end
+00718         end
+00719         if sche.downcase == "q"   # Unformatted text
+00720           record.push(rec)
+00721           idx = values.length
+00722           break
+00723         else
+00724           record.push(cast_csv_value(values[idx], sche, schema[2 + i - start]))
+00725         end
+00726       end
+00727       if !record.empty?
+00728         if subarrays
+00729           ret.push(record)
+00730         else
+00731           ret.concat(record)
+00732         end
+00733       end
+00734       break if !repeat || idx >= values.length - 1
+00735     end
+00736     return (!repeat && schema_length == 1) ? ret[0] : ret
+00737   end
+00738 
+00739   #=============================================================================
+00740   # Write values to a file using a schema
+00741   #=============================================================================
+00742   def pbWriteCsvRecord(record, file, schema)
+00743     rec = (record.is_a?(Array)) ? record.flatten : [record]
+00744     start = (["*", "^"].include?(schema[1][0, 1])) ? 1 : 0
+00745     index = -1
+00746     loop do
+00747       (start...schema[1].length).each do |i|
+00748         index += 1
+00749         value = rec[index]
+00750         if schema[1][i, 1][/[A-Z]/]   # Optional
+00751           # Check the rest of the values for non-nil things
+00752           later_value_found = false
+00753           (index...rec.length).each do |j|
+00754             later_value_found = true if !rec[j].nil?
+00755             break if later_value_found
+00756           end
+00757           if !later_value_found
+00758             start = -1
+00759             break
+00760           end
+00761         end
+00762         file.write(",") if index > 0
+00763         next if value.nil?
+00764         case schema[1][i, 1]
+00765         when "e", "E"   # Enumerable
+00766           enumer = schema[2 + i - start]
+00767           case enumer
+00768           when Array
+00769             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+00770           when Symbol, String
+00771             if GameData.const_defined?(enumer.to_sym)
+00772               mod = GameData.const_get(enumer.to_sym)
+00773               file.write(mod.get(value).id.to_s)
+00774             else
+00775               mod = Object.const_get(enumer.to_sym)
+00776               file.write(getConstantName(mod, value))
+00777             end
+00778           when Module
+00779             file.write(getConstantName(enumer, value))
+00780           when Hash
+00781             if value.is_a?(String)
+00782               file.write(value)
+00783             else
+00784               enumer.each_key do |key|
+00785                 next if enumer[key] != value
+00786                 file.write(key)
+00787                 break
+00788               end
+00789             end
+00790           end
+00791         when "y", "Y"   # Enumerable or integer
+00792           enumer = schema[2 + i - start]
+00793           case enumer
+00794           when Array
+00795             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+00796           when Symbol, String
+00797             if !Kernel.const_defined?(enumer.to_sym) && GameData.const_defined?(enumer.to_sym)
+00798               mod = GameData.const_get(enumer.to_sym)
+00799               if mod.exists?(value)
+00800                 file.write(mod.get(value).id.to_s)
+00801               else
+00802                 file.write(value.to_s)
+00803               end
+00804             else
+00805               mod = Object.const_get(enumer.to_sym)
+00806               file.write(getConstantNameOrValue(mod, value))
+00807             end
+00808           when Module
+00809             file.write(getConstantNameOrValue(enumer, value))
+00810           when Hash
+00811             if value.is_a?(String)
+00812               file.write(value)
+00813             else
+00814               has_enum = false
+00815               enumer.each_key do |key|
+00816                 next if enumer[key] != value
+00817                 file.write(key)
+00818                 has_enum = true
+00819                 break
+00820               end
+00821               file.write(value) if !has_enum
+00822             end
+00823           end
+00824         else
+00825           if value.is_a?(String)
+00826             file.write((schema[1][i, 1].downcase == "q") ? value : csvQuote(value))
+00827           elsif value.is_a?(Symbol)
+00828             file.write(csvQuote(value.to_s))
+00829           elsif value == true
+00830             file.write("true")
+00831           elsif value == false
+00832             file.write("false")
+00833           else
+00834             file.write(value.inspect)
+00835           end
+00836         end
+00837       end
+00838       break if start > 0 && index >= rec.length - 1
+00839       break if start <= 0
+00840     end
+00841     return record
+00842   end
+00843 
+00844   #=============================================================================
+00845   # Parse string into a likely constant name and return its ID number (if any).
+00846   # Last ditch attempt to figure out whether a constant is defined.
+00847   #=============================================================================
+00848   # Unused

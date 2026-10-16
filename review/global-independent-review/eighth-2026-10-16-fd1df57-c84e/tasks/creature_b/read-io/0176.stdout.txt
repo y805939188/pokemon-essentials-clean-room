@@ -1,0 +1,261 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/002_Battle_StartAndEnd.rb", "range": [1, 260], "file_lines": 568, "bytes": 23136, "sha256": "e7d7b37b0a60fe4489f4252642abba52085ed344115acc36f42cf675e5fc1ee1", "began_utc": "2026-10-16T04:00:05.092416+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 class Battle
+00002   class BattleAbortedException < Exception; end
+00003 
+00004   def pbAbort
+00005     raise BattleAbortedException.new("Battle aborted")
+00006   end
+00007 
+00008   #=============================================================================
+00009   # Makes sure all Pokémon exist that need to. Alter the type of battle if
+00010   # necessary. Will never try to create battler positions, only delete them
+00011   # (except for wild Pokémon whose number of positions are fixed). Reduces the
+00012   # size of each side by 1 and tries again. If the side sizes are uneven, only
+00013   # the larger side's size will be reduced by 1 each time, until both sides are
+00014   # an equal size (then both sides will be reduced equally).
+00015   #=============================================================================
+00016   def pbEnsureParticipants
+00017     # Prevent battles larger than 2v2 if both sides have multiple trainers
+00018     # NOTE: This is necessary to ensure that battlers can never become unable to
+00019     #       hit each other due to being too far away. In such situations,
+00020     #       battlers will move to the centre position at the end of a round, but
+00021     #       because they cannot move into a position owned by a different
+00022     #       trainer, it's possible that battlers will be unable to move close
+00023     #       enough to hit each other if there are multiple trainers on both
+00024     #       sides.
+00025     if trainerBattle? && (@sideSizes[0] > 2 || @sideSizes[1] > 2) &&
+00026        @player.length > 1 && @opponent.length > 1
+00027       raise _INTL("Can't have battles larger than 2v2 where both sides have multiple trainers")
+00028     end
+00029     # Find out how many Pokémon each trainer has
+00030     side1counts = pbAbleTeamCounts(0)
+00031     side2counts = pbAbleTeamCounts(1)
+00032     # Change the size of the battle depending on how many wild Pokémon there are
+00033     if wildBattle? && side2counts[0] != @sideSizes[1]
+00034       if @sideSizes[0] == @sideSizes[1]
+00035         # Even number of battlers per side, change both equally
+00036         @sideSizes = [side2counts[0], side2counts[0]]
+00037       else
+00038         # Uneven number of battlers per side, just change wild side's size
+00039         @sideSizes[1] = side2counts[0]
+00040       end
+00041     end
+00042     # Check if battle is possible, including changing the number of battlers per
+00043     # side if necessary
+00044     loop do
+00045       needsChanging = false
+00046       2.times do |side|   # Each side in turn
+00047         next if side == 1 && wildBattle?   # Wild side's size already checked above
+00048         sideCounts = (side == 0) ? side1counts : side2counts
+00049         requireds = []
+00050         # Find out how many Pokémon each trainer on side needs to have
+00051         @sideSizes[side].times do |i|
+00052           idxTrainer = pbGetOwnerIndexFromBattlerIndex((i * 2) + side)
+00053           requireds[idxTrainer] = 0 if requireds[idxTrainer].nil?
+00054           requireds[idxTrainer] += 1
+00055         end
+00056         # Compare the have values with the need values
+00057         if requireds.length > sideCounts.length
+00058           raise _INTL("Error: def pbGetOwnerIndexFromBattlerIndex gives invalid owner index ({1} for battle type {2}v{3}, trainers {4}v{5})",
+00059                       requireds.length - 1, @sideSizes[0], @sideSizes[1], side1counts.length, side2counts.length)
+00060         end
+00061         sideCounts.each_with_index do |_count, i|
+00062           if !requireds[i] || requireds[i] == 0
+00063             case side
+00064             when 0
+00065               raise _INTL("Player-side trainer {1} has no battler position for their Pokémon to go (trying {2}v{3} battle)",
+00066                           i + 1, @sideSizes[0], @sideSizes[1])
+00067             when 1
+00068               raise _INTL("Opposing trainer {1} has no battler position for their Pokémon to go (trying {2}v{3} battle)",
+00069                           i + 1, @sideSizes[0], @sideSizes[1])
+00070             end
+00071           end
+00072           next if requireds[i] <= sideCounts[i]   # Trainer has enough Pokémon to fill their positions
+00073           if requireds[i] == 1
+00074             raise _INTL("Player-side trainer {1} has no able Pokémon", i + 1) if side == 0
+00075             raise _INTL("Opposing trainer {1} has no able Pokémon", i + 1) if side == 1
+00076           end
+00077           # Not enough Pokémon, try lowering the number of battler positions
+00078           needsChanging = true
+00079           break
+00080         end
+00081         break if needsChanging
+00082       end
+00083       break if !needsChanging
+00084       # Reduce one or both side's sizes by 1 and try again
+00085       if wildBattle?
+00086         PBDebug.log("#{@sideSizes[0]}v#{@sideSizes[1]} battle isn't possible " +
+00087                     "(#{side1counts} player-side teams versus #{side2counts[0]} wild Pokémon)")
+00088         newSize = @sideSizes[0] - 1
+00089       else
+00090         PBDebug.log("#{@sideSizes[0]}v#{@sideSizes[1]} battle isn't possible " +
+00091                     "(#{side1counts} player-side teams versus #{side2counts} opposing teams)")
+00092         newSize = @sideSizes.max - 1
+00093       end
+00094       if newSize == 0
+00095         raise _INTL("Couldn't lower either side's size any further, battle isn't possible")
+00096       end
+00097       2.times do |side|
+00098         next if side == 1 && wildBattle?   # Wild Pokémon's side size is fixed
+00099         next if @sideSizes[side] == 1 || newSize > @sideSizes[side]
+00100         @sideSizes[side] = newSize
+00101       end
+00102       PBDebug.log("Trying #{@sideSizes[0]}v#{@sideSizes[1]} battle instead")
+00103     end
+00104   end
+00105 
+00106   #=============================================================================
+00107   # Set up all battlers
+00108   #=============================================================================
+00109   def pbCreateBattler(idxBattler, pkmn, idxParty)
+00110     if !@battlers[idxBattler].nil?
+00111       raise _INTL("Battler index {1} already exists", idxBattler)
+00112     end
+00113     @battlers[idxBattler] = Battler.new(self, idxBattler)
+00114     @positions[idxBattler] = ActivePosition.new
+00115     pbClearChoice(idxBattler)
+00116     @successStates[idxBattler] = SuccessState.new
+00117     @battlers[idxBattler].pbInitialize(pkmn, idxParty)
+00118   end
+00119 
+00120   def pbSetUpSides
+00121     ret = [[], []]
+00122     2.times do |side|
+00123       # Set up wild Pokémon
+00124       if side == 1 && wildBattle?
+00125         pbParty(1).each_with_index do |pkmn, idxPkmn|
+00126           pbCreateBattler((2 * idxPkmn) + side, pkmn, idxPkmn)
+00127           # Changes the Pokémon's form upon entering battle (if it should)
+00128           @peer.pbOnEnteringBattle(self, @battlers[(2 * idxPkmn) + side], pkmn, true)
+00129           pbSetSeen(@battlers[(2 * idxPkmn) + side])
+00130           @usedInBattle[side][idxPkmn] = true
+00131         end
+00132         next
+00133       end
+00134       # Set up player's Pokémon and trainers' Pokémon
+00135       trainer = (side == 0) ? @player : @opponent
+00136       requireds = []
+00137       # Find out how many Pokémon each trainer on side needs to have
+00138       @sideSizes[side].times do |i|
+00139         idxTrainer = pbGetOwnerIndexFromBattlerIndex((i * 2) + side)
+00140         requireds[idxTrainer] = 0 if requireds[idxTrainer].nil?
+00141         requireds[idxTrainer] += 1
+00142       end
+00143       # For each trainer in turn, find the needed number of Pokémon for them to
+00144       # send out, and initialize them
+00145       battlerNumber = 0
+00146       partyOrder = pbPartyOrder(side)
+00147       starts = pbPartyStarts(side)
+00148       trainer.each_with_index do |_t, idxTrainer|
+00149         ret[side][idxTrainer] = []
+00150         eachInTeam(side, idxTrainer) do |pkmn, idxPkmn|
+00151           next if !pkmn.able?
+00152           idxBattler = (2 * battlerNumber) + side
+00153           pbCreateBattler(idxBattler, pkmn, idxPkmn)
+00154           ret[side][idxTrainer].push(idxBattler)
+00155           if idxPkmn != starts[idxTrainer] + battlerNumber
+00156             idxOther = starts[idxTrainer] + battlerNumber
+00157             partyOrder[idxPkmn], partyOrder[idxOther] = partyOrder[idxOther], partyOrder[idxPkmn]
+00158           end
+00159           battlerNumber += 1
+00160           break if ret[side][idxTrainer].length >= requireds[idxTrainer]
+00161         end
+00162       end
+00163     end
+00164     return ret
+00165   end
+00166 
+00167   #=============================================================================
+00168   # Send out all battlers at the start of battle
+00169   #=============================================================================
+00170   def pbStartBattleSendOut(sendOuts)
+00171     # "Want to battle" messages
+00172     if wildBattle?
+00173       foeParty = pbParty(1)
+00174       case foeParty.length
+00175       when 1
+00176         pbDisplayPaused(_INTL("Oh! A wild {1} appeared!", foeParty[0].name))
+00177       when 2
+00178         pbDisplayPaused(_INTL("Oh! A wild {1} and {2} appeared!", foeParty[0].name,
+00179                               foeParty[1].name))
+00180       when 3
+00181         pbDisplayPaused(_INTL("Oh! A wild {1}, {2} and {3} appeared!", foeParty[0].name,
+00182                               foeParty[1].name, foeParty[2].name))
+00183       end
+00184     else   # Trainer battle
+00185       case @opponent.length
+00186       when 1
+00187         pbDisplayPaused(_INTL("You are challenged by {1}!", @opponent[0].full_name))
+00188       when 2
+00189         pbDisplayPaused(_INTL("You are challenged by {1} and {2}!", @opponent[0].full_name,
+00190                               @opponent[1].full_name))
+00191       when 3
+00192         pbDisplayPaused(_INTL("You are challenged by {1}, {2} and {3}!",
+00193                               @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))
+00194       end
+00195     end
+00196     # Send out Pokémon (opposing trainers first)
+00197     [1, 0].each do |side|
+00198       next if side == 1 && wildBattle?
+00199       msg = ""
+00200       toSendOut = []
+00201       trainers = (side == 0) ? @player : @opponent
+00202       # Opposing trainers and partner trainers's messages about sending out Pokémon
+00203       trainers.each_with_index do |t, i|
+00204         next if side == 0 && i == 0   # The player's message is shown last
+00205         msg += "\n" if msg.length > 0
+00206         sent = sendOuts[side][i]
+00207         case sent.length
+00208         when 1
+00209           msg += _INTL("{1} sent out {2}!", t.full_name, @battlers[sent[0]].name)
+00210         when 2
+00211           msg += _INTL("{1} sent out {2} and {3}!", t.full_name,
+00212                        @battlers[sent[0]].name, @battlers[sent[1]].name)
+00213         when 3
+00214           msg += _INTL("{1} sent out {2}, {3} and {4}!", t.full_name,
+00215                        @battlers[sent[0]].name, @battlers[sent[1]].name, @battlers[sent[2]].name)
+00216         end
+00217         toSendOut.concat(sent)
+00218       end
+00219       # The player's message about sending out Pokémon
+00220       if side == 0
+00221         msg += "\n" if msg.length > 0
+00222         sent = sendOuts[side][0]
+00223         case sent.length
+00224         when 1
+00225           msg += _INTL("Go! {1}!", @battlers[sent[0]].name)
+00226         when 2
+00227           msg += _INTL("Go! {1} and {2}!", @battlers[sent[0]].name, @battlers[sent[1]].name)
+00228         when 3
+00229           msg += _INTL("Go! {1}, {2} and {3}!", @battlers[sent[0]].name,
+00230                        @battlers[sent[1]].name, @battlers[sent[2]].name)
+00231         end
+00232         toSendOut.concat(sent)
+00233       end
+00234       pbDisplayBrief(msg) if msg.length > 0
+00235       # The actual sending out of Pokémon
+00236       animSendOuts = []
+00237       toSendOut.each do |idxBattler|
+00238         animSendOuts.push([idxBattler, @battlers[idxBattler].pokemon])
+00239       end
+00240       pbSendOut(animSendOuts, true)
+00241     end
+00242   end
+00243 
+00244   #=============================================================================
+00245   # Start a battle
+00246   #=============================================================================
+00247   def pbStartBattle
+00248     PBDebug.log("")
+00249     PBDebug.log("================================================================")
+00250     PBDebug.log("")
+00251     logMsg = "[Started battle] "
+00252     if @sideSizes[0] == 1 && @sideSizes[1] == 1
+00253       logMsg += "Single "
+00254     elsif @sideSizes[0] == 2 && @sideSizes[1] == 2
+00255       logMsg += "Double "
+00256     elsif @sideSizes[0] == 3 && @sideSizes[1] == 3
+00257       logMsg += "Triple "
+00258     else
+00259       logMsg += "#{@sideSizes[0]}v#{@sideSizes[1]} "
+00260     end

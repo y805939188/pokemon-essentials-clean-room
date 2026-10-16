@@ -1,0 +1,401 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/005_UI_Party.rb", "range": [801, 1200], "file_lines": 1560, "bytes": 51181, "sha256": "6717a61c57d70ea534e7f6d1e76af05dd0ba725494ff75973691d126aba3ef6d", "began_utc": "2026-10-16T03:31:53.624143+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00801 
+00802   def pbChangeSelection(key, currentsel)
+00803     numsprites = Settings::MAX_PARTY_SIZE + ((@multiselect) ? 2 : 1)
+00804     case key
+00805     when Input::LEFT
+00806       loop do
+00807         currentsel -= 1
+00808         break unless currentsel > 0 && currentsel < Settings::MAX_PARTY_SIZE && !@party[currentsel]
+00809       end
+00810       if currentsel >= @party.length && currentsel < Settings::MAX_PARTY_SIZE
+00811         currentsel = @party.length - 1
+00812       end
+00813       currentsel = numsprites - 1 if currentsel < 0
+00814     when Input::RIGHT
+00815       loop do
+00816         currentsel += 1
+00817         break unless currentsel < Settings::MAX_PARTY_SIZE && !@party[currentsel]
+00818       end
+00819       if currentsel == numsprites
+00820         currentsel = (@party.length == 0) ? Settings::MAX_PARTY_SIZE : 0
+00821       end
+00822     when Input::UP
+00823       if currentsel >= Settings::MAX_PARTY_SIZE
+00824         currentsel -= 1
+00825         while currentsel > 0 && currentsel < Settings::MAX_PARTY_SIZE && !@party[currentsel]
+00826           currentsel -= 1
+00827         end
+00828         currentsel = numsprites - 1 if currentsel < Settings::MAX_PARTY_SIZE && currentsel >= @party.length
+00829       else
+00830         loop do
+00831           currentsel -= 2
+00832           break unless currentsel > 0 && !@party[currentsel]
+00833         end
+00834       end
+00835       if currentsel >= @party.length && currentsel < Settings::MAX_PARTY_SIZE
+00836         currentsel = @party.length - 1
+00837       end
+00838       currentsel = numsprites - 1 if currentsel < 0
+00839     when Input::DOWN
+00840       if currentsel >= Settings::MAX_PARTY_SIZE - 1
+00841         currentsel += 1
+00842       else
+00843         currentsel += 2
+00844         currentsel = Settings::MAX_PARTY_SIZE if currentsel < Settings::MAX_PARTY_SIZE && !@party[currentsel]
+00845       end
+00846       if currentsel >= @party.length && currentsel < Settings::MAX_PARTY_SIZE
+00847         currentsel = Settings::MAX_PARTY_SIZE
+00848       elsif currentsel >= numsprites
+00849         currentsel = (@party.length == 0) ? Settings::MAX_PARTY_SIZE : 0
+00850       end
+00851     end
+00852     return currentsel
+00853   end
+00854 
+00855   def pbHardRefresh
+00856     oldtext = []
+00857     lastselected = -1
+00858     Settings::MAX_PARTY_SIZE.times do |i|
+00859       oldtext.push(@sprites["pokemon#{i}"].text)
+00860       lastselected = i if @sprites["pokemon#{i}"].selected
+00861       @sprites["pokemon#{i}"].dispose
+00862     end
+00863     lastselected = @party.length - 1 if lastselected >= @party.length
+00864     lastselected = Settings::MAX_PARTY_SIZE if lastselected < 0
+00865     Settings::MAX_PARTY_SIZE.times do |i|
+00866       if @party[i]
+00867         @sprites["pokemon#{i}"] = PokemonPartyPanel.new(@party[i], i, @viewport)
+00868       else
+00869         @sprites["pokemon#{i}"] = PokemonPartyBlankPanel.new(@party[i], i, @viewport)
+00870       end
+00871       @sprites["pokemon#{i}"].text = oldtext[i]
+00872     end
+00873     pbSelect(lastselected)
+00874   end
+00875 
+00876   def pbRefresh
+00877     Settings::MAX_PARTY_SIZE.times do |i|
+00878       sprite = @sprites["pokemon#{i}"]
+00879       if sprite
+00880         if sprite.is_a?(PokemonPartyPanel)
+00881           sprite.pokemon = sprite.pokemon
+00882         else
+00883           sprite.refresh
+00884         end
+00885       end
+00886     end
+00887   end
+00888 
+00889   def pbRefreshSingle(i)
+00890     sprite = @sprites["pokemon#{i}"]
+00891     if sprite
+00892       if sprite.is_a?(PokemonPartyPanel)
+00893         sprite.pokemon = sprite.pokemon
+00894       else
+00895         sprite.refresh
+00896       end
+00897     end
+00898   end
+00899 
+00900   def update
+00901     pbUpdateSpriteHash(@sprites)
+00902   end
+00903 end
+00904 
+00905 #===============================================================================
+00906 # Pokémon party mechanics
+00907 #===============================================================================
+00908 class PokemonPartyScreen
+00909   attr_reader :scene
+00910   attr_reader :party
+00911 
+00912   def initialize(scene, party)
+00913     @scene = scene
+00914     @party = party
+00915   end
+00916 
+00917   def pbStartScene(helptext, _numBattlersOut, annotations = nil)
+00918     @scene.pbStartScene(@party, helptext, annotations)
+00919   end
+00920 
+00921   def pbChoosePokemon(helptext = nil)
+00922     @scene.pbSetHelpText(helptext) if helptext
+00923     return @scene.pbChoosePokemon
+00924   end
+00925 
+00926   def pbPokemonGiveScreen(item)
+00927     @scene.pbStartScene(@party, _INTL("Give to which Pokémon?"))
+00928     pkmnid = @scene.pbChoosePokemon
+00929     ret = false
+00930     if pkmnid >= 0
+00931       ret = pbGiveItemToPokemon(item, @party[pkmnid], self, pkmnid)
+00932     end
+00933     pbRefreshSingle(pkmnid)
+00934     @scene.pbEndScene
+00935     return ret
+00936   end
+00937 
+00938   def pbPokemonGiveMailScreen(mailIndex)
+00939     @scene.pbStartScene(@party, _INTL("Give to which Pokémon?"))
+00940     pkmnid = @scene.pbChoosePokemon
+00941     if pkmnid >= 0
+00942       pkmn = @party[pkmnid]
+00943       if pkmn.hasItem? || pkmn.mail
+00944         pbDisplay(_INTL("This Pokémon is holding an item. It can't hold mail."))
+00945       elsif pkmn.egg?
+00946         pbDisplay(_INTL("Eggs can't hold mail."))
+00947       else
+00948         pbDisplay(_INTL("Mail was transferred from the Mailbox."))
+00949         pkmn.mail = $PokemonGlobal.mailbox[mailIndex]
+00950         pkmn.item = pkmn.mail.item
+00951         $PokemonGlobal.mailbox.delete_at(mailIndex)
+00952         pbRefreshSingle(pkmnid)
+00953       end
+00954     end
+00955     @scene.pbEndScene
+00956   end
+00957 
+00958   def pbEndScene
+00959     @scene.pbEndScene
+00960   end
+00961 
+00962   def pbUpdate
+00963     @scene.update
+00964   end
+00965 
+00966   def pbHardRefresh
+00967     @scene.pbHardRefresh
+00968   end
+00969 
+00970   def pbRefresh
+00971     @scene.pbRefresh
+00972   end
+00973 
+00974   def pbRefreshSingle(i)
+00975     @scene.pbRefreshSingle(i)
+00976   end
+00977 
+00978   def pbDisplay(text)
+00979     @scene.pbDisplay(text)
+00980   end
+00981 
+00982   def pbConfirm(text)
+00983     return @scene.pbDisplayConfirm(text)
+00984   end
+00985 
+00986   def pbShowCommands(helptext, commands, index = 0)
+00987     return @scene.pbShowCommands(helptext, commands, index)
+00988   end
+00989 
+00990   # Checks for identical species.
+00991   # Unused.
+00992   def pbCheckSpecies(array)
+00993     array.length.times do |i|
+00994       (i + 1...array.length).each do |j|
+00995         return false if array[i].species == array[j].species
+00996       end
+00997     end
+00998     return true
+00999   end
+01000 
+01001   # Checks for identical held items.
+01002   # Unused.
+01003   def pbCheckItems(array)
+01004     array.length.times do |i|
+01005       next if !array[i].hasItem?
+01006       (i + 1...array.length).each do |j|
+01007         return false if array[i].item == array[j].item
+01008       end
+01009     end
+01010     return true
+01011   end
+01012 
+01013   def pbSwitch(oldid, newid)
+01014     if oldid != newid
+01015       @scene.pbSwitchBegin(oldid, newid)
+01016       tmp = @party[oldid]
+01017       @party[oldid] = @party[newid]
+01018       @party[newid] = tmp
+01019       @scene.pbSwitchEnd(oldid, newid)
+01020     end
+01021   end
+01022 
+01023   def pbChooseMove(pokemon, helptext, index = 0)
+01024     movenames = []
+01025     pokemon.moves.each do |i|
+01026       next if !i || !i.id
+01027       if i.total_pp <= 0
+01028         movenames.push(_INTL("{1} (PP: ---)", i.name))
+01029       else
+01030         movenames.push(_INTL("{1} (PP: {2}/{3})", i.name, i.pp, i.total_pp))
+01031       end
+01032     end
+01033     return @scene.pbShowCommands(helptext, movenames, index)
+01034   end
+01035 
+01036   # For after using an evolution stone.
+01037   def pbRefreshAnnotations(ableProc)
+01038     return if !@scene.pbHasAnnotations?
+01039     annot = []
+01040     @party.each do |pkmn|
+01041       elig = ableProc.call(pkmn)
+01042       annot.push((elig) ? _INTL("ABLE") : _INTL("NOT ABLE"))
+01043     end
+01044     @scene.pbAnnotate(annot)
+01045   end
+01046 
+01047   def pbClearAnnotations
+01048     @scene.pbAnnotate(nil)
+01049   end
+01050 
+01051   def pbPokemonMultipleEntryScreenEx(ruleset)
+01052     annot = []
+01053     statuses = []
+01054     ordinals = [_INTL("INELIGIBLE"), _INTL("NOT ENTERED"), _INTL("BANNED")]
+01055     positions = [_INTL("FIRST"), _INTL("SECOND"), _INTL("THIRD"), _INTL("FOURTH"),
+01056                  _INTL("FIFTH"), _INTL("SIXTH"), _INTL("SEVENTH"), _INTL("EIGHTH"),
+01057                  _INTL("NINTH"), _INTL("TENTH"), _INTL("ELEVENTH"), _INTL("TWELFTH")]
+01058     Settings::MAX_PARTY_SIZE.times do |i|
+01059       if i < positions.length
+01060         ordinals.push(positions[i])
+01061       else
+01062         ordinals.push("#{i + 1}th")
+01063       end
+01064     end
+01065     return nil if !ruleset.hasValidTeam?(@party)
+01066     ret = nil
+01067     addedEntry = false
+01068     @party.length.times do |i|
+01069       statuses[i] = (ruleset.isPokemonValid?(@party[i])) ? 1 : 2
+01070       annot[i] = ordinals[statuses[i]]
+01071     end
+01072     @scene.pbStartScene(@party, _INTL("Choose Pokémon and confirm."), annot, true)
+01073     loop do
+01074       realorder = []
+01075       @party.length.times do |i|
+01076         @party.length.times do |j|
+01077           if statuses[j] == i + 3
+01078             realorder.push(j)
+01079             break
+01080           end
+01081         end
+01082       end
+01083       realorder.length.times do |i|
+01084         statuses[realorder[i]] = i + 3
+01085       end
+01086       @party.length.times do |i|
+01087         annot[i] = ordinals[statuses[i]]
+01088       end
+01089       @scene.pbAnnotate(annot)
+01090       if realorder.length == ruleset.number && addedEntry
+01091         @scene.pbSelect(Settings::MAX_PARTY_SIZE)
+01092       end
+01093       @scene.pbSetHelpText(_INTL("Choose Pokémon and confirm."))
+01094       pkmnid = @scene.pbChoosePokemon
+01095       addedEntry = false
+01096       if pkmnid == Settings::MAX_PARTY_SIZE   # Confirm was chosen
+01097         ret = []
+01098         realorder.each do |i|
+01099           ret.push(@party[i])
+01100         end
+01101         error = []
+01102         break if ruleset.isValid?(ret, error)
+01103         pbDisplay(error[0])
+01104         ret = nil
+01105       end
+01106       break if pkmnid < 0   # Cancelled
+01107       cmdEntry   = -1
+01108       cmdNoEntry = -1
+01109       cmdSummary = -1
+01110       commands = []
+01111       if (statuses[pkmnid] || 0) == 1
+01112         commands[cmdEntry = commands.length]   = _INTL("Entry")
+01113       elsif (statuses[pkmnid] || 0) > 2
+01114         commands[cmdNoEntry = commands.length] = _INTL("No Entry")
+01115       end
+01116       pkmn = @party[pkmnid]
+01117       commands[cmdSummary = commands.length]   = _INTL("Summary")
+01118       commands[commands.length]                = _INTL("Cancel")
+01119       command = @scene.pbShowCommands(_INTL("Do what with {1}?", pkmn.name), commands) if pkmn
+01120       if cmdEntry >= 0 && command == cmdEntry
+01121         if realorder.length >= ruleset.number && ruleset.number > 0
+01122           pbDisplay(_INTL("No more than {1} Pokémon may enter.", ruleset.number))
+01123         else
+01124           statuses[pkmnid] = realorder.length + 3
+01125           addedEntry = true
+01126           pbRefreshSingle(pkmnid)
+01127         end
+01128       elsif cmdNoEntry >= 0 && command == cmdNoEntry
+01129         statuses[pkmnid] = 1
+01130         pbRefreshSingle(pkmnid)
+01131       elsif cmdSummary >= 0 && command == cmdSummary
+01132         @scene.pbSummary(pkmnid) do
+01133           @scene.pbSetHelpText((@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."))
+01134         end
+01135       end
+01136     end
+01137     @scene.pbEndScene
+01138     return ret
+01139   end
+01140 
+01141   def pbChooseAblePokemon(ableProc, allowIneligible = false)
+01142     annot = []
+01143     eligibility = []
+01144     @party.each do |pkmn|
+01145       elig = ableProc.call(pkmn)
+01146       eligibility.push(elig)
+01147       annot.push((elig) ? _INTL("ABLE") : _INTL("NOT ABLE"))
+01148     end
+01149     ret = -1
+01150     @scene.pbStartScene(
+01151       @party,
+01152       (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."),
+01153       annot
+01154     )
+01155     loop do
+01156       @scene.pbSetHelpText(
+01157         (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel.")
+01158       )
+01159       pkmnid = @scene.pbChoosePokemon
+01160       break if pkmnid < 0
+01161       if !eligibility[pkmnid] && !allowIneligible
+01162         pbDisplay(_INTL("This Pokémon can't be chosen."))
+01163       else
+01164         ret = pkmnid
+01165         break
+01166       end
+01167     end
+01168     @scene.pbEndScene
+01169     return ret
+01170   end
+01171 
+01172   def pbChooseTradablePokemon(ableProc, allowIneligible = false)
+01173     annot = []
+01174     eligibility = []
+01175     @party.each do |pkmn|
+01176       elig = ableProc.call(pkmn)
+01177       elig = false if pkmn.egg? || pkmn.shadowPokemon? || pkmn.cannot_trade
+01178       eligibility.push(elig)
+01179       annot.push((elig) ? _INTL("ABLE") : _INTL("NOT ABLE"))
+01180     end
+01181     ret = -1
+01182     @scene.pbStartScene(
+01183       @party,
+01184       (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel."),
+01185       annot
+01186     )
+01187     loop do
+01188       @scene.pbSetHelpText(
+01189         (@party.length > 1) ? _INTL("Choose a Pokémon.") : _INTL("Choose Pokémon or cancel.")
+01190       )
+01191       pkmnid = @scene.pbChoosePokemon
+01192       break if pkmnid < 0
+01193       if !eligibility[pkmnid] && !allowIneligible
+01194         pbDisplay(_INTL("This Pokémon can't be chosen."))
+01195       else
+01196         ret = pkmnid
+01197         break
+01198       end
+01199     end
+01200     @scene.pbEndScene

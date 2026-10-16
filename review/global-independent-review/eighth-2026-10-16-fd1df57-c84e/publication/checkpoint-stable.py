@@ -42,15 +42,15 @@ state['nested_running_contexts']=scope['nested_running']
 state['nested_completed_contexts']=scope['nested_completed']
 state['original_dispatch_actual_mapping']=scope['original_jobs_started_here']
 state['original_dispatch_scoped_overlaps']=scope['original_jobs_with_scoped_overlaps']
-state['proposal_count_at_snapshot']=len(proposals);state['behavior_executions']={'reference_observation':0,'host_demo':0,'native_media':0,'independent_numeric_model_exploration_processes':1,'numeric_model_verification_credit':0}
+state['proposal_count_at_snapshot']=len(proposals);state['behavior_executions']={'reference_observation':0,'host_demo':0,'native_media':0,'independent_numeric_model_exploration_processes':1,'numeric_model_verification_credit':0,'static_PBS_eligibility_math_audit_processes':1,'root_binary_static_python_processes':2,'root_binary_static_objdump_processes':6,'ruby_primitive_attempt_not_spawned':1}
 state['report_metadata_corrections_pending']=[]
 state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','path':'reading-ledger.json','original_requested_range':[595,633],'actual_read_range':[595,624],'actual_source_EOF':624,'evidence':'tasks/counter_kernel_first/correction.json','reading_credit_added':0}]
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='78287d85f2ea54e465de2747a6aca82f3245125f'
-state['dispatch_remote_readback']={'files':2223,'bytes':65204417,'status':'VERIFIED','evidence':'publication/r8-followup-dispatch-readback-04.json','semantic_credit':'NONE'}
-state['current_dispatch_plan']={'path':'delegation/current-plan.json','leaf_plans':28,'supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
+state['published_dispatch_checkpoint']='d7ce600732f3b2fd902e678e029ae1c9f4758b73'
+state['dispatch_remote_readback']={'files':2682,'bytes':198086938,'status':'VERIFIED','evidence':'publication/r8-frozen-subcontracts-readback-09.json','semantic_credit':'NONE'}
+state['current_dispatch_plan']={'path':'delegation/current-plan.json','applied_execution_leaf_plans':32,'current_plan_base_leaf_plans':31,'additional_frozen_not_started_ui_plans':4,'binary_split_child_active':1,'supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
 status=(root/'publication/checkpoint-status.md').read_text()
@@ -66,6 +66,9 @@ for entry in findings['proposals']:
  else:entry['root_status']='WAIT_ROOT_CANONICAL_CLASSIFICATION_AND_NONPROPOSER_RECEPTION'
 findings['independent_receptions']+=['tasks/counter_combat_first/adjudications.json','tasks/counter_world_first/adjudications.json','tasks/world_topology_audit/refutation-ui001.json','tasks/world_topology_audit/refutation-pbsw002.json','coverage/root-pbsw-001-counterreview.json']
 findings['independent_receptions']+=['tasks/com_facility/adjudications-ai.json','adjudication/root-hist-001-counterreview.json','adjudication/root-history-facets-counterreview.json']
+findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json']
+findings['separate_rejected_proposals']={'path':'adjudication/root-ui002-reception.json','ids':['GR8-UI-002'],'qualification':'Rejected original exception counterexample only; no whole-UI approval.'}
+findings['bounded_no_required_reception']={'path':'adjudication/root-binary-bounded-receptions.json','count':4,'qualification':'Only four finite negative claims; no full controller/resource/binary-domain or whole-review NO_REQUIRED_UPDATE.'}
 write('findings.json',findings)
 packed=load('publication/compressed-artifacts.json')
 packed_paths={r['original_path'] for r in packed['artifacts']}
@@ -74,7 +77,7 @@ for f in root.rglob('*'):
  if not f.is_file() or f.is_symlink():continue
  rel=f.relative_to(root);parts=rel.parts
  if str(rel) in packed_paths:continue
- if parts[0] in ['inputs','delegation','publication','adjudication'] or len(parts)==1 or rel.as_posix().startswith('coverage/root-') or parts[:2] in [('evidence','proposal-snapshots'),('evidence','adjudication-inputs'),('evidence','compressed')]:
+ if parts[0] in ['inputs','delegation','publication','adjudication'] or len(parts)==1 or rel.as_posix().startswith('coverage/root-') or parts[:2] in [('evidence','proposal-snapshots'),('evidence','adjudication-inputs'),('evidence','compressed'),('evidence','root-binary-counterreview')]:
   if f.name=='checkpoint-selection.json':continue
   selected.append(f);continue
  if len(parts)>2 and parts[0]=='tasks' and parts[1] in completed+['reference_metadata']:

@@ -1,0 +1,398 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb", "range": [721, 1117], "file_lines": 1117, "bytes": 39203, "sha256": "ca1133aba4acf722eb73faf4c3fefaf32595af1d7a74abba96f4144a86d432ad", "began_utc": "2026-10-16T03:35:07.411552+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00721           idx = values.length
+00722           break
+00723         else
+00724           record.push(cast_csv_value(values[idx], sche, schema[2 + i - start]))
+00725         end
+00726       end
+00727       if !record.empty?
+00728         if subarrays
+00729           ret.push(record)
+00730         else
+00731           ret.concat(record)
+00732         end
+00733       end
+00734       break if !repeat || idx >= values.length - 1
+00735     end
+00736     return (!repeat && schema_length == 1) ? ret[0] : ret
+00737   end
+00738 
+00739   #=============================================================================
+00740   # Write values to a file using a schema
+00741   #=============================================================================
+00742   def pbWriteCsvRecord(record, file, schema)
+00743     rec = (record.is_a?(Array)) ? record.flatten : [record]
+00744     start = (["*", "^"].include?(schema[1][0, 1])) ? 1 : 0
+00745     index = -1
+00746     loop do
+00747       (start...schema[1].length).each do |i|
+00748         index += 1
+00749         value = rec[index]
+00750         if schema[1][i, 1][/[A-Z]/]   # Optional
+00751           # Check the rest of the values for non-nil things
+00752           later_value_found = false
+00753           (index...rec.length).each do |j|
+00754             later_value_found = true if !rec[j].nil?
+00755             break if later_value_found
+00756           end
+00757           if !later_value_found
+00758             start = -1
+00759             break
+00760           end
+00761         end
+00762         file.write(",") if index > 0
+00763         next if value.nil?
+00764         case schema[1][i, 1]
+00765         when "e", "E"   # Enumerable
+00766           enumer = schema[2 + i - start]
+00767           case enumer
+00768           when Array
+00769             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+00770           when Symbol, String
+00771             if GameData.const_defined?(enumer.to_sym)
+00772               mod = GameData.const_get(enumer.to_sym)
+00773               file.write(mod.get(value).id.to_s)
+00774             else
+00775               mod = Object.const_get(enumer.to_sym)
+00776               file.write(getConstantName(mod, value))
+00777             end
+00778           when Module
+00779             file.write(getConstantName(enumer, value))
+00780           when Hash
+00781             if value.is_a?(String)
+00782               file.write(value)
+00783             else
+00784               enumer.each_key do |key|
+00785                 next if enumer[key] != value
+00786                 file.write(key)
+00787                 break
+00788               end
+00789             end
+00790           end
+00791         when "y", "Y"   # Enumerable or integer
+00792           enumer = schema[2 + i - start]
+00793           case enumer
+00794           when Array
+00795             file.write((value.is_a?(Integer) && !enumer[value].nil?) ? enumer[value] : value)
+00796           when Symbol, String
+00797             if !Kernel.const_defined?(enumer.to_sym) && GameData.const_defined?(enumer.to_sym)
+00798               mod = GameData.const_get(enumer.to_sym)
+00799               if mod.exists?(value)
+00800                 file.write(mod.get(value).id.to_s)
+00801               else
+00802                 file.write(value.to_s)
+00803               end
+00804             else
+00805               mod = Object.const_get(enumer.to_sym)
+00806               file.write(getConstantNameOrValue(mod, value))
+00807             end
+00808           when Module
+00809             file.write(getConstantNameOrValue(enumer, value))
+00810           when Hash
+00811             if value.is_a?(String)
+00812               file.write(value)
+00813             else
+00814               has_enum = false
+00815               enumer.each_key do |key|
+00816                 next if enumer[key] != value
+00817                 file.write(key)
+00818                 has_enum = true
+00819                 break
+00820               end
+00821               file.write(value) if !has_enum
+00822             end
+00823           end
+00824         else
+00825           if value.is_a?(String)
+00826             file.write((schema[1][i, 1].downcase == "q") ? value : csvQuote(value))
+00827           elsif value.is_a?(Symbol)
+00828             file.write(csvQuote(value.to_s))
+00829           elsif value == true
+00830             file.write("true")
+00831           elsif value == false
+00832             file.write("false")
+00833           else
+00834             file.write(value.inspect)
+00835           end
+00836         end
+00837       end
+00838       break if start > 0 && index >= rec.length - 1
+00839       break if start <= 0
+00840     end
+00841     return record
+00842   end
+00843 
+00844   #=============================================================================
+00845   # Parse string into a likely constant name and return its ID number (if any).
+00846   # Last ditch attempt to figure out whether a constant is defined.
+00847   #=============================================================================
+00848   # Unused
+00849   def pbGetConst(mod, item, err)
+00850     isDef = false
+00851     begin
+00852       mod = Object.const_get(mod) if mod.is_a?(Symbol)
+00853       isDef = mod.const_defined?(item.to_sym)
+00854     rescue
+00855       raise sprintf(err, item)
+00856     end
+00857     raise sprintf(err, item) if !isDef
+00858     return mod.const_get(item.to_sym)
+00859   end
+00860 
+00861   def parseItem(item)
+00862     clonitem = item.upcase
+00863     clonitem.sub!(/^\s*/, "")
+00864     clonitem.sub!(/\s*$/, "")
+00865     itm = GameData::Item.try_get(clonitem)
+00866     if !itm
+00867       raise _INTL("Undefined item constant name: {1}.\nMake sure the item is defined in PBS/items.txt.", item) + "\n" + FileLineData.linereport
+00868     end
+00869     return itm.id
+00870   end
+00871 
+00872   def parseSpecies(species)
+00873     clonspecies = species.upcase
+00874     clonspecies.gsub!(/^\s*/, "")
+00875     clonspecies.gsub!(/\s*$/, "")
+00876     clonspecies = "NIDORANmA" if clonspecies == "NIDORANMA"
+00877     clonspecies = "NIDORANfE" if clonspecies == "NIDORANFE"
+00878     spec = GameData::Species.try_get(clonspecies)
+00879     if !spec
+00880       raise _INTL("Undefined species constant name: {1}.\nMake sure the species is defined in PBS/pokemon.txt.", species) + "\n" + FileLineData.linereport
+00881     end
+00882     return spec.id
+00883   end
+00884 
+00885   def parseMove(move, skip_unknown = false)
+00886     clonmove = move.upcase
+00887     clonmove.sub!(/^\s*/, "")
+00888     clonmove.sub!(/\s*$/, "")
+00889     mov = GameData::Move.try_get(clonmove)
+00890     if !mov
+00891       return nil if skip_unknown
+00892       raise _INTL("Undefined move constant name: {1}.\nMake sure the move is defined in PBS/moves.txt.", move) + "\n" + FileLineData.linereport
+00893     end
+00894     return mov.id
+00895   end
+00896 
+00897   # Unused
+00898   def parseNature(nature)
+00899     clonnature = nature.upcase
+00900     clonnature.sub!(/^\s*/, "")
+00901     clonnature.sub!(/\s*$/, "")
+00902     nat = GameData::Nature.try_get(clonnature)
+00903     if !nat
+00904       raise _INTL("Undefined nature constant name: {1}.\nMake sure the nature is defined in the scripts.", nature) + "\n" + FileLineData.linereport
+00905     end
+00906     return nat.id
+00907   end
+00908 
+00909   # Unused
+00910   def parseTrainer(type)
+00911     clontype = type.clone
+00912     clontype.sub!(/^\s*/, "")
+00913     clontype.sub!(/\s*$/, "")
+00914     typ = GameData::TrainerType.try_get(clontype)
+00915     if !typ
+00916       raise _INTL("Undefined trainer type constant name: {1}.\nMake sure the trainer type is defined in PBS/trainer_types.txt.", type) + "\n" + FileLineData.linereport
+00917     end
+00918     return typ.id
+00919   end
+00920 
+00921   #=============================================================================
+00922   # Replace text in PBS files before compiling them
+00923   #=============================================================================
+00924   def edit_and_rewrite_pbs_file_text(filename)
+00925     return if !block_given?
+00926     lines = []
+00927     File.open(filename, "rb") do |f|
+00928       f.each_line { |line| lines.push(line) }
+00929     end
+00930     changed = false
+00931     lines.each { |line| changed = true if yield line }
+00932     if changed
+00933       Console.markup_style("Changes made to file #{filename}.", text: :yellow)
+00934       File.open(filename, "wb") do |f|
+00935         lines.each { |line| f.write(line) }
+00936       end
+00937     end
+00938   end
+00939 
+00940   def modify_pbs_file_contents_before_compiling
+00941     edit_and_rewrite_pbs_file_text("PBS/trainer_types.txt") do |line|
+00942       next line.gsub!(/^\s*VictoryME\s*=/, "VictoryBGM =")
+00943     end
+00944     edit_and_rewrite_pbs_file_text("PBS/moves.txt") do |line|
+00945       next line.gsub!(/^\s*BaseDamage\s*=/, "Power =")
+00946     end
+00947   end
+00948 
+00949   #=============================================================================
+00950   # Compile all data
+00951   #=============================================================================
+00952   def compile_pbs_file_message_start(filename)
+00953     # The `` around the file's name turns it cyan
+00954     Console.echo_li(_INTL("Compiling PBS file `{1}`...", filename.split("/").last))
+00955   end
+00956 
+00957   def write_pbs_file_message_start(filename)
+00958     # The `` around the file's name turns it cyan
+00959     Console.echo_li(_INTL("Writing PBS file `{1}`...", filename.split("/").last))
+00960   end
+00961 
+00962   def process_pbs_file_message_end
+00963     Console.echo_done(true)
+00964     Graphics.update
+00965   end
+00966 
+00967   def get_all_pbs_files_to_compile
+00968     # Get the GameData classes and their respective base PBS filenames
+00969     ret = GameData.get_all_pbs_base_filenames
+00970     ret.merge!({
+00971       :BattleFacility => "battle_facility_lists",
+00972       :Connection     => "map_connections",
+00973       :RegionalDex    => "regional_dexes"
+00974     })
+00975     ret.each { |key, val| ret[key] = [val] }   # [base_filename, ["PBS/file.txt", etc.]]
+00976     # Look through all PBS files and match them to a GameData class based on
+00977     # their base filenames
+00978     text_files_keys = ret.keys.sort! { |a, b| ret[b][0].length <=> ret[a][0].length }
+00979     Dir.chdir("PBS/") do
+00980       Dir.glob("*.txt") do |f|
+00981         base_name = File.basename(f, ".txt")
+00982         text_files_keys.each do |key|
+00983           next if base_name != ret[key][0] && !f.start_with?(ret[key][0] + "_")
+00984           ret[key][1] ||= []
+00985           ret[key][1].push("PBS/" + f)
+00986           break
+00987         end
+00988       end
+00989     end
+00990     return ret
+00991   end
+00992 
+00993   def compile_pbs_files
+00994     text_files = get_all_pbs_files_to_compile
+00995     modify_pbs_file_contents_before_compiling
+00996     compile_town_map(*text_files[:TownMap][1])
+00997     compile_connections(*text_files[:Connection][1])
+00998     compile_types(*text_files[:Type][1])
+00999     compile_abilities(*text_files[:Ability][1])
+01000     compile_moves(*text_files[:Move][1])                       # Depends on Type
+01001     compile_items(*text_files[:Item][1])                       # Depends on Move
+01002     compile_berry_plants(*text_files[:BerryPlant][1])          # Depends on Item
+01003     compile_pokemon(*text_files[:Species][1])                  # Depends on Move, Item, Type, Ability
+01004     compile_pokemon_forms(*text_files[:Species1][1])           # Depends on Species, Move, Item, Type, Ability
+01005     compile_pokemon_metrics(*text_files[:SpeciesMetrics][1])   # Depends on Species
+01006     compile_shadow_pokemon(*text_files[:ShadowPokemon][1])     # Depends on Species
+01007     compile_regional_dexes(*text_files[:RegionalDex][1])       # Depends on Species
+01008     compile_ribbons(*text_files[:Ribbon][1])
+01009     compile_encounters(*text_files[:Encounter][1])             # Depends on Species
+01010     compile_trainer_types(*text_files[:TrainerType][1])
+01011     compile_trainers(*text_files[:Trainer][1])                 # Depends on Species, Item, Move
+01012     compile_trainer_lists                                      # Depends on TrainerType
+01013     compile_metadata(*text_files[:Metadata][1])                # Depends on TrainerType
+01014     compile_map_metadata(*text_files[:MapMetadata][1])
+01015     compile_dungeon_tilesets(*text_files[:DungeonTileset][1])
+01016     compile_dungeon_parameters(*text_files[:DungeonParameters][1])
+01017     compile_phone(*text_files[:PhoneMessage][1])               # Depends on TrainerType
+01018   end
+01019 
+01020   def compile_all(mustCompile)
+01021     Console.echo_h1(_INTL("Checking game data"))
+01022     if !mustCompile
+01023       Console.echoln_li(_INTL("Game data was not compiled"))
+01024       echoln ""
+01025       return
+01026     end
+01027     FileLineData.clear
+01028     compile_pbs_files
+01029     compile_animations
+01030     compile_trainer_events(mustCompile)
+01031     Console.echo_li(_INTL("Saving messages..."))
+01032     Translator.gather_script_and_event_texts
+01033     MessageTypes.save_default_messages
+01034     MessageTypes.load_default_messages if FileTest.exist?("Data/messages_core.dat")
+01035     Console.echo_done(true)
+01036     Console.echoln_li_done(_INTL("Successfully compiled all game data"))
+01037   end
+01038 
+01039   def main
+01040     return if !$DEBUG
+01041     begin
+01042       mustCompile = false
+01043       # If no PBS file, create one and fill it, then recompile
+01044       if !FileTest.directory?("PBS")
+01045         Dir.mkdir("PBS") rescue nil
+01046         GameData.load_all
+01047         write_all
+01048         mustCompile = true
+01049       end
+01050       # Get all data files and PBS files to be checked for their last modified times
+01051       data_files = GameData.get_all_data_filenames
+01052       data_files += [   # Extra .dat files for data that isn't a GameData class
+01053         ["map_connections.dat", true],
+01054         ["regional_dexes.dat", true],
+01055         ["trainer_lists.dat", true]
+01056       ]
+01057       text_files = get_all_pbs_files_to_compile
+01058       latestDataTime = 0
+01059       latestTextTime = 0
+01060       # Should recompile if new maps were imported
+01061       mustCompile |= import_new_maps
+01062       # Check data files for their latest modify time
+01063       data_files.each do |filename|   # filename = [string, boolean (whether mandatory)]
+01064         if FileTest.exist?("Data/" + filename[0])
+01065           begin
+01066             File.open("Data/#{filename[0]}") do |file|
+01067               latestDataTime = [latestDataTime, file.mtime.to_i].max
+01068             end
+01069           rescue SystemCallError
+01070             mustCompile = true
+01071           end
+01072         elsif filename[1]
+01073           mustCompile = true
+01074           break
+01075         end
+01076       end
+01077       # Check PBS files for their latest modify time
+01078       text_files.each do |key, value|
+01079         next if !value || !value[1].is_a?(Array)
+01080         value[1].each do |filepath|
+01081           begin
+01082             File.open(filepath) { |file| latestTextTime = [latestTextTime, file.mtime.to_i].max }
+01083           rescue SystemCallError
+01084           end
+01085         end
+01086       end
+01087       # Decide to compile if a PBS file was edited more recently than any .dat files
+01088       mustCompile |= (latestTextTime >= latestDataTime)
+01089       # Should recompile if holding Ctrl
+01090       Input.update
+01091       mustCompile = true if $full_compile || Input.press?(Input::CTRL)
+01092       # Delete old data files in preparation for recompiling
+01093       if mustCompile
+01094         data_files.each do |filename|
+01095           begin
+01096             File.delete("Data/#{filename[0]}") if FileTest.exist?("Data/#{filename[0]}")
+01097           rescue SystemCallError
+01098           end
+01099         end
+01100       end
+01101       # Recompile all data
+01102       compile_all(mustCompile)
+01103     rescue Exception
+01104       e = $!
+01105       raise e if e.class.to_s == "Reset" || e.is_a?(Reset) || e.is_a?(SystemExit)
+01106       pbPrintException(e)
+01107       data_files.each do |filename|
+01108         begin
+01109           File.delete("Data/#{filename[0]}") if FileTest.exist?("Data/#{filename[0]}")
+01110         rescue SystemCallError
+01111         end
+01112       end
+01113       raise Reset.new if e.is_a?(Hangup)
+01114       raise "Unknown exception when compiling."
+01115     end
+01116   end
+01117 end

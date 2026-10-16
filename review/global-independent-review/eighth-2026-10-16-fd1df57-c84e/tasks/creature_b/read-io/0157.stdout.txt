@@ -1,0 +1,381 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb", "range": [1, 380], "file_lines": 750, "bytes": 26664, "sha256": "23caecf210623ca8fde9224d4409dccd3817f6a341a7d3921848fa156476d7bd", "began_utc": "2026-10-16T03:53:41.101499+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Constant checks
+00003 #===============================================================================
+00004 # Pokérus check
+00005 EventHandlers.add(:on_frame_update, :pokerus_counter,
+00006   proc {
+00007     next if !$player || $player.party.none? { |pkmn| pkmn.pokerusStage == 1 }
+00008     last = $PokemonGlobal.pokerusTime
+00009     next if !last
+00010     now = pbGetTimeNow
+00011     if last.year != now.year || last.month != now.month || last.day != now.day
+00012       $player.pokemon_party.each { |pkmn| pkmn.lowerPokerusCount }
+00013       $PokemonGlobal.pokerusTime = now
+00014     end
+00015   }
+00016 )
+00017 
+00018 # Returns whether the Poké Center should explain Pokérus to the player, if a
+00019 # healed Pokémon has it.
+00020 def pbPokerus?
+00021   return false if $game_switches[Settings::SEEN_POKERUS_SWITCH]
+00022   $player.party.each do |i|
+00023     return true if i.pokerusStage == 1
+00024   end
+00025   return false
+00026 end
+00027 
+00028 class Game_Temp
+00029   attr_accessor :warned_low_battery
+00030   attr_accessor :cue_bgm
+00031   attr_accessor :cue_bgm_timer_start
+00032   attr_accessor :cue_bgm_delay
+00033 end
+00034 
+00035 def pbBatteryLow?
+00036   pstate = System.power_state
+00037   # If it's not discharging, it doesn't matter if it's low
+00038   return false if !pstate[:discharging]
+00039   # Check for less than 10m, priority over the percentage
+00040   # Some laptops (Chromebooks, Macbooks) have very long lifetimes
+00041   return true if pstate[:seconds] && pstate[:seconds] <= 600
+00042   # Check for <=15%
+00043   return true if pstate[:percent] && pstate[:percent] <= 15
+00044   return false
+00045 end
+00046 
+00047 EventHandlers.add(:on_frame_update, :low_battery_warning,
+00048   proc {
+00049     next if $game_temp.warned_low_battery || !pbBatteryLow?
+00050     next if $game_temp.in_menu || $game_temp.in_battle || $game_player.move_route_forcing ||
+00051             $game_temp.message_window_showing || pbMapInterpreterRunning?
+00052     $game_temp.warned_low_battery = true
+00053     pbMessage(_INTL("The game has detected that the battery is low. You should save soon to avoid losing your progress."))
+00054   }
+00055 )
+00056 
+00057 EventHandlers.add(:on_frame_update, :cue_bgm_after_delay,
+00058   proc {
+00059     next if $game_temp.cue_bgm_delay.nil?
+00060     next if System.uptime - $game_temp.cue_bgm_timer_start < $game_temp.cue_bgm_delay
+00061     $game_temp.cue_bgm_delay = nil
+00062     pbBGMPlay($game_temp.cue_bgm) if $game_system.getPlayingBGM.nil?
+00063   }
+00064 )
+00065 
+00066 #===============================================================================
+00067 # Checks per step
+00068 #===============================================================================
+00069 # Party Pokémon gain happiness from walking
+00070 EventHandlers.add(:on_player_step_taken, :gain_happiness,
+00071   proc {
+00072     $PokemonGlobal.happinessSteps = 0 if !$PokemonGlobal.happinessSteps
+00073     $PokemonGlobal.happinessSteps += 1
+00074     next if $PokemonGlobal.happinessSteps < 128
+00075     $player.able_party.each do |pkmn|
+00076       pkmn.changeHappiness("walking") if rand(2) == 0
+00077     end
+00078     $PokemonGlobal.happinessSteps = 0
+00079   }
+00080 )
+00081 
+00082 # Poison party Pokémon
+00083 EventHandlers.add(:on_player_step_taken_can_transfer, :poison_party,
+00084   proc { |handled|
+00085     # handled is an array: [nil]. If [true], a transfer has happened because of
+00086     # this event, so don't do anything that might cause another one
+00087     next if handled[0]
+00088     next if !Settings::POISON_IN_FIELD || $PokemonGlobal.stepcount % 4 != 0
+00089     flashed = false
+00090     $player.able_party.each do |pkmn|
+00091       next if pkmn.status != :POISON || pkmn.hasAbility?(:IMMUNITY)
+00092       if !flashed
+00093         pbSEPlay("Poison step")
+00094         pbFlash(Color.new(255, 0, 0, 128), 8)
+00095         flashed = true
+00096       end
+00097       pkmn.hp -= 1 if pkmn.hp > 1 || Settings::POISON_FAINT_IN_FIELD
+00098       if pkmn.hp == 1 && !Settings::POISON_FAINT_IN_FIELD
+00099         pkmn.status = :NONE
+00100         pbMessage(_INTL("{1} survived the poisoning.\\nThe poison faded away!", pkmn.name))
+00101         next
+00102       elsif pkmn.hp == 0
+00103         pkmn.changeHappiness("faint")
+00104         pkmn.status = :NONE
+00105         pbMessage(_INTL("{1} fainted...", pkmn.name))
+00106       end
+00107       if $player.able_pokemon_count == 0
+00108         handled[0] = true
+00109         pbCheckAllFainted
+00110       end
+00111     end
+00112   }
+00113 )
+00114 
+00115 def pbCheckAllFainted
+00116   if $player.able_pokemon_count == 0
+00117     pbMessage(_INTL("You have no more Pokémon that can fight!") + "\1")
+00118     pbMessage(_INTL("You blacked out!"))
+00119     pbBGMFade(1.0)
+00120     pbBGSFade(1.0)
+00121     pbFadeOutIn { pbStartOver }
+00122   end
+00123 end
+00124 
+00125 # Gather soot from soot grass
+00126 EventHandlers.add(:on_step_taken, :pick_up_soot,
+00127   proc { |event|
+00128     thistile = $map_factory.getRealTilePos(event.map.map_id, event.x, event.y)
+00129     map = $map_factory.getMap(thistile[0])
+00130     [2, 1, 0].each do |i|
+00131       tile_id = map.data[thistile[1], thistile[2], i]
+00132       next if tile_id.nil?
+00133       next if GameData::TerrainTag.try_get(map.terrain_tags[tile_id]).id != :SootGrass
+00134       if event == $game_player && $bag.has?(:SOOTSACK)
+00135         old_soot = $player.soot
+00136         $player.soot += 1
+00137         $stats.soot_collected += $player.soot - old_soot if $player.soot > old_soot
+00138       end
+00139       map.erase_tile(thistile[1], thistile[2], i)
+00140       break
+00141     end
+00142   }
+00143 )
+00144 
+00145 # Show grass rustle animation
+00146 EventHandlers.add(:on_step_taken, :grass_rustling,
+00147   proc { |event|
+00148     next if !$scene.is_a?(Scene_Map)
+00149     event.each_occupied_tile do |x, y|
+00150       next if !$map_factory.getTerrainTagFromCoords(event.map.map_id, x, y, true).shows_grass_rustle
+00151       spriteset = $scene.spriteset(event.map_id)
+00152       spriteset&.addUserAnimation(Settings::GRASS_ANIMATION_ID, x, y, true, 1)
+00153     end
+00154   }
+00155 )
+00156 
+00157 # Auto-move the player over waterfalls and ice
+00158 EventHandlers.add(:on_step_taken, :auto_move_player,
+00159   proc { |event|
+00160     next if !$scene.is_a?(Scene_Map)
+00161     next if event != $game_player
+00162     currentTag = $game_player.pbTerrainTag
+00163     if currentTag.waterfall_crest || currentTag.waterfall ||
+00164        $PokemonGlobal.descending_waterfall || $PokemonGlobal.ascending_waterfall
+00165       pbTraverseWaterfall
+00166     elsif currentTag.ice || $PokemonGlobal.ice_sliding
+00167       pbSlideOnIce
+00168     end
+00169   }
+00170 )
+00171 
+00172 def pbOnStepTaken(eventTriggered)
+00173   if $game_player.move_route_forcing || pbMapInterpreterRunning?
+00174     EventHandlers.trigger(:on_step_taken, $game_player)
+00175     return
+00176   end
+00177   $PokemonGlobal.stepcount = 0 if !$PokemonGlobal.stepcount
+00178   $PokemonGlobal.stepcount += 1
+00179   $PokemonGlobal.stepcount &= 0x7FFFFFFF
+00180   repel_active = ($PokemonGlobal.repel > 0)
+00181   EventHandlers.trigger(:on_player_step_taken)
+00182   handled = [nil]
+00183   EventHandlers.trigger(:on_player_step_taken_can_transfer, handled)
+00184   return if handled[0]
+00185   pbBattleOnStepTaken(repel_active) if !eventTriggered && !$game_temp.in_menu
+00186   $game_temp.encounter_triggered = false   # This info isn't needed here
+00187 end
+00188 
+00189 # Start wild encounters while turning on the spot
+00190 EventHandlers.add(:on_player_change_direction, :trigger_encounter,
+00191   proc {
+00192     repel_active = ($PokemonGlobal.repel > 0)
+00193     pbBattleOnStepTaken(repel_active) if !$game_temp.in_menu
+00194   }
+00195 )
+00196 
+00197 def pbBattleOnStepTaken(repel_active)
+00198   return if $player.able_pokemon_count == 0
+00199   return if !$PokemonEncounters.encounter_possible_here?
+00200   encounter_type = $PokemonEncounters.encounter_type
+00201   return if !encounter_type
+00202   return if !$PokemonEncounters.encounter_triggered?(encounter_type, repel_active)
+00203   $game_temp.encounter_type = encounter_type
+00204   encounter = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+00205   EventHandlers.trigger(:on_wild_species_chosen, encounter)
+00206   if $PokemonEncounters.allow_encounter?(encounter, repel_active)
+00207     if $PokemonEncounters.have_double_wild_battle?
+00208       encounter2 = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+00209       EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+00210       WildBattle.start(encounter, encounter2, can_override: true)
+00211     else
+00212       WildBattle.start(encounter, can_override: true)
+00213     end
+00214     $game_temp.encounter_type = nil
+00215     $game_temp.encounter_triggered = true
+00216   end
+00217   $game_temp.force_single_battle = false
+00218 end
+00219 
+00220 #===============================================================================
+00221 # Checks when moving between maps
+00222 #===============================================================================
+00223 # Set up various data related to the new map.
+00224 EventHandlers.add(:on_enter_map, :setup_new_map,
+00225   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+00226     # Record new Teleport destination
+00227     new_map_metadata = $game_map.metadata
+00228     if new_map_metadata&.teleport_destination
+00229       $PokemonGlobal.healingSpot = new_map_metadata.teleport_destination
+00230     end
+00231     # End effects that apply only while on the map they were used
+00232     $PokemonMap&.clear
+00233     # Setup new wild encounter tables
+00234     $PokemonEncounters&.setup($game_map.map_id)
+00235     # Record the new map as having been visited
+00236     $PokemonGlobal.visitedMaps[$game_map.map_id] = true
+00237   }
+00238 )
+00239 
+00240 # Changes the overworld weather.
+00241 EventHandlers.add(:on_enter_map, :set_weather,
+00242   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+00243     next if old_map_id == 0 || old_map_id == $game_map.map_id
+00244     old_weather = $game_screen.weather_type
+00245     new_weather = :None
+00246     new_map_metadata = $game_map.metadata
+00247     if new_map_metadata&.weather
+00248       new_weather = new_map_metadata.weather[0] if rand(100) < new_map_metadata.weather[1]
+00249     end
+00250     next if old_weather == new_weather
+00251     $game_screen.weather(new_weather, 9, 0)
+00252   }
+00253 )
+00254 
+00255 # Update trail of which maps the player has most recently visited.
+00256 EventHandlers.add(:on_enter_map, :add_to_trail,
+00257   proc { |_old_map_id|
+00258     next if !$game_map
+00259     $PokemonGlobal.mapTrail = [] if !$PokemonGlobal.mapTrail
+00260     if $PokemonGlobal.mapTrail[0] != $game_map.map_id && $PokemonGlobal.mapTrail.length >= 4
+00261       $PokemonGlobal.mapTrail.pop
+00262     end
+00263     $PokemonGlobal.mapTrail = [$game_map.map_id] + $PokemonGlobal.mapTrail
+00264   }
+00265 )
+00266 
+00267 # Force cycling/walking.
+00268 EventHandlers.add(:on_enter_map, :force_cycling,
+00269   proc { |_old_map_id|
+00270     if $game_map.metadata&.always_bicycle
+00271       pbMountBike
+00272     elsif !pbCanUseBike?($game_map.map_id)
+00273       pbDismountBike
+00274     end
+00275   }
+00276 )
+00277 
+00278 # Display darkness circle on dark maps.
+00279 EventHandlers.add(:on_map_or_spriteset_change, :show_darkness,
+00280   proc { |scene, _map_changed|
+00281     next if !scene || !scene.spriteset
+00282     map_metadata = $game_map.metadata
+00283     if map_metadata&.dark_map
+00284       $game_temp.darkness_sprite = DarknessSprite.new
+00285       scene.spriteset.addUserSprite($game_temp.darkness_sprite)
+00286       if $PokemonGlobal.flashUsed
+00287         $game_temp.darkness_sprite.radius = $game_temp.darkness_sprite.radiusMax
+00288       end
+00289     else
+00290       $PokemonGlobal.flashUsed = false
+00291       $game_temp.darkness_sprite&.dispose
+00292       $game_temp.darkness_sprite = nil
+00293     end
+00294   }
+00295 )
+00296 
+00297 # Show location signpost.
+00298 EventHandlers.add(:on_map_or_spriteset_change, :show_location_window,
+00299   proc { |scene, map_changed|
+00300     next if !scene || !scene.spriteset
+00301     next if !map_changed || !$game_map.metadata&.announce_location
+00302     nosignpost = false
+00303     if $PokemonGlobal.mapTrail[1]
+00304       (Settings::NO_SIGNPOSTS.length / 2).times do |i|
+00305         nosignpost = true if Settings::NO_SIGNPOSTS[2 * i] == $PokemonGlobal.mapTrail[1] &&
+00306                              Settings::NO_SIGNPOSTS[(2 * i) + 1] == $game_map.map_id
+00307         nosignpost = true if Settings::NO_SIGNPOSTS[(2 * i) + 1] == $PokemonGlobal.mapTrail[1] &&
+00308                              Settings::NO_SIGNPOSTS[2 * i] == $game_map.map_id
+00309         break if nosignpost
+00310       end
+00311       nosignpost = true if $game_map.name == pbGetMapNameFromId($PokemonGlobal.mapTrail[1])
+00312     end
+00313     scene.spriteset.addUserSprite(LocationWindow.new($game_map.name)) if !nosignpost
+00314   }
+00315 )
+00316 
+00317 #===============================================================================
+00318 # Event locations, terrain tags
+00319 #===============================================================================
+00320 # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+00321 def pbFacingTile(direction = nil, event = nil)
+00322   return $map_factory.getFacingTile(direction, event) if $map_factory
+00323   return pbFacingTileRegular(direction, event)
+00324 end
+00325 
+00326 # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+00327 def pbFacingTileRegular(direction = nil, event = nil)
+00328   event = $game_player if !event
+00329   return [0, 0, 0] if !event
+00330   x = event.x
+00331   y = event.y
+00332   direction = event.direction if !direction
+00333   x_offset = [0, -1, 0, 1, -1, 0, 1, -1, 0, 1][direction]
+00334   y_offset = [0, 1, 1, 1, 0, 0, 0, -1, -1, -1][direction]
+00335   return [$game_map.map_id, x + x_offset, y + y_offset]
+00336 end
+00337 
+00338 # Returns whether event is in line with the player, is facing the player and is
+00339 # within distance tiles of the player.
+00340 def pbEventFacesPlayer?(event, player, distance)
+00341   return false if !event || !player || distance <= 0
+00342   x_min = x_max = y_min = y_max = -1
+00343   case event.direction
+00344   when 2   # Down
+00345     x_min = event.x
+00346     x_max = event.x + event.width - 1
+00347     y_min = event.y + 1
+00348     y_max = event.y + distance
+00349   when 4   # Left
+00350     x_min = event.x - distance
+00351     x_max = event.x - 1
+00352     y_min = event.y - event.height + 1
+00353     y_max = event.y
+00354   when 6   # Right
+00355     x_min = event.x + event.width
+00356     x_max = event.x + event.width - 1 + distance
+00357     y_min = event.y - event.height + 1
+00358     y_max = event.y
+00359   when 8   # Up
+00360     x_min = event.x
+00361     x_max = event.x + event.width - 1
+00362     y_min = event.y - event.height + 1 - distance
+00363     y_max = event.y - event.height
+00364   else
+00365     return false
+00366   end
+00367   return player.x >= x_min && player.x <= x_max &&
+00368          player.y >= y_min && player.y <= y_max
+00369 end
+00370 
+00371 # Returns whether event is able to walk up to the player.
+00372 def pbEventCanReachPlayer?(event, player, distance)
+00373   return false if !pbEventFacesPlayer?(event, player, distance)
+00374   delta_x = (event.direction == 6) ? 1 : (event.direction == 4) ? -1 : 0
+00375   delta_y = (event.direction == 2) ? 1 : (event.direction == 8) ? -1 : 0
+00376   case event.direction
+00377   when 2   # Down
+00378     real_distance = player.y - event.y - 1
+00379   when 4   # Left
+00380     real_distance = event.x - player.x - 1

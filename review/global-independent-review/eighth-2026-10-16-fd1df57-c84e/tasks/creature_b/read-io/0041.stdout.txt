@@ -1,0 +1,408 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb", "range": [821, 1227], "file_lines": 1227, "bytes": 42638, "sha256": "3a7f233156f09a6d2e3729bdaa9d1962bfa946aaaa7403042aaea5dcdcdf8cb4", "began_utc": "2026-10-16T03:31:20.728221+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00821   end
+00822 
+00823   # Reduces the time remaining for this Pokémon's Pokérus (if infected).
+00824   def lowerPokerusCount
+00825     return if self.pokerusStage != 1
+00826     @pokerus -= 1
+00827   end
+00828 
+00829   # Cures this Pokémon's Pokérus (if infected).
+00830   def curePokerus
+00831     @pokerus -= @pokerus % 16
+00832   end
+00833 
+00834   #=============================================================================
+00835   # Ownership, obtained information
+00836   #=============================================================================
+00837 
+00838   # Changes this Pokémon's owner.
+00839   # @param new_owner [Owner] the owner to change to
+00840   def owner=(new_owner)
+00841     validate new_owner => Owner
+00842     @owner = new_owner
+00843   end
+00844 
+00845   # @param trainer [Player, NPCTrainer, nil] the trainer to compare to the original trainer
+00846   # @return [Boolean] whether the given trainer is not this Pokémon's original trainer
+00847   def foreign?(trainer = $player)
+00848     return @owner.id != trainer.id || @owner.name != trainer.name
+00849   end
+00850 
+00851   # @return [Time] the time when this Pokémon was obtained
+00852   def timeReceived
+00853     return Time.at(@timeReceived)
+00854   end
+00855 
+00856   # Sets the time when this Pokémon was obtained.
+00857   # @param value [Integer, Time, #to_i] time in seconds since Unix epoch
+00858   def timeReceived=(value)
+00859     @timeReceived = value.to_i
+00860   end
+00861 
+00862   # @return [Time] the time when this Pokémon hatched
+00863   def timeEggHatched
+00864     return (obtain_method == 1) ? Time.at(@timeEggHatched) : nil
+00865   end
+00866 
+00867   # Sets the time when this Pokémon hatched.
+00868   # @param value [Integer, Time, #to_i] time in seconds since Unix epoch
+00869   def timeEggHatched=(value)
+00870     @timeEggHatched = value.to_i
+00871   end
+00872 
+00873   #=============================================================================
+00874   # Other
+00875   #=============================================================================
+00876 
+00877   # @return [String] the name of this Pokémon
+00878   def name
+00879     return (nicknamed?) ? @name : speciesName
+00880   end
+00881 
+00882   # @param value [String] the nickname of this Pokémon
+00883   def name=(value)
+00884     value = nil if !value || value.empty? || value == speciesName
+00885     @name = value
+00886   end
+00887 
+00888   # @return [Boolean] whether this Pokémon has been nicknamed
+00889   def nicknamed?
+00890     return @name && !@name.empty?
+00891   end
+00892 
+00893   # @return [String] the species name of this Pokémon
+00894   def speciesName
+00895     return species_data.name
+00896   end
+00897 
+00898   # @return [Integer] the height of this Pokémon in decimetres (0.1 metres)
+00899   def height
+00900     return species_data.height
+00901   end
+00902 
+00903   # @return [Integer] the weight of this Pokémon in hectograms (0.1 kilograms)
+00904   def weight
+00905     return species_data.weight
+00906   end
+00907 
+00908   # @return [Hash<Integer>] the EV yield of this Pokémon (a hash with six key/value pairs)
+00909   def evYield
+00910     this_evs = species_data.evs
+00911     ret = {}
+00912     GameData::Stat.each_main { |s| ret[s.id] = this_evs[s.id] }
+00913     return ret
+00914   end
+00915 
+00916   def affection_level
+00917     case @happiness
+00918     when 0...100   then return 0
+00919     when 100...150 then return 1
+00920     when 150...200 then return 2
+00921     when 200...230 then return 3
+00922     when 230...255 then return 4
+00923     end
+00924     return 5   # 255
+00925   end
+00926 
+00927   # Changes the happiness of this Pokémon depending on what happened to change it.
+00928   # @param method [String] the happiness changing method (e.g. 'walking')
+00929   def changeHappiness(method)
+00930     gain = 0
+00931     happiness_range = @happiness / 100
+00932     case method
+00933     when "walking"
+00934       gain = [2, 2, 1][happiness_range]
+00935     when "levelup"
+00936       gain = [5, 4, 3][happiness_range]
+00937     when "groom"
+00938       gain = [10, 10, 4][happiness_range]
+00939     when "evberry"
+00940       gain = [10, 5, 2][happiness_range]
+00941     when "vitamin"
+00942       gain = [5, 3, 2][happiness_range]
+00943     when "wing"
+00944       gain = [3, 2, 1][happiness_range]
+00945     when "machine", "battleitem"
+00946       gain = [1, 1, 0][happiness_range]
+00947     when "faint"
+00948       gain = -1
+00949     when "faintbad"   # Fainted against an opponent that is 30+ levels higher
+00950       gain = [-5, -5, -10][happiness_range]
+00951     when "powder"
+00952       gain = [-5, -5, -10][happiness_range]
+00953     when "energyroot"
+00954       gain = [-10, -10, -15][happiness_range]
+00955     when "revivalherb"
+00956       gain = [-15, -15, -20][happiness_range]
+00957     else
+00958       raise _INTL("Unknown happiness-changing method: {1}", method.to_s)
+00959     end
+00960     if gain > 0
+00961       gain += 1 if @obtain_map == $game_map.map_id
+00962       gain += 1 if @poke_ball == :LUXURYBALL
+00963       gain = (gain * 1.5).floor if hasItem?(:SOOTHEBELL)
+00964       if Settings::APPLY_HAPPINESS_SOFT_CAP && method != "evberry"
+00965         gain = (@happiness >= 179) ? 0 : gain.clamp(0, 179 - @happiness)
+00966       end
+00967     end
+00968     @happiness = (@happiness + gain).clamp(0, 255)
+00969   end
+00970 
+00971   #=============================================================================
+00972   # Evolution checks
+00973   #=============================================================================
+00974   # Checks whether this Pokemon can evolve because of levelling up.
+00975   # @return [Symbol, nil] the ID of the species to evolve into
+00976   def check_evolution_on_level_up
+00977     return check_evolution_internal do |pkmn, new_species, method, parameter|
+00978       success = GameData::Evolution.get(method).call_level_up(pkmn, parameter)
+00979       next (success) ? new_species : nil
+00980     end
+00981   end
+00982 
+00983   # Checks whether this Pokemon can evolve because of using an item on it.
+00984   # @param item_used [Symbol, GameData::Item, nil] the item being used
+00985   # @return [Symbol, nil] the ID of the species to evolve into
+00986   def check_evolution_on_use_item(item_used)
+00987     return check_evolution_internal do |pkmn, new_species, method, parameter|
+00988       success = GameData::Evolution.get(method).call_use_item(pkmn, parameter, item_used)
+00989       next (success) ? new_species : nil
+00990     end
+00991   end
+00992 
+00993   # Checks whether this Pokemon can evolve because of being traded.
+00994   # @param other_pkmn [Pokemon] the other Pokémon involved in the trade
+00995   # @return [Symbol, nil] the ID of the species to evolve into
+00996   def check_evolution_on_trade(other_pkmn)
+00997     return check_evolution_internal do |pkmn, new_species, method, parameter|
+00998       success = GameData::Evolution.get(method).call_on_trade(pkmn, parameter, other_pkmn)
+00999       next (success) ? new_species : nil
+01000     end
+01001   end
+01002 
+01003   # Checks whether this Pokemon can evolve after a battle.
+01004   # @return [Symbol, nil] the ID of the species to evolve into
+01005   def check_evolution_after_battle(party_index)
+01006     return check_evolution_internal do |pkmn, new_species, method, parameter|
+01007       success = GameData::Evolution.get(method).call_after_battle(pkmn, party_index, parameter)
+01008       next (success) ? new_species : nil
+01009     end
+01010   end
+01011 
+01012   # Checks whether this Pokemon can evolve by a triggered event.
+01013   # @param value [Integer] a value that may be used by the evolution method
+01014   # @return [Symbol, nil] the ID of the species to evolve into
+01015   def check_evolution_by_event(value = 0)
+01016     return check_evolution_internal do |pkmn, new_species, method, parameter|
+01017       success = GameData::Evolution.get(method).call_event(pkmn, parameter, value)
+01018       next (success) ? new_species : nil
+01019     end
+01020   end
+01021 
+01022   # Called after this Pokémon evolves, to remove its held item (if the evolution
+01023   # required it to have a held item) or duplicate this Pokémon (Shedinja only).
+01024   # @param new_species [Symbol] the species that this Pokémon evolved into
+01025   def action_after_evolution(new_species)
+01026     species_data.get_evolutions(true).each do |evo|   # [new_species, method, parameter]
+01027       break if GameData::Evolution.get(evo[1]).call_after_evolution(self, evo[0], evo[2], new_species)
+01028     end
+01029   end
+01030 
+01031   # The core method that performs evolution checks. Needs a block given to it,
+01032   # which will provide either a GameData::Species ID (the species to evolve
+01033   # into) or nil (keep checking).
+01034   # @return [Symbol, nil] the ID of the species to evolve into
+01035   def check_evolution_internal
+01036     return nil if egg? || shadowPokemon?
+01037     return nil if hasItem?(:EVERSTONE)
+01038     return nil if hasAbility?(:BATTLEBOND)
+01039     species_data.get_evolutions(true).each do |evo|   # [new_species, method, parameter, boolean]
+01040       next if evo[3]   # Prevolution
+01041       ret = yield self, evo[0], evo[1], evo[2]   # pkmn, new_species, method, parameter
+01042       return ret if ret
+01043     end
+01044     return nil
+01045   end
+01046 
+01047   def trigger_event_evolution(number)
+01048     new_species = check_evolution_by_event(number)
+01049     if new_species
+01050       pbFadeOutInWithMusic do
+01051         evo = PokemonEvolutionScene.new
+01052         evo.pbStartScreen(self, new_species)
+01053         evo.pbEvolution
+01054         evo.pbEndScreen
+01055       end
+01056       return true
+01057     end
+01058     return false
+01059   end
+01060 
+01061   #=============================================================================
+01062   # Stat calculations
+01063   #=============================================================================
+01064 
+01065   # @return [Hash<Integer>] this Pokémon's base stats, a hash with six key/value pairs
+01066   def baseStats
+01067     this_base_stats = species_data.base_stats
+01068     ret = {}
+01069     GameData::Stat.each_main { |s| ret[s.id] = this_base_stats[s.id] }
+01070     return ret
+01071   end
+01072 
+01073   # Returns this Pokémon's effective IVs, taking into account Hyper Training.
+01074   # Only used for calculating stats.
+01075   # @return [Hash<Integer>] hash containing this Pokémon's effective IVs
+01076   def calcIV
+01077     this_ivs = self.iv
+01078     ret = {}
+01079     GameData::Stat.each_main do |s|
+01080       ret[s.id] = (@ivMaxed[s.id]) ? IV_STAT_LIMIT : this_ivs[s.id]
+01081     end
+01082     return ret
+01083   end
+01084 
+01085   # @return [Integer] the maximum HP of this Pokémon
+01086   def calcHP(base, level, iv, ev)
+01087     return 1 if base == 1   # For Shedinja
+01088     iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+01089     return (((base * 2) + iv + (ev / 4)) * level / 100).floor + level + 10
+01090   end
+01091 
+01092   # @return [Integer] the specified stat of this Pokémon (not used for total HP)
+01093   def calcStat(base, level, iv, ev, nat)
+01094     iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+01095     return (((((base * 2) + iv + (ev / 4)) * level / 100).floor + 5) * nat / 100).floor
+01096   end
+01097 
+01098   # Recalculates this Pokémon's stats.
+01099   def calc_stats
+01100     base_stats = self.baseStats
+01101     this_level = self.level
+01102     this_IV    = self.calcIV
+01103     # Format stat multipliers due to nature
+01104     nature_mod = {}
+01105     GameData::Stat.each_main { |s| nature_mod[s.id] = 100 }
+01106     this_nature = self.nature_for_stats
+01107     if this_nature
+01108       this_nature.stat_changes.each { |change| nature_mod[change[0]] += change[1] }
+01109     end
+01110     # Calculate stats
+01111     stats = {}
+01112     GameData::Stat.each_main do |s|
+01113       if s.id == :HP
+01114         stats[s.id] = calcHP(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id])
+01115       else
+01116         stats[s.id] = calcStat(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id], nature_mod[s.id])
+01117       end
+01118     end
+01119     hp_difference = stats[:HP] - @totalhp
+01120     @totalhp = stats[:HP]
+01121     self.hp = [@hp + hp_difference, 1].max if @hp > 0 || hp_difference > 0
+01122     @attack  = stats[:ATTACK]
+01123     @defense = stats[:DEFENSE]
+01124     @spatk   = stats[:SPECIAL_ATTACK]
+01125     @spdef   = stats[:SPECIAL_DEFENSE]
+01126     @speed   = stats[:SPEED]
+01127   end
+01128 
+01129   #=============================================================================
+01130   # Pokémon creation
+01131   #=============================================================================
+01132 
+01133   # Creates a copy of this Pokémon and returns it.
+01134   # @return [Pokemon] a copy of this Pokémon
+01135   def clone
+01136     ret = super
+01137     ret.iv          = {}
+01138     ret.ivMaxed     = {}
+01139     ret.ev          = {}
+01140     GameData::Stat.each_main do |s|
+01141       ret.iv[s.id]      = @iv[s.id]
+01142       ret.ivMaxed[s.id] = @ivMaxed[s.id]
+01143       ret.ev[s.id]      = @ev[s.id]
+01144     end
+01145     ret.moves       = []
+01146     @moves.each_with_index { |m, i| ret.moves[i] = m.clone }
+01147     ret.first_moves = @first_moves.clone
+01148     ret.owner       = @owner.clone
+01149     ret.ribbons     = @ribbons.clone
+01150     return ret
+01151   end
+01152 
+01153   # Creates a new Pokémon object.
+01154   # @param species [Symbol, String, GameData::Species] Pokémon species
+01155   # @param level [Integer] Pokémon level
+01156   # @param owner [Owner, Player, NPCTrainer] Pokémon owner (the player by default)
+01157   # @param withMoves [Boolean] whether the Pokémon should have moves
+01158   # @param recheck_form [Boolean] whether to auto-check the form
+01159   def initialize(species, level, owner = $player, withMoves = true, recheck_form = true)
+01160     species_data = GameData::Species.get(species)
+01161     @species          = species_data.species
+01162     @form             = species_data.base_form
+01163     @forced_form      = nil
+01164     @time_form_set    = nil
+01165     self.level        = level
+01166     @steps_to_hatch   = 0
+01167     heal_status
+01168     @gender           = nil
+01169     @shiny            = nil
+01170     @ability_index    = nil
+01171     @ability          = nil
+01172     @nature           = nil
+01173     @nature_for_stats = nil
+01174     @item             = nil
+01175     @mail             = nil
+01176     @moves            = []
+01177     reset_moves if withMoves
+01178     @first_moves      = []
+01179     @ribbons          = []
+01180     @cool             = 0
+01181     @beauty           = 0
+01182     @cute             = 0
+01183     @smart            = 0
+01184     @tough            = 0
+01185     @sheen            = 0
+01186     @pokerus          = 0
+01187     @name             = nil
+01188     @happiness        = species_data.happiness
+01189     @poke_ball        = :POKEBALL
+01190     @markings         = []
+01191     @iv               = {}
+01192     @ivMaxed          = {}
+01193     @ev               = {}
+01194     GameData::Stat.each_main do |s|
+01195       @iv[s.id]       = rand(IV_STAT_LIMIT + 1)
+01196       @ev[s.id]       = 0
+01197     end
+01198     case owner
+01199     when Owner
+01200       @owner = owner
+01201     when Player, NPCTrainer
+01202       @owner = Owner.new_from_trainer(owner)
+01203     else
+01204       @owner = Owner.new(0, "", 2, 2)
+01205     end
+01206     @obtain_method    = 0   # Met
+01207     @obtain_method    = 4 if $game_switches && $game_switches[Settings::FATEFUL_ENCOUNTER_SWITCH]
+01208     @obtain_map       = ($game_map) ? $game_map.map_id : 0
+01209     @obtain_text      = nil
+01210     @obtain_level     = level
+01211     @hatched_map      = 0
+01212     @timeReceived     = Time.now.to_i
+01213     @timeEggHatched   = nil
+01214     @fused            = nil
+01215     @personalID       = rand(2**16) | (rand(2**16) << 16)
+01216     @hp               = 1
+01217     @totalhp          = 1
+01218     calc_stats
+01219     if @form == 0 && recheck_form
+01220       f = MultipleForms.call("getFormOnCreation", self)
+01221       if f
+01222         self.form = f
+01223         reset_moves if withMoves
+01224       end
+01225     end
+01226   end
+01227 end

@@ -1,0 +1,411 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/017_UI_PokemonStorage.rb", "range": [1, 410], "file_lines": 2022, "bytes": 60290, "sha256": "ea28f0f062a7fe1b6d40d6b798cfb3f3bac9baf0194f03200ecfd24ebe5962ed", "began_utc": "2026-10-16T03:56:47.370062+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Pokémon icons
+00003 #===============================================================================
+00004 class PokemonBoxIcon < IconSprite
+00005   def initialize(pokemon, viewport = nil)
+00006     super(0, 0, viewport)
+00007     @pokemon = pokemon
+00008     @release_timer_start = nil
+00009     refresh
+00010   end
+00011 
+00012   def releasing?
+00013     return !@release_timer_start.nil?
+00014   end
+00015 
+00016   def release
+00017     self.ox = self.src_rect.width / 2    # 32
+00018     self.oy = self.src_rect.height / 2   # 32
+00019     self.x += self.src_rect.width / 2    # 32
+00020     self.y += self.src_rect.height / 2   # 32
+00021     @release_timer_start = System.uptime
+00022   end
+00023 
+00024   def refresh
+00025     return if !@pokemon
+00026     self.setBitmap(GameData::Species.icon_filename_from_pokemon(@pokemon))
+00027     self.src_rect = Rect.new(0, 0, self.bitmap.height, self.bitmap.height)
+00028   end
+00029 
+00030   def update
+00031     super
+00032     self.color = Color.new(0, 0, 0, 0)
+00033     if releasing?
+00034       time_now = System.uptime
+00035       self.zoom_x = lerp(1.0, 0.0, 1.5, @release_timer_start, System.uptime)
+00036       self.zoom_y = self.zoom_x
+00037       self.opacity = lerp(255, 0, 1.5, @release_timer_start, System.uptime)
+00038       if self.opacity == 0
+00039         @release_timer_start = nil
+00040         dispose
+00041       end
+00042     end
+00043   end
+00044 end
+00045 
+00046 #===============================================================================
+00047 # Pokémon sprite
+00048 #===============================================================================
+00049 class MosaicPokemonSprite < PokemonSprite
+00050   attr_reader :mosaic
+00051 
+00052   def initialize(*args)
+00053     super(*args)
+00054     @mosaic = 0
+00055     @inrefresh = false
+00056     @mosaicbitmap = nil
+00057     @mosaicbitmap2 = nil
+00058     @oldbitmap = self.bitmap
+00059   end
+00060 
+00061   def dispose
+00062     super
+00063     @mosaicbitmap&.dispose
+00064     @mosaicbitmap = nil
+00065     @mosaicbitmap2&.dispose
+00066     @mosaicbitmap2 = nil
+00067   end
+00068 
+00069   def bitmap=(value)
+00070     super
+00071     mosaicRefresh(value)
+00072   end
+00073 
+00074   def mosaic=(value)
+00075     @mosaic = value
+00076     @mosaic = 0 if @mosaic < 0
+00077     mosaicRefresh(@oldbitmap)
+00078   end
+00079 
+00080   def mosaicRefresh(bitmap)
+00081     return if @inrefresh
+00082     @inrefresh = true
+00083     @oldbitmap = bitmap
+00084     if @mosaic <= 0 || !@oldbitmap
+00085       @mosaicbitmap&.dispose
+00086       @mosaicbitmap = nil
+00087       @mosaicbitmap2&.dispose
+00088       @mosaicbitmap2 = nil
+00089       self.bitmap = @oldbitmap
+00090     else
+00091       newWidth  = [(@oldbitmap.width / @mosaic), 1].max
+00092       newHeight = [(@oldbitmap.height / @mosaic), 1].max
+00093       @mosaicbitmap2&.dispose
+00094       @mosaicbitmap = pbDoEnsureBitmap(@mosaicbitmap, newWidth, newHeight)
+00095       @mosaicbitmap.clear
+00096       @mosaicbitmap2 = pbDoEnsureBitmap(@mosaicbitmap2, @oldbitmap.width, @oldbitmap.height)
+00097       @mosaicbitmap2.clear
+00098       @mosaicbitmap.stretch_blt(Rect.new(0, 0, newWidth, newHeight), @oldbitmap, @oldbitmap.rect)
+00099       @mosaicbitmap2.stretch_blt(
+00100         Rect.new((-@mosaic / 2) + 1, (-@mosaic / 2) + 1, @mosaicbitmap2.width, @mosaicbitmap2.height),
+00101         @mosaicbitmap, Rect.new(0, 0, newWidth, newHeight)
+00102       )
+00103       self.bitmap = @mosaicbitmap2
+00104     end
+00105     @inrefresh = false
+00106   end
+00107 end
+00108 
+00109 #===============================================================================
+00110 #
+00111 #===============================================================================
+00112 class AutoMosaicPokemonSprite < MosaicPokemonSprite
+00113   INITIAL_MOSAIC = 10   # Pixellation factor
+00114 
+00115   def mosaic=(value)
+00116     @mosaic = value
+00117     @mosaic = 0 if @mosaic < 0
+00118     @start_mosaic = @mosaic if !@start_mosaic
+00119   end
+00120 
+00121   def mosaic_duration=(val)
+00122     @mosaic_duration = val
+00123     @mosaic_duration = 0 if @mosaic_duration < 0
+00124     @mosaic_timer_start = System.uptime if @mosaic_duration > 0
+00125   end
+00126 
+00127   def update
+00128     super
+00129     if @mosaic_timer_start
+00130       @start_mosaic = INITIAL_MOSAIC if !@start_mosaic || @start_mosaic == 0
+00131       new_mosaic = lerp(@start_mosaic, 0, @mosaic_duration, @mosaic_timer_start, System.uptime).to_i
+00132       self.mosaic = new_mosaic
+00133       mosaicRefresh(@oldbitmap)
+00134       if new_mosaic == 0
+00135         @mosaic_timer_start = nil
+00136         @start_mosaic = nil
+00137       end
+00138     end
+00139   end
+00140 end
+00141 
+00142 #===============================================================================
+00143 # Cursor
+00144 #===============================================================================
+00145 class PokemonBoxArrow < Sprite
+00146   attr_accessor :quickswap
+00147 
+00148   # Time in seconds for the cursor to move down and back up to grab/drop a
+00149   # Pokémon.
+00150   GRAB_TIME = 0.4
+00151 
+00152   def initialize(viewport = nil)
+00153     super(viewport)
+00154     @holding    = false
+00155     @updating   = false
+00156     @quickswap  = false
+00157     @heldpkmn   = nil
+00158     @handsprite = ChangelingSprite.new(0, 0, viewport)
+00159     @handsprite.addBitmap("point1", "Graphics/UI/Storage/cursor_point_1")
+00160     @handsprite.addBitmap("point2", "Graphics/UI/Storage/cursor_point_2")
+00161     @handsprite.addBitmap("grab", "Graphics/UI/Storage/cursor_grab")
+00162     @handsprite.addBitmap("fist", "Graphics/UI/Storage/cursor_fist")
+00163     @handsprite.addBitmap("point1q", "Graphics/UI/Storage/cursor_point_1_q")
+00164     @handsprite.addBitmap("point2q", "Graphics/UI/Storage/cursor_point_2_q")
+00165     @handsprite.addBitmap("grabq", "Graphics/UI/Storage/cursor_grab_q")
+00166     @handsprite.addBitmap("fistq", "Graphics/UI/Storage/cursor_fist_q")
+00167     @handsprite.changeBitmap("fist")
+00168     @spriteX = self.x
+00169     @spriteY = self.y
+00170   end
+00171 
+00172   def dispose
+00173     @handsprite.dispose
+00174     @heldpkmn&.dispose
+00175     super
+00176   end
+00177 
+00178   def x=(value)
+00179     super
+00180     @handsprite.x = self.x
+00181     @spriteX = x if !@updating
+00182     heldPokemon.x = self.x if holding?
+00183   end
+00184 
+00185   def y=(value)
+00186     super
+00187     @handsprite.y = self.y
+00188     @spriteY = y if !@updating
+00189     heldPokemon.y = self.y + 16 if holding?
+00190   end
+00191 
+00192   def z=(value)
+00193     super
+00194     @handsprite.z = value
+00195   end
+00196 
+00197   def visible=(value)
+00198     super
+00199     @handsprite.visible = value
+00200     sprite = heldPokemon
+00201     sprite.visible = value if sprite
+00202   end
+00203 
+00204   def color=(value)
+00205     super
+00206     @handsprite.color = value
+00207     sprite = heldPokemon
+00208     sprite.color = value if sprite
+00209   end
+00210 
+00211   def heldPokemon
+00212     @heldpkmn = nil if @heldpkmn&.disposed?
+00213     @holding = false if !@heldpkmn
+00214     return @heldpkmn
+00215   end
+00216 
+00217   def holding?
+00218     return self.heldPokemon && @holding
+00219   end
+00220 
+00221   def grabbing?
+00222     return !@grabbing_timer_start.nil?
+00223   end
+00224 
+00225   def placing?
+00226     return !@placing_timer_start.nil?
+00227   end
+00228 
+00229   def setSprite(sprite)
+00230     if holding?
+00231       @heldpkmn = sprite
+00232       @heldpkmn.viewport = self.viewport if @heldpkmn
+00233       @heldpkmn.z = 1 if @heldpkmn
+00234       @holding = false if !@heldpkmn
+00235       self.z = 2
+00236     end
+00237   end
+00238 
+00239   def deleteSprite
+00240     @holding = false
+00241     if @heldpkmn
+00242       @heldpkmn.dispose
+00243       @heldpkmn = nil
+00244     end
+00245   end
+00246 
+00247   def grab(sprite)
+00248     @grabbing_timer_start = System.uptime
+00249     @heldpkmn = sprite
+00250     @heldpkmn.viewport = self.viewport
+00251     @heldpkmn.z = 1
+00252     self.z = 2
+00253   end
+00254 
+00255   def place
+00256     @placing_timer_start = System.uptime
+00257   end
+00258 
+00259   def release
+00260     @heldpkmn&.release
+00261   end
+00262 
+00263   def update
+00264     @updating = true
+00265     super
+00266     heldpkmn = heldPokemon
+00267     heldpkmn&.update
+00268     @handsprite.update
+00269     @holding = false if !heldpkmn
+00270     if @grabbing_timer_start
+00271       if System.uptime - @grabbing_timer_start <= GRAB_TIME / 2
+00272         @handsprite.changeBitmap((@quickswap) ? "grabq" : "grab")
+00273         self.y = @spriteY + lerp(0, 16, GRAB_TIME / 2, @grabbing_timer_start, System.uptime)
+00274       else
+00275         @holding = true
+00276         @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+00277         delta_y = lerp(16, 0, GRAB_TIME / 2, @grabbing_timer_start + (GRAB_TIME / 2), System.uptime)
+00278         self.y = @spriteY + delta_y
+00279         @grabbing_timer_start = nil if delta_y == 0
+00280       end
+00281     elsif @placing_timer_start
+00282       if System.uptime - @placing_timer_start <= GRAB_TIME / 2
+00283         @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+00284         self.y = @spriteY + lerp(0, 16, GRAB_TIME / 2, @placing_timer_start, System.uptime)
+00285       else
+00286         @holding = false
+00287         @heldpkmn = nil
+00288         @handsprite.changeBitmap((@quickswap) ? "grabq" : "grab")
+00289         delta_y = lerp(16, 0, GRAB_TIME / 2, @placing_timer_start + (GRAB_TIME / 2), System.uptime)
+00290         self.y = @spriteY + delta_y
+00291         @placing_timer_start = nil if delta_y == 0
+00292       end
+00293     elsif holding?
+00294       @handsprite.changeBitmap((@quickswap) ? "fistq" : "fist")
+00295     else   # Idling
+00296       self.x = @spriteX
+00297       self.y = @spriteY
+00298       if (System.uptime / 0.5).to_i.even?   # Changes every 0.5 seconds
+00299         @handsprite.changeBitmap((@quickswap) ? "point1q" : "point1")
+00300       else
+00301         @handsprite.changeBitmap((@quickswap) ? "point2q" : "point2")
+00302       end
+00303     end
+00304     @updating = false
+00305   end
+00306 end
+00307 
+00308 #===============================================================================
+00309 # Box
+00310 #===============================================================================
+00311 class PokemonBoxSprite < Sprite
+00312   attr_accessor :refreshBox
+00313   attr_accessor :refreshSprites
+00314 
+00315   def initialize(storage, boxnumber, viewport = nil)
+00316     super(viewport)
+00317     @storage = storage
+00318     @boxnumber = boxnumber
+00319     @refreshBox = true
+00320     @refreshSprites = true
+00321     @pokemonsprites = []
+00322     PokemonBox::BOX_SIZE.times do |i|
+00323       @pokemonsprites[i] = nil
+00324       pokemon = @storage[boxnumber, i]
+00325       @pokemonsprites[i] = PokemonBoxIcon.new(pokemon, viewport)
+00326     end
+00327     @contents = Bitmap.new(324, 296)
+00328     self.bitmap = @contents
+00329     self.x = 184
+00330     self.y = 18
+00331     refresh
+00332   end
+00333 
+00334   def dispose
+00335     if !disposed?
+00336       PokemonBox::BOX_SIZE.times do |i|
+00337         @pokemonsprites[i]&.dispose
+00338         @pokemonsprites[i] = nil
+00339       end
+00340       @boxbitmap.dispose
+00341       @contents.dispose
+00342       super
+00343     end
+00344   end
+00345 
+00346   def x=(value)
+00347     super
+00348     refresh
+00349   end
+00350 
+00351   def y=(value)
+00352     super
+00353     refresh
+00354   end
+00355 
+00356   def color=(value)
+00357     super
+00358     if @refreshSprites
+00359       PokemonBox::BOX_SIZE.times do |i|
+00360         if @pokemonsprites[i] && !@pokemonsprites[i].disposed?
+00361           @pokemonsprites[i].color = value
+00362         end
+00363       end
+00364     end
+00365     refresh
+00366   end
+00367 
+00368   def visible=(value)
+00369     super
+00370     PokemonBox::BOX_SIZE.times do |i|
+00371       if @pokemonsprites[i] && !@pokemonsprites[i].disposed?
+00372         @pokemonsprites[i].visible = value
+00373       end
+00374     end
+00375     refresh
+00376   end
+00377 
+00378   def getBoxBitmap
+00379     if !@bg || @bg != @storage[@boxnumber].background
+00380       curbg = @storage[@boxnumber].background
+00381       if !curbg || (curbg.is_a?(String) && curbg.length == 0)
+00382         @bg = @boxnumber % PokemonStorage::BASICWALLPAPERQTY
+00383       else
+00384         if curbg.is_a?(String) && curbg[/^box(\d+)$/]
+00385           curbg = $~[1].to_i
+00386           @storage[@boxnumber].background = curbg
+00387         end
+00388         @bg = curbg
+00389       end
+00390       if !@storage.isAvailableWallpaper?(@bg)
+00391         @bg = @boxnumber % PokemonStorage::BASICWALLPAPERQTY
+00392         @storage[@boxnumber].background = @bg
+00393       end
+00394       @boxbitmap&.dispose
+00395       @boxbitmap = AnimatedBitmap.new("Graphics/UI/Storage/box_#{@bg}")
+00396     end
+00397   end
+00398 
+00399   def getPokemon(index)
+00400     return @pokemonsprites[index]
+00401   end
+00402 
+00403   def setPokemon(index, sprite)
+00404     @pokemonsprites[index] = sprite
+00405     @pokemonsprites[index].refresh
+00406     refresh
+00407   end
+00408 
+00409   def grabPokemon(index, arrow)
+00410     sprite = @pokemonsprites[index]

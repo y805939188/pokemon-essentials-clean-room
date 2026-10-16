@@ -1,0 +1,76 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/003_Compiler_WritePBS.rb", "range": [1, 75], "file_lines": 821, "bytes": 31117, "sha256": "37f2e79f29ce82d9f51305069fd08f10a976a6e4d855716767856687fbaa3d14", "began_utc": "2026-10-16T03:34:56.192295+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 module Compiler
+00002   module_function
+00003 
+00004   def get_all_PBS_file_paths(game_data)
+00005     ret = []
+00006     game_data.each { |element| ret.push(element.pbs_file_suffix) if !ret.include?(element.pbs_file_suffix) }
+00007     ret.each_with_index do |element, i|
+00008       ret[i] = [sprintf("PBS/%s.txt", game_data::PBS_BASE_FILENAME), element]
+00009       if !nil_or_empty?(element)
+00010         ret[i][0] = sprintf("PBS/%s_%s.txt", game_data::PBS_BASE_FILENAME, element)
+00011       end
+00012     end
+00013     return ret
+00014   end
+00015 
+00016   def add_PBS_header_to_file(file)
+00017     file.write(0xEF.chr)
+00018     file.write(0xBB.chr)
+00019     file.write(0xBF.chr)
+00020     file.write("\# " + _INTL("See the documentation on the wiki to learn how to edit this file.") + "\r\n")
+00021   end
+00022 
+00023   def write_PBS_file_generic(game_data)
+00024     paths = get_all_PBS_file_paths(game_data)
+00025     schema = game_data.schema
+00026     idx = 0
+00027     paths.each do |path|
+00028       write_pbs_file_message_start(path[0])
+00029       File.open(path[0], "wb") do |f|
+00030         add_PBS_header_to_file(f)
+00031         # Write each element in turn
+00032         game_data.each do |element|
+00033           next if element.pbs_file_suffix != path[1]
+00034           echo "." if idx % 100 == 0
+00035           Graphics.update if idx % 500 == 0
+00036           idx += 1
+00037           f.write("\#-------------------------------\r\n")
+00038           if schema["SectionName"]
+00039             f.write("[")
+00040             pbWriteCsvRecord(element.get_property_for_PBS("SectionName"), f, schema["SectionName"])
+00041             f.write("]\r\n")
+00042           else
+00043             f.write("[#{element.id}]\r\n")
+00044           end
+00045           schema.each_key do |key|
+00046             next if key == "SectionName"
+00047             val = element.get_property_for_PBS(key)
+00048             next if val.nil?
+00049             if schema[key][1][0] == "^" && val.is_a?(Array)
+00050               val.each do |sub_val|
+00051                 f.write(sprintf("%s = ", key))
+00052                 pbWriteCsvRecord(sub_val, f, schema[key])
+00053                 f.write("\r\n")
+00054               end
+00055             else
+00056               f.write(sprintf("%s = ", key))
+00057               pbWriteCsvRecord(val, f, schema[key])
+00058               f.write("\r\n")
+00059             end
+00060           end
+00061         end
+00062       end
+00063       process_pbs_file_message_end
+00064     end
+00065   end
+00066 
+00067   #=============================================================================
+00068   # Save Town Map data to PBS file
+00069   #=============================================================================
+00070   def write_town_map
+00071     write_PBS_file_generic(GameData::TownMap)
+00072   end
+00073 
+00074   #=============================================================================
+00075   # Save map connections to PBS file

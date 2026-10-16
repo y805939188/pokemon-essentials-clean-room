@@ -1,0 +1,277 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/001_Non-interactive UI/004_UI_Evolution.rb", "range": [1, 276], "file_lines": 276, "bytes": 9687, "sha256": "de12abdc4726f4402aaaf0ef50a9bb180fc8de13a825b682dc15b1f249394942", "began_utc": "2026-10-16T04:09:59.732586+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Evolution screen
+00003 #===============================================================================
+00004 class PokemonEvolutionScene
+00005   def self.pbDuplicatePokemon(pkmn, new_species)
+00006     new_pkmn = pkmn.clone
+00007     new_pkmn.species   = new_species
+00008     new_pkmn.name      = nil
+00009     new_pkmn.markings  = []
+00010     new_pkmn.poke_ball = :POKEBALL
+00011     new_pkmn.item      = nil
+00012     new_pkmn.clearAllRibbons
+00013     new_pkmn.calc_stats
+00014     new_pkmn.heal
+00015     # Add duplicate Pokémon to party
+00016     $player.party.push(new_pkmn)
+00017     # See and own duplicate Pokémon
+00018     $player.pokedex.register(new_pkmn)
+00019     $player.pokedex.set_owned(new_species)
+00020   end
+00021 
+00022   def pbStartScreen(pokemon, newspecies)
+00023     @pokemon = pokemon
+00024     @newspecies = newspecies
+00025     @sprites = {}
+00026     @bgviewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00027     @bgviewport.z = 99999
+00028     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00029     @viewport.z = 99999
+00030     @msgviewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00031     @msgviewport.z = 99999
+00032     addBackgroundOrColoredPlane(@sprites, "background", "evolution_bg",
+00033                                 Color.new(248, 248, 248), @bgviewport)
+00034     rsprite1 = PokemonSprite.new(@viewport)
+00035     rsprite1.setOffset(PictureOrigin::CENTER)
+00036     rsprite1.setPokemonBitmap(@pokemon, false)
+00037     rsprite1.x = Graphics.width / 2
+00038     rsprite1.y = (Graphics.height - 64) / 2
+00039     rsprite2 = PokemonSprite.new(@viewport)
+00040     rsprite2.setOffset(PictureOrigin::CENTER)
+00041     rsprite2.setPokemonBitmapSpecies(@pokemon, @newspecies, false)
+00042     rsprite2.x       = rsprite1.x
+00043     rsprite2.y       = rsprite1.y
+00044     rsprite2.visible = false
+00045     @sprites["rsprite1"] = rsprite1
+00046     @sprites["rsprite2"] = rsprite2
+00047     @sprites["msgwindow"] = pbCreateMessageWindow(@msgviewport)
+00048     set_up_animation
+00049     pbFadeInAndShow(@sprites) { pbUpdate }
+00050   end
+00051 
+00052   def set_up_animation
+00053     sprite = PictureEx.new(0)
+00054     sprite.setVisible(0, true)
+00055     sprite.setColor(0, Color.new(255, 255, 255, 0))
+00056     sprite2 = PictureEx.new(0)
+00057     sprite2.setVisible(0, true)
+00058     sprite2.setZoom(0, 0.0)
+00059     sprite2.setColor(0, Color.new(255, 255, 255, 255))
+00060     # Make sprite turn white
+00061     sprite.moveColor(0, 25, Color.new(255, 255, 255, 255))
+00062     total_duration = 9 * 20   # 9 seconds
+00063     duration = 25 + 15
+00064     zoom_duration = 12
+00065     loop do
+00066       # Shrink prevo sprite, enlarge evo sprite
+00067       sprite.moveZoom(duration, zoom_duration, 0)
+00068       sprite2.moveZoom(duration, zoom_duration, 110)
+00069       duration += zoom_duration
+00070       # If animation has played for long enough, end it now while the evo sprite is large
+00071       break if duration >= total_duration
+00072       # Enlarge prevo sprite, shrink evo sprite
+00073       sprite.moveZoom(duration, zoom_duration, 110)
+00074       sprite2.moveZoom(duration, zoom_duration, 0)
+00075       duration += zoom_duration
+00076       # Shorten the duration of zoom changes for the next cycle
+00077       zoom_duration = [(zoom_duration / 1.2).round, 2].max
+00078     end
+00079     @picture1 = sprite
+00080     @picture2 = sprite2
+00081   end
+00082 
+00083   # Opens the evolution screen
+00084   def pbEvolution(cancancel = true)
+00085     pbBGMStop
+00086     pbMessageDisplay(@sprites["msgwindow"], "\\se[]" + _INTL("What?") + "\1") { pbUpdate }
+00087     pbPlayDecisionSE
+00088     @pokemon.play_cry
+00089     @sprites["msgwindow"].text = _INTL("{1} is evolving!", @pokemon.name)
+00090     timer_start = System.uptime
+00091     loop do
+00092       Graphics.update
+00093       Input.update
+00094       pbUpdate
+00095       break if System.uptime - timer_start >= 1
+00096     end
+00097     pbMEPlay("Evolution start")
+00098     pbBGMPlay("Evolution")
+00099     canceled = false
+00100     timer_start = System.uptime
+00101     loop do
+00102       pbUpdateNarrowScreen(timer_start)
+00103       @picture1.update
+00104       setPictureSprite(@sprites["rsprite1"], @picture1)
+00105       if @sprites["rsprite1"].zoom_x > 1.0
+00106         @sprites["rsprite1"].zoom_x = 1.0
+00107         @sprites["rsprite1"].zoom_y = 1.0
+00108       end
+00109       @picture2.update
+00110       setPictureSprite(@sprites["rsprite2"], @picture2)
+00111       if @sprites["rsprite2"].zoom_x > 1.0
+00112         @sprites["rsprite2"].zoom_x = 1.0
+00113         @sprites["rsprite2"].zoom_y = 1.0
+00114       end
+00115       Graphics.update
+00116       Input.update
+00117       pbUpdate(true)
+00118       if Input.trigger?(Input::BACK) && cancancel
+00119         pbBGMStop
+00120         pbPlayCancelSE
+00121         canceled = true
+00122         break
+00123       end
+00124       break if !@picture1.running? && !@picture2.running?
+00125     end
+00126     pbFlashInOut(canceled)
+00127     if canceled
+00128       $stats.evolutions_cancelled += 1
+00129       pbMessageDisplay(@sprites["msgwindow"],
+00130                        _INTL("Huh? {1} stopped evolving!", @pokemon.name)) { pbUpdate }
+00131     else
+00132       pbEvolutionSuccess
+00133     end
+00134   end
+00135 
+00136   def pbUpdateNarrowScreen(timer_start)
+00137     return if @bgviewport.rect.y >= 80
+00138     buffer = 80
+00139     @bgviewport.rect.height = Graphics.height - lerp(0, 64 + (buffer * 2), 0.7, timer_start, System.uptime).to_i
+00140     @bgviewport.rect.y = lerp(0, buffer, 0.5, timer_start + 0.2, System.uptime).to_i
+00141     @sprites["background"].oy = @bgviewport.rect.y
+00142   end
+00143 
+00144   def pbUpdateExpandScreen(timer_start)
+00145     return if @bgviewport.rect.height >= Graphics.height
+00146     buffer = 80
+00147     @bgviewport.rect.height = Graphics.height - lerp(64 + (buffer * 2), 0, 0.7, timer_start, System.uptime).to_i
+00148     @bgviewport.rect.y = lerp(buffer, 0, 0.5, timer_start, System.uptime).to_i
+00149     @sprites["background"].oy = @bgviewport.rect.y
+00150   end
+00151 
+00152   def pbFlashInOut(canceled)
+00153     timer_start = System.uptime
+00154     loop do
+00155       Graphics.update
+00156       pbUpdate(true)
+00157       pbUpdateExpandScreen(timer_start)
+00158       tone = lerp(0, 255, 0.7, timer_start, System.uptime)
+00159       @viewport.tone.set(tone, tone, tone, 0)
+00160       break if tone >= 255
+00161     end
+00162     @bgviewport.rect.y      = 0
+00163     @bgviewport.rect.height = Graphics.height
+00164     @sprites["background"].oy = 0
+00165     if canceled
+00166       @sprites["rsprite1"].visible     = true
+00167       @sprites["rsprite1"].zoom_x      = 1.0
+00168       @sprites["rsprite1"].zoom_y      = 1.0
+00169       @sprites["rsprite1"].color.alpha = 0
+00170       @sprites["rsprite2"].visible     = false
+00171     else
+00172       @sprites["rsprite1"].visible     = false
+00173       @sprites["rsprite2"].visible     = true
+00174       @sprites["rsprite2"].zoom_x      = 1.0
+00175       @sprites["rsprite2"].zoom_y      = 1.0
+00176       @sprites["rsprite2"].color.alpha = 0
+00177     end
+00178     timer_start = System.uptime
+00179     loop do
+00180       Graphics.update
+00181       pbUpdate(true)
+00182       break if System.uptime - timer_start >= 0.25
+00183     end
+00184     timer_start = System.uptime
+00185     loop do
+00186       Graphics.update
+00187       pbUpdate
+00188       pbUpdateExpandScreen(timer_start)
+00189       tone = lerp(255, 0, 0.4, timer_start, System.uptime)
+00190       @viewport.tone.set(tone, tone, tone, 0)
+00191       break if tone <= 0
+00192     end
+00193   end
+00194 
+00195   def pbEvolutionSuccess
+00196     $stats.evolution_count += 1
+00197     # Play cry of evolved species
+00198     cry_time = GameData::Species.cry_length(@newspecies, @pokemon.form)
+00199     Pokemon.play_cry(@newspecies, @pokemon.form)
+00200     timer_start = System.uptime
+00201     loop do
+00202       Graphics.update
+00203       pbUpdate
+00204       break if System.uptime - timer_start >= cry_time
+00205     end
+00206     pbBGMStop
+00207     # Success jingle/message
+00208     pbMEPlay("Evolution success")
+00209     newspeciesname = GameData::Species.get(@newspecies).name
+00210     pbMessageDisplay(@sprites["msgwindow"],
+00211                      "\\se[]" + _INTL("Congratulations! Your {1} evolved into {2}!",
+00212                                       @pokemon.name, newspeciesname) + "\\wt[80]") { pbUpdate }
+00213     @sprites["msgwindow"].text = ""
+00214     # Check for consumed item and check if Pokémon should be duplicated
+00215     pbEvolutionMethodAfterEvolution
+00216     # Modify Pokémon to make it evolved
+00217     was_fainted = @pokemon.fainted?
+00218     @pokemon.species = @newspecies
+00219     @pokemon.hp = 0 if was_fainted
+00220     @pokemon.calc_stats
+00221     @pokemon.ready_to_evolve = false
+00222     # See and own evolved species
+00223     was_owned = $player.owned?(@newspecies)
+00224     $player.pokedex.register(@pokemon)
+00225     $player.pokedex.set_owned(@newspecies)
+00226     moves_to_learn = []
+00227     movelist = @pokemon.getMoveList
+00228     movelist.each do |i|
+00229       next if i[0] != 0 && i[0] != @pokemon.level   # 0 is "learn upon evolution"
+00230       moves_to_learn.push(i[1])
+00231     end
+00232     # Show Pokédex entry for new species if it hasn't been owned before
+00233     if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && !was_owned &&
+00234        $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(@pokemon.species)
+00235       pbMessageDisplay(@sprites["msgwindow"],
+00236                        _INTL("{1}'s data was added to the Pokédex.", newspeciesname)) { pbUpdate }
+00237       $player.pokedex.register_last_seen(@pokemon)
+00238       pbFadeOutIn do
+00239         scene = PokemonPokedexInfo_Scene.new
+00240         screen = PokemonPokedexInfoScreen.new(scene)
+00241         screen.pbDexEntry(@pokemon.species)
+00242         @sprites["msgwindow"].text = "" if moves_to_learn.length > 0
+00243         pbEndScreen(false) if moves_to_learn.length == 0
+00244       end
+00245     end
+00246     # Learn moves upon evolution for evolved species
+00247     moves_to_learn.each do |move|
+00248       pbLearnMove(@pokemon, move, true) { pbUpdate }
+00249     end
+00250   end
+00251 
+00252   def pbEvolutionMethodAfterEvolution
+00253     @pokemon.action_after_evolution(@newspecies)
+00254   end
+00255 
+00256   def pbUpdate(animating = false)
+00257     if animating      # Pokémon shouldn't animate during the evolution animation
+00258       @sprites["background"].update
+00259       @sprites["msgwindow"].update
+00260     else
+00261       pbUpdateSpriteHash(@sprites)
+00262     end
+00263   end
+00264 
+00265   # Closes the evolution screen.
+00266   def pbEndScreen(need_fade_out = true)
+00267     pbDisposeMessageWindow(@sprites["msgwindow"]) if @sprites["msgwindow"]
+00268     if need_fade_out
+00269       pbFadeOutAndHide(@sprites) { pbUpdate }
+00270     end
+00271     pbDisposeSpriteHash(@sprites)
+00272     @viewport.dispose
+00273     @bgviewport.dispose
+00274     @msgviewport.dispose
+00275   end
+00276 end
