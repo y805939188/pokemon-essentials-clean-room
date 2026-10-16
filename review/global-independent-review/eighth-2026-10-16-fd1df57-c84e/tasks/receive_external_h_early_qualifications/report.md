@@ -1,8 +1,10 @@
 # H-EARLY-QUALIFICATIONS 非作者接收报告
 
-**结论：INCOMPLETE。不得据本报告签 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 现已收齐三方真实独立贡献：92个R5合同/568原schema，并接合21共享/18依赖的当前具名事实；14非必修处置/6政策/13限制保留。父本地early_r1_r4完整历史输出尚未收到，必要历史桥及根最终签收仍OPEN。报告已给出的“必需未读0”不作为本次独立真值。根最终 canonical、task-final 和全局结论仍由主审独占。
+**结论：RECEPTION_COMPLETE / READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 四份固定实际独立成果与全部必要有限接口已接收：R5 92合同/568原schema、21共享/18依赖的当前事实及早期R1–R4/H05历史资格已接合。12个冻结history记录的完整有限用途接收完毕，本接收者必需语义、当前消费者及历史桥未接收均0；必需材料/权限阻塞0。
 
-以下初检查点与冻结阶段记录保留历史；当前累积接收以末尾“R5三方实际贡献及有限组合”及reception-ledger的current_independent_contributions为准。
+新增B8必修提案0，参考/独立模型/宿主/Demo/真实存档新增行为执行0，向量NOT_EXECUTED。两项既存接收证据问题的非提出者确认与后继补足已接收；不回写原目标的错误分类/原字面，不自动采用optional或未来兼容。主审保留最终canonical/task-final验收，本报告没有替主审签字。
+
+以下初检查点、冻结与分阶段接收记录按原时点保留；其中INCOMPLETE、OPEN、FROZEN_NOT_STARTED与容量限制均为历史阶段。当前结果以末尾“最终有限接收完成”、现reception-ledger/progress及 `evidence/final-historical-bridge.json` 为准。恢复、身份、去重和旧PASS不自行授予语义信用，原底层排除范围仍明确保留。
 
 ## 身份、范围与证据
 
@@ -106,3 +108,19 @@ M05-006已真实给出Pocket/Price/FieldUse/BattleUse缺省1/0/0/0、Flags空以
 在既已读的tail完整21共享scope/18依赖意义上，按三方实际producer/consumer及必要共同上下文写出39条各自的组合理由，见 `interfaces.json#/current_R5_finite_combinations`。R5具名producer/consumer差集为0；有界接合保留三行取消/显示前缀、WING旧FAIL/新一行与59复用、两导航MISMATCH、六族body-LF排除、loader/保存/消息/战斗/媒体各自失败前缀。没有以四个组状态或端点计数自动签组合，也不把21组合升级为21全文件fresh read。来源tail“0/80”和各源OPEN均保留为原时点，当前状态另记。
 
 本次R5范围新增B8必修提案0，静态/行为模型/宿主/Demo执行仍0。两项接收证据问题已有非提出者确认，经济/个体/schema/editor当前贡献现已相接；原C021/C022及R4 Summary/EG的必要早期历史资格仍待父本地early_r1_r4实际输出。不是材料/权限/宿主阻塞，也不扩为重审全系统。当前任务仍INCOMPLETE/UPDATE_NOT_STARTED；root canonical与task-final由主审独占。
+
+## 最终有限接收完成
+
+已接收主审发布的early固定提交 `0cea3f2d2087ead087eab6b9ef29ccb4e05b9aeb`，checkout tree `2b3da64152be595277ce806d15e9e85283b556e0`、任务子树 `863c58e180f267a999b742e9614de5a8d788dfd7`。165普通文件/38,192,608B逐blob完整mode/bytes/SHA核对，子树与指定身份一致；四个完整owned对象与派发冻结视图精确相等，482原主单位ID绑定无差集。真实独立context为 `01a1449f-8165-74d9-ac5a-960e4c5a5018`，不同于目标原作者及本接收者；没有据角色名或请求配置冒充身份。没有合并该提交、复制165份回执或写其目录。
+
+接收其100trace/113input、83authority用途、5勘误/9导入纠正/8阶段，R2的229控制/21批/341贡献和308/33回执资格，R3 23/76及两排除，R4 17/76、B5 16/75+1partial及Summary后继C01–C05。已实读完整共同用途、分组理由、全部100具名未验证/证据层级、113共同资格逐ID关联、R2五字段共同代际/状态资格，以及40条R3/R4有限原前提、152criterion/B5 assessment和旧注解；纯身份/原authority与案例族按准确集合和用途接收，不冒称本整合者再次读83底层报告、R2原229/341业务实现。H05两原载荷与本接收者已全文实读的原blob相同，执行限定直接复用，18次原进程全部I/O仍非本轮新增重验。
+
+必要历史桥已经闭合：R1/R2旧批准、管理字节、原OPEN/关闭snapshot与tail候选/actual/唯一激活各分时点；R3两个排除项保留原提案、反证、OPTIONAL/NO_REQUIRED终态。Summary旧C01 partial不擦除，当前五门与core普通动态形态、三行取消和瓶子链相容；孵化DEERLING月份2可0→1/月1无不同值、显式数值资源纯消费与caller预读分层，EG13/20有限资格现已接上，不扩大为整个旧IDfresh签名。
+
+另仅补读B19-C021/C022必要当前接点，准确范围/完整方法及身份见 `evidence/final-historical-bridge.json`。IV/EV子页无本页No，返回缺项/取消nil补0，再赋父槽；L20未打开子页的默认10/30对照、父与外保存门分层、MapSize未进Width时的初始0及共享数组前缀保留。物种编辑请求旧复数Evolutions返空，default=[]；不编辑进化而父Yes可用空表替换A整表，当前B旧反向不即时重建；完整重编译再按新正向建立。单数Evolution getter在PBS写出时才对独立C→D的嵌套参数to_s，不归因于打开复数编辑字段。当前B8 §3.5、B19两行及既有单数/复数边界与固定R一致，未建立新B8必修矛盾。没有展开为重审整个编辑器、旧229或全系统。
+
+三份R5实际贡献仍是 `f62c26cd86e38e45429b1a0b9fd637b8c10fff59`、`93b0c4e457f10ffd4df3bf97d543254c232bfc68`、`76471376a7b0a42cfcf030a404fc91afb0a94835`；48/32/12和294/196/78精确合成92/568。原410native与158附加、85owner路径、262贡献/6行政/3单文件限定操作各保持原单位。21共享/18依赖的39条本整合者具名理由现加实际early历史资格；所有原合同必需producer/consumer/历史差集0。没有据端点计数自动签行为、重跑全局八步或把21组合称21全文件新读。
+
+EVIDENCE-001分类缺口仍成立，后继已补业务长值与全部必要当前/历史消费者；POLICY-002单末尾LF静态边界已有非提出者确认，未来profile未选。原目标字节、错误、FAIL、WAIT、MISMATCH和执行未知不改；这两项不增为B8新必修。12条history接收完成仅指冻结有限有效意义，不授整历史全域fresh批准。此刻没有真实阻塞或必需未读待续，下一步是主审独占最终验收。
+
+只在原唯一任务写集普通提交/推送，未整改/改参考/改正式/main/tag/合并/TS开发。最终包含commit、checkout/task tree与全任务逐文件完整远端回读，由发布后工具结果外部绑定，避免自含commit递归。传输成功不替代上述实质接收，也不替主审最终签字。
