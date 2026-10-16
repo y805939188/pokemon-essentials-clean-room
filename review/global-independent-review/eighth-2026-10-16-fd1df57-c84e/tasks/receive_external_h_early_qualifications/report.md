@@ -1,6 +1,8 @@
 # H-EARLY-QUALIFICATIONS 非作者接收报告
 
-**结论：INCOMPLETE。不得据本报告签 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 本次完成固定输入恢复、实质有限反证和准确未接收登记；没有完成目标全部有效语义接收。报告已给出的“必需未读0”不作为本次独立真值。根最终 canonical、task-final 和全局结论仍由主审独占。
+**结论：INCOMPLETE。不得据本报告签 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。UPDATE_NOT_STARTED。** 现已接收tail独立12个完整合同/78原schema、14非必修处置/6政策/13限制及其历史限定；其余80个R5 producer、早期历史和必要组合仍待实际输出。没有完成目标全部有效语义接收。报告已给出的“必需未读0”不作为本次独立真值。根最终 canonical、task-final 和全局结论仍由主审独占。
+
+以下初检查点与冻结阶段记录保留历史；当前累积接收以末尾“tail实际贡献接收”及reception-ledger的current_independent_contributions为准。
 
 ## 身份、范围与证据
 
@@ -82,3 +84,13 @@ L01–L13原完整33行及运行/政策边界已读，按历史资格保留：�
 新增参考、独立模型、宿主、Demo、原生媒体和真实存档执行全部0；向量NOT_EXECUTED。工具均为已读懂的Git/hash/惰性gzip/JSON/视图生成与文档记录。无整改、无main/tag修改、无force、无合并。
 
 只普通commit/push本专用分支；core冻结后对整个任务目录逐文件完整远端回读mode/blob/bytes/SHA256、集合与tree，并另验证所有压缩对象恢复身份。后继publication绑定真实core及回读，最终发布提交的全目录回读以最终工具输出外部收口，避免self-hash递归。传输成功不会改变本报告INCOMPLETE、根最终接收OPEN或UPDATE_NOT_STARTED。
+
+## tail实际贡献接收
+
+已按父本轮指示接收 `76471376a7b0a42cfcf030a404fc91afb0a94835`，tree `d651edb656ab37a41031f33ea414b22917b11c4f`，tail任务子树 `6f1b4885ab43c9651560125bb1d39e52c0bb13f5`。真实独立context为 `01a144a2-a554-77a2-997c-09b15efd7020`，不同于目标原作者和两项问题提出者。专属目录17文件/373,206 bytes全blob核验，原16载荷与其fresh remote回执完全不变；78完整原记录hash/primary、readset及80个外组ID到21/18接口反向映射均与冻结合同一致。这些核验仅证明身份。
+
+逐段读完其报告、12项逐合同理由、78条原criterion及限定、14非必修、6政策、13限制、历史阶段、21共享组合和18依赖的必要producer/consumer范围。接收其限定本地贡献；没有将本整合者记作重读全source corpus，没有复制17份回执或新增审查层。关键理由含单键/竞争输入、时钟请求与宿主完成、四阶段编辑/嵌套文件前缀、普通形态提交与后置prepare/egg门的区别。SC的完整fix_event_use于1576结束，本次核1575返回及后继方法起点；原1582 locator并非应补读的本方法尾部。
+
+两项问题已有非提出者独立确认：EVIDENCE-001确认行政分类缺口且本地28个业务长值已补读，B8精确关联28/28不是行为证明，C021/C022/经济/个体外部上下文继续待接；POLICY-002确认单尾LF静态例外，未来兼容仍未定。两项不计B8新必修，主审最终canonical处置仍待。原错误、FAIL、MISMATCH、未执行及旧激活阶段全部保留。
+
+当前已收的是12/92个本地主责和78/568原schema的有效限定贡献，14处置/6政策/13限制；本次行为执行0。仍等待已派发的U01/U02、U03/U06及父本地early_r1_r4实际成果。21共享与18依赖先保留逐事实OPEN，后续仅接合实际贡献及必要接口；不从四个任务名推READY。初冻结FROZEN_NOT_STARTED是历史时点，本context仍spawn0。详细固定引用、逐集合和剩余在reception-ledger current_independent_contributions，整task仍INCOMPLETE/UPDATE_NOT_STARTED，根最终签收由主审负责。
