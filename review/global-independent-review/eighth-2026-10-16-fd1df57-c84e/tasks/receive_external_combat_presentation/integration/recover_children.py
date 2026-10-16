@@ -2,7 +2,7 @@
 from pathlib import Path
 import json,subprocess,hashlib,datetime
 I=Path(__file__).resolve().parent;T=I.parent;REPO=Path('/workspace/pokemon-essentials-clean-room');BASE='35d85e4484b892ebc32542346861440638d2183c'
-jobs=[('02_ball_base_fields','6211852c0e336a1b9cbfe8ad1a88339bf468ba99','01a1448f-0b8b-7503-bae7-c58207e7e02e'),('05_capture_debug','2449ed418d2989ce23c5fa7e1b701752959e7016','01a1448f-8f07-7153-b52f-dce2884bb01f'),('03_fixed_choreography','352db17277eb3ac7e02df7941b22dab3148d44f1','01a1448f-2c03-7067-b26b-e3b7ae7bc020'),('04_author_player','a19dcfcaba117a746545760e888e224695b1bbe9','01a1448f-6d0a-77fc-93d8-7b9584bf002b')]
+jobs=[('02_ball_base_fields','6211852c0e336a1b9cbfe8ad1a88339bf468ba99','01a1448f-0b8b-7503-bae7-c58207e7e02e'),('05_capture_debug','2449ed418d2989ce23c5fa7e1b701752959e7016','01a1448f-8f07-7153-b52f-dce2884bb01f'),('03_fixed_choreography','352db17277eb3ac7e02df7941b22dab3148d44f1','01a1448f-2c03-7067-b26b-e3b7ae7bc020'),('04_author_player','a19dcfcaba117a746545760e888e224695b1bbe9','01a1448f-6d0a-77fc-93d8-7b9584bf002b'),('06_qualifications_interfaces','eac03270058d839991c437057b3451349b7c6122','01a1448f-4df5-7077-9f61-af423646e00c')]
 def git(*args):return subprocess.check_output(['git',*args])
 receipts=json.loads((I/'received-identities.json').read_text())['children'] if (I/'received-identities.json').exists() else []
 for job,c,context in jobs:
