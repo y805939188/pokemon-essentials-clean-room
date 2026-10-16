@@ -82,7 +82,7 @@ for key,nums in parts.items():
 
 {skill}
 '''
- (out/'prompt.zh.md').write_text(text)
+ (out/'prompt.zh.md').write_text(text.rstrip()+'\n')
  splitrows.append({'id':key,'status':'READY_PARENT_DISPATCH_NOT_STARTED','groups':sorted(gs),'objects':len(objs),'ids':[o['id']for o in objs],'prompt':str((out/'prompt.zh.md').relative_to(T)),'prompt_identity':ident(out/'prompt.zh.md'),'readset':str((out/'readset.complete.json').relative_to(T)),'readset_identity':ident(out/'readset.complete.json'),'exclusive_write_set':write,'actual_context':'NOT_CREATED_NOT_DISPATCHED'})
 assert len({rid for x in splitrows for rid in x['ids']})==1045
 # Existing3receipts remain marked; no count is invented by partition.
