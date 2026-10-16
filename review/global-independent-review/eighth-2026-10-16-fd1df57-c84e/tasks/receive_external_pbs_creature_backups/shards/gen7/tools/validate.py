@@ -60,7 +60,7 @@ interfaces=read(out/'interfaces.json')['records'];assert [x['id'] for x in inter
 for x,y,z in zip(interfaces,r['owned_interfaces'],r['complete_original_central_interfaces']):
  assert x['complete_original']==y and x['complete_original_central']==z
  assert x['status']=='INCOMPLETE' and not x['four_generation_complete_value_join'] and not x['root_signature']
- assert {y['generation'] for y in x['remaining']}=={'gen6','gen8'}
+ assert {y['generation'] for y in x['remaining']}=={'gen8'}
 remaining=read(out/'remaining-reception.json')
 for k in ['own_primary_literal_unread_ids','own_primary_default_inheritance_remaining_ids','own_atomic_finite_remaining_ids','own_header_finite_remaining_ids','own_necessary_consumer_unread','material_or_permission_blockers']:assert remaining[k]==[]
 counts=read(out/'reading-ledger.json')['counts'];assert counts['literal_records_read']==1059 and counts['own_primary_finite_reception_complete']==1059 and counts['owned_atoms_finitely_corroborated']==58

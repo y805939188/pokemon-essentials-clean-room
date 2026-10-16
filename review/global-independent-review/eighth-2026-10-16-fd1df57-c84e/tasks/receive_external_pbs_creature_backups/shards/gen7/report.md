@@ -1,6 +1,6 @@
 # pbs_gen7：本片主读及有限语义完成，两个完整接口待接
 
-本片独立可完成的原始记录、具体缺省/继承与必要消费者已完成。任务状态为 **INCOMPLETE_INTERFACES_ONLY_OWN_PRIMARY_COMPLETE**：IF08、CD-I01 的四代完整 producer 前提仍欠 Gen6/Gen8 的实际完整贡献。没有把这两个接口签成通过，没有新增成立的 required、optional 或 policy 提案。交付供原接收者和主审直接累计整合，不增加新审查层；**UPDATE_NOT_STARTED**，全部行为 **NOT_EXECUTED**。
+本片独立可完成的原始记录、具体缺省/继承与必要消费者已完成。任务状态为 **INCOMPLETE_INTERFACES_ONLY_OWN_PRIMARY_COMPLETE**：IF08、CD-I01 的四代完整 producer 前提仍欠 Gen8 的实际完整贡献，并保留其它代完整值载荷尚未导入的限定。没有把这两个接口签成通过，没有新增成立的 required、optional 或 policy 提案。交付供原接收者和主审直接累计整合，不增加新审查层；**UPDATE_NOT_STARTED**，全部行为 **NOT_EXECUTED**。
 
 ## 1. 固定范围与独立性
 
@@ -78,12 +78,12 @@ P10 连续读至源行 20863、文件末字节 1088022；P11 全部 1745 行已�
 | producer | 已实际收到的准确提交 | 当前资格与影响 |
 | --- | --- | --- |
 | Gen5 | `77c68ef907bece03291accccf7c8d3f3f3bc7753` | 完整本片735主读的合格报告、接口、primary凭证和共用处置/前提已接；保留原reader `01a144a2-cdca-74e0-a8b6-5f8e90d95021`、原字段/消费者范围。未冒称本人亲读735原文或1.5MB逐值payload。 |
-| Gen6 | `3d4a8d13cedb8a63fe2add9f30b0939de21dc04b` | 188形态＋83基础锚点已读；638基础尚未完成。不能把271代替909的完整producer。 |
+| Gen6 | `47deacef84a7b66c1b0e503ff0990f13a0990aa4` | 最新完整报告/两接口已读：909＝721基础＋188形态、71有限原子及HC-FORM完成。旧3d4a8d13的638欠读解除；原reader保留，未冒称本人亲读909原文/全部值载荷。 |
 | Gen8 | `a4b69557c9527ee041ff6a8005ca4ae3daa9a6bb` | P14:S0001–0140及P15:S0001–0027已读；尚缺P14:S0141–0898、P15:S0028–0339及全组最终consumer/继承接收。 |
 
 IF08、CD-I01 均已分列共同定义、本代1059/58/1、各代真实贡献、外域有限事实与最终接合；完整原接口对象保持在 [interfaces.json](interfaces.json)。两个完整接口仍 **INCOMPLETE**，四代完整值接合为false，新增接口签署0。其余片的未接仅阻塞这两个接口，不降低本片完成的有限阅读，也不重派其它代主责给本片。
 
-Gen5所收是有范围的完整贡献报告和凭证，不把状态字符串视为其它字段全部消费者的替代；最终四代逐值完整接口仍由原接收者/主审累计。精确剩余在 [remaining-reception.json](remaining-reception.json)：本片原始/缺省/继承/原子/必要consumer未读均为空，Gen6/Gen8实缺按各片原文列出。材料/权限阻塞0，没有将可得未读或容量问题记成材料limit。
+Gen5/Gen6所收是有范围的完整贡献报告（Gen5另接primary凭证/共用处置），不把状态字符串视为其它字段全部消费者的替代；最终四代逐值完整接口仍由原接收者/主审累计。精确剩余在 [remaining-reception.json](remaining-reception.json)：本片原始/缺省/继承/原子/必要consumer未读均为空，Gen8实缺及Gen5/Gen6可得但尚未导入的适用完整值载荷分别列出。材料/权限阻塞0，没有将可得未读或容量问题记成材料limit。
 
 ## 6. 发现、保留限定及发布证据
 
@@ -93,4 +93,4 @@ Gen5所收是有范围的完整贡献报告和凭证，不把状态字符串视�
 
 所有参考编译、导出、游戏、存档、host/media、行为向量均 **NOT_EXECUTED**。本次Python只作无损视图、计数、身份和报告校验，Git只作准确贡献读取及授权专用分支普通发布；没有执行参考Ruby或旧恢复脚本。工具检查通过只授完整性信用，不替代实读。实际错误/截断与修复在 execution/reading-ledger 保留；私有chunk只是平台显示定位，不声称完整私有终端流已公开回读。
 
-主要交付是本报告、逐记录/原子/接口账本、consumer-reception、全部原文视图、具体继承及continuation notes。语义core先提交，后继publication回执绑定准确core/root/shard tree和逐文件远端mode/blob/bytes/SHA/集合；文件不预言自身未来提交。先前262条的部分发布 `f83facb2231c076ac5fc31c0f0c9d7596f00bac5` 保留为历史，不能继续用其旧剩余计数覆盖此次续收。最终可回读发布提交由本次最终回复给出。
+主要交付是本报告、逐记录/原子/接口账本、consumer-reception、全部原文视图、具体继承及continuation notes。语义core先提交；最终ref核对297db3发现Gen6最新续收，50181f全文接收后已同步解除旧638欠读。后继publication回执绑定准确core/root/shard tree和逐文件远端mode/blob/bytes/SHA/集合；文件不预言自身未来提交。先前262条的部分发布 `f83facb2231c076ac5fc31c0f0c9d7596f00bac5` 保留为历史，不能继续用其旧剩余计数覆盖此次续收。最终可回读发布提交由本次最终回复给出。
