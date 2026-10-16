@@ -49,6 +49,14 @@ assert len(a['mandatory_units'])==31 and all(x['actual_text_equal_local_fixed_ob
 assert len(m['objects'])==13 and m['additional_mandatory_context']['id']=='RX-HANDLER'
 assert get(shared/'original-interface-context.json')['original']==get(BASE/'P07/readset.json')['full_interfaces']
 assert len(get(shared/'reused-target-input-identities.json'))==10
+nav=get(shared/'identity-navigation-reading.json');assert len(nav['rows'])==184 and nav['reversible_join_equal_all_184_original_objects']
+restored=[]
+for row,path in zip(nav['rows'],nav['path_purpose_rows']):
+ eid,g,blob,n,sha,lines,local=row;rr,cc,tt,mode=nav['groups'][g];assert eid==path['evidence_id']
+ x=dict(repo=rr,commit=cc,workspace_tree=tt,path=path['path'],blob=blob,git_mode=mode,bytes=n,sha256=sha,line_count=lines,evidence_id=eid,purpose=path['purpose'])
+ if local!='ABSENT':x['local_bytes_equal_frozen_object']=local
+ restored.append(x)
+assert restored==get(BASE/'P07/readset.json')['full_identity_index']['files']
 assert a['runtime_executions']==0
 # The starting tree was clean. Every current delta must stay in one authorized result/.
 changed=set(git('diff','--name-only',FIXED).decode().splitlines())|set(git('ls-files','--others','--exclude-standard').decode().splitlines())
