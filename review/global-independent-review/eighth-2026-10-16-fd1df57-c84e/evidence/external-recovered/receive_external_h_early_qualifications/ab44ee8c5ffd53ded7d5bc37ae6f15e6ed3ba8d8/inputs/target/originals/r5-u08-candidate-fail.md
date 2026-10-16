@@ -1,0 +1,43 @@
+# R5-U08 最终整合候选独立复审
+
+**候选 FAIL：一个具名阻塞，最小返修仅 UI 测试目录三处动作范围措辞。U08-G03、U08-G09 不通过，其余门按下列精确资格裁决。** 六份导航／支撑镜像各自候选 PASS，不得绕过整体门接入 actual。本报告不修正式规格、不登记接受或 CLOSED。
+
+受审身份如下，报告自身身份由独立分支中的包含提交／tree 外部绑定。
+
+| 对象 | 固定 commit | tree／formal tree |
+| --- | --- | --- |
+| B5 | `9366d9d17aaeac3b4414236468affa650fb3dd27` | `594e65edcb192a19110540245fc1663bae2de007` |
+| 只读参考 R | `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` | `7589c800b61ba13a13040ed0d686979b80a84fd0` |
+| 第五轮语义报告 | `c0ff33024aea424c68d29f9778fe7c8e807d21e8` | `8390e04b850136d2c7b7d9c970cb23f64d3adf99` |
+| 原报告发布 | `f49d870c6fd616ab6736754a218a4553b5acac7f` | `e5dc6aaf626885666e7d472865563f0c9bfbdf46` |
+| 冻结整改合同 | `22fba7786b0090a1955ce6211315b0036cddfbcd` | `21f3484d167d8cab7a288e0204c72f275414d52e`；逐载荷原始 bytes／SHA／blob 已核 |
+| 现行正式主体／U07接受 | `e4ea8d03b0e2c7c20fc41fce92f0b2b7b7f02514` | workspace `4cb802d1f7114ac4d0d2dbacfa0be58586e3ed8c`；formal `145e0f253be5233a114966bda684ac2a07b35d4e` |
+| 受审候选 core | `f623c2ecdd1c6a52d44145fdc7599624a8c64f7b` | `dcab935559e54f7a454fd9b86fd3bc25c0372182` |
+| 定位发布 | `9f19756ab9eb73d94ceb2707ea97bfe0986d43dd` | `89976655b95e4faa04e7ff0bd8cfd597579961c3` |
+
+已先读定位发布的 `candidate-review-input.json`，再读候选的 reviewer-entry 与14门清单、冻结七批 task/shared/regression packets、准确实际独审及唯一接受回执。候选的正式字节等同现行主体；六镜像为另一个未实际接入的投影。未用作者工具布尔或旧 PASS 替代当前组合裁决。未变化且已审结部分按精确身份及原资格复用，未扩大成新的源首全局 review。
+
+| 门 | 裁决 | 证据与限定结论 |
+| --- | --- | --- |
+| U08-G01 固定身份／读集 | PASS | 26新增候选载荷9,949,689 bytes及定位载荷完整独立远端读回，所有SHA/blob一致；冻结合同、初始账及现行正式身份未变。见 identity-results、candidate-remote-readback、各reading-log。 |
+| U08-G02 92／410／568 | PASS，限冻结必修范围 | 92 finding、410原static条件及568既有schema检查分别逐条当前裁决；410唯一映射，附加158独立保留单位。M04-002直接同步与四static满足；下述UI总目录邻接残留另阻G03/G09，不增加第93项。见 criterion-results、native-mapping-results。 |
+| U08-G03 21共享全文／消费者 | **FAIL** | 21篇1,090,033 bytes全文及必要生产、写入、消费、展示、持久与失败链实读；20 PASS、1 FAIL。索引16 A05/A06/A41未限定无写入的动作范围。见 shared-file-results、shared-a/b-results、minimal-repair。 |
+| U08-G04 18依赖握手 | PASS，限精确上游与输入合同 | 18/18固定边核唯一owner接受、实际主体、独审、目标合同／范围与当前输入资格；不要求前驱全批CLOSED，不授消费者整篇或U08接受。当前输出一致性残留保留在G03/G09。见 dependency-results。 |
+| U08-G05 85唯一路径写者 | PASS | 64非共享唯一语义owner、21共享唯一R5-I；79已接＋6候选。262传递贡献＝259作者编辑＋3镜像，103共享片段载荷均关联已审操作；无包外规范变化。八步每步131＝1048次对齐全部匹配。见 sole-writer-results、replay-results。 |
+| U08-G06 六镜像／两向追溯 | PASS_CANDIDATE_ONLY | 六旧字节精确前缀；42新增链接按最终target坐标解析；两份92表身份/owner/static数/OPEN精确。159源路径与79正式同步路径的逆集合独立相等。旧时点待接入说明具名保留，不充当前接受。见 mirror-results、traceability-results、navigation-review。 |
+| U08-G07 R4 17／76 | PASS，限有限历史影响 | 76原标准逐条限定核；B5原16／75及Summary残余不改。当前U03/U06/U07对Summary C01提供具名新增有限支持，不转签整旧ID。见 regression-results。 |
+| U08-G08 R3、R2 | PASS，限准确旧资格 | R3 23／76与R2 229控制／341贡献逐原owner、pointer/hash与当前必要变化核，保留partial/read_only等资格；610原记录身份核验无错误。GR3-M09-001 optional与GR3-M02-003 NO_REQUIRED不重开。 |
+| U08-G09 交界／组合链 | **FAIL** | 冻结15链及原54交界／8链、GR3新18链、GR4旧14链按影响资格核；动态形态→Party图标刷新→BACK取消的当前消费者有三处全无写入残留。只阻当前有限组合，不反写旧152条件或341资格。见 regression-results、minimal-repair。 |
+| U08-G10 边界／证据分期 | PASS | optional7、no-required7、政策6、限制13及M11-005可选方面原样隔离；R432／formal131可得静态材料未审0不是宿主／媒体／机器码或动态组合通过。历史R4隔离4、原R5review隔离4、本update新增0分期。 |
+| U08-G11 SC／失败历史 | PASS | SC-U07-001捕获体不跨LF，外围空白／独立完整行门／整字段丢文分开；原错误字段排除。U03旧actual01 FAIL及两advisory MISMATCH保留，WING operation49的新消费前提只按新actual/原独审/接受绑定。 |
+| U08-G12 阶段／关闭／激活 | PASS，阶段正确隔离 | 输入owner接受92仍OPEN_REQUIRED92／CLOSED0；共享整文件正式接受0。当前candidate FAIL；六镜像actual、U08唯一接受、精确关闭字节同审者验收及唯一激活均未发生。 |
+| U08-G13 真实独立任务／请求 | PASS，回显缺失具名限定 | 父委派非作者复审，真实执行handle与各支持任务在provenance/log中记录；平台UUID及model/effort/tier/speed实际回显均UNVERIFIED。请求sol/ultra/default普速禁Fast；未用Git账号或source thread造UUID，未审计额度。 |
+| U08-G14 发布／准确读回 | PASS，固定候选载荷 | 独立新裸仓从GitHub拉取固定候选／定位并完整读回26载荷及定位文件；旧精确范围不作1GB行政反复读回。本报告的普通推送／自身新增载荷完整读回由包含分支中的后继publication-readback回执外部绑定，以该回执及最终远端核验为完成证据。 |
+
+410条件为原冻结 static 要求；568是原审者schema接受检查行。其附加158分别为U01的27 preserve＋42 vectors＋33 reference facts，U04的4 preserve，U06的11 preserve_correct_scope＋11 runtime_claim_gate＋6 preserve＋19 additional_proven_conditions＋5 runtime_boundary。它们不变成568新static要求或执行通过。SC更正仅改变准确前提的资格，不删除002、U07的33条或92分母。
+
+唯一阻塞 `R5-U08-C01` 位于 `deliverables/final-specification-set/test-catalog/user-interface-wp17-63-65-66-67-68-69-70-71.md` 第206／207／242行。合法六员队伍含FURFROU存储1／时间t，初刷恰t+432000仍1；ACTION后目标页首次刷新跨到t+432001时，普通图标形态读取先提交0、清时间／缓存、重算和条件登记。BACK取消换位不撤销该前缀。因此“无其它／任何写入”不能概括整条显示链。WP66-A §8已正确，三处只需改为“换位动作无其它／任何写入”，并引用显示读取例外；A07及正文无需增修。完整固定源路径、证据、受影响ID及最小意见见 [minimal-repair.md](minimal-repair.md)。该反例为静态推导，未运行。
+
+完成返修后，只核这三处确切字节、同篇必要上下文及动态读取／取消交界，精确未变结果复用；重新冻结U08候选身份。只有该候选PASS后，唯一R5-I才可机械接入六份准确受审镜像，提供actual commit/tree和限定影响集，由同审者核真实字节。U08 actual PASS与唯一接受后才可生成关闭候选；准确关闭字节仍须同审者另验及唯一激活。现在均不授予。
+
+全程仅写独立报告域，普通推送独立分支 `codex/review-fifth-r5-u08-candidate-20261014`。原工作区与未发布成果保留，main不合并、无force、无归档释放或重置。Git/hash/JSON/文档重放只属TOOL_VALIDATION；新增参考／行为模型／宿主／Demo执行均0。目标仍是完整行为规格供未来从零实现；本次不写引擎，战斗范围未缩，未来Showdown替代不影响本次冻结范围。
