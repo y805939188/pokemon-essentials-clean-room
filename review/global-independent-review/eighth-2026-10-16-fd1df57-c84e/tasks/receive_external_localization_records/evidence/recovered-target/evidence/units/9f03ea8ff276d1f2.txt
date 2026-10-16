@@ -1,0 +1,67 @@
+FILE R Data/Scripts/003_Game processing/001_StartGame.rb L1-66/126
+1 # The Game module contains methods for saving and loading the game.
+2 module Game
+3   # Initializes various global variables and loads the game data.
+4   def self.initialize
+5     $game_temp          = Game_Temp.new
+6     $game_system        = Game_System.new
+7     $data_animations    = load_data("Data/Animations.rxdata")
+8     $data_tilesets      = load_data("Data/Tilesets.rxdata")
+9     $data_common_events = load_data("Data/CommonEvents.rxdata")
+10     $data_system        = load_data("Data/System.rxdata")
+11     pbLoadBattleAnimations
+12     GameData.load_all
+13     map_file = sprintf("Data/Map%03d.rxdata", $data_system.start_map_id)
+14     if $data_system.start_map_id == 0 || !pbRgssExists?(map_file)
+15       raise _INTL("No starting position was set in the map editor.")
+16     end
+17   end
+18 
+19   # Loads bootup data from save file (if it exists) or creates bootup data (if
+20   # it doesn't).
+21   def self.set_up_system
+22     save_data = (SaveData.exists?) ? SaveData.read_from_file(SaveData::FILE_PATH) : {}
+23     if save_data.empty?
+24       SaveData.initialize_bootup_values
+25     else
+26       SaveData.load_bootup_values(save_data)
+27     end
+28     # Set resize factor
+29     pbSetResizeFactor([$PokemonSystem.screensize, 4].min)
+30     # Set language (and choose language if there is no save file)
+31     if !Settings::LANGUAGES.empty?
+32       $PokemonSystem.language = pbChooseLanguage if save_data.empty? && Settings::LANGUAGES.length >= 2
+33       MessageTypes.load_message_files(Settings::LANGUAGES[$PokemonSystem.language][1])
+34     end
+35   end
+36 
+37   # Called when starting a new game. Initializes global variables
+38   # and transfers the player into the map scene.
+39   def self.start_new
+40     if $game_map&.events
+41       $game_map.events.each_value { |event| event.clear_starting }
+42     end
+43     $game_temp.common_event_id = 0 if $game_temp
+44     $game_temp.begun_new_game = true
+45     pbMapInterpreter&.clear
+46     pbMapInterpreter&.setup(nil, 0, 0)
+47     $scene = Scene_Map.new
+48     SaveData.load_new_game_values
+49     $game_temp.last_uptime_refreshed_play_time = System.uptime
+50     $stats.play_sessions += 1
+51     $map_factory = PokemonMapFactory.new($data_system.start_map_id)
+52     $game_player.moveto($data_system.start_x, $data_system.start_y)
+53     $game_player.refresh
+54     $PokemonEncounters = PokemonEncounters.new
+55     $PokemonEncounters.setup($game_map.map_id)
+56     $game_map.autoplay
+57     $game_map.update
+58   end
+59 
+60   # Loads the game from the given save data and starts the map scene.
+61   # @param save_data [Hash] hash containing the save data
+62   # @raise [SaveData::InvalidValueError] if an invalid value is being loaded
+63   def self.load(save_data)
+64     validate save_data => Hash
+65     SaveData.load_all_values(save_data)
+66     $game_temp.last_uptime_refreshed_play_time = System.uptime

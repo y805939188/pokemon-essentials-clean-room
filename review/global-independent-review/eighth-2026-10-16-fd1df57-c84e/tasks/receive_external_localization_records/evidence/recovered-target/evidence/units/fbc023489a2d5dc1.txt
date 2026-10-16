@@ -1,0 +1,457 @@
+FILE R Data/Scripts/017_Minigames/003_Minigame_SlotMachine.rb L1-456/456
+1 #===============================================================================
+2 # "Slot Machine" mini-game
+3 # By Maruno
+4 #-------------------------------------------------------------------------------
+5 # Run with:      pbSlotMachine(1)
+6 # - The number is either 0 (easy), 1 (default) or 2 (hard).
+7 #===============================================================================
+8 class SlotMachineReel < BitmapSprite
+9   SCROLL_SPEED = 640   # Pixels moved per second
+10   ICONS_SETS = [[3, 2, 7, 6, 3, 1, 5, 2, 3, 0, 6, 4, 7, 5, 1, 3, 2, 3, 6, 0, 4, 5],   # Reel 1
+11                 [0, 4, 1, 2, 7, 4, 6, 0, 1, 5, 4, 0, 1, 3, 4, 0, 1, 6, 7, 0, 1, 5],   # Reel 2
+12                 [6, 2, 1, 4, 3, 2, 1, 4, 7, 3, 2, 1, 4, 3, 7, 2, 4, 3, 1, 2, 4, 5]]   # Reel 3
+13   SLIPPING = [0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 2, 3]
+14 
+15   def initialize(x, y, reel_num, difficulty = 1)
+16     @viewport = Viewport.new(x, y, 64, 144)
+17     @viewport.z = 99999
+18     super(64, 144, @viewport)
+19     @reel_num = reel_num
+20     @difficulty = difficulty
+21     @reel = ICONS_SETS[reel_num - 1].clone
+22     @toppos = 0
+23     @current_y_pos = -1
+24     @spin_speed = SCROLL_SPEED
+25     @spin_speed /= 1.5 if difficulty == 0
+26     @spinning = false
+27     @stopping = false
+28     @slipping = 0
+29     @index = rand(@reel.length)
+30     @images = AnimatedBitmap.new(_INTL("Graphics/UI/Slot Machine/images"))
+31     @shading = AnimatedBitmap.new("Graphics/UI/Slot Machine/ReelOverlay")
+32     update
+33   end
+34 
+35   def startSpinning
+36     @spinning = true
+37     @spin_timer_start = System.uptime
+38     @initial_index = @index + 1
+39     @current_y_pos = -1
+40   end
+41 
+42   def spinning?
+43     return @spinning
+44   end
+45 
+46   def stopSpinning(noslipping = false)
+47     @stopping = true
+48     @slipping = SLIPPING.sample
+49     case @difficulty
+50     when 0   # Easy
+51       second_slipping = SLIPPING.sample
+52       @slipping = [@slipping, second_slipping].min
+53     when 2   # Hard
+54       second_slipping = SLIPPING.sample
+55       @slipping = [@slipping, second_slipping].max
+56     end
+57     @slipping = 0 if noslipping
+58   end
+59 
+60   def showing
+61     array = []
+62     3.times do |i|
+63       num = @index - i
+64       num += @reel.length if num < 0
+65       array.push(@reel[num])
+66     end
+67     return array   # [0] = top, [1] = middle, [2] = bottom
+68   end
+69 
+70   def update
+71     self.bitmap.clear
+72     if @spinning
+73       new_y_pos = (System.uptime - @spin_timer_start) * @spin_speed
+74       new_index = (new_y_pos / @images.height).to_i
+75       old_index = (@current_y_pos / @images.height).to_i
+76       @current_y_pos = new_y_pos
+77       @toppos = new_y_pos
+78       while @toppos > 0
+79         @toppos -= @images.height
+80       end
+81       if new_index != old_index
+82         if @stopping
+83           if @slipping == 0
+84             @spinning = false
+85             @stopping = false
+86             @toppos = 0
+87           else
+88             @slipping = [@slipping - new_index + old_index, 0].max
+89           end
+90         end
+91         if @spinning
+92           @index = (new_index + @initial_index) % @reel.length
+93         end
+94       end
+95     end
+96     4.times do |i|
+97       num = @index - i
+98       num += @reel.length if num < 0
+99       self.bitmap.blt(0, @toppos + (i * 48), @images.bitmap, Rect.new(@reel[num] * 64, 0, 64, 48))
+100     end
+101     self.bitmap.blt(0, 0, @shading.bitmap, Rect.new(0, 0, 64, 144))
+102   end
+103 end
+104 
+105 #===============================================================================
+106 #
+107 #===============================================================================
+108 class SlotMachineScore < BitmapSprite
+109   attr_reader :score
+110 
+111   def initialize(x, y, score = 0)
+112     @viewport = Viewport.new(x, y, 70, 22)
+113     @viewport.z = 99999
+114     super(70, 22, @viewport)
+115     @numbers = AnimatedBitmap.new("Graphics/UI/Slot Machine/numbers")
+116     self.score = score
+117   end
+118 
+119   def score=(value)
+120     @score = value
+121     @score = Settings::MAX_COINS if @score > Settings::MAX_COINS
+122     refresh
+123   end
+124 
+125   def refresh
+126     self.bitmap.clear
+127     5.times do |i|
+128       digit = (@score / (10**i)) % 10 # Least significant digit first
+129       self.bitmap.blt(14 * (4 - i), 0, @numbers.bitmap, Rect.new(digit * 14, 0, 14, 22))
+130     end
+131   end
+132 end
+133 
+134 #===============================================================================
+135 #
+136 #===============================================================================
+137 class SlotMachineScene
+138   attr_accessor :gameRunning
+139   attr_accessor :gameEnd
+140   attr_accessor :wager
+141   attr_accessor :replay
+142 
+143   def update
+144     pbUpdateSpriteHash(@sprites)
+145   end
+146 
+147   def pbPayout
+148     @replay = false
+149     payout = 0
+150     bonus = 0
+151     wonRow = []
+152     # Get reel pictures
+153     reel1 = @sprites["reel1"].showing
+154     reel2 = @sprites["reel2"].showing
+155     reel3 = @sprites["reel3"].showing
+156     combinations = [[reel1[1], reel2[1], reel3[1]],   # Centre row
+157                     [reel1[0], reel2[0], reel3[0]],   # Top row
+158                     [reel1[2], reel2[2], reel3[2]],   # Bottom row
+159                     [reel1[0], reel2[1], reel3[2]],   # Diagonal top left -> bottom right
+160                     [reel1[2], reel2[1], reel3[0]]]   # Diagonal bottom left -> top right
+161     combinations.length.times do |i|
+162       break if i >= 1 && @wager <= 1 # One coin = centre row only
+163       break if i >= 3 && @wager <= 2 # Two coins = three rows only
+164       wonRow[i] = true
+165       case combinations[i]
+166       when [1, 1, 1]   # Three Magnemites
+167         payout += 8
+168       when [2, 2, 2]   # Three Shellders
+169         payout += 8
+170       when [3, 3, 3]   # Three Pikachus
+171         payout += 15
+172       when [4, 4, 4]   # Three Psyducks
+173         payout += 15
+174       when [5, 5, 6], [5, 6, 5], [6, 5, 5], [6, 6, 5], [6, 5, 6], [5, 6, 6]   # 777 multi-colored
+175         payout += 90
+176         bonus = 1 if bonus < 1
+177       when [5, 5, 5], [6, 6, 6]   # Red 777, blue 777
+178         payout += 300
+179         bonus = 2 if bonus < 2
+180       when [7, 7, 7]   # Three replays
+181         @replay = true
+182       else
+183         if combinations[i][0] == 0   # Left cherry
+184           if combinations[i][1] == 0   # Centre cherry as well
+185             payout += 4
+186           else
+187             payout += 2
+188           end
+189         else
+190           wonRow[i] = false
+191         end
+192       end
+193     end
+194     @sprites["payout"].score = payout
+195     if payout > 0 || @replay
+196       if bonus > 0
+197         pbMEPlay("Slots big win")
+198       else
+199         pbMEPlay("Slots win")
+200       end
+201       # Show winning animation
+202       timer_start = System.uptime
+203       loop do
+204         frame = ((System.uptime - timer_start) / 0.125).to_i
+205         @sprites["window2"].bitmap&.clear
+206         @sprites["window1"].setBitmap(_INTL("Graphics/UI/Slot Machine/win"))
+207         @sprites["window1"].src_rect.set(152 * (frame % 4), 0, 152, 208)
+208         if bonus > 0
+209           @sprites["window2"].setBitmap(_INTL("Graphics/UI/Slot Machine/bonus"))
+210           @sprites["window2"].src_rect.set(152 * (bonus - 1), 0, 152, 208)
+211         end
+212         @sprites["light1"].visible = true
+213         @sprites["light1"].src_rect.set(0, 26 * (frame % 4), 96, 26)
+214         @sprites["light2"].visible = true
+215         @sprites["light2"].src_rect.set(0, 26 * (frame % 4), 96, 26)
+216         (1..5).each do |i|
+217           if wonRow[i - 1]
+218             @sprites["row#{i}"].visible = frame.even?
+219           else
+220             @sprites["row#{i}"].visible = false
+221           end
+222         end
+223         Graphics.update
+224         Input.update
+225         update
+226         break if System.uptime - timer_start >= 3.0
+227       end
+228       @sprites["light1"].visible = false
+229       @sprites["light2"].visible = false
+230       @sprites["window1"].src_rect.set(0, 0, 152, 208)
+231       # Pay out
+232       timer_start = System.uptime
+233       last_paid_tick = -1
+234       loop do
+235         break if @sprites["payout"].score <= 0
+236         Graphics.update
+237         Input.update
+238         update
+239         this_tick = ((System.uptime - timer_start) * 20).to_i   # Pay out 1 coin every 1/20 seconds
+240         if this_tick != last_paid_tick
+241           @sprites["payout"].score -= 1
+242           @sprites["credit"].score += 1
+243           this_tick = last_paid_tick
+244         end
+245         if Input.trigger?(Input::USE) || @sprites["credit"].score == Settings::MAX_COINS
+246           @sprites["credit"].score += @sprites["payout"].score
+247           @sprites["payout"].score = 0
+248         end
+249       end
+250       # Wait
+251       timer_start = System.uptime
+252       loop do
+253         Graphics.update
+254         Input.update
+255         update
+256         break if System.uptime - timer_start >= 0.5
+257       end
+258     else
+259       # Show losing animation
+260       timer_start = System.uptime
+261       loop do
+262         frame = ((System.uptime - timer_start) / 0.25).to_i
+263         @sprites["window2"].bitmap&.clear
+264         @sprites["window1"].setBitmap(_INTL("Graphics/UI/Slot Machine/lose"))
+265         @sprites["window1"].src_rect.set(152 * (frame % 2), 0, 152, 208)
+266         Graphics.update
+267         Input.update
+268         update
+269         break if System.uptime - timer_start >= 2.0
+270       end
+271     end
+272     @wager = 0
+273   end
+274 
+275   def pbStartScene(difficulty)
+276     @sprites = {}
+277     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+278     @viewport.z = 99999
+279     addBackgroundPlane(@sprites, "bg", "Slot Machine/bg", @viewport)
+280     @sprites["reel1"] = SlotMachineReel.new(64, 112, 1, difficulty)
+281     @sprites["reel2"] = SlotMachineReel.new(144, 112, 2, difficulty)
+282     @sprites["reel3"] = SlotMachineReel.new(224, 112, 3, difficulty)
+283     (1..3).each do |i|
+284       @sprites["button#{i}"] = IconSprite.new(68 + (80 * (i - 1)), 260, @viewport)
+285       @sprites["button#{i}"].setBitmap("Graphics/UI/Slot Machine/button")
+286       @sprites["button#{i}"].visible = false
+287     end
+288     (1..5).each do |i|
+289       y = [170, 122, 218, 82, 82][i - 1]
+290       @sprites["row#{i}"] = IconSprite.new(2, y, @viewport)
+291       @sprites["row#{i}"].setBitmap(sprintf("Graphics/UI/Slot Machine/line%1d%s",
+292                                             1 + (i / 2), (i >= 4) ? ((i == 4) ? "a" : "b") : ""))
+293       @sprites["row#{i}"].visible = false
+294     end
+295     @sprites["light1"] = IconSprite.new(16, 32, @viewport)
+296     @sprites["light1"].setBitmap("Graphics/UI/Slot Machine/lights")
+297     @sprites["light1"].visible = false
+298     @sprites["light2"] = IconSprite.new(240, 32, @viewport)
+299     @sprites["light2"].setBitmap("Graphics/UI/Slot Machine/lights")
+300     @sprites["light2"].mirror = true
+301     @sprites["light2"].visible = false
+302     @sprites["window1"] = IconSprite.new(358, 96, @viewport)
+303     @sprites["window1"].setBitmap(_INTL("Graphics/UI/Slot Machine/insert"))
+304     @sprites["window1"].src_rect.set(0, 0, 152, 208)
+305     @sprites["window2"] = IconSprite.new(358, 96, @viewport)
+306     @sprites["credit"] = SlotMachineScore.new(360, 66, $player.coins)
+307     @sprites["payout"] = SlotMachineScore.new(438, 66, 0)
+308     @wager = 0
+309     update
+310     pbFadeInAndShow(@sprites)
+311   end
+312 
+313   def pbMain
+314     loop do
+315       Graphics.update
+316       Input.update
+317       update
+318       @sprites["window1"].bitmap&.clear
+319       @sprites["window2"].bitmap&.clear
+320       if @sprites["credit"].score == Settings::MAX_COINS
+321         pbMessage(_INTL("You've got {1} Coins.", Settings::MAX_COINS.to_s_formatted))
+322         break
+323       elsif $player.coins == 0
+324         pbMessage(_INTL("You've run out of Coins.\nGame over!"))
+325         break
+326       elsif @gameRunning   # Reels are spinning
+327         @sprites["window1"].setBitmap(_INTL("Graphics/UI/Slot Machine/stop"))
+328         timer_start = System.uptime
+329         loop do
+330           frame = ((System.uptime - timer_start) / 0.25).to_i
+331           @sprites["window1"].src_rect.set(152 * (frame % 4), 0, 152, 208)
+332           Graphics.update
+333           Input.update
+334           update
+335           if Input.trigger?(Input::USE)
+336             pbSEPlay("Slots stop")
+337             if @sprites["reel1"].spinning?
+338               @sprites["reel1"].stopSpinning(@replay)
+339               @sprites["button1"].visible = true
+340             elsif @sprites["reel2"].spinning?
+341               @sprites["reel2"].stopSpinning(@replay)
+342               @sprites["button2"].visible = true
+343             elsif @sprites["reel3"].spinning?
+344               @sprites["reel3"].stopSpinning(@replay)
+345               @sprites["button3"].visible = true
+346             end
+347           end
+348           if !@sprites["reel3"].spinning?
+349             @gameEnd = true
+350             @gameRunning = false
+351           end
+352           break if !@gameRunning
+353         end
+354       elsif @gameEnd   # Reels have been stopped
+355         pbPayout
+356         # Reset graphics
+357         @sprites["button1"].visible = false
+358         @sprites["button2"].visible = false
+359         @sprites["button3"].visible = false
+360         (1..5).each do |i|
+361           @sprites["row#{i}"].visible = false
+362         end
+363         @gameEnd = false
+364       else   # Awaiting coins for the next spin
+365         @sprites["window1"].setBitmap(_INTL("Graphics/UI/Slot Machine/insert"))
+366         timer_start = System.uptime
+367         loop do
+368           frame = ((System.uptime - timer_start) / 0.4).to_i
+369           @sprites["window1"].src_rect.set(152 * (frame % 2), 0, 152, 208)
+370           if @wager > 0
+371             @sprites["window2"].setBitmap(_INTL("Graphics/UI/Slot Machine/press"))
+372             @sprites["window2"].src_rect.set(152 * (frame % 2), 0, 152, 208)
+373           end
+374           Graphics.update
+375           Input.update
+376           update
+377           if Input.trigger?(Input::DOWN) && @wager < 3 && @sprites["credit"].score > 0
+378             pbSEPlay("Slots coin")
+379             @wager += 1
+380             @sprites["credit"].score -= 1
+381             if @wager >= 3
+382               @sprites["row5"].visible = true
+383               @sprites["row4"].visible = true
+384             elsif @wager >= 2
+385               @sprites["row3"].visible = true
+386               @sprites["row2"].visible = true
+387             elsif @wager >= 1
+388               @sprites["row1"].visible = true
+389             end
+390           elsif @wager >= 3 || (@wager > 0 && @sprites["credit"].score == 0) ||
+391                 (Input.trigger?(Input::USE) && @wager > 0) || @replay
+392             if @replay
+393               @wager = 3
+394               (1..5).each { |i| @sprites["row#{i}"].visible = true }
+395             end
+396             @sprites["reel1"].startSpinning
+397             @sprites["reel2"].startSpinning
+398             @sprites["reel3"].startSpinning
+399             @gameRunning = true
+400           elsif Input.trigger?(Input::BACK) && @wager == 0
+401             break
+402           end
+403           break if @gameRunning
+404         end
+405         break if !@gameRunning
+406       end
+407     end
+408     old_coins = $player.coins
+409     $player.coins = @sprites["credit"].score
+410     if $player.coins > old_coins
+411       $stats.coins_won += $player.coins - old_coins
+412     elsif $player.coins < old_coins
+413       $stats.coins_lost += old_coins - $player.coins
+414     end
+415   end
+416 
+417   def pbEndScene
+418     pbFadeOutAndHide(@sprites)
+419     pbDisposeSpriteHash(@sprites)
+420     @viewport.dispose
+421   end
+422 end
+423 
+424 #===============================================================================
+425 #
+426 #===============================================================================
+427 class SlotMachine
+428   def initialize(scene)
+429     @scene = scene
+430   end
+431 
+432   def pbStartScreen(difficulty)
+433     @scene.pbStartScene(difficulty)
+434     @scene.pbMain
+435     @scene.pbEndScene
+436   end
+437 end
+438 
+439 #===============================================================================
+440 #
+441 #===============================================================================
+442 def pbSlotMachine(difficulty = 1)
+443   if !$bag.has?(:COINCASE)
+444     pbMessage(_INTL("It's a Slot Machine."))
+445   elsif $player.coins == 0
+446     pbMessage(_INTL("You don't have any Coins to play!"))
+447   elsif $player.coins == Settings::MAX_COINS
+448     pbMessage(_INTL("Your Coin Case is full!"))
+449   else
+450     pbFadeOutIn do
+451       scene = SlotMachineScene.new
+452       screen = SlotMachine.new(scene)
+453       screen.pbStartScreen(difficulty)
+454     end
+455   end
+456 end
