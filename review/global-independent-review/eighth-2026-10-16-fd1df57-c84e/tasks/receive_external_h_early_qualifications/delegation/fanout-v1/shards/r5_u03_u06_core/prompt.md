@@ -4,13 +4,15 @@
 
 唯一任务ID `r5_u03_u06_core`。冻结目标为 `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，任务tree `bb0cb15506d2abc9e6b84abe1391048776de6997`。原接收检查点 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8`；原始用户合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。实际派发消息必须给本合同的准确包含commit；缺这一外部固定绑定时仍可按下列固定源只读准备，不能改用同名分支未来HEAD。
 
-先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `3dd2f16218476a7f8b0e6c27cb9354fc19d1ba430766536284342f450909f536`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
+先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `4dadfb39c5881a325ccdced566ed40edbf60fc7f356b00e5c38acf054fd62d0f`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
 
 ## 本合同唯一实质范围
 
 U03全部11、U04全部7、U05的1项、U06前13项。包含U03旧FAIL/有限后继及Summary/Party/瓶子/消费的完整必要定义与消费者。
 
 R5 primary ID集合（若空，只有上列R1–R4/执行范围）：GR5-JXN-003, GR5-M01-005, GR5-M01-006, GR5-M04-001, GR5-M04-002, GR5-M05-001, GR5-M05-002, GR5-M05-003, GR5-M05-004, GR5-M05-006, GR5-M05-007, GR5-JXN-002, GR5-M07-001, GR5-M07-002, GR5-M07-003, GR5-M08-001, GR5-M08-002, GR5-M08-003, GR5-M09-001, GR5-M10-001, GR5-M10-002, GR5-M10-003, GR5-M10-004, GR5-M10-005, GR5-M10-006, GR5-M10-007, GR5-M10-008, GR5-M10-009, GR5-M10-010, GR5-M10-011, GR5-M10-012, GR5-M10-013。
+
+在自己的隔离bare普通fetch固定目标 `11c057d9aed330c16312470f80f13d180f8e1e65`、固定前一接收提交 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8` 和父给出的准确合同包含commit；核目标checkout/task两tree，并按原完整357行readset核集合和身份。同字节固定缓存可复用传输，不能授语义信用。本任务只实读所分配完整对象及其必要交界。
 
 恢复helper为 `../../restore_fanout_inputs.py`，必须先全文读懂；它仅从已核固定Git对象取blob并做有界gzip恢复，写入本独占目录，绝不执行恢复材料。普通fetch由你在自身隔离bare完成，不能用分支未来HEAD。
 

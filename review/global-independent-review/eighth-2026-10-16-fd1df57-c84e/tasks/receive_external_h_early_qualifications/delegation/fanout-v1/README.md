@@ -15,7 +15,7 @@
 
 `shared/r5-originals/`还保存18份完整原始R5合同、独立复审和接受输入的惰性gzip，共10,050,868解码字节；原commit/tree/mode/blob/bytes/SHA见 `evidence/original-r5-input-identities.json`。原H10载荷及357目标载荷可从固定前一检查点ab44ee8的readset完整恢复。读集含普通对照、取消/失败/部分提交、所有原提案/反证/完整标准；不依赖V字符串片段才能取得完整合同。
 
-恢复前全文读懂 `restore_fanout_inputs.py`。在自己的隔离bare普通fetch固定前一检查点与父给出的合同包含提交，随后使用该helper和prompt里的readset SHA，仅写本独占输出目录。helper逐载荷核Git成员、编码身份及有界解码身份，不执行恢复文件。`shared/available-R-B8-files.json.gz`只是文件可用性/完整身份索引，不要求各接收者重审全部432或131文件；必要完整定义/caller/receiver/条款由实际事实决定并精确扩展登记。
+恢复前全文读懂 `restore_fanout_inputs.py`。在自己的隔离bare普通fetch固定目标11c057d9、固定前一检查点ab44ee8与父给出的合同包含提交，核目标checkout/task tree和原357行完整身份集合，随后使用该helper和prompt里的readset SHA，仅写本独占输出目录。helper逐载荷核Git成员、编码身份及有界解码身份，不执行恢复文件。`shared/available-R-B8-files.json.gz`只是文件可用性/完整身份索引，不要求各接收者重审全部432或131文件；必要完整定义/caller/receiver/条款由实际事实决定并精确扩展登记。
 
 四份都可独立起步。共享/跨域最终接合按相关producer逐事实收据进行；tail接收全局资格不能替代其它producer实读，producer也不能替代tail的共享/阶段接收。只阻塞相关范围，不等无关上下文。共享工作树时四者不得并发写Git索引，唯一发布者负责普通commit/push；独立checkout的专用输出分支由父实际派发采用readset中的建议或明确覆盖，不自行改main/tag或强推。
 

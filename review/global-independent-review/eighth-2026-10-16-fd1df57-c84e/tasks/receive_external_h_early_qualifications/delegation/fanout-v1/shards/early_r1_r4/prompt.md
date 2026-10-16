@@ -4,13 +4,15 @@
 
 唯一任务ID `early_r1_r4`。冻结目标为 `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，任务tree `bb0cb15506d2abc9e6b84abe1391048776de6997`。原接收检查点 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8`；原始用户合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。实际派发消息必须给本合同的准确包含commit；缺这一外部固定绑定时仍可按下列固定源只读准备，不能改用同名分支未来HEAD。
 
-先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `fcdcea1e9e16783ae4e1c00f7d35d770867cd9913bfd50ed66743f21106034a7`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
+先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `9183a74d568555e693d1d728e34147f3990bd3a924af4fb77182976b5d43e53d`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
 
 ## 本合同唯一实质范围
 
 R1全部100trace/113input、83authority用途、5勘误/9纠正/8阶段；R2全部229原控制资格/21批/341贡献及308/33范围；R3全部23/76及两排除；R4全部17/76、B5 16/75+partial和完整Summary有限后继；H05执行限定。
 
 R5 primary ID集合（若空，只有上列R1–R4/执行范围）：无R5 primary记录。
+
+在自己的隔离bare普通fetch固定目标 `11c057d9aed330c16312470f80f13d180f8e1e65`、固定前一接收提交 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8` 和父给出的准确合同包含commit；核目标checkout/task两tree，并按原完整357行readset核集合和身份。同字节固定缓存可复用传输，不能授语义信用。本任务只实读所分配完整对象及其必要交界。
 
 恢复helper为 `../../restore_fanout_inputs.py`，必须先全文读懂；它仅从已核固定Git对象取blob并做有界gzip恢复，写入本独占目录，绝不执行恢复材料。普通fetch由你在自身隔离bare完成，不能用分支未来HEAD。
 

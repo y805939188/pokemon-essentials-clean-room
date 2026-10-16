@@ -4,13 +4,15 @@
 
 唯一任务ID `r5_u01_u02`。冻结目标为 `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，任务tree `bb0cb15506d2abc9e6b84abe1391048776de6997`。原接收检查点 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8`；原始用户合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。实际派发消息必须给本合同的准确包含commit；缺这一外部固定绑定时仍可按下列固定源只读准备，不能改用同名分支未来HEAD。
 
-先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `14fee3cea7b8f021c2db3fecf95e80151de4c4cf277711441a5d3338c030d0f1`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
+先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `9051fd0871df5a1ecad1d886f7d6e2d8202dc4fa8266df9f3be90d3c6b8c2533`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
 
 ## 本合同唯一实质范围
 
 R5-U01的34项与U02的14项；原事实、反例、410native中的本域条件、294原schema及当前/接受绑定全部保留。
 
 R5 primary ID集合（若空，只有上列R1–R4/执行范围）：GR5-M01-001, GR5-M01-002, GR5-M01-003, GR5-M01-004, GR5-M01-008, GR5-M01-009, GR5-M01-010, GR5-M01-011, GR5-M01-012, GR5-M01-013, GR5-M01-014, GR5-M01-015, GR5-M01-016, GR5-M01-017, GR5-M01-018, GR5-M01-021, GR5-M01-022, GR5-M01-023, GR5-M01-024, GR5-M01-025, GR5-M01-026, GR5-M01-027, GR5-M01-028, GR5-M01-029, GR5-M01-030, GR5-M01-031, GR5-M02-001, GR5-M02-002, GR5-M02-003, GR5-M02-004, GR5-M02-005, GR5-M02-006, GR5-M02-007, GR5-M02-008, GR5-JXN-001, GR5-M03-001, GR5-M03-002, GR5-M03-003, GR5-M03-004, GR5-M03-005, GR5-M03-006, GR5-M03-007, GR5-M03-008, GR5-M03-009, GR5-M03-010, GR5-M03-011, GR5-M03-012, GR5-M03-013。
+
+在自己的隔离bare普通fetch固定目标 `11c057d9aed330c16312470f80f13d180f8e1e65`、固定前一接收提交 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8` 和父给出的准确合同包含commit；核目标checkout/task两tree，并按原完整357行readset核集合和身份。同字节固定缓存可复用传输，不能授语义信用。本任务只实读所分配完整对象及其必要交界。
 
 恢复helper为 `../../restore_fanout_inputs.py`，必须先全文读懂；它仅从已核固定Git对象取blob并做有界gzip恢复，写入本独占目录，绝不执行恢复材料。普通fetch由你在自身隔离bare完成，不能用分支未来HEAD。
 

@@ -4,13 +4,15 @@
 
 唯一任务ID `r5_tail_shared_policy`。冻结目标为 `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，任务tree `bb0cb15506d2abc9e6b84abe1391048776de6997`。原接收检查点 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8`；原始用户合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。实际派发消息必须给本合同的准确包含commit；缺这一外部固定绑定时仍可按下列固定源只读准备，不能改用同名分支未来HEAD。
 
-先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `049f87b981cfe23d20847fe5819386b944e000058b15b401748e02cea74f5a6b`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
+先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `524cc900c2e7cef5ae328a6df756b6b3e9db4c7122b839967a47b116542a52de`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
 
 ## 本合同唯一实质范围
 
 U06剩余5项M11及U07全部7项；原14非必修、13limit、6policy、M11-005 facets；R5 shared21/dependency18/solewriters85/contributions262与6行政/3纠正、唯一激活及原失败/后继资格。全局逐事实握手等待对应producer收据，不等待无关范围。
 
 R5 primary ID集合（若空，只有上列R1–R4/执行范围）：GR5-M11-001, GR5-M11-002, GR5-M11-003, GR5-M11-004, GR5-M11-005, GR5-M12-001, GR5-M12-002, GR5-M12-003, GR5-M12-004, GR5-M12-101, GR5-M12-102, GR5-M12-103。
+
+在自己的隔离bare普通fetch固定目标 `11c057d9aed330c16312470f80f13d180f8e1e65`、固定前一接收提交 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8` 和父给出的准确合同包含commit；核目标checkout/task两tree，并按原完整357行readset核集合和身份。同字节固定缓存可复用传输，不能授语义信用。本任务只实读所分配完整对象及其必要交界。
 
 恢复helper为 `../../restore_fanout_inputs.py`，必须先全文读懂；它仅从已核固定Git对象取blob并做有界gzip恢复，写入本独占目录，绝不执行恢复材料。普通fetch由你在自身隔离bare完成，不能用分支未来HEAD。
 
