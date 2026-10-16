@@ -1,0 +1,17 @@
+# GR8-EXTCP-002 有限非提出者反证（可由既有ELR实际上下文续接）
+
+完整全局合同 inputs/eighth-global-review-prompt.md，36653B/SHA63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b，适用AGENTS及review-SKILL继续适用。固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe/tree751dfde81048c81390f89a65ca1d1a565ba8e1ca/formal f292698cdd4a8e725525a9be6dc34b75faaf151e；R8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。准确本云端checkout另实核，不假定Mac路径。
+
+原提出者actual external_combat_presentation=01a143b2-8ba3-76f5-a39d-7904a2dd1000；预定反证者为已完成ELR主读/有限接口的existing actual external_localization_records=01a143ad-a413-739d-b640-d4896e2e5029，实际不同上下文，续审新增context/票0。主线程若派发请明确向这个现有ID followup；不能仅改角色名造独立性。请求gpt-6.1-sol ultra/default普通速度/Fastoff，实际无权威回显逐项UNVERIFIED。
+
+唯一新写集为原ELR已获用户授权的 tasks/external_localization_records/counter_cp002/，同ELR专属报告分支；允许其中报告普通commit/push，禁止正式/源码/main/tag/公共台账/他人目录及旧证据更改。先完成本有限反证并交root，再继续ELR自身精确受领（若仍有具体需要）；不扩大重读所有其它域。
+
+完整15,409B提案wrapper SHA d5f5352b1a9a4a168827a3c98d41a62d68feb964f1a445683af74a1411487dea 见 evidence/adjudication-inputs/d5f5352b1a9a4a168827a3c98d41a62d68feb964f1a445683af74a1411487dea.json；原CP固定远端18d21310bdc360c87d7ffd886df7d06aef8604a7/tree9c19ea470d59a6b09805ecec52ea187071e94e65，专属任务31files1,628,507B已root完整字节恢复。必须完整实际读该有限提案8要素，H001撤回记录也保留，不用本摘要替代。
+
+仅裁有限倒下叫声/下落请求三分支及当前前向合同归属。普通资源getPlayTime假定1.0秒时，作者推普通cry pitch75→ceil(1/.75*20)+2=29单位；专用_faint默认pitch→22；两者缺失→12。要独立核实真实producer/consumer/优先/单位，不能因提案给了29就接受。有限反例的音频存在/1.0秒/宿主正常是前提，不是实际音频观察。
+
+必要R：完整BattlerFaint轨道类（008_Battle_Scene_Animations.rb610–657）及真实场景pbFaintBattler完整313起方法/共同等待；BaseAnimation完整公共基类/调度器必要方法，PictureEx完整相关process注册/总时长/首次实际处理/音效调用定义；Species_files.rb完整cry选择/cry_length/从个体取得物种形态/音高长度算法（183–244相关完整定义）。遇被选caller/callee只补完整必要单位并具名，不能从三分支扩重审所有球粒子。完整相关正式WP67-A348L及WP74521L，WP15/16的目的/范围/非目标、共享音频/20fps调度/该前向完整节及共同测试前提必须实际接收；若负证据需要全文再全文读，但不是全131F再读。既有ELR同reader真正全读WP15等可精确引用其实际账，不冒新全文。
+
+最强反证必须认真尝试：WP67/74是否明确只需高层阶段/可替代演出，固定轨道数值是允许范围外视觉政策，或其它完整当前正文已定义普通叫声75与按pitch折算？全局合同要求可读音频请求/坐标/消费者审读，不等于每个RGB/粒子数据都自动变成产品强制模板；审读事实仍保留，需指出有据合法scope处理。相反不能因没有真实Audio/宿主就把静态75/等待算法标不可审。拆分“有限倒下音频请求规则缺漏”与“全部496球参数必须转录”的主张，后者不能无证扩张为同项必修。
+
+交完整8节：结论与有限scope；固定身份/真实完整读或必要完整units ledger；独立普通/最小反例；全文相关正式和最强反方/范围政策；可观察影响、正常/取消/缺资源/异常/部分提交；最小读写集与正确内容保留；有限静态验收；历史原root/真实独立/实际配置/所有未执行/剩余。可以REQUIRED_PROPOSED、OPTIONAL_PROPOSED、SCOPE_POLICY或NO_REQUIRED_BOUNDED_SCOPE，root最终裁定及历史canonical去重，不作者自验。全部Ruby/参考/模型/native/游戏向量NOT_EXECUTED；源请求单位不保证真实墙钟时刻。无自动整改，UPDATE_NOT_STARTED。
