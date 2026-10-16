@@ -1,50 +1,78 @@
-本片状态为 **INCOMPLETE**。已实际完整读取 188 个形态及其全部 83 个同代基础锚点，共 271 条字面记录；另外 638 条基础记录尚未完成本接收者实读。69/71 个独占断言完成下述有限定义接收，另外两项保留具名欠项；HC-FORM 的有界头合同已核对。IF02、IF07 均未终签。这里没有 `READY_FOR_PARENT_FINITE_SHARD_RECEPTION`、全组完成、全局 PASS 或 `NO_REQUIRED_UPDATE` 声明。
+# 第八轮 pbs_gen6 有限剩余接收
 
-固定合同为 `30afe79aabc084e3baf9842cb87b90acbc5c6d0a`，其 checkout tree 为 `2daa299ea92fe891294c96b4ea15e2c5717f9a4d`。B8/R、原目标及父接收身份均沿用合同，完整值见 identities 与原 readset。原目标恢复目录的 tree 实测为 `b840da3155ee4ade9414e313061f38a188f5ba3b`，与目标任务 tree 一致。70 项既定输入加 22 项新增导航/必要定义身份逐项核验；这项结果只授身份信用。
+本组独立部分已完成：**909条记录＝721基础＋188形态，17943个显式字段绑定，16618个省略/继承处置，71个有限原子及HC-FORM**均已实际接收。本组主原文和必要本域定义没有剩余容量欠读。累计接口 **IF02/IF07保持INCOMPLETE**：已完成Gen6及必要CREATURE/PBS/KERNEL/UI有限事实接合，但当前真实Gen7/Gen8发布尚未提供全量合格producer。报告供原接收者与主审直接累计，不增加审查层，不签root/task-final或全局PASS。
 
-实际平台环境回显的 context/session 为 `01a144a2-f115-7357-815c-37ff4bb71008`，不同于原目标作者 `01a143b3-2169-7510-89e4-e6e3c9712029`，也不同于父接收者。本上下文未自行 spawn。model、effort、tier、speed、Fast 均无权威回显，逐项 UNVERIFIED；请求值与实际值分列于 progress。使用用户最新明确授权的分支 `codex/r8-final-pbs-gen6-20261016`，覆盖旧派发分支名。唯一写集为本目录；正式规格、参考源、其它贡献、父公共账本、main 与 tag 均未改动。指定 review-SKILL 已全文读取，其说明明确不用于评审报告；本报告按派发审计合同保留原始资格和纠正。
+## 固定身份与独占范围
 
-### 覆盖与计数
+合同固定为`30afe79aabc084e3baf9842cb87b90acbc5c6d0a`，checkout tree为`2daa299ea92fe891294c96b4ea15e2c5717f9a4d`。B8为`fd1df570cad987dc3852a3b958f03916e317f7fe`，formal tree为`f292698cdd4a8e725525a9be6dc34b75faaf151e`。R为`8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，tree为`7589c800b61ba13a13040ed0d686979b80a84fd0`。
 
-| 人口 | 冻结分母 | 本接收者本次完成 | 剩余 |
-| --- | ---: | ---: | ---: |
-| 完整字面记录 | 909 | 271（83 基础、188 形态） | 638 基础 |
-| 显式字段绑定 | 17943 | 2707 | 15236，逐 ID 保留 |
-| 省略/继承处置 | 16618 | 7592；188 个形态逐行处置已读 | 9026，逐 ID 保留 |
-| 独占原子断言 | 71 | 69 个有限定义 | FC33.consumer、G31 |
-| 头合同 | 1 | HC-FORM 的本域有限合同 | 0 |
-| 最终有限接口 | 2 | 0 | IF02、IF07 |
+原目标`b6f12ecfbe006ef0f2ea463d6689d78094915e75`、checkout tree `fd4d9ee5b2abcd583cd9e180c3f0502e7172e58e`、任务tree `b840da3155ee4ade9414e313061f38a188f5ba3b`及父发布`bf36d6c3e5b8323d530155fc68ac6a4249336f66`/语义core `7ebc431b1cc47d2c41cba2506512ce20c1f4ca84`保持。复用已恢复原件，没有重新下载全仓或执行原作者脚本。
 
-不同人口不相加作 PASS 分母。271 条表示字面、字段责任及同代继承的数据层接收，不表示其全部外域运行链已经接收。原作者 FULL_READ、字段哈希、全量机械核对与父保留阅读均未转记为本人的实读。
+实际平台环境回显context/session为`01a144a2-f115-7357-815c-37ff4bb71008`，不同于目标作者`01a143b3-2169-7510-89e4-e6e3c9712029`及父接收者。没有自行spawn。请求配置与实际配置分列在progress；实际model/effort/tier/speed/Fast均UNVERIFIED，不由请求值、Git署名或源线程推断。
 
-读取的 83 条基础记录是全部形态所需的完整锚点集合；不是用它们抽样代表 721 条基础记录。每条包含完整有序 Moves/TutorMoves/EggMoves、重复项、文字、显式参数和省略处置。12 个 anchors 读片连续覆盖该精确锚点集合；P07 原文 L1–1123 连续完整呈现，跨片边界续到真实记录末尾。form-dispositions 按 FC01…FC38 为 188 条形态逐一列出显式、独立默认、标量、集合、嵌套列表、持物三池及拼写别名处置。每个继承引用都指向本次已读的 P06 锚点，未借其他世代或默认同内容替代。literal-views.tar.gz 保存实际读过的字面视图；views.index 标出其余生成片 reading0；恢复程序是本上下文新写的纯证据格式化器，没有运行恢复旧脚本。
+唯一写集为本目录，唯一发布分支按用户最新指令为`codex/r8-final-pbs-gen6-20261016`。AGENTS、技能、派发入口、共同前提、全局prompt与本片完整prompt/readset已读取；续收未反复重读公共提示或身份索引。指定review技能已读，其正文修订规则不用于抹除审计历史。参考源、正式规格、其他片、公共账本、main和tag均未改动，无整改或TS开发。**UPDATE_NOT_STARTED**。
 
-### 本次确认的有限意义
+## 覆盖与完整实读
 
-1. 形态作者 schema 不提供 Name/GenderRatio/GrowthRate/Incense，但编译阶段仍从基础继承；FormName 自身缺省为空，PokedexForm 缺省为自身形态。普通集合浅克隆；等级招式和进化表为空时逐子项复制基础表；三项野生持物仅全缺时整组克隆。这里的“同代锚点”是本次接收要求：编译器本身只要求基础身份已登记，不检查文件夹世代或 Generation 字段，不能追加跨代拒绝门。
-2. 逐项核对了未显式自然/隐藏特性的 Mega：TYRANITAR 自然继承 SANDSTREAM；MEDICHAM 自然继承 PUREPOWER；ABOMASNOW 自然继承 SNOWWARNING；BLAZIKEN 隐藏继承 SPEEDBOOST；LATIAS/LATIOS 继承 LEVITATE。KYOGRE/GROUDON 隐藏列表从基础继承为空。PUMPKABOO/GOURGEIST 大型形态隐藏列表仍为空，平均/超大显式 INSOMNIA。BASCULIN 蓝条纹只显式 uncommon=DEEPSEASCALE，common/rare 自身空池；不把基础 DEEPSEATOOTH 混入。
-3. Mega 个体查询按登记次序找当前简化来源形态匹配、石或已知招式任一成立的首项。MegaStone 旗标、PP 与战斗许可不属于裸查询门。Gen6 SLOWBRO Mega 编号为 1；B8 默认数据的编号 2 保留自己的数据集限定。Gen6 Mega ALAKAZAM 特防 95、METAGROSS Mega HP 95 均保留固定 R 字面，不改为系列预期。未把全部目标同官方数值一致当作前提。
-4. 普通动态 form 读取可能先提交再取资源；forced、battle、storage 和 form_simple 分层。普通/提示型 setter 即使同值仍写形态、清特性缓存、调用 handler、重算、条件登记图鉴；简化 setter 只有写入与重算。依赖或 handler 失败只保留已达前缀，交互放弃不回滚形态。ROTOM 同值删除唯一形态招、KYUREM 遍历中压缩跳项已有当前条款，不重提为新缺口。
-5. 普通图鉴登记先解析 alias 接收记录，再检查接收记录形态名；最近见到检查来源记录名。Gen6 KYUREM 3/4 无名而 alias 为有名 1/2：普通登记归 1/2，最近见到归 0；已见记录与最近显示值分开。可列形态排除无名非零/alias 记录；见过门、性别档、基础雌雄资源解析、标签、排序分层。Forms 首轮及方向移动写末次记录，BACK 不回滚，异色默认另写 false；普通图像刷新本身不写 false。
-6. Height/Weight 作者浮点经 max(1,round(10x)) 成十分之一单位；形态省略用具体基础值。Shape/Color/Habitat 的 14/10/10 精确目录及本地化身份已核；Habitat 是描述字段，不代替 Encounter/Map/Point 生成 Area。FC29 不重开父已收 IF06。
-7. 保存源定义传递玩家、全局元数据、储存对象；Game.load 调用未加载持久值的恢复回调，不能推成从 PBS 重建 Pokemon。WP09/WP62 的对象保存及加载前缀条款已读；G31 的完整外域保存/迁移接收仍待 kernel producer，故未把这个本域源前提升级为完整接口批准。原生对象别名/循环、磁盘字节与真实重新加载均未运行。
+| 人口 | 冻结 | 本次实际接收 | 未接 |
+| --- | ---: | ---: | --- |
+| 基础记录 | 721 | 721 | 0 |
+| 形态记录与同代具体继承 | 188 | 188 | 0 |
+| 显式字段绑定 | 17943 | 17943 | 0个本组绑定 |
+| 省略/默认/继承处置 | 16618 | 16618 | 0个本组处置 |
+| 独占原子 | 71 | 71个有限定义 | 0个本组原子 |
+| 头合同 | 1 | HC-FORM | 0 |
+| 累计完整接口 | 2 | 0 | IF02、IF07跨代接合 |
 
-必要源定义读到实际结束：Species、Species_files、GameData、MultipleForms 全部定义/handler、Pokemon 形态/选择相关完整方法、Mega、PlayerPokedex、Pokedex Entry、SaveData/Value/Conversion/SaveValues，以及新增实际消费者。D06 的普通/形态编译和终检完整；Encounter 编译 L658–765、Pokedex 点帮助 L302–352 后继结束澄清已补到。具体区间、工具 chunk、当前条款与向量逐一登记于 reading-ledger；没有给外域整文件 FULL_READ。
+各人口分列，不相加成PASS分母。记录接收是完整作者值、字段责任、具体默认/同代继承与必要有限消费者接合，不是所有外域运行链通过。原作者FULL_READ、生成视图、哈希匹配和父保留阅读均未转为本人的新实读。
 
-### 作者备注更正与发现资格
+原188形态及83个完整基础锚点的271条成果继续有效。本次又按原顺序连续读完其余638基础，分86个小片；每条完整显示Moves/TutorMoves/EggMoves有序长表、重复、进化参数、全部标量和Pokedex正文，并接收命名省略处置。`continuation-reads.jsonl`逐片保存实际chunk、exit、具体记录集合和简明语义判断。组合输出截断的07/08片已分别补读，31片Hitmontop/Smoochum中段已补到完整记录；未凭截断输出认定全读。
 
-原 semantic-notes 的 P06 continuation_notes 第 4 项含 “repeatedTWISTERtutor”。固定 P06:S0384 的完整 TutorMoves 中 TWISTER 仅一次；Moves 另在等级 1 有一次 TWISTER，是不同字段。原备注不改动，本次记录此处定位错误，后续按原始有序列表消费。该更正不改变 forward 值哈希，不是正式规格 required 提案；本上下文没有为它创建 canonical 或假造独立反证。
+`record-reception-ledger.json`对909条逐一保留原readset/forward指针、源行、字节区间、源单元SHA、字段/省略数、实际读片、有限处置及未签整链状态。188行`form-dispositions.txt`逐属性绑定具体基础值或自身默认，所有引用的83个同代基础均已完整读过。`remaining.readset.json`的本组records已为空，原完整readset仍固定可读。
 
-当前新正式提案 0，不等于证明本组零缺口。XPCB001 的父有限 NO_REQUIRED、2772 条保留字面、20 个有限 G、IF04/IF06、原历史 optional/FLOAT/policy/limit/no-required 的原资格保持，不作为新票或整组通过。未重开第七轮27项。当前仍有可得未读，不能给全组 NO_REQUIRED_UPDATE。
+无损证据由两份小型archive承载：原`literal-views.tar.gz`保留P07全文件、12份基础锚点和形态处置；新`continuation-literal-views.tar.gz`保存86份实际已读视图，清单逐member核bytes/SHA/记录集合。新archive约193KB，没有提交未读的共享字典实验。`views.index.json`仍是生成导航，生成信用0；实际信用来自独立读片凭证。此前`3d4a8d13`的271条阶段资格作为不可变历史保留，当前总量由本报告及新账本取代。
 
-### 真实余项与接口
+## 数据与必要消费者的具体判断
 
-remaining.readset.json 精确列出 638 条未读 P06 ID、原 readset 数组/forward 指针、原字节区间和哈希；不以笼统“其余”替代。其原因是本上下文无法继续容纳全部长表实读，属于**接收者容量导致的未完成**，不是材料、宿主或权限 limit。生成过它们的读片不授信用。
+1. **形态继承。** 作者形态schema不开放Name/GenderRatio/GrowthRate/Incense，编译阶段仍继承基础。FormName缺省自身nil，PokedexForm缺省自身形态；标量直接取基础，集合克隆，内部空Moves/Evolutions逐项复制基础。三档持物只有全部缺失才整组继承。BASCULIN蓝条纹只给uncommon=DEEPSEASCALE，另两档自身空池。同代锚点是本合同要求，编译器没有文件夹世代/Generation拒绝门。
+2. **固定作者值。** Gen6 Mega SLOWBRO为形态1，默认B8数据的形态2不代替它；Mega ALAKAZAM特防95、METAGROSS HP95保留。未显式能力的Mega按具体基础接合，包括TYRANITAR/SANDSTREAM、MEDICHAM/PUREPOWER、ABOMASNOW/SNOWWARNING、BLAZIKEN隐藏SPEEDBOOST、LATIAS/LATIOS LEVITATE；两Primal隐藏列表为空。没有按系列预期整改数据。
+3. **顺序与方法。** 同级多招、同招跨等级、BRELOOM初始重复TACKLE、完整教学/蛋表均保留。DROWZEE的13/29 HEADBUTT、MANDIBUZZ的SPECIAL_ATTACK EV、CLAWITZER的BaseExp100、AURORUS 104等均以源值为准。INKAY在此备份为Level30，PANCHAM为LevelDarkInParty32，SLIGGOO为LevelRain50；不另加颠倒设备或战斗RainDance门。NIDORANfE/NIDORANmA、VOLBEAT/ILLUMISE的有序Offspring和MANAPHY→PHIONE原值保留。NOIBAT系属性次序FLYING,DRAGON，ZYGARDE仅本集50% Forme/AURABREAK，不发明后代际记录。
+4. **形态提交与战斗。** forced、battle/storage、普通动态与simple读取分别处理；动态读取可在资源请求前提交。普通/提示setter同值也写形态、清能力缓存、调用handler、重算、条件登记；simple setter只有写入与重算。全49登记、9次copy及27目标的完整有限事实已接收，并与本上下文已读的整个FormHandlers核对。copy绑定当前mapping，不是未来源重登记的活别名。Peer starting/entering/leaving的真实调用与参数、Mega裸查询/许可/执行前缀分别接合，不把handler登记当执行证据。
+5. **Mega和Primal。** 裸查询按登记顺序，来源简化形态匹配后石或已知招式任一成立即取首项，不查PP或额外MegaStone旗标。当前Mega身份读当前形态字段，不要求仍持石/知招。Primal非nil、当前存储形态与强制覆盖分开；卸宝珠可留下存储1但查询身份为假，不自动裸解除。实际战斗许可、次数、资源与场景后段仍有自身条件。
+6. **旗标FC33。** 不区分大小写的精确token与首个DefaultForm_N已核。完整DayCare生成、物种亲本与inherit_form定义表明，“随母”读取species_parent，母角色为Ditto时可实际来自父；随后按[母,父]取首个族内、带永石形态旗标且持EVERSTONE者覆写，两次同值也分别提交。完整AITrainer和EncounterModifiers各自消费Legendary/Mythical/UltraBeast：前者受独立配置及训练家优先分支，后者受配置并选择3项置满、重算。Arcanine的Category=Legendary不是Flags；神话描述不生成旗标。
+7. **图鉴IF07本代段。** 普通登记检查alias接收记录的form_name，最近见到检查来源记录名。Gen6 KYUREM3/4无名、alias1/2有名，因此普通登记归1/2，recent归0；已见与末次三元组分开。Entry可列性别/形态、浏览首轮/方向写入及BACK不撤销已核；普通刷新请求shiny=false不写末次false。Main列表从末次形态取height/weight/types/color/shape，大小过滤要求owned，颜色/形状要求seen，最终再剔未见。采用UI完整具名事实及当前WP66条款，未扩为整UI通过。
+8. **描述与显示。** Height/Weight变为max(1,round(10x))，继承用规范化的具体基础。14形状、10颜色、10Habitat原定义已读；Habitat是描述，不是Area点集合。Spinda完整43行掩码、低位nibble、双倍2×2像素写入、重叠顺序和副本入口对到WP21及SP01–10。分帧PNG每个独立帧请求一次；原生Gif入口只交付一个宿主bitmap，其内部帧覆盖/实际像素呈现未知。没有运行或生成参考图像。
+9. **G31保存。** 内核完整SAVE01–07事实、共同前提和失败/内部图限定已实际接收，保留原读者；本上下文完整SaveData/Value/Conversion/SaveValues与当前WP09、WP10必要条款独立接合。普通有效当前版本载入把整player/global/storage赋给相应全局，不从PBS重建Pokemon。已加载值跳过；缺键有supplier时是另一条新游戏路径。外层类校验不验证内部对象图。旧版本筛选、转换前内存快照.bak、逐转换写入、版本尾标及读取路径写回分别观察，后段失败不回滚已达前缀。三项必要旧DayCare/Pokedex/markings转换完整定义已读，不据14项目录宣称全部旧档兼容。
 
-FC33.consumer 只完成不区分大小写的精确旗标查询与 DefaultForm_N；Mother/EverStone/Legendary 各外域完整消费者未接。G31 的本域对象保存源前提及当前 WP09 条款已核，完整 kernel producer/迁移资格未接。接口只采用已列有限事实，未读 provider 不签 consumer。
+采用的完整对象、原读者、前提、正常/反例/失败、当前formal与反向核对在`interface-reception.json`；精确源/条款/向量范围在`reading-ledger.json`。补读包括WP34形态通道与BR07/08/27–31、WP51技能标志/A01、WP36旗标钩子、WP10转换机制、WP21 Spinda和SP01–10。实际范围与完整采用单元分别记录，不把显示到一半的方法或外域整文件记FULL。mandatory locator更正已应用：Pokemon结束1227；形态校验448–485，终检起487。Encounter658–765与Area helper302–352的既有必要后继更正保持。
 
-IF02/IF07 均分开共同定义、本代 producer、其他代 producer、外域事实、当前 formal 和最终 join。已找到固定合同内真实后继导航：coverage/root-active-snapshot-19 下的 creature_c_existing_crea、kernel_atomic_reception、pbs_creature_current_cloud。它们可得，尚未全文接收的必要对象与强制 companion 详列 interfaces.json；不是缺文件 spelling 就记材料 limit。UI descriptor/entry 的具名有限事实已实读，原读者保留；metrics 布局的 v2 更正没有借未读状态自动采用。没有匹配的 gen5/gen7/gen8 专用分支在两次针对性查询中出现；这些贡献未收到，只有相应跨代接口欠项，不能替代本代剩余638条的容量说明。
+未采用Item schema语法、Metrics布局坐标或完整搜索控制链的额外命题；相应强制item companion和metrics v2仍只在未来真正采用该facet时适用，没有借导航或v1自动签收。主职责不扩到全系统或所有插件/能力/设施消费者。
 
-continuation.md 是同一冻结 gen6 合同的精确续收入口，不增加新一轮审查层、不创建新任务/审者/票。原接收者和主审可据已读视图及逐对象账本继续累计，最终 root/task-final 仍由原主审独占。
+## 发现与原资格
 
-所有正常运行、参考编译/导出、游戏、存档、宿主/UI、媒体和行为向量均 **NOT_EXECUTED，新增行为执行0**。本次 Python/Git 检查仅为工具与传输验证。保持 **UPDATE_NOT_STARTED**。实际普通发布和全远端回读的不可变 C/tree/本目录 tree 由 publication 回执与最终交付消息绑定，文件不预言自己的未来 commit。
+没有成立新的正式规格required/optional/policy/limit提案，新增独立裁决票0；这不形成整组NO_REQUIRED_UPDATE。两个证据措辞更正已定位，原件不改：
+
+- 原semantic-notes把RAYQUAZA记作“repeatedTWISTERtutor”；本集TutorMoves的TWISTER只有一次，Moves另有等级1一项，不能跨字段说成重复教学。
+- PBS_CURRENT的manual_groups/species.mega含“MegaMove path fails with any held mega stone”。完整getMegaForm、Battler.hasMega、同producer PC-F039和当前WP22均没有该门；该句不采用，按石OR已知招式接收。当前正式规格已经正确，不转成正式整改提案。
+
+父2772条保留字面、20个有限命题、IF04/IF06、XPCB001有限NO_REQUIRED、第七轮27项及历史optional/FLOAT/policy/limit/no-required保持原读者、范围与资格；不重开、不降级、不计新票。作者撤回/旧FULL与本接收者状态分列。
+
+## IF02/IF07的真实剩余
+
+Gen6及必要共同定义/外域有限事实段已完成；两个完整接口仍不签。最后精确只读ref探测返回下列真实提交，报告全文已读，不用过去“无ref”观察覆盖当前事实：
+
+| producer | 固定发布 | 实际资格 |
+| --- | --- | --- |
+| Gen5 | `77c68ef907bece03291accccf7c8d3f3f3bc7753` | 报告735条主责、17原子、HC-BASE完成，3接口仍开放。完整值载荷可得；本Gen6-only接合没有导入其全量值，不冒称已收到735条完整incoming值。 |
+| Gen7 | `f83facb2231c076ac5fc31c0f0c9d7596f00bac5` | 仅12基础＋250形态字面，最终完整记录0；797基础原文及同代继承/必要consumer资格未接。此提交没有全量合格1059-record producer。 |
+| Gen8 | `a4b69557c9527ee041ff6a8005ca4ae3daa9a6bb` | 仅140基础＋27形态字面，最终完整记录0；758基础＋312形态字面未读，完整1237-record consumer资格开放。 |
+
+这些实际producer缺口只阻塞相应跨代接口，不再阻塞或抹掉本组已完成独立部分。Gen5可得完整值的尚未导入资格也明列为incoming接收欠项；报告、状态、哈希或路由不能代替值。`interfaces.json`保留原完整接口对象和精确入口/范围，`interface-reception.json`绑定peer完整文件身份及读取凭证。没有把跨代接口缺口改写为材料、宿主或权限limit，也没有另派一轮审查。
+
+原接收者/主审取得真实完整Gen7/Gen8 producer后，在原累计接收中读完三代适用的完整值、共同前提、反例、强制更正与保留限定，接入本报告已核的有限链即可；不必重读Gen6的909条或再次审公共定义。最终root/task-final仍由原主审独占。
+
+## 验证与普通发布
+
+所有参考编译、反写、游戏、存档/转换、宿主/UI、媒体和行为向量均**NOT_EXECUTED，新增行为执行0**。Python只做本上下文新写的静态证据整理、无损archive和一致性校验，Git只验证身份与报告传输。哈希或归档成功不授语义信用。实际失败、截断修复与未知配置保留；私有chunk索引不是已公开的完整平台终端流。
+
+用户已授权在专用分支普通commit/push。交付核对包括909/638读片集合、字段/省略总量、71原子、188同代锚点、两个archive完整member、全部JSON、独占diff及R/formal保护；实际结果在validation。语义core提交后从远端完整取得每个报告blob，逐path/mode/blob/bytes/SHA/集合及目录tree比较；archive同时核完整member。publication回执绑定实际core，最终回复绑定包含该回执的实际发布提交及完整远端回读结果，不在文件中预造自身未来身份。
