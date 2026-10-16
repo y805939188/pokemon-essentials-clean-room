@@ -1,0 +1,229 @@
+FILE R Data/Scripts/007_Objects and windows/008_AnimatedBitmap.rb L1-228/228
+1 #===============================================================================
+2 #
+3 #===============================================================================
+4 class AnimatedBitmap
+5   def initialize(file, hue = 0)
+6     raise "Filename is nil (missing graphic)." if file.nil?
+7     path     = file
+8     filename = ""
+9     if file.last != "/"   # Isn't just a directory
+10       split_file = file.split(/[\\\/]/)
+11       filename = split_file.pop
+12       path = split_file.join("/") + "/"
+13     end
+14     if filename[/^\[\d+(?:,\d+)?\]/]   # Starts with 1 or 2 numbers in square brackets
+15       @bitmap = PngAnimatedBitmap.new(path, filename, hue)
+16     else
+17       @bitmap = GifBitmap.new(path, filename, hue)
+18     end
+19   end
+20 
+21   def [](index);    @bitmap[index];                     end
+22   def width;        @bitmap.bitmap.width;               end
+23   def height;       @bitmap.bitmap.height;              end
+24   def length;       @bitmap.length;                     end
+25   def each;         @bitmap.each { |item| yield item }; end
+26   def bitmap;       @bitmap.bitmap;                     end
+27   def currentIndex; @bitmap.currentIndex;               end
+28   def totalFrames;  @bitmap.totalFrames;                end
+29   def disposed?;    @bitmap.disposed?;                  end
+30   def update;       @bitmap.update;                     end
+31   def dispose;      @bitmap.dispose;                    end
+32   def deanimate;    @bitmap.deanimate;                  end
+33   def copy;         @bitmap.copy;                       end
+34 end
+35 
+36 #===============================================================================
+37 #
+38 #===============================================================================
+39 class PngAnimatedBitmap
+40   attr_accessor :frames
+41 
+42   # Creates an animated bitmap from a PNG file.
+43   def initialize(dir, filename, hue = 0)
+44     @frames       = []
+45     @currentFrame = 0
+46     @timer_start  = System.uptime
+47     panorama = RPG::Cache.load_bitmap(dir, filename, hue)
+48     if filename[/^\[(\d+)(?:,(\d+))?\]/]   # Starts with 1 or 2 numbers in brackets
+49       # File has a frame count
+50       numFrames = $1.to_i
+51       duration  = $2.to_i   # In 1/20ths of a second
+52       duration  = 5 if duration == 0
+53       raise "Invalid frame count in #{filename}" if numFrames <= 0
+54       raise "Invalid frame duration in #{filename}" if duration <= 0
+55       if panorama.width % numFrames != 0
+56         raise "Bitmap's width (#{panorama.width}) is not divisible by frame count: #{filename}"
+57       end
+58       @frame_duration = duration / 20.0
+59       subWidth = panorama.width / numFrames
+60       numFrames.times do |i|
+61         subBitmap = Bitmap.new(subWidth, panorama.height)
+62         subBitmap.blt(0, 0, panorama, Rect.new(subWidth * i, 0, subWidth, panorama.height))
+63         @frames.push(subBitmap)
+64       end
+65       panorama.dispose
+66     else
+67       @frames = [panorama]
+68     end
+69   end
+70 
+71   def dispose
+72     return if @disposed
+73     @frames.each { |f| f.dispose }
+74     @disposed = true
+75   end
+76 
+77   def disposed?
+78     return @disposed
+79   end
+80 
+81   def [](index)
+82     return @frames[index]
+83   end
+84 
+85   def width;  self.bitmap.width;  end
+86   def height; self.bitmap.height; end
+87 
+88   def bitmap
+89     return @frames[@currentFrame]
+90   end
+91 
+92   def currentIndex
+93     return @currentFrame
+94   end
+95 
+96   def length
+97     return @frames.length
+98   end
+99 
+100   # Actually returns the total number of 1/20ths of a second this animation lasts.
+101   def totalFrames
+102     return (@frame_duration * @frames.length * 20).to_i
+103   end
+104 
+105   def each
+106     @frames.each { |item| yield item }
+107   end
+108 
+109   def deanimate
+110     (1...@frames.length).each do |i|
+111       @frames[i].dispose
+112     end
+113     @frames = [@frames[0]]
+114     @currentFrame = 0
+115     @frame_duration = 0
+116     return @frames[0]
+117   end
+118 
+119   def copy
+120     x = self.clone
+121     x.frames = x.frames.clone
+122     x.frames.each_with_index { |frame, i| x.frames[i] = frame.copy }
+123     return x
+124   end
+125 
+126   def update
+127     return if disposed?
+128     if @frames.length > 1
+129       @currentFrame = ((System.uptime - @timer_start) / @frame_duration).to_i % @frames.length
+130     end
+131   end
+132 end
+133 
+134 #===============================================================================
+135 #
+136 #===============================================================================
+137 class GifBitmap
+138   attr_accessor :bitmap
+139 
+140   # Creates a bitmap from a GIF file. Can also load non-animated bitmaps.
+141   def initialize(dir, filename, hue = 0)
+142     @bitmap   = nil
+143     @disposed = false
+144     filename  = "" if !filename
+145     begin
+146       @bitmap = RPG::Cache.load_bitmap(dir, filename, hue)
+147     rescue
+148       @bitmap = nil
+149     end
+150     @bitmap = Bitmap.new(32, 32) if @bitmap.nil?
+151     @bitmap.play if @bitmap&.animated?
+152   end
+153 
+154   def [](_index)
+155     return @bitmap
+156   end
+157 
+158   def deanimate
+159     @bitmap&.goto_and_stop(0) if @bitmap&.animated?
+160     return @bitmap
+161   end
+162 
+163   def currentIndex
+164     return @bitmap&.current_frame || 0
+165   end
+166 
+167   def length
+168     return @bitmap&.frame_count || 1
+169   end
+170 
+171   def each
+172     yield @bitmap
+173   end
+174 
+175   def totalFrames
+176     f_rate = @bitmap.frame_rate
+177     f_rate = 1 if f_rate.nil? || f_rate == 0
+178     return (@bitmap) ? (@bitmap.frame_count / f_rate).floor : 1
+179   end
+180 
+181   def disposed?
+182     return @disposed
+183   end
+184 
+185   def width
+186     return @bitmap&.width || 0
+187   end
+188 
+189   def height
+190     return @bitmap&.height || 0
+191   end
+192 
+193   # Gifs are animated automatically by mkxp-z. This function does nothing.
+194   def update; end
+195 
+196   def dispose
+197     return if @disposed
+198     @bitmap.dispose
+199     @disposed = true
+200   end
+201 
+202   def copy
+203     x = self.clone
+204     x.bitmap = @bitmap.copy if @bitmap
+205     return x
+206   end
+207 end
+208 
+209 #===============================================================================
+210 #
+211 #===============================================================================
+212 def pbGetTileBitmap(filename, tile_id, hue, width = 1, height = 1)
+213   return RPG::Cache.tileEx(filename, tile_id, hue, width, height) do |f|
+214     AnimatedBitmap.new("Graphics/Tilesets/" + filename).deanimate
+215   end
+216 end
+217 
+218 def pbGetTileset(name, hue = 0)
+219   return AnimatedBitmap.new("Graphics/Tilesets/" + name, hue).deanimate
+220 end
+221 
+222 def pbGetAutotile(name, hue = 0)
+223   return AnimatedBitmap.new("Graphics/Autotiles/" + name, hue).deanimate
+224 end
+225 
+226 def pbGetAnimation(name, hue = 0)
+227   return AnimatedBitmap.new("Graphics/Animations/" + name, hue).deanimate
+228 end

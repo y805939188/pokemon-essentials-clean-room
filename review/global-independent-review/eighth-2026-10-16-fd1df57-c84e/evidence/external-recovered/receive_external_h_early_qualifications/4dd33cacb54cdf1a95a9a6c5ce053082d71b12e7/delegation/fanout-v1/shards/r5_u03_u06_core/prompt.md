@@ -1,0 +1,665 @@
+# 完整独立有限接收合同：R5-U03/U04/U05及U06主体32合同与196检查
+
+你是主线程实际新建或复用的真实非目标作者接收context；必须不同于目标作者 `01a143b2-fc07-7339-ab2f-055dba6bc023`。不得自行spawn。当前协调线程没有启动本合同，你仅在主线程实际派发后执行。
+
+唯一任务ID `r5_u03_u06_core`。冻结目标为 `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，任务tree `bb0cb15506d2abc9e6b84abe1391048776de6997`。原接收检查点 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8`；原始用户合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。实际派发消息必须给本合同的准确包含commit；缺这一外部固定绑定时仍可按下列固定源只读准备，不能改用同名分支未来HEAD。
+
+先完整读本prompt（下文内含原接收prompt、完整全局prompt、AGENTS和skill）与同目录 `readset.json`，再读 `../../common-premises.json` 和强制 `../../shared/mandatory-policy-clarifier.v1.json`。其readset SHA256为 `4dadfb39c5881a325ccdced566ed40edbf60fc7f356b00e5c38acf054fd62d0f`。恢复工具先全文读懂，只在自己的独占写集中新建无symlink隔离目标；旧脚本/游戏不运行。生成视图、解码、hash、exit0信用0。
+
+## 本合同唯一实质范围
+
+U03全部11、U04全部7、U05的1项、U06前13项。包含U03旧FAIL/有限后继及Summary/Party/瓶子/消费的完整必要定义与消费者。
+
+R5 primary ID集合（若空，只有上列R1–R4/执行范围）：GR5-JXN-003, GR5-M01-005, GR5-M01-006, GR5-M04-001, GR5-M04-002, GR5-M05-001, GR5-M05-002, GR5-M05-003, GR5-M05-004, GR5-M05-006, GR5-M05-007, GR5-JXN-002, GR5-M07-001, GR5-M07-002, GR5-M07-003, GR5-M08-001, GR5-M08-002, GR5-M08-003, GR5-M09-001, GR5-M10-001, GR5-M10-002, GR5-M10-003, GR5-M10-004, GR5-M10-005, GR5-M10-006, GR5-M10-007, GR5-M10-008, GR5-M10-009, GR5-M10-010, GR5-M10-011, GR5-M10-012, GR5-M10-013。
+
+在自己的隔离bare普通fetch固定目标 `11c057d9aed330c16312470f80f13d180f8e1e65`、固定前一接收提交 `ab44ee8c5ffd53ded7d5bc37ae6f15e6ed3ba8d8` 和父给出的准确合同包含commit；核目标checkout/task两tree，并按原完整357行readset核集合和身份。同字节固定缓存可复用传输，不能授语义信用。本任务只实读所分配完整对象及其必要交界。
+
+恢复helper为 `../../restore_fanout_inputs.py`，必须先全文读懂；它仅从已核固定Git对象取blob并做有界gzip恢复，写入本独占目录，绝不执行恢复材料。普通fetch由你在自身隔离bare完成，不能用分支未来HEAD。
+
+本合同拥有 32 个完整R5合同与 196 个原schema检查（逐ID在readset），不是按V/N字符串重新造验收。每个primary完整原事实、前提、普通对照、反例、失败/取消/部分提交、七组/八节、反向clause、参数/default/枚举、完整case预期、保留/验收/同步和必要消费者都须实际接收。已有完整对象视图可用于无损连续阅读，必须校验raw/expanded和字典关联，不能只读其导航或只读字段名。
+
+纯身份和无业务值的传输/结构字段按完整类型、集合、用途处理；不逐hash字符串增加“人工通过”。业务意义即使在 `original_actual_text` 或旧路由下也不能跳过。B/C/D跨用同一字典值只复用精确字节，不自动授另一个语境的事实批准。
+
+## 独占写集、依赖与完成规则
+
+唯一写集：`review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/receive_external_h_early_qualifications/receivers/fanout-v1/r5_u03_u06_core/`。本合同目录、公共分母、原作者目录、其它receiver目录、正式/planning/audit/R/main/tag只读。实际路径按云端checkout映射，不能假设Mac路径。
+
+本次协调线程保持原分支。新上下文由主线程实际派发；若共享工作树只写独占目录、由唯一整合写者commit/push，若隔离checkout由主线程在派发时采用上述专用分支。不得并发写同一Git索引、不得改main/tag或强推。
+
+其它shard的primary集合禁止重签或改写。可读取相邻producer/receiver作为本域必要上下文，标明 `CONTEXT_ONLY`、主责ID和精确依赖。已读消费者不代表未读producer已接。共享字段/状态的语义由tail shard审读，逐producer贡献分别由各primary shard签，最终协调者核完整接合；共享依赖只阻塞相关事实。所有可独立部分持续完成，不等无关任务。
+
+本任务可独立读完所有本域合同和必要定义，末端跨域握手引用实际非作者收据，不能用任务名或角色名代替签名。
+
+逐单位输出完整当前有效意义、固定R/B8定位、实际非截断读片/输出身份、消费者接合、判定理由、未决和原字节身份。所列8份输出必须包含精确已完整接收、必要未接收、不可得材料限制，二者分开。没有剩余必需对象才可给 `READY_FOR_COORDINATOR_CONSOLIDATION`；涉及尚未收到producer的接口单列OPEN，不得给whole interface签名。整H任务的 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`、canonical及全局task-final只由根主审处理。
+
+保留原FAIL/WAIT/MISMATCH/退出未知/后继clarifier。新发现只提案，不自封required；给最强不需修订解释。特别是RECEPTION-H-EARLY-POLICY-002（UTIL-03末尾LF）是旧policy事实限定候选，未来政策仍未决，不因发现它就改B8或重开历史92/第七轮27。
+
+请求gpt-6.1-sol/ultra/default普速/Fast off；真实无回显逐项UNVERIFIED。行为初始NOT_EXECUTED/新增0，UPDATE_NOT_STARTED。写集保护、执行安全和下文原全文合同全部适用；原prompt中更宽全系统范围按本合同唯一primary与必要接口限定，不能把本task扩成重审全系统。
+
+---
+## 内嵌：原固定接收任务完整prompt
+
+# 第八轮独立完整有限接收：h_early_qualifications
+
+这是全局主审明确授权的实质接收任务。只审查及完整整改handoff，UPDATE_NOT_STARTED；不得整改、合并main或改变现正文/参考/旧提案。请求 gpt-6.1-sol、ultra、default普速、Fast off；实际无权威回显的model/effort/tier/speed/Fast/UUID逐项UNVERIFIED。不得冒不同context或新投票。
+
+先完整读本固定报告提交中的 `inputs/eighth-global-review-prompt.md`（36653B，SHA63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b）、适用AGENTS及 `inputs/review-SKILL.md`，再完整读 `delegation/readsets/receive_external_h_early_qualifications.complete.json`。这不是只读本prompt摘要的许可。B8固定fd1df570cad987dc3852a3b958f03916e317f7fe/tree751dfde81048c81390f89a65ca1d1a565ba8e1ca/formaltreef292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。准确映射自己的云端checkouts，不假定Mac路径。
+
+目标唯一固定C `11c057d9aed330c16312470f80f13d180f8e1e65`，checkout tree `2fcef25ee9903bd7e28dec21f6fc2d970c221f77`，专属原报告目录 `tasks/external_h_early_qualifications/`；读集列出已独立远端恢复的全部357普通载荷/12034301B及精确SHA/mode/blob/remote_path_at_target_commit。`root_recovery_path/input_root`只是root本地惰性缓存位置，不保证被root报告提交跟踪；在你自己的隔离bare普通fetch精确目标C，按读集remote_path把全部输入恢复到你唯一写集的自有子目录，完整核集合及每文件身份，不能创建root缓存或写原作者目录。取得该root报告commit的方式由父派发实际固定C绑定，不能以同名branch的未来HEAD代替。先完整读懂现有恢复helper再自行适配；禁止执行任何恢复的旧脚本或游戏。恢复、hash、脚本生成view、exit0、旧PASS都只是身份/工具证据。
+
+本任务主责是把该固定目标的**全部当前有效语义贡献、必要定义/消费者、历史资格和接口**实际完整接收，完成可供root最终签收的非作者凭据，不能停在摘要/导航/字节回读。目标作者实际context `01a143b2-fc07-7339-ab2f-055dba6bc023`；你必须是真实不同上下文，若恰好是作者则立即向父报告冲突而不自验。允许实际不同既有context继续，新增context0；只有真实新建才能记新增1。
+
+冻结目标语义人口：10原载荷目的（4whole42590B+6严格purpose）；92 R5/568criteria/570bindings/206nested/632context；12有限历史facts、14旧非必修（7+7）、13limit/6policy、20必要源/正式bundles1083L。
+当前root已有与仍欠：root全文收主报告/12有限facts/purpose/unread与consumerreview，不继承10原载荷18MB全部有效目的正文已接。5旧tree/mode缺权威身份仍UNVERIFIED。
+以上是不同人口与作者声明，不能当独立真值或把它们合计成PASS分母。你须先按读集及固定主报告的逐项ID冻结精确语义对象列表/完整字段用途，随后逐个接收。完整原提案、正常对照、取消/失败/部分提交、完整七组/八节、反向条款、参数/default/枚举、例子预期与边/接口字段不能删为locator。纯身份/压缩别名/传输JSON可按明确完整用途处置，记录精确对象/字段；不得借typed-purpose掩盖可得未读的业务文字。每个当前有效语义值须真实呈现并读懂，不许用批量模板生成声明“全部人工通过”。可生成无损可逆分片，生成本身reading0；输出截断必须保留并补读。
+
+独立核对所接受事实的完整定义、必要caller/receiver和当前B8完整有关条款；必要方法必须含完整结束行/条件，不以原范围截断的end为完整函数。不要求把外域巨文件全部重复当主责，但所有必要部分都要实际全文到位，原主读与新接收来源分开，未接外域具名OPEN。默认caller不存在既不能豁免原函数阅读，也不能把全部内部工具自动变未来必须API。针对每个疑似缺口给最强NO_REQUIRED/现跨篇已覆盖/合理out-of-scope解释；只有真实不同提案作者的完整独立反证才可供root裁决；原作者签字不算反证。现有root有限裁决/原证据更正也须全文接收或明确不采用，不能以标题继承。
+
+用中文写实质报告及独立接收ledger：每对象给当前有效完整意义、固定R/正式定位、实际读片/输出凭证、消费者接合、判定理由、未决及原始字节身份。报告列精确“已完整接收/必要未接收/不可得材料限制”而非只列总数。保留所有失败/旧错误/后继强制clarifier，精确同字节别名只给一次实际信用。每个接口逐事实接合，有producer贡献未实读不能签consumer。已有历史可选/Float/policy/limit/no-required分别保持，不选择用户批准，不重开第七轮27，不依旧PASS给本轮通过。行为未运行NOT_EXECUTED；宿主/原生/真实媒体限制具名，不把可得未读改成limit。
+
+唯一独占写集 `tasks/receive_external_h_early_qualifications/`；本root公共台账/原作者目录一律只读。首批输出 `frozen-denominator.json`、`reading-ledger.json`、`reception-ledger.json`、`interfaces.json`、`proposal-counters.json`、`report.md`；可有自有必要证据子目录。所有可独立部分持续推进，不必等无关跨域补件。若真正需要拆分，冻结完整prompt/readset/独占子写集并实际新建非作者context或向父给直接派发材料，不得改角色名伪造审者。
+
+完成后只普通commit/push自己专用报告分支 `codex/r8-receive-h-early-qualifications-20261016`（用户已授权各独立review专用分支报告证据普通发布），不改main/tag、不强推、不合并他人。完整远端隔离逐文件mode/blob/bytes/SHA/集合/tree回读后报告真实固定C/tree/任务tree与证据路径；transport完成不代替上述实质接收。若交付受容量/材料阻塞，明确已接收分母和确切剩余，不能把局部结果写为任务完成。
+
+父协调最终canonical及全局task-final签字仍独占；你可在全部目标有效语义/必要交界均完备时给出`READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`，尚欠任何必要对象则`INCOMPLETE`。原目标作者和你均不独自宣称B8全局PASS。持续到完整接收与远端回读完成。
+
+---
+## 内嵌：完整全局prompt
+
+# 第八轮全量双向独立全局审查完整中文 Prompt
+
+你是 Pokémon Essentials clean-room 项目的第八轮独立全局 reviewer。本轮由用户手动启动，以第二节冻结的最终 main 为唯一当前基线。先核对固定身份、本地准备资料与实际环境，再完成全量审查；启动预检满足后直接推进。
+
+## 一 目标与交付范围
+
+项目要提取 Pokémon Essentials 的全部功能、逻辑与可观察行为规格，覆盖数学规则、状态转移、输入输出、数据与配置、用户流程、异常和跨模块接合，为未来从零建设独立、简洁、易维护的 TypeScript 框架提供可靠依据。当前阶段只产出实现无关的规格和分析；Ruby 参考实现提供行为证据，未来架构由独立设计阶段决定。
+
+对全部可得可审参考材料、全部当前正式规格、全部工作包和当前有效补充进行一次新的完整、全量、双向、独立语义审查。战斗、AI、Demo 和开发者工具均完整纳入；未来可能采用 Showdown 不缩减范围。正式目录为131份，启动时仍按冻结输入重新盘点实际分母。第七轮27项关闭、33份改变与98份未变只提供追溯和回归信息；本轮审查覆盖整个系统及所有有效接口。
+
+审查必须实际完整阅读。文件计数、检索命中、脚本输出、相同 blob、旧覆盖矩阵和历史 PASS 可以定位或核身份，不能替代本轮逐文件、逐结构、逐条款语义阅读。局部抽样、只读差异、只复核第七轮27项或此前问题均不构成本轮完成。
+
+交付完整覆盖与问题裁决、独立反证、执行与限制记录，以及供用户另行手动委派的完整中文云端整改 prompt、manifest 和有限依赖分批方案。本轮写入限独立审查报告、证据及隔离检查文件；不修正式规格、不开发新框架、不自动启动后续整改。最终状态包含 `UPDATE_NOT_STARTED`。
+
+## 二 固定输入与追溯入口
+
+### 当前基线
+
+下表为已核验的最终输入。HEAD、main、origin/main与固定交付tag一致；实时远端核验、文件保护和安全同步记录保存在本地准备资料中。启动时重新确认身份和后继变化。
+
+| 输入 | 固定身份与入口 |
+| --- | --- |
+| 本地项目 | `/Users/dingshinn/Desktop/pokemon-framework-reference`；origin：`https://github.com/y805939188/pokemon-essentials-clean-room.git` |
+| B8 最终 main commit | `fd1df570cad987dc3852a3b958f03916e317f7fe` |
+| B8 workspace tree | `751dfde81048c81390f89a65ca1d1a565ba8e1ca` |
+| B8 正式目录 tree | `f292698cdd4a8e725525a9be6dc34b75faaf151e`；目录：`deliverables/final-specification-set/` |
+| B8 固定交付 tag | `refs/tags/delivery/seventh-round-closed-final-20261016` → B8；启动时准确解析commit；所有原交付和归档tag保持 |
+| 本地同步、保护与恢复准备记录 | `/Users/dingshinn/Documents/pokemon-review-handoffs/2026-10-16-eighth-review-ready/readiness.json`；bytes `3660`，SHA256 `6d1a66c34e809f21dbee1b556fe3f5c530171dbbb29b0d5be366490a8eeed3e5` |
+| 最终交付与当前有效补充身份清单 | `/Users/dingshinn/Documents/pokemon-review-handoffs/2026-10-16-eighth-review-ready/final-input-binding.json`；绑定B8、最终清理/历史导航和下列当前载荷的准确path/mode/blob/bytes/SHA256及用途 |
+| 只读参考 R | `/Users/dingshinn/Desktop/pokemon-framework-reference/reference/pokemon-essentials`；来源：`Maruno17/pokemon-essentials` |
+| R commit / tree | `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` / `7589c800b61ba13a13040ed0d686979b80a84fd0`；历史tracked432，本轮重新核库存 |
+
+B8是本轮唯一当前受审基线。下列R7/R6对象用于恢复接受范围、证据和历史资格；其commit与tree不替代B8。若B8与已接受功能正文不同，必须记录精确差异、来源和受影响范围，并审查B8实际字节。
+
+| 历史输入 | 不可变身份 |
+| --- | --- |
+| 第七轮整改分支交付 | `f2dcfeaa9b68827f76b3c47e764817acd38af2aa`；原分支 `codex/remediation-seventh-20261015-cloud` |
+| R7 primary交付 | `f0681497ab8fd54c4420b02ced73a27c098ba297`；workspace tree `129c01ebcc6c4ec69eaefe621f0e01cbf16ad1ba` |
+| R7 最终功能正文 MI | `94d5eb73f4508b8a8a54319040faa9aea5752059`；formal tree `f292698cdd4a8e725525a9be6dc34b75faaf151e` |
+| R7 最后实际输入 FI / 正式接受检查点 | `6a02773d62e36a295e9701a8d0ba5b5cb6441614` / `77e9ba1f6a45f120f26009491779df5d99c348e2`；关闭决定独立登记 |
+| R7 原完整全局报告 C2 | `4580645dfbfec4a3c7ccbad56ae293cc619b0d25`；workspace tree `1f4375e2a51801ed62bc143c1d51f70296fa52f3`；报告根 `review/global-independent-review/seventh-2026-10-14-e646432-7a91/`；目录tree `a011f74704047f11ee47c9a631914337558cb81b` |
+| R7 当时基线 B7 | `e646432c644dec04d306842cc5a559a29c718fbc`；workspace tree `84f79ec6e772aacbf3a464fde68cdc5a280e2950`；formal tree `ebbe29f2bc88cd17de7072bf440c6fa8c8c7089c` |
+| R6 已接受交付 / 原完整全局报告 | `9aa72bc99a4cf52c8fb9cad8a637a963341388b0` / `76038a81fbb376ab318159e24268bd369cdec2ba` |
+| R6 实际整合输入 / 最终独立登记审查 | `86bbc99b28d93db4ed9d6897daf5f3725ccd1808` / `5c9aecc14e2da1e79256edf1e189a77dcc104d86` |
+| R6 正式接受 / 关闭 | `b7b2b31a40478bd95ea677d713e8882113acdb90` / `4df21dee08c3afe054ed12d8416f55fd3ea6317b` |
+| 更早资格恢复导航 | B7内 `delivery/2026-10-14-sixth/history-navigation.json`、`seventh-review-inputs.json`；按准确对象恢复原范围 |
+
+### 当前有效载荷
+
+先完整读取最终输入身份清单并建立用途分层。B8内 `delivery/2026-10-16-seventh/` 的 `eighth-review-inputs.json`、`history-navigation.json`、`cleanup-report.md`、`README.md`，以及根 `README.md`、`CURRENT-DELIVERY.md`和适用AGENTS一并纳入当前导航与状态核验；该输入清单的精确身份如下：
+
+- `delivery/2026-10-16-seventh/eighth-review-inputs.json`：77803 bytes；SHA256 `6c3768de9eebca63605b6b9ec6e477ac216afadd2df71f71425a86be553f75fd`；Git blob `4aff62593ae17b5cb270be72ffc5791c4fcddf81`。
+- 本地 `final-input-binding.json`：176485 bytes；SHA256 `b08a1150f16dd3c9abde4806aa59cc560e3757b60ac4dd0628958ae2d6c6046b`。
+
+下列为必须处理的入口，不是排除其他有效语义的封闭白名单。
+
+1. B8内全部 `deliverables/final-specification-set/` 文件，包括正文、配套data/coverage文档、scope、README、test-catalog、附录和测试向量。
+2. B8内 `planning/module-map.md`、`feature-matrix.md`、`coverage.md`、`extraction-plan.md`、适用的review manifest及全部当前 `audit/` 追溯、覆盖和一致性资料；按所有实际工作包建立完整映射。
+3. R7整改根为 `review/remediation-seventh-20261015-prepare/`。完整处理其 `completion/` 下的 `final-report.md`、`final-delivery-binding.json`、`final-publication-receipt.json`、`formal-files.json`、`current-public-reception.json`、`public-sync-manifest.json`、`public-sync-validation.json`，以及根下的 `ledger.json`、`closure/final/decision.json`、`closure/final/dependency-and-history-reception.json`、`closure/preflight/final-static-projection.json`、`delegation/task-registry/current.json`和 `current-navigation-errata.json`。当前有效字段、规则、依赖、案例和接收范围须实读，纯行政字段按用途处置。
+4. R7的13批候选冻结、合格候选复审、12个独立实际审查context所覆盖的报告、累计保留与七组共享接收。按最终binding中的 `source_bindings`、`files` 和逐项关闭记录恢复精确commit/path/输入MI/FI；U04/U05共享一次实际审查，不虚增审者或结果数。不得把早期MI的有限结论扩成最终B8全文批准。
+5. R7原报告C2根的 `final-report.md`、`canonical-records.json`、`findings.json`、`reading-ledger.final.json`、`coverage/summary.final.json`、`history/qualifications.final.json`、`handoff/cloud-seventh-update-handoff-prompt.md`、对应manifest、批次和依赖图、`publication/final-delivery-binding.json`，以及支撑当前事实的完整证据。按原不可变报告对象恢复，不能假设原报告全量载荷都在当前工作树。
+6. R6当前仍有效的九项补充：`review/remediation-sixth-20261014-prepare/completion/final-delivery.json`、同根 `ledger.json`、`task-register.json`、`reception-queue.json`、`integration/public-sync-20261014/sync-input.json`、`dependency-status.json`、`sync-report.md`，以及当时 `planning/feature-matrix.md`、`audit/source-traceability.md`。历史来源固定于9aa；B8中的后继版本按当前字节读取并说明继承/新增关系，不能沿用旧hash冒充当前身份。
+7. R6原 `inputs/optional-records.json`、`optional-facets.json`、`policy-records.json`、`limit-records.json`、`no-required-revision-records.json`，及R7当前全部optional、额外导航facet、policy、no-required和limit原记录。逐项恢复完整内容和现行处置；不同分类、根因、别名与facet分别计数。
+
+载荷有相同字节时，可证明身份后关联去重；其所有当前有效语义仍须在本轮阅读。历史副本、行政导航、类型/身份索引及当前语义分列，不递归重读与当前判断无关的历史。大JSON、压缩对象和可恢复证据按真实结构连续分块；解包/解码只恢复材料，不能授予语义阅读信用。恢复工具先读懂，在不存在的隔离目标目录运行，保留原包与完整对象身份。
+
+## 三 启动核验与授权边界
+
+1. 完整读取项目根与适用目录的 `AGENTS.md` 和实际提供、适用的skills。用户指定skill为 `clean-document-revision`，准确全文在本地准备目录 `inputs/review-SKILL.md`（3,598 bytes；SHA256 `ac3c8560f38192269b65b061673896a77f5eb794b90e90644e3c445b2c3be1f8`）。它适用于提示词和技术文档的最终态修订；本轮全局审查合同由本完整prompt及项目AGENTS规定。正文修订遵循该skill：错误原位替换、缺项原位补齐、重复合并，最终正文只保留正确执行所需内容；审计报告和原始记录按其既定审计规范保留。
+2. 从准确本地路径核Git根、origin、HEAD/main、缓存origin/main、实时远端main、交付tag、workspace/formal tree和R commit/tree。分别记录实时远端与本地缓存，确认最终同步记录的实际时点。身份不符、文件缺失或后继变化须具名记录，冻结受影响范围，继续可独立判定工作；不以reset、覆盖、移动原分支或替换clone掩盖差异。
+3. 对照最终readiness实查staged/unstaged、untracked、ignored、既有备份、其他worktree与恢复引用。最终准备已逐文件核验67,835个untracked（R7 62,786、R6 4,987、R3 62），共25,486,282,153字节；478个ignored/参考文件共45,829,111字节，全部大小/模式/SHA256前后一致，含R现存434文件。其他7个worktree的HEAD/branch/Git状态未变，全部35个本地分支及8个worktree保留；仅退休21个已由固定远端tag保全的失效远端缓存引用，257个tag保留。启动按该准备时点重新核实，不外推为其他worktree整树字节审计。保留原文件、未整合提交、证据和可恢复历史；已知未跟踪状态不自动阻塞隔离审读，也不从内容分母中排除可审材料。
+4. 建立唯一报告根 `review/global-independent-review/eighth-<YYYY-MM-DD>-<main-short>-<nonce>/` 和独立分支 `codex/review-eighth-<date>-<main-short>-<nonce>`。本轮写集仅该报告根、任务独立证据目录和隔离临时文件。R、正式规格、planning/audit、旧报告、接受/关闭回执、main、原tag及其他worktree只读。
+5. 用户授权本轮必要读取、解析、静态工具核验、对照、安全隔离的参考/独立模型/可用兼容宿主或Demo观察，以及独立review分支commit和普通push。范围内持续完成；系统权限与实际安全边界仍适用。执行前读懂对象及依赖，绑定固定输入、隔离目录和可控输出。不得盲跑下载脚本、安装软件、改变系统安全配置、使用生产账户/真实存档或触及未授权外部服务。
+6. 只做有限可用的活动状态检查。接口不完整时记录 `UNVERIFIED`，未发现具体冲突写者即可在独立写集推进；出现真实重叠写入时冻结具体对象与依赖。不要无限等待全会话停机证明，也不检查额度或认证来证明模型配置。
+
+本次同步准备仅提供身份、保护与Git验证，新增游戏运行0；无适用CI，已核checks/workflows/status contexts均0。
+
+启动结论为 `READY`、`READY_WITH_LIMITS` 或 `BLOCKED`，列真实证据和范围。材料/宿主不足只影响对应观察范围；关键身份冲突或可审材料不可读取属于具名阻塞。预检核身份、安全和可用性，后续语义阅读单独登记。通过后直接开始本轮完整审查。
+
+## 四 全量库存与双向实读
+
+### 库存、工作包与阅读分母
+
+独立建立R全部tracked文件、额外现存材料、全部正式文件、所有当前有效补充和需恢复证据的库存。逐载荷记录repo、commit、tree归属、path/mode、bytes、SHA256、Git blob、类型、用途、读取/解析范围、责任人和证据等级。历史432/131仅供核对；新增、缺失和拆分必须反映在本轮分母。
+
+以B8实际目录、module-map、feature-matrix和extraction-plan建立全部工作包清单。每个WP及其A/B/C等拆分、行为正文、配套data/coverage、全部test-catalog和跨域引用均登记，明确唯一primary与依赖。按文件、工作包、领域、结构单元和条款分别统计，不以问题数、贡献数或行数替代需求数。所有工作包必须完整审读，不因旧轮完成、未改动、没有旧finding或缺默认caller而跳过。
+
+所有可得可审文本、脚本、PBS/default/backup配置、作者工具、安全可恢复序列化内容、资源/二进制中的可读程序及其消费者均作全文或全结构覆盖。大文件按行区间、章节、字段/记录、语法结构或完整控制流连续拆分；记录首尾、连续性和未审区间。检索用于定位与负证据搜索，脚本用于枚举、计算和机械校验；真正语义阅读需具名审者读取完整单元、前提和上下文。
+
+许可、纯行政、生成索引、历史快照与opaque部分按类型/身份和用途完整处置；含当前有效规则、案例、依赖、状态声称的字段仍须读。`inventory_only`、`FULL_READ`、`STRUCTURE_PARSED`、事实核验和实际行为观察分别记录，不能互相升级。
+
+维护两向关系：`file → unit → fact → consumer → spec` 与 `spec-clause → source-fact → premise`。复合条款拆出所有实际子断言和前提；映射数量或对象指针存在不代表支持成立。每个可得语义单元及每个当前formal clause均须映射或具名处置。完成时，可得可审单元的真实未读与未接收应为0；缺读如实阻塞，材料或宿主限制另列。
+
+### 正向参考到规格
+
+从完整定义和上下文提取能力、规则、数学、状态、输入输出、前提、数据/config要求、正常与失败流程。逐入口核默认与备选配置、注册/覆写/分派、caller和真实receiver，追踪生产、写入、消费、展示、持久化、重载及后续结果。定义、名称、导入或字符串存在与实际接线分别举证；未被默认流程调用的定义仍审查其行为和使用条件。
+
+每个参考事实指向当前主行为合同，或明确归为历史/纯管理、合法超范围、optional、独立兼容policy或材料/宿主limit。漏覆盖、实际接线差异、遗漏前提与错误概括形成具名gap及最小反例。源实际行为和未来是否兼容该行为分别描述；源缺陷不得改写成理想结果，也不自动变成未来实现的永久要求。
+
+### 反向规格到参考
+
+完整阅读全部正式章节、段落、表格、脚注、附录、规则、算法、状态、配置、失败语句和向量。逐clause核根证据、前提、观察点和边界，重点包括：
+
+- 条件、顺序、数值与舍入、单位、时钟、容量、身份、命名和类型判定。
+- 别名/复制/可变值、缓存、内存、PBS/导出、档案、存档和重载的区别。
+- 正常、取消、异常、回滚、部分提交各自的状态变化与后续消费者。
+- 静态请求与宿主最终画面/声音、接口声明与真实返回/执行的证据区别。
+
+对“全部、任何、只读、无副作用、原样往返、原子提交、失败全回滚”等强断言主动构造反例。区分错误、过强/过窄、无依据理想化、缺前提和跨文档矛盾。工具exit0、捕获异常后的正常退出、相同blob或历史PASS不单独证明业务成功与运行等价。
+
+### 全领域与跨模块链
+
+完整覆盖Generic Kernel、Creature-RPG、Pokémon Rules、Combat/AI Requirements、Engine/Overworld、User Interface、Demo/Developer Experience、资源/有限可读binary及作者工作流。领域清单至少包括：
+
+- 持久化、随机、事件、配置、标识/注册、编译和扩展机制。
+- 个体/物种/招式、队伍与存储、玩家/训练家、物品与库存、成长/学习、形态/进化/繁殖、遭遇/捕获/交换、图鉴及特殊状态。
+- 战斗上下文、参与者/位置/目标、命令与服从、行动顺序、换人/逃跑、伤害/多次命中/治疗、状态/场地/特性/道具、经验/回合结束/结果、AI、设施规则/调整与恢复。
+- 地图/地形/移动/载具、事件/解释器/交互、镜头、输入、资源选择、图像/动画/文字/音频、UI场景与返回、保存/加载及Demo接线。
+- PBS和备选数据、转换/编译/导出、世界/战斗动画工具、项目迁移和开发者工作流，以及可读内嵌程序、字体/BMP/SF2/序列化材料的消费者。
+
+由库存建立全部有效接口与组合链，不以本段示例封闭范围。至少连通：配置/注册/编译→运行消费；遭遇/获得/捕获/赠送/交换→所有权/队伍/盒子→图鉴/命名/UI→存档；成长/学习/形态/繁殖/特殊状态→战斗与地图消费者；命令/目标/位置→行动/效果/触发→结果/奖励/设施恢复；资源与数据→展示/音频请求→宿主边界；作者输入→转换/输出→后继装载。逐链核身份、单位、时间、容量、状态、能力门、失败前缀及保存/重载。
+
+共享正式文件整篇审读并作一致性检查。根因连同必要同步正文、附表、向量、公共索引和反向消费者确定修订范围；重复事实保留一个primary合同与引用，跨域接收不得重复建立mandatory根因。
+
+## 五 历轮资格与当前状态核验
+
+历史结论仅在原输入、原范围、原阶段和原证据资格内有效。新的当前结论必须由本轮读源、读clause、消费者核验和独立反证支持。
+
+| 历轮 | 保留的准确范围 |
+| --- | --- |
+| 第一轮 | 原WP合同、primary映射与当时范围，不臆造问题总数 |
+| 第二轮 | 229控制项、21整改批次；341精确owner贡献独立计数 |
+| 第三轮 | 23控制项、76标准；optional/no-required、U08当时未启动及具名裁决分别保留 |
+| 第四轮 | 当前资格17控制/76标准；B5时16/75与后续Summary有限补充按时点和来源区分 |
+| 第五轮 | 92必修CLOSED、OPEN0（51 P2/41 P3）；7 optional、7 no-required、6独立兼容policy、13 limits分列；410 native静态、568 schema、158额外单元及原共享/依赖/贡献分母保持原口径 |
+| 第六轮 | 56必修、14批，在原有限静态合同内经实际独立内容审查、最终登记依赖审查、ACCEPTED后CLOSED；8 optional、1 FLOAT facet、7 policy、14 limits、1 no-required分列；100节点/110边不升级为运行证明 |
+| 第七轮 | 27必修、13批（10 P2/17 P3，P1为0），候选PASS、实际整合PASS、ACCEPTED、限定静态CLOSED均完成；131正式文件33改变/98未变。7 optional entries、2额外导航facet、1 no-required、2 policy entries未自动采用；根、别名、资格facet分别计数 |
+
+独立核R7完整27-ID映射、13批唯一主责、候选/实际/正式接受/关闭阶段、对应MI/FI、12个实际审查context与最终累计依赖/共享接收。13作者、17候选审查任务、12实际审查context合计42唯一任务ID；续审turn与结果版本不重复算新审者。历史所有总数均有各自分母，不能替代B8全量审查。
+
+按最终导航恢复R7旧U01 J01 FAIL及修订版本，U03/U07/U10候选r1的WAIT与新context r2，U12/U10实际WAIT与后继完成结果，以及U06程序裁决和后继完整内容结论。它们只在影响独立性、接受资格、证据范围时进入当前判断，历史原记录保持。R3 optional/NO_REQUIRED、R4后继范围、R5纠正、R6 U13旧FAIL/后继PASS同理按准确键恢复。
+
+旧 `proposed/WAIT/OPEN` 保留其生成时点，当前接受/关闭另列。发现新反例时形成 `GR8-...`，说明与旧根因、原关闭范围及当前条款的关系；不无证据改写旧56/92/27台账，也不继承旧PASS免审。历史有效model/effort/tier/speed未知不得用于认证本轮配置。
+
+## 六 调度、并行与独立反证
+
+主会话及所有本轮审读、覆盖核验、跨域审查和反证任务均请求 `gpt-6.1-sol / ultra / default普速`，关闭Fast。使用实际可用的subagent或Codex Desktop独立会话；具备独立条件的任务并行推进，服从实际工具容量。先核一次可用参数与状态接口，不猜CLI flags。实际model/effort/tier/speed或平台ID未回显时逐项记 `UNVERIFIED`，保留请求与真实回显的区别，继续可做工作。
+
+主会话负责冻结分母、调度、公共台账、依赖、跨域接收、根因去重和最终交付，也可亲自完成阅读与综合。领域事实提案、非提案者反证、跨域/历史/覆盖核验均具名。角色名、任务号和同一上下文的续审不创造独立性；发现提出者不能成为唯一反证者，涉及本人曾编写的具体规格须由实际非作者完成最终独立核验。
+
+每个任务登记逻辑入口ID、角色/全范围、输入SHA与tree、读集、独立写目录、依赖、请求配置、实际回显、真实agent/session/task ID（如可得）、状态、日志/结果位置及开始/更新/结束UTC。区分 `PLANNED/RUNNING/WAIT_DEPENDENCY/COMPLETED/FAILED/INTERRUPTED` 和实际进程状态；调度完成、进程退出与语义接收分别记录。缺依赖只阻塞对应范围。
+
+用户应能按入口查看任务、实际日志和状态。优先利用平台现成记录，交付已核可用的查询/尾读方法和示例；必要时只补简洁登记与日志索引。没有平台实时状态时明示边界，保留真实启动、退出、最后更新时间及可见日志。`progress.json`或`progress.md`持续同步负责人、范围、冻结输入、平台入口、状态、输出和阻塞；`findings.json`同步提案、证据、重复关系、反证、裁决和未决条件。
+
+任务按完整领域、所有WP和全部有效接口分工，各自独占目录，公共状态唯一写者。无额外可用子任务能力时，主会话可顺序承担其可独立完成的阅读；需要不同实际审者的反证和非作者最终裁决仍保留要求，缺失则对应结论待决。阶段更新只报告新结果、重要阻塞和决定。
+
+每条疑似发现须有精确source/spec位置、前提、普通对照、最小反例、正常/失败/取消/部分提交、负证据搜索、必要消费者、影响、证据等级、最小修正规则、同步/回归、正确保留scope和未知边界。独立反证后分为required、optional、no-required revision、独立policy或limit。去重保留原提案、异议、别名/撤销及完整反证链；不同前提与反例不可因同名合并而丢失。
+
+## 七 材料、执行与限制
+
+先恢复R6原 `review/remediation-sixth-20261014-prepare/inputs/limit-records.json`（9aa）及R7当前接收，完整读取L01–L14，再按B8实际材料和可用能力重审。下表是有限审查范围与恢复条件，不能代替原记录或本轮事实。
+
+| ID | 必须完成的可得范围 | 未决边界与恢复条件 |
+| --- | --- | --- |
+| L01 地图/完整工程 | 地图、事件、解释器、编译、设施和工具脚本，PBS、具名调用与接线 | 缺地图/CommonEvents/System/Tilesets/Game.ini/Game.rxproj等工程资源时，真实NPC/奖励/道馆及Demo可达流程须准确工程验证 |
+| L02 图形/音频 | 根BMP完整像素、字体、音色库、资源选择/尺寸/坐标/音频请求及消费者 | 完整Graphics/Audio及宿主不足时，加载、动画、量化、混音/听感需相应材料与宿主 |
+| L03 原生执行 | 本机Ruby/Python/Node、静态工具、可用兼容宿主及隔离条件 | Mac隔离函数观察与随附游戏宿主分列；Windows/RGSS/mkxp/.NET需准确依赖与受控环境 |
+| L04 Game/运行库 | Game.exe、DLL的PE、依赖、接口、可读定义、兼容脚本/shader/controller消费链 | 全机器码CFG、native分派、平台/后端实际选择与执行未知；导入/导出/字符串不证明运行 |
+| L05 内嵌程序 | 可读shader/兼容脚本、完整字段/函数/数学顺序及选择链 | GPU编译、采样、精度、真实接线与最终像素需目标后端观察 |
+| L06 animmaker | 可读IL、控制流、画布/矩形/槽位、保存与失败前缀及消费者 | 图像/XML库编码、空矩形、错误格式化及真实输出需准确.NET依赖与受控输入输出 |
+| L07 extendtext | 可读IL、工作循环、导入接口、窗口/控件/互斥量/等待请求 | Windows API真实返回、尺寸/周期/所有权/启动需隔离观察，未检查返回不能算成功 |
+| L08 字体 | 全字体字符映射、表、度量/字形边界、配置与消费者 | 目标Font.exist/字宽/hinting/字节码及实际UI视觉须目标字体宿主和显示输入 |
+| L09 soundfont | 完整SF2 RIFF/hydra、预设/乐器/样本/采样点/链接与配置 | 选择、装载、原生接受、guards、合成与声音需目标音频宿主；结构解析不证明采样器等价 |
+| L10 序列化 | 安全恢复Scripts.rxdata/Main、messages_core.dat及完整结构/键/文本消费者 | 解码不执行对象，不等于原生启动/载入；语言质量与翻译审校另列范围 |
+| L11 扩展/配置 | 全材料中的注册/覆写、默认/备选PBS及无默认caller定义 | 无界插件/表达式/外部覆写及所有组合未穷尽；具名材料和有限输入域可恢复对应范围 |
+| L12 外部状态/服务 | 文件/网络/存档/归档可读分支、异常/部分提交与有限隔离观察 | 生产账户、真实存档、外部服务及真实往返需明确授权隔离材料 |
+| L13 元资料 | 许可、追溯、行政回执和副本的完整类型/身份处置，当前有效语义另审 | 许可不作法律结论；历史hash/PASS不授当前批准，inventory_only给精确理由 |
+| L14 执行完整性 | 真实命令、工具/替身、stdout/stderr、UTC、底层exit与作用范围 | 历史缺失不倒填；需要新执行时受控重跑并另计，原缺口保持 |
+
+已有可读IL/shader、Main、messages、SF2、字体、BMP和消费者必须完整审查。宿主未知不豁免可读缺读；有限可审单元未读不能改标limit。opaque机器码、实际后端和无界组合按真实边界处置，不要求无界逆向全部程序。新增limit使用稳定ID并说明与旧项关系。
+
+执行记录区分 `SOURCE_STATIC`、`DERIVED_VECTOR`、`TOOL_VALIDATION`、`REFERENCE_OBSERVATION`、独立行为模型执行、完整宿主/Demo、原生媒体、真实保存/回放。每次观察绑定固定输入、工具版本、真实命令、受控前提、预期/实际业务输出、stdout/stderr、底层exit、UTC与证据路径，保留失败、重复、未知退出及替身范围。采用安全、已理解的执行路径；条件不满足时记录限制并继续静态可判定工作。
+
+R8各类新行为执行初始为0，按实际累计。R7全局审查的本机Ruby数字谓词为1过程/10输入，保留其原局部资格；R7整改所有行为向量 `NOT_EXECUTED`、新运行0。R6历史18次Ruby尝试为12已知exit0、4非0、2退出未知，17进入定义/1未加载，含无效或重复替身。上述历史不能转入R8新增计数。工具命令数、回执数与成功行为测试数独立；静态完成、数值推导和运行等价结论分开。
+
+## 八 发现裁决与完整云端整改交接
+
+本轮完成后生成 `handoff/cloud-eighth-update-handoff-prompt.md` 和 `handoff/cloud-eighth-update-handoff-manifest.json`。中文prompt必须完整可复制、可单独启动后续任务；manifest提供同一规范数据、身份与证据绑定。全部填入B8/R、实际R8 core/发布身份、准确报告路径和完整规范记录。用户另行手动启动整改；交接准备本身不启动update。
+
+### 完整逐项合同
+
+使用稳定ID如 `GR8-M01-001`，分配后不因排序/分批改号。一个根因保留唯一canonical/primary及必要跨域同步；不相关事实独立立项。alias/tombstone、撤销、原提案和裁决理由可恢复。required、optional、no-required revision、policy、limit各自独立，严重度依据已证影响与前提。
+
+每个记录完整给出：
+
+1. **身份与结论**：稳定ID、分类、严重度/理由、模块与WP/主合同、根因key、canonical/alias、关联历史ID和当前状态。
+2. **双向证据**：source/spec的repo、commit、tree、path、bytes/SHA256/blob、行/offset/字段/clause定位和必要上下文；事实—生产/写入/消费/展示/持久化链与反向前提；自然语言事实摘要、原始工具输出或精确可恢复证据定位、负证据搜索范围和缺证位置。规格与交接不得抄录参考源码、逐行转译或搬用Ruby架构。
+3. **前提与反例**：有限输入域、普通对照、最小反例的具体输入/步骤、参考期望或实际观察、当前规格断言与差异、正常/失败/取消/异常/部分提交、必要消费者、影响、证据等级及未执行标识。
+4. **最小修订合同**：正确最终行为、必须保留的正确scope、必要同步正文/附表/向量/索引/消费者与原因、精确建议读写范围。修订服务于从零实现规格，不扩成引擎开发或未来架构设计。
+5. **验收与回归**：逐条具名、可判定的条件，普通/边界向量、旧资格和精确回归范围。静态、推导、工具与实际执行分别验收；无宿主不妨碍静态可判定项，运行未知继续保留。
+6. **独立裁决**：原提出者、实际独立反证者、证据路径、理由、未决条件及撤销/别名链。no-required说明为何无需修订和应保留原文；optional/policy/limit不自动成为必修。
+7. **依赖与接收**：直接/传递依赖ID、blocking/nonblocking理由、文件冲突、唯一主batch、独立author/reviewer入口、共享整合接收者、closure条件、policy/limits和excluded claims。
+
+不适用字段给具体理由；required的证据、反例、最小修正规则、验收、保留scope和读写/回归范围均须有效非空。共同证据可按evidence ID去重，但其完整语义、定位、身份和恢复方法必须可得；空模板或链接集不代替完整合同。
+
+### 有限批次与独立接收
+
+按本轮实际裁决、写路径、共享合同和依赖生成 `batch-assignment.json`、`dependency-graph.json`、`file-conflict-graph.json`。每个required ID恰有一个主batch；同步接收者和公共文件写者具名，必修根因不重复计数。
+
+每批列全部ID、冻结输入、精确读写集、完整原事实/反例、修正规则、验收/回归、依赖/阻塞条件、候选目录、独立作者和实际非作者reviewer入口。给经核可用的CLI/Desktop启动方法、逻辑ID和日志/状态入口。后续update作者请求 `gpt-6.1-sol / xhigh`，独立reviewer请求 `gpt-6.1-sol / ultra`，均default普速、关闭Fast；请求和实际回显分别记录。
+
+区分候选镜像写集与最终实际目标。按文件重叠、接口、共享接收、直接/传递依赖核冲突图，列第一波所有确可独立开工批次和数量；计划并发数不等于服务slots或已启动任务。共享正式文件、公共索引与台账唯一写者，各批可产独立候选mirror/patch，由整合者逐贡献接收；整合后另由实际非作者核完整受影响结果及累计保留。
+
+候选PASS、实际整合PASS、正式ACCEPTED、最终CLOSED分别登记。独立验收、共享接收、直接/传递依赖、历史回归未满足时保持开放；待决policy只阻塞依赖它的范围。本节只交付后续计划，本轮不执行整改。
+
+### Manifest与正文一致性
+
+Manifest至少含：schema；B8/R及历史恢复固定身份；实际R8 core/发布身份；本地位置/路径映射和保护范围；所有源/规格/有效补充/报告/证据载荷身份；全部WP、阅读与双向覆盖分母；完整规范records及独立分类/严重度计数；aliases/去重/撤销与反证；accepted facts/负证据；每批合同、唯一主batch、作者/审者入口、依赖/冲突图、第一波数量；历史资格；执行分期；状态语义；`update_started:false`。
+
+逐载荷包含path/mode、commit、tree归属、bytes、SHA256、Git blob、类型/用途、完整阅读/结构范围或inventory-only理由。结构台账覆盖全部实际范围，说明去重而不丢语义。正文、manifest、逐项合同、向量、批次和证据中的ID集、分类计数、依赖、路径与引用必须一致。
+
+required为0仍交付完整事实、覆盖、独立裁决、policy/limits和 `NO_REQUIRED_UPDATE` 的具体依据及空计划。缺读、身份或材料依赖具名保留，未知不得转为PASS。交接正文按 `clean-document-revision` 输出最终态合同，历史纠错与裁决链保留在专属审计证据，不堆入执行正文。
+
+## 九 报告发布与完成验收
+
+报告包完整包含：
+
+- 冻结输入、逐载荷身份、写入保护、全量inventory、全部WP/领域范围与逐结构reading ledger。
+- 正向source-fact→spec、反向clause→source矩阵、primary合同与全部有效接口/组合链、历史与当前资格。
+- 完整findings、独立反证/裁决、根因去重、必要同步/消费者、真实已读/未读/未接收分母。
+- 静态、推导、工具、实际观察分期，policy、材料、宿主、机器码、配置和外部状态边界。
+- 真实任务登记、依赖、状态、已核可用的可查日志入口。
+- final-report、summary、完整中文云端整改prompt/manifest、有限分批及独立作者/审者入口。
+
+先冻结语义报告core commit/tree，再用后继交接/发布绑定实际core及载荷身份。文件不能包含自身未来commit/tree；整包/manifest由外部固定发布入口和最终绑定收口，避免递归self-hash和无尽行政回执。体量大的证据可无损压缩与内容去重，必须有原path/mode/bytes/SHA256/blob和可用恢复方法，不能丢真实I/O。私有平台流与实际公开投影分别说明，不声称未发布原私有流已远端读回。
+
+独立review分支普通push后，对本轮新增/改变的报告和完整交接载荷逐文件完整远端读回，核path/mode/blob/bytes/SHA256与目录tree；对压缩对象同时核恢复身份。精确不变的输入和旧载荷可复用身份/传输缓存，无须反复下载全仓。传输验证、链接检查、计数与脚本成功均不授予新语义阅读信用。
+
+完成验收同时要求：所有可得可审文件/结构单元、全部工作包和每个formal clause有本轮完整审读及双向映射或具名处置；分块连续无缺口；全部有效接口/消费者接合已接收；required有实际独立反证；正文、manifest、计数、依赖和证据一致。缺读、身份冲突或独立性缺口如实列为对应范围未完成，材料/宿主未知按准确边界另列，不把局部静态完成扩成整系统运行证明。
+
+最终交付完整可读文件与可直接复制的handoff正文，给出B8、报告core/发布、prompt/manifest的准确commit/tree/path、bytes/SHA256/blob，整包远端读回结果，各领域/WP、正反分母/已读/未审/待决，分类/严重度裁决计数、依赖与可并发批次、真实配置和执行/材料边界，以及 `UPDATE_NOT_STARTED`。
+
+---
+## 内嵌：适用AGENTS全文
+
+# Pokémon Essentials Clean-Room Specification Project
+
+## Mission
+
+This workspace exists only to study Pokémon Essentials as a reference implementation and extract:
+
+* observable behavior
+* game rules
+* functional requirements
+* domain concepts
+* state transitions
+* mathematical rules
+* input/output behavior
+* edge cases
+* user-facing workflows
+* feature dependencies
+* compatibility requirements
+
+The final purpose is to support a later independent clean-room implementation.
+
+This workspace MUST NOT implement the new framework.
+
+---
+
+# Core Principle
+
+Pokémon Essentials is a behavioral reference, NOT an architectural template and NOT a source-code template.
+
+The goal is to answer:
+
+> What behavior and capability does the system provide?
+
+Do NOT answer:
+
+> How should we translate the existing Ruby implementation into TypeScript?
+
+---
+
+# Strict Source Separation Rules
+
+The directory:
+
+`reference/pokemon-essentials/`
+
+contains reference source material.
+
+It is READ-ONLY for this project.
+
+Never:
+
+* modify files under `reference/`
+* generate patches for Pokémon Essentials
+* refactor Pokémon Essentials
+* translate Ruby code into another language
+* output copied source-code fragments into specifications
+* reproduce substantial source expressions
+* preserve source-specific implementation structure unless necessary for analysis
+* propose a TypeScript class hierarchy based directly on the Ruby class hierarchy
+
+---
+
+# Clean-Room Output Rules
+
+Specifications must describe behavior independently of source implementation.
+
+Allowed outputs include:
+
+* functional requirements
+* domain concepts
+* rules
+* algorithms expressed mathematically or behaviorally
+* state machines
+* inputs and outputs
+* preconditions and postconditions
+* edge cases
+* invariants
+* examples
+* test vectors
+* user-visible behavior
+* feature dependencies
+* compatibility requirements
+* implementation-independent pseudocode only when absolutely necessary
+
+Prefer prose, tables, diagrams, state machines, equations and test cases.
+
+Do not reproduce source code.
+
+Do not convert Ruby syntax into pseudocode line-by-line.
+
+Do not preserve method structure merely because the original implementation used it.
+
+---
+
+# Architecture Neutrality
+
+Do NOT assume the future implementation will use:
+
+* Ruby
+* RPG Maker XP
+* RPG Maker MZ
+* TypeScript
+* classes
+* inheritance
+* the original Essentials module structure
+
+Specifications must remain implementation-independent whenever possible.
+
+Architecture recommendations belong in a later independent architecture phase.
+
+---
+
+# Classification Model
+
+Every discovered feature should be classified into one of these conceptual groups when possible:
+
+## Generic Kernel
+
+Capabilities useful to many kinds of games, such as:
+
+* persistence
+* random-number services
+* events
+* configuration
+* resource identifiers
+* registries
+* plugin/extensibility mechanisms
+
+## Creature-RPG
+
+Generic monster/creature collection RPG capabilities, such as:
+
+* creatures
+* species
+* parties
+* inventory
+* storage
+* encounters
+* progression
+* evolution
+* breeding
+* capture
+* player/trainer concepts
+
+These specifications should avoid Pokémon-specific assumptions where possible.
+
+## Pokémon Rules
+
+Pokémon-specific mechanics such as:
+
+* Pokémon stats
+* IVs
+* EVs
+* Nature
+* Types
+* Pokémon-specific evolution conditions
+* Pokédex behavior
+* Poké Balls
+* Pokémon-specific capture mechanics
+* Pokémon-specific progression rules
+
+## Combat Requirements
+
+Requirements that the future combat subsystem must satisfy.
+
+Do not prescribe the combat implementation.
+
+## Engine / Overworld Integration
+
+Behavior currently connected to RPG Maker XP or RGSS, such as:
+
+* maps
+* events
+* player movement
+* terrain interaction
+* scenes
+* graphics
+* audio
+* input
+* save integration
+
+Describe required behavior, not the RMXP implementation.
+
+## User Interface
+
+Observable UX and interaction requirements.
+
+## Demo / Developer Experience
+
+Capabilities demonstrated by the bundled example project and workflows needed by future game developers.
+
+---
+
+# Feature Documentation Standard
+
+Each detailed feature specification should contain, where applicable:
+
+1. Purpose
+2. User-visible behavior
+3. Domain concepts
+4. Inputs
+5. Outputs
+6. Preconditions
+7. State changes
+8. Rules and invariants
+9. Edge cases
+10. Failure behavior
+11. Dependencies on other features
+12. Configuration/data requirements
+13. Example scenarios
+14. Test cases or test vectors
+15. Classification
+16. Open questions
+17. Source traceability
+
+---
+
+# Source Traceability
+
+For each specification, record which reference files or demo behavior were inspected.
+
+Traceability is for audit purposes only.
+
+Do NOT reproduce source code in the specification.
+
+Use paths and concise descriptions, for example:
+
+* `Data/Scripts/...`
+* inspected demo event behavior
+* observed runtime behavior
+
+---
+
+# Workflow
+
+Always work incrementally.
+
+The required order is:
+
+1. Repository reconnaissance
+2. High-level module inventory
+3. Feature inventory
+4. Dependency mapping
+5. Specification extraction plan
+6. Detailed module-by-module extraction
+7. Cross-module consistency review
+8. Coverage review
+9. Final sanitized specification set
+
+Do not attempt to fully document the repository in a single pass.
+
+---
+
+# Completeness Discipline
+
+When analyzing a domain:
+
+* search for all relevant files
+* inspect callers and dependencies when necessary
+* look for configuration and data definitions
+* inspect related demo usage
+* check edge-case handling
+* update the global Feature Matrix
+* explicitly record uncertainty
+
+Never infer that a feature does not exist simply because it was not found in the first file inspected.
+
+---
+
+# Output Quality
+
+Specifications should be:
+
+* concise but complete
+* implementation-independent
+* structured
+* human-readable
+* suitable as input to another AI agent
+* suitable for later automated test design
+
+Avoid unnecessary historical commentary.
+
+Avoid documenting Ruby implementation details unless they materially affect observable behavior.
+
+---
+
+# No New Framework Implementation
+
+During this phase, DO NOT:
+
+* create TypeScript packages
+* design concrete TypeScript APIs
+* create RPG Maker MZ plugins
+* implement combat systems
+* implement engine adapters
+* write production framework code
+
+The deliverable is specification and analysis only.
+
+---
+## 内嵌：review-SKILL全文
+
+---
+name: clean-document-revision
+description: 根据用户纠正或评审反馈修订技术方案、需求文档、实施计划和提示词，尤其适用于多轮修改后需要消除冗余、范围漂移和修订痕迹的文档。不用于编写评审报告、变更日志或审计记录。
+---
+
+# 最终态文档修订
+
+把反馈转化为正确的最终设计，而不是把纠错过程写进正文。读者无需知道评审经过，就能理解并执行文档。
+
+## 输入与范围
+
+先读取当前文档、明确的用户目标与约束，以及本轮反馈。尊重最新的明确决定；评审建议本身不构成新增需求的授权。沿用已有文档结构、术语和项目规范，保留无关且正确的内容。
+
+## 修订流程
+
+1. **判断反馈。** 区分实际错误、必要缺项、重复表达、可选偏好和范围变更。依据原始需求、项目事实及已有决定核验意见，合并同一根因的重复反馈。有实质冲突的意见不擅自采纳；仅对影响正确修订且无法从现有资料解决的问题请求决定。
+2. **直接修正。** 错误内容删除或替换，必要缺项在对应位置补齐，重复内容合并。允许重写受影响段落及必要的关联内容，不在错误段落后追加警告来代替纠正，也不无故重写整篇文档。
+3. **收敛表达。** 正文只保留最终行为、必要依据、真实约束和验收条件。删除为回应评审而存在的声明、无关的被否定选项和重复强调。每项新增内容应当服务于既定目标、已批准的变更或正确实施所必需的条件。
+4. **核对完整性。** 检查正文、示例、接口、术语、引用及验收要求是否一致。逐项确认已采纳的问题确已解决，不能以删除问题描述替代修复实际缺口。没有需要解决的问题时，保持原文。
+
+## 内容保留标准
+
+判断一条信息是否必要：没有看过评审记录的实施者，是否需要它才能正确完成任务？
+
+保留会影响实现的异常处理、边界条件、安全要求、关键决策依据和真实的非目标。它们可以包含否定表述。删除仅为证明“听取过意见”而存在的说明，不以篇幅缩短或减少否定词作为验收目标。
+
+修订提示词时，从重复反馈提炼通用原则和必要示例，替换已失效规则；不要将每个失败案例累计成一条永久禁令。示例帮助界定行为，不应把具体案例变成所有任务的事实。
+
+## 示例
+
+**删除无关内容**
+原文：准备鸡肉，加入榴莲，开始炒菜。
+反馈：不要加入榴莲。
+结果：准备鸡肉，开始炒菜。
+
+**保留真实约束**
+已确认约束：凭据只由服务端持有。
+原文：前端读取凭据并调用供应商接口。
+结果：前端请求服务端接口；服务端持有凭据并调用供应商接口。
+
+**避免补丁式解释**
+原文：导出成功后重复发送一次通知。
+反馈：成功通知只发送一次。
+结果：导出成功后发送一次通知。
+不要改成：本次特别注意不再重复发送通知。
+
+## 输出与完成
+
+按用户指定方式更新原文件或输出完整修订稿。默认不在正文新增修订记录、评审回应或修改总结；既有的强制版本与审计规范仍需遵守。
+
+需要说明未解决的冲突或关键缺口时，在正文外简短报告。只有已采纳问题得到解决、必要信息保留且关联内容一致，才将本次修订标为完成。反复出现已处理的问题时，先核验最终状态，不为了产生新修改而继续改写。

@@ -1,0 +1,271 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/011_Battle_EndOfRoundPhase.rb", "range": [271, 540], "file_lines": 781, "bytes": 35898, "sha256": "ff76c1bc432c180202a43311ab9a5bd3fa1554049e6cc9753fdf691027b8b355", "began_utc": "2026-10-16T14:34:24.909556+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00271       end
+00272     end
+00273   end
+00274 
+00275   #=============================================================================
+00276   # End Of Round deal damage to trapped battlers
+00277   #=============================================================================
+00278   TRAPPING_MOVE_COMMON_ANIMATIONS = {
+00279     :BIND        => "Bind",
+00280     :CLAMP       => "Clamp",
+00281     :FIRESPIN    => "FireSpin",
+00282     :MAGMASTORM  => "MagmaStorm",
+00283     :SANDTOMB    => "SandTomb",
+00284     :WRAP        => "Wrap",
+00285     :INFESTATION => "Infestation"
+00286   }
+00287 
+00288   def pbEORTrappingDamage(battler)
+00289     return if battler.fainted? || battler.effects[PBEffects::Trapping] == 0
+00290     battler.effects[PBEffects::Trapping] -= 1
+00291     move_name = GameData::Move.get(battler.effects[PBEffects::TrappingMove]).name
+00292     if battler.effects[PBEffects::Trapping] == 0
+00293       pbDisplay(_INTL("{1} was freed from {2}!", battler.pbThis, move_name))
+00294       return
+00295     end
+00296     anim = TRAPPING_MOVE_COMMON_ANIMATIONS[battler.effects[PBEffects::TrappingMove]] || "Wrap"
+00297     pbCommonAnimation(anim, battler)
+00298     return if !battler.takesIndirectDamage?
+00299     hpLoss = (Settings::MECHANICS_GENERATION >= 6) ? battler.totalhp / 8 : battler.totalhp / 16
+00300     if @battlers[battler.effects[PBEffects::TrappingUser]].hasActiveItem?(:BINDINGBAND)
+00301       hpLoss = (Settings::MECHANICS_GENERATION >= 6) ? battler.totalhp / 6 : battler.totalhp / 8
+00302     end
+00303     @scene.pbDamageAnimation(battler)
+00304     battler.pbTakeEffectDamage(hpLoss, false) do |hp_lost|
+00305       pbDisplay(_INTL("{1} is hurt by {2}!", battler.pbThis, move_name))
+00306     end
+00307   end
+00308 
+00309   #=============================================================================
+00310   # End Of Round end effects that apply to a battler
+00311   #=============================================================================
+00312   def pbEORCountDownBattlerEffect(priority, effect)
+00313     priority.each do |battler|
+00314       next if battler.fainted? || battler.effects[effect] == 0
+00315       battler.effects[effect] -= 1
+00316       yield battler if block_given? && battler.effects[effect] == 0
+00317     end
+00318   end
+00319 
+00320   def pbEOREndBattlerEffects(priority)
+00321     # Taunt
+00322     pbEORCountDownBattlerEffect(priority, PBEffects::Taunt) do |battler|
+00323       pbDisplay(_INTL("{1}'s taunt wore off!", battler.pbThis))
+00324     end
+00325     # Encore
+00326     priority.each do |battler|
+00327       next if battler.fainted? || battler.effects[PBEffects::Encore] == 0
+00328       idxEncoreMove = battler.pbEncoredMoveIndex
+00329       if idxEncoreMove >= 0
+00330         battler.effects[PBEffects::Encore] -= 1
+00331         if battler.effects[PBEffects::Encore] == 0 || battler.moves[idxEncoreMove].pp == 0
+00332           battler.effects[PBEffects::Encore] = 0
+00333           pbDisplay(_INTL("{1}'s encore ended!", battler.pbThis))
+00334         end
+00335       else
+00336         PBDebug.log("[End of effect] #{battler.pbThis}'s encore ended (encored move no longer known)")
+00337         battler.effects[PBEffects::Encore]     = 0
+00338         battler.effects[PBEffects::EncoreMove] = nil
+00339       end
+00340     end
+00341     # Disable/Cursed Body
+00342     pbEORCountDownBattlerEffect(priority, PBEffects::Disable) do |battler|
+00343       battler.effects[PBEffects::DisableMove] = nil
+00344       pbDisplay(_INTL("{1} is no longer disabled!", battler.pbThis))
+00345     end
+00346     # Magnet Rise
+00347     pbEORCountDownBattlerEffect(priority, PBEffects::MagnetRise) do |battler|
+00348       pbDisplay(_INTL("{1}'s electromagnetism wore off!", battler.pbThis))
+00349     end
+00350     # Telekinesis
+00351     pbEORCountDownBattlerEffect(priority, PBEffects::Telekinesis) do |battler|
+00352       pbDisplay(_INTL("{1} was freed from the telekinesis!", battler.pbThis))
+00353     end
+00354     # Heal Block
+00355     pbEORCountDownBattlerEffect(priority, PBEffects::HealBlock) do |battler|
+00356       pbDisplay(_INTL("{1}'s Heal Block wore off!", battler.pbThis))
+00357     end
+00358     # Embargo
+00359     pbEORCountDownBattlerEffect(priority, PBEffects::Embargo) do |battler|
+00360       pbDisplay(_INTL("{1} can use items again!", battler.pbThis))
+00361       battler.pbItemTerrainStatBoostCheck
+00362     end
+00363     # Yawn
+00364     pbEORCountDownBattlerEffect(priority, PBEffects::Yawn) do |battler|
+00365       if battler.pbCanSleepYawn?
+00366         PBDebug.log("[Lingering effect] #{battler.pbThis} fell asleep because of Yawn")
+00367         battler.pbSleep
+00368       end
+00369     end
+00370     # Perish Song
+00371     perishSongUsers = []
+00372     priority.each do |battler|
+00373       next if battler.fainted? || battler.effects[PBEffects::PerishSong] == 0
+00374       battler.effects[PBEffects::PerishSong] -= 1
+00375       pbDisplay(_INTL("{1}'s perish count fell to {2}!", battler.pbThis, battler.effects[PBEffects::PerishSong]))
+00376       if battler.effects[PBEffects::PerishSong] == 0
+00377         perishSongUsers.push(battler.effects[PBEffects::PerishSongUser])
+00378         battler.pbReduceHP(battler.hp)
+00379       end
+00380       battler.pbItemHPHealCheck
+00381       battler.pbFaint if battler.fainted?
+00382     end
+00383     # Judge if all remaining Pokemon fainted by a Perish Song triggered by a single side
+00384     if perishSongUsers.length > 0 &&
+00385        ((perishSongUsers.find_all { |idxBattler| opposes?(idxBattler) }.length == perishSongUsers.length) ||
+00386        (perishSongUsers.find_all { |idxBattler| !opposes?(idxBattler) }.length == perishSongUsers.length))
+00387       pbJudgeCheckpoint(@battlers[perishSongUsers[0]])
+00388     end
+00389     return if @decision > 0
+00390   end
+00391 
+00392   #=============================================================================
+00393   # End Of Round end effects that apply to one side of the field
+00394   #=============================================================================
+00395   def pbEORCountDownSideEffect(side, effect, msg)
+00396     return if @sides[side].effects[effect] <= 0
+00397     @sides[side].effects[effect] -= 1
+00398     pbDisplay(msg) if @sides[side].effects[effect] == 0
+00399   end
+00400 
+00401   def pbEOREndSideEffects(side, priority)
+00402     # Reflect
+00403     pbEORCountDownSideEffect(side, PBEffects::Reflect,
+00404                              _INTL("{1}'s Reflect wore off!", @battlers[side].pbTeam))
+00405     # Light Screen
+00406     pbEORCountDownSideEffect(side, PBEffects::LightScreen,
+00407                              _INTL("{1}'s Light Screen wore off!", @battlers[side].pbTeam))
+00408     # Safeguard
+00409     pbEORCountDownSideEffect(side, PBEffects::Safeguard,
+00410                              _INTL("{1} is no longer protected by Safeguard!", @battlers[side].pbTeam))
+00411     # Mist
+00412     pbEORCountDownSideEffect(side, PBEffects::Mist,
+00413                              _INTL("{1} is no longer protected by mist!", @battlers[side].pbTeam))
+00414     # Tailwind
+00415     pbEORCountDownSideEffect(side, PBEffects::Tailwind,
+00416                              _INTL("{1}'s Tailwind petered out!", @battlers[side].pbTeam))
+00417     # Lucky Chant
+00418     pbEORCountDownSideEffect(side, PBEffects::LuckyChant,
+00419                              _INTL("{1}'s Lucky Chant wore off!", @battlers[side].pbTeam))
+00420     # Pledge Rainbow
+00421     pbEORCountDownSideEffect(side, PBEffects::Rainbow,
+00422                              _INTL("The rainbow on {1}'s side disappeared!", @battlers[side].pbTeam(true)))
+00423     # Pledge Sea of Fire
+00424     pbEORCountDownSideEffect(side, PBEffects::SeaOfFire,
+00425                              _INTL("The sea of fire around {1} disappeared!", @battlers[side].pbTeam(true)))
+00426     # Pledge Swamp
+00427     pbEORCountDownSideEffect(side, PBEffects::Swamp,
+00428                              _INTL("The swamp around {1} disappeared!", @battlers[side].pbTeam(true)))
+00429     # Aurora Veil
+00430     pbEORCountDownSideEffect(side, PBEffects::AuroraVeil,
+00431                              _INTL("{1}'s Aurora Veil wore off!", @battlers[side].pbTeam))
+00432   end
+00433 
+00434   #=============================================================================
+00435   # End Of Round end effects that apply to the whole field
+00436   #=============================================================================
+00437   def pbEORCountDownFieldEffect(effect, msg)
+00438     return if @field.effects[effect] <= 0
+00439     @field.effects[effect] -= 1
+00440     return if @field.effects[effect] > 0
+00441     pbDisplay(msg)
+00442     if effect == PBEffects::MagicRoom
+00443       pbPriority(true).each { |battler| battler.pbItemTerrainStatBoostCheck }
+00444     end
+00445   end
+00446 
+00447   def pbEOREndFieldEffects(priority)
+00448     # Trick Room
+00449     pbEORCountDownFieldEffect(PBEffects::TrickRoom,
+00450                               _INTL("The twisted dimensions returned to normal!"))
+00451     # Gravity
+00452     pbEORCountDownFieldEffect(PBEffects::Gravity,
+00453                               _INTL("Gravity returned to normal!"))
+00454     # Water Sport
+00455     pbEORCountDownFieldEffect(PBEffects::WaterSportField,
+00456                               _INTL("The effects of Water Sport have faded."))
+00457     # Mud Sport
+00458     pbEORCountDownFieldEffect(PBEffects::MudSportField,
+00459                               _INTL("The effects of Mud Sport have faded."))
+00460     # Wonder Room
+00461     pbEORCountDownFieldEffect(PBEffects::WonderRoom,
+00462                               _INTL("Wonder Room wore off, and Defense and Sp. Def stats returned to normal!"))
+00463     # Magic Room
+00464     pbEORCountDownFieldEffect(PBEffects::MagicRoom,
+00465                               _INTL("Magic Room wore off, and held items' effects returned to normal!"))
+00466   end
+00467 
+00468   #=============================================================================
+00469   # End Of Round end terrain check
+00470   #=============================================================================
+00471   def pbEOREndTerrain
+00472     # Count down terrain duration
+00473     @field.terrainDuration -= 1 if @field.terrainDuration > 0
+00474     # Terrain wears off
+00475     if @field.terrain != :None && @field.terrainDuration == 0
+00476       case @field.terrain
+00477       when :Electric
+00478         pbDisplay(_INTL("The electric current disappeared from the battlefield!"))
+00479       when :Grassy
+00480         pbDisplay(_INTL("The grass disappeared from the battlefield!"))
+00481       when :Misty
+00482         pbDisplay(_INTL("The mist disappeared from the battlefield!"))
+00483       when :Psychic
+00484         pbDisplay(_INTL("The weirdness disappeared from the battlefield!"))
+00485       end
+00486       @field.terrain = :None
+00487       allBattlers.each { |battler| battler.pbAbilityOnTerrainChange }
+00488       # Start up the default terrain
+00489       if @field.defaultTerrain != :None
+00490         pbStartTerrain(nil, @field.defaultTerrain, false)
+00491         allBattlers.each { |battler| battler.pbAbilityOnTerrainChange }
+00492         allBattlers.each { |battler| battler.pbItemTerrainStatBoostCheck }
+00493       end
+00494       return if @field.terrain == :None
+00495     end
+00496     # Terrain continues
+00497     terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+00498     pbCommonAnimation(terrain_data.animation) if terrain_data
+00499     case @field.terrain
+00500     when :Electric then pbDisplay(_INTL("An electric current is running across the battlefield."))
+00501     when :Grassy   then pbDisplay(_INTL("Grass is covering the battlefield."))
+00502     when :Misty    then pbDisplay(_INTL("Mist is swirling about the battlefield."))
+00503     when :Psychic  then pbDisplay(_INTL("The battlefield is weird."))
+00504     end
+00505   end
+00506 
+00507   #=============================================================================
+00508   # End Of Round end self-inflicted effects on battler
+00509   #=============================================================================
+00510   def pbEOREndBattlerSelfEffects(battler)
+00511     return if battler.fainted?
+00512     # Hyper Mode (Shadow Pokémon)
+00513     if battler.inHyperMode?
+00514       if pbRandom(100) < 10
+00515         battler.pokemon.hyper_mode = false
+00516         pbDisplay(_INTL("{1} came to its senses!", battler.pbThis))
+00517       else
+00518         pbDisplay(_INTL("{1} is in Hyper Mode!", battler.pbThis))
+00519       end
+00520     end
+00521     # Uproar
+00522     if battler.effects[PBEffects::Uproar] > 0
+00523       battler.effects[PBEffects::Uproar] -= 1
+00524       if battler.effects[PBEffects::Uproar] == 0
+00525         pbDisplay(_INTL("{1} calmed down.", battler.pbThis))
+00526       else
+00527         pbDisplay(_INTL("{1} is making an uproar!", battler.pbThis))
+00528       end
+00529     end
+00530     # Slow Start's end message
+00531     if battler.effects[PBEffects::SlowStart] > 0
+00532       battler.effects[PBEffects::SlowStart] -= 1
+00533       if battler.effects[PBEffects::SlowStart] == 0
+00534         pbDisplay(_INTL("{1} finally got its act together!", battler.pbThis))
+00535       end
+00536     end
+00537   end
+00538 
+00539   #=============================================================================
+00540   # End Of Round shift distant battlers to middle positions

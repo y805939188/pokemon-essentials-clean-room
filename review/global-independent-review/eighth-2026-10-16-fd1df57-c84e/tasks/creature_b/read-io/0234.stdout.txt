@@ -1,0 +1,222 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/006_Overworld_BerryPlants.rb", "range": [251, 471], "file_lines": 471, "bytes": 16020, "sha256": "76593e3c682ff9d8da5a7e1a8401eabc5d0cdc023ced32dc142d9955d957ca40", "began_utc": "2026-10-16T14:34:42.394307+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00251       if berry_plant.growth_stage == 1
+00252         @event.character_name = "berrytreeplanted"   # Common to all berries
+00253         @event.turn_down
+00254       else
+00255         filename = sprintf("berrytree_%s", GameData::Item.get(berry_plant.berry_id).id.to_s)
+00256         if pbResolveBitmap("Graphics/Characters/" + filename)
+00257           @event.character_name = filename
+00258           case berry_plant.growth_stage
+00259           when 2 then @event.turn_down    # X sprouted
+00260           when 3 then @event.turn_left    # X taller
+00261           when 4 then @event.turn_right   # X flowering
+00262           else
+00263             @event.turn_up if berry_plant.growth_stage >= 5   # X berries
+00264           end
+00265         else
+00266           @event.character_name = "Object ball"
+00267         end
+00268       end
+00269       if berry_plant.new_mechanics && @old_stage != berry_plant.growth_stage &&
+00270          @old_stage > 0 && berry_plant.growth_stage <= GameData::BerryPlant::NUMBER_OF_GROWTH_STAGES + 1
+00271         spriteset = $scene.spriteset(@map.map_id)
+00272         spriteset&.addUserAnimation(Settings::PLANT_SPARKLE_ANIMATION_ID,
+00273                                     @event.x, @event.y, false, 1)
+00274       end
+00275     end
+00276     @old_stage = berry_plant.growth_stage
+00277   end
+00278 
+00279   def update_plant(berry_plant, initial = false)
+00280     berry_plant.update if berry_plant.planted? && (initial || berry_plant.new_mechanics)
+00281   end
+00282 
+00283   def update
+00284     berry_plant = @event.variable
+00285     return if !berry_plant
+00286     update_plant(berry_plant)
+00287     set_event_graphic(berry_plant)
+00288   end
+00289 end
+00290 
+00291 #===============================================================================
+00292 #
+00293 #===============================================================================
+00294 EventHandlers.add(:on_new_spriteset_map, :add_berry_plant_graphics,
+00295   proc { |spriteset, viewport|
+00296     map = spriteset.map
+00297     map.events.each do |event|
+00298       next if !event[1].name[/berryplant/i]
+00299       spriteset.addUserSprite(BerryPlantMoistureSprite.new(event[1], map, viewport))
+00300       spriteset.addUserSprite(BerryPlantSprite.new(event[1], map, viewport))
+00301     end
+00302   }
+00303 )
+00304 
+00305 #===============================================================================
+00306 #
+00307 #===============================================================================
+00308 def pbBerryPlant
+00309   interp = pbMapInterpreter
+00310   this_event = interp.get_self
+00311   berry_plant = interp.getVariable
+00312   if !berry_plant
+00313     berry_plant = BerryPlantData.new
+00314     interp.setVariable(berry_plant)
+00315   end
+00316   berry = berry_plant.berry_id
+00317   # Interact with the event based on its growth
+00318   if berry_plant.grown?
+00319     this_event.turn_up   # Stop the event turning towards the player
+00320     berry_plant.reset if pbPickBerry(berry, berry_plant.berry_yield)
+00321     return
+00322   elsif berry_plant.growing?
+00323     berry_name = GameData::Item.get(berry).name
+00324     case berry_plant.growth_stage
+00325     when 1   # X planted
+00326       this_event.turn_down   # Stop the event turning towards the player
+00327       if berry_name.starts_with_vowel?
+00328         pbMessage(_INTL("An {1} was planted here.", berry_name))
+00329       else
+00330         pbMessage(_INTL("A {1} was planted here.", berry_name))
+00331       end
+00332     when 2   # X sprouted
+00333       this_event.turn_down   # Stop the event turning towards the player
+00334       pbMessage(_INTL("The {1} has sprouted.", berry_name))
+00335     when 3   # X taller
+00336       this_event.turn_left   # Stop the event turning towards the player
+00337       pbMessage(_INTL("The {1} plant is growing bigger.", berry_name))
+00338     else     # X flowering
+00339       this_event.turn_right   # Stop the event turning towards the player
+00340       if Settings::NEW_BERRY_PLANTS
+00341         pbMessage(_INTL("This {1} plant is in bloom!", berry_name))
+00342       else
+00343         case berry_plant.watering_count
+00344         when 4
+00345           pbMessage(_INTL("This {1} plant is in fabulous bloom!", berry_name))
+00346         when 3
+00347           pbMessage(_INTL("This {1} plant is blooming very beautifully!", berry_name))
+00348         when 2
+00349           pbMessage(_INTL("This {1} plant is blooming prettily!", berry_name))
+00350         when 1
+00351           pbMessage(_INTL("This {1} plant is blooming cutely!", berry_name))
+00352         else
+00353           pbMessage(_INTL("This {1} plant is in bloom!", berry_name))
+00354         end
+00355       end
+00356     end
+00357     # Water the growing plant
+00358     GameData::BerryPlant::WATERING_CANS.each do |item|
+00359       next if !$bag.has?(item)
+00360       break if !pbConfirmMessage(_INTL("Want to sprinkle some water with the {1}?",
+00361                                        GameData::Item.get(item).name))
+00362       berry_plant.water
+00363       pbMessage("\\se[Water berry plant]" + _INTL("{1} watered the plant.", $player.name) + "\\wtnp[40]")
+00364       if Settings::NEW_BERRY_PLANTS
+00365         pbMessage(_INTL("There! All happy!"))
+00366       else
+00367         pbMessage(_INTL("The plant seemed to be delighted."))
+00368       end
+00369       break
+00370     end
+00371     return
+00372   end
+00373   # Nothing planted yet
+00374   ask_to_plant = true
+00375   if Settings::NEW_BERRY_PLANTS
+00376     # New mechanics
+00377     if berry_plant.mulch_id
+00378       pbMessage(_INTL("{1} has been laid down.", GameData::Item.get(berry_plant.mulch_id).name))
+00379     else
+00380       case pbMessage(_INTL("It's soft, earthy soil."),
+00381                      [_INTL("Fertilize"), _INTL("Plant Berry"), _INTL("Exit")], -1)
+00382       when 0   # Fertilize
+00383         mulch = nil
+00384         pbFadeOutIn do
+00385           scene = PokemonBag_Scene.new
+00386           screen = PokemonBagScreen.new(scene, $bag)
+00387           mulch = screen.pbChooseItemScreen(proc { |item| GameData::Item.get(item).is_mulch? })
+00388         end
+00389         return if !mulch
+00390         mulch_data = GameData::Item.get(mulch)
+00391         if mulch_data.is_mulch?
+00392           berry_plant.mulch_id = mulch
+00393           $bag.remove(mulch)
+00394           pbMessage(_INTL("The {1} was scattered on the soil.", mulch_data.name))
+00395         else
+00396           pbMessage(_INTL("That won't fertilize the soil!"))
+00397           return
+00398         end
+00399       when 1   # Plant Berry
+00400         ask_to_plant = false
+00401       else   # Exit/cancel
+00402         return
+00403       end
+00404     end
+00405   else
+00406     # Old mechanics
+00407     return if !pbConfirmMessage(_INTL("It's soft, loamy soil. Want to plant a berry?"))
+00408     ask_to_plant = false
+00409   end
+00410   if !ask_to_plant || pbConfirmMessage(_INTL("Want to plant a Berry?"))
+00411     pbFadeOutIn do
+00412       scene = PokemonBag_Scene.new
+00413       screen = PokemonBagScreen.new(scene, $bag)
+00414       berry = screen.pbChooseItemScreen(proc { |item| GameData::Item.get(item).is_berry? })
+00415     end
+00416     if berry
+00417       $stats.berries_planted += 1
+00418       berry_plant.plant(berry)
+00419       $bag.remove(berry)
+00420       if Settings::NEW_BERRY_PLANTS
+00421         pbMessage(_INTL("The {1} was planted in the soft, earthy soil.",
+00422                         GameData::Item.get(berry).name))
+00423       elsif GameData::Item.get(berry).name.starts_with_vowel?
+00424         pbMessage(_INTL("{1} planted an {2} in the soft loamy soil.",
+00425                         $player.name, GameData::Item.get(berry).name))
+00426       else
+00427         pbMessage(_INTL("{1} planted a {2} in the soft loamy soil.",
+00428                         $player.name, GameData::Item.get(berry).name))
+00429       end
+00430     end
+00431   end
+00432 end
+00433 
+00434 #===============================================================================
+00435 #
+00436 #===============================================================================
+00437 def pbPickBerry(berry, qty = 1)
+00438   berry = GameData::Item.get(berry)
+00439   berry_name = (qty > 1) ? berry.portion_name_plural : berry.portion_name
+00440   if qty > 1
+00441     message = _INTL("There are {1} \\c[1]{2}\\c[0]!\nWant to pick them?", qty, berry_name)
+00442   else
+00443     message = _INTL("There is 1 \\c[1]{1}\\c[0]!\nWant to pick it?", berry_name)
+00444   end
+00445   return false if !pbConfirmMessage(message)
+00446   if !$bag.can_add?(berry, qty)
+00447     pbMessage(_INTL("Too bad...\nThe Bag is full..."))
+00448     return false
+00449   end
+00450   $stats.berry_plants_picked += 1
+00451   if qty >= GameData::BerryPlant.get(berry.id).maximum_yield
+00452     $stats.max_yield_berry_plants += 1
+00453   end
+00454   $bag.add(berry, qty)
+00455   if qty > 1
+00456     pbMessage("\\me[Berry get]" + _INTL("You picked the {1} \\c[1]{2}\\c[0].", qty, berry_name) + "\\wtnp[30]")
+00457   else
+00458     pbMessage("\\me[Berry get]" + _INTL("You picked the \\c[1]{1}\\c[0].", berry_name) + "\\wtnp[30]")
+00459   end
+00460   pocket = berry.pocket
+00461   pbMessage(_INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+00462                   berry_name, pocket, PokemonBag.pocket_names[pocket - 1]) + "\1")
+00463   if Settings::NEW_BERRY_PLANTS
+00464     pbMessage(_INTL("The soil returned to its soft and earthy state."))
+00465   else
+00466     pbMessage(_INTL("The soil returned to its soft and loamy state."))
+00467   end
+00468   this_event = pbMapInterpreter.get_self
+00469   pbSetSelfSwitch(this_event.id, "A", true)
+00470   return true
+00471 end
