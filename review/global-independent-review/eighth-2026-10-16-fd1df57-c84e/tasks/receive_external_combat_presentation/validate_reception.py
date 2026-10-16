@@ -8,9 +8,11 @@ def call(args):
 f=load(T/'frozen-denominator.json');r=load(T/'reception-ledger.json');s=load(T/'continuation-contracts.json');reads=load(T/'reading-ledger.json')
 assert len(f['objects'])==len(r['objects'])==1045
 assert {x['id']for x in f['objects']}=={x['id']for x in r['objects']}
-assert sum(x['status']=='COMPLETE_FINITE_RECEPTION'for x in r['objects'])==3
-assert sum(x['status']=='SOURCE_CHECKED_FORMAL_RECEPTION_OPEN'for x in r['objects'])==677
-assert sum(x['status']=='AVAILABLE_NOT_READ_NOT_RECEIVED'for x in r['objects'])==365
+integrated=r['schema']=='gr8-cp-independent-reception/v2'
+complete=sum(x['status'] in ['COMPLETE_FINITE_RECEPTION','COMPLETE_FINITE_CONTRIBUTION_RECEIVED'] for x in r['objects'])
+assert complete==(879 if integrated else 3)
+assert sum(x['status']=='SOURCE_CHECKED_FORMAL_RECEPTION_OPEN'for x in r['objects'])==(0 if integrated else 677)
+assert sum(x['status']=='AVAILABLE_NOT_READ_NOT_RECEIVED'for x in r['objects'])==(166 if integrated else 365)
 parts=[v for j in s['jobs']for v in j['ids']];assert len(parts)==len(set(parts))==1045 and set(parts)=={x['id']for x in f['objects']}
 assert sorted(x for j in s['jobs']for x in j['groups'])==[f'EXTCP-F{x:03}'for x in range(1,80)]
 for j in s['jobs']:
@@ -31,5 +33,5 @@ a=load(T/'recovered/18d21310bdc360c87d7ffd886df7d06aef8604a7/atomic-assertions.j
 assert len(list((T/'views').glob('EXTCP-F*.json')))==79
 for i in range(1,80):
  g=f'EXTCP-F{i:03}';assert load(T/'views'/f'{g}.json')==[x for x in a if x['group']==g]
-result={'schema':'gr8-cp-package-validation/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'status':'MECHANICAL_CHECKS_PASS_SEMANTIC_TASK_INCOMPLETE','primary_objects':1045,'source_checked':680,'complete_finite_receptions':3,'unread_source':365,'remaining_final':1042,'split_partition_exact':True,'split_jobs':6,'source_modes_checked':ref,'restored31_identity_match':True,'writes_outside_exclusive_directory':[],'behavior_execution':'NOT_EXECUTED','semantic_credit_from_tool':0,'UPDATE_NOT_STARTED':True}
+result={'schema':'gr8-cp-package-validation/v1','utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'status':'MECHANICAL_CHECKS_PASS_SEMANTIC_TASK_INCOMPLETE','primary_objects':1045,'source_checked':680,'source_checked_scope':'root initial direct source checks, not provider sum','source_object_unread_scope':'objects without actual received independent verification; root direct line gaps remain separately recorded','complete_finite_receptions':complete,'unread_source':166 if integrated else 365,'remaining_final':1045-complete,'split_partition_exact':True,'split_jobs':6,'source_modes_checked':ref,'restored31_identity_match':True,'writes_outside_exclusive_directory':[],'behavior_execution':'NOT_EXECUTED','semantic_credit_from_tool':0,'UPDATE_NOT_STARTED':True}
 (T/'validation.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n');print(json.dumps({k:result[k]for k in ['status','primary_objects','source_checked','complete_finite_receptions','remaining_final','split_jobs']}))
