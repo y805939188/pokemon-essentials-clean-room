@@ -1,0 +1,33 @@
+# R5-U03 actual-02 一行实际增量复验
+
+**actual-02 限定 PASS。** `GR5-M05-004/static/04`的新实际行及必要非战斗消费交界已独立核验通过，原唯一失败在新实际字节中修复。新实际语义复验1项，另59条静态条件和原10项PASS按精确未变owner范围复用；当前U03限定范围组合为11项/60条条件通过，完整11项语义重审0。实际必需返修为空。
+
+受审actual commit `df2c338ca3aff4c0b0bf4087442215877a5df597`，tree `3fe2624eeefde71d74fcfd49305e9687e6199f35`，formal subtree `846fb363fc744a4b936c367c560fa71eec4b6514`。locator `03313cf5727d8efb84dac6f89739901d3b74955b` / tree `02fac051a072849902d088685b422616f35228e5` 只作后继发布导航。已签候选6ced与c22独立报告是关联输入，**没有把候选PASS或R5-I工具PASS转签成实际PASS**。全部固定身份及精确载荷见[manifest](review-manifest.json)。
+
+## 一行实际裁决
+
+正式目录第294行 `R5U03-M05-004-02` 的WING输入现在明确“须有合法作者记录，且为非重要物品、有效消费为真（Consumable省略或true）”。原目标/余量/库存1、正常个体使用与后段成功前提、EV+1/扣1/重算预期保持。实际新行含LF为461bytes，SHA256 `11c61cf1eaaa3cf78adbf47fb06dfbfc67afa46372cbeacf8178f0dffacc9c08`，UTF8零基偏移48464；从原387bytes增加74bytes。整目录56992bytes，SHA256 `4ac5462303f6bb5ae8aa3a7e891a53aed6fcd7f992a7a48167e876981b9371ba`，Git blob `df4a858609068c05e6eea955e76de82bdc430b4b`。
+
+这是对实际df2文本及其消费交界的新判断：固定R Item132–133对非重要记录缺省真、显式true保持，189–197要求非重要且消费位真；Effects762–832复制六种WING的能力+1和上限处理器，未复制数据消费位。既有qty1、余量足及后段正常条件下，Utilities401–443完成对应EV+1和重算，效果真；袋684–686与队伍743–747的外层消费门也真，因而正常扣1。实际WP27 §2.1–§2.2矩阵与WP28 §5.3/§6承接这两个门。
+
+原合法非重要 `Consumable=false` WING仍可增加EV而不扣库存，但不满足新实际输入；重要物品也被新前提排除。实际WP28 §3.6的U01-O025仍保留false反写/再编译例外，没有变成“false非法”或“效果真必扣”。取消/资格或效果失败、已成功后的取消、后段异常已写前缀以及既有多量部分成功边界按原准确未变条件保持，没有新增事务/回滚或宿主成功保证。详见[唯一新实际裁决](criterion-results.json)。
+
+## 实际关联与精确复用
+
+正式131中仅该目录一行变化，其余130Git blob独立核对未变；目标前后完整prefix/suffix精确保持。实际3597bytes增量补丁与6ced已签候选incremental patch、9fab提案完全相等，独立scratch重放精确得到实际目录，完整实际目录也等于候选专属镜像。candidate `/vectors/45/input` 与U03 `/operations/49/new_text`（零基第50项）对应新实际行；68向量/51操作/80其它同步行、另15个U03投影及31共享片段的原未变资格保持。工具重放只证明字节关联，新实际语义另行签定。
+
+独立实际结构套件298项TOOL_VALIDATION均PASS，工具FAIL0；另保留2处历史MISMATCH。131项mode/type/blob/bytes身份、locator没有新增正式变化及必要消费者/O025载荷均与固定Git核对；这些工具PASS不代语义签名或全正式树验收。
+
+WP27/28及U01-O025当前实际全文身份与old8b相同，必要消费范围已在新实际行上下文再次核对。原1eda的59条PASS逐记录pointer/hash和10项原实际PASS限定记录复用，不展开旧全批或全球语义检查；M05-004其余4条参数static按精确未变贡献复用。旧8b/1eda FAIL和两处冻结导航MISMATCH仍保留；新df2的PASS适用不同实际字节，不回写历史、不把旧错误整文件SHA升级为匹配，不改变精确旧owner/scope。详见[有限回归](regression-results.json)及[独立机械证据](independent-validation.json)。
+
+## 限定可接受范围与阶段门
+
+可供唯一R5-I随后登记的范围：固定df2树中原U03具名owner贡献——16目标内8非共享镜像与8共享路径的31具名片段、原52canonical操作对应范围，连同本次一行消费前提修复；11项/60条件的成立由1项新实际PASS＋59准确复用构成。它不接受整份共享文件、其他producer或U02语义，也不由131文件身份相等授全正式树语义PASS。
+
+U01限定上游门沿原1eda及7bd准确接受范围为SATISFIED；U02正式字节未变且无新增U02报告依赖。本审者不登记正式接受、公共账或CLOSED，均0。8共享整文件、U08及关闭激活仍WAIT全部主责/消费者与各自精确验收及唯一回执。U04/U06恢复等待范围、optional与兼容政策未扩张。
+
+## 发布与执行限制
+
+保持原非作者任务 `/root` 与原语义/结构子审身份；只写 `review/remediation-fifth-20261013-prepare/reviews/R5-U03/actual/limited-wing-01/`。请求gpt-6.1-sol/ultra/default普速禁Fast，实际模型/推理/服务回显UNVERIFIED，任务UUID未暴露，不拿source thread/环境ID替代或审计额度/认证。R4历史隔离参考执行4、R5review历史隔离参考执行4分别复用且未重跑；**本update新增参考/模型/宿主/Demo行为执行0**。69向量仍DERIVED_VECTOR/NOT_EXECUTED；JSON/Git/hash/patch为TOOL_VALIDATION，无宿主/像素/真实存档/完整Demo行为PASS。
+
+未改作者/正式/公共登记、旧候选/实际复审与冻结历史，未merge/push main、未访问Mac、未重开global review。普通推送 `codex/r5-u03-independent-review-20261013`；[后继发布回执](remote-readback.json)固定核心6载荷完整bytes/SHA256/blob，最终7载荷在固定报告commit完整读回。发布身份与actual主体身份分别绑定，读回不登记接受或关闭。
