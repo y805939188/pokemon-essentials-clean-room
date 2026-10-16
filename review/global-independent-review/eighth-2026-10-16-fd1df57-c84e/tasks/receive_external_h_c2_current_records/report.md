@@ -32,7 +32,7 @@ B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`／tree `751dfde81048c81390f89a65ca
 
 ## 精确欠项与限制分开
 
-frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json保存37个精确定位及当前27已收／10未收状态；reception-ledger.json逐项列出主读者和固定派发交付，不隐藏未收对象。本人直接C13／别名／C19四条范围及A/C各23条对应范围均按不同原读者具名接收；B十条和交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata剩余共同资格仍OPEN，不能从已收逐条值扩展成整个公共文件接收。
+frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json保存37个精确定位及当前27已收／10未收状态；reception-ledger.json逐项列出主读者和固定派发交付，不隐藏未收对象。本人直接C13／别名／C19四条范围及A/C合计23条对应范围均按不同原读者具名接收；B十条和交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata剩余共同资格仍OPEN，不能从已收逐条值扩展成整个公共文件接收。
 
 当前接收尚未覆盖全部冻结人口，整体保持INCOMPLETE。材料缺失0、权限阻塞0，剩余属于**可得未读／未接收**。没有把它们改成L01–L14、out-of-scope、NO_REQUIRED或“解析已通过”。continuation-v2/四份完整合同固定64cfde5aa3f6b25adc7291b2c2e880d87baf1ebd，原106文件／7497653B隔离回读保持。父已报告四实际线程启动；A/C固定完整交付已实际接收，B等待完整结果，D阶段b3580edf37ca9e824297fc3118913794308abe1b仍INCOMPLETE并由原任务续补。启动或阶段提交不计完成。当前4+12+11+10=37、28+84+77+70=259、2+29=31。旧五分区草稿保留历史，新派发只用v2；本线程未spawn。父及主审仍负责最终公共接收与canonical/task-final签字。
 
