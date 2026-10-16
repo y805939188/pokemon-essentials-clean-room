@@ -1,0 +1,164 @@
+00405:   def pbEndOfBattle
+00406:     oldDecision = @decision
+00407:     @decision = 4 if @decision == 1 && wildBattle? && @caughtPokemon.length > 0
+00408:     case oldDecision
+00409:     ##### WIN #####
+00410:     when 1
+00411:       PBDebug.log("")
+00412:       PBDebug.log_header("===== Player won =====")
+00413:       PBDebug.log("")
+00414:       if trainerBattle?
+00415:         @scene.pbTrainerBattleSuccess
+00416:         case @opponent.length
+00417:         when 1
+00418:           pbDisplayPaused(_INTL("You defeated {1}!", @opponent[0].full_name))
+00419:         when 2
+00420:           pbDisplayPaused(_INTL("You defeated {1} and {2}!", @opponent[0].full_name,
+00421:                                 @opponent[1].full_name))
+00422:         when 3
+00423:           pbDisplayPaused(_INTL("You defeated {1}, {2} and {3}!", @opponent[0].full_name,
+00424:                                 @opponent[1].full_name, @opponent[2].full_name))
+00425:         end
+00426:         @opponent.each_with_index do |trainer, i|
+00427:           @scene.pbShowOpponent(i)
+00428:           msg = trainer.lose_text
+00429:           msg = "..." if !msg || msg.empty?
+00430:           pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+00431:         end
+00432:         PBDebug.log("")
+00433:       end
+00434:       # Gain money from winning a trainer battle, and from Pay Day
+00435:       pbGainMoney if @decision != 4
+00436:       # Hide remaining trainer
+00437:       @scene.pbShowOpponent(@opponent.length) if trainerBattle? && @caughtPokemon.length > 0
+00438:     ##### LOSE, DRAW #####
+00439:     when 2, 5
+00440:       PBDebug.log("")
+00441:       PBDebug.log_header("===== Player lost =====") if @decision == 2
+00442:       PBDebug.log_header("===== Player drew with opponent =====") if @decision == 5
+00443:       PBDebug.log("")
+00444:       if @internalBattle
+00445:         pbDisplayPaused(_INTL("You have no more Pokémon that can fight!"))
+00446:         if trainerBattle?
+00447:           case @opponent.length
+00448:           when 1
+00449:             pbDisplayPaused(_INTL("You lost against {1}!", @opponent[0].full_name))
+00450:           when 2
+00451:             pbDisplayPaused(_INTL("You lost against {1} and {2}!",
+00452:                                   @opponent[0].full_name, @opponent[1].full_name))
+00453:           when 3
+00454:             pbDisplayPaused(_INTL("You lost against {1}, {2} and {3}!",
+00455:                                   @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))
+00456:           end
+00457:         end
+00458:         # Lose money from losing a battle
+00459:         pbLoseMoney
+00460:         pbDisplayPaused(_INTL("You blacked out!")) if !@canLose
+00461:       elsif @decision == 2   # Lost in a Battle Frontier battle
+00462:         if @opponent
+00463:           @opponent.each_with_index do |trainer, i|
+00464:             @scene.pbShowOpponent(i)
+00465:             msg = trainer.win_text
+00466:             msg = "..." if !msg || msg.empty?
+00467:             pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+00468:           end
+00469:           PBDebug.log("")
+00470:         end
+00471:       end
+00472:     ##### CAUGHT WILD POKÉMON #####
+00473:     when 4
+00474:       PBDebug.log("")
+00475:       PBDebug.log_header("===== Pokémon caught =====")
+00476:       PBDebug.log("")
+00477:       @scene.pbWildBattleSuccess if !Settings::GAIN_EXP_FOR_CAPTURE
+00478:     end
+00479:     # Register captured Pokémon in the Pokédex, and store them
+00480:     pbRecordAndStoreCaughtPokemon
+00481:     # Collect Pay Day money in a wild battle that ended in a capture
+00482:     pbGainMoney if @decision == 4
+00483:     # Pass on Pokérus within the party
+00484:     if @internalBattle
+00485:       infected = []
+00486:       $player.party.each_with_index do |pkmn, i|
+00487:         infected.push(i) if pkmn.pokerusStage == 1
+00488:       end
+00489:       infected.each do |idxParty|
+00490:         strain = $player.party[idxParty].pokerusStrain
+00491:         if idxParty > 0 && $player.party[idxParty - 1].pokerusStage == 0 && rand(3) == 0   # 33%
+00492:           $player.party[idxParty - 1].givePokerus(strain)
+00493:         end
+00494:         if idxParty < $player.party.length - 1 && $player.party[idxParty + 1].pokerusStage == 0 && rand(3) == 0   # 33%
+00495:           $player.party[idxParty + 1].givePokerus(strain)
+00496:         end
+00497:       end
+00498:     end
+00499:     # Clean up battle stuff
+00500:     @scene.pbEndBattle(@decision)
+00501:     @battlers.each do |b|
+00502:       next if !b
+00503:       pbCancelChoice(b.index)   # Restore unused items to Bag
+00504:       Battle::AbilityEffects.triggerOnSwitchOut(b.ability, b, true) if b.abilityActive?
+00505:     end
+00506:     pbParty(0).each_with_index do |pkmn, i|
+00507:       next if !pkmn
+00508:       @peer.pbOnLeavingBattle(self, pkmn, @usedInBattle[0][i], true)   # Reset form
+00509:       pkmn.item = @initialItems[0][i]
+00510:     end
+00511:     return @decision
+00512:   end
+00513: 
+00514:   #=============================================================================
+00515:   # Judging
+00516:   #=============================================================================
+00517:   def pbJudgeCheckpoint(user, move = nil); end
+00518: 
+00519:   def pbDecisionOnTime
+00520:     counts   = [0, 0]
+00521:     hpTotals = [0, 0]
+00522:     2.times do |side|
+00523:       pbParty(side).each do |pkmn|
+00524:         next if !pkmn || !pkmn.able?
+00525:         counts[side]   += 1
+00526:         hpTotals[side] += pkmn.hp
+00527:       end
+00528:     end
+00529:     return 1 if counts[0] > counts[1]       # Win (player has more able Pokémon)
+00530:     return 2 if counts[0] < counts[1]       # Loss (foe has more able Pokémon)
+00531:     return 1 if hpTotals[0] > hpTotals[1]   # Win (player has more HP in total)
+00532:     return 2 if hpTotals[0] < hpTotals[1]   # Loss (foe has more HP in total)
+00533:     return 5                                # Draw
+00534:   end
+00535: 
+00536:   # Unused
+00537:   def pbDecisionOnTime2
+00538:     counts   = [0, 0]
+00539:     hpTotals = [0, 0]
+00540:     2.times do |side|
+00541:       pbParty(side).each do |pkmn|
+00542:         next if !pkmn || !pkmn.able?
+00543:         counts[side]   += 1
+00544:         hpTotals[side] += 100 * pkmn.hp / pkmn.totalhp
+00545:       end
+00546:       hpTotals[side] /= counts[side] if counts[side] > 1
+00547:     end
+00548:     return 1 if counts[0] > counts[1]       # Win (player has more able Pokémon)
+00549:     return 2 if counts[0] < counts[1]       # Loss (foe has more able Pokémon)
+00550:     return 1 if hpTotals[0] > hpTotals[1]   # Win (player has a bigger average HP %)
+00551:     return 2 if hpTotals[0] < hpTotals[1]   # Loss (foe has a bigger average HP %)
+00552:     return 5                                # Draw
+00553:   end
+00554: 
+00555:   def pbDecisionOnDraw; return 5; end   # Draw
+00556: 
+00557:   def pbJudge
+00558:     fainted1 = pbAllFainted?(0)
+00559:     fainted2 = pbAllFainted?(1)
+00560:     if fainted1 && fainted2
+00561:       @decision = pbDecisionOnDraw   # Draw
+00562:     elsif fainted1
+00563:       @decision = 2                  # Loss
+00564:     elsif fainted2
+00565:       @decision = 1                  # Win
+00566:     end
+00567:   end
+00568: end

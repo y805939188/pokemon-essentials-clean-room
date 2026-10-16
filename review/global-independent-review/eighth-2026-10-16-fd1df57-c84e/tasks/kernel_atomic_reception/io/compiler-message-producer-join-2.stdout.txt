@@ -1,0 +1,225 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 630-657
+
+  #=============================================================================
+  # Compile ribbon data
+  #=============================================================================
+  def compile_ribbons(*paths)
+    compile_PBS_file_generic(GameData::Ribbon, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_ribbons : validate_compiled_ribbon(hash)
+    end
+  end
+
+  def validate_compiled_ribbon(hash)
+  end
+
+  def validate_all_compiled_ribbons
+    # Get ribbon names/descriptions for translating
+    ribbon_names = []
+    ribbon_descriptions = []
+    GameData::Ribbon.each do |ribbon|
+      ribbon_names.push(ribbon.real_name)
+      ribbon_descriptions.push(ribbon.real_description)
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::RIBBON_NAMES, ribbon_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::RIBBON_DESCRIPTIONS, ribbon_descriptions)
+  end
+
+  #=============================================================================
+  # Compile wild encounter data
+  #=============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 770-791
+  def compile_trainer_types(*paths)
+    compile_PBS_file_generic(GameData::TrainerType, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_trainer_types : validate_compiled_trainer_type(hash)
+    end
+  end
+
+  def validate_compiled_trainer_type(hash)
+  end
+
+  def validate_all_compiled_trainer_types
+    # Get trainer type names for translating
+    trainer_type_names = []
+    GameData::TrainerType.each do |tr_type|
+      trainer_type_names.push(tr_type.real_name)
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_TYPE_NAMES, trainer_type_names)
+  end
+
+  #=============================================================================
+  # Compile individual trainer data
+  #=============================================================================
+  def compile_trainers(*paths)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 931-1064
+  def validate_all_compiled_trainers
+    # Get trainer names and lose texts for translating
+    trainer_names = []
+    lose_texts = []
+    pokemon_nicknames = []
+    GameData::Trainer.each do |trainer|
+      trainer_names.push(trainer.real_name)
+      lose_texts.push(trainer.real_lose_text)
+      trainer.pokemon.each do |pkmn|
+        pokemon_nicknames.push(pkmn[:real_name]) if !nil_or_empty?(pkmn[:real_name])
+      end
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_NAMES, trainer_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_SPEECHES_LOSE, lose_texts)
+    MessageTypes.setMessagesAsHash(MessageTypes::POKEMON_NICKNAMES, pokemon_nicknames)
+  end
+
+  #=============================================================================
+  # Compile Battle Tower and other Cups trainers/Pokémon
+  #=============================================================================
+  def compile_trainer_lists(path = "PBS/battle_facility_lists.txt")
+    compile_pbs_file_message_start(path)
+    btTrainersRequiredTypes = {
+      "Trainers"   => [0, "s"],
+      "Pokemon"    => [1, "s"],
+      "Challenges" => [2, "*s"]
+    }
+    if !FileTest.exist?(path)
+      File.open(path, "wb") do |f|
+        f.write(0xEF.chr)
+        f.write(0xBB.chr)
+        f.write(0xBF.chr)
+        f.write("[DefaultTrainerList]\r\n")
+        f.write("Trainers = battle_tower_trainers.txt\r\n")
+        f.write("Pokemon = battle_tower_pokemon.txt\r\n")
+      end
+    end
+    sections = []
+    MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_INTRO_SPEECHES, [])
+    MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, [])
+    MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, [])
+    File.open(path, "rb") do |f|
+      FileLineData.file = path
+      idx = 0
+      pbEachFileSection(f) do |section, name|
+        echo "."
+        idx += 1
+        Graphics.update
+        next if name != "DefaultTrainerList" && name != "TrainerList"
+        rsection = []
+        section.each_key do |key|
+          FileLineData.setSection(name, key, section[key])
+          schema = btTrainersRequiredTypes[key]
+          next if key == "Challenges" && name == "DefaultTrainerList"
+          next if !schema
+          record = get_csv_record(section[key], schema)
+          rsection[schema[0]] = record
+        end
+        if !rsection[0]
+          raise _INTL("No trainer data file given in section {1}.", name) + "\n" + FileLineData.linereport
+        end
+        if !rsection[1]
+          raise _INTL("No trainer data file given in section {1}.", name) + "\n" + FileLineData.linereport
+        end
+        rsection[3] = rsection[0]
+        rsection[4] = rsection[1]
+        rsection[5] = (name == "DefaultTrainerList")
+        if FileTest.exist?("PBS/" + rsection[0])
+          rsection[0] = compile_battle_tower_trainers("PBS/" + rsection[0])
+        else
+          rsection[0] = []
+        end
+        if FileTest.exist?("PBS/" + rsection[1])
+          filename = "PBS/" + rsection[1]
+          rsection[1] = []
+          pbCompilerEachCommentedLine(filename) do |line, _lineno|
+            rsection[1].push(PBPokemon.fromInspected(line))
+          end
+        else
+          rsection[1] = []
+        end
+        rsection[2] = [] if !rsection[2]
+        while rsection[2].include?("")
+          rsection[2].delete("")
+        end
+        rsection[2].compact!
+        sections.push(rsection)
+      end
+    end
+    save_data(sections, "Data/trainer_lists.dat")
+    process_pbs_file_message_end
+  end
+
+  def compile_battle_tower_trainers(filename)
+    sections = []
+    requiredtypes = {
+      "Type"          => [0, "e", :TrainerType],
+      "Name"          => [1, "s"],
+      "BeginSpeech"   => [2, "s"],
+      "EndSpeechWin"  => [3, "s"],
+      "EndSpeechLose" => [4, "s"],
+      "PokemonNos"    => [5, "*u"]
+    }
+    trainernames  = []
+    beginspeech   = []
+    endspeechwin  = []
+    endspeechlose = []
+    if FileTest.exist?(filename)
+      File.open(filename, "rb") do |f|
+        FileLineData.file = filename
+        pbEachFileSection(f) do |section, name|
+          rsection = []
+          section.each_key do |key|
+            FileLineData.setSection(name, key, section[key])
+            schema = requiredtypes[key]
+            next if !schema
+            record = get_csv_record(section[key], schema)
+            rsection[schema[0]] = record
+          end
+          trainernames.push(rsection[1])
+          beginspeech.push(rsection[2])
+          endspeechwin.push(rsection[3])
+          endspeechlose.push(rsection[4])
+          sections.push(rsection)
+        end
+      end
+    end
+    MessageTypes.addMessagesAsHash(MessageTypes::TRAINER_NAMES, trainernames)
+    MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_INTRO_SPEECHES, beginspeech)
+    MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, endspeechwin)
+    MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, endspeechlose)
+    return sections
+  end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 1237-1270
+  def compile_phone(*paths)
+    compile_PBS_file_generic(GameData::PhoneMessage, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_phone_contacts : validate_compiled_phone_contact(hash)
+    end
+  end
+
+  def validate_compiled_phone_contact(hash)
+    # Split trainer type/name/version into their own values, generate compound ID from them
+    if hash[:id].strip.downcase == "default"
+      hash[:id] = "default"
+      hash[:trainer_type] = hash[:id]
+    else
+      line_data = get_csv_record(hash[:id], [nil, "esU", :TrainerType])
+      hash[:trainer_type] = line_data[0]
+      hash[:real_name] = line_data[1]
+      hash[:version] = line_data[2] || 0
+      hash[:id] = [hash[:trainer_type], hash[:real_name], hash[:version]]
+    end
+  end
+
+  def validate_all_compiled_phone_contacts
+    # Get all phone messages for translating
+    messages = []
+    GameData::PhoneMessage.each do |contact|
+      [:intro, :intro_morning, :intro_afternoon, :intro_evening, :body, :body1,
+       :body2, :battle_request, :battle_remind, :end].each do |msg_type|
+        msgs = contact.send(msg_type)
+        next if !msgs || msgs.length == 0
+        msgs.each { |msg| messages.push(msg) }
+      end
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::PHONE_MESSAGES, messages)
+  end
+

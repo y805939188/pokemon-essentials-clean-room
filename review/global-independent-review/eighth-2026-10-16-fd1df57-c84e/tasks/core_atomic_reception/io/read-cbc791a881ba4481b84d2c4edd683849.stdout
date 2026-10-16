@@ -1,0 +1,173 @@
+00521: 
+00522: #===============================================================================
+00523: # User turns 1/4 of max HP into a substitute. (Substitute)
+00524: #===============================================================================
+00525: class Battle::Move::UserMakeSubstitute < Battle::Move
+00526:   def canSnatch?; return true; end
+00527: 
+00528:   def pbMoveFailed?(user, targets)
+00529:     if user.effects[PBEffects::Substitute] > 0
+00530:       @battle.pbDisplay(_INTL("{1} already has a substitute!", user.pbThis))
+00531:       return true
+00532:     end
+00533:     @subLife = [user.totalhp / 4, 1].max
+00534:     if user.hp <= @subLife
+00535:       @battle.pbDisplay(_INTL("But it does not have enough HP left to make a substitute!"))
+00536:       return true
+00537:     end
+00538:     return false
+00539:   end
+00540: 
+00541:   def pbOnStartUse(user, targets)
+00542:     user.pbReduceHP(@subLife, false, false)
+00543:     user.pbItemHPHealCheck
+00544:   end
+00545: 
+00546:   def pbEffectGeneral(user)
+00547:     user.effects[PBEffects::Trapping]     = 0
+00548:     user.effects[PBEffects::TrappingMove] = nil
+00549:     user.effects[PBEffects::Substitute]   = @subLife
+00550:     @battle.pbDisplay(_INTL("{1} put in a substitute!", user.pbThis))
+00551:   end
+00552: end
+00553: 
+00554: #===============================================================================
+00555: # Removes trapping moves, entry hazards and Leech Seed on user/user's side.
+00556: # Raises user's Speed by 1 stage (Gen 8+). (Rapid Spin)
+00557: #===============================================================================
+00558: class Battle::Move::RemoveUserBindingAndEntryHazards < Battle::Move::StatUpMove
+00559:   def initialize(battle, move)
+00560:     super
+00561:     @statUp = [:SPEED, 1]
+00562:   end
+00563: 
+00564:   def pbEffectAfterAllHits(user, target)
+00565:     return if user.fainted? || target.damageState.unaffected
+00566:     if user.effects[PBEffects::Trapping] > 0
+00567:       trapMove = GameData::Move.get(user.effects[PBEffects::TrappingMove]).name
+00568:       trapUser = @battle.battlers[user.effects[PBEffects::TrappingUser]]
+00569:       @battle.pbDisplay(_INTL("{1} got free of {2}'s {3}!", user.pbThis, trapUser.pbThis(true), trapMove))
+00570:       user.effects[PBEffects::Trapping]     = 0
+00571:       user.effects[PBEffects::TrappingMove] = nil
+00572:       user.effects[PBEffects::TrappingUser] = -1
+00573:     end
+00574:     if user.effects[PBEffects::LeechSeed] >= 0
+00575:       user.effects[PBEffects::LeechSeed] = -1
+00576:       @battle.pbDisplay(_INTL("{1} shed Leech Seed!", user.pbThis))
+00577:     end
+00578:     if user.pbOwnSide.effects[PBEffects::StealthRock]
+00579:       user.pbOwnSide.effects[PBEffects::StealthRock] = false
+00580:       @battle.pbDisplay(_INTL("{1} blew away stealth rocks!", user.pbThis))
+00581:     end
+00582:     if user.pbOwnSide.effects[PBEffects::Spikes] > 0
+00583:       user.pbOwnSide.effects[PBEffects::Spikes] = 0
+00584:       @battle.pbDisplay(_INTL("{1} blew away spikes!", user.pbThis))
+00585:     end
+00586:     if user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+00587:       user.pbOwnSide.effects[PBEffects::ToxicSpikes] = 0
+00588:       @battle.pbDisplay(_INTL("{1} blew away poison spikes!", user.pbThis))
+00589:     end
+00590:     if user.pbOwnSide.effects[PBEffects::StickyWeb]
+00591:       user.pbOwnSide.effects[PBEffects::StickyWeb] = false
+00592:       @battle.pbDisplay(_INTL("{1} blew away sticky webs!", user.pbThis))
+00593:     end
+00594:   end
+00595: 
+00596:   def pbAdditionalEffect(user, target)
+00597:     super if Settings::MECHANICS_GENERATION >= 8
+00598:   end
+00599: end
+00600: 
+00601: #===============================================================================
+00602: # Attacks 2 rounds in the future. (Doom Desire, Future Sight)
+00603: #===============================================================================
+00604: class Battle::Move::AttackTwoTurnsLater < Battle::Move
+00605:   def targetsPosition?; return true; end
+00606: 
+00607:   # Stops damage being dealt in the setting-up turn.
+00608:   def pbDamagingMove?
+00609:     return false if !@battle.futureSight
+00610:     return super
+00611:   end
+00612: 
+00613:   def pbAccuracyCheck(user, target)
+00614:     return true if !@battle.futureSight
+00615:     return super
+00616:   end
+00617: 
+00618:   def pbDisplayUseMessage(user)
+00619:     super if !@battle.futureSight
+00620:   end
+00621: 
+00622:   def pbFailsAgainstTarget?(user, target, show_message)
+00623:     if !@battle.futureSight &&
+00624:        @battle.positions[target.index].effects[PBEffects::FutureSightCounter] > 0
+00625:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00626:       return true
+00627:     end
+00628:     return false
+00629:   end
+00630: 
+00631:   def pbEffectAgainstTarget(user, target)
+00632:     return if @battle.futureSight   # Attack is hitting
+00633:     effects = @battle.positions[target.index].effects
+00634:     effects[PBEffects::FutureSightCounter]        = 3
+00635:     effects[PBEffects::FutureSightMove]           = @id
+00636:     effects[PBEffects::FutureSightUserIndex]      = user.index
+00637:     effects[PBEffects::FutureSightUserPartyIndex] = user.pokemonIndex
+00638:     if @id == :DOOMDESIRE
+00639:       @battle.pbDisplay(_INTL("{1} chose Doom Desire as its destiny!", user.pbThis))
+00640:     else
+00641:       @battle.pbDisplay(_INTL("{1} foresaw an attack!", user.pbThis))
+00642:     end
+00643:   end
+00644: 
+00645:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00646:     hitNum = 1 if !@battle.futureSight   # Charging anim
+00647:     super
+00648:   end
+00649: end
+00650: 
+00651: #===============================================================================
+00652: # User switches places with its ally. (Ally Switch)
+00653: #===============================================================================
+00654: class Battle::Move::UserSwapsPositionsWithAlly < Battle::Move
+00655:   def pbMoveFailed?(user, targets)
+00656:     numTargets = 0
+00657:     @idxAlly = -1
+00658:     idxUserOwner = @battle.pbGetOwnerIndexFromBattlerIndex(user.index)
+00659:     user.allAllies.each do |b|
+00660:       next if @battle.pbGetOwnerIndexFromBattlerIndex(b.index) != idxUserOwner
+00661:       next if !b.near?(user)
+00662:       numTargets += 1
+00663:       @idxAlly = b.index
+00664:     end
+00665:     if numTargets != 1
+00666:       @battle.pbDisplay(_INTL("But it failed!"))
+00667:       return true
+00668:     end
+00669:     return false
+00670:   end
+00671: 
+00672:   def pbEffectGeneral(user)
+00673:     idxA = user.index
+00674:     idxB = @idxAlly
+00675:     if @battle.pbSwapBattlers(idxA, idxB)
+00676:       @battle.pbDisplay(_INTL("{1} and {2} switched places!",
+00677:                               @battle.battlers[idxB].pbThis, @battle.battlers[idxA].pbThis(true)))
+00678:       [idxA, idxB].each { |idx| @battle.pbEffectsOnBattlerEnteringPosition(@battle.battlers[idx]) }
+00679:     end
+00680:   end
+00681: end
+00682: 
+00683: #===============================================================================
+00684: # If a Pokémon makes contact with the user before it uses this move, the
+00685: # attacker is burned. (Beak Blast)
+00686: #===============================================================================
+00687: class Battle::Move::BurnAttackerBeforeUserActs < Battle::Move
+00688:   def pbDisplayChargeMessage(user)
+00689:     user.effects[PBEffects::BeakBlast] = true
+00690:     @battle.pbCommonAnimation("BeakBlast", user)
+00691:     @battle.pbDisplay(_INTL("{1} started heating up its beak!", user.pbThis))
+00692:   end
+00693: end

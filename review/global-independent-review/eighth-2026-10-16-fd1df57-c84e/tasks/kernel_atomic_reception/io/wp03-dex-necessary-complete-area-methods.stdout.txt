@@ -1,0 +1,307 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/016_UI/004_UI_Pokedex_Entry.rb RANGE 303-402
+    return false if !enc_types
+    enc_types.each_value do |slots|
+      next if !slots
+      slots.each { |slot| return true if GameData::Species.get(slot[1]).species == species }
+    end
+    return false
+  end
+
+  # Returns a 1D array of values corresponding to points on the Town Map. Each
+  # value is true or false.
+  def pbGetEncounterPoints
+    # Determine all visible points on the Town Map (i.e. only ones with a
+    # defined point in town_map.txt, and which either have no Self Switch
+    # controlling their visibility or whose Self Switch is ON)
+    visible_points = []
+    @mapdata.point.each do |loc|
+      next if loc[7] && !$game_switches[loc[7]]   # Point is not visible
+      visible_points.push([loc[0], loc[1]])
+    end
+    # Find all points with a visible area for @species
+    town_map_width = 1 + PokemonRegionMap_Scene::RIGHT - PokemonRegionMap_Scene::LEFT
+    ret = []
+    GameData::Encounter.each_of_version($PokemonGlobal.encounter_version) do |enc_data|
+      next if !pbFindEncounter(enc_data.types, @species)   # Species isn't in encounter table
+      # Get the map belonging to the encounter table
+      map_metadata = GameData::MapMetadata.try_get(enc_data.map)
+      next if !map_metadata || map_metadata.has_flag?("HideEncountersInPokedex")
+      mappos = map_metadata.town_map_position
+      next if !mappos || mappos[0] != @region   # Map isn't in the region being shown
+      # Get the size and shape of the map in the Town Map
+      map_size = map_metadata.town_map_size
+      map_width = 1
+      map_height = 1
+      map_shape = "1"
+      if map_size && map_size[0] && map_size[0] > 0   # Map occupies multiple points
+        map_width = map_size[0]
+        map_shape = map_size[1]
+        map_height = (map_shape.length.to_f / map_width).ceil
+      end
+      # Mark each visible point covered by the map as containing the area
+      map_width.times do |i|
+        map_height.times do |j|
+          next if map_shape[i + (j * map_width), 1].to_i == 0   # Point isn't part of map
+          next if !visible_points.include?([mappos[1] + i, mappos[2] + j])   # Point isn't visible
+          ret[mappos[1] + i + ((mappos[2] + j) * town_map_width)] = true
+        end
+      end
+    end
+    return ret
+  end
+
+  def drawPageArea
+    @sprites["background"].setBitmap(_INTL("Graphics/UI/Pokedex/bg_area"))
+    overlay = @sprites["overlay"].bitmap
+    base   = Color.new(88, 88, 80)
+    shadow = Color.new(168, 184, 184)
+    @sprites["areahighlight"].bitmap.clear
+    # Get all points to be shown as places where @species can be encountered
+    points = pbGetEncounterPoints
+    # Draw coloured squares on each point of the Town Map with a nest
+    pointcolor   = Color.new(0, 248, 248)
+    pointcolorhl = Color.new(192, 248, 248)
+    town_map_width = 1 + PokemonRegionMap_Scene::RIGHT - PokemonRegionMap_Scene::LEFT
+    sqwidth = PokemonRegionMap_Scene::SQUARE_WIDTH
+    sqheight = PokemonRegionMap_Scene::SQUARE_HEIGHT
+    points.length.times do |j|
+      next if !points[j]
+      x = (j % town_map_width) * sqwidth
+      x += (Graphics.width - @sprites["areamap"].bitmap.width) / 2
+      y = (j / town_map_width) * sqheight
+      y += (Graphics.height + 32 - @sprites["areamap"].bitmap.height) / 2
+      @sprites["areahighlight"].bitmap.fill_rect(x, y, sqwidth, sqheight, pointcolor)
+      if j - town_map_width < 0 || !points[j - town_map_width]
+        @sprites["areahighlight"].bitmap.fill_rect(x, y - 2, sqwidth, 2, pointcolorhl)
+      end
+      if j + town_map_width >= points.length || !points[j + town_map_width]
+        @sprites["areahighlight"].bitmap.fill_rect(x, y + sqheight, sqwidth, 2, pointcolorhl)
+      end
+      if j % town_map_width == 0 || !points[j - 1]
+        @sprites["areahighlight"].bitmap.fill_rect(x - 2, y, 2, sqheight, pointcolorhl)
+      end
+      if (j + 1) % town_map_width == 0 || !points[j + 1]
+        @sprites["areahighlight"].bitmap.fill_rect(x + sqwidth, y, 2, sqheight, pointcolorhl)
+      end
+    end
+    # Set the text
+    textpos = []
+    if points.length == 0
+      pbDrawImagePositions(
+        overlay,
+        [["Graphics/UI/Pokedex/overlay_areanone", 108, 188]]
+      )
+      textpos.push([_INTL("Area unknown"), Graphics.width / 2, (Graphics.height / 2) + 6, :center, base, shadow])
+    end
+    textpos.push([@mapdata.name, 414, 50, :center, base, shadow])
+    textpos.push([_INTL("{1}'s area", GameData::Species.get(@species).name),
+                  Graphics.width / 2, 358, :center, base, shadow])
+    pbDrawTextPositions(overlay, textpos)
+  end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/016_UI/003_UI_Pokedex_Main.rb RANGE 1092-1295
+  def pbDexSearch
+    oldsprites = pbFadeOutAndHide(@sprites)
+    params = @searchParams.clone
+    @orderCommands = []
+    @orderCommands[MODENUMERICAL] = _INTL("Numerical")
+    @orderCommands[MODEATOZ]      = _INTL("A to Z")
+    @orderCommands[MODEHEAVIEST]  = _INTL("Heaviest")
+    @orderCommands[MODELIGHTEST]  = _INTL("Lightest")
+    @orderCommands[MODETALLEST]   = _INTL("Tallest")
+    @orderCommands[MODESMALLEST]  = _INTL("Smallest")
+    @nameCommands = [_INTL("A"), _INTL("B"), _INTL("C"), _INTL("D"), _INTL("E"),
+                     _INTL("F"), _INTL("G"), _INTL("H"), _INTL("I"), _INTL("J"),
+                     _INTL("K"), _INTL("L"), _INTL("M"), _INTL("N"), _INTL("O"),
+                     _INTL("P"), _INTL("Q"), _INTL("R"), _INTL("S"), _INTL("T"),
+                     _INTL("U"), _INTL("V"), _INTL("W"), _INTL("X"), _INTL("Y"),
+                     _INTL("Z")]
+    @typeCommands = []
+    GameData::Type.each { |t| @typeCommands.push(t) if !t.pseudo_type }
+    @heightCommands = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                       11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                       21, 22, 23, 24, 25, 30, 35, 40, 45, 50,
+                       55, 60, 65, 70, 80, 90, 100]
+    @weightCommands = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+                       55, 60, 70, 80, 90, 100, 110, 120, 140, 160,
+                       180, 200, 250, 300, 350, 400, 500, 600, 700, 800,
+                       900, 1000, 1250, 1500, 2000, 3000, 5000]
+    @colorCommands = []
+    GameData::BodyColor.each { |c| @colorCommands.push(c) if c.id != :None }
+    @shapeCommands = []
+    GameData::BodyShape.each { |s| @shapeCommands.push(s) if s.id != :None }
+    @sprites["searchbg"].visible     = true
+    @sprites["overlay"].visible      = true
+    @sprites["searchcursor"].visible = true
+    index = 0
+    oldindex = index
+    @sprites["searchcursor"].mode    = -1
+    @sprites["searchcursor"].index   = index
+    pbRefreshDexSearch(params, index)
+    pbFadeInAndShow(@sprites)
+    loop do
+      Graphics.update
+      Input.update
+      pbUpdate
+      if index != oldindex
+        @sprites["searchcursor"].index = index
+        oldindex = index
+      end
+      if Input.trigger?(Input::UP)
+        if index >= 7
+          index = 4
+        elsif index == 5
+          index = 0
+        elsif index > 0
+          index -= 1
+        end
+        pbPlayCursorSE if index != oldindex
+      elsif Input.trigger?(Input::DOWN)
+        if [4, 6].include?(index)
+          index = 8
+        elsif index < 7
+          index += 1
+        end
+        pbPlayCursorSE if index != oldindex
+      elsif Input.trigger?(Input::LEFT)
+        if index == 5
+          index = 1
+        elsif index == 6
+          index = 3
+        elsif index > 7
+          index -= 1
+        end
+        pbPlayCursorSE if index != oldindex
+      elsif Input.trigger?(Input::RIGHT)
+        if index == 1
+          index = 5
+        elsif index >= 2 && index <= 4
+          index = 6
+        elsif [7, 8].include?(index)
+          index += 1
+        end
+        pbPlayCursorSE if index != oldindex
+      elsif Input.trigger?(Input::ACTION)
+        index = 8
+        pbPlayCursorSE if index != oldindex
+      elsif Input.trigger?(Input::BACK)
+        pbPlayCloseMenuSE
+        break
+      elsif Input.trigger?(Input::USE)
+        pbSEPlay("GUI pokedex open") if index != 9
+        case index
+        when 0   # Choose sort order
+          newparam = pbDexSearchCommands(0, [params[0]], index)
+          params[0] = newparam[0] if newparam
+          pbRefreshDexSearch(params, index)
+        when 1   # Filter by name
+          newparam = pbDexSearchCommands(1, [params[1]], index)
+          params[1] = newparam[0] if newparam
+          pbRefreshDexSearch(params, index)
+        when 2   # Filter by type
+          newparam = pbDexSearchCommands(2, [params[2], params[3]], index)
+          if newparam
+            params[2] = newparam[0]
+            params[3] = newparam[1]
+          end
+          pbRefreshDexSearch(params, index)
+        when 3   # Filter by height range
+          newparam = pbDexSearchCommands(3, [params[4], params[5]], index)
+          if newparam
+            params[4] = newparam[0]
+            params[5] = newparam[1]
+          end
+          pbRefreshDexSearch(params, index)
+        when 4   # Filter by weight range
+          newparam = pbDexSearchCommands(4, [params[6], params[7]], index)
+          if newparam
+            params[6] = newparam[0]
+            params[7] = newparam[1]
+          end
+          pbRefreshDexSearch(params, index)
+        when 5   # Filter by color filter
+          newparam = pbDexSearchCommands(5, [params[8]], index)
+          params[8] = newparam[0] if newparam
+          pbRefreshDexSearch(params, index)
+        when 6   # Filter by shape
+          newparam = pbDexSearchCommands(6, [params[9]], index)
+          params[9] = newparam[0] if newparam
+          pbRefreshDexSearch(params, index)
+        when 7   # Clear filters
+          10.times do |i|
+            params[i] = (i == 0) ? MODENUMERICAL : -1
+          end
+          pbRefreshDexSearch(params, index)
+        when 8   # Start search (filter)
+          dexlist = pbSearchDexList(params)
+          if dexlist.length == 0
+            pbMessage(_INTL("No matching Pokémon were found."))
+          else
+            @dexlist = dexlist
+            @sprites["pokedex"].commands = @dexlist
+            @sprites["pokedex"].index    = 0
+            @sprites["pokedex"].refresh
+            @searchResults = true
+            @searchParams = params
+            break
+          end
+        when 9   # Cancel
+          pbPlayCloseMenuSE
+          break
+        end
+      end
+    end
+    pbFadeOutAndHide(@sprites)
+    if @searchResults
+      @sprites["background"].setBitmap("Graphics/UI/Pokedex/bg_listsearch")
+    else
+      @sprites["background"].setBitmap("Graphics/UI/Pokedex/bg_list")
+    end
+    pbRefresh
+    pbFadeInAndShow(@sprites, oldsprites)
+    Input.update
+    return 0
+  end
+
+  def pbPokedex
+    pbActivateWindow(@sprites, "pokedex") do
+      loop do
+        Graphics.update
+        Input.update
+        oldindex = @sprites["pokedex"].index
+        pbUpdate
+        if oldindex != @sprites["pokedex"].index
+          $PokemonGlobal.pokedexIndex[pbGetSavePositionIndex] = @sprites["pokedex"].index if !@searchResults
+          pbRefresh
+        end
+        if Input.trigger?(Input::ACTION)
+          pbSEPlay("GUI pokedex open")
+          @sprites["pokedex"].active = false
+          pbDexSearch
+          @sprites["pokedex"].active = true
+        elsif Input.trigger?(Input::BACK)
+          pbPlayCloseMenuSE
+          if @searchResults
+            pbCloseSearch
+          else
+            break
+          end
+        elsif Input.trigger?(Input::USE)
+          if $player.seen?(@sprites["pokedex"].species)
+            pbSEPlay("GUI pokedex open")
+            pbDexEntry(@sprites["pokedex"].index)
+          end
+        end
+      end
+    end
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+class PokemonPokedexScreen
+  def initialize(scene)
+    @scene = scene
+  end

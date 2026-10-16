@@ -1,0 +1,237 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 1-116
+module Compiler
+  module_function
+
+  def compile_PBS_file_generic(game_data, *paths)
+    if game_data.const_defined?(:OPTIONAL) && game_data::OPTIONAL
+      return if paths.none? { |p| FileTest.exist?(p) }
+    end
+    game_data::DATA.clear
+    schema = game_data.schema
+    # Read from PBS file(s)
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      base_filename = game_data::PBS_BASE_FILENAME
+      base_filename = base_filename[0] if base_filename.is_a?(Array)   # For Species
+      file_suffix = File.basename(path, ".txt")[base_filename.length + 1, path.length] || ""
+      File.open(path, "rb") do |f|
+        FileLineData.file = path   # For error reporting
+        # Read a whole section's lines at once, then run through this code.
+        # contents is a hash containing all the XXX=YYY lines in that section, where
+        # the keys are the XXX and the values are the YYY (as unprocessed strings).
+        idx = 0
+        pbEachFileSection(f, schema) do |contents, section_name|
+          echo "." if idx % 100 == 0
+          Graphics.update if idx % 500 == 0
+          idx += 1
+          data_hash = {
+            :id              => section_name.to_sym,
+            :pbs_file_suffix => file_suffix
+          }
+          # Go through schema hash of compilable data and compile this section
+          schema.each_key do |key|
+            FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+            if key == "SectionName"
+              data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+              next
+            end
+            # Skip empty properties
+            next if contents[key].nil?
+            # Compile value for key
+            if schema[key][1][0] == "^"
+              contents[key].each do |val|
+                value = get_csv_record(val, schema[key])
+                value = nil if value.is_a?(Array) && value.empty?
+                data_hash[schema[key][0]] ||= []
+                data_hash[schema[key][0]].push(value)
+              end
+              data_hash[schema[key][0]].compact!
+            else
+              value = get_csv_record(contents[key], schema[key])
+              value = nil if value.is_a?(Array) && value.empty?
+              data_hash[schema[key][0]] = value
+            end
+          end
+          # Validate and modify the compiled data
+          yield false, data_hash if block_given?
+          if game_data.exists?(data_hash[:id])
+            raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+          end
+          # Add section's data to records
+          game_data.register(data_hash)
+        end
+      end
+      process_pbs_file_message_end
+    end
+    yield true, nil if block_given?
+    # Save all data
+    game_data.save
+  end
+
+  #=============================================================================
+  # Compile Town Map data
+  #=============================================================================
+  def compile_town_map(*paths)
+    compile_PBS_file_generic(GameData::TownMap, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_town_maps : validate_compiled_town_map(hash)
+    end
+  end
+
+  def validate_compiled_town_map(hash)
+  end
+
+  def validate_all_compiled_town_maps
+    # Get town map names and descriptions for translating
+    region_names = []
+    point_names = []
+    interest_names = []
+    GameData::TownMap.each do |town_map|
+      region_names[town_map.id] = town_map.real_name
+      town_map.point.each do |point|
+        point_names.push(point[2])
+        interest_names.push(point[3])
+      end
+    end
+    point_names.uniq!
+    interest_names.uniq!
+    MessageTypes.setMessagesAsHash(MessageTypes::REGION_NAMES, region_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_NAMES, point_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_DESCRIPTIONS, interest_names)
+  end
+
+  #=============================================================================
+  # Compile map connections
+  #=============================================================================
+  def compile_connections(*paths)
+    hashenum = {
+      "N" => "N", "North" => "N",
+      "E" => "E", "East"  => "E",
+      "S" => "S", "South" => "S",
+      "W" => "W", "West"  => "W"
+    }
+    schema = [nil, "iyiiyi", nil, hashenum, nil, nil, hashenum]
+    records = []
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      pbCompilerEachPreppedLine(path) do |line, lineno|
+        FileLineData.setLine(line, lineno)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 137-237
+    save_data(records, "Data/map_connections.dat")
+  end
+
+  #=============================================================================
+  # Compile type data
+  #=============================================================================
+  def compile_types(*paths)
+    compile_PBS_file_generic(GameData::Type, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_types : validate_compiled_type(hash)
+    end
+  end
+
+  def validate_compiled_type(hash)
+    # Remove duplicate weaknesses/resistances/immunities
+    hash[:weaknesses].uniq! if hash[:weaknesses].is_a?(Array)
+    hash[:resistances].uniq! if hash[:resistances].is_a?(Array)
+    hash[:immunities].uniq! if hash[:immunities].is_a?(Array)
+  end
+
+  def validate_all_compiled_types
+    type_names = []
+    GameData::Type.each do |type|
+      # Ensure all weaknesses/resistances/immunities are valid types
+      type.weaknesses.each do |other_type|
+        next if GameData::Type.exists?(other_type)
+        raise _INTL("'{1}' is not a defined type (type {2}, Weaknesses).", other_type.to_s, type.id)
+      end
+      type.resistances.each do |other_type|
+        next if GameData::Type.exists?(other_type)
+        raise _INTL("'{1}' is not a defined type (type {2}, Resistances).", other_type.to_s, type.id)
+      end
+      type.immunities.each do |other_type|
+        next if GameData::Type.exists?(other_type)
+        raise _INTL("'{1}' is not a defined type (type {2}, Immunities).", other_type.to_s, type.id)
+      end
+      # Get type names for translating
+      type_names.push(type.real_name)
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::TYPE_NAMES, type_names)
+  end
+
+  #=============================================================================
+  # Compile ability data
+  #=============================================================================
+  def compile_abilities(*paths)
+    compile_PBS_file_generic(GameData::Ability, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_abilities : validate_compiled_ability(hash)
+    end
+  end
+
+  def validate_compiled_ability(hash)
+  end
+
+  def validate_all_compiled_abilities
+    # Get abilty names/descriptions for translating
+    ability_names = []
+    ability_descriptions = []
+    GameData::Ability.each do |ability|
+      ability_names.push(ability.real_name)
+      ability_descriptions.push(ability.real_description)
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_NAMES, ability_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_DESCRIPTIONS, ability_descriptions)
+  end
+
+  #=============================================================================
+  # Compile move data
+  #=============================================================================
+  def compile_moves(*paths)
+    compile_PBS_file_generic(GameData::Move, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_moves : validate_compiled_move(hash)
+    end
+  end
+
+  def validate_compiled_move(hash)
+    if (hash[:category] || 2) == 2 && (hash[:power] || 0) != 0
+      raise _INTL("Move {1} is defined as a Status move with a non-zero base damage.", hash[:real_name]) + "\n" + FileLineData.linereport
+    elsif (hash[:category] || 2) != 2 && (hash[:power] || 0) == 0
+      print _INTL("Warning: Move {1} is defined as Physical or Special but has a base damage of 0. Changing it to a Status move.", hash[:real_name]) + "\n" + FileLineData.linereport
+      hash[:category] = 2
+    end
+  end
+
+  def validate_all_compiled_moves
+    # Get move names/descriptions for translating
+    move_names = []
+    move_descriptions = []
+    GameData::Move.each do |move|
+      move_names.push(move.real_name)
+      move_descriptions.push(move.real_description)
+    end
+    MessageTypes.setMessagesAsHash(MessageTypes::MOVE_NAMES, move_names)
+    MessageTypes.setMessagesAsHash(MessageTypes::MOVE_DESCRIPTIONS, move_descriptions)
+  end
+
+  #=============================================================================
+  # Compile item data
+  #=============================================================================
+  def compile_items(*paths)
+    compile_PBS_file_generic(GameData::Item, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_items : validate_compiled_item(hash)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 727-741
+          current_type = nil
+        elsif !encounter_hash   # File began with something other than a map ID line
+          raise _INTL("Expected a map number, got \"{1}\" instead.", line) + "\n" + FileLineData.linereport
+        else
+          # Check if line is an encounter method name or not
+          values = line.split(",").collect! { |v| v.strip }
+          current_type = (values[0] && !values[0].empty?) ? values[0].to_sym : nil
+          if current_type && GameData::EncounterType.exists?(current_type)   # Start of a new encounter method
+            step_chances[current_type] = values[1].to_i if values[1] && !values[1].empty?
+            step_chances[current_type] ||= GameData::EncounterType.get(current_type).trigger_chance
+            encounter_hash[:types][current_type] = []
+          else
+            raise _INTL("Undefined encounter type \"{1}\" for map '{2}'.", line, encounter_hash[:map]) + "\n" + FileLineData.linereport
+          end
+        end

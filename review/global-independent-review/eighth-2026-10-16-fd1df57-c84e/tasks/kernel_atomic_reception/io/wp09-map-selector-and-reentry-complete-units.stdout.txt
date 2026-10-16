@@ -1,0 +1,233 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/003_Debug_MenuExtraCode.rb RANGE 1-79
+#===============================================================================
+#
+#===============================================================================
+def pbDefaultMap
+  return $game_map.map_id if $game_map
+  return $data_system.edit_map_id if $data_system
+  return 0
+end
+
+def pbWarpToMap
+  mapid = pbListScreen(_INTL("WARP TO MAP"), MapLister.new(pbDefaultMap))
+  if mapid > 0
+    map = Game_Map.new
+    map.setup(mapid)
+    success = false
+    x = 0
+    y = 0
+    100.times do
+      x = rand(map.width)
+      y = rand(map.height)
+      next if !map.passableStrict?(x, y, 0, $game_player)
+      blocked = false
+      map.events.each_value do |event|
+        if event.at_coordinate?(x, y) && !event.through && event.character_name != ""
+          blocked = true
+        end
+      end
+      next if blocked
+      success = true
+      break
+    end
+    if !success
+      x = rand(map.width)
+      y = rand(map.height)
+    end
+    return [mapid, x, y]
+  end
+  return nil
+end
+
+#===============================================================================
+# Debug Variables screen
+#===============================================================================
+class SpriteWindow_DebugVariables < Window_DrawableCommand
+  attr_reader :mode
+
+  def initialize(viewport)
+    super(0, 0, Graphics.width, Graphics.height, viewport)
+  end
+
+  def itemCount
+    return (@mode == 0) ? $data_system.switches.size - 1 : $data_system.variables.size - 1
+  end
+
+  def mode=(mode)
+    @mode = mode
+    refresh
+  end
+
+  def shadowtext(x, y, w, h, t, align = 0, colors = 0)
+    width = self.contents.text_size(t).width
+    case align
+    when 1   # Right aligned
+      x += (w - width)
+    when 2   # Centre aligned
+      x += (w / 2) - (width / 2)
+    end
+    y += 8   # TEXT OFFSET
+    base = Color.new(96, 96, 96)
+    case colors
+    when 1   # Red
+      base = Color.new(168, 48, 56)
+    when 2   # Green
+      base = Color.new(0, 144, 0)
+    end
+    pbDrawShadowText(self.contents, x, y, [width, w].max, h, t, base, Color.new(208, 208, 200))
+  end
+
+  def drawItem(index, _count, rect)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb RANGE 224-310
+EventHandlers.add(:on_enter_map, :setup_new_map,
+  proc { |old_map_id|   # previous map ID, is 0 if no map ID
+    # Record new Teleport destination
+    new_map_metadata = $game_map.metadata
+    if new_map_metadata&.teleport_destination
+      $PokemonGlobal.healingSpot = new_map_metadata.teleport_destination
+    end
+    # End effects that apply only while on the map they were used
+    $PokemonMap&.clear
+    # Setup new wild encounter tables
+    $PokemonEncounters&.setup($game_map.map_id)
+    # Record the new map as having been visited
+    $PokemonGlobal.visitedMaps[$game_map.map_id] = true
+  }
+)
+
+# Changes the overworld weather.
+EventHandlers.add(:on_enter_map, :set_weather,
+  proc { |old_map_id|   # previous map ID, is 0 if no map ID
+    next if old_map_id == 0 || old_map_id == $game_map.map_id
+    old_weather = $game_screen.weather_type
+    new_weather = :None
+    new_map_metadata = $game_map.metadata
+    if new_map_metadata&.weather
+      new_weather = new_map_metadata.weather[0] if rand(100) < new_map_metadata.weather[1]
+    end
+    next if old_weather == new_weather
+    $game_screen.weather(new_weather, 9, 0)
+  }
+)
+
+# Update trail of which maps the player has most recently visited.
+EventHandlers.add(:on_enter_map, :add_to_trail,
+  proc { |_old_map_id|
+    next if !$game_map
+    $PokemonGlobal.mapTrail = [] if !$PokemonGlobal.mapTrail
+    if $PokemonGlobal.mapTrail[0] != $game_map.map_id && $PokemonGlobal.mapTrail.length >= 4
+      $PokemonGlobal.mapTrail.pop
+    end
+    $PokemonGlobal.mapTrail = [$game_map.map_id] + $PokemonGlobal.mapTrail
+  }
+)
+
+# Force cycling/walking.
+EventHandlers.add(:on_enter_map, :force_cycling,
+  proc { |_old_map_id|
+    if $game_map.metadata&.always_bicycle
+      pbMountBike
+    elsif !pbCanUseBike?($game_map.map_id)
+      pbDismountBike
+    end
+  }
+)
+
+# Display darkness circle on dark maps.
+EventHandlers.add(:on_map_or_spriteset_change, :show_darkness,
+  proc { |scene, _map_changed|
+    next if !scene || !scene.spriteset
+    map_metadata = $game_map.metadata
+    if map_metadata&.dark_map
+      $game_temp.darkness_sprite = DarknessSprite.new
+      scene.spriteset.addUserSprite($game_temp.darkness_sprite)
+      if $PokemonGlobal.flashUsed
+        $game_temp.darkness_sprite.radius = $game_temp.darkness_sprite.radiusMax
+      end
+    else
+      $PokemonGlobal.flashUsed = false
+      $game_temp.darkness_sprite&.dispose
+      $game_temp.darkness_sprite = nil
+    end
+  }
+)
+
+# Show location signpost.
+EventHandlers.add(:on_map_or_spriteset_change, :show_location_window,
+  proc { |scene, map_changed|
+    next if !scene || !scene.spriteset
+    next if !map_changed || !$game_map.metadata&.announce_location
+    nosignpost = false
+    if $PokemonGlobal.mapTrail[1]
+      (Settings::NO_SIGNPOSTS.length / 2).times do |i|
+        nosignpost = true if Settings::NO_SIGNPOSTS[2 * i] == $PokemonGlobal.mapTrail[1] &&
+                             Settings::NO_SIGNPOSTS[(2 * i) + 1] == $game_map.map_id
+        nosignpost = true if Settings::NO_SIGNPOSTS[(2 * i) + 1] == $PokemonGlobal.mapTrail[1] &&
+                             Settings::NO_SIGNPOSTS[2 * i] == $game_map.map_id
+        break if nosignpost
+      end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb RANGE 428-469
+def pbAutoplayOnSave
+  surfbgm = GameData::Metadata.get.surf_BGM
+  if $PokemonGlobal.surfing && surfbgm
+    pbBGMPlay(surfbgm)
+  else
+    $game_map.autoplay
+  end
+end
+
+#===============================================================================
+# Event movement
+#===============================================================================
+module PBMoveRoute
+  DOWN                  = 1
+  LEFT                  = 2
+  RIGHT                 = 3
+  UP                    = 4
+  LOWER_LEFT            = 5
+  LOWER_RIGHT           = 6
+  UPPER_LEFT            = 7
+  UPPER_RIGHT           = 8
+  RANDOM                = 9
+  TOWARD_PLAYER         = 10
+  AWAY_FROM_PLAYER      = 11
+  FORWARD               = 12
+  BACKWARD              = 13
+  JUMP                  = 14   # xoffset, yoffset
+  WAIT                  = 15   # frames
+  TURN_DOWN             = 16
+  TURN_LEFT             = 17
+  TURN_RIGHT            = 18
+  TURN_UP               = 19
+  TURN_RIGHT90          = 20
+  TURN_LEFT90           = 21
+  TURN180               = 22
+  TURN_RIGHT_OR_LEFT90  = 23
+  TURN_RANDOM           = 24
+  TURN_TOWARD_PLAYER    = 25
+  TURN_AWAY_FROM_PLAYER = 26
+  SWITCH_ON             = 27   # 1 param
+  SWITCH_OFF            = 28   # 1 param
+  CHANGE_SPEED          = 29   # 1 param
+
+PATH /workspace/pokemon-essentials/Data/Scripts/007_Objects and windows/011_Messages.rb RANGE 1-18
+#===============================================================================
+#
+#===============================================================================
+def pbMapInterpreter
+  return $game_system&.map_interpreter
+end
+
+def pbMapInterpreterRunning?
+  interp = pbMapInterpreter
+  return interp&.running?
+end
+
+# Unused
+def pbRefreshSceneMap
+  $scene.miniupdate if $scene.is_a?(Scene_Map)
+end
+
+def pbUpdateSceneMap

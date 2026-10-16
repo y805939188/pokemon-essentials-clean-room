@@ -1,0 +1,203 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/014_Pokemon/003_Pokemon_ShadowPokemon.rb RANGE 1-47
+#===============================================================================
+# Pokémon class.
+#===============================================================================
+class Pokemon
+  attr_accessor :shadow
+  attr_writer   :heart_gauge
+  attr_writer   :hyper_mode
+  attr_accessor :saved_exp
+  attr_accessor :saved_ev
+  attr_accessor :shadow_moves
+  attr_accessor :heart_gauge_step_counter
+
+  alias __shadow_expeq exp= unless method_defined?(:__shadow_expeq)
+  def exp=(value)
+    if shadowPokemon?
+      @saved_exp += value - @exp
+    else
+      __shadow_expeq(value)
+    end
+  end
+
+  alias __shadow_hpeq hp= unless method_defined?(:__shadow_hpeq)
+  def hp=(value)
+    __shadow_hpeq(value)
+    @hyper_mode = false if @hp <= 0
+  end
+
+  def heart_gauge
+    return @heart_gauge || 0
+  end
+
+  def shadow_data
+    return GameData::ShadowPokemon.get_species_form(@species, form_simple)
+  end
+
+  def max_gauge_size
+    data = shadow_data
+    return (data) ? data.gauge_size : GameData::ShadowPokemon::HEART_GAUGE_SIZE
+  end
+
+  def adjustHeart(value)
+    return if !shadowPokemon?
+    @heart_gauge = (self.heart_gauge + value).clamp(0, max_gauge_size)
+  end
+
+  def change_heart_gauge(method, multiplier = 1)
+    return if !shadowPokemon?
+
+PATH /workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/011_ShadowPokemon.rb RANGE 1-70
+module GameData
+  class ShadowPokemon
+    attr_reader :id
+    attr_reader :species
+    attr_reader :form
+    attr_reader :moves
+    attr_reader :gauge_size
+    attr_reader :flags
+    attr_reader :pbs_file_suffix
+
+    DATA = {}
+    DATA_FILENAME = "shadow_pokemon.dat"
+    PBS_BASE_FILENAME = "shadow_pokemon"
+    OPTIONAL = true
+
+    SCHEMA = {
+      "SectionName" => [:id,         "eV", :Species],
+      "GaugeSize"   => [:gauge_size, "v"],
+      "Moves"       => [:moves,      "*e", :Move],
+      "Flags"       => [:flags,      "*s"]
+    }
+    HEART_GAUGE_SIZE = 4000   # Default gauge size
+
+    extend ClassMethodsSymbols
+    include InstanceMethods
+
+    singleton_class.alias_method(:__orig__load, :load) unless singleton_class.method_defined?(:__orig__load)
+    def self.load
+      __orig__load if FileTest.exist?("Data/#{self::DATA_FILENAME}")
+    end
+
+    # @param species [Symbol, self, String]
+    # @param form [Integer]
+    # @return [self, nil]
+    def self.get_species_form(species, form)
+      return nil if !species || !form
+      validate species => [Symbol, self, String]
+      validate form => Integer
+      species = species.species if species.is_a?(self)
+      species = species.to_sym if species.is_a?(String)
+      trial = sprintf("%s_%d", species, form).to_sym
+      species_form = (DATA[trial].nil?) ? species : trial
+      return (DATA.has_key?(species_form)) ? DATA[species_form] : nil
+    end
+
+    def initialize(hash)
+      @id              = hash[:id]
+      @species         = hash[:species]         || @id
+      @form            = hash[:form]            || 0
+      @gauge_size      = hash[:gauge_size]      || HEART_GAUGE_SIZE
+      @moves           = hash[:moves]           || []
+      @flags           = hash[:flags]           || []
+      @pbs_file_suffix = hash[:pbs_file_suffix] || ""
+    end
+
+    def has_flag?(flag)
+      return @flags.any? { |f| f.downcase == flag.downcase }
+    end
+
+    alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+    def get_property_for_PBS(key)
+      ret = __orig__get_property_for_PBS(key)
+      case key
+      when "SectionName"
+        ret = [@species, (@form > 0) ? @form : nil]
+      end
+      return ret
+    end
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/008_Species.rb RANGE 375-455
+
+    def minimum_level
+      return 1 if @evolutions.length == 0
+      @evolutions.each do |evo|
+        next if !evo[3]   # Check only the prevolution
+        prevo_data = GameData::Species.get_species_form(evo[0], base_form)
+        return 1 if !prevo_data.incense.nil?
+        prevo_min_level = prevo_data.minimum_level
+        evo_method_data = GameData::Evolution.get(evo[1])
+        return prevo_min_level if evo_method_data.level_up_proc.nil? && evo_method_data.id != :Shedinja
+        any_level_up = evo_method_data.any_level_up
+        return (any_level_up) ? prevo_min_level + 1 : evo[2]
+      end
+      return 1
+    end
+
+    alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+    def get_property_for_PBS(key, writing_form = false)
+      key = "SectionName" if key == "ID"
+      ret = nil
+      if self.class.schema(writing_form).include?(key)
+        ret = self.send(self.class.schema(writing_form)[key][0])
+        ret = nil if ret == false || (ret.is_a?(Array) && ret.length == 0)
+      end
+      case key
+      when "SectionName"
+        ret = [@species, @form] if writing_form
+      when "FormName"
+        ret = nil if nil_or_empty?(ret)
+      when "PokedexForm"
+        ret = nil if ret == @form
+      when "UnmegaForm", "MegaMessage", "Generation"
+        ret = nil if ret == 0
+      when "BaseStats"
+        new_ret = []
+        GameData::Stat.each_main do |s|
+          new_ret[s.pbs_order] = ret[s.id] if s.pbs_order >= 0
+        end
+        ret = new_ret
+      when "EVs"
+        new_ret = []
+        GameData::Stat.each_main do |s|
+          new_ret.push([s.id, ret[s.id]]) if ret[s.id] > 0 && s.pbs_order >= 0
+        end
+        ret = new_ret
+      when "Height", "Weight"
+        ret = ret.to_f / 10
+      when "Habitat"
+        ret = nil if ret == :None
+      when "Evolutions"
+        ret = nil   # Want to use "Evolution" instead
+      when "Evolution"
+        if ret
+          ret = ret.reject { |evo| evo[3] }   # Remove prevolutions
+          ret.each do |evo|
+            param_type = GameData::Evolution.get(evo[1]).parameter
+            if !param_type.nil?
+              if param_type.is_a?(Symbol) && !GameData.const_defined?(param_type)
+                evo[2] = getConstantName(param_type, evo[2])
+              else
+                evo[2] = evo[2].to_s
+              end
+            end
+          end
+          ret.each_with_index { |evo, i| ret[i] = evo[0, 3] }
+          ret = nil if ret.length == 0
+        end
+      end
+      if writing_form && !ret.nil?
+        base_form = GameData::Species.get(@species)
+        if !["WildItemCommon", "WildItemUncommon", "WildItemRare"].include?(key) ||
+           (base_form.wild_item_common == @wild_item_common &&
+           base_form.wild_item_uncommon == @wild_item_uncommon &&
+           base_form.wild_item_rare == @wild_item_rare)
+          ret = nil if base_form.get_property_for_PBS(key) == ret
+        end
+      end
+      return ret
+    end
+  end
+end

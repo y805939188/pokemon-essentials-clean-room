@@ -1,0 +1,140 @@
+00001: #===============================================================================
+00002: #
+00003: #===============================================================================
+00004: class PokemonGlobalMetadata
+00005:   attr_accessor :pokeradarBattery
+00006: end
+00007: 
+00008: #===============================================================================
+00009: #
+00010: #===============================================================================
+00011: class Game_Temp
+00012:   attr_accessor :poke_radar_data   # [species, level, chain count, grasses (x,y,ring,rarity)]
+00013: end
+00014: 
+00015: #===============================================================================
+00016: # Using the Poke Radar
+00017: #===============================================================================
+00018: def pbCanUsePokeRadar?
+00019:   # Can't use Radar if not in tall grass
+00020:   terrain = $game_map.terrain_tag($game_player.x, $game_player.y)
+00021:   if !terrain.land_wild_encounters || !terrain.shows_grass_rustle
+00022:     pbMessage(_INTL("Can't use that here."))
+00023:     return false
+00024:   end
+00025:   # Can't use Radar if map has no grass-based encounters (ignoring Bug Contest)
+00026:   if !$PokemonEncounters.has_normal_land_encounters?
+00027:     pbMessage(_INTL("Can't use that here."))
+00028:     return false
+00029:   end
+00030:   # Can't use Radar while cycling
+00031:   if $PokemonGlobal.bicycle
+00032:     pbMessage(_INTL("Can't use that while on a bicycle."))
+00033:     return false
+00034:   end
+00035:   # Debug
+00036:   return true if $DEBUG && Input.press?(Input::CTRL)
+00037:   # Can't use Radar if it isn't fully charged
+00038:   if $PokemonGlobal.pokeradarBattery && $PokemonGlobal.pokeradarBattery > 0
+00039:     pbMessage(_INTL("The battery has run dry!\nFor it to recharge, you need to walk another {1} steps.",
+00040:                     $PokemonGlobal.pokeradarBattery))
+00041:     return false
+00042:   end
+00043:   return true
+00044: end
+00045: 
+00046: def pbUsePokeRadar
+00047:   return false if !pbCanUsePokeRadar?
+00048:   $stats.poke_radar_count += 1
+00049:   $game_temp.poke_radar_data = [nil, 0, 0, [], false] if !$game_temp.poke_radar_data
+00050:   $game_temp.poke_radar_data[4] = false
+00051:   $PokemonGlobal.pokeradarBattery = 50
+00052:   pbPokeRadarHighlightGrass
+00053:   return true
+00054: end
+00055: 
+00056: def pbPokeRadarCancel
+00057:   $game_temp.poke_radar_data = nil
+00058: end
+00059: 
+00060: def pbPokeRadarHighlightGrass(showmessage = true)
+00061:   grasses = []   # x, y, ring (0-3 inner to outer), rarity
+00062:   # Choose 1 random tile from each ring around the player
+00063:   4.times do |i|
+00064:     r = rand((i + 1) * 8)
+00065:     # Get coordinates of randomly chosen tile
+00066:     x = $game_player.x
+00067:     y = $game_player.y
+00068:     if r <= (i + 1) * 2
+00069:       x = $game_player.x - i - 1 + r
+00070:       y = $game_player.y - i - 1
+00071:     elsif r <= ((i + 1) * 6) - 2
+00072:       x = [$game_player.x + i + 1, $game_player.x - i - 1][r % 2]
+00073:       y = $game_player.y - i + ((r - 1 - ((i + 1) * 2)) / 2).floor
+00074:     else
+00075:       x = $game_player.x - i + r - ((i + 1) * 6)
+00076:       y = $game_player.y + i + 1
+00077:     end
+00078:     # Add tile to grasses array if it's a valid grass tile
+00079:     next if x < 0 || x >= $game_map.width ||
+00080:             y < 0 || y >= $game_map.height
+00081:     terrain = $game_map.terrain_tag(x, y)
+00082:     next if !terrain.land_wild_encounters || !terrain.shows_grass_rustle
+00083:     # Choose a rarity for the grass (0=normal, 1=rare, 2=shiny)
+00084:     s = (rand(100) < 25) ? 1 : 0
+00085:     if $game_temp.poke_radar_data && $game_temp.poke_radar_data[2] > 0
+00086:       v = [(65_536 / Settings::SHINY_POKEMON_CHANCE) - ([$game_temp.poke_radar_data[2], 40].min * 200), 200].max
+00087:       v = (65_536 / v.to_f).ceil
+00088:       s = 2 if rand(65_536) < v
+00089:     end
+00090:     grasses.push([x, y, i, s])
+00091:   end
+00092:   if grasses.length == 0
+00093:     # No shaking grass found, break the chain
+00094:     pbMessage(_INTL("The grassy patch remained quiet...")) if showmessage
+00095:     pbPokeRadarCancel
+00096:   else
+00097:     # Show grass rustling animations
+00098:     grasses.each do |grass|
+00099:       case grass[3]
+00100:       when 0   # Normal rustle
+00101:         $scene.spriteset.addUserAnimation(Settings::RUSTLE_NORMAL_ANIMATION_ID, grass[0], grass[1], true, 1)
+00102:       when 1   # Vigorous rustle
+00103:         $scene.spriteset.addUserAnimation(Settings::RUSTLE_VIGOROUS_ANIMATION_ID, grass[0], grass[1], true, 1)
+00104:       when 2   # Shiny rustle
+00105:         $scene.spriteset.addUserAnimation(Settings::RUSTLE_SHINY_ANIMATION_ID, grass[0], grass[1], true, 1)
+00106:       end
+00107:     end
+00108:     $game_temp.poke_radar_data[3] = grasses if $game_temp.poke_radar_data
+00109:     pbWait(0.5)
+00110:   end
+00111: end
+00112: 
+00113: def pbPokeRadarGetShakingGrass
+00114:   return -1 if !$game_temp.poke_radar_data
+00115:   grasses = $game_temp.poke_radar_data[3]
+00116:   return -1 if grasses.length == 0
+00117:   grasses.each do |i|
+00118:     return i[2] if $game_player.x == i[0] && $game_player.y == i[1]
+00119:   end
+00120:   return -1
+00121: end
+00122: 
+00123: def pbPokeRadarOnShakingGrass
+00124:   return pbPokeRadarGetShakingGrass >= 0
+00125: end
+00126: 
+00127: def pbPokeRadarGetEncounter(rarity = 0)
+00128:   # Poké Radar-exclusive encounters can only be found in vigorously-shaking grass
+00129:   if rarity > 0
+00130:     # Get all Poké Radar-exclusive encounters for this map
+00131:     map_id = $game_map.map_id
+00132:     enc_list = nil
+00133:     encounter_data = GameData::Encounter.get(map_id, $PokemonGlobal.encounter_version)
+00134:     if encounter_data && encounter_data.types[:PokeRadar] &&
+00135:        rand(100) < encounter_data.step_chances[:PokeRadar]
+00136:       enc_list = encounter_data.types[:PokeRadar]
+00137:     end
+00138:     # If there are any exclusives, first have a chance of encountering those
+00139:     if enc_list && enc_list.length > 0
+00140:       chance_total = 0

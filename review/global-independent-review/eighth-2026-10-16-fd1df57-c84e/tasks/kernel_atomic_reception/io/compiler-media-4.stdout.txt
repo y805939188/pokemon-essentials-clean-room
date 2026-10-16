@@ -1,0 +1,210 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb RANGE 965-1040
+  end
+
+  def get_all_pbs_files_to_compile
+    # Get the GameData classes and their respective base PBS filenames
+    ret = GameData.get_all_pbs_base_filenames
+    ret.merge!({
+      :BattleFacility => "battle_facility_lists",
+      :Connection     => "map_connections",
+      :RegionalDex    => "regional_dexes"
+    })
+    ret.each { |key, val| ret[key] = [val] }   # [base_filename, ["PBS/file.txt", etc.]]
+    # Look through all PBS files and match them to a GameData class based on
+    # their base filenames
+    text_files_keys = ret.keys.sort! { |a, b| ret[b][0].length <=> ret[a][0].length }
+    Dir.chdir("PBS/") do
+      Dir.glob("*.txt") do |f|
+        base_name = File.basename(f, ".txt")
+        text_files_keys.each do |key|
+          next if base_name != ret[key][0] && !f.start_with?(ret[key][0] + "_")
+          ret[key][1] ||= []
+          ret[key][1].push("PBS/" + f)
+          break
+        end
+      end
+    end
+    return ret
+  end
+
+  def compile_pbs_files
+    text_files = get_all_pbs_files_to_compile
+    modify_pbs_file_contents_before_compiling
+    compile_town_map(*text_files[:TownMap][1])
+    compile_connections(*text_files[:Connection][1])
+    compile_types(*text_files[:Type][1])
+    compile_abilities(*text_files[:Ability][1])
+    compile_moves(*text_files[:Move][1])                       # Depends on Type
+    compile_items(*text_files[:Item][1])                       # Depends on Move
+    compile_berry_plants(*text_files[:BerryPlant][1])          # Depends on Item
+    compile_pokemon(*text_files[:Species][1])                  # Depends on Move, Item, Type, Ability
+    compile_pokemon_forms(*text_files[:Species1][1])           # Depends on Species, Move, Item, Type, Ability
+    compile_pokemon_metrics(*text_files[:SpeciesMetrics][1])   # Depends on Species
+    compile_shadow_pokemon(*text_files[:ShadowPokemon][1])     # Depends on Species
+    compile_regional_dexes(*text_files[:RegionalDex][1])       # Depends on Species
+    compile_ribbons(*text_files[:Ribbon][1])
+    compile_encounters(*text_files[:Encounter][1])             # Depends on Species
+    compile_trainer_types(*text_files[:TrainerType][1])
+    compile_trainers(*text_files[:Trainer][1])                 # Depends on Species, Item, Move
+    compile_trainer_lists                                      # Depends on TrainerType
+    compile_metadata(*text_files[:Metadata][1])                # Depends on TrainerType
+    compile_map_metadata(*text_files[:MapMetadata][1])
+    compile_dungeon_tilesets(*text_files[:DungeonTileset][1])
+    compile_dungeon_parameters(*text_files[:DungeonParameters][1])
+    compile_phone(*text_files[:PhoneMessage][1])               # Depends on TrainerType
+  end
+
+  def compile_all(mustCompile)
+    Console.echo_h1(_INTL("Checking game data"))
+    if !mustCompile
+      Console.echoln_li(_INTL("Game data was not compiled"))
+      echoln ""
+      return
+    end
+    FileLineData.clear
+    compile_pbs_files
+    compile_animations
+    compile_trainer_events(mustCompile)
+    Console.echo_li(_INTL("Saving messages..."))
+    Translator.gather_script_and_event_texts
+    MessageTypes.save_default_messages
+    MessageTypes.load_default_messages if FileTest.exist?("Data/messages_core.dat")
+    Console.echo_done(true)
+    Console.echoln_li_done(_INTL("Successfully compiled all game data"))
+  end
+
+  def main
+    return if !$DEBUG
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 1060-1190
+    MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, endspeechwin)
+    MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, endspeechlose)
+    return sections
+  end
+
+  #=============================================================================
+  # Compile metadata
+  # NOTE: Doesn't use compile_PBS_file_generic because it contains data for two
+  #       different GameData classes.
+  #=============================================================================
+  def compile_metadata(*paths)
+    GameData::Metadata::DATA.clear
+    GameData::PlayerMetadata::DATA.clear
+    global_schema = GameData::Metadata.schema
+    player_schema = GameData::PlayerMetadata.schema
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      file_suffix = File.basename(path, ".txt")[GameData::Metadata::PBS_BASE_FILENAME.length + 1, path.length] || ""
+      # Read from PBS file
+      File.open(path, "rb") do |f|
+        FileLineData.file = path   # For error reporting
+        # Read a whole section's lines at once, then run through this code.
+        # contents is a hash containing all the XXX=YYY lines in that section, where
+        # the keys are the XXX and the values are the YYY (as unprocessed strings).
+        idx = 0
+        pbEachFileSection(f) do |contents, section_name|
+          echo "." if idx % 100 == 0
+          Graphics.update if idx % 500 == 0
+          idx += 1
+          schema = (section_name.to_i == 0) ? global_schema : player_schema
+          data_hash = {
+            :id              => section_name.to_sym,
+            :pbs_file_suffix => file_suffix
+          }
+          # Go through schema hash of compilable data and compile this section
+          schema.each_key do |key|
+            FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+            if key == "SectionName"
+              data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+              next
+            end
+            # Skip empty properties
+            next if contents[key].nil?
+            # Compile value for key
+            if schema[key][1][0] == "^"
+              contents[key].each do |val|
+                value = get_csv_record(val, schema[key])
+                value = nil if value.is_a?(Array) && value.empty?
+                data_hash[schema[key][0]] ||= []
+                data_hash[schema[key][0]].push(value)
+              end
+              data_hash[schema[key][0]].compact!
+            else
+              value = get_csv_record(contents[key], schema[key])
+              value = nil if value.is_a?(Array) && value.empty?
+              data_hash[schema[key][0]] = value
+            end
+          end
+          # Validate and modify the compiled data
+          if data_hash[:id] == 0
+            validate_compiled_global_metadata(data_hash)
+            if GameData::Metadata.exists?(data_hash[:id])
+              raise _INTL("Global metadata ID '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+            end
+          else
+            validate_compiled_player_metadata(data_hash)
+            if GameData::PlayerMetadata.exists?(data_hash[:id])
+              raise _INTL("Player metadata ID '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+            end
+          end
+          # Add section's data to records
+          if data_hash[:id] == 0
+            GameData::Metadata.register(data_hash)
+          else
+            GameData::PlayerMetadata.register(data_hash)
+          end
+        end
+      end
+      process_pbs_file_message_end
+    end
+    validate_all_compiled_metadata
+    # Save all data
+    GameData::Metadata.save
+    GameData::PlayerMetadata.save
+  end
+
+  def validate_compiled_global_metadata(hash)
+    if hash[:home].nil?
+      raise _INTL("The entry 'Home' is required in metadata.txt section 0.") + "\n" + FileLineData.linereport
+    end
+  end
+
+  def validate_compiled_player_metadata(hash)
+  end
+
+  # Should be used to check both global metadata and player character metadata.
+  def validate_all_compiled_metadata
+    # Ensure global metadata is defined
+    if !GameData::Metadata.exists?(0)
+      raise _INTL("Global metadata is not defined in metadata.txt but should be.") + "\n" + FileLineData.linereport
+    end
+    # Ensure player character 1's metadata is defined
+    if !GameData::PlayerMetadata.exists?(1)
+      raise _INTL("Metadata for player character 1 is not defined in metadata.txt but should be.") + "\n" + FileLineData.linereport
+    end
+    # Get storage creator's name for translating
+    storage_creator = [GameData::Metadata.get.real_storage_creator]
+    MessageTypes.setMessagesAsHash(MessageTypes::STORAGE_CREATOR_NAME, storage_creator)
+  end
+
+  #=============================================================================
+  # Compile map metadata
+  #=============================================================================
+  def compile_map_metadata(*paths)
+    compile_PBS_file_generic(GameData::MapMetadata, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_map_metadata : validate_compiled_map_metadata(hash)
+    end
+  end
+
+  def validate_compiled_map_metadata(hash)
+    # Give the map its RMXP map name if it doesn't define its own
+    if nil_or_empty?(hash[:real_name])
+      hash[:real_name] = pbLoadMapInfos[hash[:id]].name
+    end
+  end
+
+  def validate_all_compiled_map_metadata
+    # Get map names for translating
+    map_names = []
+    GameData::MapMetadata.each { |map| map_names[map.id] = map.real_name }
+    MessageTypes.setMessagesAsHash(MessageTypes::MAP_NAMES, map_names)

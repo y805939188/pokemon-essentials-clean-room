@@ -1,0 +1,138 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/011_AIMove.rb RANGE 379-498
+  def accuracy
+    return @move.pbBaseAccuracy(@ai.user.battler, @ai.target.battler) if @ai.trainer.medium_skill?
+    return @move.accuracy
+  end
+
+  # Full accuracy calculation.
+  def rough_accuracy
+    # Determine user and target
+    user = @ai.user
+    user_battler = user.battler
+    target = @ai.target
+    target_battler = target.battler
+    # OHKO move accuracy
+    if @move.is_a?(Battle::Move::OHKO)
+      ret = self.accuracy + user.level - target.level
+      ret -= 10 if function_code == "OHKOIce" && !user.has_type?(:ICE)
+      return [ret, 0].max
+    end
+    # "Always hit" effects and "always hit" accuracy
+    if @ai.trainer.medium_skill?
+      return 100 if target.effects[PBEffects::Telekinesis] > 0
+      return 100 if target.effects[PBEffects::Minimize] && @move.tramplesMinimize? &&
+                    Settings::MECHANICS_GENERATION >= 6
+    end
+    # Get base accuracy
+    baseAcc = self.accuracy
+    return 100 if baseAcc == 0
+    # Get the move's type
+    type = rough_type
+    # Calculate all modifier effects
+    modifiers = {}
+    modifiers[:base_accuracy]  = baseAcc
+    modifiers[:accuracy_stage] = user.stages[:ACCURACY]
+    modifiers[:evasion_stage]  = target.stages[:EVASION]
+    modifiers[:accuracy_multiplier] = 1.0
+    modifiers[:evasion_multiplier]  = 1.0
+    apply_rough_accuracy_modifiers(user, target, type, modifiers)
+    # Check if move certainly misses/can't miss
+    return 0 if modifiers[:base_accuracy] < 0
+    return 100 if modifiers[:base_accuracy] == 0
+    # Calculation
+    max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+    accStage = [[modifiers[:accuracy_stage], -max_stage].max, max_stage].min + max_stage
+    evaStage = [[modifiers[:evasion_stage], -max_stage].max, max_stage].min + max_stage
+    stageMul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+    stageDiv = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+    accuracy = 100.0 * stageMul[accStage] / stageDiv[accStage]
+    evasion  = 100.0 * stageMul[evaStage] / stageDiv[evaStage]
+    accuracy = (accuracy * modifiers[:accuracy_multiplier]).round
+    evasion  = (evasion  * modifiers[:evasion_multiplier]).round
+    evasion = 1 if evasion < 1
+    return modifiers[:base_accuracy] * accuracy / evasion
+  end
+
+  def apply_rough_accuracy_modifiers(user, target, calc_type, modifiers)
+    user_battler = user.battler
+    target_battler = target.battler
+    # Ability effects that alter accuracy calculation
+    if user.ability_active?
+      Battle::AbilityEffects.triggerAccuracyCalcFromUser(
+        user.ability, modifiers, user_battler, target_battler, @move, calc_type
+      )
+    end
+    user_battler.allAllies.each do |b|
+      next if !b.abilityActive?
+      Battle::AbilityEffects.triggerAccuracyCalcFromAlly(
+        b.ability, modifiers, user_battler, target_battler, @move, calc_type
+      )
+    end
+    if !@ai.battle.moldBreaker && target.ability_active?
+      Battle::AbilityEffects.triggerAccuracyCalcFromTarget(
+        target.ability, modifiers, user_battler, target_battler, @move, calc_type
+      )
+    end
+    # Item effects that alter accuracy calculation
+    if user.item_active?
+      if user.item == :ZOOMLENS
+        if rough_priority(user) <= 0
+          modifiers[:accuracy_multiplier] *= 1.2 if target.faster_than?(user)
+        end
+      else
+        Battle::ItemEffects.triggerAccuracyCalcFromUser(
+          user.item, modifiers, user_battler, target_battler, @move, calc_type
+        )
+      end
+    end
+    if target.item_active?
+      Battle::ItemEffects.triggerAccuracyCalcFromTarget(
+        target.item, modifiers, user_battler, target_battler, @move, calc_type
+      )
+    end
+    # Other effects, inc. ones that set accuracy_multiplier or evasion_stage to specific values
+    if @ai.battle.field.effects[PBEffects::Gravity] > 0
+      modifiers[:accuracy_multiplier] *= 5 / 3.0
+    end
+    if @ai.trainer.medium_skill?
+      if user.effects[PBEffects::MicleBerry]
+        modifiers[:accuracy_multiplier] *= 1.2
+      end
+      modifiers[:evasion_stage] = 0 if target.effects[PBEffects::Foresight] && modifiers[:evasion_stage] > 0
+      modifiers[:evasion_stage] = 0 if target.effects[PBEffects::MiracleEye] && modifiers[:evasion_stage] > 0
+    end
+    # "AI-specific calculations below"
+    modifiers[:evasion_stage] = 0 if function_code == "IgnoreTargetDefSpDefEvaStatStages"   # Chip Away
+    if @ai.trainer.medium_skill?
+      modifiers[:base_accuracy] = 0 if user.effects[PBEffects::LockOn] > 0 &&
+                                       user.effects[PBEffects::LockOnPos] == target.index
+    end
+    if @ai.trainer.medium_skill?
+      case function_code
+      when "BadPoisonTarget"
+        modifiers[:base_accuracy] = 0 if Settings::MORE_TYPE_EFFECTS &&
+                                         @move.statusMove? && user.has_type?(:POISON)
+      end
+    end
+  end
+
+  #-----------------------------------------------------------------------------
+
+  # Full critical hit chance calculation (returns the determined critical hit
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/005_AI/011_AIMove.rb RANGE 549-563
+  def get_score_change_for_additional_effect(user, target = nil)
+    # Doesn't have an additional effect
+    return 0 if @move.addlEffect == 0
+    # Additional effect will be negated
+    return -999 if user.has_active_ability?(:SHEERFORCE)
+    return -999 if target && user.index != target.index &&
+                   target.has_active_ability?(:SHIELDDUST) && !@ai.battle.moldBreaker
+    # Prefer if the additional effect will have an increased chance of working
+    return 5 if @move.addlEffect < 100 &&
+                (Settings::MECHANICS_GENERATION >= 6 || function_code != "EffectDependsOnEnvironment") &&
+                (user.has_active_ability?(:SERENEGRACE) || user.pbOwnSide.effects[PBEffects::Rainbow] > 0)
+    # No change to score
+    return 0
+  end
+end

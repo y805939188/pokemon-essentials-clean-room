@@ -1,0 +1,131 @@
+00451:   def self.start(*args)
+00452:     # If there is another NPC trainer who spotted the player at the same time,
+00453:     # and it is possible to have a double battle (the player has 2+ able Pokémon
+00454:     # or has a partner trainer), then record this first NPC trainer into
+00455:     # $game_temp.waiting_trainer and end this method. That second NPC event will
+00456:     # then trigger and cause the battle to happen against this first trainer and
+00457:     # themselves.
+00458:     if !$game_temp.waiting_trainer && pbMapInterpreterRunning? && pbCanDoubleBattle?
+00459:       thisEvent = pbMapInterpreter.get_self
+00460:       # Find all other triggered trainer events
+00461:       triggeredEvents = $game_player.pbTriggeredTrainerEvents([2], false, true)
+00462:       otherEvent = []
+00463:       triggeredEvents.each do |i|
+00464:         next if i.id == thisEvent.id
+00465:         next if $game_self_switches[[$game_map.map_id, i.id, "A"]]
+00466:         otherEvent.push(i)
+00467:       end
+00468:       # If there is exactly 1 other triggered trainer event, this trainer can be
+00469:       # stored up to battle with that one
+00470:       if otherEvent.length == 1
+00471:         trainers, _items, _end_speeches, _party, _party_starts = TrainerBattle.generate_foes(*args)
+00472:         # If this is just 1 trainer with 6 or fewer Pokémon, it can be stored up
+00473:         # to battle alongside the other trainer
+00474:         if trainers.length == 1 && trainers[0].party.length <= Settings::MAX_PARTY_SIZE
+00475:           $game_temp.waiting_trainer = [trainers[0], thisEvent.id]
+00476:           return false
+00477:         end
+00478:       end
+00479:     end
+00480:     # Perform the battle
+00481:     if $game_temp.waiting_trainer
+00482:       new_args = args + [$game_temp.waiting_trainer[0]]
+00483:       outcome = TrainerBattle.start_core(*new_args)
+00484:       pbMapInterpreter.pbSetSelfSwitch($game_temp.waiting_trainer[1], "A", true) if outcome == 1
+00485:       $game_temp.waiting_trainer = nil
+00486:     else
+00487:       outcome = TrainerBattle.start_core(*args)
+00488:     end
+00489:     # Return true if the player won the battle, and false if any other result
+00490:     return outcome == 1
+00491:   end
+00492: 
+00493:   def self.start_core(*args)
+00494:     outcome_variable = $game_temp.battle_rules["outcomeVar"] || 1
+00495:     can_lose         = $game_temp.battle_rules["canLose"] || false
+00496:     # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode
+00497:     if BattleCreationHelperMethods.skip_battle?
+00498:       return BattleCreationHelperMethods.skip_battle(outcome_variable, true)
+00499:     end
+00500:     # Record information about party Pokémon to be used at the end of battle (e.g.
+00501:     # comparing levels for an evolution check)
+00502:     EventHandlers.trigger(:on_start_battle)
+00503:     # Generate information for the foes
+00504:     foe_trainers, foe_items, foe_party, foe_party_starts = TrainerBattle.generate_foes(*args)
+00505:     # Generate information for the player and partner trainer(s)
+00506:     player_trainers, ally_items, player_party, player_party_starts = BattleCreationHelperMethods.set_up_player_trainers(foe_party)
+00507:     # Create the battle scene (the visual side of it)
+00508:     scene = BattleCreationHelperMethods.create_battle_scene
+00509:     # Create the battle class (the mechanics side of it)
+00510:     battle = Battle.new(scene, player_party, foe_party, player_trainers, foe_trainers)
+00511:     battle.party1starts = player_party_starts
+00512:     battle.party2starts = foe_party_starts
+00513:     battle.ally_items   = ally_items
+00514:     battle.items        = foe_items
+00515:     # Set various other properties in the battle class
+00516:     setBattleRule("#{foe_trainers.length}v#{foe_trainers.length}") if $game_temp.battle_rules["size"].nil?
+00517:     BattleCreationHelperMethods.prepare_battle(battle)
+00518:     $game_temp.clear_battle_rules
+00519:     # Perform the battle itself
+00520:     outcome = 0
+00521:     pbBattleAnimation(pbGetTrainerBattleBGM(foe_trainers), (battle.singleBattle?) ? 1 : 3, foe_trainers) do
+00522:       pbSceneStandby { outcome = battle.pbStartBattle }
+00523:       BattleCreationHelperMethods.after_battle(outcome, can_lose)
+00524:     end
+00525:     Input.update
+00526:     # Save the result of the battle in a Game Variable (1 by default)
+00527:     BattleCreationHelperMethods.set_outcome(outcome, outcome_variable, true)
+00528:     return outcome
+00529:   end
+00530: 
+00531:   def self.generate_foes(*args)
+00532:     trainer_array = []
+00533:     foe_items     = []
+00534:     pokemon_array = []
+00535:     party_starts  = []
+00536:     trainer_type = nil
+00537:     trainer_name = nil
+00538:     args.each_with_index do |arg, i|
+00539:       case arg
+00540:       when NPCTrainer
+00541:         raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+00542:         trainer_array.push(arg)
+00543:         foe_items.push(arg.items)
+00544:         party_starts.push(pokemon_array.length)
+00545:         arg.party.each { |pkmn| pokemon_array.push(pkmn) }
+00546:       when Array   # [trainer type, trainer name, version number, speech (optional)]
+00547:         raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+00548:         trainer = pbLoadTrainer(arg[0], arg[1], arg[2])
+00549:         pbMissingTrainer(arg[0], arg[1], arg[2]) if !trainer
+00550:         trainer = pbLoadTrainer(arg[0], arg[1], arg[2]) if !trainer   # Try again
+00551:         raise _INTL("Trainer for data '{1}' is not defined.", arg) if !trainer
+00552:         EventHandlers.trigger(:on_trainer_load, trainer)
+00553:         trainer.lose_text = arg[3] if arg[3] && !arg[3].empty?
+00554:         trainer_array.push(trainer)
+00555:         foe_items.push(trainer.items)
+00556:         party_starts.push(pokemon_array.length)
+00557:         trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+00558:       else
+00559:         if trainer_name   # Expecting version number
+00560:           if !arg.is_a?(Integer) || arg < 0
+00561:             raise _INTL("Expected a trainer version number (0 or higher) but {1} is not a number or not a valid value.", arg)
+00562:           end
+00563:           trainer = pbLoadTrainer(trainer_type, trainer_name, arg)
+00564:           pbMissingTrainer(trainer_type, trainer_name, arg) if !trainer
+00565:           trainer = pbLoadTrainer(trainer_type, trainer_name, arg) if !trainer   # Try again
+00566:           raise _INTL("Trainer for data '{1}, {2}, {3}' is not defined.", trainer_type, trainer_name, arg) if !trainer
+00567:           EventHandlers.trigger(:on_trainer_load, trainer)
+00568:           trainer_array.push(trainer)
+00569:           foe_items.push(trainer.items)
+00570:           party_starts.push(pokemon_array.length)
+00571:           trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+00572:           trainer_type = nil
+00573:           trainer_name = nil
+00574:         elsif trainer_type   # Expecting trainer name
+00575:           if !arg.is_a?(String) || arg.strip.empty?
+00576:             raise _INTL("Expected a trainer name but '{1}' is not a valid name.", arg)
+00577:           end
+00578:           if args[i + 1].is_a?(Integer)   # Version number is next
+00579:             trainer_name = arg.strip
+00580:           else
+00581:             trainer = pbLoadTrainer(trainer_type, arg)

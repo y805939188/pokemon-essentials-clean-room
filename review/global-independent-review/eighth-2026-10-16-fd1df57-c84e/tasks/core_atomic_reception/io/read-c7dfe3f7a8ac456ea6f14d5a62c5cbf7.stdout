@@ -1,0 +1,273 @@
+00153: class Battle::Move::SwitchOutTargetStatusMove < Battle::Move
+00154:   def ignoresSubstitute?(user); return true; end
+00155:   def canMagicCoat?;            return true; end
+00156: 
+00157:   def pbFailsAgainstTarget?(user, target, show_message)
+00158:     if target.hasActiveAbility?(:SUCTIONCUPS) && !@battle.moldBreaker
+00159:       if show_message
+00160:         @battle.pbShowAbilitySplash(target)
+00161:         if Battle::Scene::USE_ABILITY_SPLASH
+00162:           @battle.pbDisplay(_INTL("{1} anchors itself!", target.pbThis))
+00163:         else
+00164:           @battle.pbDisplay(_INTL("{1} anchors itself with {2}!", target.pbThis, target.abilityName))
+00165:         end
+00166:         @battle.pbHideAbilitySplash(target)
+00167:       end
+00168:       return true
+00169:     end
+00170:     if target.effects[PBEffects::Ingrain]
+00171:       @battle.pbDisplay(_INTL("{1} anchored itself with its roots!", target.pbThis)) if show_message
+00172:       return true
+00173:     end
+00174:     if target.wild? && target.allAllies.length == 0 && @battle.canRun
+00175:       # End the battle
+00176:       if target.level > user.level
+00177:         @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00178:         return true
+00179:       end
+00180:     elsif !target.wild?
+00181:       # Switch target out
+00182:       canSwitch = false
+00183:       @battle.eachInTeamFromBattlerIndex(target.index) do |_pkmn, i|
+00184:         canSwitch = @battle.pbCanSwitchIn?(target.index, i)
+00185:         break if canSwitch
+00186:       end
+00187:       if !canSwitch
+00188:         @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00189:         return true
+00190:       end
+00191:     else
+00192:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00193:       return true
+00194:     end
+00195:     return false
+00196:   end
+00197: 
+00198:   def pbEffectAgainstTarget(user, target)
+00199:     @battle.decision = 3 if target.wild?   # Escaped from battle
+00200:   end
+00201: 
+00202:   def pbSwitchOutTargetEffect(user, targets, numHits, switched_battlers)
+00203:     return if !switched_battlers.empty?
+00204:     return if user.fainted? || numHits == 0
+00205:     targets.each do |b|
+00206:       next if b.fainted? || b.damageState.unaffected
+00207:       next if b.wild?
+00208:       next if b.effects[PBEffects::Ingrain]
+00209:       next if b.hasActiveAbility?(:SUCTIONCUPS) && !@battle.moldBreaker
+00210:       newPkmn = @battle.pbGetReplacementPokemonIndex(b.index, true)   # Random
+00211:       next if newPkmn < 0
+00212:       @battle.pbRecallAndReplace(b.index, newPkmn, true)
+00213:       @battle.pbDisplay(_INTL("{1} was dragged out!", b.pbThis))
+00214:       @battle.pbClearChoice(b.index)   # Replacement Pokémon does nothing this round
+00215:       @battle.pbOnBattlerEnteringBattle(b.index)
+00216:       switched_battlers.push(b.index)
+00217:       break
+00218:     end
+00219:   end
+00220: end
+00221: 
+00222: #===============================================================================
+00223: # When used against a sole wild Pokémon, makes target flee and ends the battle;
+00224: # fails if target is a higher level than the user.
+00225: # When used against a trainer's Pokémon, target switches out.
+00226: # For damaging moves. (Circle Throw, Dragon Tail)
+00227: #===============================================================================
+00228: class Battle::Move::SwitchOutTargetDamagingMove < Battle::Move
+00229:   def pbEffectAgainstTarget(user, target)
+00230:     if target.wild? && target.allAllies.length == 0 && @battle.canRun &&
+00231:        target.level <= user.level &&
+00232:        (target.effects[PBEffects::Substitute] == 0 || ignoresSubstitute?(user))
+00233:       @battle.decision = 3   # Escaped from battle
+00234:     end
+00235:   end
+00236: 
+00237:   def pbSwitchOutTargetEffect(user, targets, numHits, switched_battlers)
+00238:     return if !switched_battlers.empty?
+00239:     return if user.fainted? || numHits == 0
+00240:     targets.each do |b|
+00241:       next if b.fainted? || b.damageState.unaffected || b.damageState.substitute
+00242:       next if b.wild?
+00243:       next if b.effects[PBEffects::Ingrain]
+00244:       next if b.hasActiveAbility?(:SUCTIONCUPS) && !@battle.moldBreaker
+00245:       newPkmn = @battle.pbGetReplacementPokemonIndex(b.index, true)   # Random
+00246:       next if newPkmn < 0
+00247:       @battle.pbRecallAndReplace(b.index, newPkmn, true)
+00248:       @battle.pbDisplay(_INTL("{1} was dragged out!", b.pbThis))
+00249:       @battle.pbClearChoice(b.index)   # Replacement Pokémon does nothing this round
+00250:       @battle.pbOnBattlerEnteringBattle(b.index)
+00251:       switched_battlers.push(b.index)
+00252:       break
+00253:     end
+00254:   end
+00255: end
+00256: 
+00257: #===============================================================================
+00258: # Trapping move. Traps for 5 or 6 rounds. Trapped Pokémon lose 1/16 of max HP
+00259: # at end of each round.
+00260: #===============================================================================
+00261: class Battle::Move::BindTarget < Battle::Move
+00262:   def pbEffectAgainstTarget(user, target)
+00263:     return if target.fainted? || target.damageState.substitute
+00264:     return if target.effects[PBEffects::Trapping] > 0
+00265:     # Set trapping effect duration and info
+00266:     if user.hasActiveItem?(:GRIPCLAW)
+00267:       target.effects[PBEffects::Trapping] = (Settings::MECHANICS_GENERATION >= 5) ? 8 : 6
+00268:     else
+00269:       target.effects[PBEffects::Trapping] = 5 + @battle.pbRandom(2)
+00270:     end
+00271:     target.effects[PBEffects::TrappingMove] = @id
+00272:     target.effects[PBEffects::TrappingUser] = user.index
+00273:     # Message
+00274:     msg = _INTL("{1} was trapped in the vortex!", target.pbThis)
+00275:     case @id
+00276:     when :BIND
+00277:       msg = _INTL("{1} was squeezed by {2}!", target.pbThis, user.pbThis(true))
+00278:     when :CLAMP
+00279:       msg = _INTL("{1} clamped {2}!", user.pbThis, target.pbThis(true))
+00280:     when :FIRESPIN
+00281:       msg = _INTL("{1} was trapped in the fiery vortex!", target.pbThis)
+00282:     when :INFESTATION
+00283:       msg = _INTL("{1} has been afflicted with an infestation by {2}!", target.pbThis, user.pbThis(true))
+00284:     when :MAGMASTORM
+00285:       msg = _INTL("{1} became trapped by Magma Storm!", target.pbThis)
+00286:     when :SANDTOMB
+00287:       msg = _INTL("{1} became trapped by Sand Tomb!", target.pbThis)
+00288:     when :WHIRLPOOL
+00289:       msg = _INTL("{1} became trapped in the vortex!", target.pbThis)
+00290:     when :WRAP
+00291:       msg = _INTL("{1} was wrapped by {2}!", target.pbThis, user.pbThis(true))
+00292:     end
+00293:     @battle.pbDisplay(msg)
+00294:   end
+00295: end
+00296: 
+00297: #===============================================================================
+00298: # Trapping move. Traps for 5 or 6 rounds. Trapped Pokémon lose 1/16 of max HP
+00299: # at end of each round. (Whirlpool)
+00300: # Power is doubled if target is using Dive. Hits some semi-invulnerable targets.
+00301: #===============================================================================
+00302: class Battle::Move::BindTargetDoublePowerIfTargetUnderwater < Battle::Move::BindTarget
+00303:   def hitsDivingTargets?; return true; end
+00304: 
+00305:   def pbModifyDamage(damageMult, user, target)
+00306:     damageMult *= 2 if target.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderwater")
+00307:     return damageMult
+00308:   end
+00309: end
+00310: 
+00311: #===============================================================================
+00312: # Target can no longer switch out or flee, as long as the user remains active.
+00313: # Trapping is considered an additional effect for damaging moves.
+00314: # (Anchor Shot, Block, Mean Look, Spider Web, Spirit Shackle)
+00315: #===============================================================================
+00316: class Battle::Move::TrapTargetInBattle < Battle::Move
+00317:   def canMagicCoat?; return true; end
+00318: 
+00319:   def pbFailsAgainstTarget?(user, target, show_message)
+00320:     return false if damagingMove?
+00321:     if target.effects[PBEffects::MeanLook] >= 0
+00322:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00323:       return true
+00324:     end
+00325:     if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+00326:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", target.pbThis(true))) if show_message
+00327:       return true
+00328:     end
+00329:     return false
+00330:   end
+00331: 
+00332:   def pbEffectAgainstTarget(user, target)
+00333:     return if damagingMove?
+00334:     target.effects[PBEffects::MeanLook] = user.index
+00335:     @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+00336:   end
+00337: 
+00338:   def pbAdditionalEffect(user, target)
+00339:     return if target.fainted? || target.damageState.substitute
+00340:     return if target.effects[PBEffects::MeanLook] >= 0
+00341:     return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+00342:     target.effects[PBEffects::MeanLook] = user.index
+00343:     @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+00344:   end
+00345: end
+00346: 
+00347: #===============================================================================
+00348: # Target can no longer switch out or flee, as long as the user remains active.
+00349: # Trapping is not considered an additional effect. (Thousand Waves)
+00350: #===============================================================================
+00351: class Battle::Move::TrapTargetInBattleMainEffect < Battle::Move
+00352:   def canMagicCoat?; return true; end
+00353: 
+00354:   def pbEffectAgainstTarget(user, target)
+00355:     return if target.fainted? || target.damageState.substitute
+00356:     return if target.effects[PBEffects::MeanLook] >= 0
+00357:     return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+00358:     target.effects[PBEffects::MeanLook] = user.index
+00359:     @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+00360:   end
+00361: end
+00362: 
+00363: #===============================================================================
+00364: # The target can no longer switch out or flee, while the user remains in battle.
+00365: # At the end of each round, the target's Defense and Special Defense are lowered
+00366: # by 1 stage each. (Octolock)
+00367: #===============================================================================
+00368: class Battle::Move::TrapTargetInBattleLowerTargetDefSpDef1EachTurn < Battle::Move
+00369:   def pbFailsAgainstTarget?(user, target, show_message)
+00370:     return false if damagingMove?
+00371:     if target.effects[PBEffects::Octolock] >= 0
+00372:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00373:       return true
+00374:     end
+00375:     if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+00376:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", target.pbThis(true))) if show_message
+00377:       return true
+00378:     end
+00379:     return false
+00380:   end
+00381: 
+00382:   def pbEffectAgainstTarget(user, target)
+00383:     target.effects[PBEffects::Octolock] = user.index
+00384:     @battle.pbDisplay(_INTL("{1} can no longer escape because of {2}!", target.pbThis, @name))
+00385:   end
+00386: end
+00387: 
+00388: #===============================================================================
+00389: # Prevents the user and the target from switching out or fleeing. This effect
+00390: # isn't applied if either Pokémon is already prevented from switching out or
+00391: # fleeing. (Jaw Lock)
+00392: #===============================================================================
+00393: class Battle::Move::TrapUserAndTargetInBattle < Battle::Move
+00394:   def pbEffectAgainstTarget(user, target)
+00395:     return if user.fainted? || target.fainted? || target.damageState.substitute
+00396:     return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+00397:     return if user.trappedInBattle? || target.trappedInBattle?
+00398:     target.effects[PBEffects::JawLock] = user.index
+00399:     @battle.pbDisplay(_INTL("Neither Pokémon can run away!"))
+00400:   end
+00401: end
+00402: 
+00403: #===============================================================================
+00404: # No Pokémon can switch out or flee until the end of the next round. (Fairy Lock)
+00405: #===============================================================================
+00406: class Battle::Move::TrapAllBattlersInBattleForOneTurn < Battle::Move
+00407:   def pbMoveFailed?(user, targets)
+00408:     if @battle.field.effects[PBEffects::FairyLock] > 0
+00409:       @battle.pbDisplay(_INTL("But it failed!"))
+00410:       return true
+00411:     end
+00412:     return false
+00413:   end
+00414: 
+00415:   def pbEffectGeneral(user)
+00416:     @battle.field.effects[PBEffects::FairyLock] = 2
+00417:     @battle.pbDisplay(_INTL("No one will be able to run away during the next turn!"))
+00418:   end
+00419: end
+00420: 
+00421: #===============================================================================
+00422: # Interrupts a foe switching out or using U-turn/Volt Switch/Parting Shot. Power
+00423: # is doubled in that case. (Pursuit)
+00424: # (Handled in Battle's pbAttackPhase): Makes this attack happen before switching.
+00425: #===============================================================================

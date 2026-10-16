@@ -1,0 +1,90 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/001_Editor screens/001_EditorScreens.rb RANGE 256-344
+def pbEncounterTypeEditor(enc_data, enc_type)
+  commands = []
+  list = pbListWindow([])
+  help_window = Window_UnformattedTextPokemon.newWithSize(
+    _INTL("Edit encounter slots"), Graphics.width / 2, 0, Graphics.width / 2, 96
+  )
+  help_window.z = 99999
+  enc_type_name = ""
+  ret = 0
+  need_refresh = true
+  loop do
+    if need_refresh
+      enc_type_name = GameData::EncounterType.get(enc_type).real_name
+      commands.clear
+      commands.push(_INTL("Step chance={1}%", enc_data.step_chances[enc_type] || 0))
+      commands.push(_INTL("Encounter type={1}", enc_type_name))
+      if enc_data.types[enc_type] && enc_data.types[enc_type].length > 0
+        enc_data.types[enc_type].each do |slot|
+          commands.push(EncounterSlotProperty.format(slot))
+        end
+      end
+      commands.push(_INTL("[Add new slot]"))
+      need_refresh = false
+    end
+    ret = pbCommands2(list, commands, -1, ret)
+    if ret == 0   # Edit step chance
+      old_step_chance = enc_data.step_chances[enc_type] || 0
+      new_step_chance = LimitProperty.new(255).set(_INTL("Step chance"), old_step_chance)
+      if new_step_chance != old_step_chance
+        enc_data.step_chances[enc_type] = new_step_chance
+        need_refresh = true
+      end
+    elsif ret == 1   # Edit encounter type
+      new_type_commands = []
+      new_types = []
+      chosen_type_cmd = 0
+      GameData::EncounterType.each_alphabetically do |enc|
+        next if enc_data.types[enc.id] && enc.id != enc_type
+        new_type_commands.push(enc.real_name)
+        new_types.push(enc.id)
+        chosen_type_cmd = new_type_commands.length - 1 if enc.id == enc_type
+      end
+      chosen_type_cmd = pbShowCommands(nil, new_type_commands, -1, chosen_type_cmd)
+      if chosen_type_cmd >= 0 && new_types[chosen_type_cmd] != enc_type
+        new_type = new_types[chosen_type_cmd]
+        enc_data.step_chances[new_type] = enc_data.step_chances[enc_type]
+        enc_data.step_chances.delete(enc_type)
+        enc_data.types[new_type] = enc_data.types[enc_type]
+        enc_data.types.delete(enc_type)
+        enc_type = new_type
+        need_refresh = true
+      end
+    elsif ret == commands.length - 1   # Add new encounter slot
+      new_slot_data = EncounterSlotProperty.set(enc_type_name, nil)
+      if new_slot_data
+        enc_data.types[enc_type].push(new_slot_data)
+        need_refresh = true
+      end
+    elsif ret > 0   # Edit a slot
+      case pbShowCommands(nil, [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+      when 0   # Edit
+        old_slot_data = enc_data.types[enc_type][ret - 2]
+        new_slot_data = EncounterSlotProperty.set(enc_type_name, old_slot_data.clone)
+        if new_slot_data && new_slot_data != old_slot_data
+          enc_data.types[enc_type][ret - 2] = new_slot_data
+          need_refresh = true
+        end
+      when 1   # Copy
+        enc_data.types[enc_type].insert(ret - 1, enc_data.types[enc_type][ret - 2].clone)
+        ret += 1
+        need_refresh = true
+      when 2   # Delete
+        if pbConfirmMessage(_INTL("Delete this encounter slot?"))
+          enc_data.types[enc_type].delete_at(ret - 2)
+          need_refresh = true
+        end
+      end
+    else
+      break
+    end
+  end
+  list.dispose
+  help_window.dispose
+  Input.update
+end
+
+#===============================================================================
+# Trainer type editor
+#===============================================================================

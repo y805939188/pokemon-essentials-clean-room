@@ -1,0 +1,85 @@
+00194:   end
+00195: 
+00196:   def pbTriggerAbilityOnGainingIt
+00197:     # Ending primordial weather, checking Trace
+00198:     pbContinualAbilityChecks(true)   # Don't trigger Traced ability as it's triggered below
+00199:     # Abilities that trigger upon switching in
+00200:     if (!fainted? && unstoppableAbility?) || abilityActive?
+00201:       Battle::AbilityEffects.triggerOnSwitchIn(self.ability, self, @battle)
+00202:     end
+00203:     # Status-curing ability check
+00204:     pbAbilityStatusCureCheck
+00205:     # Check for end of primordial weather
+00206:     @battle.pbEndPrimordialWeather
+00207:   end
+00208: 
+00209:   #=============================================================================
+00210:   # Held item consuming/removing
+00211:   #=============================================================================
+00212:   def canConsumeBerry?
+00213:     return false if @battle.pbCheckOpposingAbility([:UNNERVE, :ASONECHILLINGNEIGH, :ASONEGRIMNEIGH], @index)
+00214:     return true
+00215:   end
+00216: 
+00217:   def canConsumePinchBerry?(check_gluttony = true)
+00218:     return false if !canConsumeBerry?
+00219:     return true if @hp <= @totalhp / 4
+00220:     return true if @hp <= @totalhp / 2 && (!check_gluttony || hasActiveAbility?(:GLUTTONY))
+00221:     return false
+00222:   end
+00223: 
+00224:   # permanent is whether the item is lost even after battle. Is false for Knock
+00225:   # Off.
+00226:   def pbRemoveItem(permanent = true)
+00227:     @effects[PBEffects::ChoiceBand] = nil if !hasActiveAbility?(:GORILLATACTICS)
+00228:     @effects[PBEffects::Unburden]   = true if self.item && hasActiveAbility?(:UNBURDEN)
+00229:     setInitialItem(nil) if permanent && self.item == self.initialItem
+00230:     self.item = nil
+00231:   end
+00232: 
+00233:   def pbConsumeItem(recoverable = true, symbiosis = true, belch = true)
+00234:     PBDebug.log("[Item consumed] #{pbThis} consumed its held #{itemName}")
+00235:     if recoverable
+00236:       setRecycleItem(@item_id)
+00237:       @effects[PBEffects::PickupItem] = @item_id
+00238:       @effects[PBEffects::PickupUse]  = @battle.nextPickupUse
+00239:     end
+00240:     setBelched if belch && self.item.is_berry?
+00241:     pbRemoveItem
+00242:     pbSymbiosis if symbiosis
+00243:   end
+00244: 
+00245:   def pbSymbiosis
+00246:     return if fainted?
+00247:     return if self.item
+00248:     @battle.pbPriority(true).each do |b|
+00249:       next if b.opposes?(self)
+00250:       next if !b.hasActiveAbility?(:SYMBIOSIS)
+00251:       next if !b.item || b.unlosableItem?(b.item)
+00252:       next if unlosableItem?(b.item)
+00253:       @battle.pbShowAbilitySplash(b)
+00254:       if Battle::Scene::USE_ABILITY_SPLASH
+00255:         @battle.pbDisplay(_INTL("{1} shared its {2} with {3}!",
+00256:                                 b.pbThis, b.itemName, pbThis(true)))
+00257:       else
+00258:         @battle.pbDisplay(_INTL("{1}'s {2} let it share its {3} with {4}!",
+00259:                                 b.pbThis, b.abilityName, b.itemName, pbThis(true)))
+00260:       end
+00261:       self.item = b.item
+00262:       b.item = nil
+00263:       b.effects[PBEffects::Unburden] = true if b.hasActiveAbility?(:UNBURDEN)
+00264:       @battle.pbHideAbilitySplash(b)
+00265:       pbHeldItemTriggerCheck
+00266:       break
+00267:     end
+00268:   end
+00269: 
+00270:   # item_to_use is an item ID or GameData::Item object. own_item is whether the
+00271:   # item is held by self. fling is for Fling only.
+00272:   def pbHeldItemTriggered(item_to_use, own_item = true, fling = false)
+00273:     # Cheek Pouch
+00274:     if hasActiveAbility?(:CHEEKPOUCH) && GameData::Item.get(item_to_use).is_berry? && canHeal?
+00275:       @battle.pbShowAbilitySplash(self)
+00276:       pbRecoverHP(@totalhp / 3)
+00277:       if Battle::Scene::USE_ABILITY_SPLASH
+00278:         @battle.pbDisplay(_INTL("{1}'s HP was restored.", pbThis))

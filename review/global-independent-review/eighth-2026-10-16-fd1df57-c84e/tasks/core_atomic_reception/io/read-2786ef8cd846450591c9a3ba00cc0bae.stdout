@@ -1,0 +1,102 @@
+00247:   def pbStartBattle
+00248:     PBDebug.log("")
+00249:     PBDebug.log("================================================================")
+00250:     PBDebug.log("")
+00251:     logMsg = "[Started battle] "
+00252:     if @sideSizes[0] == 1 && @sideSizes[1] == 1
+00253:       logMsg += "Single "
+00254:     elsif @sideSizes[0] == 2 && @sideSizes[1] == 2
+00255:       logMsg += "Double "
+00256:     elsif @sideSizes[0] == 3 && @sideSizes[1] == 3
+00257:       logMsg += "Triple "
+00258:     else
+00259:       logMsg += "#{@sideSizes[0]}v#{@sideSizes[1]} "
+00260:     end
+00261:     logMsg += "wild " if wildBattle?
+00262:     logMsg += "trainer " if trainerBattle?
+00263:     logMsg += "battle (#{@player.length} trainer(s) vs. "
+00264:     logMsg += "#{pbParty(1).length} wild Pokémon)" if wildBattle?
+00265:     logMsg += "#{@opponent.length} trainer(s))" if trainerBattle?
+00266:     PBDebug.log(logMsg)
+00267:     pbEnsureParticipants
+00268:     pbParty(0).each { |pkmn| @peer.pbOnStartingBattle(self, pkmn, wildBattle?) if pkmn }
+00269:     pbParty(1).each { |pkmn| @peer.pbOnStartingBattle(self, pkmn, wildBattle?) if pkmn }
+00270:     begin
+00271:       pbStartBattleCore
+00272:     rescue BattleAbortedException
+00273:       @decision = 0
+00274:       @scene.pbEndBattle(@decision)
+00275:     end
+00276:     return @decision
+00277:   end
+00278: 
+00279:   def pbStartBattleCore
+00280:     # Set up the battlers on each side
+00281:     sendOuts = pbSetUpSides
+00282:     @battleAI.create_ai_objects
+00283:     # Create all the sprites and play the battle intro animation
+00284:     @scene.pbStartBattle(self)
+00285:     # Show trainers on both sides sending out Pokémon
+00286:     pbStartBattleSendOut(sendOuts)
+00287:     # Weather announcement
+00288:     weather_data = GameData::BattleWeather.try_get(@field.weather)
+00289:     pbCommonAnimation(weather_data.animation) if weather_data
+00290:     case @field.weather
+00291:     when :Sun         then pbDisplay(_INTL("The sunlight is strong."))
+00292:     when :Rain        then pbDisplay(_INTL("It is raining."))
+00293:     when :Sandstorm   then pbDisplay(_INTL("A sandstorm is raging."))
+00294:     when :Hail        then pbDisplay(_INTL("Hail is falling."))
+00295:     when :HarshSun    then pbDisplay(_INTL("The sunlight is extremely harsh."))
+00296:     when :HeavyRain   then pbDisplay(_INTL("It is raining heavily."))
+00297:     when :StrongWinds then pbDisplay(_INTL("The wind is strong."))
+00298:     when :ShadowSky   then pbDisplay(_INTL("The sky is shadowy."))
+00299:     end
+00300:     # Terrain announcement
+00301:     terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+00302:     pbCommonAnimation(terrain_data.animation) if terrain_data
+00303:     case @field.terrain
+00304:     when :Electric
+00305:       pbDisplay(_INTL("An electric current runs across the battlefield!"))
+00306:     when :Grassy
+00307:       pbDisplay(_INTL("Grass is covering the battlefield!"))
+00308:     when :Misty
+00309:       pbDisplay(_INTL("Mist swirls about the battlefield!"))
+00310:     when :Psychic
+00311:       pbDisplay(_INTL("The battlefield is weird!"))
+00312:     end
+00313:     # Abilities upon entering battle
+00314:     pbOnAllBattlersEnteringBattle
+00315:     # Main battle loop
+00316:     pbBattleLoop
+00317:   end
+00318: 
+00319:   #=============================================================================
+00320:   # Main battle loop
+00321:   #=============================================================================
+00322:   def pbBattleLoop
+00323:     @turnCount = 0
+00324:     loop do   # Now begin the battle loop
+00325:       PBDebug.log("")
+00326:       PBDebug.log_header("===== Round #{@turnCount + 1} =====")
+00327:       if @debug && @turnCount >= 100
+00328:         @decision = pbDecisionOnTime
+00329:         PBDebug.log("")
+00330:         PBDebug.log("***Undecided after 100 rounds, aborting***")
+00331:         pbAbort
+00332:         break
+00333:       end
+00334:       PBDebug.log("")
+00335:       # Command phase
+00336:       PBDebug.logonerr { pbCommandPhase }
+00337:       break if @decision > 0
+00338:       # Attack phase
+00339:       PBDebug.logonerr { pbAttackPhase }
+00340:       break if @decision > 0
+00341:       # End of round phase
+00342:       PBDebug.logonerr { pbEndOfRoundPhase }
+00343:       break if @decision > 0
+00344:       @turnCount += 1
+00345:     end
+00346:     pbEndOfBattle
+00347:   end
+00348: 

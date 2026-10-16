@@ -1,0 +1,112 @@
+00098:   def initialize(scene, p1, p2, player, opponent)
+00099:     if p1.length == 0
+00100:       raise ArgumentError.new(_INTL("Party 1 has no Pokémon."))
+00101:     elsif p2.length == 0
+00102:       raise ArgumentError.new(_INTL("Party 2 has no Pokémon."))
+00103:     end
+00104:     @scene             = scene
+00105:     @peer              = Peer.new
+00106:     @field             = ActiveField.new    # Whole field (gravity/rooms)
+00107:     @sides             = [ActiveSide.new,   # Player's side
+00108:                           ActiveSide.new]   # Foe's side
+00109:     @positions         = []                 # Battler positions
+00110:     @battlers          = []
+00111:     @sideSizes         = [1, 1]   # Single battle, 1v1
+00112:     @backdrop          = ""
+00113:     @backdropBase      = nil
+00114:     @time              = 0
+00115:     @environment       = :None   # e.g. Tall grass, cave, still water
+00116:     @turnCount         = 0
+00117:     @decision          = 0
+00118:     @caughtPokemon     = []
+00119:     player   = [player] if !player.nil? && !player.is_a?(Array)
+00120:     opponent = [opponent] if !opponent.nil? && !opponent.is_a?(Array)
+00121:     @player            = player     # Array of Player/NPCTrainer objects, or nil
+00122:     @opponent          = opponent   # Array of NPCTrainer objects, or nil
+00123:     @items             = nil
+00124:     @ally_items        = nil        # Array of items held by ally. This is just used for Mega Evolution for now.
+00125:     @party1            = p1
+00126:     @party2            = p2
+00127:     @party1order       = Array.new(@party1.length) { |i| i }
+00128:     @party2order       = Array.new(@party2.length) { |i| i }
+00129:     @party1starts      = [0]
+00130:     @party2starts      = [0]
+00131:     @internalBattle    = true
+00132:     @debug             = false
+00133:     @canRun            = true
+00134:     @canLose           = false
+00135:     @canSwitch         = true
+00136:     @switchStyle       = true
+00137:     @showAnims         = true
+00138:     @controlPlayer     = false
+00139:     @expGain           = true
+00140:     @moneyGain         = true
+00141:     @disablePokeBalls  = false
+00142:     @sendToBoxes       = 1
+00143:     @rules             = {}
+00144:     @priority          = []
+00145:     @priorityTrickRoom = false
+00146:     @choices           = []
+00147:     @megaEvolution     = [
+00148:       [-1] * (@player ? @player.length : 1),
+00149:       [-1] * (@opponent ? @opponent.length : 1)
+00150:     ]
+00151:     @initialItems      = [
+00152:       Array.new(@party1.length) { |i| (@party1[i]) ? @party1[i].item_id : nil },
+00153:       Array.new(@party2.length) { |i| (@party2[i]) ? @party2[i].item_id : nil }
+00154:     ]
+00155:     @recycleItems      = [Array.new(@party1.length, nil),   Array.new(@party2.length, nil)]
+00156:     @belch             = [Array.new(@party1.length, false), Array.new(@party2.length, false)]
+00157:     @battleBond        = [Array.new(@party1.length, false), Array.new(@party2.length, false)]
+00158:     @corrosiveGas      = [Array.new(@party1.length, false), Array.new(@party2.length, false)]
+00159:     @usedInBattle      = [Array.new(@party1.length, false), Array.new(@party2.length, false)]
+00160:     @successStates     = []
+00161:     @lastMoveUsed      = nil
+00162:     @lastMoveUser      = -1
+00163:     @switching         = false
+00164:     @futureSight       = false
+00165:     @command_phase     = false
+00166:     @endOfRound        = false
+00167:     @moldBreaker       = false
+00168:     @runCommand        = 0
+00169:     @nextPickupUse     = 0
+00170:     @struggle          = Move::Struggle.new(self, nil)
+00171:     @mega_rings        = []
+00172:     GameData::Item.each { |item| @mega_rings.push(item.id) if item.has_flag?("MegaRing") }
+00173:     @battleAI          = AI.new(self)
+00174:   end
+00175: 
+00176:   #=============================================================================
+00177:   # Information about the type and size of the battle
+00178:   #=============================================================================
+00179:   def wildBattle?;    return @opponent.nil?;  end
+00180:   def trainerBattle?; return !@opponent.nil?; end
+00181: 
+00182:   # Sets the number of battler slots on each side of the field independently.
+00183:   # For "1v2" names, the first number is for the player's side and the second
+00184:   # number is for the opposing side.
+00185:   def setBattleMode(mode)
+00186:     @sideSizes =
+00187:       case mode
+00188:       when "triple", "3v3" then [3, 3]
+00189:       when "3v2"           then [3, 2]
+00190:       when "3v1"           then [3, 1]
+00191:       when "2v3"           then [2, 3]
+00192:       when "double", "2v2" then [2, 2]
+00193:       when "2v1"           then [2, 1]
+00194:       when "1v3"           then [1, 3]
+00195:       when "1v2"           then [1, 2]
+00196:       else                      [1, 1]   # Single, 1v1 (default)
+00197:       end
+00198:   end
+00199: 
+00200:   def singleBattle?
+00201:     return pbSideSize(0) == 1 && pbSideSize(1) == 1
+00202:   end
+00203: 
+00204:   def pbSideSize(index)
+00205:     return @sideSizes[index % 2]
+00206:   end
+00207: 
+00208:   def maxBattlerIndex
+00209:     return (pbSideSize(0) > pbSideSize(1)) ? (pbSideSize(0) - 1) * 2 : (pbSideSize(1) * 2) - 1

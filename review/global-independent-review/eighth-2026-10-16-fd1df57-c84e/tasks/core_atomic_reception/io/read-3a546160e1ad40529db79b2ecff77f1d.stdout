@@ -1,0 +1,96 @@
+00354: class WildBattle
+00355:   # Used when walking in tall grass, hence the additional code.
+00356:   def self.start(*args, can_override: false)
+00357:     foe_party = WildBattle.generate_foes(*args)
+00358:     # Potentially call a different WildBattle.start-type method instead (for
+00359:     # roaming Pokémon, Safari battles, Bug Contest battles)
+00360:     if foe_party.length == 1 && can_override
+00361:       handled = [nil]
+00362:       EventHandlers.trigger(:on_calling_wild_battle, foe_party[0], handled)
+00363:       return handled[0] if !handled[0].nil?
+00364:     end
+00365:     # Perform the battle
+00366:     outcome = WildBattle.start_core(*foe_party)
+00367:     # Used by the Poké Radar to update/break the chain
+00368:     if foe_party.length == 1 && can_override
+00369:       EventHandlers.trigger(:on_wild_battle_end, foe_party[0].species, foe_party[0].level, outcome)
+00370:     end
+00371:     # Return false if the player lost or drew the battle, and true if any other result
+00372:     return outcome != 2 && outcome != 5
+00373:   end
+00374: 
+00375:   def self.start_core(*args)
+00376:     outcome_variable = $game_temp.battle_rules["outcomeVar"] || 1
+00377:     can_lose         = $game_temp.battle_rules["canLose"] || false
+00378:     # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode
+00379:     if BattleCreationHelperMethods.skip_battle?
+00380:       return BattleCreationHelperMethods.skip_battle(outcome_variable)
+00381:     end
+00382:     # Record information about party Pokémon to be used at the end of battle
+00383:     # (e.g. comparing levels for an evolution check)
+00384:     EventHandlers.trigger(:on_start_battle)
+00385:     # Generate array of foes
+00386:     foe_party = WildBattle.generate_foes(*args)
+00387:     # Generate information for the player and partner trainer(s)
+00388:     player_trainers, ally_items, player_party, player_party_starts = BattleCreationHelperMethods.set_up_player_trainers(foe_party)
+00389:     # Create the battle scene (the visual side of it)
+00390:     scene = BattleCreationHelperMethods.create_battle_scene
+00391:     # Create the battle class (the mechanics side of it)
+00392:     battle = Battle.new(scene, player_party, foe_party, player_trainers, nil)
+00393:     battle.party1starts = player_party_starts
+00394:     battle.ally_items   = ally_items
+00395:     # Set various other properties in the battle class
+00396:     setBattleRule("#{foe_party.length}v#{foe_party.length}") if $game_temp.battle_rules["size"].nil?
+00397:     BattleCreationHelperMethods.prepare_battle(battle)
+00398:     $game_temp.clear_battle_rules
+00399:     # Perform the battle itself
+00400:     outcome = 0
+00401:     pbBattleAnimation(pbGetWildBattleBGM(foe_party), (foe_party.length == 1) ? 0 : 2, foe_party) do
+00402:       pbSceneStandby { outcome = battle.pbStartBattle }
+00403:       BattleCreationHelperMethods.after_battle(outcome, can_lose)
+00404:     end
+00405:     Input.update
+00406:     # Save the result of the battle in a Game Variable (1 by default)
+00407:     BattleCreationHelperMethods.set_outcome(outcome, outcome_variable)
+00408:     return outcome
+00409:   end
+00410: 
+00411:   def self.generate_foes(*args)
+00412:     ret = []
+00413:     species_id = nil
+00414:     args.each do |arg|
+00415:       case arg
+00416:       when Pokemon
+00417:         raise _INTL("Species {1} was given but not a level.", species_id) if species_id
+00418:         ret.push(arg)
+00419:       when Array
+00420:         raise _INTL("Species {1} was given but not a level.", species_id) if species_id
+00421:         species = GameData::Species.get(arg[0]).id
+00422:         pkmn = pbGenerateWildPokemon(species, arg[1])
+00423:         ret.push(pkmn)
+00424:       else
+00425:         if species_id   # Expecting level
+00426:           if !arg.is_a?(Integer) || !(1..GameData::GrowthRate.max_level).include?(arg)
+00427:             raise _INTL("Expected a level (1..{1}) but {2} is not a number or not a valid level.", GameData::GrowthRate.max_level, arg)
+00428:           end
+00429:           ret.push(pbGenerateWildPokemon(species_id, arg))
+00430:           species_id = nil
+00431:         else   # Expecting species ID
+00432:           if !GameData::Species.exists?(arg)
+00433:             raise _INTL("Species {1} does not exist.", arg)
+00434:           end
+00435:           species_id = arg
+00436:         end
+00437:       end
+00438:     end
+00439:     raise _INTL("Species {1} was given but not a level.", species_id) if species_id
+00440:     return ret
+00441:   end
+00442: end
+00443: 
+00444: #===============================================================================
+00445: # Trainer battles
+00446: #===============================================================================
+00447: class TrainerBattle
+00448:   # Used by most trainer events, which can be positioned in such a way that
+00449:   # multiple trainer events spot the player at once. The extra code in this

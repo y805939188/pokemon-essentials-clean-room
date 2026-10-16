@@ -1,0 +1,48 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 1061-1163
+# Code that generates a random dungeon layout, and implements it in a given map.
+#===============================================================================
+EventHandlers.add(:on_game_map_setup, :random_dungeon,
+  proc { |map_id, map, _tileset_data|
+    next if !GameData::MapMetadata.try_get(map_id)&.random_dungeon
+    # Generate a random dungeon
+    tileset_data = GameData::DungeonTileset.try_get(map.tileset_id)
+    params = GameData::DungeonParameters.try_get($PokemonGlobal.dungeon_area,
+                                                 $PokemonGlobal.dungeon_version)
+    dungeon = RandomDungeon::Dungeon.new(params.cell_count_x, params.cell_count_y,
+                                         tileset_data, params)
+    dungeon.generate
+    map.width = dungeon.width
+    map.height = dungeon.height
+    map.data.resize(map.width, map.height, 3)
+    dungeon.generateMapInPlace(map)
+    failed = false
+    100.times do |i|
+      failed = false
+      occupied_tiles = []
+      # Reposition events
+      map.events.each_value do |event|
+        event_width = 1
+        event_height = 1
+        if event.name[/size\((\d+),(\d+)\)/i]
+          event_width = $~[1].to_i
+          event_height = $~[2].to_i
+        end
+        tile = dungeon.get_random_room_tile(occupied_tiles, event_width, event_height)
+        failed = true if !tile
+        break if failed
+        event.x = tile[0]
+        event.y = tile[1]
+      end
+      next if failed
+      # Reposition the player
+      tile = dungeon.get_random_room_tile(occupied_tiles)
+      next if !tile
+      $game_temp.player_new_x = tile[0]
+      $game_temp.player_new_y = tile[1]
+      break
+    end
+    if failed
+      raise _INTL("Couldn't place all events and the player in rooms.")
+    end
+  }
+)

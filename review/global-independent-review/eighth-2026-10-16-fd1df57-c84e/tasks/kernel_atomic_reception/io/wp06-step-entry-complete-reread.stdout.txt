@@ -1,0 +1,52 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb RANGE 165-215
+      pbTraverseWaterfall
+    elsif currentTag.ice || $PokemonGlobal.ice_sliding
+      pbSlideOnIce
+    end
+  }
+)
+
+def pbOnStepTaken(eventTriggered)
+  if $game_player.move_route_forcing || pbMapInterpreterRunning?
+    EventHandlers.trigger(:on_step_taken, $game_player)
+    return
+  end
+  $PokemonGlobal.stepcount = 0 if !$PokemonGlobal.stepcount
+  $PokemonGlobal.stepcount += 1
+  $PokemonGlobal.stepcount &= 0x7FFFFFFF
+  repel_active = ($PokemonGlobal.repel > 0)
+  EventHandlers.trigger(:on_player_step_taken)
+  handled = [nil]
+  EventHandlers.trigger(:on_player_step_taken_can_transfer, handled)
+  return if handled[0]
+  pbBattleOnStepTaken(repel_active) if !eventTriggered && !$game_temp.in_menu
+  $game_temp.encounter_triggered = false   # This info isn't needed here
+end
+
+# Start wild encounters while turning on the spot
+EventHandlers.add(:on_player_change_direction, :trigger_encounter,
+  proc {
+    repel_active = ($PokemonGlobal.repel > 0)
+    pbBattleOnStepTaken(repel_active) if !$game_temp.in_menu
+  }
+)
+
+def pbBattleOnStepTaken(repel_active)
+  return if $player.able_pokemon_count == 0
+  return if !$PokemonEncounters.encounter_possible_here?
+  encounter_type = $PokemonEncounters.encounter_type
+  return if !encounter_type
+  return if !$PokemonEncounters.encounter_triggered?(encounter_type, repel_active)
+  $game_temp.encounter_type = encounter_type
+  encounter = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+  EventHandlers.trigger(:on_wild_species_chosen, encounter)
+  if $PokemonEncounters.allow_encounter?(encounter, repel_active)
+    if $PokemonEncounters.have_double_wild_battle?
+      encounter2 = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+      EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+      WildBattle.start(encounter, encounter2, can_override: true)
+    else
+      WildBattle.start(encounter, can_override: true)
+    end
+    $game_temp.encounter_type = nil
+    $game_temp.encounter_triggered = true

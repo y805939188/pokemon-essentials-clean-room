@@ -1,0 +1,145 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/004_Compiler_MapsAndEvents.rb RANGE 293-436
+  class MapData
+    attr_reader :mapinfos
+
+    def initialize
+      @mapinfos = pbLoadMapInfos
+      @system   = load_data("Data/System.rxdata")
+      @tilesets = load_data("Data/Tilesets.rxdata")
+      @mapxy      = []
+      @mapWidths  = []
+      @mapHeights = []
+      @maps       = []
+      @registeredSwitches = {}
+    end
+
+    def switchName(id)
+      return @system.switches[id] || ""
+    end
+
+    def mapFilename(mapID)
+      return sprintf("Data/Map%03d.rxdata", mapID)
+    end
+
+    def getMap(mapID)
+      return @maps[mapID] if @maps[mapID]
+      begin
+        @maps[mapID] = load_data(mapFilename(mapID))
+        return @maps[mapID]
+      rescue
+        return nil
+      end
+    end
+
+    def getEventFromXY(mapID, x, y)
+      return nil if x < 0 || y < 0
+      mapPositions = @mapxy[mapID]
+      return mapPositions[(y * @mapWidths[mapID]) + x] if mapPositions
+      map = getMap(mapID)
+      return nil if !map
+      @mapWidths[mapID]  = map.width
+      @mapHeights[mapID] = map.height
+      mapPositions = []
+      width = map.width
+      map.events.each_value do |e|
+        mapPositions[(e.y * width) + e.x] = e if e
+      end
+      @mapxy[mapID] = mapPositions
+      return mapPositions[(y * width) + x]
+    end
+
+    def getEventFromID(mapID, id)
+      map = getMap(mapID)
+      return nil if !map
+      return map.events[id]
+    end
+
+    def getTilesetPassages(map, mapID)
+      begin
+        return @tilesets[map.tileset_id].passages
+      rescue
+        raise "Tileset data for tileset number #{map.tileset_id} used on map #{mapID} was not found. " +
+              "The tileset was likely deleted, but one or more maps still use it."
+      end
+    end
+
+    def getTilesetPriorities(map, mapID)
+      begin
+        return @tilesets[map.tileset_id].priorities
+      rescue
+        raise "Tileset data for tileset number #{map.tileset_id} used on map #{mapID} was not found. " +
+              "The tileset was likely deleted, but one or more maps still use it."
+      end
+    end
+
+    def isPassable?(mapID, x, y)
+      map = getMap(mapID)
+      return false if !map
+      return false if x < 0 || x >= map.width || y < 0 || y >= map.height
+      passages   = getTilesetPassages(map, mapID)
+      priorities = getTilesetPriorities(map, mapID)
+      [2, 1, 0].each do |i|
+        tile_id = map.data[x, y, i]
+        return false if tile_id.nil?
+        passage = passages[tile_id]
+        if !passage
+          raise "The tile used on map #{mapID} at coordinates (#{x}, #{y}) on layer #{i + 1} doesn't exist in the tileset. " +
+                "It should be deleted to prevent errors."
+        end
+        return false if passage & 0x0f == 0x0f
+        return true if priorities[tile_id] == 0
+      end
+      return true
+    end
+
+    def isCounterTile?(mapID, x, y)
+      map = getMap(mapID)
+      return false if !map
+      passages = getTilesetPassages(map, mapID)
+      [2, 1, 0].each do |i|
+        tile_id = map.data[x, y, i]
+        return false if tile_id.nil?
+        passage = passages[tile_id]
+        if !passage
+          raise "The tile used on map #{mapID} at coordinates (#{x}, #{y}) on layer #{i + 1} doesn't exist in the tileset. " +
+                "It should be deleted to prevent errors."
+        end
+        return true if passage & 0x80 == 0x80
+      end
+      return false
+    end
+
+    def setCounterTile(mapID, x, y)
+      map = getMap(mapID)
+      return if !map
+      passages = getTilesetPassages(map, mapID)
+      [2, 1, 0].each do |i|
+        tile_id = map.data[x, y, i]
+        next if tile_id == 0
+        passages[tile_id] |= 0x80
+        break
+      end
+    end
+
+    def registerSwitch(switch)
+      return @registeredSwitches[switch] if @registeredSwitches[switch]
+      (1..5000).each do |id|
+        name = @system.switches[id]
+        next if name && name != "" && name != switch
+        @system.switches[id] = switch
+        @registeredSwitches[switch] = id
+        return id
+      end
+      return 1
+    end
+
+    def saveMap(mapID)
+      save_data(getMap(mapID), mapFilename(mapID)) rescue nil
+    end
+
+    def saveTilesets
+      save_data(@tilesets, "Data/Tilesets.rxdata")
+      save_data(@system, "Data/System.rxdata")
+    end
+  end
+

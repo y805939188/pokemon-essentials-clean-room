@@ -1,0 +1,127 @@
+00145:       end
+00146:     end
+00147:     # Exp. Charm increases Exp gained
+00148:     exp = exp * 3 / 2 if $bag.has?(:EXPCHARM)
+00149:     # Modify Exp gain based on pkmn's held item
+00150:     i = Battle::ItemEffects.triggerExpGainModifier(pkmn.item, pkmn, exp)
+00151:     if i < 0
+00152:       i = Battle::ItemEffects.triggerExpGainModifier(@initialItems[0][idxParty], pkmn, exp)
+00153:     end
+00154:     exp = i if i >= 0
+00155:     # Boost Exp gained with high affection
+00156:     if Settings::AFFECTION_EFFECTS && @internalBattle && pkmn.affection_level >= 4 && !pkmn.mega?
+00157:       exp = exp * 6 / 5
+00158:       isOutsider = true   # To show the "boosted Exp" message
+00159:     end
+00160:     # Make sure Exp doesn't exceed the maximum
+00161:     expFinal = growth_rate.add_exp(pkmn.exp, exp)
+00162:     expGained = expFinal - pkmn.exp
+00163:     return if expGained <= 0
+00164:     # "Exp gained" message
+00165:     if showMessages
+00166:       if isOutsider
+00167:         pbDisplayPaused(_INTL("{1} got a boosted {2} Exp. Points!", pkmn.name, expGained))
+00168:       else
+00169:         pbDisplayPaused(_INTL("{1} got {2} Exp. Points!", pkmn.name, expGained))
+00170:       end
+00171:     end
+00172:     curLevel = pkmn.level
+00173:     newLevel = growth_rate.level_from_exp(expFinal)
+00174:     if newLevel < curLevel
+00175:       debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
+00176:       raise _INTL("{1}'s new level is less than its current level, which shouldn't happen.", pkmn.name) + "\n[#{debugInfo}]"
+00177:     end
+00178:     # Give Exp
+00179:     if pkmn.shadowPokemon?
+00180:       if pkmn.heartStage <= 3
+00181:         pkmn.exp += expGained
+00182:         $stats.total_exp_gained += expGained
+00183:       end
+00184:       return
+00185:     end
+00186:     $stats.total_exp_gained += expGained
+00187:     tempExp1 = pkmn.exp
+00188:     battler = pbFindBattler(idxParty)
+00189:     loop do   # For each level gained in turn...
+00190:       # EXP Bar animation
+00191:       levelMinExp = growth_rate.minimum_exp_for_level(curLevel)
+00192:       levelMaxExp = growth_rate.minimum_exp_for_level(curLevel + 1)
+00193:       tempExp2 = (levelMaxExp < expFinal) ? levelMaxExp : expFinal
+00194:       pkmn.exp = tempExp2
+00195:       @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)
+00196:       tempExp1 = tempExp2
+00197:       curLevel += 1
+00198:       if curLevel > newLevel
+00199:         # Gained all the Exp now, end the animation
+00200:         pkmn.calc_stats
+00201:         battler&.pbUpdate(false)
+00202:         @scene.pbRefreshOne(battler.index) if battler
+00203:         break
+00204:       end
+00205:       # Levelled up
+00206:       pbCommonAnimation("LevelUp", battler) if battler
+00207:       oldTotalHP = pkmn.totalhp
+00208:       oldAttack  = pkmn.attack
+00209:       oldDefense = pkmn.defense
+00210:       oldSpAtk   = pkmn.spatk
+00211:       oldSpDef   = pkmn.spdef
+00212:       oldSpeed   = pkmn.speed
+00213:       battler.pokemon.changeHappiness("levelup") if battler&.pokemon
+00214:       pkmn.calc_stats
+00215:       battler&.pbUpdate(false)
+00216:       @scene.pbRefreshOne(battler.index) if battler
+00217:       pbDisplayPaused(_INTL("{1} grew to Lv. {2}!", pkmn.name, curLevel)) { pbSEPlay("Pkmn level up") }
+00218:       @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,
+00219:                        oldSpAtk, oldSpDef, oldSpeed)
+00220:       # Learn all moves learned at this level
+00221:       moveList = pkmn.getMoveList
+00222:       moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
+00223:     end
+00224:   end
+00225: 
+00226:   #=============================================================================
+00227:   # Learning a move
+00228:   #=============================================================================
+00229:   def pbLearnMove(idxParty, newMove)
+00230:     pkmn = pbParty(0)[idxParty]
+00231:     return if !pkmn
+00232:     pkmnName = pkmn.name
+00233:     battler = pbFindBattler(idxParty)
+00234:     moveName = GameData::Move.get(newMove).name
+00235:     # Pokémon already knows the move
+00236:     return if pkmn.hasMove?(newMove)
+00237:     # Pokémon has space for the new move; just learn it
+00238:     if pkmn.numMoves < Pokemon::MAX_MOVES
+00239:       pkmn.learn_move(newMove)
+00240:       pbDisplay(_INTL("{1} learned {2}!", pkmnName, moveName)) { pbSEPlay("Pkmn move learnt") }
+00241:       if battler
+00242:         battler.moves.push(Move.from_pokemon_move(self, pkmn.moves.last))
+00243:         battler.pbCheckFormOnMovesetChange
+00244:       end
+00245:       return
+00246:     end
+00247:     # Pokémon already knows the maximum number of moves; try to forget one to learn the new move
+00248:     pbDisplayPaused(_INTL("{1} wants to learn {2}, but it already knows {3} moves.",
+00249:                           pkmnName, moveName, pkmn.numMoves.to_word))
+00250:     if pbDisplayConfirm(_INTL("Should {1} forget a move to learn {2}?", pkmnName, moveName))
+00251:       loop do
+00252:         forgetMove = @scene.pbForgetMove(pkmn, newMove)
+00253:         if forgetMove >= 0
+00254:           oldMoveName = pkmn.moves[forgetMove].name
+00255:           pkmn.moves[forgetMove] = Pokemon::Move.new(newMove)   # Replaces current/total PP
+00256:           battler.moves[forgetMove] = Move.from_pokemon_move(self, pkmn.moves[forgetMove]) if battler
+00257:           pbDisplayPaused(_INTL("1, 2, and... ... ... Ta-da!")) { pbSEPlay("Battle ball drop") }
+00258:           pbDisplayPaused(_INTL("{1} forgot how to use {2}. And...", pkmnName, oldMoveName))
+00259:           pbDisplay(_INTL("{1} learned {2}!", pkmnName, moveName)) { pbSEPlay("Pkmn move learnt") }
+00260:           battler&.pbCheckFormOnMovesetChange
+00261:           break
+00262:         elsif pbDisplayConfirm(_INTL("Give up on learning {1}?", moveName))
+00263:           pbDisplay(_INTL("{1} did not learn {2}.", pkmnName, moveName))
+00264:           break
+00265:         end
+00266:       end
+00267:     else
+00268:       pbDisplay(_INTL("{1} did not learn {2}.", pkmnName, moveName))
+00269:     end
+00270:   end
+00271: end

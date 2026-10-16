@@ -1,0 +1,201 @@
+00001: class Battle
+00002:   #=============================================================================
+00003:   # Shifting a battler to another position in a battle larger than double
+00004:   #=============================================================================
+00005:   def pbCanShift?(idxBattler)
+00006:     return false if pbSideSize(0) <= 2 && pbSideSize(1) <= 2   # Double battle or smaller
+00007:     idxOther = -1
+00008:     case pbSideSize(idxBattler)
+00009:     when 1
+00010:       return false   # Only one battler on that side
+00011:     when 2
+00012:       idxOther = (idxBattler + 2) % 4
+00013:     when 3
+00014:       return false if [2, 3].include?(idxBattler)   # In middle spot already
+00015:       idxOther = (idxBattler.even?) ? 2 : 3
+00016:     end
+00017:     return false if pbGetOwnerIndexFromBattlerIndex(idxBattler) != pbGetOwnerIndexFromBattlerIndex(idxOther)
+00018:     return true
+00019:   end
+00020: 
+00021:   def pbRegisterShift(idxBattler)
+00022:     @choices[idxBattler][0] = :Shift
+00023:     @choices[idxBattler][1] = 0
+00024:     @choices[idxBattler][2] = nil
+00025:     return true
+00026:   end
+00027: 
+00028:   #=============================================================================
+00029:   # Calling at a battler
+00030:   #=============================================================================
+00031:   def pbRegisterCall(idxBattler)
+00032:     @choices[idxBattler][0] = :Call
+00033:     @choices[idxBattler][1] = 0
+00034:     @choices[idxBattler][2] = nil
+00035:     return true
+00036:   end
+00037: 
+00038:   def pbCall(idxBattler)
+00039:     # Debug ending the battle
+00040:     return if pbDebugRun != 0
+00041:     # Call the battler
+00042:     battler = @battlers[idxBattler]
+00043:     trainerName = pbGetOwnerName(idxBattler)
+00044:     pbDisplay(_INTL("{1} called {2}!", trainerName, battler.pbThis(true)))
+00045:     pbDisplay(_INTL("{1}!", battler.name))
+00046:     if battler.shadowPokemon?
+00047:       if battler.inHyperMode?
+00048:         battler.pokemon.hyper_mode = false
+00049:         battler.pokemon.change_heart_gauge("call")
+00050:         pbDisplay(_INTL("{1} came to its senses from the Trainer's call!", battler.pbThis))
+00051:       else
+00052:         pbDisplay(_INTL("But nothing happened!"))
+00053:       end
+00054:     elsif battler.status == :SLEEP
+00055:       battler.pbCureStatus
+00056:     elsif battler.pbCanRaiseStatStage?(:ACCURACY, battler)
+00057:       battler.pbRaiseStatStage(:ACCURACY, 1, battler)
+00058:       battler.pbItemOnStatDropped
+00059:     else
+00060:       pbDisplay(_INTL("But nothing happened!"))
+00061:     end
+00062:   end
+00063: 
+00064:   #=============================================================================
+00065:   # Choosing to Mega Evolve a battler
+00066:   #=============================================================================
+00067:   def pbHasMegaRing?(idxBattler)
+00068:     if pbOwnedByPlayer?(idxBattler)
+00069:       @mega_rings.each { |item| return true if $bag.has?(item) }
+00070:     else
+00071:       trainer_items = pbGetOwnerItems(idxBattler)
+00072:       return false if !trainer_items
+00073:       @mega_rings.each { |item| return true if trainer_items.include?(item) }
+00074:     end
+00075:     return false
+00076:   end
+00077: 
+00078:   def pbGetMegaRingName(idxBattler)
+00079:     if !@mega_rings.empty?
+00080:       if pbOwnedByPlayer?(idxBattler)
+00081:         @mega_rings.each { |item| return GameData::Item.get(item).name if $bag.has?(item) }
+00082:       else
+00083:         trainer_items = pbGetOwnerItems(idxBattler)
+00084:         if trainer_items
+00085:           @mega_rings.each { |item| return GameData::Item.get(item).name if trainer_items.include?(item) }
+00086:         end
+00087:       end
+00088:     end
+00089:     return _INTL("Mega Ring")
+00090:   end
+00091: 
+00092:   def pbCanMegaEvolve?(idxBattler)
+00093:     return false if $game_switches[Settings::NO_MEGA_EVOLUTION]
+00094:     return false if !@battlers[idxBattler].hasMega?
+00095:     return false if @battlers[idxBattler].wild?
+00096:     return true if $DEBUG && Input.press?(Input::CTRL)
+00097:     return false if @battlers[idxBattler].effects[PBEffects::SkyDrop] >= 0
+00098:     return false if !pbHasMegaRing?(idxBattler)
+00099:     side  = @battlers[idxBattler].idxOwnSide
+00100:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00101:     return @megaEvolution[side][owner] == -1
+00102:   end
+00103: 
+00104:   def pbRegisterMegaEvolution(idxBattler)
+00105:     side  = @battlers[idxBattler].idxOwnSide
+00106:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00107:     @megaEvolution[side][owner] = idxBattler
+00108:   end
+00109: 
+00110:   def pbUnregisterMegaEvolution(idxBattler)
+00111:     side  = @battlers[idxBattler].idxOwnSide
+00112:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00113:     @megaEvolution[side][owner] = -1 if @megaEvolution[side][owner] == idxBattler
+00114:   end
+00115: 
+00116:   def pbToggleRegisteredMegaEvolution(idxBattler)
+00117:     side  = @battlers[idxBattler].idxOwnSide
+00118:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00119:     if @megaEvolution[side][owner] == idxBattler
+00120:       @megaEvolution[side][owner] = -1
+00121:     else
+00122:       @megaEvolution[side][owner] = idxBattler
+00123:     end
+00124:   end
+00125: 
+00126:   def pbRegisteredMegaEvolution?(idxBattler)
+00127:     side  = @battlers[idxBattler].idxOwnSide
+00128:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00129:     return @megaEvolution[side][owner] == idxBattler
+00130:   end
+00131: 
+00132:   #=============================================================================
+00133:   # Mega Evolving a battler
+00134:   #=============================================================================
+00135:   def pbMegaEvolve(idxBattler)
+00136:     battler = @battlers[idxBattler]
+00137:     return if !battler || !battler.pokemon
+00138:     return if !battler.hasMega? || battler.mega?
+00139:     $stats.mega_evolution_count += 1 if battler.pbOwnedByPlayer?
+00140:     trainerName = pbGetOwnerName(idxBattler)
+00141:     old_ability = battler.ability_id
+00142:     # Break Illusion
+00143:     if battler.hasActiveAbility?(:ILLUSION)
+00144:       Battle::AbilityEffects.triggerOnBeingHit(battler.ability, nil, battler, nil, self)
+00145:     end
+00146:     # Mega Evolve
+00147:     case battler.pokemon.megaMessage
+00148:     when 1   # Rayquaza
+00149:       pbDisplay(_INTL("{1}'s fervent wish has reached {2}!", trainerName, battler.pbThis))
+00150:     else
+00151:       pbDisplay(_INTL("{1}'s {2} is reacting to {3}'s {4}!",
+00152:                       battler.pbThis, battler.itemName, trainerName, pbGetMegaRingName(idxBattler)))
+00153:     end
+00154:     pbCommonAnimation("MegaEvolution", battler)
+00155:     battler.pokemon.makeMega
+00156:     battler.form = battler.pokemon.form
+00157:     battler.pbUpdate(true)
+00158:     @scene.pbChangePokemon(battler, battler.pokemon)
+00159:     @scene.pbRefreshOne(idxBattler)
+00160:     pbCommonAnimation("MegaEvolution2", battler)
+00161:     megaName = battler.pokemon.megaName
+00162:     megaName = _INTL("Mega {1}", battler.pokemon.speciesName) if nil_or_empty?(megaName)
+00163:     pbDisplay(_INTL("{1} has Mega Evolved into {2}!", battler.pbThis, megaName))
+00164:     side  = battler.idxOwnSide
+00165:     owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00166:     @megaEvolution[side][owner] = -2
+00167:     if battler.isSpecies?(:GENGAR) && battler.mega?
+00168:       battler.effects[PBEffects::Telekinesis] = 0
+00169:     end
+00170:     # Trigger ability
+00171:     battler.pbOnLosingAbility(old_ability)
+00172:     battler.pbTriggerAbilityOnGainingIt
+00173:     # Recalculate turn order
+00174:     pbCalculatePriority(false, [idxBattler]) if Settings::RECALCULATE_TURN_ORDER_AFTER_MEGA_EVOLUTION
+00175:   end
+00176: 
+00177:   #=============================================================================
+00178:   # Primal Reverting a battler
+00179:   #=============================================================================
+00180:   def pbPrimalReversion(idxBattler)
+00181:     battler = @battlers[idxBattler]
+00182:     return if !battler || !battler.pokemon || battler.fainted?
+00183:     return if !battler.hasPrimal? || battler.primal?
+00184:     if battler.isSpecies?(:KYOGRE)
+00185:       pbCommonAnimation("PrimalKyogre", battler)
+00186:     elsif battler.isSpecies?(:GROUDON)
+00187:       pbCommonAnimation("PrimalGroudon", battler)
+00188:     end
+00189:     battler.pokemon.makePrimal
+00190:     battler.form = battler.pokemon.form
+00191:     battler.pbUpdate(true)
+00192:     @scene.pbChangePokemon(battler, battler.pokemon)
+00193:     @scene.pbRefreshOne(idxBattler)
+00194:     if battler.isSpecies?(:KYOGRE)
+00195:       pbCommonAnimation("PrimalKyogre2", battler)
+00196:     elsif battler.isSpecies?(:GROUDON)
+00197:       pbCommonAnimation("PrimalGroudon2", battler)
+00198:     end
+00199:     pbDisplay(_INTL("{1}'s Primal Reversion!\nIt reverted to its primal form!", battler.pbThis))
+00200:   end
+00201: end

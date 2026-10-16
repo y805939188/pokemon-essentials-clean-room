@@ -1,0 +1,377 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 1-214
+#===============================================================================
+#
+#===============================================================================
+class Phone
+  attr_accessor :contacts
+  attr_accessor :rematch_variant, :rematches_enabled
+  attr_accessor :time_to_next_call, :last_refresh_time
+
+  def initialize
+    @contacts = []
+    @rematch_variant = 0   # Original battle is 0, first rematch is 1, etc.
+    @rematches_enabled = Settings::PHONE_REMATCHES_POSSIBLE_FROM_BEGINNING
+    @time_to_next_call = 0.0
+    @last_refresh_time = 0
+  end
+
+  # Returns a visible contact only.
+  def get(trainer, *args)
+    @contacts.each do |contact|
+      next if !contact.visible?
+      next if contact.trainer? != trainer
+      if trainer
+        next if contact.trainer_type != args[0] ||
+                contact.name != args[1] || contact.start_version != (args[2] || 0)
+      else
+        next if contact.name != args[0]
+      end
+      return contact
+    end
+    return nil
+  end
+
+  def get_version(trainer_type, name, start_version = 0)
+    return 0 if !GameData::TrainerType.exists?(trainer_type)
+    trainer_type = GameData::TrainerType.get(trainer_type).id
+    contact = get(true, trainer_type, name, start_version)
+    return (contact) ? contact.version : 0
+  end
+
+  # Trainer type, name[, start_version]
+  # Name
+  def can_add?(*args)
+    return false if !$player.has_pokegear
+    if args.length == 1
+      # Non-trainer (name only)
+      return false if get(false, args[0])
+    else
+      # Trainer (has at least trainer type and name)
+      return false if !GameData::TrainerType.exists?(args[0])
+      trainer_type = GameData::TrainerType.get(args[0]).id
+      return false if get(true, trainer_type, args[1], args[2] || 0)
+    end
+    return true
+  end
+
+  # Event, trainer type, name, versions_count = 1, start_version = 0, common event ID = 0
+  # Map ID, event ID, trainer type, name, versions_count = 1, start_version = 0, common event ID = 0
+  # Map ID, name, common event ID
+  def add(*args)
+    if args[0].is_a?(Game_Event)
+      # Trainer
+      return false if !GameData::TrainerType.exists?(args[1])
+      trainer_type = GameData::TrainerType.get(args[1]).id
+      name = args[2]
+      contact = get(true, trainer_type, name, args[3] || 0)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(true, args[0].map_id, args[0].id,
+                              trainer_type, name, args[3], args[4], args[5])
+      end
+    elsif args[1].is_a?(Numeric)
+      # Trainer
+      return false if !GameData::TrainerType.exists?(args[2])
+      trainer_type = GameData::TrainerType.get(args[2]).id
+      name = args[3]
+      contact = get(true, trainer_type, name, args[4] || 0)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(true, args[0], args[1],
+                              trainer_type, name, args[4], args[5], args[6])
+      end
+    else
+      # Non-trainer
+      name = args[1]
+      contact = get(false, name)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(false, *args)
+      end
+    end
+    @contacts.push(contact)
+    sort_contacts
+    return true
+  end
+
+  # Rearranges the list of phone contacts to put all visible contacts first,
+  # followed by all invisible contacts.
+  def sort_contacts
+    new_contacts = []
+    2.times do |i|
+      @contacts.each do |con|
+        next if (i == 0 && !con.visible?) || (i == 1 && con.visible?)
+        new_contacts.push(con)
+      end
+    end
+    @contacts = new_contacts
+  end
+
+  #=============================================================================
+
+  # Checks once every second.
+  def refresh_ready_trainers
+    return if !@rematches_enabled
+    time = pbGetTimeNow.to_i
+    return if @last_refresh_time == time
+    @last_refresh_time = time
+    @contacts.each do |contact|
+      next if !contact.trainer? || !contact.visible?
+      next if contact.rematch_flag > 0   # Already ready for rematch
+      if contact.time_to_ready <= 0
+        contact.time_to_ready = rand(20...40) * 60   # 20-40 minutes
+      end
+      contact.time_to_ready -= 1
+      next if contact.time_to_ready > 0
+      contact.rematch_flag = 1   # Ready for rematch
+      contact.set_trainer_event_ready_for_rematch
+    end
+  end
+
+  def reset_after_win(trainer_type, name, start_version = 0)
+    return if !GameData::TrainerType.exists?(trainer_type)
+    trainer_type = GameData::TrainerType.get(trainer_type).id
+    contact = get(true, trainer_type, name, start_version)
+    return if !contact
+    contact.increment_version
+    contact.rematch_flag = 0
+    contact.time_to_ready = 0
+  end
+
+  #=============================================================================
+
+  def self.rematch_variant
+    return $PokemonGlobal.phone.rematch_variant
+  end
+
+  def self.rematch_variant=(value)
+    $PokemonGlobal.phone.rematch_variant = value
+  end
+
+  def self.rematches_enabled
+    return $PokemonGlobal.phone.rematches_enabled
+  end
+
+  def self.rematches_enabled=(value)
+    $PokemonGlobal.phone.rematches_enabled = value
+  end
+
+  def self.get_trainer(*args)
+    return $PokemonGlobal.phone.get(true, *args)
+  end
+
+  def self.can_add?(*args)
+    return $PokemonGlobal.phone.can_add?(*args)
+  end
+
+  def self.add(*args)
+    ret = $PokemonGlobal.phone.add(*args)
+    if ret
+      if args[0].is_a?(Game_Event)
+        contact = $PokemonGlobal.phone.get(true, args[1], args[2], (args[4] || 0))
+      elsif args[1].is_a?(Numeric)
+        contact = $PokemonGlobal.phone.get(true, args[2], args[3], (args[5] || 0))
+      else
+        contact = $PokemonGlobal.phone.get(false, args[1])
+      end
+      pbMessage("\\me[Register phone]" + _INTL("Registered {1} in the Pokégear!", contact.display_name) + "\\wtnp[60]")
+    end
+    return ret
+  end
+
+  def self.add_silent(*args)
+    return $PokemonGlobal.phone.add(*args)
+  end
+
+  def self.variant(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(trainer_type, name, start_version)
+    return (contact) ? contact.variant : 0
+  end
+
+  def self.increment_version(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(trainer_type, name, start_version)
+    contact.increment_version if contact
+  end
+
+  def self.battle(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(true, trainer_type, name, start_version)
+    return false if !contact
+    return TrainerBattle.start(trainer_type, name, contact.next_version)
+  end
+
+  def self.reset_after_win(trainer_type, name, start_version = 0)
+    $PokemonGlobal.phone.reset_after_win(trainer_type, name, start_version)
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/007_Overworld_DayCare.rb RANGE 1-115
+#===============================================================================
+# NOTE: In Gen 7+, the Day Care is replaced by the Pokémon Nursery, which works
+#       in much the same way except deposited Pokémon no longer gain Exp because
+#       of the player walking around and, in Gen 8+, deposited Pokémon are able
+#       to learn egg moves from each other if they are the same species. In
+#       Essentials, this code can be used for both facilities, and these
+#       mechanics differences are set by some Settings.
+# NOTE: The Day Care has a different price than the Pokémon Nursery. For the Day
+#       Care, you are charged when you withdraw a deposited Pokémon and you pay
+#       an amount based on how many levels it gained. For the Nursery, you pay
+#       $500 up-front when you deposit a Pokémon. This difference will appear in
+#       the Day Care Lady's event, not in these scripts.
+#===============================================================================
+class DayCare
+  #=============================================================================
+  # Code that generates an egg based on two given Pokémon.
+  #=============================================================================
+  module EggGenerator
+    module_function
+
+    def generate(mother, father)
+      # Determine which Pokémon is the mother and which is the father
+      # Ensure mother is female, if the pair contains a female
+      # Ensure father is male, if the pair contains a male
+      # Ensure father is genderless, if the pair is a genderless with Ditto
+      if mother.male? || father.female? || mother.genderless?
+        mother, father = father, mother
+      end
+      mother_data = [mother, mother.species_data.egg_groups.include?(:Ditto)]
+      father_data = [father, father.species_data.egg_groups.include?(:Ditto)]
+      # Determine which parent the egg's species is based from
+      species_parent = (mother_data[1]) ? father : mother
+      # Determine the egg's species
+      baby_species = determine_egg_species(species_parent.species, mother, father)
+      mother_data.push(mother.species_data.breeding_can_produce?(baby_species))
+      father_data.push(father.species_data.breeding_can_produce?(baby_species))
+      # Generate egg
+      egg = generate_basic_egg(baby_species)
+      # Inherit properties from parent(s)
+      inherit_form(egg, species_parent, mother_data, father_data)
+      inherit_nature(egg, mother, father)
+      inherit_ability(egg, mother_data, father_data)
+      inherit_moves(egg, mother_data, father_data)
+      inherit_IVs(egg, mother, father)
+      inherit_poke_ball(egg, mother_data, father_data)
+      # Calculate other properties of the egg
+      set_shininess(egg, mother, father)   # Masuda method and Shiny Charm
+      set_pokerus(egg)
+      # Recalculate egg's stats
+      egg.calc_stats
+      return egg
+    end
+
+    def determine_egg_species(parent_species, mother, father)
+      ret = GameData::Species.get(parent_species).get_baby_species(true, mother.item_id, father.item_id)
+      # Check for alternate offspring (i.e. Nidoran M/F, Volbeat/Illumise, Manaphy/Phione)
+      offspring = GameData::Species.get(ret).offspring
+      ret = offspring.sample if offspring.length > 0
+      return ret
+    end
+
+    def generate_basic_egg(species)
+      egg = Pokemon.new(species, Settings::EGG_LEVEL)
+      egg.name           = _INTL("Egg")
+      egg.steps_to_hatch = egg.species_data.hatch_steps
+      egg.obtain_text    = _INTL("Day-Care Couple")
+      egg.happiness      = 120
+      egg.form           = 0 if species == :SINISTEA
+      # Set regional form
+      new_form = MultipleForms.call("getFormOnEggCreation", egg)
+      egg.form = new_form if new_form
+      return egg
+    end
+
+    def inherit_form(egg, species_parent, mother, father)
+      # mother = [mother, mother_ditto, mother_in_family]
+      # father = [father, father_ditto, father_in_family]
+      # Inherit form from the parent that determined the egg's species
+      if species_parent.species_data.has_flag?("InheritFormFromMother")
+        egg.form = species_parent.form
+      end
+      # Inherit form from a parent holding an Ever Stone
+      [mother, father].each do |parent|
+        next if !parent[2]   # Parent isn't a related species to the egg
+        next if !parent[0].species_data.has_flag?("InheritFormWithEverStone")
+        next if !parent[0].hasItem?(:EVERSTONE)
+        egg.form = parent[0].form
+        break
+      end
+    end
+
+    def get_moves_to_inherit(egg, mother, father)
+      # mother = [mother, mother_ditto, mother_in_family]
+      # father = [father, father_ditto, father_in_family]
+      move_father = (father[1]) ? mother[0] : father[0]
+      move_mother = (father[1]) ? father[0] : mother[0]
+      moves = []
+      # Get level-up moves known by both parents
+      egg.getMoveList.each do |move|
+        next if move[0] <= egg.level   # Could already know this move by default
+        next if !mother[0].hasMove?(move[1]) || !father[0].hasMove?(move[1])
+        moves.push(move[1])
+      end
+      # Inherit Machine moves from father (or non-Ditto genderless parent)
+      if Settings::BREEDING_CAN_INHERIT_MACHINE_MOVES && !move_father.female?
+        GameData::Item.each do |i|
+          move = i.move
+          next if !move
+          next if !move_father.hasMove?(move) || !egg.compatible_with_move?(move)
+          moves.push(move)
+        end
+      end
+      # Inherit egg moves from each parent
+      if !move_father.female?
+        egg.species_data.egg_moves.each do |move|
+
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/005_PluginManager.rb RANGE 332-374
+  def self.credits(plugin_name)
+    return if !installed?(plugin_name)
+    return @@Plugins[plugin_name][:credits]
+  end
+
+  # Compares two versions given in string form. v1 should be the plugin version
+  # you actually have, and v2 should be the minimum/desired plugin version.
+  # Return values:
+  #     1 if v1 is higher than v2
+  #     0 if v1 is equal to v2
+  #     -1 if v1 is lower than v2
+  def self.compare_versions(v1, v2)
+    d1 = v1.chars
+    d1.insert(0, "0") if d1[0] == "."   # Turn ".123" into "0.123"
+    while d1[-1] == "."                 # Turn "123." into "123"
+      d1 = d1[0..-2]
+    end
+    d2 = v2.chars
+    d2.insert(0, "0") if d2[0] == "."   # Turn ".123" into "0.123"
+    while d2[-1] == "."                 # Turn "123." into "123"
+      d2 = d2[0..-2]
+    end
+    [d1.size, d2.size].max.times do |i|   # Compare each digit in turn
+      c1 = d1[i]
+      c2 = d2[i]
+      if c1
+        return 1 if !c2
+        return 1 if c1.to_i(16) > c2.to_i(16)
+        return -1 if c1.to_i(16) < c2.to_i(16)
+      elsif c2
+        return -1
+      end
+    end
+    return 0
+  end
+
+  # Formats the error message
+  def self.pluginErrorMsg(name, script)
+    e = $!
+    # begin message formatting
+    message = "[Pokémon Essentials version #{Essentials::VERSION}]\r\n"
+    message += "#{Essentials::ERROR_TEXT}\r\n"   # For third party scripts to add to
+    message += "Error in Plugin: [#{name}]\r\n"

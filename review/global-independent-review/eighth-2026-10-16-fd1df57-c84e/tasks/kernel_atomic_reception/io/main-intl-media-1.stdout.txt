@@ -1,0 +1,413 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/999_Main/999_Main.rb RANGE 1-60
+class Scene_DebugIntro
+  def main
+    Graphics.transition(0)
+    sscene = PokemonLoad_Scene.new
+    sscreen = PokemonLoadScreen.new(sscene)
+    sscreen.pbStartLoadScreen
+    Graphics.freeze
+  end
+end
+
+def pbCallTitle
+  return Scene_DebugIntro.new if $DEBUG
+  return Scene_Intro.new
+end
+
+def mainFunction
+  if $DEBUG
+    pbCriticalCode { mainFunctionDebug }
+  else
+    mainFunctionDebug
+  end
+  return 1
+end
+
+def mainFunctionDebug
+  begin
+    MessageTypes.load_default_messages if FileTest.exist?("Data/messages_core.dat")
+    if $DEBUG && !FileTest.exist?("Game.rgssad") && Settings::PROMPT_TO_COMPILE
+      pbSetResizeFactor(1)   # Needed to make the message look good
+      if pbConfirmMessage("\\ts[]" + "Do you want to compile your data and plugins?")
+        $full_compile = true
+      end
+    end
+    PluginManager.runPlugins
+    Compiler.main
+    Game.initialize
+    Game.set_up_system
+    Graphics.update
+    Graphics.freeze
+    $scene = pbCallTitle
+    $scene.main until $scene.nil?
+    Graphics.transition
+  rescue Hangup
+    pbPrintException($!) if !$DEBUG
+    pbEmergencySave
+    raise
+  end
+end
+
+loop do
+  retval = mainFunction
+  case retval
+  when 0   # failed
+    loop do
+      Graphics.update
+    end
+  when 1   # ended successfully
+    break
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/003_Intl_Messages.rb RANGE 1-350
+#===============================================================================
+#
+#===============================================================================
+module Translator
+  module_function
+
+  def gather_script_and_event_texts
+    Graphics.update
+    begin
+      t = System.uptime
+      texts = []
+      # Get script texts from Scripts.rxdata
+      $RGSS_SCRIPTS.each do |script|
+        if System.uptime - t >= 5
+          t += 5
+          Graphics.update
+        end
+        scr = Zlib::Inflate.inflate(script[2])
+        find_translatable_text_from_RGSS_script(texts, scr)
+      end
+      # If Scripts.rxdata only has 1 section, scripts have been extracted. Get
+      # script texts from .rb files in Data/Scripts
+      if $RGSS_SCRIPTS.length == 1
+        Dir.all("Data/Scripts").each do |script_file|
+          if System.uptime - t >= 5
+            t += 5
+            Graphics.update
+          end
+          File.open(script_file, "rb") do |f|
+            find_translatable_text_from_RGSS_script(texts, f.read)
+          end
+        end
+      end
+      # Get script texts from plugin script files
+      if FileTest.exist?("Data/PluginScripts.rxdata")
+        plugin_scripts = load_data("Data/PluginScripts.rxdata")
+        plugin_scripts.each do |plugin|
+          plugin[2].each do |script|
+            if System.uptime - t >= 5
+              t += 5
+              Graphics.update
+            end
+            scr = Zlib::Inflate.inflate(script[1]).force_encoding(Encoding::UTF_8)
+            find_translatable_text_from_RGSS_script(texts, scr)
+          end
+        end
+      end
+      MessageTypes.addMessagesAsHash(MessageTypes::SCRIPT_TEXTS, texts)
+      # Find all text in common events and add them to messages
+      commonevents = load_data("Data/CommonEvents.rxdata")
+      items = []
+      choices = []
+      commonevents.compact.each do |event|
+        if System.uptime - t >= 5
+          t += 5
+          Graphics.update
+        end
+        begin
+          neednewline = false
+          lastitem = ""
+          event.list.size.times do |j|
+            list = event.list[j]
+            if neednewline && list.code != 401   # Continuation of 101 Show Text
+              if lastitem != ""
+                lastitem.gsub!(/([^\.\!\?])\s\s+/) { |m| $1 + " " }
+                items.push(lastitem)
+                lastitem = ""
+              end
+              neednewline = false
+            end
+            if list.code == 101   # Show Text
+              lastitem += list.parameters[0].to_s
+              neednewline = true
+            elsif list.code == 102   # Show Choices
+              list.parameters[0].length.times do |k|
+                choices.push(list.parameters[0][k])
+              end
+              neednewline = false
+            elsif list.code == 401   # Continuation of 101 Show Text
+              lastitem += " " if lastitem != ""
+              lastitem += list.parameters[0].to_s
+              neednewline = true
+            elsif list.code == 355 || list.code == 655   # Script or script continuation line
+              find_translatable_text_from_event_script(items, list.parameters[0])
+            elsif list.code == 111 && list.parameters[0] == 12   # Conditional Branch
+              find_translatable_text_from_event_script(items, list.parameters[1])
+            elsif list.code == 209   # Set Move Route
+              route = list.parameters[1]
+              route.list.size.times do |k|
+                if route.list[k].code == PBMoveRoute::SCRIPT
+                  find_translatable_text_from_event_script(items, route.list[k].parameters[0])
+                end
+              end
+            end
+          end
+          if neednewline && lastitem != ""
+            items.push(lastitem)
+            lastitem = ""
+          end
+        end
+      end
+      if System.uptime - t >= 5
+        t += 5
+        Graphics.update
+      end
+      items |= []
+      choices |= []
+      items.concat(choices)
+      MessageTypes.setMapMessagesAsHash(0, items)
+      # Find all text in map events and add them to messages
+      mapinfos = pbLoadMapInfos
+      mapinfos.each_key do |id|
+        if System.uptime - t >= 5
+          t += 5
+          Graphics.update
+        end
+        filename = sprintf("Data/Map%03d.rxdata", id)
+        next if !pbRgssExists?(filename)
+        map = load_data(filename)
+        items = []
+        choices = []
+        map.events.each_value do |event|
+          if System.uptime - t >= 5
+            t += 5
+            Graphics.update
+          end
+          begin
+            event.pages.size.times do |i|
+              neednewline = false
+              lastitem = ""
+              event.pages[i].list.size.times do |j|
+                list = event.pages[i].list[j]
+                if neednewline && list.code != 401   # Continuation of 101 Show Text
+                  if lastitem != ""
+                    lastitem.gsub!(/([^\.\!\?])\s\s+/) { |m| $1 + " " }
+                    items.push(lastitem)
+                    lastitem = ""
+                  end
+                  neednewline = false
+                end
+                if list.code == 101   # Show Text
+                  lastitem += list.parameters[0].to_s
+                  neednewline = true
+                elsif list.code == 102   # Show Choices
+                  list.parameters[0].length.times do |k|
+                    choices.push(list.parameters[0][k])
+                  end
+                  neednewline = false
+                elsif list.code == 401   # Continuation of 101 Show Text
+                  lastitem += " " if lastitem != ""
+                  lastitem += list.parameters[0].to_s
+                  neednewline = true
+                elsif list.code == 355 || list.code == 655   # Script or script continuation line
+                  find_translatable_text_from_event_script(items, list.parameters[0])
+                elsif list.code == 111 && list.parameters[0] == 12   # Conditional Branch
+                  find_translatable_text_from_event_script(items, list.parameters[1])
+                elsif list.code == 209   # Set Move Route
+                  route = list.parameters[1]
+                  route.list.size.times do |k|
+                    if route.list[k].code == PBMoveRoute::SCRIPT
+                      find_translatable_text_from_event_script(items, route.list[k].parameters[0])
+                    end
+                  end
+                end
+              end
+              if neednewline && lastitem != ""
+                items.push(lastitem)
+                lastitem = ""
+              end
+            end
+          end
+        end
+        if System.uptime - t >= 5
+          t += 5
+          Graphics.update
+        end
+        items |= []
+        choices |= []
+        items.concat(choices)
+        MessageTypes.setMapMessagesAsHash(id, items) if items.length > 0
+        if System.uptime - t >= 5
+          t += 5
+          Graphics.update
+        end
+      end
+    rescue Hangup
+    end
+    Graphics.update
+  end
+
+  def find_translatable_text_from_RGSS_script(items, script)
+    script.force_encoding(Encoding::UTF_8)
+    script.scan(/(?:_INTL|_ISPRINTF)\s*\(\s*\"((?:[^\\\"]*\\\"?)*[^\"]*)\"/) do |s|
+      string = s[0]
+      string.gsub!(/\\r/, "\r")
+      string.gsub!(/\\n/, "\n")
+      string.gsub!(/\\1/, "\1")
+      string.gsub!(/\\\"/, "\"")
+      string.gsub!(/\\\\/, "\\")
+      items.push(string)
+    end
+  end
+
+  def find_translatable_text_from_event_script(items, script)
+    script.force_encoding(Encoding::UTF_8)
+    script.scan(/(?:_I)\s*\(\s*\"((?:[^\\\"]*\\\"?)*[^\"]*)\"/) do |s|
+      string = s[0]
+      string.gsub!(/\\\"/, "\"")
+      string.gsub!(/\\\\/, "\\")
+      items.push(string)
+    end
+  end
+
+  def normalize_value(value)
+    if value[/[\r\n\t\x01]|^[\[\]]/]
+      ret = value.dup
+      ret.gsub!(/\r/, "<<r>>")
+      ret.gsub!(/\n/, "<<n>>")
+      ret.gsub!(/\t/, "<<t>>")
+      ret.gsub!(/\[/, "<<[>>")
+      ret.gsub!(/\]/, "<<]>>")
+      ret.gsub!(/\x01/, "<<1>>")
+      return ret
+    end
+    return value
+  end
+
+  def denormalize_value(value)
+    if value[/<<[rnt1\[\]]>>/]
+      ret = value.dup
+      ret.gsub!(/<<1>>/, "\1")
+      ret.gsub!(/<<r>>/, "\r")
+      ret.gsub!(/<<n>>/, "\n")
+      ret.gsub!(/<<\[>>/, "[")
+      ret.gsub!(/<<\]>>/, "]")
+      ret.gsub!(/<<t>>/, "\t")
+      return ret
+    end
+    return value
+  end
+
+  #-----------------------------------------------------------------------------
+
+  def extract_text(language_name = "default", core_text = false, separate_map_files = false)
+    dir_name = sprintf("Text_%s_%s", language_name, (core_text) ? "core" : "game")
+    msg_window = pbCreateMessageWindow
+    # Get text for extraction
+    orig_messages = Translation.new(language_name)
+    if core_text
+      language_messages = orig_messages.core_messages
+      default_messages = orig_messages.default_core_messages
+      if !default_messages || default_messages.length == 0
+        pbMessageDisplay(msg_window, _INTL("The default core messages file \"messages_core.dat\" was not found."))
+        pbDisposeMessageWindow(msg_window)
+        return
+      end
+    else
+      language_messages = orig_messages.game_messages
+      default_messages = orig_messages.default_game_messages
+      if !default_messages || default_messages.length == 0
+        pbMessageDisplay(msg_window, _INTL("The default game messages file \"messages_game.dat\" was not found."))
+        pbDisposeMessageWindow(msg_window)
+        return
+      end
+    end
+    # Create folder for extracted text files, or delete existing text files from
+    # existing destination folder
+    if Dir.safe?(dir_name)
+      has_files = false
+      Dir.all(dir_name).each do |f|
+        has_files = true
+        break
+      end
+      if has_files && !pbConfirmMessageSerious(_INTL("Replace all text files in folder '{1}'?", dir_name))
+        pbDisposeMessageWindow(msg_window)
+        return
+      end
+      Dir.all(dir_name).each { |f| File.delete(f) }
+    else
+      Dir.create(dir_name)
+    end
+    # Create a lambda function that helps to write text files
+    write_header = lambda do |f, with_line|
+      f.write(0xEF.chr)
+      f.write(0xBB.chr)
+      f.write(0xBF.chr)
+      f.write("# To localize this text for a particular language, please" + "\r\n")
+      f.write("# translate every second line of this file." + "\r\n")
+      f.write("\#-------------------------------\r\n") if with_line
+    end
+    # Extract the text
+    pbMessageDisplay(msg_window, "\\ts[]" + _INTL("Extracting text, please wait.") + "\\wtnp[0]")
+    # Get all the section IDs to cycle through
+    max_section_id = default_messages.length
+    max_section_id = language_messages.length if language_messages && language_messages.length > max_section_id
+    max_section_id.times do |i|
+      section_name = getConstantName(MessageTypes, i, false)
+      next if !section_name
+      if i == MessageTypes::EVENT_TEXTS
+        if separate_map_files
+          map_infos = pbLoadMapInfos
+          default_messages[i].each_with_index do |map_msgs, map_id|
+            next if !map_msgs || map_msgs.length == 0
+            filename = sprintf("Map%03d", map_id)
+            filename += " " + map_infos[map_id].name if map_infos[map_id]
+            File.open(dir_name + "/" + filename + ".txt", "wb") do |f|
+              write_header.call(f, true)
+              translated_msgs = language_messages[i][map_id] if language_messages && language_messages[i]
+              write_section_texts_to_file(f, sprintf("Map%03d", map_id), translated_msgs, map_msgs)
+            end
+          end
+        else
+          next if !default_messages[i] || default_messages[i].length == 0
+          no_difference = true
+          default_messages[i].each do |map_msgs|
+            no_difference = false if map_msgs && map_msgs.length > 0
+            break if !map_msgs
+          end
+          next if no_difference
+          File.open(dir_name + "/" + section_name + ".txt", "wb") do |f|
+            write_header.call(f, false)
+            default_messages[i].each_with_index do |map_msgs, map_id|
+              next if !map_msgs || map_msgs.length == 0
+              f.write("\#-------------------------------\r\n")
+              translated_msgs = (language_messages && language_messages[i]) ? language_messages[i][map_id] : nil
+              write_section_texts_to_file(f, sprintf("Map%03d", map_id), translated_msgs, map_msgs)
+            end
+          end
+        end
+      else   # MessageTypes sections
+        next if !default_messages[i] || default_messages[i].length == 0
+        File.open(dir_name + "/" + section_name + ".txt", "wb") do |f|
+          write_header.call(f, true)
+          translated_msgs = (language_messages) ? language_messages[i] : nil
+          write_section_texts_to_file(f, section_name, translated_msgs, default_messages[i])
+        end
+      end
+    end
+    msg_window.textspeed = MessageConfig.pbSettingToTextSpeed($PokemonSystem.textspeed)
+    if core_text
+      pbMessageDisplay(msg_window, _INTL("All core text was extracted to files in the folder \"{1}\".", dir_name) + "\1")
+    else
+      pbMessageDisplay(msg_window, _INTL("All game text was extracted to files in the folder \"{1}\".", dir_name) + "\1")
+    end
+    pbMessageDisplay(msg_window, _INTL("To localize this text, translate every second line in those files.") + "\1")
+    pbMessageDisplay(msg_window, _INTL("After translating, choose \"Compile Translated Text\" in the Debug menu."))
+    pbDisposeMessageWindow(msg_window)
+  end
+
+  def write_section_texts_to_file(f, section_name, language_msgs, original_msgs = nil)

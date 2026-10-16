@@ -1,0 +1,76 @@
+00578:           if args[i + 1].is_a?(Integer)   # Version number is next
+00579:             trainer_name = arg.strip
+00580:           else
+00581:             trainer = pbLoadTrainer(trainer_type, arg)
+00582:             pbMissingTrainer(trainer_type, arg, 0) if !trainer
+00583:             trainer = pbLoadTrainer(trainer_type, arg) if !trainer   # Try again
+00584:             raise _INTL("Trainer for data '{1}, {2}' is not defined.", trainer_type, arg) if !trainer
+00585:             EventHandlers.trigger(:on_trainer_load, trainer)
+00586:             trainer_array.push(trainer)
+00587:             foe_items.push(trainer.items)
+00588:             party_starts.push(pokemon_array.length)
+00589:             trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+00590:             trainer_type = nil
+00591:           end
+00592:         else   # Expecting trainer type
+00593:           if !GameData::TrainerType.exists?(arg)
+00594:             raise _INTL("Trainer type {1} does not exist.", arg)
+00595:           end
+00596:           trainer_type = arg
+00597:         end
+00598:       end
+00599:     end
+00600:     raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+00601:     return trainer_array, foe_items, pokemon_array, party_starts
+00602:   end
+00603: end
+00604: 
+00605: #===============================================================================
+00606: # After battles
+00607: #===============================================================================
+00608: EventHandlers.add(:on_end_battle, :evolve_and_black_out,
+00609:   proc { |decision, canLose|
+00610:     # Check for evolutions
+00611:     pbEvolutionCheck if Settings::CHECK_EVOLUTION_AFTER_ALL_BATTLES ||
+00612:                         (decision != 2 && decision != 5)   # not a loss or a draw
+00613:     $game_temp.party_levels_before_battle = nil
+00614:     $game_temp.party_critical_hits_dealt = nil
+00615:     $game_temp.party_direct_damage_taken = nil
+00616:     # Check for blacking out or gaining Pickup/Huney Gather items
+00617:     case decision
+00618:     when 1, 4   # Win, capture
+00619:       $player.pokemon_party.each do |pkmn|
+00620:         pbPickup(pkmn)
+00621:         pbHoneyGather(pkmn)
+00622:       end
+00623:     when 2, 5   # Lose, draw
+00624:       if !canLose
+00625:         $game_system.bgm_unpause
+00626:         $game_system.bgs_unpause
+00627:         pbStartOver
+00628:       end
+00629:     end
+00630:   }
+00631: )
+00632: 
+00633: def pbEvolutionCheck
+00634:   $player.party.each_with_index do |pkmn, i|
+00635:     next if !pkmn || pkmn.egg?
+00636:     next if pkmn.fainted? && !Settings::CHECK_EVOLUTION_FOR_FAINTED_POKEMON
+00637:     # Find an evolution
+00638:     new_species = nil
+00639:     if new_species.nil? && $game_temp.party_levels_before_battle &&
+00640:        $game_temp.party_levels_before_battle[i] &&
+00641:        $game_temp.party_levels_before_battle[i] < pkmn.level
+00642:       new_species = pkmn.check_evolution_on_level_up
+00643:     end
+00644:     new_species = pkmn.check_evolution_after_battle(i) if new_species.nil?
+00645:     next if new_species.nil?
+00646:     # Evolve Pokémon if possible
+00647:     evo = PokemonEvolutionScene.new
+00648:     evo.pbStartScreen(pkmn, new_species)
+00649:     evo.pbEvolution
+00650:     evo.pbEndScreen
+00651:   end
+00652: end
+00653: 

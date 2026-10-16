@@ -1,0 +1,260 @@
+00001: class Battle::Move
+00002:   #=============================================================================
+00003:   # Move's type calculation
+00004:   #=============================================================================
+00005:   def pbBaseType(user)
+00006:     ret = @type
+00007:     if ret && user.abilityActive?
+00008:       ret = Battle::AbilityEffects.triggerModifyMoveBaseType(user.ability, user, self, ret)
+00009:     end
+00010:     return ret
+00011:   end
+00012: 
+00013:   def pbCalcType(user)
+00014:     @powerBoost = false
+00015:     ret = pbBaseType(user)
+00016:     if ret && GameData::Type.exists?(:ELECTRIC)
+00017:       if @battle.field.effects[PBEffects::IonDeluge] && ret == :NORMAL
+00018:         ret = :ELECTRIC
+00019:         @powerBoost = false
+00020:       end
+00021:       if user.effects[PBEffects::Electrify]
+00022:         ret = :ELECTRIC
+00023:         @powerBoost = false
+00024:       end
+00025:     end
+00026:     return ret
+00027:   end
+00028: 
+00029:   #=============================================================================
+00030:   # Type effectiveness calculation
+00031:   #=============================================================================
+00032:   def pbCalcTypeModSingle(moveType, defType, user, target)
+00033:     ret = Effectiveness.calculate(moveType, defType)
+00034:     if Effectiveness.ineffective_type?(moveType, defType)
+00035:       # Ring Target
+00036:       if target.hasActiveItem?(:RINGTARGET)
+00037:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00038:       end
+00039:       # Foresight
+00040:       if (user.hasActiveAbility?(:SCRAPPY) || target.effects[PBEffects::Foresight]) &&
+00041:          defType == :GHOST
+00042:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00043:       end
+00044:       # Miracle Eye
+00045:       if target.effects[PBEffects::MiracleEye] && defType == :DARK
+00046:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00047:       end
+00048:     elsif Effectiveness.super_effective_type?(moveType, defType)
+00049:       # Delta Stream's weather
+00050:       if target.effectiveWeather == :StrongWinds && defType == :FLYING
+00051:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00052:       end
+00053:     end
+00054:     # Grounded Flying-type Pokémon become susceptible to Ground moves
+00055:     if !target.airborne? && defType == :FLYING && moveType == :GROUND
+00056:       ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00057:     end
+00058:     return ret
+00059:   end
+00060: 
+00061:   def pbCalcTypeMod(moveType, user, target)
+00062:     ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00063:     return ret if !moveType
+00064:     return ret if moveType == :GROUND && target.pbHasType?(:FLYING) && target.hasActiveItem?(:IRONBALL)
+00065:     # Get effectivenesses
+00066:     if moveType == :SHADOW
+00067:       if target.shadowPokemon?
+00068:         ret = Effectiveness::NOT_VERY_EFFECTIVE_MULTIPLIER
+00069:       else
+00070:         ret = Effectiveness::SUPER_EFFECTIVE_MULTIPLIER
+00071:       end
+00072:     else
+00073:       target.pbTypes(true).each do |type|
+00074:         ret *= pbCalcTypeModSingle(moveType, type, user, target)
+00075:       end
+00076:       ret *= 2 if target.effects[PBEffects::TarShot] && moveType == :FIRE
+00077:     end
+00078:     return ret
+00079:   end
+00080: 
+00081:   #=============================================================================
+00082:   # Accuracy check
+00083:   #=============================================================================
+00084:   def pbBaseAccuracy(user, target); return @accuracy; end
+00085: 
+00086:   # Accuracy calculations for one-hit KO moves are handled elsewhere.
+00087:   def pbAccuracyCheck(user, target)
+00088:     # "Always hit" effects and "always hit" accuracy
+00089:     return true if target.effects[PBEffects::Telekinesis] > 0
+00090:     return true if target.effects[PBEffects::Minimize] && tramplesMinimize? && Settings::MECHANICS_GENERATION >= 6
+00091:     baseAcc = pbBaseAccuracy(user, target)
+00092:     return true if baseAcc == 0
+00093:     # Calculate all multiplier effects
+00094:     modifiers = {}
+00095:     modifiers[:base_accuracy]  = baseAcc
+00096:     modifiers[:accuracy_stage] = user.stages[:ACCURACY]
+00097:     modifiers[:evasion_stage]  = target.stages[:EVASION]
+00098:     modifiers[:accuracy_multiplier] = 1.0
+00099:     modifiers[:evasion_multiplier]  = 1.0
+00100:     pbCalcAccuracyModifiers(user, target, modifiers)
+00101:     # Check if move can't miss
+00102:     return true if modifiers[:base_accuracy] == 0
+00103:     # Calculation
+00104:     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+00105:     accStage = [[modifiers[:accuracy_stage], -max_stage].max, max_stage].min + max_stage
+00106:     evaStage = [[modifiers[:evasion_stage], -max_stage].max, max_stage].min + max_stage
+00107:     stageMul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+00108:     stageDiv = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+00109:     accuracy = 100.0 * stageMul[accStage] / stageDiv[accStage]
+00110:     evasion  = 100.0 * stageMul[evaStage] / stageDiv[evaStage]
+00111:     accuracy = (accuracy * modifiers[:accuracy_multiplier]).round
+00112:     evasion  = (evasion  * modifiers[:evasion_multiplier]).round
+00113:     evasion = 1 if evasion < 1
+00114:     threshold = modifiers[:base_accuracy] * accuracy / evasion
+00115:     # Calculation
+00116:     r = @battle.pbRandom(100)
+00117:     if Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+00118:        target.pbOwnedByPlayer? && target.affection_level == 5 && !target.mega?
+00119:       return true if r < threshold - 10
+00120:       target.damageState.affection_missed = true if r < threshold
+00121:       return false
+00122:     end
+00123:     return r < threshold
+00124:   end
+00125: 
+00126:   def pbCalcAccuracyModifiers(user, target, modifiers)
+00127:     # Ability effects that alter accuracy calculation
+00128:     if user.abilityActive?
+00129:       Battle::AbilityEffects.triggerAccuracyCalcFromUser(
+00130:         user.ability, modifiers, user, target, self, @calcType
+00131:       )
+00132:     end
+00133:     user.allAllies.each do |b|
+00134:       next if !b.abilityActive?
+00135:       Battle::AbilityEffects.triggerAccuracyCalcFromAlly(
+00136:         b.ability, modifiers, user, target, self, @calcType
+00137:       )
+00138:     end
+00139:     if target.abilityActive? && !@battle.moldBreaker
+00140:       Battle::AbilityEffects.triggerAccuracyCalcFromTarget(
+00141:         target.ability, modifiers, user, target, self, @calcType
+00142:       )
+00143:     end
+00144:     # Item effects that alter accuracy calculation
+00145:     if user.itemActive?
+00146:       Battle::ItemEffects.triggerAccuracyCalcFromUser(
+00147:         user.item, modifiers, user, target, self, @calcType
+00148:       )
+00149:     end
+00150:     if target.itemActive?
+00151:       Battle::ItemEffects.triggerAccuracyCalcFromTarget(
+00152:         target.item, modifiers, user, target, self, @calcType
+00153:       )
+00154:     end
+00155:     # Other effects, inc. ones that set accuracy_multiplier or evasion_stage to
+00156:     # specific values
+00157:     if @battle.field.effects[PBEffects::Gravity] > 0
+00158:       modifiers[:accuracy_multiplier] *= 5 / 3.0
+00159:     end
+00160:     if user.effects[PBEffects::MicleBerry]
+00161:       user.effects[PBEffects::MicleBerry] = false
+00162:       modifiers[:accuracy_multiplier] *= 1.2
+00163:     end
+00164:     modifiers[:evasion_stage] = 0 if target.effects[PBEffects::Foresight] && modifiers[:evasion_stage] > 0
+00165:     modifiers[:evasion_stage] = 0 if target.effects[PBEffects::MiracleEye] && modifiers[:evasion_stage] > 0
+00166:   end
+00167: 
+00168:   #=============================================================================
+00169:   # Critical hit check
+00170:   #=============================================================================
+00171:   # Return values:
+00172:   #   -1: Never a critical hit.
+00173:   #    0: Calculate normally.
+00174:   #    1: Always a critical hit.
+00175:   def pbCritialOverride(user, target); return 0; end
+00176: 
+00177:   # Returns whether the move will be a critical hit.
+00178:   def pbIsCritical?(user, target)
+00179:     return false if target.pbOwnSide.effects[PBEffects::LuckyChant] > 0
+00180:     c = 0
+00181:     # Ability effects that alter critical hit rate
+00182:     if c >= 0 && user.abilityActive?
+00183:       c = Battle::AbilityEffects.triggerCriticalCalcFromUser(user.ability, user, target, c)
+00184:     end
+00185:     if c >= 0 && target.abilityActive? && !@battle.moldBreaker
+00186:       c = Battle::AbilityEffects.triggerCriticalCalcFromTarget(target.ability, user, target, c)
+00187:     end
+00188:     # Item effects that alter critical hit rate
+00189:     if c >= 0 && user.itemActive?
+00190:       c = Battle::ItemEffects.triggerCriticalCalcFromUser(user.item, user, target, c)
+00191:     end
+00192:     if c >= 0 && target.itemActive?
+00193:       c = Battle::ItemEffects.triggerCriticalCalcFromTarget(target.item, user, target, c)
+00194:     end
+00195:     return false if c < 0
+00196:     # Move-specific "always/never a critical hit" effects
+00197:     case pbCritialOverride(user, target)
+00198:     when 1  then return true
+00199:     when -1 then return false
+00200:     end
+00201:     # Other effects
+00202:     return true if c > 50   # Merciless
+00203:     return true if user.effects[PBEffects::LaserFocus] > 0
+00204:     c += 1 if highCriticalRate?
+00205:     c += user.effects[PBEffects::FocusEnergy]
+00206:     c += 1 if user.inHyperMode? && @type == :SHADOW
+00207:     # Set up the critical hit ratios
+00208:     ratios = CRITICAL_HIT_RATIOS
+00209:     c = ratios.length - 1 if c >= ratios.length
+00210:     # Calculation
+00211:     return true if ratios[c] == 1
+00212:     r = @battle.pbRandom(ratios[c])
+00213:     return true if r == 0
+00214:     if r == 1 && Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+00215:        user.pbOwnedByPlayer? && user.affection_level == 5 && !target.mega?
+00216:       target.damageState.affection_critical = true
+00217:       return true
+00218:     end
+00219:     return false
+00220:   end
+00221: 
+00222:   #=============================================================================
+00223:   # Damage calculation
+00224:   #=============================================================================
+00225:   def pbBaseDamage(baseDmg, user, target);              return baseDmg;    end
+00226:   def pbBaseDamageMultiplier(damageMult, user, target); return damageMult; end
+00227:   def pbModifyDamage(damageMult, user, target);         return damageMult; end
+00228: 
+00229:   def pbGetAttackStats(user, target)
+00230:     return user.spatk, user.stages[:SPECIAL_ATTACK] + Battle::Battler::STAT_STAGE_MAXIMUM if specialMove?
+00231:     return user.attack, user.stages[:ATTACK] + Battle::Battler::STAT_STAGE_MAXIMUM
+00232:   end
+00233: 
+00234:   def pbGetDefenseStats(user, target)
+00235:     return target.spdef, target.stages[:SPECIAL_DEFENSE] + Battle::Battler::STAT_STAGE_MAXIMUM if specialMove?
+00236:     return target.defense, target.stages[:DEFENSE] + Battle::Battler::STAT_STAGE_MAXIMUM
+00237:   end
+00238: 
+00239:   def pbCalcDamage(user, target, numTargets = 1)
+00240:     return if statusMove?
+00241:     if target.damageState.disguise || target.damageState.iceFace
+00242:       target.damageState.calcDamage = 1
+00243:       return
+00244:     end
+00245:     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+00246:     stageMul = Battle::Battler::STAT_STAGE_MULTIPLIERS
+00247:     stageDiv = Battle::Battler::STAT_STAGE_DIVISORS
+00248:     # Get the move's type
+00249:     type = @calcType   # nil is treated as physical
+00250:     # Calculate whether this hit deals critical damage
+00251:     target.damageState.critical = pbIsCritical?(user, target)
+00252:     # Calcuate base power of move
+00253:     baseDmg = pbBaseDamage(@power, user, target)
+00254:     # Calculate user's attack stat
+00255:     atk, atkStage = pbGetAttackStats(user, target)
+00256:     if !target.hasActiveAbility?(:UNAWARE) || @battle.moldBreaker
+00257:       atkStage = max_stage if target.damageState.critical && atkStage < max_stage
+00258:       atk = (atk.to_f * stageMul[atkStage] / stageDiv[atkStage]).floor
+00259:     end
+00260:     # Calculate target's defense stat

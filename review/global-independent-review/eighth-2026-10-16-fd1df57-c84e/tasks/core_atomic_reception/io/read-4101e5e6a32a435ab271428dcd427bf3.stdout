@@ -1,0 +1,134 @@
+00001: class Battle::Move
+00002:   #=============================================================================
+00003:   # Move's type calculation
+00004:   #=============================================================================
+00005:   def pbBaseType(user)
+00006:     ret = @type
+00007:     if ret && user.abilityActive?
+00008:       ret = Battle::AbilityEffects.triggerModifyMoveBaseType(user.ability, user, self, ret)
+00009:     end
+00010:     return ret
+00011:   end
+00012: 
+00013:   def pbCalcType(user)
+00014:     @powerBoost = false
+00015:     ret = pbBaseType(user)
+00016:     if ret && GameData::Type.exists?(:ELECTRIC)
+00017:       if @battle.field.effects[PBEffects::IonDeluge] && ret == :NORMAL
+00018:         ret = :ELECTRIC
+00019:         @powerBoost = false
+00020:       end
+00021:       if user.effects[PBEffects::Electrify]
+00022:         ret = :ELECTRIC
+00023:         @powerBoost = false
+00024:       end
+00025:     end
+00026:     return ret
+00027:   end
+00028: 
+00029:   #=============================================================================
+00030:   # Type effectiveness calculation
+00031:   #=============================================================================
+00032:   def pbCalcTypeModSingle(moveType, defType, user, target)
+00033:     ret = Effectiveness.calculate(moveType, defType)
+00034:     if Effectiveness.ineffective_type?(moveType, defType)
+00035:       # Ring Target
+00036:       if target.hasActiveItem?(:RINGTARGET)
+00037:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00038:       end
+00039:       # Foresight
+00040:       if (user.hasActiveAbility?(:SCRAPPY) || target.effects[PBEffects::Foresight]) &&
+00041:          defType == :GHOST
+00042:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00043:       end
+00044:       # Miracle Eye
+00045:       if target.effects[PBEffects::MiracleEye] && defType == :DARK
+00046:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00047:       end
+00048:     elsif Effectiveness.super_effective_type?(moveType, defType)
+00049:       # Delta Stream's weather
+00050:       if target.effectiveWeather == :StrongWinds && defType == :FLYING
+00051:         ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00052:       end
+00053:     end
+00054:     # Grounded Flying-type Pokémon become susceptible to Ground moves
+00055:     if !target.airborne? && defType == :FLYING && moveType == :GROUND
+00056:       ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00057:     end
+00058:     return ret
+00059:   end
+00060: 
+00061:   def pbCalcTypeMod(moveType, user, target)
+00062:     ret = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00063:     return ret if !moveType
+00064:     return ret if moveType == :GROUND && target.pbHasType?(:FLYING) && target.hasActiveItem?(:IRONBALL)
+00065:     # Get effectivenesses
+00066:     if moveType == :SHADOW
+00067:       if target.shadowPokemon?
+00068:         ret = Effectiveness::NOT_VERY_EFFECTIVE_MULTIPLIER
+00069:       else
+00070:         ret = Effectiveness::SUPER_EFFECTIVE_MULTIPLIER
+00071:       end
+00072:     else
+00073:       target.pbTypes(true).each do |type|
+00074:         ret *= pbCalcTypeModSingle(moveType, type, user, target)
+00075:       end
+00076:       ret *= 2 if target.effects[PBEffects::TarShot] && moveType == :FIRE
+00077:     end
+00078:     return ret
+00079:   end
+00080: 
+00081:   #=============================================================================
+00082:   # Accuracy check
+00083:   #=============================================================================
+00084:   def pbBaseAccuracy(user, target); return @accuracy; end
+00085: 
+00086:   # Accuracy calculations for one-hit KO moves are handled elsewhere.
+00087:   def pbAccuracyCheck(user, target)
+00088:     # "Always hit" effects and "always hit" accuracy
+00089:     return true if target.effects[PBEffects::Telekinesis] > 0
+00090:     return true if target.effects[PBEffects::Minimize] && tramplesMinimize? && Settings::MECHANICS_GENERATION >= 6
+00091:     baseAcc = pbBaseAccuracy(user, target)
+00092:     return true if baseAcc == 0
+00093:     # Calculate all multiplier effects
+00094:     modifiers = {}
+00095:     modifiers[:base_accuracy]  = baseAcc
+00096:     modifiers[:accuracy_stage] = user.stages[:ACCURACY]
+00097:     modifiers[:evasion_stage]  = target.stages[:EVASION]
+00098:     modifiers[:accuracy_multiplier] = 1.0
+00099:     modifiers[:evasion_multiplier]  = 1.0
+00100:     pbCalcAccuracyModifiers(user, target, modifiers)
+00101:     # Check if move can't miss
+00102:     return true if modifiers[:base_accuracy] == 0
+00103:     # Calculation
+00104:     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+00105:     accStage = [[modifiers[:accuracy_stage], -max_stage].max, max_stage].min + max_stage
+00106:     evaStage = [[modifiers[:evasion_stage], -max_stage].max, max_stage].min + max_stage
+00107:     stageMul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+00108:     stageDiv = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+00109:     accuracy = 100.0 * stageMul[accStage] / stageDiv[accStage]
+00110:     evasion  = 100.0 * stageMul[evaStage] / stageDiv[evaStage]
+00111:     accuracy = (accuracy * modifiers[:accuracy_multiplier]).round
+00112:     evasion  = (evasion  * modifiers[:evasion_multiplier]).round
+00113:     evasion = 1 if evasion < 1
+00114:     threshold = modifiers[:base_accuracy] * accuracy / evasion
+00115:     # Calculation
+00116:     r = @battle.pbRandom(100)
+00117:     if Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+00118:        target.pbOwnedByPlayer? && target.affection_level == 5 && !target.mega?
+00119:       return true if r < threshold - 10
+00120:       target.damageState.affection_missed = true if r < threshold
+00121:       return false
+00122:     end
+00123:     return r < threshold
+00124:   end
+00125: 
+00126:   def pbCalcAccuracyModifiers(user, target, modifiers)
+00127:     # Ability effects that alter accuracy calculation
+00128:     if user.abilityActive?
+00129:       Battle::AbilityEffects.triggerAccuracyCalcFromUser(
+00130:         user.ability, modifiers, user, target, self, @calcType
+00131:       )
+00132:     end
+00133:     user.allAllies.each do |b|
+00134:       next if !b.abilityActive?

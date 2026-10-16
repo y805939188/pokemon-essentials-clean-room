@@ -1,0 +1,135 @@
+02417: Battle::AbilityEffects::EndOfRoundEffect.add(:BADDREAMS,
+02418:   proc { |ability, battler, battle|
+02419:     battle.allOtherSideBattlers(battler.index).each do |b|
+02420:       next if !b.near?(battler) || !b.asleep?
+02421:       battle.pbShowAbilitySplash(battler)
+02422:       next if !b.takesIndirectDamage?(Battle::Scene::USE_ABILITY_SPLASH)
+02423:       b.pbTakeEffectDamage(b.totalhp / 8) do |hp_lost|
+02424:         if Battle::Scene::USE_ABILITY_SPLASH
+02425:           battle.pbDisplay(_INTL("{1} is tormented!", b.pbThis))
+02426:         else
+02427:           battle.pbDisplay(_INTL("{1} is tormented by {2}'s {3}!",
+02428:              b.pbThis, battler.pbThis(true), battler.abilityName))
+02429:         end
+02430:         battle.pbHideAbilitySplash(battler)
+02431:       end
+02432:     end
+02433:   }
+02434: )
+02435: 
+02436: Battle::AbilityEffects::EndOfRoundEffect.add(:MOODY,
+02437:   proc { |ability, battler, battle|
+02438:     randomUp = []
+02439:     randomDown = []
+02440:     if Settings::MECHANICS_GENERATION >= 8
+02441:       GameData::Stat.each_main_battle do |s|
+02442:         randomUp.push(s.id) if battler.pbCanRaiseStatStage?(s.id, battler)
+02443:         randomDown.push(s.id) if battler.pbCanLowerStatStage?(s.id, battler)
+02444:       end
+02445:     else
+02446:       GameData::Stat.each_battle do |s|
+02447:         randomUp.push(s.id) if battler.pbCanRaiseStatStage?(s.id, battler)
+02448:         randomDown.push(s.id) if battler.pbCanLowerStatStage?(s.id, battler)
+02449:       end
+02450:     end
+02451:     next if randomUp.length == 0 && randomDown.length == 0
+02452:     battle.pbShowAbilitySplash(battler)
+02453:     if randomUp.length > 0
+02454:       r = battle.pbRandom(randomUp.length)
+02455:       battler.pbRaiseStatStageByAbility(randomUp[r], 2, battler, false)
+02456:       randomDown.delete(randomUp[r])
+02457:     end
+02458:     if randomDown.length > 0
+02459:       r = battle.pbRandom(randomDown.length)
+02460:       battler.pbLowerStatStageByAbility(randomDown[r], 1, battler, false)
+02461:     end
+02462:     battle.pbHideAbilitySplash(battler)
+02463:     battler.pbItemStatRestoreCheck if randomDown.length > 0
+02464:     battler.pbItemOnStatDropped
+02465:   }
+02466: )
+02467: 
+02468: Battle::AbilityEffects::EndOfRoundEffect.add(:SPEEDBOOST,
+02469:   proc { |ability, battler, battle|
+02470:     # A Pokémon's turnCount is 0 if it became active after the beginning of a
+02471:     # round
+02472:     if battler.turnCount > 0 && battle.choices[battler.index][0] != :Run &&
+02473:        battler.pbCanRaiseStatStage?(:SPEED, battler)
+02474:       battler.pbRaiseStatStageByAbility(:SPEED, 1, battler)
+02475:     end
+02476:   }
+02477: )
+02478: 
+02479: #===============================================================================
+02480: # EndOfRoundGainItem handlers
+02481: #===============================================================================
+02482: 
+02483: Battle::AbilityEffects::EndOfRoundGainItem.add(:BALLFETCH,
+02484:   proc { |ability, battler, battle|
+02485:     next if battler.item
+02486:     next if battle.first_poke_ball.nil?
+02487:     battle.pbShowAbilitySplash(battler)
+02488:     battler.item = battle.first_poke_ball
+02489:     battler.setInitialItem(battler.item) if !battler.initialItem
+02490:     battle.first_poke_ball = nil
+02491:     battle.pbDisplay(_INTL("{1} retrieved the thrown {2}!", battler.pbThis, battler.itemName))
+02492:     battle.pbHideAbilitySplash(battler)
+02493:     battler.pbHeldItemTriggerCheck
+02494:   }
+02495: )
+02496: 
+02497: Battle::AbilityEffects::EndOfRoundGainItem.add(:HARVEST,
+02498:   proc { |ability, battler, battle|
+02499:     next if battler.item
+02500:     next if !battler.recycleItem || !GameData::Item.get(battler.recycleItem).is_berry?
+02501:     if ![:Sun, :HarshSun].include?(battler.effectiveWeather)
+02502:       next unless battle.pbRandom(100) < 50
+02503:     end
+02504:     battle.pbShowAbilitySplash(battler)
+02505:     battler.item = battler.recycleItem
+02506:     battler.setRecycleItem(nil)
+02507:     battler.setInitialItem(battler.item) if !battler.initialItem
+02508:     battle.pbDisplay(_INTL("{1} harvested one {2}!", battler.pbThis, battler.itemName))
+02509:     battle.pbHideAbilitySplash(battler)
+02510:     battler.pbHeldItemTriggerCheck
+02511:   }
+02512: )
+02513: 
+02514: Battle::AbilityEffects::EndOfRoundGainItem.add(:PICKUP,
+02515:   proc { |ability, battler, battle|
+02516:     next if battler.item
+02517:     foundItem = nil
+02518:     fromBattler = nil
+02519:     use = 0
+02520:     battle.allBattlers.each do |b|
+02521:       next if b.index == battler.index
+02522:       next if b.effects[PBEffects::PickupUse] <= use
+02523:       foundItem   = b.effects[PBEffects::PickupItem]
+02524:       fromBattler = b
+02525:       use         = b.effects[PBEffects::PickupUse]
+02526:     end
+02527:     next if !foundItem
+02528:     battle.pbShowAbilitySplash(battler)
+02529:     battler.item = foundItem
+02530:     fromBattler.effects[PBEffects::PickupItem] = nil
+02531:     fromBattler.effects[PBEffects::PickupUse]  = 0
+02532:     fromBattler.setRecycleItem(nil) if fromBattler.recycleItem == foundItem
+02533:     if battle.wildBattle? && !battler.initialItem && fromBattler.initialItem == foundItem
+02534:       battler.setInitialItem(foundItem)
+02535:       fromBattler.setInitialItem(nil)
+02536:     end
+02537:     battle.pbDisplay(_INTL("{1} found one {2}!", battler.pbThis, battler.itemName))
+02538:     battle.pbHideAbilitySplash(battler)
+02539:     battler.pbHeldItemTriggerCheck
+02540:   }
+02541: )
+02542: 
+02543: #===============================================================================
+02544: # CertainSwitching handlers
+02545: #===============================================================================
+02546: 
+02547: # There aren't any!
+02548: 
+02549: #===============================================================================
+02550: # TrappingByTarget handlers
+02551: #===============================================================================

@@ -1,0 +1,61 @@
+00100:     handled[0] = true
+00101:   }
+00102: )
+00103: 
+00104: #===============================================================================
+00105: #
+00106: #===============================================================================
+00107: EventHandlers.add(:on_calling_wild_battle, :safari_battle,
+00108:   proc { |pkmn, handled|
+00109:     # handled is an array: [nil]. If [true] or [false], the battle has already
+00110:     # been overridden (the boolean is its outcome), so don't do anything that
+00111:     # would override it again
+00112:     next if !handled[0].nil?
+00113:     next if !pbInSafari?
+00114:     handled[0] = pbSafariBattle(pkmn)
+00115:   }
+00116: )
+00117: 
+00118: def pbSafariBattle(pkmn, level = 1)
+00119:   # Generate a wild Pokémon based on the species and level
+00120:   pkmn = pbGenerateWildPokemon(pkmn, level) if !pkmn.is_a?(Pokemon)
+00121:   foeParty = [pkmn]
+00122:   # Calculate who the trainer is
+00123:   playerTrainer = $player
+00124:   # Create the battle scene (the visual side of it)
+00125:   scene = BattleCreationHelperMethods.create_battle_scene
+00126:   # Create the battle class (the mechanics side of it)
+00127:   battle = SafariBattle.new(scene, playerTrainer, foeParty)
+00128:   battle.ballCount = pbSafariState.ballcount
+00129:   BattleCreationHelperMethods.prepare_battle(battle)
+00130:   # Perform the battle itself
+00131:   decision = 0
+00132:   pbBattleAnimation(pbGetWildBattleBGM(foeParty), 0, foeParty) do
+00133:     pbSceneStandby { decision = battle.pbStartBattle }
+00134:   end
+00135:   Input.update
+00136:   # Update Safari game data based on result of battle
+00137:   pbSafariState.ballcount = battle.ballCount
+00138:   if pbSafariState.ballcount <= 0
+00139:     if decision != 2   # Last Safari Ball was used to catch the wild Pokémon
+00140:       pbMessage(_INTL("Announcer: You're out of Safari Balls! Game over!"))
+00141:     end
+00142:     pbSafariState.decision = 1
+00143:     pbSafariState.pbGoToStart
+00144:   end
+00145:   # Save the result of the battle in Game Variable 1
+00146:   #    0 - Undecided or aborted
+00147:   #    2 - Player ran out of Safari Balls
+00148:   #    3 - Player or wild Pokémon ran from battle, or player forfeited the match
+00149:   #    4 - Wild Pokémon was caught
+00150:   if decision == 4
+00151:     $stats.safari_pokemon_caught += 1
+00152:     pbSafariState.captures += 1
+00153:     $stats.most_captures_per_safari_game = [$stats.most_captures_per_safari_game, pbSafariState.captures].max
+00154:   end
+00155:   pbSet(1, decision)
+00156:   # Used by the Poké Radar to update/break the chain
+00157:   EventHandlers.trigger(:on_wild_battle_end, pkmn.species_data.id, pkmn.level, decision)
+00158:   # Return the outcome of the battle
+00159:   return decision
+00160: end

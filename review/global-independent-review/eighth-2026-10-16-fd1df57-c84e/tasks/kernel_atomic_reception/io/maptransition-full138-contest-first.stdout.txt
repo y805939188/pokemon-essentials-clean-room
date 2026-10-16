@@ -1,0 +1,370 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld visuals/003_Overworld_MapTransitionAnims.rb RANGE 1-138
+#===============================================================================
+# Entering/exiting cave animations
+#===============================================================================
+def pbCaveEntranceEx(exiting)
+  # Create bitmap
+  sprite = BitmapSprite.new(Graphics.width, Graphics.height)
+  sprite.z = 100000
+  # Define values used for the animation
+  duration = 0.4
+  totalBands = 15
+  bandheight = ((Graphics.height / 2.0) - 10) / totalBands
+  bandwidth  = ((Graphics.width / 2.0) - 12) / totalBands
+  start_gray = (exiting) ? 0 : 255
+  end_gray = (exiting) ? 255 : 0
+  # Create initial array of band colors (black if exiting, white if entering)
+  grays = Array.new(totalBands) { |i| start_gray }
+  # Animate bands changing color
+  timer_start = System.uptime
+  until System.uptime - timer_start >= duration
+    x = 0
+    y = 0
+    # Calculate color of each band
+    totalBands.times do |k|
+      grays[k] = lerp(start_gray, end_gray, duration, timer_start + (k * duration / totalBands), System.uptime)
+    end
+    # Draw gray rectangles
+    rectwidth  = Graphics.width
+    rectheight = Graphics.height
+    totalBands.times do |i|
+      currentGray = grays[i]
+      sprite.bitmap.fill_rect(Rect.new(x, y, rectwidth, rectheight),
+                              Color.new(currentGray, currentGray, currentGray))
+      x += bandwidth
+      y += bandheight
+      rectwidth  -= bandwidth * 2
+      rectheight -= bandheight * 2
+    end
+    Graphics.update
+    Input.update
+  end
+  # Set the tone at end of band animation
+  if exiting
+    pbToneChangeAll(Tone.new(255, 255, 255), 0)
+  else
+    pbToneChangeAll(Tone.new(-255, -255, -255), 0)
+  end
+  # Animate fade to white (if exiting) or black (if entering)
+  timer_start = System.uptime
+  loop do
+    sprite.color = Color.new(end_gray, end_gray, end_gray,
+                             lerp(0, 255, duration, timer_start, System.uptime))
+    Graphics.update
+    Input.update
+    break if sprite.color.alpha >= 255
+  end
+  # Set the tone at end of fading animation
+  pbToneChangeAll(Tone.new(0, 0, 0), 8)
+  # Pause briefly
+  timer_start = System.uptime
+  until System.uptime - timer_start >= 0.1
+    Graphics.update
+    Input.update
+  end
+  sprite.dispose
+end
+
+def pbCaveEntrance
+  pbSetEscapePoint
+  pbCaveEntranceEx(false)
+end
+
+def pbCaveExit
+  pbEraseEscapePoint
+  pbCaveEntranceEx(true)
+end
+
+#===============================================================================
+# Blacking out animation
+#===============================================================================
+def pbStartOver(gameover = false)
+  if pbInBugContest?
+    pbBugContestStartOver
+    return
+  end
+  $stats.blacked_out_count += 1
+  $player.heal_party
+  if $PokemonGlobal.pokecenterMapId && $PokemonGlobal.pokecenterMapId >= 0
+    if gameover
+      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+                _INTL("After the unfortunate defeat, you scurry back to a Pokémon Center."))
+    else
+      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+                _INTL("You scurry back to a Pokémon Center, protecting your exhausted Pokémon from any further harm..."))
+    end
+    pbCancelVehicles
+    Followers.clear
+    $game_switches[Settings::STARTING_OVER_SWITCH] = true
+    $game_temp.player_new_map_id    = $PokemonGlobal.pokecenterMapId
+    $game_temp.player_new_x         = $PokemonGlobal.pokecenterX
+    $game_temp.player_new_y         = $PokemonGlobal.pokecenterY
+    $game_temp.player_new_direction = $PokemonGlobal.pokecenterDirection
+    pbDismountBike
+    $scene.transfer_player if $scene.is_a?(Scene_Map)
+    $game_map.refresh
+  else
+    homedata = GameData::PlayerMetadata.get($player.character_ID)&.home
+    homedata = GameData::Metadata.get.home if !homedata
+    if homedata && !pbRgssExists?(sprintf("Data/Map%03d.rxdata", homedata[0]))
+      if $DEBUG
+        pbMessage(_ISPRINTF("Can't find the map 'Map{1:03d}' in the Data folder. The game will resume at the player's position.", homedata[0]))
+      end
+      $player.heal_party
+      return
+    end
+    if gameover
+      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+                _INTL("After the unfortunate defeat, you scurry back home."))
+    else
+      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+                _INTL("You scurry back home, protecting your exhausted Pokémon from any further harm..."))
+    end
+    if homedata
+      pbCancelVehicles
+      Followers.clear
+      $game_switches[Settings::STARTING_OVER_SWITCH] = true
+      $game_temp.player_new_map_id    = homedata[0]
+      $game_temp.player_new_x         = homedata[1]
+      $game_temp.player_new_y         = homedata[2]
+      $game_temp.player_new_direction = homedata[3]
+      pbDismountBike
+      $scene.transfer_player if $scene.is_a?(Scene_Map)
+      $game_map.refresh
+    else
+      $player.heal_party
+    end
+  end
+  pbEraseEscapePoint
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/018_Alternate battle modes/002_BugContest.rb RANGE 1-229
+#===============================================================================
+#
+#===============================================================================
+class BugContestState
+  attr_accessor :ballcount
+  attr_accessor :decision
+  attr_accessor :lastPokemon
+  attr_accessor :timer_start
+
+  CONTESTANT_NAMES = [
+    _INTL("Bug Catcher Ed"),
+    _INTL("Bug Catcher Benny"),
+    _INTL("Bug Catcher Josh"),
+    _INTL("Camper Barry"),
+    _INTL("Cool Trainer Nick"),
+    _INTL("Lass Abby"),
+    _INTL("Picnicker Cindy"),
+    _INTL("Youngster Samuel")
+  ]
+  TIME_ALLOWED = Settings::BUG_CONTEST_TIME   # In seconds
+
+  def initialize
+    clear
+    @lastContest = nil
+  end
+
+  # Returns whether the last contest ended less than 24 hours ago.
+  def pbContestHeld?
+    return false if !@lastContest
+    return pbGetTimeNow.to_i - @lastContest < 24 * 60 * 60   # 24 hours
+  end
+
+  def expired?
+    return false if !undecided?
+    return false if TIME_ALLOWED <= 0
+    return System.uptime - timer_start >= TIME_ALLOWED
+  end
+
+  def clear
+    @ballcount    = 0
+    @ended        = false
+    @inProgress   = false
+    @decision     = 0
+    @lastPokemon  = nil
+    @otherparty   = []
+    @contestants  = []
+    @places       = []
+    @start        = nil
+    @contestMaps  = []
+    @reception    = []
+  end
+
+  def inProgress?
+    return @inProgress
+  end
+
+  def undecided?
+    return (@inProgress && @decision == 0)
+  end
+
+  def decided?
+    return (@inProgress && @decision != 0) || @ended
+  end
+
+  def pbSetPokemon(chosenpoke)
+    @chosenPokemon = chosenpoke
+  end
+
+  def pbSetContestMap(*maps)
+    maps.each do |map|
+      if map.is_a?(String)   # Map metadata flag
+        GameData::MapMetadata.each do |map_data|
+          @contestMaps.push(map_data.id) if map_data.has_flag?(map)
+        end
+      else
+        @contestMaps.push(map)
+      end
+    end
+  end
+
+  # Reception map is handled separately from contest map since the reception map
+  # can be outdoors, with its own grassy patches.
+  def pbSetReception(*maps)
+    maps.each do |map|
+      if map.is_a?(String)   # Map metadata flag
+        GameData::MapMetadata.each do |map_data|
+          @reception.push(map_data.id) if map_data.has_flag?(map)
+        end
+      else
+        @reception.push(map)
+      end
+    end
+  end
+
+  def pbOffLimits?(map)
+    return false if @contestMaps.include?(map)
+    return false if @reception.include?(map)
+    return true
+  end
+
+  def pbSetJudgingPoint(startMap, startX, startY, dir = 8)
+    @start = [startMap, startX, startY, dir]
+  end
+
+  def pbJudge
+    judgearray = []
+    if @lastPokemon
+      judgearray.push([-1, @lastPokemon.species, pbBugContestScore(@lastPokemon)])
+    end
+    maps_with_encounters = []
+    @contestMaps.each do |map|
+      enc_type = :BugContest
+      enc_type = :Land if !$PokemonEncounters.map_has_encounter_type?(map, enc_type)
+      if $PokemonEncounters.map_has_encounter_type?(map, enc_type)
+        maps_with_encounters.push([map, enc_type])
+      end
+    end
+    raise _INTL("There are no Bug Contest/Land encounters for any Bug Contest maps.") if maps_with_encounters.empty?
+    @contestants.each do |cont|
+      enc_data = maps_with_encounters.sample
+      enc = $PokemonEncounters.choose_wild_pokemon_for_map(enc_data[0], enc_data[1])
+      raise _INTL("No encounters for map {1} somehow, so can't judge contest.", enc_data[0]) if !enc
+      pokemon = Pokemon.new(enc[0], enc[1])
+      pokemon.hp = rand(1...pokemon.totalhp)
+      score = pbBugContestScore(pokemon)
+      judgearray.push([cont, pokemon.species, score])
+    end
+    raise _INTL("Too few bug-catching contestants") if judgearray.length < 3
+    judgearray.sort! { |a, b| b[2] <=> a[2] }   # sort by score in descending order
+    @places.push(judgearray[0])
+    @places.push(judgearray[1])
+    @places.push(judgearray[2])
+  end
+
+  def pbGetPlaceInfo(place)
+    cont = @places[place][0]
+    if cont < 0
+      $game_variables[1] = $player.name
+    else
+      $game_variables[1] = CONTESTANT_NAMES[cont]
+    end
+    $game_variables[2] = GameData::Species.get(@places[place][1]).name
+    $game_variables[3] = @places[place][2]
+  end
+
+  def pbClearIfEnded
+    clear if !@inProgress && (!@start || @start[0] != $game_map.map_id)
+  end
+
+  def pbStartJudging
+    @decision = 1
+    pbJudge
+    if $scene.is_a?(Scene_Map)
+      pbFadeOutIn do
+        $game_temp.player_transferring  = true
+        $game_temp.player_new_map_id    = @start[0]
+        $game_temp.player_new_x         = @start[1]
+        $game_temp.player_new_y         = @start[2]
+        $game_temp.player_new_direction = @start[3]
+        pbDismountBike
+        $scene.transfer_player
+        $game_map.need_refresh = true   # in case player moves to the same map
+      end
+    end
+  end
+
+  def pbIsContestant?(i)
+    return @contestants.any? { |item| i == item }
+  end
+
+  def pbStart(ballcount)
+    @ballcount = ballcount
+    @inProgress = true
+    @otherparty = []
+    @lastPokemon = nil
+    @lastContest = nil
+    @timer_start = System.uptime
+    @places = []
+    chosenpkmn = $player.party[@chosenPokemon]
+    $player.party.length.times do |i|
+      @otherparty.push($player.party[i]) if i != @chosenPokemon
+    end
+    @contestants = []
+    [5, CONTESTANT_NAMES.length].min.times do
+      loop do
+        value = rand(CONTESTANT_NAMES.length)
+        next if @contestants.include?(value)
+        @contestants.push(value)
+        break
+      end
+    end
+    $player.party = [chosenpkmn]
+    @decision = 0
+    @ended = false
+    $stats.bug_contest_count += 1
+  end
+
+  def place
+    3.times do |i|
+      return i if @places[i][0] < 0
+    end
+    return 3
+  end
+
+  def pbEnd(interrupted = false)
+    return if !@inProgress
+    @otherparty.each { |pkmn| $player.party.push(pkmn) }
+    if interrupted
+      @ended = false
+    else
+      pbNicknameAndStore(@lastPokemon) if @lastPokemon
+      @ended = true
+    end
+    $stats.bug_contest_wins += 1 if place == 0
+    @ballcount = 0
+    @inProgress = false
+    @decision = 0
+    @lastPokemon = nil
+    @otherparty = []
+    @contestMaps = []
+    @reception = []
+    @lastContest = pbGetTimeNow.to_i
+    $game_map.need_refresh = true
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================

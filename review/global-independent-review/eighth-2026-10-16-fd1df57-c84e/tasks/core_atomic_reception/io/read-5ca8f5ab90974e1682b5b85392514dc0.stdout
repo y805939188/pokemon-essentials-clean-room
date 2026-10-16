@@ -1,0 +1,150 @@
+00536:       text = text.sub(/\001\z/, "")   # fix: '$' can match end of line as well
+00537:     when "se"
+00538:       if controls[i][2] == 0
+00539:         startSE = param
+00540:         controls[i] = nil
+00541:       end
+00542:     end
+00543:   end
+00544:   if startSE
+00545:     pbSEPlay(pbStringToAudioFile(startSE))
+00546:   elsif !appear_timer_start && letterbyletter
+00547:     pbPlayDecisionSE
+00548:   end
+00549:   # Position message window
+00550:   pbRepositionMessageWindow(msgwindow, linecount)
+00551:   if facewindow
+00552:     pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00553:     facewindow.viewport = msgwindow.viewport
+00554:     facewindow.z        = msgwindow.z
+00555:   end
+00556:   atTop = (msgwindow.y == 0)
+00557:   # Show text
+00558:   msgwindow.text = text
+00559:   loop do
+00560:     if appear_timer_start
+00561:       y_start = (atTop) ? -msgwindow.height : Graphics.height
+00562:       y_end = (atTop) ? 0 : Graphics.height - msgwindow.height
+00563:       msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+00564:       appear_timer_start = nil if msgwindow.y == y_end
+00565:     end
+00566:     controls.length.times do |i|
+00567:       next if !controls[i]
+00568:       next if controls[i][2] > msgwindow.position || msgwindow.waitcount != 0
+00569:       control = controls[i][0]
+00570:       param = controls[i][1]
+00571:       case control
+00572:       when "f"
+00573:         facewindow&.dispose
+00574:         facewindow = PictureWindow.new("Graphics/Pictures/#{param}")
+00575:         pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00576:         facewindow.viewport = msgwindow.viewport
+00577:         facewindow.z        = msgwindow.z
+00578:       when "ff"
+00579:         facewindow&.dispose
+00580:         facewindow = FaceWindowVX.new(param)
+00581:         pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00582:         facewindow.viewport = msgwindow.viewport
+00583:         facewindow.z        = msgwindow.z
+00584:       when "g"      # Display gold window
+00585:         goldwindow&.dispose
+00586:         goldwindow = pbDisplayGoldWindow(msgwindow)
+00587:       when "cn"     # Display coins window
+00588:         coinwindow&.dispose
+00589:         coinwindow = pbDisplayCoinsWindow(msgwindow, goldwindow)
+00590:       when "pt"     # Display battle points window
+00591:         battlepointswindow&.dispose
+00592:         battlepointswindow = pbDisplayBattlePointsWindow(msgwindow)
+00593:       when "wu"
+00594:         atTop = true
+00595:         msgwindow.y = 0
+00596:         pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00597:         if appear_timer_start
+00598:           msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+00599:         end
+00600:       when "wm"
+00601:         atTop = false
+00602:         msgwindow.y = (Graphics.height - msgwindow.height) / 2
+00603:         pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00604:       when "wd"
+00605:         atTop = false
+00606:         msgwindow.y = Graphics.height - msgwindow.height
+00607:         pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+00608:         if appear_timer_start
+00609:           msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+00610:         end
+00611:       when "ts"     # Change text speed
+00612:         msgwindow.textspeed = (param == "") ? 0 : param.to_i / 80.0
+00613:       when "."      # Wait 0.25 seconds
+00614:         msgwindow.waitcount += 0.25
+00615:       when "|"      # Wait 1 second
+00616:         msgwindow.waitcount += 1.0
+00617:       when "wt"     # Wait X/20 seconds
+00618:         param = param.sub(/\A\s+/, "").sub(/\s+\z/, "")
+00619:         msgwindow.waitcount += param.to_i / 20.0
+00620:       when "wtnp"   # Wait X/20 seconds, no pause
+00621:         param = param.sub(/\A\s+/, "").sub(/\s+\z/, "")
+00622:         msgwindow.waitcount = param.to_i / 20.0
+00623:         autoresume = true
+00624:       when "^"      # Wait, no pause
+00625:         autoresume = true
+00626:       when "se"     # Play SE
+00627:         pbSEPlay(pbStringToAudioFile(param))
+00628:       when "me"     # Play ME
+00629:         pbMEPlay(pbStringToAudioFile(param))
+00630:       end
+00631:       controls[i] = nil
+00632:     end
+00633:     break if !letterbyletter
+00634:     Graphics.update
+00635:     Input.update
+00636:     facewindow&.update
+00637:     if autoresume && msgwindow.waitcount == 0
+00638:       msgwindow.resume if msgwindow.busy?
+00639:       break if !msgwindow.busy?
+00640:     end
+00641:     if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+00642:       if msgwindow.busy?
+00643:         pbPlayDecisionSE if msgwindow.pausing?
+00644:         msgwindow.resume
+00645:       elsif !appear_timer_start
+00646:         break
+00647:       end
+00648:     end
+00649:     pbUpdateSceneMap
+00650:     msgwindow.update
+00651:     yield if block_given?
+00652:     break if (!letterbyletter || commandProc || commands) && !msgwindow.busy?
+00653:   end
+00654:   Input.update   # Must call Input.update again to avoid extra triggers
+00655:   msgwindow.letterbyletter = oldletterbyletter
+00656:   if commands
+00657:     $game_variables[cmdvariable] = pbShowCommands(msgwindow, commands, cmdIfCancel)
+00658:     $game_map.need_refresh = true if $game_map
+00659:   end
+00660:   ret = commandProc.call(msgwindow) if commandProc
+00661:   goldwindow&.dispose
+00662:   coinwindow&.dispose
+00663:   battlepointswindow&.dispose
+00664:   facewindow&.dispose
+00665:   if haveSpecialClose
+00666:     pbSEPlay(pbStringToAudioFile(specialCloseSE))
+00667:     atTop = (msgwindow.y == 0)
+00668:     y_start = (atTop) ? 0 : Graphics.height - msgwindow.height
+00669:     y_end = (atTop) ? -msgwindow.height : Graphics.height
+00670:     disappear_duration = 0.5   # In seconds
+00671:     disappear_timer_start = System.uptime
+00672:     loop do
+00673:       msgwindow.y = lerp(y_start, y_end, disappear_duration, disappear_timer_start, System.uptime)
+00674:       Graphics.update
+00675:       Input.update
+00676:       pbUpdateSceneMap
+00677:       msgwindow.update
+00678:       break if msgwindow.y == y_end
+00679:     end
+00680:   end
+00681:   return ret
+00682: end
+00683: 
+00684: #===============================================================================
+00685: # Message-displaying functions

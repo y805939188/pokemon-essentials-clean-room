@@ -1,0 +1,207 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/001_Editor screens/004_EditorScreens_SpritePositioning.rb RANGE 206-411
+        pbPlayDecisionSE
+        @metricsChanged = true if metrics_data.shadow_size != oldval
+        ret = true
+        break
+      elsif Input.trigger?(Input::BACK)
+        metrics_data.shadow_size = oldval
+        pbPlayCancelSE
+        break
+      elsif Input.trigger?(Input::USE)
+        pbPlayDecisionSE
+        @metricsChanged = true if metrics_data.shadow_size != oldval
+        break
+      end
+    end
+    cw.dispose
+    return ret
+  end
+
+  def pbSetParameter(param)
+    return if !@species
+    return pbShadowSize if param == 2
+    if param == 4
+      pbAutoPosition
+      return false
+    end
+    metrics_data = GameData::SpeciesMetrics.get_species_form(@species, @form)
+    case param
+    when 0
+      sprite = @sprites["pokemon_0"]
+      xpos = metrics_data.back_sprite[0]
+      ypos = metrics_data.back_sprite[1]
+    when 1
+      sprite = @sprites["pokemon_1"]
+      xpos = metrics_data.front_sprite[0]
+      ypos = metrics_data.front_sprite[1]
+    when 3
+      sprite = @sprites["shadow_1"]
+      xpos = metrics_data.shadow_x
+      ypos = 0
+    end
+    oldxpos = xpos
+    oldypos = ypos
+    @sprites["info"].visible = true
+    ret = false
+    loop do
+      sprite.visible = ((System.uptime * 8).to_i % 4) < 3   # Flash the selected sprite
+      Graphics.update
+      Input.update
+      self.update
+      case param
+      when 0 then @sprites["info"].setTextToFit("Ally Position = #{xpos},#{ypos}")
+      when 1 then @sprites["info"].setTextToFit("Enemy Position = #{xpos},#{ypos}")
+      when 3 then @sprites["info"].setTextToFit("Shadow Position = #{xpos}")
+      end
+      if (Input.repeat?(Input::UP) || Input.repeat?(Input::DOWN)) && param != 3
+        ypos += (Input.repeat?(Input::DOWN)) ? 1 : -1
+        case param
+        when 0 then metrics_data.back_sprite[1]  = ypos
+        when 1 then metrics_data.front_sprite[1] = ypos
+        end
+        refresh
+      end
+      if Input.repeat?(Input::LEFT) || Input.repeat?(Input::RIGHT)
+        xpos += (Input.repeat?(Input::RIGHT)) ? 1 : -1
+        case param
+        when 0 then metrics_data.back_sprite[0]  = xpos
+        when 1 then metrics_data.front_sprite[0] = xpos
+        when 3 then metrics_data.shadow_x        = xpos
+        end
+        refresh
+      end
+      if Input.repeat?(Input::ACTION) && param != 3   # Cycle to next option
+        @metricsChanged = true if xpos != oldxpos || ypos != oldypos
+        ret = true
+        pbPlayDecisionSE
+        break
+      elsif Input.repeat?(Input::BACK)
+        case param
+        when 0
+          metrics_data.back_sprite[0] = oldxpos
+          metrics_data.back_sprite[1] = oldypos
+        when 1
+          metrics_data.front_sprite[0] = oldxpos
+          metrics_data.front_sprite[1] = oldypos
+        when 3
+          metrics_data.shadow_x = oldxpos
+        end
+        pbPlayCancelSE
+        refresh
+        break
+      elsif Input.repeat?(Input::USE)
+        @metricsChanged = true if xpos != oldxpos || (param != 3 && ypos != oldypos)
+        pbPlayDecisionSE
+        break
+      end
+    end
+    @sprites["info"].visible = false
+    sprite.visible = true
+    return ret
+  end
+
+  def pbMenu
+    refresh
+    cw = Window_CommandPokemon.new(
+      [_INTL("Set Ally Position"),
+       _INTL("Set Enemy Position"),
+       _INTL("Set Shadow Size"),
+       _INTL("Set Shadow Position"),
+       _INTL("Auto-Position Sprites")]
+    )
+    cw.x        = Graphics.width - cw.width
+    cw.y        = Graphics.height - cw.height
+    cw.viewport = @viewport
+    ret = -1
+    loop do
+      Graphics.update
+      Input.update
+      cw.update
+      self.update
+      if Input.trigger?(Input::USE)
+        pbPlayDecisionSE
+        ret = cw.index
+        break
+      elsif Input.trigger?(Input::BACK)
+        pbPlayCancelSE
+        break
+      end
+    end
+    cw.dispose
+    return ret
+  end
+
+  def pbChooseSpecies
+    if @starting
+      pbFadeInAndShow(@sprites) { update }
+      @starting = false
+    end
+    cw = Window_CommandPokemonEx.newEmpty(0, 0, 260, 176, @viewport)
+    cw.rowHeight = 24
+    pbSetSmallFont(cw.contents)
+    cw.x = Graphics.width - cw.width
+    cw.y = Graphics.height - cw.height
+    allspecies = []
+    GameData::Species.each do |sp|
+      name = (sp.form == 0) ? sp.name : _INTL("{1} (form {2})", sp.real_name, sp.form)
+      allspecies.push([sp.id, sp.species, sp.form, name]) if name && !name.empty?
+    end
+    allspecies.sort! { |a, b| a[3] <=> b[3] }
+    commands = []
+    allspecies.each { |sp| commands.push(sp[3]) }
+    cw.commands = commands
+    cw.index    = @oldSpeciesIndex
+    ret = false
+    oldindex = -1
+    loop do
+      Graphics.update
+      Input.update
+      cw.update
+      if cw.index != oldindex
+        oldindex = cw.index
+        pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])
+        refresh
+      end
+      self.update
+      if Input.trigger?(Input::BACK)
+        pbChangeSpecies(nil, nil)
+        refresh
+        break
+      elsif Input.trigger?(Input::USE)
+        pbChangeSpecies(allspecies[cw.index][1], allspecies[cw.index][2])
+        ret = true
+        break
+      end
+    end
+    @oldSpeciesIndex = cw.index
+    cw.dispose
+    return ret
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+class SpritePositionerScreen
+  def initialize(scene)
+    @scene = scene
+  end
+
+  def pbStart
+    @scene.pbOpen
+    loop do
+      species = @scene.pbChooseSpecies
+      break if !species
+      loop do
+        command = @scene.pbMenu
+        break if command < 0
+        loop do
+          par = @scene.pbSetParameter(command)
+          break if !par
+          command = (command + 1) % 3
+        end
+      end
+    end
+    @scene.pbClose
+  end
+end

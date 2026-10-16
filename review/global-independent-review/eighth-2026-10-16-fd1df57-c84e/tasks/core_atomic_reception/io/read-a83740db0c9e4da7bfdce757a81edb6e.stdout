@@ -1,0 +1,130 @@
+00001: class Battle::Battler
+00002:   #=============================================================================
+00003:   # Decide whether the trainer is allowed to tell the Pokémon to use the given
+00004:   # move. Called when choosing a command for the round.
+00005:   # Also called when processing the Pokémon's action, because these effects also
+00006:   # prevent Pokémon action. Relevant because these effects can become active
+00007:   # earlier in the same round (after choosing the command but before using the
+00008:   # move) or an unusable move may be called by another move such as Metronome.
+00009:   #=============================================================================
+00010:   def pbCanChooseMove?(move, commandPhase, showMessages = true, specialUsage = false)
+00011:     # Disable
+00012:     if @effects[PBEffects::DisableMove] == move.id && !specialUsage
+00013:       if showMessages
+00014:         msg = _INTL("{1}'s {2} is disabled!", pbThis, move.name)
+00015:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00016:       end
+00017:       return false
+00018:     end
+00019:     # Heal Block
+00020:     if @effects[PBEffects::HealBlock] > 0 && move.healingMove?
+00021:       if showMessages
+00022:         msg = _INTL("{1} can't use {2} because of Heal Block!", pbThis, move.name)
+00023:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00024:       end
+00025:       return false
+00026:     end
+00027:     # Gravity
+00028:     if @battle.field.effects[PBEffects::Gravity] > 0 && move.unusableInGravity?
+00029:       if showMessages
+00030:         msg = _INTL("{1} can't use {2} because of gravity!", pbThis, move.name)
+00031:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00032:       end
+00033:       return false
+00034:     end
+00035:     # Throat Chop
+00036:     if @effects[PBEffects::ThroatChop] > 0 && move.soundMove?
+00037:       if showMessages
+00038:         msg = _INTL("{1} can't use {2} because of Throat Chop!", pbThis, move.name)
+00039:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00040:       end
+00041:       return false
+00042:     end
+00043:     # Choice Band/Gorilla Tactics
+00044:     @effects[PBEffects::ChoiceBand] = nil if !pbHasMove?(@effects[PBEffects::ChoiceBand])
+00045:     if @effects[PBEffects::ChoiceBand] && move.id != @effects[PBEffects::ChoiceBand]
+00046:       choiced_move = GameData::Move.try_get(@effects[PBEffects::ChoiceBand])
+00047:       if choiced_move
+00048:         if hasActiveItem?([:CHOICEBAND, :CHOICESPECS, :CHOICESCARF])
+00049:           if showMessages
+00050:             msg = _INTL("The {1} only allows the use of {2}!", itemName, choiced_move.name)
+00051:             (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00052:           end
+00053:           return false
+00054:         elsif hasActiveAbility?(:GORILLATACTICS)
+00055:           if showMessages
+00056:             msg = _INTL("{1} can only use {2}!", pbThis, choiced_move.name)
+00057:             (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00058:           end
+00059:           return false
+00060:         end
+00061:       end
+00062:     end
+00063:     # Taunt
+00064:     if @effects[PBEffects::Taunt] > 0 && move.statusMove? && !specialUsage
+00065:       if showMessages
+00066:         msg = _INTL("{1} can't use {2} after the taunt!", pbThis, move.name)
+00067:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00068:       end
+00069:       return false
+00070:     end
+00071:     # Torment
+00072:     if @effects[PBEffects::Torment] && !@effects[PBEffects::Instructed] && !specialUsage &&
+00073:        @lastMoveUsed && move.id == @lastMoveUsed && move.id != @battle.struggle.id
+00074:       if showMessages
+00075:         msg = _INTL("{1} can't use the same move twice in a row due to the torment!", pbThis)
+00076:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00077:       end
+00078:       return false
+00079:     end
+00080:     # Imprison
+00081:     if @battle.allOtherSideBattlers(@index).any? { |b| b.effects[PBEffects::Imprison] && b.pbHasMove?(move.id) }
+00082:       if showMessages
+00083:         msg = _INTL("{1} can't use its sealed {2}!", pbThis, move.name)
+00084:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00085:       end
+00086:       return false
+00087:     end
+00088:     # Assault Vest (prevents choosing status moves but doesn't prevent
+00089:     # executing them)
+00090:     if hasActiveItem?(:ASSAULTVEST) && move.statusMove? && move.function_code != "UseMoveTargetIsAboutToUse" && commandPhase
+00091:       if showMessages
+00092:         msg = _INTL("The effects of the {1} prevent status moves from being used!", itemName)
+00093:         (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)
+00094:       end
+00095:       return false
+00096:     end
+00097:     # Belch
+00098:     return false if !move.pbCanChooseMove?(self, commandPhase, showMessages)
+00099:     return true
+00100:   end
+00101: 
+00102:   #=============================================================================
+00103:   # Obedience check
+00104:   #=============================================================================
+00105:   # Return true if Pokémon continues attacking (although it may have chosen to
+00106:   # use a different move in disobedience), or false if attack stops.
+00107:   def pbObedienceCheck?(choice)
+00108:     return true if usingMultiTurnAttack?
+00109:     return true if choice[0] != :UseMove
+00110:     return true if !@battle.internalBattle
+00111:     return true if !@battle.pbOwnedByPlayer?(@index)
+00112:     disobedient = false
+00113:     # Pokémon may be disobedient; calculate if it is
+00114:     badge_level = 10 * (@battle.pbPlayer.badge_count + 1)
+00115:     badge_level = GameData::GrowthRate.max_level if @battle.pbPlayer.badge_count >= 8
+00116:     if Settings::ANY_HIGH_LEVEL_POKEMON_CAN_DISOBEY ||
+00117:        (Settings::FOREIGN_HIGH_LEVEL_POKEMON_CAN_DISOBEY && @pokemon.foreign?(@battle.pbPlayer))
+00118:       if @level > badge_level
+00119:         a = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor
+00120:         disobedient |= (a >= badge_level)
+00121:       end
+00122:     end
+00123:     disobedient |= !pbHyperModeObedience(choice[2])
+00124:     return true if !disobedient
+00125:     # Pokémon is disobedient; make it do something else
+00126:     return pbDisobey(choice, badge_level)
+00127:   end
+00128: 
+00129:   def pbDisobey(choice, badge_level)
+00130:     move = choice[2]

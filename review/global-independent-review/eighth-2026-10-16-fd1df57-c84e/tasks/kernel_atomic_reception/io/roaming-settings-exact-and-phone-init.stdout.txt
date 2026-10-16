@@ -1,0 +1,258 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Settings.rb RANGE 174-214
+
+  # A list of maps used by roaming Pokémon. Each map has an array of other maps
+  # it can lead to.
+  ROAMING_AREAS = {
+    5  => [   21, 28, 31, 39, 41, 44, 47, 66, 69],
+    21 => [5,     28, 31, 39, 41, 44, 47, 66, 69],
+    28 => [5, 21,     31, 39, 41, 44, 47, 66, 69],
+    31 => [5, 21, 28,     39, 41, 44, 47, 66, 69],
+    39 => [5, 21, 28, 31,     41, 44, 47, 66, 69],
+    41 => [5, 21, 28, 31, 39,     44, 47, 66, 69],
+    44 => [5, 21, 28, 31, 39, 41,     47, 66, 69],
+    47 => [5, 21, 28, 31, 39, 41, 44,     66, 69],
+    66 => [5, 21, 28, 31, 39, 41, 44, 47,     69],
+    69 => [5, 21, 28, 31, 39, 41, 44, 47, 66    ]
+  }
+  # A set of arrays, each containing the details of a roaming Pokémon. The
+  # information within each array is as follows:
+  #   * Species.
+  #   * Level.
+  #   * Game Switch; the Pokémon roams while this is ON.
+  #   * Encounter type (see def pbRoamingMethodAllowed for their use):
+  #       0 = grass, walking in cave, surfing
+  #       1 = grass, walking in cave
+  #       2 = surfing
+  #       3 = fishing
+  #       4 = surfing, fishing
+  #   * Name of BGM to play for that encounter (optional).
+  #   * Roaming areas specifically for this Pokémon (optional; used instead of
+  #     ROAMING_AREAS).
+  ROAMING_SPECIES = [
+    [:LATIAS, 30, 53, 0, "Battle roaming"],
+    [:LATIOS, 30, 53, 0, "Battle roaming"],
+    [:KYOGRE, 40, 54, 2, nil, {
+      2  => [   21, 31    ],
+      21 => [2,     31, 69],
+      31 => [2, 21,     69],
+      69 => [   21, 31    ]
+    }],
+    [:ENTEI, 40, 55, 1]
+  ]
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 1-214
+#===============================================================================
+#
+#===============================================================================
+class Phone
+  attr_accessor :contacts
+  attr_accessor :rematch_variant, :rematches_enabled
+  attr_accessor :time_to_next_call, :last_refresh_time
+
+  def initialize
+    @contacts = []
+    @rematch_variant = 0   # Original battle is 0, first rematch is 1, etc.
+    @rematches_enabled = Settings::PHONE_REMATCHES_POSSIBLE_FROM_BEGINNING
+    @time_to_next_call = 0.0
+    @last_refresh_time = 0
+  end
+
+  # Returns a visible contact only.
+  def get(trainer, *args)
+    @contacts.each do |contact|
+      next if !contact.visible?
+      next if contact.trainer? != trainer
+      if trainer
+        next if contact.trainer_type != args[0] ||
+                contact.name != args[1] || contact.start_version != (args[2] || 0)
+      else
+        next if contact.name != args[0]
+      end
+      return contact
+    end
+    return nil
+  end
+
+  def get_version(trainer_type, name, start_version = 0)
+    return 0 if !GameData::TrainerType.exists?(trainer_type)
+    trainer_type = GameData::TrainerType.get(trainer_type).id
+    contact = get(true, trainer_type, name, start_version)
+    return (contact) ? contact.version : 0
+  end
+
+  # Trainer type, name[, start_version]
+  # Name
+  def can_add?(*args)
+    return false if !$player.has_pokegear
+    if args.length == 1
+      # Non-trainer (name only)
+      return false if get(false, args[0])
+    else
+      # Trainer (has at least trainer type and name)
+      return false if !GameData::TrainerType.exists?(args[0])
+      trainer_type = GameData::TrainerType.get(args[0]).id
+      return false if get(true, trainer_type, args[1], args[2] || 0)
+    end
+    return true
+  end
+
+  # Event, trainer type, name, versions_count = 1, start_version = 0, common event ID = 0
+  # Map ID, event ID, trainer type, name, versions_count = 1, start_version = 0, common event ID = 0
+  # Map ID, name, common event ID
+  def add(*args)
+    if args[0].is_a?(Game_Event)
+      # Trainer
+      return false if !GameData::TrainerType.exists?(args[1])
+      trainer_type = GameData::TrainerType.get(args[1]).id
+      name = args[2]
+      contact = get(true, trainer_type, name, args[3] || 0)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(true, args[0].map_id, args[0].id,
+                              trainer_type, name, args[3], args[4], args[5])
+      end
+    elsif args[1].is_a?(Numeric)
+      # Trainer
+      return false if !GameData::TrainerType.exists?(args[2])
+      trainer_type = GameData::TrainerType.get(args[2]).id
+      name = args[3]
+      contact = get(true, trainer_type, name, args[4] || 0)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(true, args[0], args[1],
+                              trainer_type, name, args[4], args[5], args[6])
+      end
+    else
+      # Non-trainer
+      name = args[1]
+      contact = get(false, name)
+      if contact
+        contact.visible = true
+        @contacts.delete(contact)
+      else
+        contact = Contact.new(false, *args)
+      end
+    end
+    @contacts.push(contact)
+    sort_contacts
+    return true
+  end
+
+  # Rearranges the list of phone contacts to put all visible contacts first,
+  # followed by all invisible contacts.
+  def sort_contacts
+    new_contacts = []
+    2.times do |i|
+      @contacts.each do |con|
+        next if (i == 0 && !con.visible?) || (i == 1 && con.visible?)
+        new_contacts.push(con)
+      end
+    end
+    @contacts = new_contacts
+  end
+
+  #=============================================================================
+
+  # Checks once every second.
+  def refresh_ready_trainers
+    return if !@rematches_enabled
+    time = pbGetTimeNow.to_i
+    return if @last_refresh_time == time
+    @last_refresh_time = time
+    @contacts.each do |contact|
+      next if !contact.trainer? || !contact.visible?
+      next if contact.rematch_flag > 0   # Already ready for rematch
+      if contact.time_to_ready <= 0
+        contact.time_to_ready = rand(20...40) * 60   # 20-40 minutes
+      end
+      contact.time_to_ready -= 1
+      next if contact.time_to_ready > 0
+      contact.rematch_flag = 1   # Ready for rematch
+      contact.set_trainer_event_ready_for_rematch
+    end
+  end
+
+  def reset_after_win(trainer_type, name, start_version = 0)
+    return if !GameData::TrainerType.exists?(trainer_type)
+    trainer_type = GameData::TrainerType.get(trainer_type).id
+    contact = get(true, trainer_type, name, start_version)
+    return if !contact
+    contact.increment_version
+    contact.rematch_flag = 0
+    contact.time_to_ready = 0
+  end
+
+  #=============================================================================
+
+  def self.rematch_variant
+    return $PokemonGlobal.phone.rematch_variant
+  end
+
+  def self.rematch_variant=(value)
+    $PokemonGlobal.phone.rematch_variant = value
+  end
+
+  def self.rematches_enabled
+    return $PokemonGlobal.phone.rematches_enabled
+  end
+
+  def self.rematches_enabled=(value)
+    $PokemonGlobal.phone.rematches_enabled = value
+  end
+
+  def self.get_trainer(*args)
+    return $PokemonGlobal.phone.get(true, *args)
+  end
+
+  def self.can_add?(*args)
+    return $PokemonGlobal.phone.can_add?(*args)
+  end
+
+  def self.add(*args)
+    ret = $PokemonGlobal.phone.add(*args)
+    if ret
+      if args[0].is_a?(Game_Event)
+        contact = $PokemonGlobal.phone.get(true, args[1], args[2], (args[4] || 0))
+      elsif args[1].is_a?(Numeric)
+        contact = $PokemonGlobal.phone.get(true, args[2], args[3], (args[5] || 0))
+      else
+        contact = $PokemonGlobal.phone.get(false, args[1])
+      end
+      pbMessage("\\me[Register phone]" + _INTL("Registered {1} in the Pokégear!", contact.display_name) + "\\wtnp[60]")
+    end
+    return ret
+  end
+
+  def self.add_silent(*args)
+    return $PokemonGlobal.phone.add(*args)
+  end
+
+  def self.variant(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(trainer_type, name, start_version)
+    return (contact) ? contact.variant : 0
+  end
+
+  def self.increment_version(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(trainer_type, name, start_version)
+    contact.increment_version if contact
+  end
+
+  def self.battle(trainer_type, name, start_version = 0)
+    contact = $PokemonGlobal.phone.get(true, trainer_type, name, start_version)
+    return false if !contact
+    return TrainerBattle.start(trainer_type, name, contact.next_version)
+  end
+
+  def self.reset_after_win(trainer_type, name, start_version = 0)
+    $PokemonGlobal.phone.reset_after_win(trainer_type, name, start_version)
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================

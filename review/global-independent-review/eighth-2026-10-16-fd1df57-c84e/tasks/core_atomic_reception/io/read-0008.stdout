@@ -1,0 +1,575 @@
+00001: class Battle::Battler
+00002:   #=============================================================================
+00003:   # Generalised checks for whether a status problem can be inflicted
+00004:   #=============================================================================
+00005:   # NOTE: Not all "does it have this status?" checks use this method. If the
+00006:   #       check is leading up to curing self of that status condition, then it
+00007:   #       will look at the value of @status directly instead - if it is that
+00008:   #       status condition then it is curable. This method only checks for
+00009:   #       "counts as having that status", which includes Comatose which can't be
+00010:   #       cured.
+00011:   def pbHasStatus?(checkStatus)
+00012:     if Battle::AbilityEffects.triggerStatusCheckNonIgnorable(self.ability, self, checkStatus)
+00013:       return true
+00014:     end
+00015:     return @status == checkStatus
+00016:   end
+00017: 
+00018:   def pbHasAnyStatus?
+00019:     if Battle::AbilityEffects.triggerStatusCheckNonIgnorable(self.ability, self, nil)
+00020:       return true
+00021:     end
+00022:     return @status != :NONE
+00023:   end
+00024: 
+00025:   def pbCanInflictStatus?(newStatus, user, showMessages, move = nil, ignoreStatus = false)
+00026:     return false if fainted?
+00027:     self_inflicted = (user && user.index == @index)   # Rest and Flame Orb/Toxic Orb only
+00028:     # Already have that status problem
+00029:     if self.status == newStatus && !ignoreStatus
+00030:       if showMessages
+00031:         msg = ""
+00032:         case self.status
+00033:         when :SLEEP     then msg = _INTL("{1} is already asleep!", pbThis)
+00034:         when :POISON    then msg = _INTL("{1} is already poisoned!", pbThis)
+00035:         when :BURN      then msg = _INTL("{1} already has a burn!", pbThis)
+00036:         when :PARALYSIS then msg = _INTL("{1} is already paralyzed!", pbThis)
+00037:         when :FROZEN    then msg = _INTL("{1} is already frozen solid!", pbThis)
+00038:         end
+00039:         @battle.pbDisplay(msg)
+00040:       end
+00041:       return false
+00042:     end
+00043:     # Trying to replace a status problem with another one
+00044:     if self.status != :NONE && !ignoreStatus && !(self_inflicted && move)   # Rest can replace a status problem
+00045:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00046:       return false
+00047:     end
+00048:     # Trying to inflict a status problem on a Pokémon behind a substitute
+00049:     if @effects[PBEffects::Substitute] > 0 && !(move && move.ignoresSubstitute?(user)) &&
+00050:        !self_inflicted
+00051:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00052:       return false
+00053:     end
+00054:     # Weather immunity
+00055:     if newStatus == :FROZEN && [:Sun, :HarshSun].include?(effectiveWeather)
+00056:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00057:       return false
+00058:     end
+00059:     # Terrains immunity
+00060:     if affectedByTerrain?
+00061:       case @battle.field.terrain
+00062:       when :Electric
+00063:         if newStatus == :SLEEP
+00064:           if showMessages
+00065:             @battle.pbDisplay(_INTL("{1} surrounds itself with electrified terrain!", pbThis(true)))
+00066:           end
+00067:           return false
+00068:         end
+00069:       when :Misty
+00070:         @battle.pbDisplay(_INTL("{1} surrounds itself with misty terrain!", pbThis(true))) if showMessages
+00071:         return false
+00072:       end
+00073:     end
+00074:     # Uproar immunity
+00075:     if newStatus == :SLEEP && !(hasActiveAbility?(:SOUNDPROOF) && !@battle.moldBreaker)
+00076:       @battle.allBattlers.each do |b|
+00077:         next if b.effects[PBEffects::Uproar] == 0
+00078:         @battle.pbDisplay(_INTL("But the uproar kept {1} awake!", pbThis(true))) if showMessages
+00079:         return false
+00080:       end
+00081:     end
+00082:     # Type immunities
+00083:     hasImmuneType = false
+00084:     case newStatus
+00085:     when :SLEEP
+00086:       # No type is immune to sleep
+00087:     when :POISON
+00088:       if !(user && user.hasActiveAbility?(:CORROSION))
+00089:         hasImmuneType |= pbHasType?(:POISON)
+00090:         hasImmuneType |= pbHasType?(:STEEL)
+00091:       end
+00092:     when :BURN
+00093:       hasImmuneType |= pbHasType?(:FIRE)
+00094:     when :PARALYSIS
+00095:       hasImmuneType |= pbHasType?(:ELECTRIC) && Settings::MORE_TYPE_EFFECTS
+00096:     when :FROZEN
+00097:       hasImmuneType |= pbHasType?(:ICE)
+00098:     end
+00099:     if hasImmuneType
+00100:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00101:       return false
+00102:     end
+00103:     # Ability immunity
+00104:     immuneByAbility = false
+00105:     immAlly = nil
+00106:     if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, newStatus)
+00107:       immuneByAbility = true
+00108:     elsif self_inflicted || !@battle.moldBreaker
+00109:       if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, newStatus)
+00110:         immuneByAbility = true
+00111:       else
+00112:         allAllies.each do |b|
+00113:           next if !b.abilityActive?
+00114:           next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, newStatus)
+00115:           immuneByAbility = true
+00116:           immAlly = b
+00117:           break
+00118:         end
+00119:       end
+00120:     end
+00121:     if immuneByAbility
+00122:       if showMessages
+00123:         @battle.pbShowAbilitySplash(immAlly || self)
+00124:         msg = ""
+00125:         if Battle::Scene::USE_ABILITY_SPLASH
+00126:           case newStatus
+00127:           when :SLEEP     then msg = _INTL("{1} stays awake!", pbThis)
+00128:           when :POISON    then msg = _INTL("{1} cannot be poisoned!", pbThis)
+00129:           when :BURN      then msg = _INTL("{1} cannot be burned!", pbThis)
+00130:           when :PARALYSIS then msg = _INTL("{1} cannot be paralyzed!", pbThis)
+00131:           when :FROZEN    then msg = _INTL("{1} cannot be frozen solid!", pbThis)
+00132:           end
+00133:         elsif immAlly
+00134:           case newStatus
+00135:           when :SLEEP
+00136:             msg = _INTL("{1} stays awake because of {2}'s {3}!",
+00137:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00138:           when :POISON
+00139:             msg = _INTL("{1} cannot be poisoned because of {2}'s {3}!",
+00140:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00141:           when :BURN
+00142:             msg = _INTL("{1} cannot be burned because of {2}'s {3}!",
+00143:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00144:           when :PARALYSIS
+00145:             msg = _INTL("{1} cannot be paralyzed because of {2}'s {3}!",
+00146:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00147:           when :FROZEN
+00148:             msg = _INTL("{1} cannot be frozen solid because of {2}'s {3}!",
+00149:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00150:           end
+00151:         else
+00152:           case newStatus
+00153:           when :SLEEP     then msg = _INTL("{1} stays awake because of its {2}!", pbThis, abilityName)
+00154:           when :POISON    then msg = _INTL("{1}'s {2} prevents poisoning!", pbThis, abilityName)
+00155:           when :BURN      then msg = _INTL("{1}'s {2} prevents burns!", pbThis, abilityName)
+00156:           when :PARALYSIS then msg = _INTL("{1}'s {2} prevents paralysis!", pbThis, abilityName)
+00157:           when :FROZEN    then msg = _INTL("{1}'s {2} prevents freezing!", pbThis, abilityName)
+00158:           end
+00159:         end
+00160:         @battle.pbDisplay(msg)
+00161:         @battle.pbHideAbilitySplash(immAlly || self)
+00162:       end
+00163:       return false
+00164:     end
+00165:     # Safeguard immunity
+00166:     if pbOwnSide.effects[PBEffects::Safeguard] > 0 && !self_inflicted && move &&
+00167:        !(user && user.hasActiveAbility?(:INFILTRATOR))
+00168:       @battle.pbDisplay(_INTL("{1}'s team is protected by Safeguard!", pbThis)) if showMessages
+00169:       return false
+00170:     end
+00171:     return true
+00172:   end
+00173: 
+00174:   def pbCanSynchronizeStatus?(newStatus, user)
+00175:     return false if fainted?
+00176:     # Trying to replace a status problem with another one
+00177:     return false if self.status != :NONE
+00178:     # Terrain immunity
+00179:     return false if @battle.field.terrain == :Misty && affectedByTerrain?
+00180:     # Type immunities
+00181:     hasImmuneType = false
+00182:     case newStatus
+00183:     when :POISON
+00184:       # NOTE: user will have Synchronize, so it can't have Corrosion.
+00185:       if !(user && user.hasActiveAbility?(:CORROSION))
+00186:         hasImmuneType |= pbHasType?(:POISON)
+00187:         hasImmuneType |= pbHasType?(:STEEL)
+00188:       end
+00189:     when :BURN
+00190:       hasImmuneType |= pbHasType?(:FIRE)
+00191:     when :PARALYSIS
+00192:       hasImmuneType |= pbHasType?(:ELECTRIC) && Settings::MORE_TYPE_EFFECTS
+00193:     end
+00194:     return false if hasImmuneType
+00195:     # Ability immunity
+00196:     if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, newStatus)
+00197:       return false
+00198:     end
+00199:     if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, newStatus)
+00200:       return false
+00201:     end
+00202:     allAllies.each do |b|
+00203:       next if !b.abilityActive?
+00204:       next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, newStatus)
+00205:       return false
+00206:     end
+00207:     # Safeguard immunity
+00208:     # NOTE: user will have Synchronize, so it can't have Infiltrator.
+00209:     if pbOwnSide.effects[PBEffects::Safeguard] > 0 &&
+00210:        !(user && user.hasActiveAbility?(:INFILTRATOR))
+00211:       return false
+00212:     end
+00213:     return true
+00214:   end
+00215: 
+00216:   #=============================================================================
+00217:   # Generalised infliction of status problem
+00218:   #=============================================================================
+00219:   def pbInflictStatus(newStatus, newStatusCount = 0, msg = nil, user = nil)
+00220:     # Inflict the new status
+00221:     self.status      = newStatus
+00222:     self.statusCount = newStatusCount
+00223:     @effects[PBEffects::Toxic] = 0
+00224:     # Show animation
+00225:     if newStatus == :POISON && newStatusCount > 0
+00226:       @battle.pbCommonAnimation("Toxic", self)
+00227:     else
+00228:       anim_name = GameData::Status.get(newStatus).animation
+00229:       @battle.pbCommonAnimation(anim_name, self) if anim_name
+00230:     end
+00231:     # Show message
+00232:     if msg && !msg.empty?
+00233:       @battle.pbDisplay(msg)
+00234:     else
+00235:       case newStatus
+00236:       when :SLEEP
+00237:         @battle.pbDisplay(_INTL("{1} fell asleep!", pbThis))
+00238:       when :POISON
+00239:         if newStatusCount > 0
+00240:           @battle.pbDisplay(_INTL("{1} was badly poisoned!", pbThis))
+00241:         else
+00242:           @battle.pbDisplay(_INTL("{1} was poisoned!", pbThis))
+00243:         end
+00244:       when :BURN
+00245:         @battle.pbDisplay(_INTL("{1} was burned!", pbThis))
+00246:       when :PARALYSIS
+00247:         @battle.pbDisplay(_INTL("{1} is paralyzed! It may be unable to move!", pbThis))
+00248:       when :FROZEN
+00249:         @battle.pbDisplay(_INTL("{1} was frozen solid!", pbThis))
+00250:       end
+00251:     end
+00252:     PBDebug.log("[Status change] #{pbThis}'s sleep count is #{newStatusCount}") if newStatus == :SLEEP
+00253:     # Form change check
+00254:     pbCheckFormOnStatusChange
+00255:     # Synchronize
+00256:     if abilityActive?
+00257:       Battle::AbilityEffects.triggerOnStatusInflicted(self.ability, self, user, newStatus)
+00258:     end
+00259:     # Status cures
+00260:     pbItemStatusCureCheck
+00261:     pbAbilityStatusCureCheck
+00262:     # Petal Dance/Outrage/Thrash get cancelled immediately by falling asleep
+00263:     # NOTE: I don't know why this applies only to Outrage and only to falling
+00264:     #       asleep (i.e. it doesn't cancel Rollout/Uproar/other multi-turn
+00265:     #       moves, and it doesn't cancel any moves if self becomes frozen/
+00266:     #       disabled/anything else). This behaviour was tested in Gen 5.
+00267:     if @status == :SLEEP && @effects[PBEffects::Outrage] > 0
+00268:       @effects[PBEffects::Outrage] = 0
+00269:       @currentMove = nil
+00270:     end
+00271:   end
+00272: 
+00273:   #=============================================================================
+00274:   # Sleep
+00275:   #=============================================================================
+00276:   def asleep?
+00277:     return pbHasStatus?(:SLEEP)
+00278:   end
+00279: 
+00280:   def pbCanSleep?(user, showMessages, move = nil, ignoreStatus = false)
+00281:     return pbCanInflictStatus?(:SLEEP, user, showMessages, move, ignoreStatus)
+00282:   end
+00283: 
+00284:   def pbCanSleepYawn?
+00285:     return false if self.status != :NONE
+00286:     if affectedByTerrain? && [:Electric, :Misty].include?(@battle.field.terrain)
+00287:       return false
+00288:     end
+00289:     if !hasActiveAbility?(:SOUNDPROOF) && @battle.allBattlers.any? { |b| b.effects[PBEffects::Uproar] > 0 }
+00290:       return false
+00291:     end
+00292:     if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, :SLEEP)
+00293:       return false
+00294:     end
+00295:     # NOTE: Bulbapedia claims that Flower Veil shouldn't prevent sleep due to
+00296:     #       drowsiness, but I disagree because that makes no sense. Also, the
+00297:     #       comparable Sweet Veil does prevent sleep due to drowsiness.
+00298:     if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, :SLEEP)
+00299:       return false
+00300:     end
+00301:     allAllies.each do |b|
+00302:       next if !b.abilityActive?
+00303:       next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, :SLEEP)
+00304:       return false
+00305:     end
+00306:     # NOTE: Bulbapedia claims that Safeguard shouldn't prevent sleep due to
+00307:     #       drowsiness. I disagree with this too. Compare with the other sided
+00308:     #       effects Misty/Electric Terrain, which do prevent it.
+00309:     return false if pbOwnSide.effects[PBEffects::Safeguard] > 0
+00310:     return true
+00311:   end
+00312: 
+00313:   def pbSleep(msg = nil)
+00314:     pbInflictStatus(:SLEEP, pbSleepDuration, msg)
+00315:   end
+00316: 
+00317:   def pbSleepSelf(msg = nil, duration = -1)
+00318:     pbInflictStatus(:SLEEP, pbSleepDuration(duration), msg)
+00319:   end
+00320: 
+00321:   def pbSleepDuration(duration = -1)
+00322:     duration = 2 + @battle.pbRandom(3) if duration <= 0
+00323:     duration = (duration / 2).floor if hasActiveAbility?(:EARLYBIRD)
+00324:     return duration
+00325:   end
+00326: 
+00327:   #=============================================================================
+00328:   # Poison
+00329:   #=============================================================================
+00330:   def poisoned?
+00331:     return pbHasStatus?(:POISON)
+00332:   end
+00333: 
+00334:   def pbCanPoison?(user, showMessages, move = nil)
+00335:     return pbCanInflictStatus?(:POISON, user, showMessages, move)
+00336:   end
+00337: 
+00338:   def pbCanPoisonSynchronize?(target)
+00339:     return pbCanSynchronizeStatus?(:POISON, target)
+00340:   end
+00341: 
+00342:   def pbPoison(user = nil, msg = nil, toxic = false)
+00343:     pbInflictStatus(:POISON, (toxic) ? 1 : 0, msg, user)
+00344:   end
+00345: 
+00346:   #=============================================================================
+00347:   # Burn
+00348:   #=============================================================================
+00349:   def burned?
+00350:     return pbHasStatus?(:BURN)
+00351:   end
+00352: 
+00353:   def pbCanBurn?(user, showMessages, move = nil)
+00354:     return pbCanInflictStatus?(:BURN, user, showMessages, move)
+00355:   end
+00356: 
+00357:   def pbCanBurnSynchronize?(target)
+00358:     return pbCanSynchronizeStatus?(:BURN, target)
+00359:   end
+00360: 
+00361:   def pbBurn(user = nil, msg = nil)
+00362:     pbInflictStatus(:BURN, 0, msg, user)
+00363:   end
+00364: 
+00365:   #=============================================================================
+00366:   # Paralyze
+00367:   #=============================================================================
+00368:   def paralyzed?
+00369:     return pbHasStatus?(:PARALYSIS)
+00370:   end
+00371: 
+00372:   def pbCanParalyze?(user, showMessages, move = nil)
+00373:     return pbCanInflictStatus?(:PARALYSIS, user, showMessages, move)
+00374:   end
+00375: 
+00376:   def pbCanParalyzeSynchronize?(target)
+00377:     return pbCanSynchronizeStatus?(:PARALYSIS, target)
+00378:   end
+00379: 
+00380:   def pbParalyze(user = nil, msg = nil)
+00381:     pbInflictStatus(:PARALYSIS, 0, msg, user)
+00382:   end
+00383: 
+00384:   #=============================================================================
+00385:   # Freeze
+00386:   #=============================================================================
+00387:   def frozen?
+00388:     return pbHasStatus?(:FROZEN)
+00389:   end
+00390: 
+00391:   def pbCanFreeze?(user, showMessages, move = nil)
+00392:     return pbCanInflictStatus?(:FROZEN, user, showMessages, move)
+00393:   end
+00394: 
+00395:   def pbFreeze(msg = nil)
+00396:     pbInflictStatus(:FROZEN, 0, msg)
+00397:   end
+00398: 
+00399:   #=============================================================================
+00400:   # Generalised status displays
+00401:   #=============================================================================
+00402:   def pbContinueStatus
+00403:     if self.status == :POISON && @statusCount > 0
+00404:       @battle.pbCommonAnimation("Toxic", self)
+00405:     else
+00406:       anim_name = GameData::Status.get(self.status).animation
+00407:       @battle.pbCommonAnimation(anim_name, self) if anim_name
+00408:     end
+00409:     yield if block_given?
+00410:     case self.status
+00411:     when :SLEEP
+00412:       @battle.pbDisplay(_INTL("{1} is fast asleep.", pbThis))
+00413:     when :POISON
+00414:       @battle.pbDisplay(_INTL("{1} was hurt by poison!", pbThis))
+00415:     when :BURN
+00416:       @battle.pbDisplay(_INTL("{1} was hurt by its burn!", pbThis))
+00417:     when :PARALYSIS
+00418:       @battle.pbDisplay(_INTL("{1} is paralyzed! It can't move!", pbThis))
+00419:     when :FROZEN
+00420:       @battle.pbDisplay(_INTL("{1} is frozen solid!", pbThis))
+00421:     end
+00422:     PBDebug.log("[Status continues] #{pbThis}'s sleep count is #{@statusCount}") if self.status == :SLEEP
+00423:   end
+00424: 
+00425:   def pbCureStatus(showMessages = true)
+00426:     oldStatus = status
+00427:     self.status = :NONE
+00428:     if showMessages
+00429:       case oldStatus
+00430:       when :SLEEP     then @battle.pbDisplay(_INTL("{1} woke up!", pbThis))
+00431:       when :POISON    then @battle.pbDisplay(_INTL("{1} was cured of its poisoning.", pbThis))
+00432:       when :BURN      then @battle.pbDisplay(_INTL("{1}'s burn was healed.", pbThis))
+00433:       when :PARALYSIS then @battle.pbDisplay(_INTL("{1} was cured of paralysis.", pbThis))
+00434:       when :FROZEN    then @battle.pbDisplay(_INTL("{1} thawed out!", pbThis))
+00435:       end
+00436:     end
+00437:     PBDebug.log("[Status change] #{pbThis}'s status was cured") if !showMessages
+00438:   end
+00439: 
+00440:   #=============================================================================
+00441:   # Confusion
+00442:   #=============================================================================
+00443:   def pbCanConfuse?(user = nil, showMessages = true, move = nil, selfInflicted = false)
+00444:     return false if fainted?
+00445:     if @effects[PBEffects::Confusion] > 0
+00446:       @battle.pbDisplay(_INTL("{1} is already confused.", pbThis)) if showMessages
+00447:       return false
+00448:     end
+00449:     if @effects[PBEffects::Substitute] > 0 && !(move && move.ignoresSubstitute?(user)) &&
+00450:        !selfInflicted
+00451:       @battle.pbDisplay(_INTL("But it failed!")) if showMessages
+00452:       return false
+00453:     end
+00454:     # Terrains immunity
+00455:     if affectedByTerrain? && @battle.field.terrain == :Misty && Settings::MECHANICS_GENERATION >= 7
+00456:       @battle.pbDisplay(_INTL("{1} surrounds itself with misty terrain!", pbThis(true))) if showMessages
+00457:       return false
+00458:     end
+00459:     if (selfInflicted || !@battle.moldBreaker) && hasActiveAbility?(:OWNTEMPO)
+00460:       if showMessages
+00461:         @battle.pbShowAbilitySplash(self)
+00462:         if Battle::Scene::USE_ABILITY_SPLASH
+00463:           @battle.pbDisplay(_INTL("{1} doesn't become confused!", pbThis))
+00464:         else
+00465:           @battle.pbDisplay(_INTL("{1}'s {2} prevents confusion!", pbThis, abilityName))
+00466:         end
+00467:         @battle.pbHideAbilitySplash(self)
+00468:       end
+00469:       return false
+00470:     end
+00471:     if pbOwnSide.effects[PBEffects::Safeguard] > 0 && !selfInflicted &&
+00472:        !(user && user.hasActiveAbility?(:INFILTRATOR))
+00473:       @battle.pbDisplay(_INTL("{1}'s team is protected by Safeguard!", pbThis)) if showMessages
+00474:       return false
+00475:     end
+00476:     return true
+00477:   end
+00478: 
+00479:   def pbCanConfuseSelf?(showMessages)
+00480:     return pbCanConfuse?(nil, showMessages, nil, true)
+00481:   end
+00482: 
+00483:   def pbConfuse(msg = nil)
+00484:     @effects[PBEffects::Confusion] = pbConfusionDuration
+00485:     @battle.pbCommonAnimation("Confusion", self)
+00486:     msg = _INTL("{1} became confused!", pbThis) if nil_or_empty?(msg)
+00487:     @battle.pbDisplay(msg)
+00488:     PBDebug.log("[Lingering effect] #{pbThis}'s confusion count is #{@effects[PBEffects::Confusion]}")
+00489:     # Confusion cures
+00490:     pbItemStatusCureCheck
+00491:     pbAbilityStatusCureCheck
+00492:   end
+00493: 
+00494:   def pbConfusionDuration(duration = -1)
+00495:     duration = 2 + @battle.pbRandom(4) if duration <= 0
+00496:     return duration
+00497:   end
+00498: 
+00499:   def pbCureConfusion
+00500:     @effects[PBEffects::Confusion] = 0
+00501:   end
+00502: 
+00503:   #=============================================================================
+00504:   # Attraction
+00505:   #=============================================================================
+00506:   def pbCanAttract?(user, showMessages = true)
+00507:     return false if fainted?
+00508:     return false if !user || user.fainted?
+00509:     if @effects[PBEffects::Attract] >= 0
+00510:       @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis)) if showMessages
+00511:       return false
+00512:     end
+00513:     agender = user.gender
+00514:     ogender = gender
+00515:     if agender == 2 || ogender == 2 || agender == ogender
+00516:       @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis)) if showMessages
+00517:       return false
+00518:     end
+00519:     if !@battle.moldBreaker
+00520:       if hasActiveAbility?([:AROMAVEIL, :OBLIVIOUS])
+00521:         if showMessages
+00522:           @battle.pbShowAbilitySplash(self)
+00523:           if Battle::Scene::USE_ABILITY_SPLASH
+00524:             @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis))
+00525:           else
+00526:             @battle.pbDisplay(_INTL("{1}'s {2} prevents romance!", pbThis, abilityName))
+00527:           end
+00528:           @battle.pbHideAbilitySplash(self)
+00529:         end
+00530:         return false
+00531:       else
+00532:         allAllies.each do |b|
+00533:           next if !b.hasActiveAbility?(:AROMAVEIL)
+00534:           if showMessages
+00535:             @battle.pbShowAbilitySplash(b)
+00536:             if Battle::Scene::USE_ABILITY_SPLASH
+00537:               @battle.pbDisplay(_INTL("{1} is unaffected!", pbThis))
+00538:             else
+00539:               @battle.pbDisplay(_INTL("{1}'s {2} prevents romance!", b.pbThis, b.abilityName))
+00540:             end
+00541:             @battle.pbHideAbilitySplash(b)
+00542:           end
+00543:           return false
+00544:         end
+00545:       end
+00546:     end
+00547:     return true
+00548:   end
+00549: 
+00550:   def pbAttract(user, msg = nil)
+00551:     @effects[PBEffects::Attract] = user.index
+00552:     @battle.pbCommonAnimation("Attract", self)
+00553:     msg = _INTL("{1} fell in love!", pbThis) if nil_or_empty?(msg)
+00554:     @battle.pbDisplay(msg)
+00555:     # Destiny Knot
+00556:     if hasActiveItem?(:DESTINYKNOT) && user.pbCanAttract?(self, false)
+00557:       user.pbAttract(self, _INTL("{1} fell in love from the {2}!", user.pbThis(true), itemName))
+00558:     end
+00559:     # Attraction cures
+00560:     pbItemStatusCureCheck
+00561:     pbAbilityStatusCureCheck
+00562:   end
+00563: 
+00564:   def pbCureAttract
+00565:     @effects[PBEffects::Attract] = -1
+00566:   end
+00567: 
+00568:   #=============================================================================
+00569:   # Flinching
+00570:   #=============================================================================
+00571:   def pbFlinch(_user = nil)
+00572:     return if hasActiveAbility?(:INNERFOCUS) && !@battle.moldBreaker
+00573:     @effects[PBEffects::Flinch] = true
+00574:   end
+00575: end

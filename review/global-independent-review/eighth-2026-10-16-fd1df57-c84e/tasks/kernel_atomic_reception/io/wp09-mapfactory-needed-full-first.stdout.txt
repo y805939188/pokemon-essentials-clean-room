@@ -1,0 +1,201 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/004_Game classes/005_Game_MapFactory.rb RANGE 1-200
+#===============================================================================
+# Map Factory (allows multiple maps to be loaded at once and connected)
+#===============================================================================
+class PokemonMapFactory
+  attr_reader :maps
+
+  def initialize(id)
+    @maps       = []
+    @fixup      = false
+    @mapChanged = false   # transient instance variable
+    setup(id)
+  end
+
+  # Clears all maps and sets up the current map with id. This function also sets
+  # the positions of neighboring maps and notifies the game system of a map
+  # change.
+  def setup(id)
+    @maps.clear
+    @maps[0] = Game_Map.new
+    @mapIndex = 0
+    oldID = ($game_map) ? $game_map.map_id : 0
+    setMapChanging(id, @maps[0]) if oldID != 0 && oldID != @maps[0].map_id
+    $game_map = @maps[0]
+    @maps[0].setup(id)
+    setMapsInRange
+    setMapChanged(oldID)
+  end
+
+  def map
+    @mapIndex = 0 if !@mapIndex || @mapIndex < 0
+    return @maps[@mapIndex] if @maps[@mapIndex]
+    raise "No maps in save file... (mapIndex=#{@mapIndex})" if @maps.length == 0
+    if @maps[0]
+      echoln "Using next map, may be incorrect (mapIndex=#{@mapIndex}, length=#{@maps.length})"
+      return @maps[0]
+    end
+    raise "No maps in save file... (all maps empty; mapIndex=#{@mapIndex})"
+  end
+
+  def hasMap?(id)
+    @maps.each do |map|
+      return true if map.map_id == id
+    end
+    return false
+  end
+
+  def getMapIndex(id)
+    @maps.length.times do |i|
+      return i if @maps[i].map_id == id
+    end
+    return -1
+  end
+
+  def getMap(id, add = true)
+    @maps.each do |map|
+      return map if map.map_id == id
+    end
+    map = Game_Map.new
+    map.setup(id)
+    @maps.push(map) if add
+    return map
+  end
+
+  def getMapNoAdd(id)
+    return getMap(id, false)
+  end
+
+  def getNewMap(playerX, playerY, map_id = nil)
+    id = map_id || $game_map.map_id
+    MapFactoryHelper.eachConnectionForMap(id) do |conn|
+      mapidB = nil
+      newx = 0
+      newy = 0
+      if conn[0] == id
+        mapidB = conn[3]
+        mapB = MapFactoryHelper.getMapDims(conn[3])
+        newx = conn[4] - conn[1] + playerX
+        newy = conn[5] - conn[2] + playerY
+      else
+        mapidB = conn[0]
+        mapB = MapFactoryHelper.getMapDims(conn[0])
+        newx = conn[1] - conn[4] + playerX
+        newy = conn[2] - conn[5] + playerY
+      end
+      if newx >= 0 && newx < mapB[0] && newy >= 0 && newy < mapB[1]
+        return [getMapNoAdd(mapidB), newx, newy] if map_id
+        return [getMap(mapidB), newx, newy]
+      end
+    end
+    return nil
+  end
+
+  # Detects whether the player has moved onto a connected map, and if so, causes
+  # their transfer to that map.
+  def setCurrentMap
+    return if $game_player.moving?
+    return if $game_map.valid?($game_player.x, $game_player.y)
+    newmap = getNewMap($game_player.x, $game_player.y)
+    return if !newmap
+    oldmap = $game_map.map_id
+    if oldmap != 0 && oldmap != newmap[0].map_id
+      setMapChanging(newmap[0].map_id, newmap[0])
+    end
+    $game_map = newmap[0]
+    @mapIndex = getMapIndex($game_map.map_id)
+    $game_player.moveto(newmap[1], newmap[2])
+    $game_map.update
+    pbAutoplayOnTransition
+    $game_map.refresh
+    setMapChanged(oldmap)
+    $game_screen.weather_duration = 20
+  end
+
+  def setMapsInRange
+    return if @fixup
+    @fixup = true
+    id = $game_map.map_id
+    MapFactoryHelper.eachConnectionForMap(id) do |conn|
+      if conn[0] == id
+        mapA = getMap(conn[0])
+        newdispx = ((conn[4] - conn[1]) * Game_Map::REAL_RES_X) + mapA.display_x
+        newdispy = ((conn[5] - conn[2]) * Game_Map::REAL_RES_Y) + mapA.display_y
+        if hasMap?(conn[3]) || MapFactoryHelper.mapInRangeById?(conn[3], newdispx, newdispy)
+          mapB = getMap(conn[3])
+          mapB.display_x = newdispx if mapB.display_x != newdispx
+          mapB.display_y = newdispy if mapB.display_y != newdispy
+        end
+      else
+        mapA = getMap(conn[3])
+        newdispx = ((conn[1] - conn[4]) * Game_Map::REAL_RES_X) + mapA.display_x
+        newdispy = ((conn[2] - conn[5]) * Game_Map::REAL_RES_Y) + mapA.display_y
+        if hasMap?(conn[0]) || MapFactoryHelper.mapInRangeById?(conn[0], newdispx, newdispy)
+          mapB = getMap(conn[0])
+          mapB.display_x = newdispx if mapB.display_x != newdispx
+          mapB.display_y = newdispy if mapB.display_y != newdispy
+        end
+      end
+    end
+    @fixup = false
+  end
+
+  def setMapChanging(newID, newMap)
+    EventHandlers.trigger(:on_leave_map, newID, newMap)
+  end
+
+  def setMapChanged(prevMap)
+    EventHandlers.trigger(:on_enter_map, prevMap)
+    @mapChanged = true
+  end
+
+  def setSceneStarted(scene)
+    EventHandlers.trigger(:on_map_or_spriteset_change, scene, @mapChanged)
+    @mapChanged = false
+  end
+
+  # Similar to Game_Player#passable?, but supports map connections
+  def isPassableFromEdge?(x, y)
+    return true if $game_map.valid?(x, y)
+    newmap = getNewMap(x, y, $game_map.map_id)
+    return false if !newmap
+    return isPassable?(newmap[0].map_id, newmap[1], newmap[2])
+  end
+
+  def isPassable?(mapID, x, y, thisEvent = nil)
+    thisEvent = $game_player if !thisEvent
+    map = getMapNoAdd(mapID)
+    return false if !map
+    return false if !map.valid?(x, y)
+    return true if thisEvent.through
+    # Check passability of tile
+    return true if $DEBUG && Input.press?(Input::CTRL) && thisEvent.is_a?(Game_Player)
+    return false if !map.passable?(x, y, 0, thisEvent)
+    # Check passability of event(s) in that spot
+    map.events.each_value do |event|
+      next if event == thisEvent || !event.at_coordinate?(x, y)
+      return false if !event.through && event.character_name != ""
+    end
+    # Check passability of player
+    if !thisEvent.is_a?(Game_Player) &&
+       $game_map.map_id == mapID && $game_player.x == x && $game_player.y == y &&
+       !$game_player.through && $game_player.character_name != ""
+      return false
+    end
+    return true
+  end
+
+  # Only used by follower events
+  def isPassableStrict?(mapID, x, y, thisEvent = nil)
+    thisEvent = $game_player if !thisEvent
+    map = getMapNoAdd(mapID)
+    return false if !map
+    return false if !map.valid?(x, y)
+    return true if thisEvent.through
+    return true if $DEBUG && Input.press?(Input::CTRL) && thisEvent.is_a?(Game_Player)
+    return false if !map.passableStrict?(x, y, 0, thisEvent)
+    map.events.each_value do |event|
+      next if event == thisEvent || !event.at_coordinate?(x, y)
+      return false if !event.through && event.character_name != ""
+    end
+    return true

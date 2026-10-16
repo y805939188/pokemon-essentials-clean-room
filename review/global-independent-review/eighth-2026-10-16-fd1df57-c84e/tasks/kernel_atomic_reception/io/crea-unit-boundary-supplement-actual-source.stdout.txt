@@ -1,0 +1,87 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/007_Overworld_DayCare.rb RANGE 172-213
+
+    def inherit_IVs(egg, mother, father)
+      # Get all stats
+      stats = []
+      GameData::Stat.each_main { |s| stats.push(s.id) }
+      # Get the number of stats to inherit (includes ones inherited via Power items)
+      inherit_count = 3
+      if Settings::MECHANICS_GENERATION >= 6
+        inherit_count = 5 if mother.hasItem?(:DESTINYKNOT) || father.hasItem?(:DESTINYKNOT)
+      end
+      # Inherit IV because of Power items (if both parents have the same Power
+      # item, then the parent that passes that Power item's stat down is chosen
+      # randomly)
+      power_items = [
+        [:POWERWEIGHT, :HP],
+        [:POWERBRACER, :ATTACK],
+        [:POWERBELT,   :DEFENSE],
+        [:POWERLENS,   :SPECIAL_ATTACK],
+        [:POWERBAND,   :SPECIAL_DEFENSE],
+        [:POWERANKLET, :SPEED]
+      ]
+      power_stats = {}
+      [mother, father].each do |parent|
+        power_items.each do |item|
+          next if !parent.hasItem?(item[0])
+          power_stats[item[1]] ||= []
+          power_stats[item[1]].push(parent.iv[item[1]])
+          break
+        end
+      end
+      power_stats.each_pair do |stat, new_stats|
+        next if !new_stats || new_stats.length == 0
+        new_stat = new_stats.sample
+        egg.iv[stat] = new_stat
+        stats.delete(stat)   # Don't try to inherit this stat's IV again
+        inherit_count -= 1
+      end
+      # Inherit the rest of the IVs
+      chosen_stats = stats.sample(inherit_count)
+      chosen_stats.each { |stat| egg.iv[stat] = [mother, father].sample.iv[stat] }
+    end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/007_Debug_PokemonCommands.rb RANGE 1007-1048
+MenuHandlers.add(:pokemon_debug_menu, :set_egg, {
+  "name"        => _INTL("Set egg"),
+  "parent"      => :main,
+  "always_show" => false,
+  "effect"      => proc { |pkmn, pkmnid, heldpoke, settingUpBattle, screen|
+    cmd = 0
+    loop do
+      msg = [_INTL("Not an egg"),
+             _INTL("Egg (hatches in {1} steps).", pkmn.steps_to_hatch)][pkmn.egg? ? 1 : 0]
+      cmd = screen.pbShowCommands(msg,
+                                  [_INTL("Make egg"),
+                                   _INTL("Make Pokémon"),
+                                   _INTL("Set steps left to 1")], cmd)
+      break if cmd < 0
+      case cmd
+      when 0   # Make egg
+        if !pkmn.egg? && (pbHasEgg?(pkmn.species) ||
+           screen.pbConfirm(_INTL("{1} cannot legally be an egg. Make egg anyway?", pkmn.speciesName)))
+          pkmn.level          = Settings::EGG_LEVEL
+          pkmn.calc_stats
+          pkmn.name           = _INTL("Egg")
+          pkmn.steps_to_hatch = pkmn.species_data.hatch_steps
+          pkmn.hatched_map    = 0
+          pkmn.obtain_method  = 1
+          screen.pbRefreshSingle(pkmnid)
+        end
+      when 1   # Make Pokémon
+        if pkmn.egg?
+          pkmn.name           = nil
+          pkmn.steps_to_hatch = 0
+          pkmn.hatched_map    = 0
+          pkmn.obtain_method  = 0
+          $player.pokedex.register(pkmn) if !settingUpBattle
+          screen.pbRefreshSingle(pkmnid)
+        end
+      when 2   # Set steps left to 1
+        pkmn.steps_to_hatch = 1 if pkmn.egg?
+      end
+    end
+    next false
+  }
+})

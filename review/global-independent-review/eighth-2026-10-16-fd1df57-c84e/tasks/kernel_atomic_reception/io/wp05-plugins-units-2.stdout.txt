@@ -1,0 +1,251 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/005_PluginManager.rb RANGE 221-470
+                  dep_link = self.link(dep_name)
+                  if dep_link
+                    msg << "\r\nCheck #{dep_link} for an update to plugin '#{dep_name}'."
+                  end
+                  self.error(msg)
+                end
+              elsif !self.installed?(dep_name, dep_version, exact)
+                if self.installed?(dep_name)   # Have plugin but lower version
+                  msg = "Plugin '#{name}' requires plugin '#{dep_name}' to be version #{dep_version}"
+                  msg << " or later" if !exact
+                  msg << ", but the installed version was #{self.version(dep_name)}."
+                  dep_link = self.link(dep_name)
+                  if dep_link
+                    msg << "\r\nCheck #{dep_link} for an update to plugin '#{dep_name}'."
+                  end
+                else   # Don't have plugin
+                  msg = "Plugin '#{name}' requires plugin '#{dep_name}' version #{dep_version} "
+                  msg << "or later " if !exact
+                  msg << "to be installed above it."
+                end
+                self.error(msg)
+              end
+            end
+          end
+        end
+      when :incompatibilities   # Plugin incompatibilities
+        incompats = value
+        incompats = [incompats] if !incompats.is_a?(Array)
+        incompats.each do |incompat|
+          if self.installed?(incompat)
+            self.error("Plugin '#{name}' is incompatible with '#{incompat}'. They cannot both be used at the same time.")
+          end
+        end
+      when :credits # Plugin credits
+        value = [value] if value.is_a?(String)
+        if value.is_a?(Array)
+          value.each do |entry|
+            if entry.is_a?(String)
+              credits << entry
+            else
+              self.error("Plugin '#{name}'s credits array contains a non-string value.")
+            end
+          end
+        else
+          self.error("Plugin '#{name}'s credits field must contain a string, or a string array.")
+        end
+      else
+        self.error("Invalid plugin registry key '#{key}'.")
+      end
+    end
+    @@Plugins.each_value do |plugin|
+      if plugin[:incompatibilities]&.include?(name)
+        self.error("Plugin '#{plugin[:name]}' is incompatible with '#{name}'. They cannot both be used at the same time.")
+      end
+    end
+    # Add plugin to class variable
+    @@Plugins[name] = {
+      :name              => name,
+      :version           => version,
+      :essentials        => essentials,
+      :link              => link,
+      :dependencies      => dependencies,
+      :incompatibilities => incompats,
+      :credits           => credits
+    }
+  end
+
+  # Throws a pure error message without stack trace or any other useless info.
+  def self.error(msg)
+    Graphics.update
+    t = Thread.new do
+      Console.echo_error("Plugin Error:\r\n#{msg}")
+      print("Plugin Error:\r\n#{msg}")
+      Thread.exit
+    end
+    while t.status
+      Graphics.update
+    end
+    Kernel.exit! true
+  end
+
+  # Returns true if the specified plugin is installed.
+  # If the version is specified, this version is taken into account.
+  # If mustequal is true, the version must be a match with the specified version.
+  def self.installed?(plugin_name, plugin_version = nil, mustequal = false)
+    plugin = @@Plugins[plugin_name]
+    return false if plugin.nil?
+    return true if plugin_version.nil?
+    comparison = compare_versions(plugin[:version], plugin_version)
+    return true if !mustequal && comparison >= 0
+    return true if mustequal && comparison == 0
+  end
+
+  # Returns the string names of all installed plugins.
+  def self.plugins
+    return @@Plugins.keys
+  end
+
+  # Returns the installed version of the specified plugin.
+  def self.version(plugin_name)
+    return if !installed?(plugin_name)
+    return @@Plugins[plugin_name][:version]
+  end
+
+  # Returns the link of the specified plugin.
+  def self.link(plugin_name)
+    return if !installed?(plugin_name)
+    return @@Plugins[plugin_name][:link]
+  end
+
+  # Returns the credits of the specified plugin.
+  def self.credits(plugin_name)
+    return if !installed?(plugin_name)
+    return @@Plugins[plugin_name][:credits]
+  end
+
+  # Compares two versions given in string form. v1 should be the plugin version
+  # you actually have, and v2 should be the minimum/desired plugin version.
+  # Return values:
+  #     1 if v1 is higher than v2
+  #     0 if v1 is equal to v2
+  #     -1 if v1 is lower than v2
+  def self.compare_versions(v1, v2)
+    d1 = v1.chars
+    d1.insert(0, "0") if d1[0] == "."   # Turn ".123" into "0.123"
+    while d1[-1] == "."                 # Turn "123." into "123"
+      d1 = d1[0..-2]
+    end
+    d2 = v2.chars
+    d2.insert(0, "0") if d2[0] == "."   # Turn ".123" into "0.123"
+    while d2[-1] == "."                 # Turn "123." into "123"
+      d2 = d2[0..-2]
+    end
+    [d1.size, d2.size].max.times do |i|   # Compare each digit in turn
+      c1 = d1[i]
+      c2 = d2[i]
+      if c1
+        return 1 if !c2
+        return 1 if c1.to_i(16) > c2.to_i(16)
+        return -1 if c1.to_i(16) < c2.to_i(16)
+      elsif c2
+        return -1
+      end
+    end
+    return 0
+  end
+
+  # Formats the error message
+  def self.pluginErrorMsg(name, script)
+    e = $!
+    # begin message formatting
+    message = "[Pokémon Essentials version #{Essentials::VERSION}]\r\n"
+    message += "#{Essentials::ERROR_TEXT}\r\n"   # For third party scripts to add to
+    message += "Error in Plugin: [#{name}]\r\n"
+    message += "Exception: #{e.class}\r\n"
+    message += "Message: "
+    message += e.message
+    # show last 10 lines of backtrace
+    message += "\r\n\r\nBacktrace:\r\n"
+    e.backtrace[0, 10].each { |i| message += "#{i}\r\n" }
+    # output to log
+    errorlog = "errorlog.txt"
+    File.open(errorlog, "ab") do |f|
+      f.write("\r\n=================\r\n\r\n[#{Time.now}]\r\n")
+      f.write(message)
+    end
+    # format/censor the error log directory
+    errorlogline = errorlog.gsub("/", "\\")
+    errorlogline.sub!(Dir.pwd + "\\", "")
+    errorlogline.sub!(pbGetUserName, "USERNAME")
+    errorlogline = "\r\n" + errorlogline if errorlogline.length > 20
+    # output message
+    print("#{message}\r\nThis exception was logged in #{errorlogline}.\r\nHold Ctrl when closing this message to copy it to the clipboard.")
+    # Give a ~500ms coyote time to start holding Control
+    t = System.uptime
+    until System.uptime - t >= 0.5
+      Input.update
+      if Input.press?(Input::CTRL)
+        Input.clipboard = message
+        break
+      end
+    end
+  end
+
+  # Used to read the metadata file
+  def self.readMeta(dir, file)
+    filename = "#{dir}/#{file}"
+    meta = {}
+    # read file
+    Compiler.pbCompilerEachPreppedLine(filename) do |line, line_no|
+      # split line up into property name and values
+      if !line[/^\s*(\w+)\s*=\s*(.*)$/]
+        raise _INTL("Bad line syntax (expected syntax like XXX=YYY).") + "\n" + FileLineData.linereport
+      end
+      property = $~[1].upcase
+      data = $~[2].split(",")
+      data.each_with_index { |value, i| data[i] = value.strip }
+      # begin formatting data hash
+      case property
+      when "ESSENTIALS"
+        meta[:essentials] = [] if !meta[:essentials]
+        data.each { |ver| meta[:essentials].push(ver) }
+      when "REQUIRES"
+        meta[:dependencies] = [] if !meta[:dependencies]
+        if data.length < 2   # No version given, just push name of plugin dependency
+          meta[:dependencies].push(data[0])
+          next
+        elsif data.length == 2   # Push name and version of plugin dependency
+          meta[:dependencies].push([data[0], data[1]])
+        else   # Push dependency type, name and version of plugin dependency
+          meta[:dependencies].push([data[2].downcase.to_sym, data[0], data[1]])
+        end
+      when "EXACT"
+        next if data.length < 2   # Exact dependencies must have a version given; ignore if not
+        meta[:dependencies] = [] if !meta[:dependencies]
+        meta[:dependencies].push([:exact, data[0], data[1]])
+      when "OPTIONAL"
+        next if data.length < 2   # Optional dependencies must have a version given; ignore if not
+        meta[:dependencies] = [] if !meta[:dependencies]
+        meta[:dependencies].push([:optional, data[0], data[1]])
+      when "CONFLICTS"
+        meta[:incompatibilities] = [] if !meta[:incompatibilities]
+        data.each { |value| meta[:incompatibilities].push(value) if value && !value.empty? }
+      when "SCRIPTS"
+        meta[:scripts] = [] if !meta[:scripts]
+        data.each { |scr| meta[:scripts].push(scr) }
+      when "CREDITS"
+        meta[:credits] = data
+      when "LINK", "WEBSITE"
+        meta[:link] = data[0]
+      else
+        meta[property.downcase.to_sym] = data[0]
+      end
+    end
+    # generate a list of all script files to be loaded, in the order they are to
+    # be loaded (files listed in the meta file are loaded first)
+    meta[:scripts] = [] if !meta[:scripts]
+    # get all script files from plugin Dir
+    Dir.all(dir).each do |fl|
+      next if !fl.include?(".rb")
+      meta[:scripts].push(fl.gsub("#{dir}/", ""))
+    end
+    # ensure no duplicate script files are queued
+    meta[:scripts].uniq!
+    # return meta hash
+    return meta
+  end
+
+  # Get a list of all the plugin directories to inspect
+  def self.listAll

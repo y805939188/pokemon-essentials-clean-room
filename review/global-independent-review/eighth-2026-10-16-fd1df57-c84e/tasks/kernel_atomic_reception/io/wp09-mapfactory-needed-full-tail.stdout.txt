@@ -1,0 +1,183 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/004_Game classes/005_Game_MapFactory.rb RANGE 201-382
+  end
+
+  def getTerrainTag(mapid, x, y, countBridge = false)
+    map = getMapNoAdd(mapid)
+    return map.terrain_tag(x, y, countBridge)
+  end
+
+  # NOTE: Assumes the event is 1x1 tile in size. Only returns one terrain tag.
+  def getFacingTerrainTag(dir = nil, event = nil)
+    tile = getFacingTile(dir, event)
+    return GameData::TerrainTag.get(:None) if !tile
+    return getTerrainTag(tile[0], tile[1], tile[2])
+  end
+
+  def getTerrainTagFromCoords(mapid, x, y, countBridge = false)
+    tile = getRealTilePos(mapid, x, y)
+    return GameData::TerrainTag.get(:None) if !tile
+    return getTerrainTag(tile[0], tile[1], tile[2])
+  end
+
+  def areConnected?(mapID1, mapID2)
+    return true if mapID1 == mapID2
+    return MapFactoryHelper.mapsConnected?(mapID1, mapID2)
+  end
+
+  # Returns the coordinate change to go from this position to other position
+  def getRelativePos(thisMapID, thisX, thisY, otherMapID, otherX, otherY)
+    if thisMapID == otherMapID   # Both events share the same map
+      return [otherX - thisX, otherY - thisY]
+    end
+    MapFactoryHelper.eachConnectionForMap(thisMapID) do |conn|
+      if conn[0] == otherMapID
+        posX = conn[4] - conn[1] + otherX - thisX
+        posY = conn[5] - conn[2] + otherY - thisY
+        return [posX, posY]
+      elsif conn[3] == otherMapID
+        posX =  conn[1] - conn[4] + otherX - thisX
+        posY =  conn[2] - conn[5] + otherY - thisY
+        return [posX, posY]
+      end
+    end
+    return [0, 0]
+  end
+
+  # Gets the distance from this event to another event.  Example: If this event's
+  # coordinates are (2,5) and the other event's coordinates are (5,1), returns
+  # the array (3,-4), because (5-2=3) and (1-5=-4).
+  def getThisAndOtherEventRelativePos(thisEvent, otherEvent)
+    return [0, 0] if !thisEvent || !otherEvent
+    return getRelativePos(thisEvent.map.map_id, thisEvent.x, thisEvent.y,
+                          otherEvent.map.map_id, otherEvent.x, otherEvent.y)
+  end
+
+  def getThisAndOtherPosRelativePos(thisEvent, otherMapID, otherX, otherY)
+    return [0, 0] if !thisEvent
+    return getRelativePos(thisEvent.map.map_id, thisEvent.x, thisEvent.y,
+                          otherMapID, otherX, otherY)
+  end
+
+  # Unused
+  def getOffsetEventPos(event, xOffset, yOffset)
+    event = $game_player if !event
+    return nil if !event
+    return getRealTilePos(event.map.map_id, event.x + xOffset, event.y + yOffset)
+  end
+
+  # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+  def getFacingTile(direction = nil, event = nil, steps = 1)
+    event = $game_player if event.nil?
+    return [0, 0, 0] if !event
+    x = event.x
+    y = event.y
+    id = event.map.map_id
+    direction = event.direction if direction.nil?
+    return getFacingTileFromPos(id, x, y, direction, steps)
+  end
+
+  def getFacingTileFromPos(mapID, x, y, direction = 0, steps = 1)
+    id = mapID
+    case direction
+    when 1
+      x -= steps
+      y += steps
+    when 2
+      y += steps
+    when 3
+      x += steps
+      y += steps
+    when 4
+      x -= steps
+    when 6
+      x += steps
+    when 7
+      x -= steps
+      y -= steps
+    when 8
+      y -= steps
+    when 9
+      x += steps
+      y -= steps
+    else
+      return [id, x, y]
+    end
+    return getRealTilePos(mapID, x, y)
+  end
+
+  def getRealTilePos(mapID, x, y)
+    id = mapID
+    return [id, x, y] if getMapNoAdd(id).valid?(x, y)
+    MapFactoryHelper.eachConnectionForMap(id) do |conn|
+      if conn[0] == id
+        newX = x + conn[4] - conn[1]
+        newY = y + conn[5] - conn[2]
+        next if newX < 0 || newY < 0
+        dims = MapFactoryHelper.getMapDims(conn[3])
+        next if newX >= dims[0] || newY >= dims[1]
+        return [conn[3], newX, newY]
+      else
+        newX = x + conn[1] - conn[4]
+        newY = y + conn[2] - conn[5]
+        next if newX < 0 || newY < 0
+        dims = MapFactoryHelper.getMapDims(conn[0])
+        next if newX >= dims[0] || newY >= dims[1]
+        return [conn[0], newX, newY]
+      end
+    end
+    return nil
+  end
+
+  def getFacingCoords(x, y, direction = 0, steps = 1)
+    case direction
+    when 1
+      x -= steps
+      y += steps
+    when 2
+      y += steps
+    when 3
+      x += steps
+      y += steps
+    when 4
+      x -= steps
+    when 6
+      x += steps
+    when 7
+      x -= steps
+      y -= steps
+    when 8
+      y -= steps
+    when 9
+      x += steps
+      y -= steps
+    end
+    return [x, y]
+  end
+
+  def updateMaps(scene)
+    updateMapsInternal
+    setSceneStarted(scene) if @mapChanged
+  end
+
+  def updateMapsInternal
+    return if $game_player.moving?
+    if !MapFactoryHelper.hasConnections?($game_map.map_id)
+      return if @maps.length == 1
+      @maps.delete_if { |map| map.map_id != $game_map.map_id }
+      @mapIndex = getMapIndex($game_map.map_id)
+      return
+    end
+    old_num_maps = @maps.length
+    @maps.delete_if { |map| !MapFactoryHelper.mapsConnected?($game_map.map_id, map.map_id) }
+    @mapIndex = getMapIndex($game_map.map_id) if @maps.length != old_num_maps
+    setMapsInRange
+    old_num_maps = @maps.length
+    @maps.delete_if { |map| !MapFactoryHelper.mapInRange?(map) }
+    @mapIndex = getMapIndex($game_map.map_id) if @maps.length != old_num_maps
+  end
+end
+
+#===============================================================================
+# Map Factory Helper (stores map connection and size data and calculations
+# involving them)
+#===============================================================================

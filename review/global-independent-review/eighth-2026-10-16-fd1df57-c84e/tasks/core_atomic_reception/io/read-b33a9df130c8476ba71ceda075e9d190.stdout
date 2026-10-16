@@ -1,0 +1,148 @@
+00025:   def pbCanInflictStatus?(newStatus, user, showMessages, move = nil, ignoreStatus = false)
+00026:     return false if fainted?
+00027:     self_inflicted = (user && user.index == @index)   # Rest and Flame Orb/Toxic Orb only
+00028:     # Already have that status problem
+00029:     if self.status == newStatus && !ignoreStatus
+00030:       if showMessages
+00031:         msg = ""
+00032:         case self.status
+00033:         when :SLEEP     then msg = _INTL("{1} is already asleep!", pbThis)
+00034:         when :POISON    then msg = _INTL("{1} is already poisoned!", pbThis)
+00035:         when :BURN      then msg = _INTL("{1} already has a burn!", pbThis)
+00036:         when :PARALYSIS then msg = _INTL("{1} is already paralyzed!", pbThis)
+00037:         when :FROZEN    then msg = _INTL("{1} is already frozen solid!", pbThis)
+00038:         end
+00039:         @battle.pbDisplay(msg)
+00040:       end
+00041:       return false
+00042:     end
+00043:     # Trying to replace a status problem with another one
+00044:     if self.status != :NONE && !ignoreStatus && !(self_inflicted && move)   # Rest can replace a status problem
+00045:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00046:       return false
+00047:     end
+00048:     # Trying to inflict a status problem on a Pokémon behind a substitute
+00049:     if @effects[PBEffects::Substitute] > 0 && !(move && move.ignoresSubstitute?(user)) &&
+00050:        !self_inflicted
+00051:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00052:       return false
+00053:     end
+00054:     # Weather immunity
+00055:     if newStatus == :FROZEN && [:Sun, :HarshSun].include?(effectiveWeather)
+00056:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00057:       return false
+00058:     end
+00059:     # Terrains immunity
+00060:     if affectedByTerrain?
+00061:       case @battle.field.terrain
+00062:       when :Electric
+00063:         if newStatus == :SLEEP
+00064:           if showMessages
+00065:             @battle.pbDisplay(_INTL("{1} surrounds itself with electrified terrain!", pbThis(true)))
+00066:           end
+00067:           return false
+00068:         end
+00069:       when :Misty
+00070:         @battle.pbDisplay(_INTL("{1} surrounds itself with misty terrain!", pbThis(true))) if showMessages
+00071:         return false
+00072:       end
+00073:     end
+00074:     # Uproar immunity
+00075:     if newStatus == :SLEEP && !(hasActiveAbility?(:SOUNDPROOF) && !@battle.moldBreaker)
+00076:       @battle.allBattlers.each do |b|
+00077:         next if b.effects[PBEffects::Uproar] == 0
+00078:         @battle.pbDisplay(_INTL("But the uproar kept {1} awake!", pbThis(true))) if showMessages
+00079:         return false
+00080:       end
+00081:     end
+00082:     # Type immunities
+00083:     hasImmuneType = false
+00084:     case newStatus
+00085:     when :SLEEP
+00086:       # No type is immune to sleep
+00087:     when :POISON
+00088:       if !(user && user.hasActiveAbility?(:CORROSION))
+00089:         hasImmuneType |= pbHasType?(:POISON)
+00090:         hasImmuneType |= pbHasType?(:STEEL)
+00091:       end
+00092:     when :BURN
+00093:       hasImmuneType |= pbHasType?(:FIRE)
+00094:     when :PARALYSIS
+00095:       hasImmuneType |= pbHasType?(:ELECTRIC) && Settings::MORE_TYPE_EFFECTS
+00096:     when :FROZEN
+00097:       hasImmuneType |= pbHasType?(:ICE)
+00098:     end
+00099:     if hasImmuneType
+00100:       @battle.pbDisplay(_INTL("It doesn't affect {1}...", pbThis(true))) if showMessages
+00101:       return false
+00102:     end
+00103:     # Ability immunity
+00104:     immuneByAbility = false
+00105:     immAlly = nil
+00106:     if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, newStatus)
+00107:       immuneByAbility = true
+00108:     elsif self_inflicted || !@battle.moldBreaker
+00109:       if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, newStatus)
+00110:         immuneByAbility = true
+00111:       else
+00112:         allAllies.each do |b|
+00113:           next if !b.abilityActive?
+00114:           next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, newStatus)
+00115:           immuneByAbility = true
+00116:           immAlly = b
+00117:           break
+00118:         end
+00119:       end
+00120:     end
+00121:     if immuneByAbility
+00122:       if showMessages
+00123:         @battle.pbShowAbilitySplash(immAlly || self)
+00124:         msg = ""
+00125:         if Battle::Scene::USE_ABILITY_SPLASH
+00126:           case newStatus
+00127:           when :SLEEP     then msg = _INTL("{1} stays awake!", pbThis)
+00128:           when :POISON    then msg = _INTL("{1} cannot be poisoned!", pbThis)
+00129:           when :BURN      then msg = _INTL("{1} cannot be burned!", pbThis)
+00130:           when :PARALYSIS then msg = _INTL("{1} cannot be paralyzed!", pbThis)
+00131:           when :FROZEN    then msg = _INTL("{1} cannot be frozen solid!", pbThis)
+00132:           end
+00133:         elsif immAlly
+00134:           case newStatus
+00135:           when :SLEEP
+00136:             msg = _INTL("{1} stays awake because of {2}'s {3}!",
+00137:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00138:           when :POISON
+00139:             msg = _INTL("{1} cannot be poisoned because of {2}'s {3}!",
+00140:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00141:           when :BURN
+00142:             msg = _INTL("{1} cannot be burned because of {2}'s {3}!",
+00143:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00144:           when :PARALYSIS
+00145:             msg = _INTL("{1} cannot be paralyzed because of {2}'s {3}!",
+00146:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00147:           when :FROZEN
+00148:             msg = _INTL("{1} cannot be frozen solid because of {2}'s {3}!",
+00149:                         pbThis, immAlly.pbThis(true), immAlly.abilityName)
+00150:           end
+00151:         else
+00152:           case newStatus
+00153:           when :SLEEP     then msg = _INTL("{1} stays awake because of its {2}!", pbThis, abilityName)
+00154:           when :POISON    then msg = _INTL("{1}'s {2} prevents poisoning!", pbThis, abilityName)
+00155:           when :BURN      then msg = _INTL("{1}'s {2} prevents burns!", pbThis, abilityName)
+00156:           when :PARALYSIS then msg = _INTL("{1}'s {2} prevents paralysis!", pbThis, abilityName)
+00157:           when :FROZEN    then msg = _INTL("{1}'s {2} prevents freezing!", pbThis, abilityName)
+00158:           end
+00159:         end
+00160:         @battle.pbDisplay(msg)
+00161:         @battle.pbHideAbilitySplash(immAlly || self)
+00162:       end
+00163:       return false
+00164:     end
+00165:     # Safeguard immunity
+00166:     if pbOwnSide.effects[PBEffects::Safeguard] > 0 && !self_inflicted && move &&
+00167:        !(user && user.hasActiveAbility?(:INFILTRATOR))
+00168:       @battle.pbDisplay(_INTL("{1}'s team is protected by Safeguard!", pbThis)) if showMessages
+00169:       return false
+00170:     end
+00171:     return true
+00172:   end

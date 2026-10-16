@@ -1,0 +1,255 @@
+00261:     defense, defStage = pbGetDefenseStats(user, target)
+00262:     if !user.hasActiveAbility?(:UNAWARE)
+00263:       defStage = max_stage if target.damageState.critical && defStage > max_stage
+00264:       defense = (defense.to_f * stageMul[defStage] / stageDiv[defStage]).floor
+00265:     end
+00266:     # Calculate all multiplier effects
+00267:     multipliers = {
+00268:       :power_multiplier        => 1.0,
+00269:       :attack_multiplier       => 1.0,
+00270:       :defense_multiplier      => 1.0,
+00271:       :final_damage_multiplier => 1.0
+00272:     }
+00273:     pbCalcDamageMultipliers(user, target, numTargets, type, baseDmg, multipliers)
+00274:     # Main damage calculation
+00275:     baseDmg = [(baseDmg * multipliers[:power_multiplier]).round, 1].max
+00276:     atk     = [(atk     * multipliers[:attack_multiplier]).round, 1].max
+00277:     defense = [(defense * multipliers[:defense_multiplier]).round, 1].max
+00278:     damage  = ((((2.0 * user.level / 5) + 2).floor * baseDmg * atk / defense).floor / 50).floor + 2
+00279:     damage  = [(damage * multipliers[:final_damage_multiplier]).round, 1].max
+00280:     target.damageState.calcDamage = damage
+00281:   end
+00282: 
+00283:   def pbCalcDamageMultipliers(user, target, numTargets, type, baseDmg, multipliers)
+00284:     # Global abilities
+00285:     if (@battle.pbCheckGlobalAbility(:DARKAURA) && type == :DARK) ||
+00286:        (@battle.pbCheckGlobalAbility(:FAIRYAURA) && type == :FAIRY)
+00287:       if @battle.pbCheckGlobalAbility(:AURABREAK)
+00288:         multipliers[:power_multiplier] *= 3 / 4.0
+00289:       else
+00290:         multipliers[:power_multiplier] *= 4 / 3.0
+00291:       end
+00292:     end
+00293:     # Ability effects that alter damage
+00294:     if user.abilityActive?
+00295:       Battle::AbilityEffects.triggerDamageCalcFromUser(
+00296:         user.ability, user, target, self, multipliers, baseDmg, type
+00297:       )
+00298:     end
+00299:     if !@battle.moldBreaker
+00300:       # NOTE: It's odd that the user's Mold Breaker prevents its partner's
+00301:       #       beneficial abilities (i.e. Flower Gift boosting Atk), but that's
+00302:       #       how it works.
+00303:       user.allAllies.each do |b|
+00304:         next if !b.abilityActive?
+00305:         Battle::AbilityEffects.triggerDamageCalcFromAlly(
+00306:           b.ability, user, target, self, multipliers, baseDmg, type
+00307:         )
+00308:       end
+00309:       if target.abilityActive?
+00310:         Battle::AbilityEffects.triggerDamageCalcFromTarget(
+00311:           target.ability, user, target, self, multipliers, baseDmg, type
+00312:         )
+00313:       end
+00314:     end
+00315:     if target.abilityActive?
+00316:       Battle::AbilityEffects.triggerDamageCalcFromTargetNonIgnorable(
+00317:         target.ability, user, target, self, multipliers, baseDmg, type
+00318:       )
+00319:     end
+00320:     if !@battle.moldBreaker
+00321:       target.allAllies.each do |b|
+00322:         next if !b.abilityActive?
+00323:         Battle::AbilityEffects.triggerDamageCalcFromTargetAlly(
+00324:           b.ability, user, target, self, multipliers, baseDmg, type
+00325:         )
+00326:       end
+00327:     end
+00328:     # Item effects that alter damage
+00329:     if user.itemActive?
+00330:       Battle::ItemEffects.triggerDamageCalcFromUser(
+00331:         user.item, user, target, self, multipliers, baseDmg, type
+00332:       )
+00333:     end
+00334:     if target.itemActive?
+00335:       Battle::ItemEffects.triggerDamageCalcFromTarget(
+00336:         target.item, user, target, self, multipliers, baseDmg, type
+00337:       )
+00338:     end
+00339:     # Parental Bond's second attack
+00340:     if user.effects[PBEffects::ParentalBond] == 1
+00341:       multipliers[:power_multiplier] /= (Settings::MECHANICS_GENERATION >= 7) ? 4 : 2
+00342:     end
+00343:     # Other
+00344:     if user.effects[PBEffects::MeFirst]
+00345:       multipliers[:power_multiplier] *= 1.5
+00346:     end
+00347:     if user.effects[PBEffects::HelpingHand] && !self.is_a?(Battle::Move::Confusion)
+00348:       multipliers[:power_multiplier] *= 1.5
+00349:     end
+00350:     if user.effects[PBEffects::Charge] > 0 && type == :ELECTRIC
+00351:       multipliers[:power_multiplier] *= 2
+00352:     end
+00353:     # Mud Sport
+00354:     if type == :ELECTRIC
+00355:       if @battle.allBattlers.any? { |b| b.effects[PBEffects::MudSport] }
+00356:         multipliers[:power_multiplier] /= 3
+00357:       end
+00358:       if @battle.field.effects[PBEffects::MudSportField] > 0
+00359:         multipliers[:power_multiplier] /= 3
+00360:       end
+00361:     end
+00362:     # Water Sport
+00363:     if type == :FIRE
+00364:       if @battle.allBattlers.any? { |b| b.effects[PBEffects::WaterSport] }
+00365:         multipliers[:power_multiplier] /= 3
+00366:       end
+00367:       if @battle.field.effects[PBEffects::WaterSportField] > 0
+00368:         multipliers[:power_multiplier] /= 3
+00369:       end
+00370:     end
+00371:     # Terrain moves
+00372:     terrain_multiplier = (Settings::MECHANICS_GENERATION >= 8) ? 1.3 : 1.5
+00373:     case @battle.field.terrain
+00374:     when :Electric
+00375:       multipliers[:power_multiplier] *= terrain_multiplier if type == :ELECTRIC && user.affectedByTerrain?
+00376:     when :Grassy
+00377:       multipliers[:power_multiplier] *= terrain_multiplier if type == :GRASS && user.affectedByTerrain?
+00378:     when :Psychic
+00379:       multipliers[:power_multiplier] *= terrain_multiplier if type == :PSYCHIC && user.affectedByTerrain?
+00380:     when :Misty
+00381:       multipliers[:power_multiplier] /= 2 if type == :DRAGON && target.affectedByTerrain?
+00382:     end
+00383:     # Badge multipliers
+00384:     if @battle.internalBattle
+00385:       if user.pbOwnedByPlayer?
+00386:         if physicalMove? && @battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_ATTACK
+00387:           multipliers[:attack_multiplier] *= 1.1
+00388:         elsif specialMove? && @battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_SPATK
+00389:           multipliers[:attack_multiplier] *= 1.1
+00390:         end
+00391:       end
+00392:       if target.pbOwnedByPlayer?
+00393:         if physicalMove? && @battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_DEFENSE
+00394:           multipliers[:defense_multiplier] *= 1.1
+00395:         elsif specialMove? && @battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_SPDEF
+00396:           multipliers[:defense_multiplier] *= 1.1
+00397:         end
+00398:       end
+00399:     end
+00400:     # Multi-targeting attacks
+00401:     multipliers[:final_damage_multiplier] *= 0.75 if numTargets > 1
+00402:     # Weather
+00403:     case user.effectiveWeather
+00404:     when :Sun, :HarshSun
+00405:       case type
+00406:       when :FIRE
+00407:         multipliers[:final_damage_multiplier] *= 1.5
+00408:       when :WATER
+00409:         multipliers[:final_damage_multiplier] /= 2
+00410:       end
+00411:     when :Rain, :HeavyRain
+00412:       case type
+00413:       when :FIRE
+00414:         multipliers[:final_damage_multiplier] /= 2
+00415:       when :WATER
+00416:         multipliers[:final_damage_multiplier] *= 1.5
+00417:       end
+00418:     when :Sandstorm
+00419:       if target.pbHasType?(:ROCK) && specialMove? && @function_code != "UseTargetDefenseInsteadOfTargetSpDef"
+00420:         multipliers[:defense_multiplier] *= 1.5
+00421:       end
+00422:     when :ShadowSky
+00423:       multipliers[:final_damage_multiplier] *= 1.5 if type == :SHADOW
+00424:     end
+00425:     # Critical hits
+00426:     if target.damageState.critical
+00427:       if Settings::NEW_CRITICAL_HIT_RATE_MECHANICS
+00428:         multipliers[:final_damage_multiplier] *= 1.5
+00429:       else
+00430:         multipliers[:final_damage_multiplier] *= 2
+00431:       end
+00432:     end
+00433:     # Random variance
+00434:     if !self.is_a?(Battle::Move::Confusion)
+00435:       random = 85 + @battle.pbRandom(16)
+00436:       multipliers[:final_damage_multiplier] *= random / 100.0
+00437:     end
+00438:     # STAB
+00439:     if type && user.pbHasType?(type)
+00440:       if user.hasActiveAbility?(:ADAPTABILITY)
+00441:         multipliers[:final_damage_multiplier] *= 2
+00442:       else
+00443:         multipliers[:final_damage_multiplier] *= 1.5
+00444:       end
+00445:     end
+00446:     # Type effectiveness
+00447:     multipliers[:final_damage_multiplier] *= target.damageState.typeMod
+00448:     # Burn
+00449:     if user.status == :BURN && physicalMove? && damageReducedByBurn? &&
+00450:        !user.hasActiveAbility?(:GUTS)
+00451:       multipliers[:final_damage_multiplier] /= 2
+00452:     end
+00453:     # Aurora Veil, Reflect, Light Screen
+00454:     if !ignoresReflect? && !target.damageState.critical &&
+00455:        !user.hasActiveAbility?(:INFILTRATOR)
+00456:       if target.pbOwnSide.effects[PBEffects::AuroraVeil] > 0
+00457:         if @battle.pbSideBattlerCount(target) > 1
+00458:           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00459:         else
+00460:           multipliers[:final_damage_multiplier] /= 2
+00461:         end
+00462:       elsif target.pbOwnSide.effects[PBEffects::Reflect] > 0 && physicalMove?
+00463:         if @battle.pbSideBattlerCount(target) > 1
+00464:           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00465:         else
+00466:           multipliers[:final_damage_multiplier] /= 2
+00467:         end
+00468:       elsif target.pbOwnSide.effects[PBEffects::LightScreen] > 0 && specialMove?
+00469:         if @battle.pbSideBattlerCount(target) > 1
+00470:           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00471:         else
+00472:           multipliers[:final_damage_multiplier] /= 2
+00473:         end
+00474:       end
+00475:     end
+00476:     # Minimize
+00477:     if target.effects[PBEffects::Minimize] && tramplesMinimize?
+00478:       multipliers[:final_damage_multiplier] *= 2
+00479:     end
+00480:     # Move-specific base damage modifiers
+00481:     multipliers[:power_multiplier] = pbBaseDamageMultiplier(multipliers[:power_multiplier], user, target)
+00482:     # Move-specific final damage modifiers
+00483:     multipliers[:final_damage_multiplier] = pbModifyDamage(multipliers[:final_damage_multiplier], user, target)
+00484:   end
+00485: 
+00486:   #=============================================================================
+00487:   # Additional effect chance
+00488:   #=============================================================================
+00489:   def pbAdditionalEffectChance(user, target, effectChance = 0)
+00490:     return 0 if target.hasActiveAbility?(:SHIELDDUST) && !@battle.moldBreaker
+00491:     ret = (effectChance > 0) ? effectChance : @addlEffect
+00492:     return ret if ret > 100
+00493:     if (Settings::MECHANICS_GENERATION >= 6 || @function_code != "EffectDependsOnEnvironment") &&
+00494:        (user.hasActiveAbility?(:SERENEGRACE) || user.pbOwnSide.effects[PBEffects::Rainbow] > 0)
+00495:       ret *= 2
+00496:     end
+00497:     ret = 100 if $DEBUG && Input.press?(Input::CTRL)
+00498:     return ret
+00499:   end
+00500: 
+00501:   # NOTE: Flinching caused by a move's effect is applied in that move's code,
+00502:   #       not here.
+00503:   def pbFlinchChance(user, target)
+00504:     return 0 if flinchingMove?
+00505:     return 0 if target.hasActiveAbility?(:SHIELDDUST) && !@battle.moldBreaker
+00506:     ret = 0
+00507:     if user.hasActiveAbility?(:STENCH, true) ||
+00508:        user.hasActiveItem?([:KINGSROCK, :RAZORFANG], true)
+00509:       ret = 10
+00510:     end
+00511:     ret *= 2 if user.hasActiveAbility?(:SERENEGRACE) ||
+00512:                 user.pbOwnSide.effects[PBEffects::Rainbow] > 0
+00513:     return ret
+00514:   end
+00515: end

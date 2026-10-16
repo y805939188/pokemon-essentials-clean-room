@@ -1,0 +1,311 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/001_Item_Utilities.rb RANGE 1-310
+#===============================================================================
+# ItemHandlers
+#===============================================================================
+module ItemHandlers
+  UseText             = ItemHandlerHash.new
+  UseFromBag          = ItemHandlerHash.new
+  ConfirmUseInField   = ItemHandlerHash.new
+  UseInField          = ItemHandlerHash.new
+  UseOnPokemon        = ItemHandlerHash.new
+  UseOnPokemonMaximum = ItemHandlerHash.new
+  CanUseInBattle      = ItemHandlerHash.new
+  UseInBattle         = ItemHandlerHash.new
+  BattleUseOnBattler  = ItemHandlerHash.new
+  BattleUseOnPokemon  = ItemHandlerHash.new
+
+  def self.hasUseText(item)
+    return !UseText[item].nil?
+  end
+
+  # Shows "Use" option in Bag.
+  def self.hasOutHandler(item)
+    return !UseFromBag[item].nil? || !UseInField[item].nil? || !UseOnPokemon[item].nil?
+  end
+
+  # Shows "Register" option in Bag.
+  def self.hasUseInFieldHandler(item)
+    return !UseInField[item].nil?
+  end
+
+  def self.hasUseOnPokemon(item)
+    return !UseOnPokemon[item].nil?
+  end
+
+  def self.hasUseOnPokemonMaximum(item)
+    return !UseOnPokemonMaximum[item].nil?
+  end
+
+  def self.hasUseInBattle(item)
+    return !UseInBattle[item].nil?
+  end
+
+  def self.hasBattleUseOnBattler(item)
+    return !BattleUseOnBattler[item].nil?
+  end
+
+  def self.hasBattleUseOnPokemon(item)
+    return !BattleUseOnPokemon[item].nil?
+  end
+
+  # Returns text to display instead of "Use"
+  def self.getUseText(item)
+    return UseText.trigger(item)
+  end
+
+  # Return value:
+  # 0 - Item not used
+  # 1 - Item used, don't end screen
+  # 2 - Item used, end screen
+  def self.triggerUseFromBag(item)
+    return UseFromBag.trigger(item) if UseFromBag[item]
+    # No UseFromBag handler exists; check the UseInField handler if present
+    if UseInField[item]
+      return (UseInField.trigger(item)) ? 1 : 0
+    end
+    return 0
+  end
+
+  # Returns whether item can be used
+  def self.triggerConfirmUseInField(item)
+    return true if !ConfirmUseInField[item]
+    return ConfirmUseInField.trigger(item)
+  end
+
+  # Return value:
+  # -1 - Item effect not found
+  # 0  - Item not used
+  # 1  - Item used
+  def self.triggerUseInField(item)
+    return -1 if !UseInField[item]
+    return (UseInField.trigger(item)) ? 1 : 0
+  end
+
+  # Returns whether item was used
+  def self.triggerUseOnPokemon(item, qty, pkmn, scene)
+    return false if !UseOnPokemon[item]
+    return UseOnPokemon.trigger(item, qty, pkmn, scene)
+  end
+
+  # Returns the maximum number of the item that can be used on the Pokémon at once.
+  def self.triggerUseOnPokemonMaximum(item, pkmn)
+    return 1 if !UseOnPokemonMaximum[item]
+    return 1 if !Settings::USE_MULTIPLE_STAT_ITEMS_AT_ONCE
+    return [UseOnPokemonMaximum.trigger(item, pkmn), 1].max
+  end
+
+  def self.triggerCanUseInBattle(item, pkmn, battler, move, firstAction, battle, scene, showMessages = true)
+    return true if !CanUseInBattle[item]   # Can use the item by default
+    return CanUseInBattle.trigger(item, pkmn, battler, move, firstAction, battle, scene, showMessages)
+  end
+
+  def self.triggerUseInBattle(item, battler, battle)
+    UseInBattle.trigger(item, battler, battle)
+  end
+
+  # Returns whether item was used
+  def self.triggerBattleUseOnBattler(item, battler, scene)
+    return false if !BattleUseOnBattler[item]
+    return BattleUseOnBattler.trigger(item, battler, scene)
+  end
+
+  # Returns whether item was used
+  def self.triggerBattleUseOnPokemon(item, pkmn, battler, choices, scene)
+    return false if !BattleUseOnPokemon[item]
+    return BattleUseOnPokemon.trigger(item, pkmn, battler, choices, scene)
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+def pbCanRegisterItem?(item)
+  return ItemHandlers.hasUseInFieldHandler(item)
+end
+
+def pbCanUseOnPokemon?(item)
+  return ItemHandlers.hasUseOnPokemon(item) || GameData::Item.get(item).is_machine?
+end
+
+#===============================================================================
+# Change a Pokémon's level
+#===============================================================================
+def pbChangeLevel(pkmn, new_level, scene)
+  new_level = new_level.clamp(1, GameData::GrowthRate.max_level)
+  if pkmn.level == new_level
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1}'s level remained unchanged.", pkmn.name))
+    else
+      pbMessage(_INTL("{1}'s level remained unchanged.", pkmn.name))
+    end
+    return
+  end
+  old_level           = pkmn.level
+  old_total_hp        = pkmn.totalhp
+  old_attack          = pkmn.attack
+  old_defense         = pkmn.defense
+  old_special_attack  = pkmn.spatk
+  old_special_defense = pkmn.spdef
+  old_speed           = pkmn.speed
+  pkmn.level = new_level
+  pkmn.calc_stats
+  pkmn.hp = 1 if new_level > old_level && pkmn.species_data.base_stats[:HP] == 1
+  scene.pbRefresh
+  if old_level > new_level
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+    else
+      pbMessage(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+    end
+    total_hp_diff        = pkmn.totalhp - old_total_hp
+    attack_diff          = pkmn.attack - old_attack
+    defense_diff         = pkmn.defense - old_defense
+    special_attack_diff  = pkmn.spatk - old_special_attack
+    special_defense_diff = pkmn.spdef - old_special_defense
+    speed_diff           = pkmn.speed - old_speed
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+  else
+    pkmn.changeHappiness("vitamin")
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+    else
+      pbMessage(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+    end
+    total_hp_diff        = pkmn.totalhp - old_total_hp
+    attack_diff          = pkmn.attack - old_attack
+    defense_diff         = pkmn.defense - old_defense
+    special_attack_diff  = pkmn.spatk - old_special_attack
+    special_defense_diff = pkmn.spdef - old_special_defense
+    speed_diff           = pkmn.speed - old_speed
+    pbTopRightWindow(_INTL("Max. HP<r>+{1}\nAttack<r>+{2}\nDefense<r>+{3}\nSp. Atk<r>+{4}\nSp. Def<r>+{5}\nSpeed<r>+{6}",
+                           total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+    # Learn new moves upon level up
+    movelist = pkmn.getMoveList
+    movelist.each do |i|
+      next if i[0] <= old_level || i[0] > pkmn.level
+      pbLearnMove(pkmn, i[1], true) { scene.pbUpdate }
+    end
+    # Check for evolution
+    new_species = pkmn.check_evolution_on_level_up
+    if new_species
+      pbFadeOutInWithMusic do
+        evo = PokemonEvolutionScene.new
+        evo.pbStartScreen(pkmn, new_species)
+        evo.pbEvolution
+        evo.pbEndScreen
+        scene.pbRefresh if scene.is_a?(PokemonPartyScreen)
+      end
+    end
+  end
+end
+
+def pbTopRightWindow(text, scene = nil)
+  window = Window_AdvancedTextPokemon.new(text)
+  window.width = 198
+  window.x     = Graphics.width - window.width
+  window.y     = 0
+  window.z     = 99999
+  pbPlayDecisionSE
+  loop do
+    Graphics.update
+    Input.update
+    window.update
+    scene&.pbUpdate
+    break if Input.trigger?(Input::USE)
+  end
+  window.dispose
+end
+
+def pbChangeExp(pkmn, new_exp, scene)
+  new_exp = new_exp.clamp(0, pkmn.growth_rate.maximum_exp)
+  if pkmn.exp == new_exp
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1}'s Exp. Points remained unchanged.", pkmn.name))
+    else
+      pbMessage(_INTL("{1}'s Exp. Points remained unchanged.", pkmn.name))
+    end
+    return
+  end
+  old_level           = pkmn.level
+  old_total_hp        = pkmn.totalhp
+  old_attack          = pkmn.attack
+  old_defense         = pkmn.defense
+  old_special_attack  = pkmn.spatk
+  old_special_defense = pkmn.spdef
+  old_speed           = pkmn.speed
+  if pkmn.exp > new_exp   # Loses Exp
+    difference = pkmn.exp - new_exp
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} lost {2} Exp. Points!", pkmn.name, difference))
+    else
+      pbMessage(_INTL("{1} lost {2} Exp. Points!", pkmn.name, difference))
+    end
+    pkmn.exp = new_exp
+    pkmn.calc_stats
+    scene.pbRefresh
+    return if pkmn.level == old_level
+    # Level changed
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+    else
+      pbMessage(_INTL("{1} dropped to Lv. {2}!", pkmn.name, pkmn.level))
+    end
+    total_hp_diff        = pkmn.totalhp - old_total_hp
+    attack_diff          = pkmn.attack - old_attack
+    defense_diff         = pkmn.defense - old_defense
+    special_attack_diff  = pkmn.spatk - old_special_attack
+    special_defense_diff = pkmn.spdef - old_special_defense
+    speed_diff           = pkmn.speed - old_speed
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+  else   # Gains Exp
+    difference = new_exp - pkmn.exp
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} gained {2} Exp. Points!", pkmn.name, difference))
+    else
+      pbMessage(_INTL("{1} gained {2} Exp. Points!", pkmn.name, difference))
+    end
+    pkmn.exp = new_exp
+    pkmn.changeHappiness("vitamin")
+    pkmn.calc_stats
+    scene.pbRefresh
+    return if pkmn.level == old_level
+    # Level changed
+    if scene.is_a?(PokemonPartyScreen)
+      scene.pbDisplay(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+    else
+      pbMessage(_INTL("{1} grew to Lv. {2}!", pkmn.name, pkmn.level))
+    end
+    total_hp_diff        = pkmn.totalhp - old_total_hp
+    attack_diff          = pkmn.attack - old_attack
+    defense_diff         = pkmn.defense - old_defense
+    special_attack_diff  = pkmn.spatk - old_special_attack
+    special_defense_diff = pkmn.spdef - old_special_defense
+    speed_diff           = pkmn.speed - old_speed
+    pbTopRightWindow(_INTL("Max. HP<r>+{1}\nAttack<r>+{2}\nDefense<r>+{3}\nSp. Atk<r>+{4}\nSp. Def<r>+{5}\nSpeed<r>+{6}",
+                           total_hp_diff, attack_diff, defense_diff, special_attack_diff, special_defense_diff, speed_diff), scene)
+    pbTopRightWindow(_INTL("Max. HP<r>{1}\nAttack<r>{2}\nDefense<r>{3}\nSp. Atk<r>{4}\nSp. Def<r>{5}\nSpeed<r>{6}",
+                           pkmn.totalhp, pkmn.attack, pkmn.defense, pkmn.spatk, pkmn.spdef, pkmn.speed), scene)
+    # Learn new moves upon level up
+    movelist = pkmn.getMoveList
+    movelist.each do |i|
+      next if i[0] <= old_level || i[0] > pkmn.level
+      pbLearnMove(pkmn, i[1], true) { scene.pbUpdate }
+    end
+    # Check for evolution
+    new_species = pkmn.check_evolution_on_level_up
+    if new_species
+      pbFadeOutInWithMusic do
+        evo = PokemonEvolutionScene.new
+        evo.pbStartScreen(pkmn, new_species)
+        evo.pbEvolution
+        evo.pbEndScreen
+        scene.pbRefresh if scene.is_a?(PokemonPartyScreen)
+      end

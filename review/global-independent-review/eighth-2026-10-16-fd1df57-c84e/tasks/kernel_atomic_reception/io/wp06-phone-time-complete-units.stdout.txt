@@ -1,0 +1,362 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 1-18
+#===============================================================================
+#
+#===============================================================================
+class Phone
+  attr_accessor :contacts
+  attr_accessor :rematch_variant, :rematches_enabled
+  attr_accessor :time_to_next_call, :last_refresh_time
+
+  def initialize
+    @contacts = []
+    @rematch_variant = 0   # Original battle is 0, first rematch is 1, etc.
+    @rematches_enabled = Settings::PHONE_REMATCHES_POSSIBLE_FROM_BEGINNING
+    @time_to_next_call = 0.0
+    @last_refresh_time = 0
+  end
+
+  # Returns a visible contact only.
+  def get(trainer, *args)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 118-164
+  def refresh_ready_trainers
+    return if !@rematches_enabled
+    time = pbGetTimeNow.to_i
+    return if @last_refresh_time == time
+    @last_refresh_time = time
+    @contacts.each do |contact|
+      next if !contact.trainer? || !contact.visible?
+      next if contact.rematch_flag > 0   # Already ready for rematch
+      if contact.time_to_ready <= 0
+        contact.time_to_ready = rand(20...40) * 60   # 20-40 minutes
+      end
+      contact.time_to_ready -= 1
+      next if contact.time_to_ready > 0
+      contact.rematch_flag = 1   # Ready for rematch
+      contact.set_trainer_event_ready_for_rematch
+    end
+  end
+
+  def reset_after_win(trainer_type, name, start_version = 0)
+    return if !GameData::TrainerType.exists?(trainer_type)
+    trainer_type = GameData::TrainerType.get(trainer_type).id
+    contact = get(true, trainer_type, name, start_version)
+    return if !contact
+    contact.increment_version
+    contact.rematch_flag = 0
+    contact.time_to_ready = 0
+  end
+
+  #=============================================================================
+
+  def self.rematch_variant
+    return $PokemonGlobal.phone.rematch_variant
+  end
+
+  def self.rematch_variant=(value)
+    $PokemonGlobal.phone.rematch_variant = value
+  end
+
+  def self.rematches_enabled
+    return $PokemonGlobal.phone.rematches_enabled
+  end
+
+  def self.rematches_enabled=(value)
+    $PokemonGlobal.phone.rematches_enabled = value
+  end
+
+  def self.get_trainer(*args)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 215-280
+class Phone
+  class Contact
+    attr_accessor :map_id, :event_id
+    attr_accessor :name
+    attr_accessor :trainer_type
+    attr_accessor :start_version, :versions_count, :version   # :version is the last trainer version that was beaten
+    attr_accessor :time_to_ready, :rematch_flag
+    attr_accessor :common_event_id
+    attr_reader   :visible
+
+    # Map ID, event ID, trainer type, name, versions count = 1, start version = 0
+    # Map ID, name, common event ID
+    def initialize(trainer, *args)
+      @trainer = trainer
+      @map_id = args[0]
+      if @trainer
+        # Trainer
+        @event_id        = args[1]
+        @trainer_type    = args[2]
+        @name            = args[3]
+        @versions_count  = [args[4] || 1, 1].max   # Includes the original version
+        @start_version   = args[5] || 0
+        @version         = @start_version
+        @time_to_ready   = 0
+        @rematch_flag    = 0   # 0=counting down, 1=ready for rematch, 2=ready and told player
+        @common_event_id = args[6] || 0
+      else
+        # Non-trainer
+        @name            = args[1]
+        @common_event_id = args[2] || 0
+      end
+      @visible = true
+    end
+
+    def trainer?
+      return @trainer
+    end
+
+    def visible?
+      return @visible
+    end
+
+    def visible=(value)
+      return if @visible == value
+      @visible = value
+      if !value && trainer?
+        @time_to_ready = 0
+        @rematch_flag = 0
+        $game_self_switches[[@map_id, @event_id, "A"]] = true
+        $game_map.need_refresh = true
+      end
+    end
+
+    def can_hide?
+      return trainer?
+    end
+
+    def common_event_call?
+      return @common_event_id > 0
+    end
+
+    def can_rematch?
+      return trainer? && @rematch_flag >= 1
+    end
+
+    def display_name
+
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 318-389
+class Phone
+  module Call
+    module_function
+
+    def can_make?
+      return false if $game_map.metadata&.has_flag?("NoPhoneSignal")
+      return true
+    end
+
+    # For the player initiating the call.
+    def can_call_contact?(contact)
+      return false if !contact
+      if !can_make?
+        pbMessage(_INTL("There is no phone signal here..."))
+        return false
+      end
+      return true if !contact.trainer?
+      if contact.map_id == $game_map.map_id
+        pbMessage(_INTL("The Trainer is close by.\nTalk to the Trainer in person!"))
+        return false
+      end
+      caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+      this_map_metadata = $game_map.metadata
+      if !caller_map_metadata || !caller_map_metadata.town_map_position ||
+         !this_map_metadata || !this_map_metadata.town_map_position ||
+         caller_map_metadata.town_map_position[0] != this_map_metadata.town_map_position[0]
+        pbMessage(_INTL("The Trainer is out of range."))
+        return false
+      end
+      return true
+    end
+
+    # Get a random trainer contact from the region the player is currently in,
+    # but is not in the same map as the player.
+    def get_random_trainer_for_incoming_call
+      player_location = $game_map.metadata&.town_map_position
+      return nil if !player_location
+      player_region = player_location[0]
+      valid_contacts = []
+      $PokemonGlobal.phone.contacts.each do |contact|
+        next if !contact.trainer? || !contact.visible?
+        next if contact.map_id == $game_map.map_id ||
+                pbGetMapNameFromId(contact.map_id) == $game_map.name
+        caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+        next if !caller_map_metadata || !caller_map_metadata.town_map_position
+        next if caller_map_metadata.town_map_position[0] != player_region
+        valid_contacts.push(contact)
+      end
+      return valid_contacts.sample
+    end
+
+    #===========================================================================
+
+    def make_incoming
+      return if !can_make?
+      contact = get_random_trainer_for_incoming_call
+      return if !contact
+      if contact.common_event_call?
+        if !pbCommonEvent(contact.common_event_id)
+          pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+                          contact.display_name, contact.common_event_id))
+        end
+      else
+        call = generate_trainer_dialogue(contact)
+        play(call, contact)
+      end
+    end
+
+    # Phone::Contact
+    # Trainer type, name[, start_version]
+    # Name (for non-trainers)
+    def make_outgoing(*args)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 543-600
+EventHandlers.add(:on_frame_update, :phone_call_counter,
+  proc {
+    next if !$player&.has_pokegear
+    # Don't count down various phone times if other things are happening
+    next if $game_temp.in_menu || $game_temp.in_battle || $game_temp.message_window_showing
+    next if $game_player.move_route_forcing || pbMapInterpreterRunning?
+    # Count down time to next can-battle for each trainer contact
+    $PokemonGlobal.phone.refresh_ready_trainers
+    # Count down time to next phone call
+    if $PokemonGlobal.phone.time_to_next_call <= 0
+      $PokemonGlobal.phone.time_to_next_call = rand(20...40) * 60.0   # 20-40 minutes
+    end
+    $PokemonGlobal.phone.time_to_next_call -= Graphics.delta
+    next if $PokemonGlobal.phone.time_to_next_call > 0
+    # Time for a random phone call; generate one
+    Phone::Call.make_incoming
+  }
+)
+
+#===============================================================================
+# Deprecated.
+#===============================================================================
+# Called by events. Make your event look like this instead:
+#
+# @>Conditional Branch: Phone.can_add?(trainer_type, name, start_version)
+#   @>Text: Let me register you.
+#   @>Show Choices: Yes, No
+#    : When [Yes]
+#     @>Conditional Branch: Phone.add(get_self, trainer_type, name, start_version, versions_count)
+#       @>Text: Thanks! (optional)
+#       @>
+#     : Branch End
+#    : When [No]
+#       @>Text: Oh, okay then. (optional)
+#       @>
+#    : Branch End
+#  : Branch End
+# @>
+#
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegisterBattle(message, event, trainer_type, name, versions_count)
+  Deprecation.warn_method("pbPhoneRegisterBattle", "v22", "several scripts and event commands; see def pbPhoneRegisterBattle")
+  return false if !Phone.can_add?(trainer_type, name, 0)
+  message = _INTL("Let me register you.") if !message
+  return false if !pbConfirmMessage(message)
+  return Phone.add(event, trainer_type, name, 0, versions_count)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegister(event, trainer_type, name)
+  Deprecation.warn_method("pbPhoneRegister", "v22", "Phone.add_silent(event, trainer_type, name)")
+  Phone.add_silent(event, trainer_type, name)
+end
+
+# Called by events.
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegisterNPC(common_event_id, name, map_id, show_message = true)
+  Deprecation.warn_method("pbPhoneRegisterNPC", "v22", "Phone.add(map_id, name, common_event_id) or Phone.add_silent(map_id, name, common_event_id)")
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 320-383
+    alias xsize width
+    alias ysize height
+    attr_accessor :parameters, :rng_seed
+    attr_accessor :tileset
+
+    # 0 is none (index 0 only) or corridor/floor
+    # -1 are tile combinations that need special attention
+    # Other numbers correspond to tile types (see def get_wall_tile_for_coord)
+    FLOOR_NEIGHBOURS_TO_WALL = [
+      0, 2, 1, 2, 4, 11, 4, 11, 7, 9, 4, 11, 4, 11, 4, 11,
+      8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      9, 13, -1, 13, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      3, 2, 2, 2, 11, 11, 11, 11, -1, 11, 11, 11, 11, 11, 11, 11,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0
+    ]
+
+    def initialize(width, height, tileset, parameters = nil)
+      @tileset     = tileset
+      @buffer_x    = ((Graphics.width.to_f / Game_Map::TILE_WIDTH) / 2).ceil
+      @buffer_y    = ((Graphics.height.to_f / Game_Map::TILE_HEIGHT) / 2).ceil
+      if @tileset.snap_to_large_grid
+        @buffer_x += 1 if @buffer_x.odd?
+        @buffer_y += 1 if @buffer_x.odd?
+      end
+      @parameters = parameters || GameData::DungeonParameters.new({})
+      if @tileset.snap_to_large_grid
+        @parameters.cell_width -= 1 if @parameters.cell_width.odd?
+        @parameters.cell_height -= 1 if @parameters.cell_height.odd?
+        @parameters.corridor_width += (@parameters.corridor_width == 1) ? 1 : -1 if @parameters.corridor_width.odd?
+      end
+      if width >= 20
+        @width = width
+      else
+        @width = (width * @parameters.cell_width) + (2 * @buffer_x)
+        @width += 1 if @tileset.snap_to_large_grid && @width.odd?
+      end
+      if height >= 20
+        @height = height
+      else
+        @height = (height * @parameters.cell_height) + (2 * @buffer_y)
+        @height += 1 if @tileset.snap_to_large_grid && @height.odd?
+      end
+      @usable_width = @width
+      @usable_height = @height
+      if @tileset.snap_to_large_grid
+        @usable_width  -= 1 if @usable_width.odd?
+        @usable_height -= 1 if @usable_height.odd?
+      end
+      @room_rects = []
+      @map_data    = DungeonLayout.new(@width, @height)
+      @need_redraw = false
+    end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 428-451
+    def generate
+      @rng_seed = @parameters.rng_seed || $PokemonGlobal.dungeon_rng_seed || Random.new_seed
+      $PokemonGlobal.dungeon_rng_seed = nil
+      Random.srand(@rng_seed)
+      maxWidth = @usable_width - (@buffer_x * 2)
+      maxHeight = @usable_height - (@buffer_y * 2)
+      return if maxWidth < 0 || maxHeight < 0
+      loop do
+        @need_redraw = false
+        @map_data.clear
+        # Generate the basic layout of the map
+        generate_layout(maxWidth, maxHeight)
+        next if @need_redraw
+        # Draw walls
+        generate_walls(maxWidth, maxHeight)
+        next if @need_redraw
+        # Draw decorations
+        paint_decorations(maxWidth, maxHeight)
+        # Draw wall top tiles
+        paint_wall_top_tiles(maxWidth, maxHeight)
+        break   # if !@need_redraw
+      end
+    end
+

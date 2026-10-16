@@ -1,0 +1,144 @@
+00136:   def pbCalculatePriority(fullCalc = false, indexArray = nil)
+00137:     needRearranging = false
+00138:     if fullCalc
+00139:       @priorityTrickRoom = (@field.effects[PBEffects::TrickRoom] > 0)
+00140:       # Recalculate everything from scratch
+00141:       randomOrder = Array.new(maxBattlerIndex + 1) { |i| i }
+00142:       (randomOrder.length - 1).times do |i|   # Can't use shuffle! here
+00143:         r = i + pbRandom(randomOrder.length - i)
+00144:         randomOrder[i], randomOrder[r] = randomOrder[r], randomOrder[i]
+00145:       end
+00146:       @priority.clear
+00147:       (0..maxBattlerIndex).each do |i|
+00148:         b = @battlers[i]
+00149:         next if !b
+00150:         # [battler, speed, sub-priority from ability, sub-priority from item,
+00151:         #  final sub-priority, priority, tie-breaker order]
+00152:         entry = [b, b.pbSpeed, 0, 0, 0, 0, randomOrder[i]]
+00153:         if @choices[b.index][0] == :UseMove || @choices[b.index][0] == :Shift
+00154:           # Calculate move's priority
+00155:           if @choices[b.index][0] == :UseMove
+00156:             move = @choices[b.index][2]
+00157:             pri = move.pbPriority(b)
+00158:             if b.abilityActive?
+00159:               pri = Battle::AbilityEffects.triggerPriorityChange(b.ability, b, move, pri)
+00160:             end
+00161:             entry[5] = pri
+00162:             @choices[b.index][4] = pri
+00163:           end
+00164:           # Calculate sub-priority changes (first/last within priority bracket)
+00165:           # Abilities (Stall)
+00166:           if b.abilityActive?
+00167:             entry[2] = Battle::AbilityEffects.triggerPriorityBracketChange(b.ability, b, self)
+00168:           end
+00169:           # Items (Quick Claw, Custap Berry, Lagging Tail, Full Incense)
+00170:           if b.itemActive?
+00171:             entry[3] = Battle::ItemEffects.triggerPriorityBracketChange(b.item, b, self)
+00172:           end
+00173:         end
+00174:         @priority.push(entry)
+00175:       end
+00176:       needRearranging = true
+00177:     else
+00178:       if (@field.effects[PBEffects::TrickRoom] > 0) != @priorityTrickRoom
+00179:         needRearranging = true
+00180:         @priorityTrickRoom = (@field.effects[PBEffects::TrickRoom] > 0)
+00181:       end
+00182:       # Recheck all battler speeds and changes to priority caused by abilities
+00183:       @priority.each do |entry|
+00184:         next if !entry
+00185:         next if indexArray && !indexArray.include?(entry[0].index)
+00186:         # Recalculate speed of battler
+00187:         newSpeed = entry[0].pbSpeed
+00188:         needRearranging = true if newSpeed != entry[1]
+00189:         entry[1] = newSpeed
+00190:         # Recalculate move's priority in case ability has changed
+00191:         choice = @choices[entry[0].index]
+00192:         if choice[0] == :UseMove
+00193:           move = choice[2]
+00194:           pri = move.pbPriority(entry[0])
+00195:           if entry[0].abilityActive?
+00196:             pri = Battle::AbilityEffects.triggerPriorityChange(entry[0].ability, entry[0], move, pri)
+00197:           end
+00198:           needRearranging = true if pri != entry[5]
+00199:           entry[5] = pri
+00200:           choice[4] = pri
+00201:         end
+00202:         # NOTE: If the battler's ability at the start of this round was one with
+00203:         #       a PriorityBracketChange handler (i.e. Quick Draw), but it Mega
+00204:         #       Evolved and now doesn't have that ability, that old ability's
+00205:         #       priority bracket modifier will still apply. Similarly, if its
+00206:         #       old ability did not have a PriorityBracketChange handler but it
+00207:         #       Mega Evolved and now does have it, it will not apply this round.
+00208:         #       This is because the message saying that it had an effect appears
+00209:         #       before Mega Evolution happens, and recalculating it now would
+00210:         #       make that message inaccurate because Quick Draw only has a
+00211:         #       chance of triggering. However, since Quick Draw is exclusive to
+00212:         #       a species that doesn't Mega Evolve, these circumstances should
+00213:         #       never arise and no one will notice that the priority bracket
+00214:         #       change isn't recalculated when technically it should be.
+00215:       end
+00216:     end
+00217:     # Calculate each battler's overall sub-priority, and whether its ability or
+00218:     # item is responsible
+00219:     # NOTE: Going fast beats going slow. A Pokémon with Stall and Quick Claw
+00220:     #       will go first in its priority bracket if Quick Claw triggers,
+00221:     #       regardless of Stall.
+00222:     @priority.each do |entry|
+00223:       entry[0].effects[PBEffects::PriorityAbility] = false
+00224:       entry[0].effects[PBEffects::PriorityItem] = false
+00225:       subpri = entry[2]   # Sub-priority from ability
+00226:       if (subpri == 0 && entry[3] != 0) ||   # Ability has no effect, item has effect
+00227:          (subpri < 0 && entry[3] >= 1)   # Ability makes it slower, item makes it faster
+00228:         subpri = entry[3]   # Sub-priority from item
+00229:         entry[0].effects[PBEffects::PriorityItem] = true
+00230:       elsif subpri != 0   # Ability has effect, item had superfluous/no effect
+00231:         entry[0].effects[PBEffects::PriorityAbility] = true
+00232:       end
+00233:       entry[4] = subpri   # Final sub-priority
+00234:     end
+00235:     # Reorder the priority array
+00236:     if needRearranging
+00237:       @priority.sort! do |a, b|
+00238:         if a[5] != b[5]
+00239:           # Sort by priority (highest value first)
+00240:           b[5] <=> a[5]
+00241:         elsif a[4] != b[4]
+00242:           # Sort by sub-priority (highest value first)
+00243:           b[4] <=> a[4]
+00244:         elsif @priorityTrickRoom
+00245:           # Sort by speed (lowest first), and use tie-breaker if necessary
+00246:           (a[1] == b[1]) ? b[6] <=> a[6] : a[1] <=> b[1]
+00247:         else
+00248:           # Sort by speed (highest first), and use tie-breaker if necessary
+00249:           (a[1] == b[1]) ? b[6] <=> a[6] : b[1] <=> a[1]
+00250:         end
+00251:       end
+00252:       # Write the priority order to the debug log
+00253:       if fullCalc && $INTERNAL
+00254:         logMsg = "[Round order] "
+00255:         @priority.each_with_index do |entry, i|
+00256:           logMsg += ", " if i > 0
+00257:           logMsg += "#{entry[0].pbThis(i > 0)} (#{entry[0].index})"
+00258:         end
+00259:         PBDebug.log(logMsg)
+00260:       end
+00261:     end
+00262:   end
+00263: 
+00264:   def pbPriority(onlySpeedSort = false)
+00265:     ret = []
+00266:     if onlySpeedSort
+00267:       # Sort battlers by their speed stats and tie-breaker order only.
+00268:       tempArray = []
+00269:       @priority.each { |pArray| tempArray.push([pArray[0], pArray[1], pArray[6]]) }
+00270:       tempArray.sort! { |a, b| (a[1] == b[1]) ? b[2] <=> a[2] : b[1] <=> a[1] }
+00271:       tempArray.each { |tArray| ret.push(tArray[0]) }
+00272:     else
+00273:       # Sort battlers by priority, sub-priority and their speed. Ties are
+00274:       # resolved in the same way each time this method is called in a round.
+00275:       @priority.each { |pArray| ret.push(pArray[0]) if !pArray[0].fainted? }
+00276:     end
+00277:     return ret
+00278:   end
+00279: end

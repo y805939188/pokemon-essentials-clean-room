@@ -1,0 +1,91 @@
+00001: class Battle::Battler
+00002:   #=============================================================================
+00003:   # Ability trigger checks
+00004:   #=============================================================================
+00005:   def pbAbilitiesOnSwitchOut
+00006:     if abilityActive?
+00007:       Battle::AbilityEffects.triggerOnSwitchOut(self.ability, self, false)
+00008:     end
+00009:     # Reset form
+00010:     @battle.peer.pbOnLeavingBattle(@battle, @pokemon, @battle.usedInBattle[idxOwnSide][@index / 2])
+00011:     # Check for end of Neutralizing Gas/Unnerve
+00012:     if hasActiveAbility?(:NEUTRALIZINGGAS)
+00013:       # Treat self as fainted
+00014:       @hp = 0
+00015:       @fainted = true
+00016:       pbAbilitiesOnNeutralizingGasEnding
+00017:     elsif hasActiveAbility?([:UNNERVE, :ASONECHILLINGNEIGH, :ASONEGRIMNEIGH])
+00018:       # Treat self as fainted
+00019:       @hp = 0
+00020:       @fainted = true
+00021:       pbItemsOnUnnerveEnding
+00022:     end
+00023:     # Treat self as fainted
+00024:     @hp = 0
+00025:     @fainted = true
+00026:     # Check for end of primordial weather
+00027:     @battle.pbEndPrimordialWeather
+00028:   end
+00029: 
+00030:   def pbAbilitiesOnFainting
+00031:     # Self fainted; check all other battlers to see if their abilities trigger
+00032:     @battle.pbPriority(true).each do |b|
+00033:       next if !b || !b.abilityActive?
+00034:       Battle::AbilityEffects.triggerChangeOnBattlerFainting(b.ability, b, self, @battle)
+00035:     end
+00036:     @battle.pbPriority(true).each do |b|
+00037:       next if !b || !b.abilityActive?
+00038:       Battle::AbilityEffects.triggerOnBattlerFainting(b.ability, b, self, @battle)
+00039:     end
+00040:     pbAbilitiesOnNeutralizingGasEnding if hasActiveAbility?(:NEUTRALIZINGGAS, true)
+00041:     pbItemsOnUnnerveEnding if hasActiveAbility?([:UNNERVE, :ASONECHILLINGNEIGH, :ASONEGRIMNEIGH], true)
+00042:   end
+00043: 
+00044:   # Used for Emergency Exit/Wimp Out. Returns whether self has switched out.
+00045:   def pbAbilitiesOnDamageTaken(move_user = nil)
+00046:     return false if !@droppedBelowHalfHP
+00047:     return false if !abilityActive?
+00048:     return Battle::AbilityEffects.triggerOnHPDroppedBelowHalf(self.ability, self, move_user, @battle)
+00049:   end
+00050: 
+00051:   def pbAbilityOnTerrainChange(ability_changed = false)
+00052:     return if !abilityActive?
+00053:     Battle::AbilityEffects.triggerOnTerrainChange(self.ability, self, @battle, ability_changed)
+00054:   end
+00055: 
+00056:   # Used for Rattled's Gen 8 effect. Called when Intimidate is triggered.
+00057:   def pbAbilitiesOnIntimidated
+00058:     return if !abilityActive?
+00059:     Battle::AbilityEffects.triggerOnIntimidated(self.ability, self, @battle)
+00060:   end
+00061: 
+00062:   def pbAbilitiesOnNeutralizingGasEnding
+00063:     return if @battle.pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+00064:     @battle.pbDisplay(_INTL("The effects of the neutralizing gas wore off!"))
+00065:     @battle.pbEndPrimordialWeather
+00066:     @battle.pbPriority(true).each do |b|
+00067:       next if b.fainted?
+00068:       next if !b.unstoppableAbility? && !b.abilityActive?
+00069:       Battle::AbilityEffects.triggerOnSwitchIn(b.ability, b, @battle)
+00070:     end
+00071:   end
+00072: 
+00073:   # Called when a Pokémon (self) enters battle, at the end of each move used,
+00074:   # and at the end of each round.
+00075:   def pbContinualAbilityChecks(onSwitchIn = false)
+00076:     # Check for end of primordial weather
+00077:     @battle.pbEndPrimordialWeather
+00078:     # Trace
+00079:     if hasActiveAbility?(:TRACE)
+00080:       # NOTE: In Gen 5 only, Trace only triggers upon the Trace bearer switching
+00081:       #       in and not at any later times, even if a traceable ability turns
+00082:       #       up later. Essentials ignores this, and allows Trace to trigger
+00083:       #       whenever it can even in Gen 5 battle mechanics.
+00084:       choices = @battle.allOtherSideBattlers(@index).select do |b|
+00085:         next !b.ungainableAbility? &&
+00086:              ![:POWEROFALCHEMY, :RECEIVER, :TRACE].include?(b.ability_id)
+00087:       end
+00088:       if choices.length > 0
+00089:         choice = choices[@battle.pbRandom(choices.length)]
+00090:         @battle.pbShowAbilitySplash(self)
+00091:         self.ability = choice.ability

@@ -1,0 +1,200 @@
+00001: #===============================================================================
+00002: # Success state
+00003: #===============================================================================
+00004: class Battle::SuccessState
+00005:   attr_accessor :typeMod
+00006:   attr_accessor :useState    # 0 - not used, 1 - failed, 2 - succeeded
+00007:   attr_accessor :protected
+00008:   attr_accessor :skill
+00009: 
+00010:   def initialize; clear; end
+00011: 
+00012:   def clear(full = true)
+00013:     @typeMod   = Effectiveness::NORMAL_EFFECTIVE_MULTIPLIER
+00014:     @useState  = 0
+00015:     @protected = false
+00016:     @skill     = 0 if full
+00017:   end
+00018: 
+00019:   def updateSkill
+00020:     case @useState
+00021:     when 1
+00022:       @skill = -2 if !@protected
+00023:     when 2
+00024:       if Effectiveness.super_effective?(@typeMod)
+00025:         @skill = 2
+00026:       elsif Effectiveness.normal?(@typeMod)
+00027:         @skill = 1
+00028:       elsif Effectiveness.not_very_effective?(@typeMod)
+00029:         @skill = -1
+00030:       else   # Ineffective
+00031:         @skill = -2
+00032:       end
+00033:     end
+00034:     clear(false)
+00035:   end
+00036: end
+00037: 
+00038: #===============================================================================
+00039: #
+00040: #===============================================================================
+00041: class BattleArenaBattle < Battle
+00042:   def initialize(*arg)
+00043:     super
+00044:     @battlersChanged      = true
+00045:     @mind                 = [0, 0]
+00046:     @skill                = [0, 0]
+00047:     @starthp              = [0, 0]
+00048:     @count                = 0
+00049:     @partyindexes         = [0, 0]
+00050:     @battleAI.battleArena = true
+00051:   end
+00052: 
+00053:   def pbCanSwitchIn?(idxBattler, _idxParty, partyScene = nil)
+00054:     partyScene&.pbDisplay(_INTL("{1} can't be switched out!", @battlers[idxBattler].pbThis))
+00055:     return false
+00056:   end
+00057: 
+00058:   def pbEORSwitch(favorDraws = false)
+00059:     return if favorDraws && @decision == 5
+00060:     return if !favorDraws && @decision > 0
+00061:     pbJudge
+00062:     return if @decision > 0
+00063:     2.times do |side|
+00064:       next if !@battlers[side].fainted?
+00065:       next if @partyindexes[side] + 1 >= self.pbParty(side).length
+00066:       @partyindexes[side] += 1
+00067:       newpoke = @partyindexes[side]
+00068:       pbMessagesOnReplace(side, newpoke)
+00069:       pbReplace(side, newpoke)
+00070:       pbOnBattlerEnteringBattle(side)
+00071:     end
+00072:   end
+00073: 
+00074:   def pbOnAllBattlersEnteringBattle
+00075:     @battlersChanged = true
+00076:     2.times do |side|
+00077:       @mind[side]    = 0
+00078:       @skill[side]   = 0
+00079:       @starthp[side] = battlers[side].hp
+00080:     end
+00081:     @count           = 0
+00082:     return super
+00083:   end
+00084: 
+00085:   def pbRecordBattlerAsActive(battler)
+00086:     @battlersChanged = true
+00087:     2.times do |side|
+00088:       @mind[side]    = 0
+00089:       @skill[side]   = 0
+00090:       @starthp[side] = @battlers[side].hp
+00091:     end
+00092:     @count           = 0
+00093:     return super
+00094:   end
+00095: 
+00096:   def pbMindScore(move)
+00097:     if move.function_code == "ProtectUser" ||   # Detect/Protect
+00098:        move.function_code == "UserEnduresFaintingThisTurn" ||   # Endure
+00099:        move.function_code == "FlinchTargetFailsIfNotUserFirstTurn"   # Fake Out
+00100:       return -1
+00101:     end
+00102:     if move.function_code == "CounterPhysicalDamage" ||   # Counter
+00103:        move.function_code == "CounterSpecialDamage" ||   # Mirror Coat
+00104:        move.function_code == "MultiTurnAttackBideThenReturnDoubleDamage"   # Bide
+00105:       return 0
+00106:     end
+00107:     return 0 if move.statusMove?
+00108:     return 1
+00109:   end
+00110: 
+00111:   def pbCommandPhase
+00112:     if @battlersChanged
+00113:       @scene.pbBattleArenaBattlers(@battlers[0], @battlers[1])
+00114:       @battlersChanged = false
+00115:       @count = 0
+00116:     end
+00117:     super
+00118:     return if @decision != 0
+00119:     # Update mind rating (asserting that a move was chosen)
+00120:     2.times do |side|
+00121:       if @choices[side][2] && @choices[side][0] == :UseMove
+00122:         @mind[side] += pbMindScore(@choices[side][2])
+00123:       end
+00124:     end
+00125:   end
+00126: 
+00127:   def pbEndOfRoundPhase
+00128:     super
+00129:     return if @decision != 0
+00130:     # Update skill rating
+00131:     2.times do |side|
+00132:       @skill[side] += self.successStates[side].skill
+00133:     end
+00134: #    PBDebug.log("[Mind: #{@mind.inspect}, Skill: #{@skill.inspect}]")
+00135:     # Increment turn counter
+00136:     @count += 1
+00137:     return if @count < 3
+00138:     # Half all multi-turn moves
+00139:     @battlers[0].pbCancelMoves(true)
+00140:     @battlers[1].pbCancelMoves(true)
+00141:     # Calculate scores in each category
+00142:     ratings1 = [0, 0, 0]
+00143:     ratings2 = [0, 0, 0]
+00144:     if @mind[0] == @mind[1]
+00145:       ratings1[0] = 1
+00146:       ratings2[0] = 1
+00147:     elsif @mind[0] > @mind[1]
+00148:       ratings1[0] = 2
+00149:     else
+00150:       ratings2[0] = 2
+00151:     end
+00152:     if @skill[0] == @skill[1]
+00153:       ratings1[1] = 1
+00154:       ratings2[1] = 1
+00155:     elsif @skill[0] > @skill[1]
+00156:       ratings1[1] = 2
+00157:     else
+00158:       ratings2[1] = 2
+00159:     end
+00160:     body = [0, 0]
+00161:     body[0] = ((@battlers[0].hp * 100) / [@starthp[0], 1].max).floor
+00162:     body[1] = ((@battlers[1].hp * 100) / [@starthp[1], 1].max).floor
+00163:     if body[0] == body[1]
+00164:       ratings1[2] = 1
+00165:       ratings2[2] = 1
+00166:     elsif body[0] > body[1]
+00167:       ratings1[2] = 2
+00168:     else
+00169:       ratings2[2] = 2
+00170:     end
+00171:     # Show scores
+00172:     @scene.pbBattleArenaJudgment(@battlers[0], @battlers[1], ratings1.clone, ratings2.clone)
+00173:     # Calculate total scores
+00174:     points = [0, 0]
+00175:     ratings1.each { |val| points[0] += val }
+00176:     ratings2.each { |val| points[1] += val }
+00177:     # Make judgment
+00178:     if points[0] == points[1]
+00179:       pbDisplay(_INTL("{1} tied the opponent {2} in a referee's decision!",
+00180:                       @battlers[0].name, @battlers[1].name))
+00181:       # NOTE: Pokémon doesn't really lose HP, but the effect is mostly the
+00182:       #       same.
+00183:       @battlers[0].hp = 0
+00184:       @battlers[0].pbFaint(false)
+00185:       @battlers[1].hp = 0
+00186:       @battlers[1].pbFaint(false)
+00187:     elsif points[0] > points[1]
+00188:       pbDisplay(_INTL("{1} defeated the opponent {2} in a referee's decision!",
+00189:                       @battlers[0].name, @battlers[1].name))
+00190:       @battlers[1].hp = 0
+00191:       @battlers[1].pbFaint(false)
+00192:     else
+00193:       pbDisplay(_INTL("{1} lost to the opponent {2} in a referee's decision!",
+00194:                       @battlers[0].name, @battlers[1].name))
+00195:       @battlers[0].hp = 0
+00196:       @battlers[0].pbFaint(false)
+00197:     end
+00198:     pbGainExp
+00199:     pbEORSwitch
+00200:   end

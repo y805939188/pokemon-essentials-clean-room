@@ -1,0 +1,197 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 1-75
+module Compiler
+  module_function
+
+  def compile_PBS_file_generic(game_data, *paths)
+    if game_data.const_defined?(:OPTIONAL) && game_data::OPTIONAL
+      return if paths.none? { |p| FileTest.exist?(p) }
+    end
+    game_data::DATA.clear
+    schema = game_data.schema
+    # Read from PBS file(s)
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      base_filename = game_data::PBS_BASE_FILENAME
+      base_filename = base_filename[0] if base_filename.is_a?(Array)   # For Species
+      file_suffix = File.basename(path, ".txt")[base_filename.length + 1, path.length] || ""
+      File.open(path, "rb") do |f|
+        FileLineData.file = path   # For error reporting
+        # Read a whole section's lines at once, then run through this code.
+        # contents is a hash containing all the XXX=YYY lines in that section, where
+        # the keys are the XXX and the values are the YYY (as unprocessed strings).
+        idx = 0
+        pbEachFileSection(f, schema) do |contents, section_name|
+          echo "." if idx % 100 == 0
+          Graphics.update if idx % 500 == 0
+          idx += 1
+          data_hash = {
+            :id              => section_name.to_sym,
+            :pbs_file_suffix => file_suffix
+          }
+          # Go through schema hash of compilable data and compile this section
+          schema.each_key do |key|
+            FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+            if key == "SectionName"
+              data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+              next
+            end
+            # Skip empty properties
+            next if contents[key].nil?
+            # Compile value for key
+            if schema[key][1][0] == "^"
+              contents[key].each do |val|
+                value = get_csv_record(val, schema[key])
+                value = nil if value.is_a?(Array) && value.empty?
+                data_hash[schema[key][0]] ||= []
+                data_hash[schema[key][0]].push(value)
+              end
+              data_hash[schema[key][0]].compact!
+            else
+              value = get_csv_record(contents[key], schema[key])
+              value = nil if value.is_a?(Array) && value.empty?
+              data_hash[schema[key][0]] = value
+            end
+          end
+          # Validate and modify the compiled data
+          yield false, data_hash if block_given?
+          if game_data.exists?(data_hash[:id])
+            raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+          end
+          # Add section's data to records
+          game_data.register(data_hash)
+        end
+      end
+      process_pbs_file_message_end
+    end
+    yield true, nil if block_given?
+    # Save all data
+    game_data.save
+  end
+
+  #=============================================================================
+  # Compile Town Map data
+  #=============================================================================
+  def compile_town_map(*paths)
+    compile_PBS_file_generic(GameData::TownMap, *paths) do |final_validate, hash|
+      (final_validate) ? validate_all_compiled_town_maps : validate_compiled_town_map(hash)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb RANGE 375-435
+    ret = csvfield!(value)
+    return ret.to_i if ret[/\-?\d+/]
+    return checkEnumField(ret, enumer)
+  end
+
+  # Turns a value (a string) into another data type as determined by the given
+  # schema.
+  # @param value [String]
+  # @param schema [String]
+  def cast_csv_value(value, schema, enumer = nil)
+    case schema.downcase
+    when "i"   # Integer
+      if !value || !value[/^\-?\d+$/]
+        raise _INTL("Field '{1}' is not an integer.", value) + "\n" + FileLineData.linereport
+      end
+      return value.to_i
+    when "u"   # Positive integer or zero
+      if !value || !value[/^\d+$/]
+        raise _INTL("Field '{1}' is not a positive integer or 0.", value) + "\n" + FileLineData.linereport
+      end
+      return value.to_i
+    when "v"   # Positive integer
+      if !value || !value[/^\d+$/]
+        raise _INTL("Field '{1}' is not a positive integer.", value) + "\n" + FileLineData.linereport
+      end
+      if value.to_i == 0
+        raise _INTL("Field '{1}' must be greater than 0.", value) + "\n" + FileLineData.linereport
+      end
+      return value.to_i
+    when "x"   # Hexadecimal number
+      if !value || !value[/^[A-F0-9]+$/i]
+        raise _INTL("Field '{1}' is not a hexadecimal number.", value) + "\n" + FileLineData.linereport
+      end
+      return value.hex
+    when "f"   # Floating point number
+      if !value || !value[/^\-?^\d*\.?\d*$/]
+        raise _INTL("Field '{1}' is not a number.", value) + "\n" + FileLineData.linereport
+      end
+      return value.to_f
+    when "b"   # Boolean
+      return true if value && value[/^(?:1|TRUE|YES|Y)$/i]
+      return false if value && value[/^(?:0|FALSE|NO|N)$/i]
+      raise _INTL("Field '{1}' is not a Boolean value (true, false, 1, 0).", value) + "\n" + FileLineData.linereport
+    when "n"   # Name
+      if !value || !value[/^(?![0-9])\w+$/]
+        raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+      end
+    when "s"   # String
+    when "q"   # Unformatted text
+    when "m"   # Symbol
+      if !value || !value[/^(?![0-9])\w+$/]
+        raise _INTL("Field '{1}' must contain only letters, digits, and\nunderscores and can't begin with a number.", value) + "\n" + FileLineData.linereport
+      end
+      return value.to_sym
+    when "e"   # Enumerable
+      return checkEnumField(value, enumer)
+    when "y"   # Enumerable or integer
+      return value.to_i if value && value[/^\-?\d+$/]
+      return checkEnumField(value, enumer)
+    end
+    return value
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb RANGE 960-1015
+  end
+
+  def process_pbs_file_message_end
+    Console.echo_done(true)
+    Graphics.update
+  end
+
+  def get_all_pbs_files_to_compile
+    # Get the GameData classes and their respective base PBS filenames
+    ret = GameData.get_all_pbs_base_filenames
+    ret.merge!({
+      :BattleFacility => "battle_facility_lists",
+      :Connection     => "map_connections",
+      :RegionalDex    => "regional_dexes"
+    })
+    ret.each { |key, val| ret[key] = [val] }   # [base_filename, ["PBS/file.txt", etc.]]
+    # Look through all PBS files and match them to a GameData class based on
+    # their base filenames
+    text_files_keys = ret.keys.sort! { |a, b| ret[b][0].length <=> ret[a][0].length }
+    Dir.chdir("PBS/") do
+      Dir.glob("*.txt") do |f|
+        base_name = File.basename(f, ".txt")
+        text_files_keys.each do |key|
+          next if base_name != ret[key][0] && !f.start_with?(ret[key][0] + "_")
+          ret[key][1] ||= []
+          ret[key][1].push("PBS/" + f)
+          break
+        end
+      end
+    end
+    return ret
+  end
+
+  def compile_pbs_files
+    text_files = get_all_pbs_files_to_compile
+    modify_pbs_file_contents_before_compiling
+    compile_town_map(*text_files[:TownMap][1])
+    compile_connections(*text_files[:Connection][1])
+    compile_types(*text_files[:Type][1])
+    compile_abilities(*text_files[:Ability][1])
+    compile_moves(*text_files[:Move][1])                       # Depends on Type
+    compile_items(*text_files[:Item][1])                       # Depends on Move
+    compile_berry_plants(*text_files[:BerryPlant][1])          # Depends on Item
+    compile_pokemon(*text_files[:Species][1])                  # Depends on Move, Item, Type, Ability
+    compile_pokemon_forms(*text_files[:Species1][1])           # Depends on Species, Move, Item, Type, Ability
+    compile_pokemon_metrics(*text_files[:SpeciesMetrics][1])   # Depends on Species
+    compile_shadow_pokemon(*text_files[:ShadowPokemon][1])     # Depends on Species
+    compile_regional_dexes(*text_files[:RegionalDex][1])       # Depends on Species
+    compile_ribbons(*text_files[:Ribbon][1])
+    compile_encounters(*text_files[:Encounter][1])             # Depends on Species
+    compile_trainer_types(*text_files[:TrainerType][1])
+    compile_trainers(*text_files[:Trainer][1])                 # Depends on Species, Item, Move
+    compile_trainer_lists                                      # Depends on TrainerType
+    compile_metadata(*text_files[:Metadata][1])                # Depends on TrainerType
+    compile_map_metadata(*text_files[:MapMetadata][1])
+    compile_dungeon_tilesets(*text_files[:DungeonTileset][1])

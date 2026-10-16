@@ -1,0 +1,48 @@
+import json,re,hashlib,datetime,subprocess
+from pathlib import Path
+C=Path(__file__).parent;R=Path('/workspace/pokemon-essentials');utc=datetime.datetime.now(datetime.timezone.utc).isoformat();reader='/root/creature_a_atomic_reception';commit='8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b'
+paths={'compiler':'Data/Scripts/021_Compiler/001_Compiler.rb','compile_pbs':'Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb','species':'Data/Scripts/010_Data/002_PBS data/008_Species.rb','data':'Data/Scripts/010_Data/001_GameData.rb'};texts={};ids={};units=[]
+for k,p in paths.items():
+ raw=(R/p).read_bytes();assert raw==subprocess.check_output(['git','-C',str(R),'show',commit+':'+p]);texts[k]=raw.decode();ids[k]=dict(path=p,bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest(),blob=subprocess.check_output(['git','-C',str(R),'rev-parse',commit+':'+p],text=True).strip(),lines=len(raw.splitlines()),actual_reader=reader,credit='OWN_WHOLE_FILE_ACTUALLY_READ_PREVIOUSLY')
+def unit(k,name,scope=None):
+ s=texts[k];base=0
+ if scope:
+  lo,hi=scope;base=sum(len(x) for x in s.splitlines(True)[:lo-1]);s=''.join(s.splitlines(True)[lo-1:hi])
+ m=re.search(r'^( *)def '+re.escape(name)+r'(?=[( ;\n])[^\n]*\n',s,re.M);assert m,(k,name);end=m.end() if '; end' in m.group(0) else m.end()+re.search(r'^'+m.group(1)+r'end\s*$',s[m.end():],re.M).end();txt=s[m.start():end];original=texts[k];startpos=base+m.start();endpos=base+end;uid=k+':'+name;units.append(dict(id=uid,source_identity_key=k,range=[original.count('\n',0,startpos)+1,original.count('\n',0,endpos)+1],text=txt,complete_definition=True));return uid
+for k,ns in [('compiler',['pbEachFileSectionEx','get_csv_record']),('compile_pbs',['compile_PBS_file_generic','compile_pokemon','validate_compiled_pokemon','validate_all_compiled_pokemon','compile_pokemon_forms','validate_compiled_pokemon_form','validate_all_compiled_pokemon_forms']),('species',['self.schema','default_form','base_form','get_evolutions','get_family_evolutions','get_previous_species','get_baby_species','minimum_level'])]:
+ for n in ns:unit(k,n)
+for n in ['register','each']:unit('data',n,(78,146))
+rows=[]
+def add(label,claims,refs,premise,remaining):
+ rid=f'WAR-R{len(rows)+1:03}';rows.append(dict(id=rid,label=label,premise=premise,child_assertions=[dict(id=f'{rid}-A{i:02}',meaning=c,source_units=refs,status='SUPPORTED_BOUNDED_COMPLETE_DEFINITION_ACTUAL_READ',whole_parent_acceptance=False) for i,c in enumerate(claims,1)],normal_cancel_failure='Compiler validators/file/native/message/enum failures stop before their later register/save stages; earlier registrations/row mutations can remain. No transaction/automatic rollback, actual compilation or unbounded graph termination is inferred.',remaining=remaining,accepted=False))
+add('AUTHOR_PLURAL_THEN_REPEATED_SINGULAR_ORDER',[
+ 'Species schema insertion order puts Evolutions before Evolution; ordinary base *ses and forms *ees are plural vectors, singular ^seS/^eeS repeated rows both map to same evolutions field. Their method enumerator is registered Evolution; unknown-ID branch remains separately submitted to root scope review.',
+ 'Section reader ordinary repeated property overwrites prior raw property, while ^ schema property appends each raw occurrence in source order. Generic and form compilers iterate schema order, assign plural vector first, then append singular parsed row using ||=[], independent of where plural physically appeared among author lines.',
+ 'Therefore under validregistered input A author singular C/Level16 before plural B/Level16 yields forwardlistB,C; singular-only B thenC preservesB,C. Pokemon firstsuccess scan chooses firstmatchingB under its own guards, not earliest textual field or mergedthreshold.'
+],['species:self.schema','compiler:pbEachFileSectionEx','compiler:get_csv_record','compile_pbs:compile_PBS_file_generic','compile_pbs:compile_pokemon_forms'],
+ 'Valid author syntax/required enums and all compile callback dependencies until the stated stage; existing CEC-R001 wrapper firstsuccess is mandatory. Old editor plural empty view and writer textparameter conversion remain distinct endpoints.',
+ 'Not a real A/B/C dataset run. Full author values/backupfiles remain separate; parameter/type/target errors do not inherit these successful-input results.')
+add('BASE_FIRST_PREVIOUS_RELATION_AND_LEVEL_CONTROLS',[
+ 'Base validator marks authored evolution tuples prevo=false. Final base validation resolves all targetSpecies and parameter types before relation map; nil-param type forcesnil, Integer uses unsigned parse, nonString types use registeredenum.',
+ 'Relation map traverses Species.each registrationorder then each forward evolution list order and only assigns all_evos[target] when absent. It then appends clone of selected relation to target, keeping source species/method/parameter/prevo=true. Later parent does not overwrite first candidate.',
+ 'Valid acyclic bases registered A,B,C with A→C Level16 and B→C Level30 therefore selectA; B,A,C selectsB; onlyB→C selectsB. With no other predecessor/incense, minimum_level returns16/30/30 respectively from selected relation, not min/max across incomingedges.',
+ 'Forward lists retain their original legal A→C and B→C edges despite selecting one reverse parent. Runtime get_evolutions excludes prevo and optionallyNone, so a reverse relation is not another target or a deletion of alternative legal forward evolution.'
+],['compile_pbs:validate_compiled_pokemon','compile_pbs:validate_all_compiled_pokemon','data:each','species:get_evolutions','species:minimum_level'],
+ 'All artificial records valid and acyclic, ordinary Level registered with numericparameter, no other predecessor/incense. No compiler or reference algorithm executed; these are direct order/branch deductions.',
+ 'Does not prove all authored global graph acyclicity or compiler success. Order dependency is observed static capability, not future representation constraint.')
+add('FORM_SPECIFIC_REVERSE_RELATION_BEFORE_BASE_FALLBACK',[
+ 'Form validation inherits absent/empty evolution collection by cloning base entries, including alreadyrecordedprevo tuple, while authored form tuples were markedforward by regular validator. Final forms traversal skips all currentprevo tuples before building new relations.',
+ 'For each forward entry it firstpreserves firstgeneric target relation, and if source.form>0 also first[target, source.form] relation. Distribution prefers [targetbaseSpecies, target.base_form] before generic target key; precedence is specific-key presence, not whichever relation was mostrecent.',
+ 'base_form uses firstmatching DefaultForm_<digits> flag caseinsensitively when>=0, else its own form. On chosen relation, target removes existingprevo entries and appends chosen clone, then selected prevo gains target:None only if no forwardedge already to that species.',
+ 'No comparison of allincoming minimumlevels occurs. This explicit relation priority flows to previous/baby/minimum consumers while all existing forward entries persist; missing specific relation falls to firstgeneric.'
+],['compile_pbs:validate_compiled_pokemon_form','compile_pbs:validate_all_compiled_pokemon_forms','species:default_form','species:base_form','data:each'],
+ 'Base compile/registry and prior valid forms are inputs; full selected tuples and properties exist. No arbitrary cyclic graph termination guaranteed. DefaultForm0 remains truthy/valid; forced individual form is a different layer.',
+ 'Does not approve all339form parents or898base raw records via schema. Existing actually received339formparent records/460 authorededges have separate source reader credit.')
+add('PREVIOUS_BABY_FAMILY_MINIMUM_RECEIVERS',[
+ 'get_previous_species returns firsttuple prevo target or self; get_baby_species scans firstprevo only, optionalincense checks prevoSpecies.incense against either provided item, recursively continues only when resulting species differs from self. No iterative allincoming-parent reconciliation.',
+ 'minimum_level returns1 without qualifyingprevo, otherwise resolves selectedprevo with own base_form; any prevo.incense gives1; missing level_up_proc exceptShedinja inherits prevo minimum; otherwise any_level_up givesprevoMinimum+1 or literalparameter.',
+ 'get_family_evolutions starts get_evolutions(exclude_invalid true), sorts forwardtarget by currentSpecies keys order and recursively concatenates, so its family order differs from raw runtimefirstsuccess which uses original listorder. None/prevo filtering and legalacyclic premise stay explicit.'
+],['species:get_previous_species','species:get_baby_species','species:minimum_level','species:get_family_evolutions','species:get_evolutions'],
+ 'Valid registered selectedrelation records and enums. Incense/shedinja/any_level_up metadata are existing full Evolution definitions in C31/CEC. No badgraph simulation or target code execution.',
+ 'DayCare actual maternal/paternal callers are separately audited in full DayCare/breeding packet; these getters alone do not prove raw default offspring eligibility or every family consumer.')
+out=dict(schema='gr8-crec-wp31-author-and-reverse-relation/v1',recorded_utc=utc,actual_reader=reader,source_identities=ids,complete_source_units=units,records=rows,manual_atoms=sum(len(x['child_assertions']) for x in rows),new_full_reads=0,new_votes=0,whole_domain_acceptance=False,denominator_frozen=False,business='NOT_EXECUTED',update='UPDATE_NOT_STARTED');p=C/'wp31-author-reverse-relation-bindings.v1.json';assert not p.exists();p.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n');print(json.dumps(dict(path=p.name,bytes=p.stat().st_size,sha256=hashlib.sha256(p.read_bytes()).hexdigest(),groups=len(rows),atoms=out['manual_atoms'],units=len(units),utc=utc)))

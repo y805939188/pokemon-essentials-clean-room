@@ -1,0 +1,87 @@
+00383: def pbGenerateWildPokemon(species, level, isRoamer = false)
+00384:   genwildpoke = Pokemon.new(species, level)
+00385:   # Give the wild Pokémon a held item
+00386:   items = genwildpoke.wildHoldItems
+00387:   first_pkmn = $player.first_pokemon
+00388:   chances = [50, 5, 1]
+00389:   if first_pkmn
+00390:     case first_pkmn.ability_id
+00391:     when :COMPOUNDEYES
+00392:       chances = [60, 20, 5]
+00393:     when :SUPERLUCK
+00394:       chances = [60, 20, 5] if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS
+00395:     end
+00396:   end
+00397:   itemrnd = rand(100)
+00398:   if (items[0] == items[1] && items[1] == items[2]) || itemrnd < chances[0]
+00399:     genwildpoke.item = items[0].sample
+00400:   elsif itemrnd < (chances[0] + chances[1])
+00401:     genwildpoke.item = items[1].sample
+00402:   elsif itemrnd < (chances[0] + chances[1] + chances[2])
+00403:     genwildpoke.item = items[2].sample
+00404:   end
+00405:   # Improve chances of shiny Pokémon with Shiny Charm and battling more of the
+00406:   # same species
+00407:   shiny_retries = 0
+00408:   shiny_retries += 2 if $bag.has?(:SHINYCHARM)
+00409:   if Settings::HIGHER_SHINY_CHANCES_WITH_NUMBER_BATTLED
+00410:     values = [0, 0]
+00411:     case $player.pokedex.battled_count(species)
+00412:     when 0...50    then values = [0, 0]
+00413:     when 50...100  then values = [1, 15]
+00414:     when 100...200 then values = [2, 20]
+00415:     when 200...300 then values = [3, 25]
+00416:     when 300...500 then values = [4, 30]
+00417:     else                values = [5, 30]
+00418:     end
+00419:     shiny_retries += values[0] if values[1] > 0 && rand(1000) < values[1]
+00420:   end
+00421:   if shiny_retries > 0
+00422:     shiny_retries.times do
+00423:       break if genwildpoke.shiny?
+00424:       genwildpoke.shiny = nil   # Make it recalculate shininess
+00425:       genwildpoke.personalID = rand(2**16) | (rand(2**16) << 16)
+00426:     end
+00427:   end
+00428:   # Give Pokérus
+00429:   genwildpoke.givePokerus if rand(65_536) < Settings::POKERUS_CHANCE
+00430:   # Change wild Pokémon's gender/nature depending on the lead party Pokémon's
+00431:   # ability
+00432:   if first_pkmn
+00433:     if first_pkmn.hasAbility?(:CUTECHARM) && !genwildpoke.singleGendered?
+00434:       if first_pkmn.male?
+00435:         (rand(3) < 2) ? genwildpoke.makeFemale : genwildpoke.makeMale
+00436:       elsif first_pkmn.female?
+00437:         (rand(3) < 2) ? genwildpoke.makeMale : genwildpoke.makeFemale
+00438:       end
+00439:     elsif first_pkmn.hasAbility?(:SYNCHRONIZE)
+00440:       if !isRoamer && (Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS || (rand(100) < 50))
+00441:         genwildpoke.nature = first_pkmn.nature
+00442:       end
+00443:     end
+00444:   end
+00445:   # Trigger events that may alter the generated Pokémon further
+00446:   genwildpoke.form_simple = genwildpoke.form if MultipleForms.hasFunction?(genwildpoke.species, "getForm")
+00447:   EventHandlers.trigger(:on_wild_pokemon_created, genwildpoke)
+00448:   return genwildpoke
+00449: end
+00450: 
+00451: # Used by fishing rods and Headbutt/Rock Smash/Sweet Scent to generate a wild
+00452: # Pokémon (or two if it's Sweet Scent) for a triggered wild encounter.
+00453: def pbEncounter(enc_type, only_single = true)
+00454:   $game_temp.encounter_type = enc_type
+00455:   encounter1 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+00456:   EventHandlers.trigger(:on_wild_species_chosen, encounter1)
+00457:   return false if !encounter1
+00458:   if !only_single && $PokemonEncounters.have_double_wild_battle?
+00459:     encounter2 = $PokemonEncounters.choose_wild_pokemon(enc_type)
+00460:     EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+00461:     return false if !encounter2
+00462:     WildBattle.start(encounter1, encounter2, can_override: true)
+00463:   else
+00464:     WildBattle.start(encounter1, can_override: true)
+00465:   end
+00466:   $game_temp.encounter_type = nil
+00467:   $game_temp.force_single_battle = false
+00468:   return true
+00469: end

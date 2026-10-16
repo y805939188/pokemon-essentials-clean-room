@@ -1,0 +1,182 @@
+00686:   def nextPickupUse
+00687:     @nextPickupUse += 1
+00688:     return @nextPickupUse
+00689:   end
+00690: 
+00691:   #=============================================================================
+00692:   # Weather
+00693:   #=============================================================================
+00694:   def defaultWeather=(value)
+00695:     @field.defaultWeather  = value
+00696:     @field.weather         = value
+00697:     @field.weatherDuration = -1
+00698:   end
+00699: 
+00700:   # Returns the effective weather (note that weather effects can be negated)
+00701:   def pbWeather
+00702:     return :None if allBattlers.any? { |b| b.hasActiveAbility?([:CLOUDNINE, :AIRLOCK]) }
+00703:     return @field.weather
+00704:   end
+00705: 
+00706:   # Used for causing weather by a move or by an ability.
+00707:   def pbStartWeather(user, newWeather, fixedDuration = false, showAnim = true)
+00708:     return if @field.weather == newWeather
+00709:     @field.weather = newWeather
+00710:     duration = (fixedDuration) ? 5 : -1
+00711:     if duration > 0 && user && user.itemActive?
+00712:       duration = Battle::ItemEffects.triggerWeatherExtender(user.item, @field.weather,
+00713:                                                             duration, user, self)
+00714:     end
+00715:     @field.weatherDuration = duration
+00716:     weather_data = GameData::BattleWeather.try_get(@field.weather)
+00717:     pbCommonAnimation(weather_data.animation) if showAnim && weather_data
+00718:     pbHideAbilitySplash(user) if user
+00719:     case @field.weather
+00720:     when :Sun         then pbDisplay(_INTL("The sunlight turned harsh!"))
+00721:     when :Rain        then pbDisplay(_INTL("It started to rain!"))
+00722:     when :Sandstorm   then pbDisplay(_INTL("A sandstorm brewed!"))
+00723:     when :Hail        then pbDisplay(_INTL("It started to hail!"))
+00724:     when :HarshSun    then pbDisplay(_INTL("The sunlight turned extremely harsh!"))
+00725:     when :HeavyRain   then pbDisplay(_INTL("A heavy rain began to fall!"))
+00726:     when :StrongWinds then pbDisplay(_INTL("Mysterious strong winds are protecting Flying-type Pokémon!"))
+00727:     when :ShadowSky   then pbDisplay(_INTL("A shadow sky appeared!"))
+00728:     end
+00729:     # Check for end of primordial weather, and weather-triggered form changes
+00730:     allBattlers.each { |b| b.pbCheckFormOnWeatherChange }
+00731:     pbEndPrimordialWeather
+00732:   end
+00733: 
+00734:   def pbEndPrimordialWeather
+00735:     return if @field.weather == @field.defaultWeather
+00736:     oldWeather = @field.weather
+00737:     # End Primordial Sea, Desolate Land, Delta Stream
+00738:     case @field.weather
+00739:     when :HarshSun
+00740:       if !pbCheckGlobalAbility(:DESOLATELAND)
+00741:         @field.weather = :None
+00742:         pbDisplay("The harsh sunlight faded!")
+00743:       end
+00744:     when :HeavyRain
+00745:       if !pbCheckGlobalAbility(:PRIMORDIALSEA)
+00746:         @field.weather = :None
+00747:         pbDisplay("The heavy rain has lifted!")
+00748:       end
+00749:     when :StrongWinds
+00750:       if !pbCheckGlobalAbility(:DELTASTREAM)
+00751:         @field.weather = :None
+00752:         pbDisplay("The mysterious air current has dissipated!")
+00753:       end
+00754:     end
+00755:     if @field.weather != oldWeather
+00756:       # Check for form changes caused by the weather changing
+00757:       allBattlers.each { |b| b.pbCheckFormOnWeatherChange }
+00758:       # Start up the default weather
+00759:       pbStartWeather(nil, @field.defaultWeather) if @field.defaultWeather != :None
+00760:     end
+00761:   end
+00762: 
+00763:   def pbStartWeatherAbility(new_weather, battler, ignore_primal = false)
+00764:     return if !ignore_primal && [:HarshSun, :HeavyRain, :StrongWinds].include?(@field.weather)
+00765:     return if @field.weather == new_weather
+00766:     pbShowAbilitySplash(battler)
+00767:     if !Scene::USE_ABILITY_SPLASH
+00768:       pbDisplay(_INTL("{1}'s {2} activated!", battler.pbThis, battler.abilityName))
+00769:     end
+00770:     fixed_duration = false
+00771:     fixed_duration = true if Settings::FIXED_DURATION_WEATHER_FROM_ABILITY &&
+00772:                              ![:HarshSun, :HeavyRain, :StrongWinds].include?(new_weather)
+00773:     pbStartWeather(battler, new_weather, fixed_duration)
+00774:     # NOTE: The ability splash is hidden again in def pbStartWeather.
+00775:   end
+00776: 
+00777:   #=============================================================================
+00778:   # Terrain
+00779:   #=============================================================================
+00780:   def defaultTerrain=(value)
+00781:     @field.defaultTerrain  = value
+00782:     @field.terrain         = value
+00783:     @field.terrainDuration = -1
+00784:   end
+00785: 
+00786:   def pbStartTerrain(user, newTerrain, fixedDuration = true)
+00787:     return if @field.terrain == newTerrain
+00788:     @field.terrain = newTerrain
+00789:     duration = (fixedDuration) ? 5 : -1
+00790:     if duration > 0 && user && user.itemActive?
+00791:       duration = Battle::ItemEffects.triggerTerrainExtender(user.item, newTerrain,
+00792:                                                             duration, user, self)
+00793:     end
+00794:     @field.terrainDuration = duration
+00795:     terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+00796:     pbCommonAnimation(terrain_data.animation) if terrain_data
+00797:     pbHideAbilitySplash(user) if user
+00798:     case @field.terrain
+00799:     when :Electric
+00800:       pbDisplay(_INTL("An electric current runs across the battlefield!"))
+00801:     when :Grassy
+00802:       pbDisplay(_INTL("Grass grew to cover the battlefield!"))
+00803:     when :Misty
+00804:       pbDisplay(_INTL("Mist swirled about the battlefield!"))
+00805:     when :Psychic
+00806:       pbDisplay(_INTL("The battlefield got weird!"))
+00807:     end
+00808:     # Check for abilities/items that trigger upon the terrain changing
+00809:     allBattlers.each { |b| b.pbAbilityOnTerrainChange }
+00810:     allBattlers.each { |b| b.pbItemTerrainStatBoostCheck }
+00811:   end
+00812: 
+00813:   #=============================================================================
+00814:   # Messages and animations
+00815:   #=============================================================================
+00816:   def pbDisplay(msg, &block)
+00817:     @scene.pbDisplayMessage(msg, &block)
+00818:   end
+00819: 
+00820:   def pbDisplayBrief(msg)
+00821:     @scene.pbDisplayMessage(msg, true)
+00822:   end
+00823: 
+00824:   def pbDisplayPaused(msg, &block)
+00825:     @scene.pbDisplayPausedMessage(msg, &block)
+00826:   end
+00827: 
+00828:   def pbDisplayConfirm(msg)
+00829:     return @scene.pbDisplayConfirmMessage(msg)
+00830:   end
+00831: 
+00832:   # defaultValue of -1 means "can't cancel". If it's 0 or greater, returns that
+00833:   # value when pressing the "Back" button.
+00834:   def pbShowCommands(msg, commands, defaultValue = -1)
+00835:     return @scene.pbShowCommands(msg, commands, defaultValue)
+00836:   end
+00837: 
+00838:   def pbAnimation(move, user, targets, hitNum = 0)
+00839:     @scene.pbAnimation(move, user, targets, hitNum) if @showAnims
+00840:   end
+00841: 
+00842:   def pbCommonAnimation(name, user = nil, targets = nil)
+00843:     @scene.pbCommonAnimation(name, user, targets) if @showAnims
+00844:   end
+00845: 
+00846:   def pbShowAbilitySplash(battler, delay = false, logTrigger = true)
+00847:     PBDebug.log("[Ability triggered] #{battler.pbThis}'s #{battler.abilityName}") if logTrigger
+00848:     return if !Scene::USE_ABILITY_SPLASH
+00849:     @scene.pbShowAbilitySplash(battler)
+00850:     if delay
+00851:       timer_start = System.uptime
+00852:       until System.uptime - timer_start >= 1   # 1 second
+00853:         @scene.pbUpdate
+00854:       end
+00855:     end
+00856:   end
+00857: 
+00858:   def pbHideAbilitySplash(battler)
+00859:     return if !Scene::USE_ABILITY_SPLASH
+00860:     @scene.pbHideAbilitySplash(battler)
+00861:   end
+00862: 
+00863:   def pbReplaceAbilitySplash(battler)
+00864:     return if !Scene::USE_ABILITY_SPLASH
+00865:     @scene.pbReplaceAbilitySplash(battler)
+00866:   end
+00867: end

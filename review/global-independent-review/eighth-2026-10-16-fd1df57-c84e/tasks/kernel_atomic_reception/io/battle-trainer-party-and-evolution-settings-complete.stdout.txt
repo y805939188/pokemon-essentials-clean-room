@@ -1,0 +1,248 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb RANGE 451-491
+  def self.start(*args)
+    # If there is another NPC trainer who spotted the player at the same time,
+    # and it is possible to have a double battle (the player has 2+ able Pokémon
+    # or has a partner trainer), then record this first NPC trainer into
+    # $game_temp.waiting_trainer and end this method. That second NPC event will
+    # then trigger and cause the battle to happen against this first trainer and
+    # themselves.
+    if !$game_temp.waiting_trainer && pbMapInterpreterRunning? && pbCanDoubleBattle?
+      thisEvent = pbMapInterpreter.get_self
+      # Find all other triggered trainer events
+      triggeredEvents = $game_player.pbTriggeredTrainerEvents([2], false, true)
+      otherEvent = []
+      triggeredEvents.each do |i|
+        next if i.id == thisEvent.id
+        next if $game_self_switches[[$game_map.map_id, i.id, "A"]]
+        otherEvent.push(i)
+      end
+      # If there is exactly 1 other triggered trainer event, this trainer can be
+      # stored up to battle with that one
+      if otherEvent.length == 1
+        trainers, _items, _end_speeches, _party, _party_starts = TrainerBattle.generate_foes(*args)
+        # If this is just 1 trainer with 6 or fewer Pokémon, it can be stored up
+        # to battle alongside the other trainer
+        if trainers.length == 1 && trainers[0].party.length <= Settings::MAX_PARTY_SIZE
+          $game_temp.waiting_trainer = [trainers[0], thisEvent.id]
+          return false
+        end
+      end
+    end
+    # Perform the battle
+    if $game_temp.waiting_trainer
+      new_args = args + [$game_temp.waiting_trainer[0]]
+      outcome = TrainerBattle.start_core(*new_args)
+      pbMapInterpreter.pbSetSelfSwitch($game_temp.waiting_trainer[1], "A", true) if outcome == 1
+      $game_temp.waiting_trainer = nil
+    else
+      outcome = TrainerBattle.start_core(*args)
+    end
+    # Return true if the player won the battle, and false if any other result
+    return outcome == 1
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb RANGE 577-651
+          end
+          if args[i + 1].is_a?(Integer)   # Version number is next
+            trainer_name = arg.strip
+          else
+            trainer = pbLoadTrainer(trainer_type, arg)
+            pbMissingTrainer(trainer_type, arg, 0) if !trainer
+            trainer = pbLoadTrainer(trainer_type, arg) if !trainer   # Try again
+            raise _INTL("Trainer for data '{1}, {2}' is not defined.", trainer_type, arg) if !trainer
+            EventHandlers.trigger(:on_trainer_load, trainer)
+            trainer_array.push(trainer)
+            foe_items.push(trainer.items)
+            party_starts.push(pokemon_array.length)
+            trainer.party.each { |pkmn| pokemon_array.push(pkmn) }
+            trainer_type = nil
+          end
+        else   # Expecting trainer type
+          if !GameData::TrainerType.exists?(arg)
+            raise _INTL("Trainer type {1} does not exist.", arg)
+          end
+          trainer_type = arg
+        end
+      end
+    end
+    raise _INTL("Trainer type {1} was given but not a trainer name.", trainer_type) if trainer_type
+    return trainer_array, foe_items, pokemon_array, party_starts
+  end
+end
+
+#===============================================================================
+# After battles
+#===============================================================================
+EventHandlers.add(:on_end_battle, :evolve_and_black_out,
+  proc { |decision, canLose|
+    # Check for evolutions
+    pbEvolutionCheck if Settings::CHECK_EVOLUTION_AFTER_ALL_BATTLES ||
+                        (decision != 2 && decision != 5)   # not a loss or a draw
+    $game_temp.party_levels_before_battle = nil
+    $game_temp.party_critical_hits_dealt = nil
+    $game_temp.party_direct_damage_taken = nil
+    # Check for blacking out or gaining Pickup/Huney Gather items
+    case decision
+    when 1, 4   # Win, capture
+      $player.pokemon_party.each do |pkmn|
+        pbPickup(pkmn)
+        pbHoneyGather(pkmn)
+      end
+    when 2, 5   # Lose, draw
+      if !canLose
+        $game_system.bgm_unpause
+        $game_system.bgs_unpause
+        pbStartOver
+      end
+    end
+  }
+)
+
+def pbEvolutionCheck
+  $player.party.each_with_index do |pkmn, i|
+    next if !pkmn || pkmn.egg?
+    next if pkmn.fainted? && !Settings::CHECK_EVOLUTION_FOR_FAINTED_POKEMON
+    # Find an evolution
+    new_species = nil
+    if new_species.nil? && $game_temp.party_levels_before_battle &&
+       $game_temp.party_levels_before_battle[i] &&
+       $game_temp.party_levels_before_battle[i] < pkmn.level
+      new_species = pkmn.check_evolution_on_level_up
+    end
+    new_species = pkmn.check_evolution_after_battle(i) if new_species.nil?
+    next if new_species.nil?
+    # Evolve Pokémon if possible
+    evo = PokemonEvolutionScene.new
+    evo.pbStartScreen(pkmn, new_species)
+    evo.pbEvolution
+    evo.pbEndScreen
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/004_Scene_PlayAnimations.rb RANGE 1-58
+class Battle::Scene
+  #=============================================================================
+  # Animates the battle intro
+  #=============================================================================
+  def pbBattleIntroAnimation
+    # Make everything appear
+    introAnim = Animation::Intro.new(@sprites, @viewport, @battle)
+    loop do
+      introAnim.update
+      pbUpdate
+      break if introAnim.animDone?
+    end
+    introAnim.dispose
+    # Post-appearance activities
+    # Trainer battle: get ready to show the party lineups (they are brought
+    # on-screen by a separate animation)
+    if @battle.trainerBattle?
+      # NOTE: Here is where you'd make trainer sprites animate if they had an
+      #       entrance animation. Be sure to set it up like a Pokémon entrance
+      #       animation, i.e. add them to @animations so that they can play out
+      #       while party lineups appear and messages show.
+      pbShowPartyLineup(0, true)
+      pbShowPartyLineup(1, true)
+      return
+    end
+    # Wild battle: play wild Pokémon's intro animations (including cry), show
+    # data box(es), return the wild Pokémon's sprite(s) to normal colour, show
+    # shiny animation(s)
+    # Set up data box animation
+    @battle.sideSizes[1].times do |i|
+      idxBattler = (2 * i) + 1
+      next if !@battle.battlers[idxBattler]
+      dataBoxAnim = Animation::DataBoxAppear.new(@sprites, @viewport, idxBattler)
+      @animations.push(dataBoxAnim)
+    end
+    # Set up wild Pokémon returning to normal colour and playing intro
+    # animations (including cry)
+    @animations.push(Animation::Intro2.new(@sprites, @viewport, @battle.sideSizes[1]))
+    # Play all the animations
+    while inPartyAnimation?
+      pbUpdate
+    end
+    # Show shiny animation for wild Pokémon
+    if @battle.showAnims
+      @battle.sideSizes[1].times do |i|
+        idxBattler = (2 * i) + 1
+        next if !@battle.battlers[idxBattler] || !@battle.battlers[idxBattler].shiny?
+        if Settings::SUPER_SHINY && @battle.battlers[idxBattler].super_shiny?
+          pbCommonAnimation("SuperShiny", @battle.battlers[idxBattler])
+        else
+          pbCommonAnimation("Shiny", @battle.battlers[idxBattler])
+        end
+      end
+    end
+  end
+
+  #=============================================================================
+  # Animates a party lineup appearing for the given side
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/004_Scene/004_Scene_PlayAnimations.rb RANGE 93-159
+  def pbSendOutBattlers(sendOuts, startBattle = false)
+    return if sendOuts.length == 0
+    # If party balls are still appearing, wait for them to finish showing up, as
+    # the FadeAnimation will make them disappear.
+    while inPartyAnimation?
+      pbUpdate
+    end
+    @briefMessage = false
+    # Make all trainers and party lineups disappear (player-side trainers may
+    # animate throwing a Poké Ball)
+    if @battle.opposes?(sendOuts[0][0])
+      fadeAnim = Animation::TrainerFade.new(@sprites, @viewport, startBattle)
+    else
+      fadeAnim = Animation::PlayerFade.new(@sprites, @viewport, startBattle)
+    end
+    # For each battler being sent out, set the battler's sprite and create two
+    # animations (the Poké Ball moving and battler appearing from it, and its
+    # data box appearing)
+    sendOutAnims = []
+    sendOuts.each_with_index do |b, i|
+      pkmn = @battle.battlers[b[0]].effects[PBEffects::Illusion] || b[1]
+      pbChangePokemon(b[0], pkmn)
+      pbRefresh
+      if @battle.opposes?(b[0])
+        sendOutAnim = Animation::PokeballTrainerSendOut.new(
+          @sprites, @viewport, @battle.pbGetOwnerIndexFromBattlerIndex(b[0]) + 1,
+          @battle.battlers[b[0]], startBattle, i
+        )
+      else
+        sendOutAnim = Animation::PokeballPlayerSendOut.new(
+          @sprites, @viewport, @battle.pbGetOwnerIndexFromBattlerIndex(b[0]) + 1,
+          @battle.battlers[b[0]], startBattle, i
+        )
+      end
+      dataBoxAnim = Animation::DataBoxAppear.new(@sprites, @viewport, b[0])
+      sendOutAnims.push([sendOutAnim, dataBoxAnim, false])
+    end
+    # Play all animations
+    loop do
+      fadeAnim.update
+      sendOutAnims.each do |a|
+        next if a[2]
+        a[0].update
+        a[1].update if a[0].animDone?
+        a[2] = true if a[1].animDone?
+      end
+      pbUpdate
+      break if !inPartyAnimation? && sendOutAnims.none? { |a| !a[2] }
+    end
+    fadeAnim.dispose
+    sendOutAnims.each do |a|
+      a[0].dispose
+      a[1].dispose
+    end
+    # Play shininess animations for shiny Pokémon
+    sendOuts.each do |b|
+      next if !@battle.showAnims || !@battle.battlers[b[0]].shiny?
+      if Settings::SUPER_SHINY && @battle.battlers[b[0]].super_shiny?
+        pbCommonAnimation("SuperShiny", @battle.battlers[b[0]])
+      else
+        pbCommonAnimation("Shiny", @battle.battlers[b[0]])
+      end
+    end
+  end
+
+  #=============================================================================
+  # Animates a Pokémon being recalled into its Poké Ball and its data box hiding

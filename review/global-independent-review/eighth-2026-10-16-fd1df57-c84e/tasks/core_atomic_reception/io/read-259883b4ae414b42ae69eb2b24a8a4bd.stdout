@@ -1,0 +1,72 @@
+00322:     end
+00323:     return score
+00324:   end
+00325: 
+00326:   #-----------------------------------------------------------------------------
+00327: 
+00328:   # Make the final choice of which move to use depending on the calculated
+00329:   # scores for each move. Moves with higher scores are more likely to be chosen.
+00330:   def pbChooseMove(choices)
+00331:     user_battler = @user.battler
+00332:     # If no moves can be chosen, auto-choose a move or Struggle
+00333:     if choices.length == 0
+00334:       @battle.pbAutoChooseMove(user_battler.index)
+00335:       PBDebug.log_ai("#{@user.name} will auto-use a move or Struggle")
+00336:       return
+00337:     end
+00338:     # Figure out useful information about the choices
+00339:     max_score = 0
+00340:     choices.each { |c| max_score = c[1] if max_score < c[1] }
+00341:     # Decide whether all choices are bad, and if so, try switching instead
+00342:     if @trainer.high_skill? && @user.can_switch_lax?
+00343:       badMoves = false
+00344:       if max_score <= MOVE_USELESS_SCORE
+00345:         badMoves = user.can_attack?
+00346:         badMoves = true if !badMoves && pbAIRandom(100) < 25
+00347:       elsif max_score < MOVE_BASE_SCORE * move_score_threshold && user_battler.turnCount > 2
+00348:         badMoves = true if pbAIRandom(100) < 80
+00349:       end
+00350:       if badMoves
+00351:         PBDebug.log_ai("#{@user.name} wants to switch due to terrible moves")
+00352:         if pbChooseToSwitchOut(true)
+00353:           @battle.pbUnregisterMegaEvolution(@user.index)
+00354:           return
+00355:         end
+00356:         PBDebug.log_ai("#{@user.name} won't switch after all")
+00357:       end
+00358:     end
+00359:     # Calculate a minimum score threshold and reduce all move scores by it
+00360:     threshold = (max_score * move_score_threshold.to_f).floor
+00361:     choices.each { |c| c[3] = [c[1] - threshold, 0].max }
+00362:     total_score = choices.sum { |c| c[3] }
+00363:     # Log the available choices
+00364:     if $INTERNAL
+00365:       PBDebug.log_ai("Move choices for #{@user.name}:")
+00366:       choices.each_with_index do |c, i|
+00367:         chance = sprintf("%5.1f", (c[3] > 0) ? 100.0 * c[3] / total_score : 0)
+00368:         log_msg = "   * #{chance}% to use #{user_battler.moves[c[0]].name}"
+00369:         log_msg += " (target #{c[2]})" if c[2] >= 0
+00370:         log_msg += ": score #{c[1]}"
+00371:         PBDebug.log(log_msg)
+00372:       end
+00373:     end
+00374:     # Pick a move randomly from choices weighted by their scores
+00375:     randNum = pbAIRandom(total_score)
+00376:     choices.each do |c|
+00377:       randNum -= c[3]
+00378:       next if randNum >= 0
+00379:       @battle.pbRegisterMove(user_battler.index, c[0], false)
+00380:       @battle.pbRegisterTarget(user_battler.index, c[2]) if c[2] >= 0
+00381:       break
+00382:     end
+00383:     # Log the result
+00384:     if @battle.choices[user_battler.index][2]
+00385:       move_name = @battle.choices[user_battler.index][2].name
+00386:       if @battle.choices[user_battler.index][3] >= 0
+00387:         PBDebug.log("   => will use #{move_name} (target #{@battle.choices[user_battler.index][3]})")
+00388:       else
+00389:         PBDebug.log("   => will use #{move_name}")
+00390:       end
+00391:     end
+00392:   end
+00393: end
