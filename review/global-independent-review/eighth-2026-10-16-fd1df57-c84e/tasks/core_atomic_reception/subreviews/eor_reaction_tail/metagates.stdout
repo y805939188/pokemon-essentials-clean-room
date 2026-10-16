@@ -1,0 +1,274 @@
+module PBDebug
+  @@log = []
+
+  def self.logonerr
+    begin
+      yield
+    rescue
+      PBDebug.log("")
+      PBDebug.log("**Exception: #{$!.message}")
+      backtrace = ""
+      $!.backtrace.each { |line| backtrace += line + "\r\n" }
+      PBDebug.log(backtrace)
+      PBDebug.log("")
+      pbPrintException($!)   # if $INTERNAL
+      PBDebug.flush
+    end
+  end
+
+  def self.flush
+    if $DEBUG && $INTERNAL && @@log.length > 0
+      File.open("Data/debuglog.txt", "a+b") { |f| f.write(@@log.join) }
+    end
+    @@log.clear
+  end
+
+  def self.log(msg)
+    if $DEBUG && $INTERNAL
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_header(msg)
+    if $DEBUG && $INTERNAL
+      echoln Console.markup_style(msg.gsub("%", "%%"), text: :light_purple)
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_message(msg)
+    if $DEBUG && $INTERNAL
+      msg = "\"" + msg + "\""
+      echoln Console.markup_style(msg.gsub("%", "%%"), text: :dark_gray)
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_ai(msg)
+    if $DEBUG && $INTERNAL
+      msg = "[AI] " + msg
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_score_change(amt, msg)
+    return if amt == 0
+    if $DEBUG && $INTERNAL
+      sign = (amt > 0) ? "+" : "-"
+      amt_text = sprintf("%3d", amt.abs)
+      msg = "     #{sign}#{amt_text}: #{msg}"
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.dump(msg)
+    if $DEBUG && $INTERNAL
+      File.open("Data/dumplog.txt", "a+b") { |f| f.write("#{msg}\r\n") }
+    end
+  end
+end
+  def compile_pokemon_forms(*paths)
+    schema = GameData::Species.schema(true)
+    # Read from PBS file(s)
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      file_suffix = File.basename(path, ".txt")[GameData::Species::PBS_BASE_FILENAME[1].length + 1, path.length] || ""
+      File.open(path, "rb") do |f|
+        FileLineData.file = path   # For error reporting
+        # Read a whole section's lines at once, then run through this code.
+        # contents is a hash containing all the XXX=YYY lines in that section, where
+        # the keys are the XXX and the values are the YYY (as unprocessed strings).
+        idx = 0
+        pbEachFileSection(f, schema) do |contents, section_name|
+          echo "." if idx % 100 == 0
+          Graphics.update if idx % 500 == 0
+          idx += 1
+          data_hash = {
+            :id              => section_name.to_sym,
+            :pbs_file_suffix => file_suffix
+          }
+          # Go through schema hash of compilable data and compile this section
+          schema.each_key do |key|
+            FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+            if key == "SectionName"
+              data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+              next
+            end
+            # Skip empty properties
+            next if contents[key].nil?
+            # Compile value for key
+            if schema[key][1][0] == "^"
+              contents[key].each do |val|
+                value = get_csv_record(val, schema[key])
+                value = nil if value.is_a?(Array) && value.empty?
+                data_hash[schema[key][0]] ||= []
+                data_hash[schema[key][0]].push(value)
+              end
+              data_hash[schema[key][0]].compact!
+            else
+              value = get_csv_record(contents[key], schema[key])
+              value = nil if value.is_a?(Array) && value.empty?
+              data_hash[schema[key][0]] = value
+            end
+          end
+          # Validate and modify the compiled data
+          validate_compiled_pokemon_form(data_hash)
+          if GameData::Species.exists?(data_hash[:id])
+            raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+          end
+          # Add section's data to records
+          GameData::Species.register(data_hash)
+        end
+      end
+      process_pbs_file_message_end
+    end
+    validate_all_compiled_pokemon_forms
+    # Save all data
+    GameData::Species.save
+  end
+
+  def validate_compiled_pokemon_form(hash)
+    # Split species and form into their own values, generate compound ID from them
+    hash[:species] = hash[:id][0]
+    hash[:form] = hash[:id][1]
+    hash[:id] = sprintf("%s_%d", hash[:species].to_s, hash[:form]).to_sym
+    if !GameData::Species.exists?(hash[:species])
+      raise _INTL("Undefined species ID '{1}'.", hash[:species]) + "\n" + FileLineData.linereport
+    elsif GameData::Species.exists?(hash[:id])
+      raise _INTL("Form {1} for species ID '{2}' is defined twice.", hash[:form], hash[:species]) + "\n" + FileLineData.linereport
+    end
+    # Perform the same validations on this form as for a regular species
+    validate_compiled_pokemon(hash)
+    # Inherit undefined properties from base species
+    base_data = GameData::Species.get(hash[:species])
+    [:real_name, :real_category, :real_pokedex_entry, :base_exp, :growth_rate,
+     :gender_ratio, :catch_rate, :happiness, :hatch_steps, :incense, :height,
+     :weight, :color, :shape, :habitat, :generation].each do |property|
+      hash[property] = base_data.send(property) if hash[property].nil?
+    end
+    [:types, :base_stats, :evs, :tutor_moves, :egg_moves, :abilities,
+     :hidden_abilities, :egg_groups, :offspring, :flags].each do |property|
+      hash[property] = base_data.send(property).clone if hash[property].nil?
+    end
+    if !hash[:moves].is_a?(Array) || hash[:moves].length == 0
+      hash[:moves] ||= []
+      base_data.moves.each { |m| hash[:moves].push(m.clone) }
+    end
+    if !hash[:evolutions].is_a?(Array) || hash[:evolutions].length == 0
+      hash[:evolutions] ||= []
+      base_data.evolutions.each { |e| hash[:evolutions].push(e.clone) }
+    end
+    if hash[:wild_item_common].nil? && hash[:wild_item_uncommon].nil? &&
+       hash[:wild_item_rare].nil?
+  #=============================================================================
+  # Types
+  #=============================================================================
+
+  # @return [Array<Symbol>] an array of this Pokémon's types
+  def types
+    return species_data.types.clone
+  end
+
+  # @deprecated This method is slated to be removed in v22.
+  def type1
+    Deprecation.warn_method("type1", "v22", "pkmn.types")
+    return types[0]
+  #=============================================================================
+  # Ability
+  #=============================================================================
+
+  # The index of this Pokémon's ability (0, 1 are natural abilities, 2+ are
+  # hidden abilities) as defined for its species/form. An ability may not be
+  # defined at this index. Is recalculated (as 0 or 1) if made nil.
+  # @return [Integer] the index of this Pokémon's ability
+  def ability_index
+    @ability_index = (@personalID & 1) if !@ability_index
+    return @ability_index
+  end
+
+  # @param value [Integer, nil] forced ability index (nil if none is set)
+  def ability_index=(value)
+    @ability_index = value
+    @ability = nil
+  end
+
+  # @return [GameData::Ability, nil] an Ability object corresponding to this Pokémon's ability
+  def ability
+    return GameData::Ability.try_get(ability_id)
+  end
+
+  # @return [Symbol, nil] the ability symbol of this Pokémon's ability
+  def ability_id
+    if !@ability
+      sp_data = species_data
+      abil_index = ability_index
+      if abil_index >= 2   # Hidden ability
+        @ability = sp_data.hidden_abilities[abil_index - 2]
+        abil_index = (@personalID & 1) if !@ability
+      end
+      if !@ability   # Natural ability or no hidden ability defined
+        @ability = sp_data.abilities[abil_index] || sp_data.abilities[0]
+      end
+    end
+    return @ability
+  end
+
+  # @param value [Symbol, String, GameData::Ability, nil] ability to set
+  def ability=(value)
+    return if value && !GameData::Ability.exists?(value)
+    @ability = (value) ? GameData::Ability.get(value).id : value
+  end
+
+  # Returns whether this Pokémon has a particular ability. If no value
+  # is given, returns whether this Pokémon has an ability set.
+  # @param check_ability [Symbol, String, GameData::Ability, nil] ability ID to check
+  # @return [Boolean] whether this Pokémon has a particular ability or
+  #   an ability at all
+    end
+    # Attraction cures
+    pbItemStatusCureCheck
+    pbAbilityStatusCureCheck
+  end
+
+  def pbCureAttract
+    @effects[PBEffects::Attract] = -1
+  end
+
+  #=============================================================================
+  # Flinching
+  #=============================================================================
+## 5. 场地建立、有效成员、到期与直接移除（A/B）
+
+- 核心建立同当前场地直接返回不刷新；不同则覆盖，默认固定 5，可显式非固定 −1；来源有效大地膜使正期限 8。普通四场地招式同种失败，场地能力也按相同状态前门选择建立。核心通知按全员场地能力检查，再全员场地道具检查。
+- 受场地影响要求既非浮空又非半无敌。浮空查询先按有效黑色铁球、扎根、击落、重力判接地；否则飞行类型、未模式破坏的飘浮、有效气球、磁力飘浮、意念移物为浮空。不是只看飞行类型，也不把「接地」自动等同于受场地影响（半无敌还可拒绝）。
+- 电/草/精神威力增益、薄雾龙减伤引用 WP43；电防睡眠、薄雾防异常和世代 ≥ 7 防混乱引用 WP44；精神场地按已保存正优先级阻止对立方对受影响目标的招式，主入口 WP40。青草恢复在较早回合末局部：存活、受影响且可恢复 HP 时总 HP/16 整数商，实际恢复按 HP 上限和最小 1。
+- 场地正期限在后面的场地结束段减 1；到 0 且当前场地非无，清为无并通知场地能力。若默认非无，启动默认为 −1，然后该消费者再次调用全员场地能力及道具检查。一次这种恢复中，能力检查调用包括「清为空」一次、「重新建立」一次、「建立之后追加」一次；道具检查为后两次。具体处理器是否产出重复副作用由 WP49/50 复核，不删去已发生的调用。
+- 直接移除不是自然到期：铁滚轮/世代 ≥ 8 除雾的已读路径只把当前场地置无，保留期限数值，不触发上述自然到期通知/默认重启。之后正期限仍会减，但当前已为无时，不满足「非无且到 0」的恢复条件。不能写成「清除后必然恢复默认场地」。铁滚轮在当前无场地时前置失败；除雾是否成功还可由其它效果决定。
+- 期限 1 的青草在本轮较早恢复段仍可回血，稍后才到 0 消失；期限 1 的沙暴先结束再处理天气伤害。两者不可统一为「剩 1 时不再起效」。
+
+---
+
+## 6. 有界作用域目录（C）
+
+以下共 44 个参考效果记录，采用实际初值与生命周期；天气/场地及其 6 个来源/期限字段另列于 §2–5。复合效果的辅助记录不重复计为一个新工作包。
+
+### 6.1 全场 13 项
+
+| 记录（审计身份） | 建立/消费 | 期限/清理与责任 |
+| --- | --- | --- |
+| Gravity | 重力招式已有正值失败，成功设 5；接地、命中 ×5/3、禁用重力不允许的动作 | 回合末全场计时段 −1 至 0；建立时解除具名飞空两回合状态，未行动者清选择，清磁浮/意念移物/天空摔投；不推导所有半无敌皆解除 |
+| TrickRoom | 不存在设 5，存在则取消为 0；改变速度排序方向 | 全场计时段自然 −1；同一招式再次使用是取消，不刷新 5；排序重新计算时点 WP40 |
+| WonderRoom | 不存在设 5，存在取消；防御/特防原数值读取互换 | 计时段 −1；阶级不交换（WP43）；不是持久能力改写 |
+| MagicRoom | 不存在设 5，存在取消；使普通持有物有效查询为假 | 自然到期触发场地道具再检查；招式直接取消未显式做这次再检查。实物不因压制消失，例外道具使用完整族 WP50 |
+| MudSportField、WaterSportField | 世代 ≥ 6 各设 5，已有正值失败；电/火威力 ÷3 | 各计时段 −1；旧世代用成员 MudSport/WaterSport 布尔值，随其初始化清；普通替换不会清新式全场值 |
+| FairyLock | 已有正值失败，否则设 2，供拘束查询 | 完整尾清理正值 −1；WP41 的必换/必逃豁免与替补入口仍分层，不概括全场绝对无法离开 |
+| IonDeluge | 一般转电；变化招已有标记或已无其他未行动招式/Shift 席位可失败，伤害招不共用此失败前门 | 完整回合末尾清假；再次效果发现已真不重发建立消息 |
+| FusionBolt、FusionFlare | 对应连携在使用计数阶段先读前一标记，再正常清两标记，效果阶段设自己的真 | 普通招式计数更新也清两标记，完整尾再清；不保证「本轮曾用过」跨任意插入招一直保持。完整招式家族 WP47-A |

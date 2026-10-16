@@ -1,0 +1,261 @@
+/workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/010_SpeciesMetrics.rb
+/workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/009_Species_files.rb
+/workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/008_Species.rb
+/workspace/pokemon-essentials/Data/Scripts/010_Data/001_Hardcoded data/016_BattleTerrain.rb
+/workspace/pokemon-essentials/Data/Scripts/010_Data/001_Hardcoded data/008_Stat.rb
+class HandlerHashSymbol
+  def initialize
+    @hash    = {}
+    @add_ifs = {}
+  end
+
+  def [](sym)
+    sym = sym.id if !sym.is_a?(Symbol) && sym.respond_to?("id")
+    return @hash[sym] if sym && @hash[sym]
+    @add_ifs.each_value do |add_if|
+      return add_if[1] if add_if[0].call(sym)
+    end
+    return nil
+  end
+
+  def add(sym, handler = nil, &handlerBlock)
+    if ![Proc, Hash].include?(handler.class) && !block_given?
+      raise ArgumentError, "#{self.class.name} for #{sym.inspect} has no valid handler (#{handler.inspect} was given)"
+    end
+    @hash[sym] = handler || handlerBlock if sym
+  end
+
+  def addIf(sym, conditionProc, handler = nil, &handlerBlock)
+    if ![Proc, Hash].include?(handler.class) && !block_given?
+      raise ArgumentError, "addIf call for #{sym} in #{self.class.name} has no valid handler (#{handler.inspect} was given)"
+    end
+    @add_ifs[sym] = [conditionProc, handler || handlerBlock]
+  end
+
+  def copy(src, *dests)
+    handler = self[src]
+    return if !handler
+    dests.each { |dest| add(dest, handler) }
+  end
+
+  def remove(key)
+    @hash.delete(key)
+  end
+
+  def clear
+    @hash.clear
+    @add_ifs.clear
+  end
+
+  def trigger(sym, *args)
+    sym = sym.id if !sym.is_a?(Symbol) && sym.respond_to?("id")
+    handler = self[sym]
+    return handler&.call(sym, *args)
+  end
+end
+
+#===============================================================================
+# A specialised version of class HandlerHash which only deals with IDs that are
+#===============================================================================
+class SpeciesHandlerHash < HandlerHashSymbol
+end
+
+class AbilityHandlerHash < HandlerHashSymbol
+end
+
+class ItemHandlerHash < HandlerHashSymbol
+end
+
+class MoveHandlerHash < HandlerHashSymbol
+end
+  attr_reader :hp
+
+  def hp=(value)
+    @hp = value.to_i
+    @pokemon.hp = value.to_i if @pokemon
+  end
+
+  def fainted?; return @hp <= 0; end
+
+  attr_reader :status
+
+  def status=(value)
+    @effects[PBEffects::Truant] = false if @status == :SLEEP && value != :SLEEP
+    @effects[PBEffects::Toxic]  = 0 if value != :POISON || self.statusCount == 0
+    @status = value
+    @pokemon.status = value if @pokemon
+    self.statusCount = 0 if value != :POISON && value != :SLEEP
+    @battle.scene.pbRefreshOne(@index)
+  end
+
+  attr_reader :statusCount
+
+  def statusCount=(value)
+    @statusCount = value
+    @pokemon.statusCount = value if @pokemon
+    @battle.scene.pbRefreshOne(@index)
+  end
+
+  #=============================================================================
+  # Properties from Pokémon
+  #=============================================================================
+  def happiness;       return @pokemon ? @pokemon.happiness : 0;       end
+  def affection_level; return @pokemon ? @pokemon.affection_level : 2; end
+  def gender;          return @pokemon ? @pokemon.gender : 0;          end
+  def nature;          return @pokemon ? @pokemon.nature : nil;        end
+  def pokerusStage;    return @pokemon ? @pokemon.pokerusStage : 0;    end
+
+  #=============================================================================
+  # Mega Evolution, Primal Reversion, Shadow Pokémon
+  #=============================================================================
+  def hasMega?
+    return false if @effects[PBEffects::Transform]
+    return @pokemon&.hasMegaForm?
+  end
+
+  def mega?; return @pokemon&.mega?; end
+
+  def hasPrimal?
+    return false if @effects[PBEffects::Transform]
+    return @pokemon&.hasPrimalForm?
+  end
+
+  def primal?; return @pokemon&.primal?; end
+
+  def shadowPokemon?; return false; end
+
+  def inHyperMode?; return false; end
+
+  #=============================================================================
+  # Display-only properties
+  #=============================================================================
+        return false
+      end
+    end
+    return true
+  end
+
+  def canHeal?
+    return false if fainted? || @hp >= @totalhp
+    return false if @effects[PBEffects::HealBlock] > 0
+    return true
+  end
+
+  def affectedByContactEffect?(showMsg = false)
+    return false if fainted?
+    if hasActiveItem?(:PROTECTIVEPADS)
+      @battle.pbDisplay(_INTL("{1} protected itself with the {2}!", pbThis, itemName)) if showMsg
+      return false
+    end
+      next true
+    end
+    # In trainer battles
+    next false if battle.pbAllFainted?(battler.idxOpposingSide)
+    next false if !battle.pbCanSwitchOut?(battler.index)   # Battler can't switch out
+    next false if !battle.pbCanChooseNonActive?(battler.index)   # No Pokémon can switch in
+    battle.pbShowAbilitySplash(battler, true)
+    battle.pbHideAbilitySplash(battler)
+    if !Battle::Scene::USE_ABILITY_SPLASH
+      battle.pbDisplay(_INTL("{1}'s {2} activated!", battler.pbThis, battler.abilityName))
+    end
+    battle.pbDisplay(_INTL("{1} went back to {2}!",
+       battler.pbThis, battle.pbGetOwnerName(battler.index)))
+    if battle.endOfRound   # Just switch out
+      battle.scene.pbRecall(battler.index) if !battler.fainted?
+      battler.pbAbilitiesOnSwitchOut   # Inc. primordial weather check
+      next true
+    end
+    newPkmn = battle.pbGetReplacementPokemonIndex(battler.index)   # Owner chooses
+    next false if newPkmn < 0   # Shouldn't ever do this
+    battle.pbRecallAndReplace(battler.index, newPkmn)
+    battle.pbClearChoice(battler.index)   # Replacement Pokémon does nothing this round
+    battle.moldBreaker = false if move_user && battler.index == move_user.index
+    battle.pbOnBattlerEnteringBattle(battler.index)
+    next true
+  }
+)
+
+Battle::AbilityEffects::OnHPDroppedBelowHalf.copy(:EMERGENCYEXIT, :WIMPOUT)
+
+#===============================================================================
+# StatusCheckNonIgnorable handlers
+#===============================================================================
+
+Battle::AbilityEffects::StatusCheckNonIgnorable.add(:COMATOSE,
+  proc { |ability, battler, status|
+    next false if !battler.isSpecies?(:KOMALA)
+    next true if status.nil? || status == :SLEEP
+  }
+)
+
+#===============================================================================
+# StatusImmunity handlers
+#===============================================================================
+
+Battle::AbilityEffects::StatusImmunity.add(:FLOWERVEIL,
+  proc { |ability, battler, status|
+    next true if battler.pbHasType?(:GRASS)
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.add(:IMMUNITY,
+  proc { |ability, battler, status|
+    next true if status == :POISON
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.copy(:IMMUNITY, :PASTELVEIL)
+
+Battle::AbilityEffects::StatusImmunity.add(:INSOMNIA,
+  proc { |ability, battler, status|
+    next true if status == :SLEEP
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.copy(:INSOMNIA, :SWEETVEIL, :VITALSPIRIT)
+
+Battle::AbilityEffects::StatusImmunity.add(:LEAFGUARD,
+  proc { |ability, battler, status|
+    next true if [:Sun, :HarshSun].include?(battler.effectiveWeather)
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.add(:LIMBER,
+  proc { |ability, battler, status|
+    next true if status == :PARALYSIS
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.add(:MAGMAARMOR,
+  proc { |ability, battler, status|
+    next true if status == :FROZEN
+  }
+)
+
+Battle::AbilityEffects::StatusImmunity.add(:WATERVEIL,
+  proc { |ability, battler, status|
+    next true if status == :BURN
+  }
+)
+
+)
+
+#===============================================================================
+# OnEndOfUsingMove handlers
+#===============================================================================
+
+Battle::ItemEffects::OnEndOfUsingMove.add(:LEPPABERRY,
+  proc { |item, battler, battle, forced|
+    next false if !forced && !battler.canConsumeBerry?
+    found_empty_moves = []
+    found_partial_moves = []
+    battler.pokemon.moves.each_with_index do |move, i|
+      next if move.total_pp <= 0 || move.pp == move.total_pp
+      (move.pp == 0) ? found_empty_moves.push(i) : found_partial_moves.push(i)
+    end
+    next false if found_empty_moves.empty? && (!forced || found_partial_moves.empty?)
+    itemName = GameData::Item.get(item).name
+    PBDebug.log("[Item triggered] #{battler.pbThis}'s #{itemName}") if forced
+    amt = 10
+    ripening = false
+    if battler.hasActiveAbility?(:RIPEN)

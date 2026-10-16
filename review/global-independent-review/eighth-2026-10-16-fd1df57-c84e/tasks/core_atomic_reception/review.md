@@ -1,21 +1,15 @@
-# CORE独立原子/消费者接收（持续中）
+本片固定 B8/R 的完整独立静态审查及必要消费者接合已完成，保留既有有界必改结论。六份 primary 正文/目录、63 个完整原事实均已实际阅读；994 个旧定位各有具体意义或版式/范围处置，当前必要源码接口未读项为 0。该结论来自逐项实际接合，不由文件数、全文标签或旧 PASS 推得。
 
-本实际上下文已全文读固定B8六formal、固定R十六主源、十份Battler、Ability/Item效果注册与三十份必要支持源，共58R；全部63原fact完整记录已读。全文阅读和旧PASS均不代表全域语义通过，原子总分母未冻结。
+当前人工库存为 4510 条工作记录：4506 条行为/范围意义及 4 条明确审查备注；866 个旧定位拆为实际意义，128 个按具体版式/导航/历史用途处置。该库存不是已证明不可再分的全局原子分母，全局原子及接口分母仍 NOT_FROZEN。9 个旧定位明确为“审查完成且保留既有 required”，不是正文与源码一致。
 
-当前1899手工意义记录（含1明确非行为依赖备注），360旧locator已逐意义拆分，67项按真实布局/范围/历史用途处置。前427旧定位已有具体处置，真实外域消费者可精确OPEN；仍567旧locator待手工拆解。完整文件、编号、方法/结构枚举、同blob或十件文件存在均不代表收口。
+本上下文实际 own FULL 源为 74 个唯一 R 文件（16 主源、10 Battler、2 Ability/Item 注册源及 46 支持源）。两名真实新上下文只补原未完尾：EOR 反应族 10 个完整事实/17 个旧工作子项，回合复位 producer 47 个完整意义对象；本上下文已完整接收所采用对象、共同前提和必要更正。其源 FULL/原始数据阅读仍归实际 reader，不增加我的 74，也不增加独立裁决票。更早容量失败的 spawn 计 0 创建和 0 信用。
 
-完整有限贡献已实际接收：Ability/Item原载荷全部实际字段；CRE-A10事实+locator更正及18 lifecycle事实；Kernel9+导航更正+6配置；UI67全部21单元，媒体audio5/getter9；WORLD7选中完整单元、时间25断言和item更正；Facility22摘要/13接口/22身份；Move13完整notes/13原reader记录。源码FULL信用归原实际reader；全部具体语义仍按具名consumer与共同前提逐接。
+最后 20 行及 root C0002 历史来源接口已完整接收并绑定，见 last-source-consumer-finite-bindings.v1.json、eor-reaction-tail-finite-reception.v1.json、round-reset-producer-tail-finite-reception.v1.json 和 c0002-root-approved-input-reception.v1.json。C0002 只支持旧 v3 曾获限定批准与净化转写来源，严格区别旧 v3、管理回填及 B8 当前原规格身份；不授本轮行为免审。F059/F060/F063 后继仅关闭原事实正文及必要具体 primary 接口；旧“全部消费者”发现/移交标签、旧 167/187 OPEN 的捕获时态均保留，不将其变成全部动态或外域规范通过，见 final-three-original-fact-finite-bindings.v1.json。
 
-COM001/002/003、CRE001v2、COM004/005/006的完整不同上下文反证已实际接收。COM004仅WP39:109括注；COM005仅WP39:255最终朝向短语，其余正确scope、113、BC09等保留。COM006仅WP40:167火药自损两门括注；after-all-hits完整KERNEL反证已真收为0新增；默认世代表“怪力钳”完整候选待反证。历史全量去重和全局最终计数OPEN，不重计。
+完整不同非提出者反证和 root 有限结论均已实际接收：COM001–008 保持各自准确范围，CRE001 的 EV 前提失败保持原范围。COM005 同一根传播至 WP42，不另计票；正确 WP39:113/BC09、WP41 详细换入约定、WP46 all-hits 与正确配置分支均保留。after-all-hits、录制标量 helper、ECB 晚失败、WP30 取消动态图像读、participation、debug skip 及天气到期消息次序的有限 NO_REQUIRED 处置保留；不因额外可补向量强制改稿。全局去重、历史 currentness 和最终计数由 root 整合，本片不签全局 PASS。
 
-旧media-reception.v1和旧手工author包保留，必须同读audio-caller更正与delivery manifest：普通胜利BGM，capture非trainer ME。旧CORE-F054朝向缩写保完整原对象/父字节，必须同读core-f054-mandatory-straighten-clarification.v1：固定straighten仅条件pattern和动画计数/prelock复位，不是direction写。逐名实际接收状态仅按真回执，不造全ack。
+所有旧原载荷和已更正错误对象保原字节，采用时必须连同适用完整伴件：F054 straighten 仅动画/pattern/prelock 复位而不写 direction；普通胜利 BGM/捕获 ME；formal Faint 持久 status 守卫；Update 正确定义；Call 注册与执行；SelfSwitch 的 @map_id 与刷新门；GetMoveScores 完整结尾；C242 实际局部阅读范围；SendOut 默认 wild=false；野生敌侧半血退场先拒绝 live 同侧数>1，再检查 CanRun。精确伴件身份在 interfaces.json；未获全读资格的原尾/外域对象不冒领。
 
-刚作者C0379-02条款false-return已保旧完整对象并强制同读manual-07f-clause-return-clarification.v1；不得将failed消息当truthy拒绝。全部可读未读/未接收是持续工作OPEN，非材料/宿主limit。请求gpt-6.1-sol/ultra/default/Fast off，实际配置及opaqueID逐字段UNVERIFIED。唯一写集本目录；未commit/push/install/spawn、未改源或正式规格。业务NOT_EXECUTED；UPDATE_NOT_STARTED。
+十件主交付及真实阅读 I/O 在本目录。纯格式核验保留 ability-tuple-units.json 的 whole-JSON ExtraData/0 信用：其为原 NDJSON，另有 exact-format.ndjson 和显式格式澄清，不能声称 allJSONpass。平台早期 I/O 没有完整落盘时间的边界保留在 reading-ledger.json，未重建时间。请求 gpt-6.1-sol/ultra/default 普速/Fast off；实际 model、effort、tier、Fast、opaqueID 各为 UNVERIFIED。
 
-既有本context额外完成FAC单Trainer录制helper完整8节有限counter，NO_REQUIRED_BOUNDED_SCOPE推荐已交root，0新context/票，主责继续。AI原12完整单元/8reader身份对象及自身5完整AI入口源已读，仅replacement index/registration有限consumer收口，未授AI评分/786绑定整域。C426默认UI与debug分支必须同读manual-08a-debug-party-route-clarification.v1。
-
-2026-10-16T08:46:55.813148+00:00 — 08b adds22 manually decomposed oldlocators/89 meaningchildren, total1988 records incl1 nonbehavior dependency note; first449 oldlocators disposed,545 undecomposed. Six exact foreign/species/handler rows remainOPEN. COM007 final74289B ce2b6e… all607lines/all8sections and FAC58line rootreceipt actually fully received, with truncated embedded first-target output recovered before acceptance. Limited P3 cell identity only; FAC NO_REQUIRED, no new contexts/votes, source/game NOT_EXECUTED. C0427 mandatory Pursuit qualification retained in continuation. Existing-context ECB boundedcounter now underway before continuingC450.
-
-2026-10-16T08:56:46.137261+00:00 — ECB additional existing-context eight-sectioncounter delivered26073B d3ecbf… recommendsNO_REQUIRED_BOUNDED_SCOPE while retaining8 precise facts/35completeunits/22fixedGit parentidentities and full proposedlatefailuretrace. Root actualreceipt pending. PrimaryCORE resumesC0450; auxiliaryWP44 nowactualFULL203, primary6/source58 unchanged. No newcontext/vote/target execution/update.
-
-2026-10-16T09:24:57.208436+00:00 — ThroughC0533:2243 manuallyauthoredrecords incl1nonbehaviornote,454manualoldlocators+79scope/navigation dispositions=533/994 located,461undecomposed. WP41locatorpass isnot wholeconsumer closure. SourceownFULL59 inclStat119, primaryF6 unchanged, auxiliaryWP58/WP44 full separately. Allunreadforeignfamilies/callbacks remainpreciseOPEN. New86864B entry/recalc-order candidate has8sections/13R+2Fselectedunits andstrongestwhole-detail/startupcountercase, pendingactualothercontext, required0. ECBroot67line receipt actuallyreceivedNO_REQUIRED. ContinueWP42C0534; no source/formalupdate or gameexecution.
+没有运行目标/游戏/native/恢复程序，没有修改 R、formal 或 main，没有 commit/push/install。两真实子任务经 root 后继明确授权，只写各自独占子目录；其它有限 counter 写集按 root 逐项授权。业务 NOT_EXECUTED，UPDATE_NOT_STARTED。此处完成的是本次委派的有限静态贡献；不自动开始 R9、TS 或任何正式修订。

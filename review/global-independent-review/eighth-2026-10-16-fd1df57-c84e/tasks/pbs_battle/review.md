@@ -1,6 +1,6 @@
 # PBS-BATTLE 第八轮独立审读贡献
 
-本实际新上下文已完成固定 **21 个 R primary 路径、7704 个路径记录实例的作者字段与有限消费者语义审读／接收**。primary formal 为 0。状态为 `PRIMARY_COMPLETE_FINITE_JOINS_COMPLETE_GLOBAL_EXTERNAL_JOINS_OPEN`；新增 candidate 0、本人新增 required 0。外域可读记录、完整正式条款接收及历史资格仍开放，不能将本结果升级为全局 `NO_REQUIRED_UPDATE`。全部行为 `NOT_EXECUTED`，`UPDATE_NOT_STARTED`。
+本实际新上下文已完成固定 **21 个 R primary 路径、7704 个路径记录实例的作者字段与有限消费者语义审读／接收**。primary formal 为 0。状态为 `REVIEW_COMPLETE_WITH_RETAINED_SCOPE_QUALIFICATIONS_READY_FOR_ROOT_TASK_FINAL`；新增 candidate 0、本人新增 required 0。同上下文必要接口续审已逐一完成，当前必要可得未读／消费者未接收均为 0；外域个人原文未读、整域批准、历史及执行资格仍保原范围，不能将本结果升级为全局 `NO_REQUIRED_UPDATE`。全部行为 `NOT_EXECUTED`，`UPDATE_NOT_STARTED`。
 
 实际审者为 `/root/pbs_battle`。前两次被 thread limit 拒绝的尝试没有开工，不计审者；本次没有借用 `pbs_battle-reuse-com_move.md` 或通过角色改名制造独立性。请求 gpt-6.1-sol／ultra／default 普速／Fast off；实际 model、effort、tier、Fast 和 opaque 平台 session ID 均没有回显，逐字段 `UNVERIFIED`。公开逻辑入口就是上述任务名，原平台工具流不冒称可公开的 session 日志。
 
@@ -52,13 +52,20 @@ CRE-B 六物品路径的完整字段政策、每项 active handler 意义、价�
 
 [proposals.json](proposals.json) 新增 candidate 0。STICK／VICEGRIP 的原文兼容行为、显示描述与机制、条件化 backup、既有 KER003 和 AI001 均没有被重报必修。没有新提案，因此没有伪造非提出者反证或 root 裁决；将来发现新差异仍须完整八节及实际不同上下文反证。
 
-精确开放处置见 [interfaces.json](interfaces.json)：
+同一实际上下文续审后的处置见 [interfaces.json](interfaces.json)、[necessary-reception.v2.json](necessary-reception.v2.json) 与 [remaining.v2.json](remaining.v2.json)。**本方当前必要可得未读 0、必要消费者未接收 0**；原 21 路径的 11／5／4／1 阅读资格和 7704 记录分母不变，没有新增上下文或独立票。续审前原字节保留在 `continuation-v1/`。
 
-1. `PB-O01`：COM-AI 剩余 62 路径 union 中，本域只有 21 primary；另 41 路径中有 8 本人完整源、2 本人具名方法区间、1 Shadow items 具名接收、2 外域有限 source/query 接收，**28 路径的完整记录或源语义本人未接收**。逐个身份、owner 和范围列于 [external-data-62.json](external-data-62.json)。这些外域包括 species／forms／metrics／encounters／trainer 资料及其源，不应把本次 21 路径完成说成整个 AI 外部接口闭合。
-2. `PB-O02`：kernel supplemental formal 的其余原子断言、外域消费者及 kernel owner 尚未完成的反向接合，不由本域行定位或现有矩阵存在关闭。
-3. `PB-O03`：Move／AbilityItem／AI／Facility 的完整正式域和其原接口尾项仍归实际 owner；此次已接收的有限事实和 331／31 向量不授整个共享目录、所有回调组合或历史状态通过。
-4. `PB-O04`：当前有效历史／旧关闭资格、最终全局裁决由 root/history owner 接收；旧 PASS、相同 blob 和历史 CLOSED 均未代替当前证明。
+`PB-O01` 已按本方所需数据族收口。CURRENT 原实际读者的 11 路径／2178 完整记录贡献及 Gen5–8 独立读者的 6712 记录贡献，按各自当前有限接口和共同前提接收；不是本人再读 3940 基础／形态原文。固定备份贡献为 `96ee9a69e24d5e2063be7ebcf8de0fdb2e019510`，其 report、12 接口、necessary-provider 和 counter 完整实际读入，root task-final 的现行资格也完整读入。四代真实 reader 与 Gen7 UUID 自回显 UNVERIFIED 均保留。62 路径只是外域导航 union，原 28 个非本人完整原文路径仍逐个保留个人资格；它们的整域最终批准不构成本方已完成必要链的新阻塞。
 
-上述可读未接收均没有改叫“体量 limit”或“宿主 limit”。实际游戏／独立行为模型／宿主／媒体／真实 `.dat` 加载及保存重载运行均为 0，执行材料边界另列。静态 hash／JSON／身份／差集／定位检查只记 `TOOL_VALIDATION`。一次误用根目录名称的 rg 定位失败已更正；超长输出的截断处重新完整打印实际所需的 62 身份与 331 条向量意义，没有给截断部分信用。
+具体再接合了三持物池的同代具体继承、引用字段、保存值及实际生成。本人补读野生生成完整383–449、Pokemon 持物552–583和形态编译388–485：rarity 的一次 rand100 在三数组相等分支之前；三数组相等选 common.sample，全空得 nil；直接 item= 验证身份但不调用 can_hold?。normal50/5/1 与首成员 COMPOUNDEYES／配置 SUPERLUCK 的60/20/5分别保留；后继 PID／病毒／性别／性格／形态／callback 与已有前缀不合成全流程成功保证。
+
+`PB-O02` 的本方必要 schema／编译／加载／反写事实已由原亲读完整定义和上述限定贡献证明，没有再发现本方具体缺失的断言前提。已完整读 root 对 KERNEL 与 Developer 的 task-final；4732 个 kernel 意义原子仍属于真实 kernel reader，不借此更换本人 formal 分母或继承其原 2219 定位为通过。原五份补读 formal 和21个有限手写反向单元保原资格，其它 kernel 原属域条款不是新增本方无界欠项。
+
+`PB-O03` 的完整外域批准已从本方必要缺口中分离。原 Move／Battler／AbilityItem／AI／Facility 的有限贡献、331／31 向量和相应共同前提照常保留；此次另实际完整接收 Shadow18 招式和 Type1 的每个作者值／省略意义，以及 SSI01–12／TG01–14 的有限成功、目标、保护、免疫与失败前缀。实际原文读者仍为 PBS_CURRENT；SHADOW 的 IsSpecialType=true、IconPosition 编译为 Integer19，早期 JSON token 表示与8项强制标量伴件同用。四种 Target、TotalPP0、仅 SHADOWPANIC 带 Sound、SHADOWSHED exact RemoveAllScreens 缺实现与相近类不同，均与既有 factory／目标和正式范围接合。没有把所有740回调、267能力或任意插件的整域批准补成前提。
+
+所有必要强制伴件一并采用：Mail 正确源是006而非005；ShowQuantity 是 stored true OR nonimportant，独立于 Consumable；pinch mode false 是不要求 GLUTTONY，包含有效 GLUTTONY，并非要求其缺席。任意 Mega 石阻止 MegaMove、Encounter 成功谓词必 reset、TutorMoves 通用 uniq 三种过强旧句均明确不采用。原件不回填，当前正确条款不重复造提案。
+
+`PB-O04` 处置为保留 root 全局资格，不再冒充当前源缺读。root 的当前 task-final／已裁决 handoff 已按精确必要范围接收；全史等价目录、全局去重、真实配置和历史执行 UNVERIFIED 等仍由原 owner 保留。没有新 proposal，因此没有新增非提出者反证票。CURRENT 的既有 +1／602 数学审计也没有在本上下文重跑或另计。
+
+全部参考 Ruby／游戏／native／真实 `.dat`、保存重载、像素音频与业务状态模型依旧 NOT_EXECUTED。新工具操作只是读完整必要事实、字段和源方法，以及身份／JSON／现有载荷关联验证；没有把未执行变成“源材料不可得”。超长显示的截断处已按完整对象紧凑重显，未给截断部分信用。本方必要余项为零不等于整外国域、全史或全系统 PASS。
 
 本上下文只写 `tasks/pbs_battle/`，没有修改参考、formal、planning/audit、历史或其它 task，没有 commit、push、安装、spawn 或启动整改。交付时间见 progress.json 的 UTC 快照；平台尚未回显的真实进程结束时间不伪填。

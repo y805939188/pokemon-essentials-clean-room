@@ -1,0 +1,93 @@
+class Battle::Battler
+  #=============================================================================
+  # Change HP
+  #=============================================================================
+  def pbReduceHP(amt, anim = true, registerDamage = true, anyAnim = true)
+    amt = amt.round
+    amt = @hp if amt > @hp
+    amt = 1 if amt < 1 && !fainted?
+    oldHP = @hp
+    self.hp -= amt
+    PBDebug.log("[HP change] #{pbThis} lost #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+    raise _INTL("HP less than 0") if @hp < 0
+    raise _INTL("HP greater than total HP") if @hp > @totalhp
+    @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+    if amt > 0 && registerDamage
+      @droppedBelowHalfHP = true if @hp < @totalhp / 2 && @hp + amt >= @totalhp / 2
+      @tookDamageThisRound = true
+      @tookMoveDamageThisRound = true
+    end
+    return amt
+  end
+
+  def pbRecoverHP(amt, anim = true, anyAnim = true)
+    amt = amt.round
+    amt = @totalhp - @hp if amt > @totalhp - @hp
+    amt = 1 if amt < 1 && @hp < @totalhp
+    oldHP = @hp
+    self.hp += amt
+    PBDebug.log("[HP change] #{pbThis} gained #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+    raise _INTL("HP less than 0") if @hp < 0
+    raise _INTL("HP greater than total HP") if @hp > @totalhp
+    @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+    @droppedBelowHalfHP = false if @hp >= @totalhp / 2
+    return amt
+  end
+
+  def pbRecoverHPFromDrain(amt, target, msg = nil)
+    if target.hasActiveAbility?(:LIQUIDOOZE, true)
+      @battle.pbShowAbilitySplash(target)
+      pbReduceHP(amt)
+      @battle.pbDisplay(_INTL("{1} sucked up the liquid ooze!", pbThis))
+      @battle.pbHideAbilitySplash(target)
+      pbItemHPHealCheck
+    else
+      msg = _INTL("{1} had its energy drained!", target.pbThis) if nil_or_empty?(msg)
+      @battle.pbDisplay(msg)
+      if canHeal?
+        amt = (amt * 1.3).floor if hasActiveItem?(:BIGROOT)
+        pbRecoverHP(amt)
+      end
+    end
+  end
+
+  def pbTakeEffectDamage(amt, show_anim = true)
+    @droppedBelowHalfHP = false
+    hp_lost = pbReduceHP(amt, show_anim)
+    yield hp_lost if block_given?   # Show message
+    pbItemHPHealCheck
+    pbAbilitiesOnDamageTaken
+    pbFaint if fainted?
+    @droppedBelowHalfHP = false
+  end
+
+  def pbFaint(showMessage = true)
+    if !fainted?
+  end
+
+  # Used for Emergency Exit/Wimp Out. Returns whether self has switched out.
+  def pbAbilitiesOnDamageTaken(move_user = nil)
+    return false if !@droppedBelowHalfHP
+    return false if !abilityActive?
+    return Battle::AbilityEffects.triggerOnHPDroppedBelowHalf(self.ability, self, move_user, @battle)
+  end
+
+  def pbAbilityOnTerrainChange(ability_changed = false)
+    return if !abilityActive?
+    Battle::AbilityEffects.triggerOnTerrainChange(self.ability, self, @battle, ability_changed)
+  # Returns whether the given position belongs to the opposing Pokémon's side.
+  def opposes?(i = 0)
+    i = i.index if i.respond_to?("index")
+    return (@index & 1) != (i & 1)
+  end
+
+  # Returns whether the given position/battler is near to self.
+  def near?(i)
+    i = i.index if i.respond_to?("index")
+    return @battle.nearBattlers?(@index, i)
+  end
+
+  # Returns whether self is owned by the player.
+  def pbOwnedByPlayer?
+    return @battle.pbOwnedByPlayer?(@index)
+  end

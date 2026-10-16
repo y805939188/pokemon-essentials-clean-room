@@ -1,0 +1,190 @@
+00001: class Player < Trainer
+00002:   # Represents the player's Pokédex.
+00003:   class Pokedex
+00004:     # @return [Array<Integer>] an array of accessible Dexes
+00005:     # @see #refresh_accessible_dexes
+00006:     attr_reader :accessible_dexes
+00007: 
+00008:     def inspect
+00009:       str = super.chop
+00010:       str << sprintf(" seen: %d, owned: %d>", self.seen_count, self.owned_count)
+00011:       return str
+00012:     end
+00013: 
+00014:     # Creates an empty Pokédex.
+00015:     def initialize
+00016:       @unlocked_dexes = []
+00017:       0.upto(pbLoadRegionalDexes.length) do |i|
+00018:         @unlocked_dexes[i] = (i == 0)
+00019:       end
+00020:       self.clear
+00021:     end
+00022: 
+00023:     # Clears the Pokédex.
+00024:     def clear
+00025:       @seen            = {}
+00026:       @owned           = {}
+00027:       @seen_forms      = {}   # Gender (0 or 1), shiny (0 or 1), form number
+00028:       @seen_eggs       = {}
+00029:       @last_seen_forms = {}
+00030:       @owned_shadow    = {}
+00031:       @caught_counts   = {}
+00032:       @defeated_counts = {}
+00033:       self.refresh_accessible_dexes
+00034:     end
+00035: 
+00036:     #===========================================================================
+00037: 
+00038:     # Sets the given species as seen in the Pokédex.
+00039:     # @param species [Symbol, GameData::Species] species to set as seen
+00040:     # @param should_refresh_dexes [Boolean] whether Dex accessibility should be recalculated
+00041:     def set_seen(species, should_refresh_dexes = true)
+00042:       species_id = GameData::Species.try_get(species)&.species
+00043:       return if species_id.nil?
+00044:       @seen[species_id] = true
+00045:       self.refresh_accessible_dexes if should_refresh_dexes
+00046:     end
+00047: 
+00048:     # @param species [Symbol, GameData::Species] species to check
+00049:     # @return [Boolean] whether the species is seen
+00050:     def seen?(species)
+00051:       species_id = GameData::Species.try_get(species)&.species
+00052:       return false if species_id.nil?
+00053:       return @seen[species_id] == true
+00054:     end
+00055: 
+00056:     # @param species [Symbol, GameData::Species] species to check
+00057:     # @param gender [Integer] gender to check
+00058:     # @param form [Integer] form to check
+00059:     # @param shiny [Boolean, nil] shininess to check (checks both if nil)
+00060:     # @return [Boolean] whether the species of the given gender/form/shininess is seen
+00061:     def seen_form?(species, gender, form, shiny = nil)
+00062:       species_id = GameData::Species.try_get(species)&.species
+00063:       return false if species_id.nil?
+00064:       @seen_forms[species_id] ||= [[[], []], [[], []]]
+00065:       if shiny.nil?
+00066:         return @seen_forms[species_id][gender][0][form] || @seen_forms[species_id][gender][1][form]
+00067:       end
+00068:       shin = (shiny) ? 1 : 0
+00069:       return @seen_forms[species_id][gender][shin][form] == true
+00070:     end
+00071: 
+00072:     # Sets the egg for the given species as seen.
+00073:     # @param species [Symbol, GameData::Species] species to set as seen
+00074:     def set_seen_egg(species)
+00075:       species_id = GameData::Species.try_get(species)&.species
+00076:       return if species_id.nil?
+00077:       @seen_eggs[species_id] = true
+00078:     end
+00079: 
+00080:     # @param species [Symbol, GameData::Species] species to check
+00081:     # @return [Boolean] whether the egg for the given species is seen
+00082:     def seen_egg?(species)
+00083:       species_id = GameData::Species.try_get(species)&.species
+00084:       return false if species_id.nil?
+00085:       return @seen_eggs[species_id] == true
+00086:     end
+00087: 
+00088:     # Returns the amount of seen Pokémon.
+00089:     # If a region ID is given, returns the amount of seen Pokémon
+00090:     # in that region.
+00091:     # @param dex [Integer] region ID
+00092:     def seen_count(dex = -1)
+00093:       validate dex => Integer
+00094:       return self.count_species(@seen, dex)
+00095:     end
+00096: 
+00097:     # Returns whether there are any seen Pokémon.
+00098:     # If a region is given, returns whether there are seen Pokémon
+00099:     # in that region.
+00100:     # @param dex [Integer] region ID
+00101:     # @return [Boolean] whether there are any seen Pokémon
+00102:     def seen_any?(dex = -1)
+00103:       validate dex => Integer
+00104:       if dex == -1
+00105:         GameData::Species.each_species { |s| return true if @seen[s.species] }
+00106:       else
+00107:         pbAllRegionalSpecies(dex).each { |s| return true if s && @seen[s] }
+00108:       end
+00109:       return false
+00110:     end
+00111: 
+00112:     # Returns the amount of seen forms for the given species.
+00113:     # @param species [Symbol, GameData::Species] Pokémon species
+00114:     # @return [Integer] amount of seen forms
+00115:     def seen_forms_count(species)
+00116:       species_id = GameData::Species.try_get(species)&.species
+00117:       return 0 if species_id.nil?
+00118:       ret = 0
+00119:       @seen_forms[species_id] ||= [[[], []], [[], []]]
+00120:       array = @seen_forms[species_id]
+00121:       [array[0].length, array[1].length].max.times do |i|
+00122:         ret += 1 if array[0][0][i] || array[0][1][i] ||   # male or genderless shiny/non-shiny
+00123:                     array[1][0][i] || array[1][1][i]      # female shiny/non-shiny
+00124:       end
+00125:       return ret
+00126:     end
+00127: 
+00128:     # @param species [Symbol, GameData::Species] Pokémon species
+00129:     def last_form_seen(species)
+00130:       @last_seen_forms[species] ||= []
+00131:       return @last_seen_forms[species][0] || 0, @last_seen_forms[species][1] || 0, @last_seen_forms[species][2] || false
+00132:     end
+00133: 
+00134:     # @param species [Symbol, GameData::Species] Pokémon species
+00135:     # @param gender [Integer] gender (0=male, 1=female, 2=genderless)
+00136:     # @param form [Integer] form number
+00137:     # @param shiny [Boolean] shininess
+00138:     def set_last_form_seen(species, gender = 0, form = 0, shiny = false)
+00139:       @last_seen_forms[species] = [gender, form, shiny]
+00140:     end
+00141: 
+00142:     #---------------------------------------------------------------------------
+00143: 
+00144:     # Sets the given species as owned in the Pokédex.
+00145:     # @param species [Symbol, GameData::Species] species to set as owned
+00146:     # @param should_refresh_dexes [Boolean] whether Dex accessibility should be recalculated
+00147:     def set_owned(species, should_refresh_dexes = true)
+00148:       species_id = GameData::Species.try_get(species)&.species
+00149:       return if species_id.nil?
+00150:       @owned[species_id] = true
+00151:       self.refresh_accessible_dexes if should_refresh_dexes
+00152:     end
+00153: 
+00154:     # Sets the given species as owned in the Pokédex.
+00155:     # @param species [Symbol, GameData::Species] species to set as owned
+00156:     def set_shadow_pokemon_owned(species)
+00157:       species_id = GameData::Species.try_get(species)&.species
+00158:       return if species_id.nil?
+00159:       @owned_shadow[species_id] = true
+00160:       self.refresh_accessible_dexes
+00161:     end
+00162: 
+00163:     # @param species [Symbol, GameData::Species] species to check
+00164:     # @return [Boolean] whether the species is owned
+00165:     def owned?(species)
+00166:       species_id = GameData::Species.try_get(species)&.species
+00167:       return false if species_id.nil?
+00168:       return @owned[species_id] == true
+00169:     end
+00170: 
+00171:     # @param species [Symbol, GameData::Species] species to check
+00172:     # @return [Boolean] whether a Shadow Pokémon of the species is owned
+00173:     def owned_shadow_pokemon?(species)
+00174:       species_id = GameData::Species.try_get(species)&.species
+00175:       return false if species_id.nil?
+00176:       return @owned_shadow[species_id] == true
+00177:     end
+00178: 
+00179:     # Returns the amount of owned Pokémon.
+00180:     # If a region ID is given, returns the amount of owned Pokémon
+00181:     # in that region.
+00182:     # @param dex [Integer] region ID
+00183:     def owned_count(dex = -1)
+00184:       validate dex => Integer
+00185:       return self.count_species(@owned, dex)
+00186:     end
+00187: 
+00188:     #---------------------------------------------------------------------------
+00189: 
+00190:     # @param species [Pokemon, Symbol, GameData::Species] Pokemon to register as seen

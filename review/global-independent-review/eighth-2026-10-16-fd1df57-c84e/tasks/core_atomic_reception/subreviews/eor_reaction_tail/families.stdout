@@ -1,0 +1,431 @@
+#===============================================================================
+#
+#===============================================================================
+module Battle::AbilityEffects
+  SpeedCalc                        = AbilityHandlerHash.new
+  WeightCalc                       = AbilityHandlerHash.new
+  # Battler's HP/stat changed
+  OnHPDroppedBelowHalf             = AbilityHandlerHash.new
+  # Battler's status problem
+  StatusCheckNonIgnorable          = AbilityHandlerHash.new   # Comatose
+  StatusImmunity                   = AbilityHandlerHash.new
+  StatusImmunityNonIgnorable       = AbilityHandlerHash.new
+  StatusImmunityFromAlly           = AbilityHandlerHash.new
+  OnStatusInflicted                = AbilityHandlerHash.new   # Synchronize
+  StatusCure                       = AbilityHandlerHash.new
+  # Battler's stat stages
+  StatLossImmunity                 = AbilityHandlerHash.new
+  StatLossImmunityNonIgnorable     = AbilityHandlerHash.new   # Full Metal Body
+  StatLossImmunityFromAlly         = AbilityHandlerHash.new   # Flower Veil
+  OnStatGain                       = AbilityHandlerHash.new   # None!
+  OnStatLoss                       = AbilityHandlerHash.new
+  # Priority and turn order
+  PriorityChange                   = AbilityHandlerHash.new
+  PriorityBracketChange            = AbilityHandlerHash.new   # Stall
+  PriorityBracketUse               = AbilityHandlerHash.new   # None!
+  # Move usage failures
+  OnFlinch                         = AbilityHandlerHash.new   # Steadfast
+  MoveBlocking                     = AbilityHandlerHash.new
+  MoveImmunity                     = AbilityHandlerHash.new
+  # Move usage
+  ModifyMoveBaseType               = AbilityHandlerHash.new
+  # Accuracy calculation
+  AccuracyCalcFromUser             = AbilityHandlerHash.new
+  AccuracyCalcFromAlly             = AbilityHandlerHash.new   # Victory Star
+  AccuracyCalcFromTarget           = AbilityHandlerHash.new
+  # Damage calculation
+  DamageCalcFromUser               = AbilityHandlerHash.new
+  DamageCalcFromAlly               = AbilityHandlerHash.new
+  DamageCalcFromTarget             = AbilityHandlerHash.new
+  DamageCalcFromTargetNonIgnorable = AbilityHandlerHash.new
+  DamageCalcFromTargetAlly         = AbilityHandlerHash.new
+  CriticalCalcFromUser             = AbilityHandlerHash.new
+  CriticalCalcFromTarget           = AbilityHandlerHash.new
+  # Upon a move hitting a target
+  OnBeingHit                       = AbilityHandlerHash.new
+  OnDealingHit                     = AbilityHandlerHash.new   # Poison Touch
+  # Abilities that trigger at the end of using a move
+  OnEndOfUsingMove                 = AbilityHandlerHash.new
+  AfterMoveUseFromTarget           = AbilityHandlerHash.new
+  # End Of Round
+  EndOfRoundWeather                = AbilityHandlerHash.new
+  EndOfRoundHealing                = AbilityHandlerHash.new
+  EndOfRoundEffect                 = AbilityHandlerHash.new
+  EndOfRoundGainItem               = AbilityHandlerHash.new
+  # Switching and fainting
+  CertainSwitching                 = AbilityHandlerHash.new   # None!
+  TrappingByTarget                 = AbilityHandlerHash.new
+  OnSwitchIn                       = AbilityHandlerHash.new
+  OnSwitchOut                      = AbilityHandlerHash.new
+  ChangeOnBattlerFainting          = AbilityHandlerHash.new
+  OnBattlerFainting                = AbilityHandlerHash.new   # Soul-Heart
+  OnTerrainChange                  = AbilityHandlerHash.new   # Mimicry
+  OnIntimidated                    = AbilityHandlerHash.new   # Rattled (Gen 8)
+  # Running from battle
+  CertainEscapeFromBattle          = AbilityHandlerHash.new   # Run Away
+
+  #=============================================================================
+
+  def self.trigger(hash, *args, ret: false)
+    new_ret = hash.trigger(*args)
+    return (!new_ret.nil?) ? new_ret : ret
+  end
+
+  #=============================================================================
+
+  def self.triggerSpeedCalc(ability, battler, mult)
+    return trigger(SpeedCalc, ability, battler, mult, ret: mult)
+  end
+
+  def self.triggerWeightCalc(ability, battler, weight)
+    return trigger(WeightCalc, ability, battler, weight, ret: weight)
+  end
+
+  #=============================================================================
+
+  def self.triggerOnHPDroppedBelowHalf(ability, user, move_user, battle)
+    return trigger(OnHPDroppedBelowHalf, ability, user, move_user, battle)
+  end
+
+  #=============================================================================
+
+  def self.triggerStatusCheckNonIgnorable(ability, battler, status)
+    return trigger(StatusCheckNonIgnorable, ability, battler, status)
+  end
+
+  def self.triggerStatusImmunity(ability, battler, status)
+    return trigger(StatusImmunity, ability, battler, status)
+  end
+
+  def self.triggerStatusImmunityNonIgnorable(ability, battler, status)
+    next if battler.status == :NONE
+    next unless battle.pbRandom(100) < 30
+    battle.pbShowAbilitySplash(battler)
+    oldStatus = battler.status
+    battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+    if !Battle::Scene::USE_ABILITY_SPLASH
+      case oldStatus
+      when :SLEEP
+        battle.pbDisplay(_INTL("{1}'s {2} woke it up!", battler.pbThis, battler.abilityName))
+      when :POISON
+        battle.pbDisplay(_INTL("{1}'s {2} cured its poison!", battler.pbThis, battler.abilityName))
+      when :BURN
+        battle.pbDisplay(_INTL("{1}'s {2} healed its burn!", battler.pbThis, battler.abilityName))
+      when :PARALYSIS
+        battle.pbDisplay(_INTL("{1}'s {2} cured its paralysis!", battler.pbThis, battler.abilityName))
+      when :FROZEN
+        battle.pbDisplay(_INTL("{1}'s {2} defrosted it!", battler.pbThis, battler.abilityName))
+      end
+    end
+    battle.pbHideAbilitySplash(battler)
+  }
+)
+
+#===============================================================================
+# EndOfRoundEffect handlers
+#===============================================================================
+
+Battle::AbilityEffects::EndOfRoundEffect.add(:BADDREAMS,
+  proc { |ability, battler, battle|
+    battle.allOtherSideBattlers(battler.index).each do |b|
+      next if !b.near?(battler) || !b.asleep?
+      battle.pbShowAbilitySplash(battler)
+      next if !b.takesIndirectDamage?(Battle::Scene::USE_ABILITY_SPLASH)
+      b.pbTakeEffectDamage(b.totalhp / 8) do |hp_lost|
+        if Battle::Scene::USE_ABILITY_SPLASH
+          battle.pbDisplay(_INTL("{1} is tormented!", b.pbThis))
+        else
+          battle.pbDisplay(_INTL("{1} is tormented by {2}'s {3}!",
+             b.pbThis, battler.pbThis(true), battler.abilityName))
+        end
+        battle.pbHideAbilitySplash(battler)
+      end
+    end
+  }
+)
+
+Battle::AbilityEffects::EndOfRoundEffect.add(:MOODY,
+  proc { |ability, battler, battle|
+    randomUp = []
+    randomDown = []
+    if Settings::MECHANICS_GENERATION >= 8
+      GameData::Stat.each_main_battle do |s|
+        randomUp.push(s.id) if battler.pbCanRaiseStatStage?(s.id, battler)
+        randomDown.push(s.id) if battler.pbCanLowerStatStage?(s.id, battler)
+      end
+    else
+      GameData::Stat.each_battle do |s|
+        randomUp.push(s.id) if battler.pbCanRaiseStatStage?(s.id, battler)
+        randomDown.push(s.id) if battler.pbCanLowerStatStage?(s.id, battler)
+      end
+    end
+    next if randomUp.length == 0 && randomDown.length == 0
+    battle.pbShowAbilitySplash(battler)
+    if randomUp.length > 0
+      r = battle.pbRandom(randomUp.length)
+      battler.pbRaiseStatStageByAbility(randomUp[r], 2, battler, false)
+      randomDown.delete(randomUp[r])
+    end
+    if randomDown.length > 0
+      r = battle.pbRandom(randomDown.length)
+      battler.pbLowerStatStageByAbility(randomDown[r], 1, battler, false)
+    end
+    battle.pbHideAbilitySplash(battler)
+    battler.pbItemStatRestoreCheck if randomDown.length > 0
+    battler.pbItemOnStatDropped
+  }
+)
+
+Battle::AbilityEffects::EndOfRoundEffect.add(:SPEEDBOOST,
+  proc { |ability, battler, battle|
+    # A Pokémon's turnCount is 0 if it became active after the beginning of a
+    # round
+    if battler.turnCount > 0 && battle.choices[battler.index][0] != :Run &&
+       battler.pbCanRaiseStatStage?(:SPEED, battler)
+      battler.pbRaiseStatStageByAbility(:SPEED, 1, battler)
+    end
+  }
+)
+
+#===============================================================================
+# EndOfRoundGainItem handlers
+#===============================================================================
+
+Battle::AbilityEffects::EndOfRoundGainItem.add(:BALLFETCH,
+  proc { |ability, battler, battle|
+    next if battler.item
+    next if battle.first_poke_ball.nil?
+    battle.pbShowAbilitySplash(battler)
+    battler.item = battle.first_poke_ball
+    battler.setInitialItem(battler.item) if !battler.initialItem
+    battle.first_poke_ball = nil
+    battle.pbDisplay(_INTL("{1} retrieved the thrown {2}!", battler.pbThis, battler.itemName))
+    battle.pbHideAbilitySplash(battler)
+    battler.pbHeldItemTriggerCheck
+  }
+)
+
+Battle::AbilityEffects::EndOfRoundGainItem.add(:HARVEST,
+  proc { |ability, battler, battle|
+    next if battler.item
+    next if !battler.recycleItem || !GameData::Item.get(battler.recycleItem).is_berry?
+    if ![:Sun, :HarshSun].include?(battler.effectiveWeather)
+      next unless battle.pbRandom(100) < 50
+    end
+    battle.pbShowAbilitySplash(battler)
+    battler.item = battler.recycleItem
+    battler.setRecycleItem(nil)
+    battler.setInitialItem(battler.item) if !battler.initialItem
+    battle.pbDisplay(_INTL("{1} harvested one {2}!", battler.pbThis, battler.itemName))
+    battle.pbHideAbilitySplash(battler)
+    battler.pbHeldItemTriggerCheck
+  }
+)
+
+Battle::AbilityEffects::EndOfRoundGainItem.add(:PICKUP,
+  proc { |ability, battler, battle|
+    next if battler.item
+    foundItem = nil
+    fromBattler = nil
+    use = 0
+    battle.allBattlers.each do |b|
+      next if b.index == battler.index
+      next if b.effects[PBEffects::PickupUse] <= use
+      foundItem   = b.effects[PBEffects::PickupItem]
+      fromBattler = b
+      use         = b.effects[PBEffects::PickupUse]
+    end
+    next if !foundItem
+    battle.pbShowAbilitySplash(battler)
+    battler.item = foundItem
+    fromBattler.effects[PBEffects::PickupItem] = nil
+    fromBattler.effects[PBEffects::PickupUse]  = 0
+    fromBattler.setRecycleItem(nil) if fromBattler.recycleItem == foundItem
+    if battle.wildBattle? && !battler.initialItem && fromBattler.initialItem == foundItem
+      battler.setInitialItem(foundItem)
+      fromBattler.setInitialItem(nil)
+    end
+    battle.pbDisplay(_INTL("{1} found one {2}!", battler.pbThis, battler.itemName))
+    battle.pbHideAbilitySplash(battler)
+    battler.pbHeldItemTriggerCheck
+  }
+)
+
+#===============================================================================
+# CertainSwitching handlers
+#===============================================================================
+
+# There aren't any!
+
+#===============================================================================
+# TrappingByTarget handlers
+#===============================================================================
+
+Battle::AbilityEffects::TrappingByTarget.add(:ARENATRAP,
+  proc { |ability, switcher, bearer, battle|
+    next true if !switcher.airborne?
+  }
+)
+
+Battle::AbilityEffects::TrappingByTarget.add(:MAGNETPULL,
+  proc { |ability, switcher, bearer, battle|
+    next true if switcher.pbHasType?(:STEEL)
+  }
+)
+
+Battle::AbilityEffects::TrappingByTarget.add(:SHADOWTAG,
+  proc { |ability, switcher, bearer, battle|
+    next true if !switcher.hasActiveAbility?(:SHADOWTAG)
+  }
+)
+
+#===============================================================================
+# OnSwitchIn handlers
+#===============================================================================
+
+Battle::AbilityEffects::OnSwitchIn.add(:AIRLOCK,
+  proc { |ability, battler, battle, switch_in|
+    battle.pbShowAbilitySplash(battler)
+    if !Battle::Scene::USE_ABILITY_SPLASH
+      battle.pbDisplay(_INTL("{1} has {2}!", battler.pbThis, battler.abilityName))
+    end
+Battle::ItemEffects::TerrainStatBoost.add(:PSYCHICSEED,
+  proc { |item, battler, battle|
+    next false if battle.field.terrain != :Psychic
+    next false if !battler.pbCanRaiseStatStage?(:SPECIAL_DEFENSE, battler)
+    itemName = GameData::Item.get(item).name
+    battle.pbCommonAnimation("UseItem", battler)
+    next battler.pbRaiseStatStageByCause(:SPECIAL_DEFENSE, 1, battler, itemName)
+  }
+)
+
+#===============================================================================
+# EndOfRoundHealing handlers
+#===============================================================================
+
+Battle::ItemEffects::EndOfRoundHealing.add(:BLACKSLUDGE,
+  proc { |item, battler, battle|
+    if battler.pbHasType?(:POISON)
+      next if !battler.canHeal?
+      battle.pbCommonAnimation("UseItem", battler)
+      battler.pbRecoverHP(battler.totalhp / 16)
+      battle.pbDisplay(_INTL("{1} restored a little HP using its {2}!",
+         battler.pbThis, battler.itemName))
+    elsif battler.takesIndirectDamage?
+      battle.pbCommonAnimation("UseItem", battler)
+      battler.pbTakeEffectDamage(battler.totalhp / 8) do |hp_lost|
+        battle.pbDisplay(_INTL("{1} is hurt by its {2}!", battler.pbThis, battler.itemName))
+      end
+    end
+  }
+)
+
+Battle::ItemEffects::EndOfRoundHealing.add(:LEFTOVERS,
+  proc { |item, battler, battle|
+    next if !battler.canHeal?
+    battle.pbCommonAnimation("UseItem", battler)
+    battler.pbRecoverHP(battler.totalhp / 16)
+    battle.pbDisplay(_INTL("{1} restored a little HP using its {2}!",
+       battler.pbThis, battler.itemName))
+  }
+)
+
+#===============================================================================
+# EndOfRoundEffect handlers
+#===============================================================================
+
+Battle::ItemEffects::EndOfRoundEffect.add(:FLAMEORB,
+  proc { |item, battler, battle|
+    next if !battler.pbCanBurn?(battler, false)
+    battler.pbBurn(nil, _INTL("{1} was burned by the {2}!", battler.pbThis, battler.itemName))
+  }
+)
+
+Battle::ItemEffects::EndOfRoundEffect.add(:STICKYBARB,
+  proc { |item, battler, battle|
+    next if !battler.takesIndirectDamage?
+    battle.scene.pbDamageAnimation(battler)
+    battler.pbTakeEffectDamage(battler.totalhp / 8, false) do |hp_lost|
+      battle.pbDisplay(_INTL("{1} is hurt by its {2}!", battler.pbThis, battler.itemName))
+    end
+  }
+)
+
+Battle::ItemEffects::EndOfRoundEffect.add(:TOXICORB,
+  proc { |item, battler, battle|
+    next if !battler.pbCanPoison?(battler, false)
+    battler.pbPoison(nil, _INTL("{1} was badly poisoned by the {2}!",
+       battler.pbThis, battler.itemName), true)
+  }
+)
+
+#===============================================================================
+# CertainSwitching handlers
+#===============================================================================
+
+Battle::ItemEffects::CertainSwitching.add(:SHEDSHELL,
+  proc { |item, battler, battle|
+    next true
+  }
+)
+
+#===============================================================================
+# TrappingByTarget handlers
+#===============================================================================
+
+# There aren't any!
+
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:8:  HPHeal                          = ItemHandlerHash.new
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:9:  OnStatLoss                      = ItemHandlerHash.new
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:32:  OnEndOfUsingMoveStatRestore     = ItemHandlerHash.new   # White Herb
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:39:  TerrainStatBoost                = ItemHandlerHash.new
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:70:  def self.triggerHPHeal(item, battler, battle, forced)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:71:    return trigger(HPHeal, item, battler, battle, forced)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:74:  def self.triggerOnStatLoss(item, user, move_user, battle)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:75:    return trigger(OnStatLoss, item, user, move_user, battle)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:152:  def self.triggerOnEndOfUsingMoveStatRestore(item, battler, battle, forced)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:153:    return trigger(OnEndOfUsingMoveStatRestore, item, battler, battle, forced)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:178:  def self.triggerTerrainStatBoost(item, battler, battle)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:179:    return trigger(TerrainStatBoost, item, battler, battle)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:260:# HPHeal handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:263:Battle::ItemEffects::HPHeal.add(:AGUAVBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:271:Battle::ItemEffects::HPHeal.add(:APICOTBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:277:Battle::ItemEffects::HPHeal.add(:BERRYJUICE,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:294:Battle::ItemEffects::HPHeal.add(:FIGYBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:302:Battle::ItemEffects::HPHeal.add(:GANLONBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:308:Battle::ItemEffects::HPHeal.add(:IAPAPABERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:316:Battle::ItemEffects::HPHeal.add(:LANSATBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:332:Battle::ItemEffects::HPHeal.add(:LIECHIBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:338:Battle::ItemEffects::HPHeal.add(:MAGOBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:346:Battle::ItemEffects::HPHeal.add(:MICLEBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:364:Battle::ItemEffects::HPHeal.add(:ORANBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:389:Battle::ItemEffects::HPHeal.add(:PETAYABERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:395:Battle::ItemEffects::HPHeal.add(:SALACBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:401:Battle::ItemEffects::HPHeal.add(:SITRUSBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:426:Battle::ItemEffects::HPHeal.add(:STARFBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:436:Battle::ItemEffects::HPHeal.add(:WIKIBERRY,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:445:# OnStatLoss handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:447:Battle::ItemEffects::OnStatLoss.add(:EJECTPACK,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1592:    user.pbItemHPHealCheck
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1666:# OnEndOfUsingMoveStatRestore handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1669:Battle::ItemEffects::OnEndOfUsingMoveStatRestore.add(:WHITEHERB,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1787:# TerrainStatBoost handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1790:Battle::ItemEffects::TerrainStatBoost.add(:ELECTRICSEED,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1800:Battle::ItemEffects::TerrainStatBoost.add(:GRASSYSEED,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1810:Battle::ItemEffects::TerrainStatBoost.add(:MISTYSEED,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb:1820:Battle::ItemEffects::TerrainStatBoost.add(:PSYCHICSEED,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:21:  OnStatLoss                       = AbilityHandlerHash.new
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:62:  OnTerrainChange                  = AbilityHandlerHash.new   # Mimicry
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:134:  def self.triggerOnStatLoss(ability, battler, stat, user)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:135:    OnStatLoss.trigger(ability, battler, stat, user)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:280:  def self.triggerOnTerrainChange(ability, battler, battle, ability_changed)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:281:    OnTerrainChange.trigger(ability, battler, battle, ability_changed)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:801:# OnStatLoss handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:804:Battle::AbilityEffects::OnStatLoss.add(:COMPETITIVE,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:811:Battle::AbilityEffects::OnStatLoss.add(:DEFIANT,
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:2260:        battler.pbItemHPHealCheck
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:2328:    battler.pbItemHPHealCheck
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:2463:    battler.pbItemStatRestoreCheck if randomDown.length > 0
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:2879:    Battle::AbilityEffects.triggerOnTerrainChange(ability, battler, battle, false)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:3153:# OnTerrainChange handlers
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb:3156:Battle::AbilityEffects::OnTerrainChange.add(:MIMICRY,
