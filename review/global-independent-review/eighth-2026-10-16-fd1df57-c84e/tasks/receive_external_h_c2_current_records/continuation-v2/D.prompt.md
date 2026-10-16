@@ -7,3 +7,5 @@ B8 fd1df570cad987dc3852a3b958f03916e317f7fe/tree751dfde81048c81390f89a65ca1d1a56
 本分区独占写集：tasks/receive_external_h_c2_current_records/continuation-results/D/
 完整接收剩余29原继承对象和全部分配当前有效用途/交接/manifest/批次/依赖/冲突/任务资格/typed-strata。canonical七组本体归A/B/C和root，D接所有其它当前operative值及其必要消费者；精确重复只按已实际接收范围关联。5732/25001/736纯locator的全部字段用途可类型处置，不追为全系统重审。
 精确完整readset：D.complete.json。原25输入恢复规则/精确物理身份在目标material-inventory.json，完整root原合同同样适用。
+
+D还完整接收file0/1/15/16/18全部非逐记录根字段和shared资格/状态/count/authority/evidence/alias/facet；逐记录本体按A/B/C/root互斥分配，仅具名同值关联，不重复计算。读集original_purpose_indices为17个全部尚有未读/部分用途，八个既有完整用途按精确接受范围关联。
