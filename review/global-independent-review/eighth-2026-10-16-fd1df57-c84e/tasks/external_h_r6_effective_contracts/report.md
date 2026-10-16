@@ -1,38 +1,32 @@
-# H-R6-EFFECTIVE-CONTRACTS 外部独立审读断点
+# H-R6-EFFECTIVE-CONTRACTS 第八轮独立审查结果
 
-本任务未达到全量审查完成条件，状态为 `INCOMPLETE_READING_BLOCKS_ACCEPTANCE`。以下是可恢复的真实审读结果和剩余债务，不是 B8 全局 PASS，也不是 `NO_REQUIRED_UPDATE`。没有提出或确认新的必修发现；主审尚未接收本结果。
+获派有限范围的可得有效语义审读已完成，未提出新的必修发现。状态为 `ASSIGNED_FINITE_STATIC_REVIEW_COMPLETE / PENDING_MAIN_REVIEW`；主审独立反证与最终接收尚未发生，本报告不签 B8 全局 PASS 或全局 `NO_REQUIRED_UPDATE`。未整改，`UPDATE_NOT_STARTED`。
 
-固定合同来自 `30cfed0996003b6ebf4b5c51cc04f31ca9255440`，六份合同输入的原始字节均已由 Git 核验，见 `input-verification.json`。任务 prompt、60 行 readset、完整全局 prompt、指定 skill、根 AGENTS 和恢复 helper 均已完整读取。最新用户授权覆盖旧任务目录及禁止提交条款：唯一写集为本目录，唯一分支为 `codex/r8-external-h-r6-effective-contracts-20261016`，只允许普通提交、推送报告证据。
+固定合同 `30cfed0996003b6ebf4b5c51cc04f31ca9255440` 下的任务 prompt、readset、完整全局 prompt、skill、AGENTS、恢复 helper 均已全文读取，原输入身份见 `input-verification.json`。最新用户授权仅替代原独占目录及禁提交要求：唯一写集是本报告目录，唯一分支 `codex/r8-external-h-r6-effective-contracts-20261016`，允许 commit 与普通 push 自身证据；未启动子任务，未改正式规格、R、main/tag、公共台账或他人目录。
 
-项目路径为 `/workspace/pokemon-essentials-clean-room`，只读参考为 `/workspace/pokemon-essentials`。B8 commit/tree 为 `fd1df570cad987dc3852a3b958f03916e317f7fe` / `751dfde81048c81390f89a65ca1d1a565ba8e1ca`，正式目录 tree 为 `f292698cdd4a8e725525a9be6dc34b75faaf151e`；R commit/tree 为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` / `7589c800b61ba13a13040ed0d686979b80a84fd0`。本地固定库存为131正式文件、432参考 tracked 文件。远端 main 和固定交付 tag 的实时读取均返回 B8；本地原分支为 `work`，不能冒称本地 main/origin/main 已存在。
+实际项目 `/workspace/pokemon-essentials-clean-room`，R `/workspace/pokemon-essentials`。B8 commit/tree 为 `fd1df570cad987dc3852a3b958f03916e317f7fe` / `751dfde81048c81390f89a65ca1d1a565ba8e1ca`，formal tree `f292698cdd4a8e725525a9be6dc34b75faaf151e`；R commit/tree 为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` / `7589c800b61ba13a13040ed0d686979b80a84fd0`。历史本机绝对路径仅映射到上述云端路径，不冒称相同环境。
 
-60 行、44,241,376 decoded bytes 保留所有版本和别名身份，对应52个不同 decoded 对象。初检44行可从本地 Git 取得，16份原历史文件随后按固定提交远端取得并核 bytes/SHA256/blob；7份压缩载荷用全文读懂的 helper 恢复，编码与解码身份分别保留。普通 fetch 原尝试被终止，exit143/early EOF 保留；后继 depth1 精确30cfed fetch成功，不倒填前次成功。材料目前可得，恢复和结构解析都没有授予语义阅读信用。
-
-| 范围 | 实际结果 | 剩余范围 |
+| 分母 | 本任务完成 | 主审未接收 |
 | --- | --- | --- |
-| readset 60行 | 全文覆盖17行：15个不同载荷直接读、2行同轮同字节关联；其余有字段实读或具名关联 | 43行未达到全文阅读 |
-| 原56合同／14批 | 唯一ID与完整载荷恢复已核 | 完整七组及本轮源—B8消费者接收仍56项未完成 |
-| 351案例 | 全部引用和分母已定位 | 案例本体完整实读0，未读351 |
-| 110依赖边 | 110条当前门字段已逐条读；纯身份字段另作库存 | 原证据和本轮必要消费者独立接收0，未接收110 |
-| 三组联合接口 | 三份资格记录及相关原根报告已读 | B8完整源／正文／消费者接收0，未接收3 |
-| 原实际内容A/B/C/D/E | 五根报告全文已读，签名主责11/9/19/9/8 | 五份原 structured verdict 均未全文读 |
-| 原5c最终登记 | 根报告全文已读 | verdict 未全文读；不把接受资格当接受操作 |
-| 九项补充双版本 | 18行中4行全文；七对同字节已核 | 14行未全文；matrix/audit两对后继不同，仍待完整审读 |
+| 60载荷角色，52不同decoded对象，44,241,376字节 | 60有效语义全文或精确同轮别名；纯身份用途处置另列 | 本报告整体待接收 |
+| 56合同、14批、逐项七组及完整原提案 | 56逐项实读及有条件独立静态源—B8—消费者核对 | 56 |
+| 351案例，四原实际接收载荷 | 351本体全文及逐项有限静态核对（86/88/88/89） | 351 |
+| 110依赖边 | 110完整有效字段及原有限静态/过程门含义核对 | 110 |
+| 3联合接口 | F002 E→D、Arena V004 E→B、U14 A→C必要消费者核对 | 3 |
+| 九补充双版本 | 七对同字节精确关联；matrix/audit两对后继均全文有效语义审读 | 本报告待接收 |
+| 五实际原报告与structured verdict、5c原报告/verdict | 均全文有效语义审读，A11/B9/C19/D9/E8唯一56 | 本报告待接收 |
+| 非必修与历史 | 8optional、1no-required完整原提案/七组；Float1、policy7、limits14分列全文 | 不选择、不升级必修 |
 
-626,398 个 JSON 终值／空容器或文本行结构单元已经精确枚举。其中全文范围3,614（含2行版本身份关联）、直接字段3,763、具名先前字段关联待主审接收3,239、纯身份库存2,527、完成口径未读612,467、原 proposal 未读788。这是结构台账计数，不能当作行为需求、案例或执行次数。完整逐 pointer 状态在 `terminal-reading-ledger.jsonl.gz`；17行全文范围及全部43行余债在 `reading-ledger.json`、`unread.json`。
+完整过程证据在 `continued/reading-ledger-001..025`，每批独立结论在 `continued/U01-current-acceptance.json` 至 `U14-current-acceptance.json`。这些记录包含固定源/当前正式身份、实际全文或连续区间、正常对照、失败/取消前缀、必要消费者和原有正确控制；必要局部 join 不冒称整个大文件或全部432参考/131正式文件新审通过。`reading-ledger.json`、逐pointer的 `terminal-reading-ledger.jsonl.gz` 与 `purpose-dispositions.json` 给出全部60角色的当前处置。626,398终值/空容器/文本行仅是结构分母。未将 hash、恢复、搜索、生成视图或机械检查记为语义 PASS。
 
-已读历史证据清楚区分五组有限实际内容签名、5c有限登记资格、b7接受和4df关闭。5c当时 accepted0/CLOSED0/OPEN56、108已满足边加两个未来过程门；b7随后接受56，4df最后关闭56。当前110门满足也仅限原有限静态／过程范围。原 false/null/NOT_GRANTED/pending 保留生成阶段，不倒写为当时已接受。
+大型材料采用无损精确别名与经重构相等检查的模板显示；所有新语义值均实际呈现审读。纯对象身份、完整远端身份数组和精确块编号库存保留原值及pointer，只授用途/运输身份处置，不给游戏语义或执行信用。`continued/global*`索引中的生成时点UNREAD只表示生成不授信用，其后实际阅读以001–025台账及最终总台账为准。38e78d阶段的旧未读台账完整保存在 `continued/checkpoint-38e78d/`，不抹去早先未完成状态，也不把它当当前剩余债。
 
-F002由E主签、D接收人数接口；Arena V004由E主签、B接收WP40接口；U14六项由A主签、C仅接具名语言／数据／缓存消费者。补充接收不增加第57项，也不增加实际审查者。
+五实际内容签名固定86bbc/formal ebbe；5c只核当时有限登记资格，accepted0/CLOSED0/OPEN56、108已满足边与两个未来过程门。b7随后正式接受56，4df随后关闭56。三者不是一个事件；旧false/null/PENDING字段保留其生成时点。b7/4df准确身份及有效投影已读，未声称把这些历史提交的全部文件重新阅读。`history-current-acceptance.json` 与 `continued/current-dependency-and-interface-review.json` 分别保存历史资格和本轮有限接收分析。
 
-为核U13旧FAIL与后继PASS，额外完整读取两个准确原根报告，输入身份见 `additional-history/input-binding.json`。旧00b45/3ef因S001删除SF30两个正确控制以及错误R5路径说明等失败；9971/411修后恢复d/e、纠正说明与工具证明强度，取得有限候选PASS。WP66-A为允许后置但阻塞实际接收的接口；D/E后来实际接收另列。旧FAIL保持，不以修后PASS覆盖旧对象。
+F002正数才限制新增，零/原始负数绕过新增上限；最终有效人数检查、等值后焦点、nil/[]返回是不同观察点。Arena存活未替换胜者的回复期2→普通尾1→取消后1与落败补位重置分别核定。U14原始字段、查找键、图像/语言、缓存/反写及存储消费者逐层保留，未把编译成功写成缓存已刷新或媒体已成功。共同接收不增加第57项。
 
-`/root/history_current` 的当前 nonmandatory 字段与本轮固定副本逐结构相等，B8与9aa同字节也已核。仅作精确字段具名关联，尚待主审接收；没有把8 optional、1 FLOAT facet、7 policy、14 limits或1 no-required合成必修。原 proposal 仍未读；`R6-UI-PARTY-004` 标题只是已反证原提案标签。
+U13准确旧FAIL `3ef4854ef43eac92fd1dc57350e4cf6aa160082b` 与修后PASS `411b563309a4e642e628dcf8289e36c6fe3fd37f` 原报告已完整恢复、实读：旧对象删除SF30-d/e正确控制及错误R5路径说明等问题保持；修后恢复控制、纠正定位和证明强度，与后续D/E实际接收分别登记。F002后置接口是允许的整合门，不是候选写集缺陷。B8的AN-M09前提和WP72§5.3导航已修正，不能继承旧GR7发现。party004原支持假说与最终反证并存，最终撤销范围不扩张。历史H10辅助spawn违例及INC-R6-001均保留；本任务spawn为0。
 
-剩余工作是可得材料的真实阅读债，不能改标宿主或材料limit：14合同的全部七组、全部351案例及R7-H19/H20/H21/H22后继案例／条款，九补充剩余字段，原manifest/prompt中的有效规则和证据，matrix/audit双版本，structured verdict，必要R源、B8正式正文与消费者均须继续实读、双向映射并由主审接收。未完成处置的历史或行政容器没有被笼统豁免。
+可得本任务有效语义未读为0，真实材料/权限阻塞为0。主审尚未接收与未读严格分列。剩余未知：原生/动态桥、媒体/地图/完整宿主与Demo、实际输入/声音/像素、真实存读档/录像和完整独立模型；本任务新增行为执行全部0 / `NOT_EXECUTED`，没有重跑旧执行脚本或新解码二进制。请求gpt-6.1-sol/ultra/default普速/Fast关闭；实际model/effort/tier/speed/Fast及平台UUID均 `UNVERIFIED`，/root仅路由名。历史18次Ruby仍为12已知exit0、4非0、2未知，17进入定义/1未载入，含无效及重复，不算18成功。
 
-请求配置为 gpt-6.1-sol/ultra/default普速/Fast关闭；实际model、effort、tier、speed、Fast与平台UUID无可信回显，逐项 `UNVERIFIED`。`/root`仅为实际路由名，来源线程ID不冒认本任务平台ID。没有自行spawn，没有整改；所有新增行为、模型、宿主、Demo、真实存档／录像执行均 `0 / NOT_EXECUTED`。旧18次Ruby仍为12已知exit0、4非0、2未知，17进入定义、1未载入，含无效和重复，不计为18成功。
-
-原平台工具流与本次公共投影分开。早期逐命令精确UTC及独立stdout/stderr未另存的部分如实 `UNVERIFIED_NOT_BACKFILLED`；报告生成UTC不是原阅读UTC。没有伪造完整私有流已发布的证明。最终commit/tree和完整报告载荷远端回读由外部最终响应及有限发布回执绑定。
-
-`UPDATE_NOT_STARTED`。
+发布仅普通推送本专用分支，逐新增及保留的本任务载荷完整远端回读、mode/blob/bytes/SHA256/路径/tree对齐后才登记成功。旧fetch失败/中断及后继成功均保留。阅读实际UTC未独立捕获者仍 `UNVERIFIED_NOT_BACKFILLED`，台账生成UTC不倒填原始阅读时间。最终C/P、tree与报告目录身份由实际外部发布回执及最终响应绑定，不递归自哈希。
