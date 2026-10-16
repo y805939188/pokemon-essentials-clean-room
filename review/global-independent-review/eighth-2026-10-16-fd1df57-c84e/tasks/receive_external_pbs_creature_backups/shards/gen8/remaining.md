@@ -1,24 +1,14 @@
-# 同一冻结任务的精确未完接续合同
+# 同一冻结任务的最终接口余项
 
-这是pbs_gen8原冻结范围的未完交接，不启动任务、不增加新一轮review。实际派发与可回读本报告提交C由父接收者绑定；固定原合同仍为30afe79aabc084e3baf9842cb87b90acbc5c6d0a。先读本目录report.md、reading-ledger.json、atomic-reception.json、interfaces.json和progress.json，保留原实际审者及本次有限贡献，不把作者声明或机械核验转为新实读。
+本代独立主读与有限接收已经完成，状态INCOMPLETE_SHARED_INTERFACES_ONLY。P14:S0001–S0898、P15:S0001–S0339完整字面与具体同代继承全部已读；22953显式绑定、24088省略处置、46原子、HC-METRICS均已接。没有本代原文/字段/必要有界消费者未读集合，不再按早期checkpoint重做。真实记录、59批凭据及完整有效意义见report/semantic-reception/record ledger；原冻结readset和下附原prompt继续是完整合同，不复制8.7MB行政对象。
 
-本次精确已做：46断言及11完整字段合同原文已读，1头声明/转换及必要源定义有界检查；最终累计接收尚未签完；当前已完整实读P14:S0001–0140及P15:S0001–0027，后者同代具体继承也已逐字段呈现核对（最终全域进化后处理除外）。无需重复这两段字面阅读。原文字面精确未读连续范围为P14:S0141–0898、P15:S0028–0339。下列全集是冻结责任人口，不是当前未读计数。未完对象为：
+仍未终签的是IF03、IF05、IF09。每条的必要共同定义、本代1237 producer、当前formal/实际receiver与采用的完整非作者事实已接；原完整接口对象保留在interfaces。最新实际取得的Gen5 77c68ef907bece03291accccf7c8d3f3f3bc7753、Gen6 3d4a8d13cedb8a63fe2add9f30b0939de21dc04b、Gen7 eaba99a190d9301d3a0d45447cf24ce041779083分别有准确报告blob/SHA绑定。Gen5/7完整本地主读报告收到，不把其735/1059原文算本人阅读；Gen6尚欠其原合同638基础（全部83形态锚点之外的P06记录，准确集合从其remaining.readset.json恢复），完整909 producer尚不成立。原接收者/主审接完Gen6及各代完整逐值贡献、前提、必要更正后，直接累计这三条接口；不新派一层review，不重审全系统。
 
-- P14:S0001–P14:S0898全部898基础，原文PBS/Gen 8 backup/pokemon.txt 1–23115，1235856字节，blob39aa345a49b40ba835abeb3c3d1a29ab67850986，SHA256 5f0197ff85ddb82cfb218d4faaee844bbbd1d36eef4d96bc5703856b4865c4d2。
-- P15:S0001–P15:S0339全部339形态，原文PBS/Gen 8 backup/pokemon_forms.txt 1–2314，109322字节，blob08ae264e420484e31a81087eb3125d6f0c7fdaf6，SHA256 e50496e31f618917501e5d34d7b8d18f17d1354bbaa3683766a77122fe106716。每条结合其forward.base_section所指定P14具体记录；全部22953显式字段和24088省略/继承仍未接收。
-- atomic-reception.json列明的46个准确ID全部最终接收仍OPEN；不必丢掉已经做过的定义核验，但仍须逐对象接合完整producer/消费者/条款及真实独立来源。HC-METRICS同理。
-- IF03/05/09三条完整接口。本代原值、其它三代producer、必要完整consumer/formal分别累计；其它片未收到只阻塞它自己的接口facet，先完成本代全部独立主读。
-- 按实际采用内容补完WP18–20、WP15、WP36、WP38、WP39/combatpresentation及所有必要catalog、定义、调用/receiver。当前本目录只授reading-ledger列出的真实范围，WP19/数值/其余谱系/进化等不能由字段schema批量豁免。原完整readset还列全部当前必要source/formal身份；未读必要部分逐项保留OPEN，不扩大为全外域重审。
-- 当前pbs_current/CREA_C等若导航拼写在固定合同未跟踪，不将导航缺字误认材料limit；按readset固定原来源和真实后继位置恢复完整贡献。所有采用的provider前提、七组/八节、例子、反向条款和强制clarifier必须读，缺哪项只阻塞对应facet。
+接口欠项不是材料/宿主/权限limit，也不撤销本代阅读。所有其它代逐值事实仍归原主责读者；本次只取其真实有界贡献与资格，不按报告状态自动升级为跨代FULL。原主审还须实际读取本次最终提交，保留原实际审者并做最终累计/独立性资格；本片不签root canonical/task-final。
 
-精确对象与完整原forward/field contracts/atoms/interfaces仍以原readset.complete.json为准。record-reception-ledger.jsonl是完整同组OPEN集合，原位置为delegation/remaining-v1/gen8/readset.complete.json；不复制8.7MB合同或32个大别名。只读恢复工具可在实际checkout执行：
+当前实际context 01a144a3-2a91-70f0-af3a-b232b52c602f由环境a8d6cc回显，与目标作者/父接收者不同。实际model/effort/tier/speed/Fast仍UNVERIFIED；精确初始UTC未知，不补造。当前授权继续仅普通报告证据commit/push，唯一分支codex/r8-final-pbs-gen8-20261016、唯一写集本shards/gen8；不spawn、不整改/改正式规格/R/公共账本/其它片、不合并main、不开发TS。
 
-```
-python <本目录>/tools/literal_view.py --repo /workspace/pokemon-essentials-clean-room --reference /workspace/pokemon-essentials --check
-python <本目录>/tools/literal_view.py --repo /workspace/pokemon-essentials-clean-room --reference /workspace/pokemon-essentials --record P15:S0001
-```
-
-第一条仅核身份/关联，第二条只有视图，不算接收。连续阅读应按完整记录分块，不按例子抽样；输出截断保留并补读。全部原有普通提交/推送授权、独占写集、不整改、不改正式规格、不合并main、不开发TS、不自行spawn与真实独立性要求保持。当前UUID/模型未回显UNVERIFIED不得改名造证。原始prompt如下，唯一文案适配是采用用户本轮明确指定的发布分支名；其规范全文仍可从固定30afe读取原件。
+本片保留父2772字面/20有限命题/IF04/06/XPCB001有限NO_REQUIRED及各历史资格，不重复计票。全部业务NOT_EXECUTED，UPDATE_NOT_STARTED。provider-receptions中的两个证据措辞限定及自身批次clarifier必须随采用携带；它们不是新的formal整改提案。图形/声音/真实编译存档未验证的原限定保留。下面原prompt是规范全文保留，开头“尚未启动”只属原派发时态，不覆盖上述本次最终实际状态；用户指定发布分支适配保持。
 
 # 第八轮剩余完整接收：gen8 — 第八代完整基础与形态；指标显示、遭遇与持物交界
 
