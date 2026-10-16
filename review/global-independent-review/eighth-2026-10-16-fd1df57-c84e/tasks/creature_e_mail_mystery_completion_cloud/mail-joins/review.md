@@ -1,0 +1,15 @@
+# Finite Mail consumer completion
+
+Actual reader: `/root/creature_e_mail_mystery_completion_cloud/mail_item_party_join`. Fixed inputs B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`, R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`. Static source/formal reading only; all business/UI/network/save execution `NOT_EXECUTED`. `UPDATE_NOT_STARTED`.
+
+The delegated Mail item/Bag/Party/Summary/Storage/PC joins are complete for coordinator reception. Twelve finite fact groups cover the actual raw-index callers, item/held-Mail consistency, quantity/capacity accounting, cancellation, and reached failure prefixes. Exact assertions and pointers are in `forward-mapping.json`; selected complete-definition reading and inherited facts remain separately credited in `reading-ledger.json`. WP64 was whole-read; shared catalog and UI files carry selected-scope credit only.
+
+PC Give’s concrete receiver confirms the already specified failure: the transferred prompt precedes temporary assignment, the next Mail getter clears the object because held item is still empty, and accessing the resulting empty receiver fails before held assignment, mailbox removal, refresh, or normal close. The same original mailbox object survives. Normal Bag Give is the successful control.
+
+Summary passes its current raw container index. Full box slots stay sparse; held Summary uses a single-element list/index0, after actual source deletion and party compaction. Snapshot neighbors always come from current player.party; actual recipient supplies the third snapshot. Thus the seven R5 snapshot vectors and three PC Give vectors are supported without reassigning box-neighbor semantics.
+
+Give/Take preserve already committed prefixes. A canceled ordinary-item-to-Mail switch restores the new Mail but leaves old-item addition and original held item. Take tests Bag capacity before any PC question, then stores the same Mail object. Success-message failure can occur after mailbox or inventory mutation; no local rollback is inferred. Bag capacity scanning is pure, but direct add/remove can partially write; positive Mystery Gift precheck is material and its full claim join remains parent-owned.
+
+No new candidate is proposed. Direct Storage Item’s no-writing path and Bag preview are already covered by their owning UI contracts. Placeholder debug constructors were read as distinct developer behavior; their allocation/egg bypass does not change the ordinary giving-chain/PC scope. This report awards no historical PASS, new independent vote, Factory/Triad, whole Creature-E, or global-final status.
+
+Remaining parent work: Gift/kernel/default/Dex/save/reload joins and historical qualification reception. Native media, actual UI/error presentation, Demo, HTTP and save round-trip observations remain unexecuted limits; they are separate from available readable definitions. Requested configuration was gpt-6.1-sol/ultra/default/normal/Fast off; every actual configuration field and opaque platform ID lacks authoritative echo and is `UNVERIFIED`.
