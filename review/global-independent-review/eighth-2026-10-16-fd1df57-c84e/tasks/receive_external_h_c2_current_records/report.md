@@ -1,6 +1,6 @@
 # 第八轮 H-C2 当前记录非作者接收报告
 
-**INCOMPLETE；UPDATE_NOT_STARTED。** 本线程直接主读4条 canonical（GR7-M01-001、GR7-M13-001、GR7-M13-002、GR7-J16-002）及其完整原提案／必要反证、28组；另已接收独立A组12条／84组、C组11条／77组的固定完整贡献与接口，累计 **27/37 canonical、189/259中文组**。各原主读者保留，不冒充本人重复主读。其余B组10条／70组仍待接收。原继承31非必修对象中完整接收R6-C-P02与R6-UI-PARTY-003，余29及尚余公共用途仍为D主责OPEN。未以恢复、作者旧签字、生成视图或历史PASS代替语义阅读，不能给出READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。
+**INCOMPLETE；UPDATE_NOT_STARTED。** 本线程直接主读4条canonical（GR7-M01-001、GR7-M13-001、GR7-M13-002、GR7-J16-002）及其完整原提案／必要反证、28组；另已接收独立A组12条／84组、B组10条／70组、C组11条／77组的固定完整贡献与接口，累计 **37/37 canonical、259/259中文组**。各原主读者保留，不冒充本人重复主读。原继承31非必修对象中完整接收R6-C-P02与R6-UI-PARTY-003，余29及尚余公共用途仍为D主责OPEN。主记录齐备不等于整个H-C2接收任务完成；未以恢复、作者旧签字、生成视图或历史PASS代替语义阅读，不能给出READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。
 
 ## 固定输入、身份及权限
 
@@ -32,9 +32,9 @@ B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`／tree `751dfde81048c81390f89a65ca
 
 ## 精确欠项与限制分开
 
-frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json保存37个精确定位及当前27已收／10未收状态；reception-ledger.json逐项列出主读者和固定派发交付，不隐藏未收对象。本人直接C13／别名／C19四条范围及A/C合计23条对应范围均按不同原读者具名接收；B十条和交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata剩余共同资格仍OPEN，不能从已收逐条值扩展成整个公共文件接收。
+frozen-denominator.json冻结37个精确ID、全部实际字段用途、原31对象和25输入用途。remaining-objects.exact.json保存37个精确定位及当前全37已收状态；reception-ledger.json逐项列出主读者和固定交付。本人直接C13／别名／C19四条范围及A/B/C合计33条对应范围均按不同原读者具名接收；交接正文／manifest／批次／依赖／冲突／任务资格／typed-purpose strata剩余共同资格仍OPEN，不能从已收逐条值扩展成整个公共文件接收。原31对象仅2已收，D分配的29及共享用途不能因各组顺带阅读相同旧facet便自动整项签收。
 
-当前接收尚未覆盖全部冻结人口，整体保持INCOMPLETE。材料缺失0、权限阻塞0，剩余属于**可得未读／未接收**。没有把它们改成L01–L14、out-of-scope、NO_REQUIRED或“解析已通过”。continuation-v2/四份完整合同固定64cfde5aa3f6b25adc7291b2c2e880d87baf1ebd，原106文件／7497653B隔离回读保持。父已报告四实际线程启动；A/C固定完整交付已实际接收，B等待完整结果，D阶段b3580edf37ca9e824297fc3118913794308abe1b仍INCOMPLETE并由原任务续补。启动或阶段提交不计完成。当前4+12+11+10=37、28+84+77+70=259、2+29=31。旧五分区草稿保留历史，新派发只用v2；本线程未spawn。父及主审仍负责最终公共接收与canonical/task-final签字。
+当前接收尚未覆盖全部冻结人口，整体保持INCOMPLETE。材料缺失0、权限阻塞0，剩余属于**可得未读／未接收**。没有把它们改成L01–L14、out-of-scope、NO_REQUIRED或“解析已通过”。continuation-v2/四份完整合同固定64cfde5aa3f6b25adc7291b2c2e880d87baf1ebd，原106文件／7497653B隔离回读保持。父已报告四实际线程启动；A/B/C固定完整交付已实际接收，D阶段b3580edf37ca9e824297fc3118913794308abe1b仍INCOMPLETE并由原任务续补。启动或阶段提交不计完成。当前4+12+10+11=37、28+84+70+77=259、2+29=31。旧五分区草稿保留历史，新派发只用v2；本线程未spawn。父及主审仍负责最终公共接收与canonical/task-final签字。
 
 ## 独立分区贡献与接口接收
 
@@ -42,9 +42,11 @@ A固定75722b4d08a2cbafc93156a4099cf6750ad966ea，实际主读者01a1448b-68af-7
 
 C固定86f054be0aad15de7a45d2a956d77612bc84bcb4，实际主读者01a1448b-8afc-70f4-a964-6d2d89141000；11条完整判断／接口／反证、共同资格、完整方法结束行证据及有限native证据贡献已读并接收。七旧required由B8承接，一optional、两policy未选，一no-required保持正向范围反证；138文件／4413600B亦已独立完整远端回读。
 
-两组贡献均保原PENDING/WAIT/null/失败、后继clarifier及B8有限CLOSED的不同时间层级，新增必改建议0，不代签根最终。结构核对额外确认23个精确ID和161组／全部当前字段身份不漂移，原提案与必要源／B8显示身份和读后确认可回溯；这些机械核对reading0。逐项实际接收理由、完整贡献和原读者在partition-receptions/A与C/accepted-contribution.json；本接收没有重读或重复计入各组主读。
+B固定46d1df9efb75731c6ec9e383e35aae549626a3e9，实际主读者01a1448b-49c1-72b6-b6ed-c8a724535018；十条完整判断／反证／接口实质值和共同资格已读并接收，纯源／正式locator及extent引用按完整类型身份处置，不替代其目标正文。九旧required由B8承接，字体同根optional未选；96文件／3872898B亦已独立完整远端回读。85个固定源／正式文件身份、197个显示范围、24个完整读后确认与70组原值均核；旧未完c13视图明确不计，由完整c13a/p13取代。28份共享正式文件全文一致性属于B原读者，不扩大为全部外域源批准。
 
-接口接合另见partition-interface-integration.json：M03逐席逃跑与M13专用中止分开；各UI入口尾部与净化室缺方法分开；M01整数比较与J01复合producer关系分开；音频逻辑请求、登记前后及真实发声资格分开；动态形态／EXP／净化各已提交前缀不被改写成事务。M05与M08共享步链没有双算对象，旧AI不同消费者根和native前序注册桥仍保原开放资格。B/D未到部分不借A/C共享索引自动关闭。
+三组贡献均保原PENDING/WAIT/null/失败、后继clarifier及B8有限CLOSED的不同时间层级，新增必改建议0，不代签根最终。结构核对额外确认33个精确ID和231组／全部当前字段身份不漂移，原提案与必要源／B8显示身份和读后确认可回溯；这些机械核对reading0。逐项实际接收理由、完整贡献和原读者在partition-receptions/A、B、C/accepted-contribution.json；本接收没有重读或重复计入各组主读。
+
+接口接合另见partition-interface-integration.json：M03逐席逃跑与M13专用中止分开；各UI入口尾部与净化室缺方法分开；M01整数比较与J01复合producer关系分开；音频逻辑请求、登记前后及真实发声资格分开；动态形态／EXP／净化各已提交前缀不被改写成事务。B的蒸汽机直接后段检查与多击基底分层；Summary初绘／Options最近见／内部派出只填空值分层；影子大小资源绑定与动画列表游标错误分层；角色空名字体缓存与绘制偏置政策分层；当前Main加载调用与宿主实际运行分层；两个工具完整有限请求与实际平台／库效果分层。M05与M08共享步链没有双算对象，旧AI不同消费者根和native前序注册桥仍保原开放资格。D未到部分不借A/B/C共享索引自动关闭。
 
 相关宿主／GPU／声音／实际媒体／Demo／真实保存观察均 NOT_EXECUTED，新行为执行0。R7既有1进程10输入的Ruby谓词和R6旧18尝试只保原局部资格，不转成本任务新增执行。未实读的外域及原读者日志不按“宿主未知”豁免。
 
@@ -52,4 +54,4 @@ C固定86f054be0aad15de7a45d2a956d77612bc84bcb4，实际主读者01a1448b-8afc-7
 
 逐片实际显示及读后说明在 view-state.json／views/，source-readings.json 给完整固定字节身份、实际范围、完整方法结束行和已发生截断／失败及补读。所有自动生成／哈希／恢复均 reading0。original-recovery.json、target-recovery.json、record0-extras-recovery.json 保留编码／解码／原始载荷身份；恢复方法只解析数据，不导入旧脚本。已知未读精确列明，未编造批量“人工通过”。
 
-报告core与后继发布凭据分开。publication.json保存原两条接收core与94文件完整远端读回；先前追加core e5f97c29bda6457a69566f7ead1f236be3f806c4由publication.continued.json绑定实际C/tree及131文件／8071937B完整逐文件读回。普通push后Git HTTPS曾临时认证失败，随后已有GitHub连接取回完整39个变更文件、commit、全部祖先树及任务递归树，另92个精确未变文件使用先前无alternates隔离远端字节；全部树重算、集合/mode/blob/bytes/SHA和gzip解码均相等，传输原值惰性封存于transport/。后续git ls-remote已恢复成功；此临时故障不再是阻塞，不授语义信用。verify_connector_remote.py只校验本接收者传输数据。A/C贡献接口整合core另由publication.partitions-ac.json绑定本接收者专用分支完整远端回读；最终发布C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告INCOMPLETE状态。
+报告core与后继发布凭据分开。publication.json保存原两条接收core与94文件完整远端读回；先前追加core e5f97c29bda6457a69566f7ead1f236be3f806c4由publication.continued.json绑定实际C/tree及131文件／8071937B完整逐文件读回。普通push后Git HTTPS曾临时认证失败，随后已有GitHub连接取回完整39个变更文件、commit、全部祖先树及任务递归树，另92个精确未变文件使用先前无alternates隔离远端字节；全部树重算、集合/mode/blob/bytes/SHA和gzip解码均相等，传输原值惰性封存于transport/。后续git ls-remote已恢复成功；此临时故障不再是阻塞，不授语义信用。verify_connector_remote.py只校验本接收者传输数据。先前A/C贡献接口整合core由publication.partitions-ac.json绑定；本次补收B后的A/B/C整合core由publication.partitions-abc.json绑定本接收者专用分支完整远端回读；最终发布C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告INCOMPLETE状态。
