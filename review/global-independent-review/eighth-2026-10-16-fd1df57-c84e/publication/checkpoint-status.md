@@ -1,25 +1,27 @@
-# 第八轮全局 review 进行状态
+# 第八轮全局独立 review 当前状态
 
-全量审查尚未完成，没有全局 PASS。`UPDATE_NOT_STARTED`。
+全量审查尚未完成，没有全局 PASS。UPDATE_NOT_STARTED。
 
-B8固定fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。正式/R/planning/audit/main/原tag保持只读；报告后继不替代B8。云端实际双checkout与Mac历史路径分列。
+B8 固定 fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree 751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R 固定 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b，tree 7589c800b61ba13a13040ed0d686979b80a84fd0。实际云端两个 checkout 已核；Mac 路径仅历史证据。正式规格、R、planning、audit、main 和原 tag 只读。报告后继不替代受审 B8。
 
-完整库存R432、formal131，固定blob全部核对。四planning全文读并冻结87WP计划行、113Feature、18领域；395声明知识依赖不是运行接口全集。真实source semantic unit/fact、formal atomic clause和全部消费者接口分母尚未闭合，不能拿方法/行/分号片段替代。
+已冻结 R432 文件、formal131 文件及全部固定 blob。四份 planning 全文已读，87 WP 计划行、113 Feature、18 领域和395声明知识依赖均是库存；真实语义事实、原子条款和运行消费者接口分母尚未闭合。03:20:52 覆盖审计切点为 R414文本175全文、43局部、196无范围，另18 binary分列；formal46全文、14局部、71无范围。这些是具名阅读范围，不能当独立业务验收分子，切点后的新增贡献尚待增量覆盖审计。
 
-独立覆盖审计03:20:52切点收录全部已交ledger：R的414文本175全文、43局部、196无区间，另18binary按有限结构分列；formal46全文、14局部、71无区间。这是具名申报阅读范围，不是独立业务批准分子。已有结构解析、有限源事实及反证保留准确资格。切点以后AI、招式、设施、CRE-B与controller贡献仍在增长，未偷加到旧审计数。
+16个顶层实际上下文已交限定成果，另有1个已完成的招式属性嵌套上下文；进程结束不等于对应整域全部验收。当前AI、CRE-B、R7历史接收、PBS设施、能力／物品正式域，以及PBS设施的trait子审共6个子上下文，含root为7个实际并发。累计启动23个真实子上下文，含root24；相同上下文续审不重复计数。平台实际容量以工具可见7为准，没有另设较低上限；其它会话无回执的状态仍UNVERIFIED。
 
-13个结束的实际上下文已交限定成果：库存、历史恢复/资格、kernel、COM核心、CRE-A、kernel反证、预检/资源、COM反证、覆盖审计、world拓扑、UI导航、PBS-world记录、world反证。进程结束不表示这些整域已经完整接收。当前binary/controller、AI、招式、设施、CRE-B以及招式内部attributes_calling共6个实际子上下文，与root合计7个并发，符合现有工具实际容量。累计实际19个子上下文（含1个嵌套）、含root20；续审不重复算新审者。
+完整主计划在 delegation/current-plan.json：原25计划以PBS-creature精确替换为7／11／16源文件三片，并加入旧manifest当前用途审查，形成28叶计划。主分母未删。com_ai、com_move、com_facility、creature_b、pbs_world、h_r7_final_receptions、com_ability_item和PBS设施分片有本协调者的实际启动；world_full、ui_full及resource_media_serialized只有具名部分重叠，未当整任务完成。另冻结两个R7候选子片和完整剩余binary文本任务，见delegation/queued-followups.json；这些仅是待派合同，实际启动0，不增独立审者数。CLI初始化曾失败，新增CLI上下文0。
 
-完整分工合同原25项在delegation/first-wave.json、second-wave.json、third-wave.json。com_ai、com_move、com_facility、creature_b已实际新启动；pbs_world由具名实际18文件全记录贡献承接，仍有跨域尾接口。world_full/ui_full/resource_media_serialized有具名局部重叠，未冒作全任务完成。其余20原计划在本协调者没有实际启动回执，外部会话状态UNVERIFIED；父会话如代建须先读progress/本映射，避免同写集冲突。CLI已测只读app-server初始化失败，新增CLI上下文0。未设人为更低并发上限。
+root对17项完整有限记录已裁决：15 required（2P2、13P3）、2 optional；全轮最终required数未知。完整原提案、实际非提出者反证、反驳尝试、有限前提／对照／最小反例／失败前缀／保留scope及原字节快照见adjudication/root-decisions.partial.json。COM002与COM003分别承接零可战斗wild成员及正计数但完整原顺序与行动集合不一致；旧NPC根不重开。UI001因同段已明确确认前更改不回滚而仅optional。AI001仅补现存可直接调用的纹理目标评分定义，普通User0不调用的正确合同保留；AI002仅可选计数一致性。历史三项分别为阶段计数、r2结果与审者身份、U06续审进度字段的当前导航资格；未来只新增具名后继overlay，原R7全部台账／FAIL／WAIT／独立结果／关闭证据保持，不补造旧UTC或重开旧27／56／92。
 
-root完整接收独立反证后，已对12个有限记录形成阶段裁决：11 required（2P2/9P3）、1 optional；这是已核子集，整个review最终required数量仍未知。详见adjudication/root-decisions.partial.json，含完整自然语言事实、前提/反例/普通对照/失败前缀、最小改动/保留scope/回归、原提案与实际不同审者的完整反证、输入原字节快照。COM002保留零可战斗wild边界，新稳定COM003承接正计数/完整原序构造与行动范围不一致；旧NPC根GIR-FD82-B002不重开。UI001的源事实确认，但同段已有确认前更改不回滚，合理阶段读法成立，采optional而非required。WORLD两项严格保留异常捕获继续或speed0单次立即观察、第二生命周期、保存分叉及真实宿主未知；PBS两项仅改统计用语/已知标记与运行未知分层。历史最终去重及跨域全量接收仍开放。
+COM-MOVE主责15R／11formal全文、331向量逐项语义证明已交，10R Battler及完整Ability／Item源码事实另有真实具名贡献；两个全正式域最终接收仍OPEN。COM-FACILITY22R／8formal已读并交有界映射，PBS和跨域尾链不被自动批准。AI已全读20R／9formal及全部285目录行，真实消费者仍逐项接合。CRE-B已全读全部6路径items PBS（Gen8相同字节关联独立路径，不假称第二次显示），正在完整补读外域消费者。PBS设施7R／Tower882及六表1600训练家全部字段语义结构已读，所用species与真实资格仍由具名子审接合。每域事实／条款／向量细分及OPEN以各自实际台账为准，不把行数或句段当原子分母。
 
-世界已有WP11的89条款行/304手工子断言；UI导航已有320有限事实及52向量；PBS-world18文件/2400记录/24980字段已实际全记录读，消费者尾链仍OPEN。controller1666记录/790模式的新实际审者正独立接收；260161有限字符串候选正按真实PE结构和用途处置，已定位新增可读程序，没有把剩余有限材料藏进L04。字体/SF2/messages仍有结构解析与真正语义未接收区别。旧manifest两段1413行的当前用途资格需逐段核，不以日期/无B8字符串排除有效规则。
+controller1666记录／790模式／122字段顺序／806名称已由新实际上下文完整读；新有限静态native接线证明与最终平台receiver／执行结果分列。260161字符串候选已逐ID具证处置，其中57948出处／41849不同文本仍可得未读，完整后继读集已冻结，不能藏进L04或只取marker样本。Game新发现PNG／DIB仅结构核验，像素语义待资源主责；字体／SF2／messages的结构解析不替代真实媒体及消费者语义。旧manifest两段1413行仍待独立当前用途审查，不以日期或无B8字符串排除。
 
-预检资源大证据无损压缩，15份新大载荷215423126原bytes→29497675容器bytes；全新隔离目标实际恢复15份并逐字节核hash/blob通过。原文件、失败输出和缓存未删除；恢复/远端容器读回不授语义信用。publication/RESTORING.md提供完整安全恢复方法。旧Git材料缺失已在隔离bare恢复，不能继续当假材料limit。
+R7历史243载荷已全部可得且逐字节核身份，总接收仍IN_PROGRESS；有效规则、案例、资格及后继门按原全文继续读，纯身份索引有具证inventory-only处置。旧Git本地缺失已隔离恢复，不能再当材料limit。原R7的27项仅历史回归，不是本轮分母。
 
-唯一仍具名的新增输入障碍：Library ZIP libfile_4b51216024e48191b2cf3166a331583d、16531493bytes、SHA2566a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e因官方下载DNS失败尚未materialize；CLOUD-READ-FIRST、新cloud prompt、readiness/final binding/recovery map未在此环境完整读。已请求相同ZIP的固定Git commit/path。原完整36653bytes合同及3598bytes技能已全文读取核SHA。该障碍没有阻止固定源/正式/可恢复补充的独立审读。
+publication/compressed-artifacts.json 与 RESTORING.md 保留大证据的无损容器、原始bytes／SHA／Git blob及安全新目标恢复法；原文件、原失败输出和缓存未删除。前次15大载荷215423126原字节已在全新隔离目标实际恢复并逐项一致。压缩、恢复及传输核验不授语义信用；本检查点新增证据的完整容器身份以新manifest为准。
 
-全部请求gpt-6.1-sol/ultra/default普速/Fast off；实际无回显的model/effort/tier/speed/opaque平台ID逐项UNVERIFIED。R8新参考/完整宿主/Demo/原生媒体/真实存档观察0；CRE确有一次Python数值探索exit0而开始UTC缺失，保留实际探索1、验证信用0，不倒填L14。未执行向量均NOT_EXECUTED。Utilities超EOF实际范围已更正为595–624，原请求与旧发布身份保留，新增阅读信用0。
+唯一新增输入障碍是Library ZIP libfile_4b51216024e48191b2cf3166a331583d（16531493 bytes，SHA256 6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e）官方下载DNS失败，尚未materialize。CLOUD-READ-FIRST、新cloud prompt、readiness／final binding／recovery map在本环境仍未完整读；已请求同一ZIP的固定Git commit/path。原完整36653字节合同和3598字节skill已全文读并核SHA；该障碍不阻止可独立审读的固定材料。
 
-前两个报告检查点7478d8daf357d569ac12bea211b4b5f257861930和7956f5cba2061702b30f3a021da47f386c92250f已普通push；后者264文件/18250159bytes已完整隔离远端读回VERIFIED。这是传输验证。最终语义core、完整中文整改handoff和全量完成验收尚未达到；没有启动正式整改。
+请求gpt-6.1-sol／ultra／default普速／Fast off；实际无权威回显的model／effort／tier／speed／opaque平台ID逐项UNVERIFIED。新参考观察／宿主Demo／原生媒体／真实存档运行0。CRE一次Python有限数值探索保留真实exit0和开始UTC缺失，探索1、验证信用0，不倒填执行证据。未运行向量均NOT_EXECUTED。
+
+四次报告检查点均已普通push并完成全部报告文件的隔离远端字节回读。最新已验收传输提交78287d85f2ea54e465de2747a6aca82f3245125f，report tree db1266878a7dde5ab65d66816c79304c4c0e3e82，共2223文件／65204417字节；所有15压缩证据的原始解码内容亦核一致。此为传输证明。最终语义core、完整中文整改handoff和全量完成验收仍未达到，没有启动正式整改。

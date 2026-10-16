@@ -39,6 +39,11 @@ uicounter, ucb = take("tasks/world_topology_audit/refutation-ui001.json")
 world_proposal, wpb = take("tasks/counter_world_first/proposals.v1.frozen.json")
 world_counter, wcb = take("tasks/counter_world_first/adjudications.json")
 world_identities, wib = take("tasks/counter_world_first/identities.json")
+ai_proposals, aib = take("tasks/com_ai/proposals.json")
+ai_counter, aicb = take("tasks/com_facility/adjudications-ai.json")
+hist_proposals, hpb = take("tasks/history_current/findings.json")
+hist_counter, hcb = take("adjudication/root-hist-001-counterreview.json")
+hist_facets_counter, hfcb = take("adjudication/root-history-facets-counterreview.json")
 
 records = []
 def add(id_, classification, severity, reason, evidence, binding, *, proposer=None, reviewer=None, extra=None):
@@ -122,21 +127,55 @@ for index, row in enumerate(world_counter["records"]):
                "source_formal_identity_payload_binding": wib,
                "source_location_correction": "WORLD002 scroll source actual497–518; retain original proposed507–530 only as history, not support." if index else "No new source-location correction."})
 
+for index, proposal in enumerate(ai_proposals["records"]):
+    required = index == 0
+    reason = ("采纳有界P3定义补全：现存逐目标评分查询可直接调用，候选原类型按当代首槽/旧代全槽形成，PP过滤仅在伤害招匹配帮助函数，首个合格候选只加14一次。普通CONVERSION/User0不调用该目标评分的原合同正确，必须保留，不要求修改默认接线或真实纹理动作。目录的F/G标识及未知扩展不能代替已可读的查询定义。"
+              if required else
+              "仅列可选文字一致性：完整评级行为表及附表20条add、5个copy目标已给出；主稿23条登记的数字不一致不独立证明缺失行为，不计必修。可选澄清计数口径，不能据此改任何修正、拼写、默认或资格。")
+    add(proposal["id"], "required" if required else "optional", "P3" if required else None,
+        reason, proposal, aib, proposer="/root/com_ai", reviewer="/root/com_facility",
+        extra={"independent_counterreview": ai_counter,
+               "independent_counterreview_binding": aicb,
+               "optional_adoption": None if required else "USER_DECISION; not automatically adopted",
+               "root_direct_read_credit": "完整两项提案及独立反证；另实际逐行读有关source/formal结构，详见coverage/root-ai-reception.json；不是root全COM-AI源码/正式域信用。"})
+
+hist_proposal = hist_proposals["proposals"][0]
+add("GR8-HIST-001", "required", "P3",
+    "采纳有限当前导航资格：同一current registry已称根有限关闭完成，阶段计数仍为3/2及0且未标历史投影；新后继overlay具名限定旧计数并链接准确27/13最终接收。原registry、ledger和全部关闭证据只读，不能补造旧计数生成时间或把R7关闭判作无效。",
+    hist_proposal, hpb, proposer="/root/history_current", reviewer="/root",
+    extra={"independent_counterreview": hist_counter, "independent_counterreview_binding": hcb,
+           "required_future_new_write_set": ["review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"],
+           "required_formal_write_set": [], "historical_reopening": False})
+for row in hist_facets_counter["records"]:
+    reason = ("采纳独立P3身份导航资格：U03/U07/U10同一最终batch的r2结果与reviewer_context已正确，但直接reviewer_task_id仍是被排除的r1。保留其初始派发历史，在新后继overlay具名标历史并链接准确r2结果/审者配对，不改原ledger或独立审者数。"
+              if row["id"] == "GR8-HIST-R2-BINDING-001" else
+              "采纳独立P3续审进度导航资格：U06最终batch保留未限定的启动WAIT字样，却已有同context签发完成结果/closed。后继overlay限定旧启动快照并另列准确完成身份；程序裁定自身未授PASS、旧WAIT和违例保持，续审不新增审者。")
+    add(row["id"], "required", "P3", reason, row["retained_proposal"], row["proposal_binding"],
+        proposer=row["proposer"], reviewer="/root",
+        extra={"independent_counterreview": row, "independent_counterreview_binding": hfcb,
+               "required_future_new_write_set": row["concrete_future_new_write_set"],
+               "required_formal_write_set": [], "historical_reopening": False,
+               "root_cause_qualification": "与HIST001阶段计数、另一facet分别可反证；共享一个未来overlay不合并根因。"})
+
+counts = {"required": sum(r["classification"] == "required" for r in records),
+          "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
+          "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),
+          "optional": sum(r["classification"] == "optional" for r in records)}
 out = {
     "schema": "gr8-root-bounded-decisions/v1", "utc": NOW, "decider": "/root",
     "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe", "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
     "status": "PARTIAL_REVIEW_NO_GLOBAL_PASS", "whole_review_required_count": None,
-    "bounded_counts": {"required": 11, "required_P2": 2, "required_P3": 9, "optional": 1},
-    "counts_qualification": "仅此已接收12项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
+    "bounded_counts": counts,
+    "counts_qualification": "仅此已接收17项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
     "records": records, "root_read_complete_payloads": inputs,
     "root_read_credit": "完整独立反证/提案文件的综合接收，不冒充root已逐个重读其全部原source/formal，也不授其它领域覆盖。PBSW001另有root真实独立全读证据。",
-    "pending_proposals_outside_this_receipt": ["GR8-HIST-001"],
+    "pending_proposals_outside_this_receipt": ["四项GR8-BIN有限no-required提案尚待非提出者接收；后续新提案仍持续进入。"],
     "actual_configuration": dict.fromkeys(["model", "effort", "tier", "speed", "opaque_platform_id"], "UNVERIFIED"),
     "requested_configuration": {"model": "gpt-6.1-sol", "effort": "ultra", "tier": "default", "speed": "normal/Fast off"},
     "behavior_execution_credit": 0, "update_started": False, "final_marker": "UPDATE_NOT_STARTED",
 }
-assert len(records) == 12 and len({r["id"] for r in records}) == 12
-assert sum(r["classification"] == "required" for r in records) == 11
+assert len(records) == 17 and len({r["id"] for r in records}) == 17
+assert sum(r["classification"] == "required" for r in records) == 15
 p = ROOT / "adjudication/root-decisions.partial.json"
 p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
 print(json.dumps({"path": str(p), "bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "status": out["status"], "bounded_counts": out["bounded_counts"]}, ensure_ascii=False))

@@ -21,7 +21,7 @@ for s in hist['shards']:
 write('delegation/third-wave.json',{'schema':'gr8-third-wave/v2','utc':now,'additional_jobs':jobs,'additional_count':4,'previous_dispatchable_count':21,'all_dispatchable_count':25,'input_availability_validation':'tasks/history_current/dispatch-validation.json','semantic_status':'Only actual read ledgers grant semantic credit; dispatch is not completion','update_started':False})
 snap=root/'evidence/proposal-snapshots';snap.mkdir(parents=True,exist_ok=True)
 proposals=[]
-for name in ['kernel_review','combat_review','history_current','world_topology_audit','ui_navigation_audit','pbs_world_record_audit']:
+for name in ['kernel_review','combat_review','history_current','world_topology_audit','ui_navigation_audit','pbs_world_record_audit','com_ai','binary_controller_strings_review']:
  p=root/'tasks'/name/('findings.json' if name in ['kernel_review','combat_review','history_current'] else 'proposals.json')
  if not p.exists():continue
  raw=p.read_bytes();x=json.loads(raw);sha=hashlib.sha256(raw).hexdigest();target=snap/(name+'-'+sha+'.json');target.write_bytes(raw)
@@ -39,6 +39,7 @@ state.pop('pending_external_dispatchable_jobs',None)
 state['tasks']={n:{'platform_entry':'/root/'+n,'process_status':'COMPLETED' if n in completed else 'RUNNING','semantic_status':'SCOPED_OUTPUT_WITH_OPEN_JOINS' if n in completed else 'IN_PROGRESS','outputs':'tasks/'+n,'requested':{'model':'gpt-6.1-sol','effort':'ultra','tier':'default','speed':'Fast off'},'actual':dict.fromkeys(['model','effort','tier','speed'],'UNVERIFIED')} for n in completed+running}
 state['external_cloud_start_receipts']='UNVERIFIED; no receipt in this coordinator. Planned count does not assert service capacity or external process state.'
 state['nested_running_contexts']=scope['nested_running']
+state['nested_completed_contexts']=scope['nested_completed']
 state['original_dispatch_actual_mapping']=scope['original_jobs_started_here']
 state['original_dispatch_scoped_overlaps']=scope['original_jobs_with_scoped_overlaps']
 state['proposal_count_at_snapshot']=len(proposals);state['behavior_executions']={'reference_observation':0,'host_demo':0,'native_media':0,'independent_numeric_model_exploration_processes':1,'numeric_model_verification_credit':0}
@@ -47,15 +48,24 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='7956f5cba2061702b30f3a021da47f386c92250f'
-state['dispatch_remote_readback']={'files':264,'bytes':18250159,'status':'VERIFIED','evidence':'publication/r8-dispatch-readback-02.json','semantic_credit':'NONE'}
+state['published_dispatch_checkpoint']='78287d85f2ea54e465de2747a6aca82f3245125f'
+state['dispatch_remote_readback']={'files':2223,'bytes':65204417,'status':'VERIFIED','evidence':'publication/r8-followup-dispatch-readback-04.json','semantic_credit':'NONE'}
+state['current_dispatch_plan']={'path':'delegation/current-plan.json','leaf_plans':28,'supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
 status=(root/'publication/checkpoint-status.md').read_text()
 (root/'status-report.md').write_text(status)
 findings=load('findings.json')
 findings['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'whole_review_required_count':None,'qualification':decisions['counts_qualification']}
+decision_map={r['id']:r for r in decisions['records']}
+for entry in findings['proposals']:
+ rid=entry['record'].get('id')
+ if rid in decision_map:
+  entry['root_status']='BOUNDED_'+decision_map[rid]['classification'].upper()+'_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION_PENDING'
+  entry['root_decision_path']='adjudication/root-decisions.partial.json'
+ else:entry['root_status']='WAIT_ROOT_CANONICAL_CLASSIFICATION_AND_NONPROPOSER_RECEPTION'
 findings['independent_receptions']+=['tasks/counter_combat_first/adjudications.json','tasks/counter_world_first/adjudications.json','tasks/world_topology_audit/refutation-ui001.json','tasks/world_topology_audit/refutation-pbsw002.json','coverage/root-pbsw-001-counterreview.json']
+findings['independent_receptions']+=['tasks/com_facility/adjudications-ai.json','adjudication/root-hist-001-counterreview.json','adjudication/root-history-facets-counterreview.json']
 write('findings.json',findings)
 packed=load('publication/compressed-artifacts.json')
 packed_paths={r['original_path'] for r in packed['artifacts']}
