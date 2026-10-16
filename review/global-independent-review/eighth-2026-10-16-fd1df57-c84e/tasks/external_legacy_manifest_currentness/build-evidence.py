@@ -1,4 +1,7 @@
-"""Rebuild this task's mechanical evidence. Does not grant semantic review credit.
+"""Historical v1 writer. Do not rerun over the completed v2 purpose judgments.
+
+Use complete-purpose-v2.py for v2 evidence; this original method is preserved as
+process evidence. No script execution grants semantic review credit.
 
 Only files adjacent to this script are written. No reference program is executed.
 The reader's recorded judgments below are intentionally incomplete, not defaults

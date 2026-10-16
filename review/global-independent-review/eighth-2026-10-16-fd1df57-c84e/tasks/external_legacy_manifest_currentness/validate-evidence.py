@@ -37,7 +37,12 @@ for u in frozen['units']:
     assert len(part)==u['bytes'] and hashlib.sha256(part).hexdigest()==u['sha256']
 record('all_primary_offsets_and_hashes',True,'1413 line slices verified against fixed manifest, not semantic reading credit.')
 record('primary_bytes_exact',sum(x['bytes'] for x in frozen['units'])==627400,'Both ranges total627400 bytes including original line endings.')
-record('no_false_completion',purpose['status']=='INCOMPLETE_NO_PASS' and ledger['actual_counts']['atomic_assertion_denominator']=='UNFROZEN' and ledger['actual_counts']['currentness_unclosed_content_paragraphs']==881,'Unknown atomic denominator and881 content obligations retained.')
+semantic=json.loads((HERE/'semantic-purpose-review.v2.json').read_text())
+routes=json.loads((HERE/'current-primary-contribution-routes.v2.json').read_text())
+record('declared_local_purpose_state',purpose['status']=='PRIMARY_PURPOSE_REVIEW_COMPLETE_PENDING_ROOT_RECEPTION' and semantic['reviewed']==156 and semantic['unreviewed']==0 and ledger['actual_counts']['currentness_unclosed_content_paragraphs']==0,'Finite documentary purpose state only; no engine/global semantic approval from this check.')
+record('meaningful_event_denominator',len(semantic['units'])==156 and {x['round'] for x in semantic['units']}==set(range(16,172)),'156 coherent version/review/authorization events, not punctuation/JSON fields.')
+record('every_paragraph_event_binding',all(x['semantic_event'] in {u['id'] for u in semantic['units']} for x in purpose['units']),'Every1413 structure associated with a reviewed event and881 full paragraph dispositions.')
+record('current_primary_routes',len(routes['formal_routes'])==131 and len({x['path'] for x in routes['formal_routes']})==131,'All current formal identities routed; no131-file FULL_READ credit.')
 record('no_self_reception',all(x['root_reception']=='UNRECEIVED' for x in purpose['units']),'All1413 primary physical units explicitly unreceived.')
 changed=git('diff','--name-only','30cfed0996003b6ebf4b5c51cc04f31ca9255440','--').splitlines()
 untracked=git('ls-files','--others','--exclude-standard').splitlines()
