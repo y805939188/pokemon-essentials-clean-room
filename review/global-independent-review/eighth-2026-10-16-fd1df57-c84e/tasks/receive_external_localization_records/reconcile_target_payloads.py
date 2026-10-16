@@ -114,7 +114,7 @@ def primary_json():
     return {'schema':'gr8-elr-original-primary-exact-factoring/v1', 'record_templates':factored,
             'all_original_units_reconstructed_exactly':True, 'all_forward_records_match_exact_group_receiver_and_shared_fields':True,
             'original_FULL_READ_WAIT_ROOT':'Original author historical states, never new receiver reading credit.',
-            'actual_literal_reception':'Parent433 + named A/B/C5437; D4827 still pending.', 'generation_credit':0}
+            'actual_literal_reception':'Parent433 + named readers'+str(load(T/'continuation/received-parts/parent-acceptance.json')['received_pairs'])+'; actual reader attribution remains separate.', 'generation_credit':0}
 
 def purposes(source, corpus):
     source_map = {r['view']: n for n,r in enumerate(source)}
@@ -126,7 +126,7 @@ def purposes(source, corpus):
         'progress.json': ('FULL_STATUS_AND_QUALIFICATIONS_RECEIVED','原配置/实际UNVERIFIED、过程、失败、读者分母和剩余已读；身份/UTC仅原记录。'),
         'identities.json': ('IDENTITY_WITH_AUTHORIZATION_CONFIGURATION_QUALIFICATION','payloads/continuation-own/peer身份数组仅绑定对象；原授权覆盖、请求/实际配置、启动/路径/库存资格及五合同use已全文读，不把旧角色指令当本任务授权。'),
         'proposals.json': ('FULL_PROPOSAL_RECEIVED','ELR001八节/正常反例/最强no-required/部分失败/同步/验收完整，后继独立反证与root裁决另具名。'),
-        'reading-ledger.json': ('EXACT_SEMANTIC_FACTORING_LITERAL_RECEPTION_SEPARATE','全部unit业务字段20种精确变体、18file业务字段、41依赖资格/续读范围已呈现；10697文字信用按parent/named reader分列，D待接。'),
+        'reading-ledger.json': ('EXACT_SEMANTIC_FACTORING_LITERAL_RECEPTION_SEPARATE','全部unit业务字段20种精确变体、18file业务字段、41依赖资格/续读范围已呈现；10697文字信用按parent/named reader分列，不转授为父个人实读。'),
         'forward-mapping.json': ('EXACT_SEMANTIC_FACTORING_LITERAL_RECEPTION_SEPARATE','18完整fact_group及10697forward共享字段/每域receiver/7续接事实已读并严格核对；不因原WAIT_ROOT建立新接收。'),
         'reverse-mapping.json': ('FULL_FINITE_REVERSE_MEANING_RECEIVED','125完整条款398子断言及LZ41、七续接反向字段实际读完，原定位与实际完整必要定义分列。'),
         'evidence/assignment-metadata.json': ('FULL_ASSIGNMENT_FIELDS_RECEIVED','9项任务/精确selected_paths/status/reason作为原分派元数据；NOT_RECEIVED不是当前结论。'),
@@ -191,16 +191,27 @@ def purposes(source, corpus):
         entries.append(out)
     assert len(entries) == 213
     return {'schema':'gr8-elr-exact-target-payload-purpose/v1','fixed_target':'90b9e27ef03feb2c018bb2f258b5e0d5aaed012b','entries':entries,
-            'count':213,'generation_credit':0,'meaning':'每路径明确采用的实际有限字段/别名和未采用正文。不是全部文件FULL_READ清单；D值信用仍待实际读者。',
+            'count':213,'generation_credit':0,'meaning':'每路径明确采用的实际有限字段/别名和未采用正文。不是全部文件FULL_READ清单；值信用按实际具名读者接收，不由生成获得。',
             'field_purpose_rules':{'pure_identity':'path/mode/blob/bytes/SHA/tree/line/range/ID/pointer只绑定精确对象；不赋新语义信用。',
                 'business':'meaning/fact/premise/expected/default/enum/normal/cancel/failure/partial/reason/correction/open/qualification均须实际读；上述具体采用对象已在接收ledger和后继全文说明。',
                 'unadopted_peer_business':'更大外域容器的其它业务正文明确未读/未采用，保留原owner；其存在不扩成本任务重审全系统。',
                 'original_status':'原FULL_READ/WAIT_ROOT/PASS/OPEN为原时点，绝不批量改写为本审者。'}}
 
 if __name__ == '__main__':
-    source = source_views(); corpus = corpus_views(); primary = primary_json()
+    prior = T/'continuation/target-view-reuse.json'
+    if prior.exists():
+        previous = load(prior); source = previous['source_views']; corpus = previous['corpus_views']
+        credited = {x['id'] for x in load(T/'continuation/received-parts/parent-acceptance.json')['records']}
+        credited |= {x['id'] for x in load(T/'reading-ledger.json')['literal_record_reads']}
+        for row in corpus:
+            row['pending_reader_ids'] = [rid for rid in row['record_ids'] if rid not in credited]
+            row['actual_reader_received_pairs'] = len(row['record_ids'])-len(row['pending_reader_ids'])
+        primary = load(T/'continuation/original-primary-semantics.factored.json')
+        primary['actual_literal_reception'] = 'Parent433 + named readers'+str(len(credited)-433)+'; all stable IDs counted once, no parent literal reread.'
+    else:
+        source = source_views(); corpus = corpus_views(); primary = primary_json()
     save(T / 'continuation/target-view-reuse.json', {'schema':'gr8-elr-exact-target-view-reuse/v1','source_views':source,'corpus_views':corpus,
-        'qualification':'Exact fixed-source aliases only. Actual source/record reader credit and necessary adopted scope remain separate; binding itself reading0.',
+        'qualification':'Exact fixed-source/record bindings published at13a2552752f3a170f0c3eb4c400537c0b2e10b72 reused; only actual-reader coverage updated after D reception. No duplicate literal reading or recreated input transport identities; generation reading0.',
         'source_execution':'NOT_EXECUTED','recovered_scripts_execution':'NOT_EXECUTED'})
     save(T / 'continuation/original-primary-semantics.factored.json', primary)
     save(T / 'continuation/target-payload-purpose.json', purposes(source, corpus))

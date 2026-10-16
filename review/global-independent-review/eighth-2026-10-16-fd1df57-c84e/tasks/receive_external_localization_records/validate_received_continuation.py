@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 T = Path(__file__).resolve().parent
 
@@ -96,6 +97,105 @@ def records():
         'parent_seven_interfaces_complete': False, 'root_final_signed': False,
         'semantic_credit_from_mechanical_checks': 0, 'behavior_execution': 'NOT_EXECUTED', 'UPDATE_NOT_STARTED': True})
     return receipts
+
+def receive_recovery_d():
+    """Receive only the new D evidence; reuse the already accepted A/B/C receipt."""
+    part = 'records_d_recovery'
+    prefix = 'continuation/received-parts/' + part + '/'
+    manifest = load(prefix + 'parent-retrieval-identity.json')
+    assert manifest['commit'] == '477fb3ce438fe5462ee6901908cccc59977d4ba1'
+    for f in manifest['files']:
+        b = (T / f['local']).read_bytes()
+        assert len(b) == f['bytes'] and sha(b) == f['sha256']
+        assert git('show', manifest['commit'] + ':' + f['path']) == b
+    assert len(manifest['files']) == 8 and sum(f['bytes'] for f in manifest['files']) == 696469
+    source_prefix = 'review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/recovery_elr_d/'
+    changed = [p.decode() for p in git('diff-tree','--no-commit-id','--name-only','-r','-z',
+        'd14a4bf68776ac7aacf54065c28ed982a054c8a8',manifest['commit']).split(b'\0') if p]
+    assert len(changed) == 8 and all(p.startswith(source_prefix) for p in changed)
+    identity_checks = load(prefix + 'input-identity.json')['checks']
+    for item in identity_checks:
+        ref = item['commit'] == '8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b'
+        data = git('show', item['commit'] + ':' + item['path'], reference=ref)
+        desc = git('ls-tree',item['commit'],'--',item['path'],reference=ref).decode().split('\t')[0].split()
+        assert len(data) == item['bytes'] and sha(data) == item['sha256']
+        assert desc[0] == item['mode'] and desc[2] == item['blob']
+    frozen = load('continuation/contracts/readsets/records_d.complete.json')
+    supplied = load(prefix + 'frozen-denominator.json')
+    assert supplied['record_ids'] == frozen['record_ids'] and supplied['ordered_runs'] == frozen['ordered_runs']
+    assert supplied['count'] == 4827 and supplied['fields'] == 9654
+    context = supplied['context']['actual_platform_context_id']
+    assert context == '01a144fc-df1d-7133-97ce-5d218016402d'
+    assert context not in supplied['context']['author_contexts_excluded']
+    rec = load(prefix + 'reception-ledger.json')
+    reading = load(prefix + 'reading-ledger.json')
+    assert reading['literal_read'] == rec['received_pairs'] == 4827 and reading['unread'] == rec['unread'] == 0
+    rows = rec['rows']; batches = reading['batches']
+    assert [r[0] for r in rows] == frozen['record_ids'] and len(batches) == 14
+    previous = 0
+    for batch in batches:
+        first,last = batch['ordinal_range']
+        assert first == previous + 1 and rows[first-1][0] == batch['first'] and rows[last-1][0] == batch['last']
+        assert rows[first-1][1] == batch['view_lines'][0] and rows[last-1][1] == batch['view_lines'][1]
+        assert batch['credit'] == 'complete displayed literals actually read; each equals both raw fields'
+        previous = last
+    assert previous == 4827
+    index = load('continuation/contracts/readsets/records_d.identity-only-index.json')['rows']
+    semantics = load('continuation/contracts/readsets/records_d.original-semantic-fields.json')
+    original = load('evidence/recovered-target/reading-ledger.json')
+    units = {u['id']:u for u in original['units']}
+    forward = load('evidence/recovered-target/forward-mapping.json')
+    fm = {u['unit']:u for u in forward['records']}
+    groups = {g['domain']:g for g in forward['fact_groups']}
+    for fact in semantics['fact_groups']: assert fact == groups[fact['domain']]
+    view = (T/'continuation/contracts/views/records_d.records.view.txt').read_text().splitlines()
+    pure = {'id','identity','lines','record','key_sha256','translation_sha256'}
+    raw = {d:(T/'evidence/primary-reference'/(d+'.txt')).read_text(encoding='utf-8-sig').splitlines() for d in rec['domain_contracts']}
+    old = load('continuation/received-parts/parent-acceptance.json')
+    accepted = [r for r in old['records'] if r['part'] != part]
+    assert len(accepted) == 5437
+    own_ids = {r['id'] for r in load('reading-ledger.json')['literal_record_reads']}
+    assert not own_ids & set(frozen['record_ids']) and not {r['id'] for r in accepted} & set(frozen['record_ids'])
+    for i,(row,ident) in enumerate(zip(rows,index)):
+        rid,line,physical,index_n,batch_n,domain,disposition = row
+        u = units[rid]; n = u['record']
+        assert {k:u[k] for k in pure} == ident and index_n == i+1 and physical == u['lines']
+        assert domain in rec['domain_contracts'] and rid == 'ELR-'+domain+'-'+str(n).zfill(4)
+        assert 1 <= batch_n <= 14 and disposition == 'RECEIVED_LOCALIZATION_DATA'
+        first,last = batches[batch_n-1]['ordinal_range']; assert first <= i+1 <= last
+        marker,literal = view[line-1].split(' = ',1)
+        value = json.loads(literal)
+        assert marker == 'R'+str(n) and value == raw[domain][2*n+2] == raw[domain][2*n+3]
+        assert sha(value.encode()) == u['key_sha256'] == u['translation_sha256']
+        assert {k:v for k,v in u.items() if k not in pure} == semantics['templates'][domain]['complete_original_unit_semantic_fields']
+        assert {k:v for k,v in fm[rid].items() if k!='unit'} == semantics['templates'][domain]['complete_original_forward_fields']
+        accepted.append({'id':rid,'domain':domain,'reader_context':context,'part':part,'reader_record':i,
+            'reader_batch':batch_n,'parent_literal_reread':False,
+            'reception':'RECEIVED_FINITE_RECORD_SEMANTICS_FROM_NAMED_NONAUTHOR_READER','interfaces_final':False})
+    assert len(accepted) == len({r['id'] for r in accepted}) == 10264
+    assert own_ids | {r['id'] for r in accepted} == {u['id'] for u in original['units'] if 'record' in u}
+    receipts = [r for r in old['receipts'] if r['part'] != part]
+    receipt = {'part':part,'logical_part':'records_d','commit':manifest['commit'],'checkout_tree':manifest['checkout_tree'],
+        'task_tree':manifest['task_tree'],'files_retrieved_and_bound':8,'bytes':696469,'records':4827,'fields':9654,
+        'reader_context':context,'source_prefix':source_prefix,'actual_write_scope_only_new_eight_paths':True,
+        'semantic_material_actually_received':['complete report common/four-domain meanings','all14 actual reading batches and failure qualifications',
+            'all12 necessary-definition receipts plus parent completion correction','complete finite vectors and strongest no-required/reverse clauses',
+            'all four original full semantic templates/fact groups','all domain contracts and row dispositions','interfaces/proposal/identity/publication qualifications'],
+        'parent_literal_reread':False,'generation_reading_credit':0,
+        'definition_extent_correction':{'source':'Compiler_CompilePBS.rb','D_ledger_range':[1,64],
+            'complete_generic_method':[4,68],'completion_reader':'01a14465-d18e-725b-b69c-2e6f52300005',
+            'prior_actual_reading':'continuation/reading-and-reception.addendum.json source range1–108; not retroactive D credit'},
+        'excluded':'No global/root final signature, no source behavior execution or independent ELR001 vote'}
+    receipts.append(receipt)
+    old.update(records=accepted,receipts=receipts,received_pairs=10264,received_fields=20528,
+        parent_seven_interfaces_complete=False,root_final_signed=False,
+        D_recovery_qualification='One logical D scope; new recovery actual reader replaces unreceived original D. Later original results dedup by exact stable ID; conflicting ID freezes for root, no extra denominator/vote.')
+    save('continuation/received-parts/parent-acceptance.json',old)
+    save('continuation/received-parts/recovery-D-validation.json',{'receipt':receipt,'input_identity_checks':len(identity_checks),
+        'record_id_order_exact':True,'batch_contiguous_records':4827,'all_literal_view_raw_key_value_bindings_exact':True,
+        'original_unit_forward_fact_fields_exact':True,'union_parent433_named10264_exact10697':True,
+        'A_B_C_unchanged_receipts_reused':True,'semantic_credit_from_tool':0,'behavior_execution':'NOT_EXECUTED'})
+    return receipt
 
 def pbs():
     packet = load('evidence/pbs-current/localization-field-contribution.v1.json')
@@ -203,5 +303,8 @@ def links_and_reverse():
     return len(packet['links']), len(reverse['wp08_clause_records']), sub
 
 if __name__ == '__main__':
-    result = {'parts': records(), 'pbs': pbs(), 'links_reverse': links_and_reverse()}
+    if sys.argv[1:] == ['--receive-recovery-D']:
+        result = {'recovery_D':receive_recovery_d()}
+    else:
+        result = {'parts':load('continuation/received-parts/parent-acceptance.json')['receipts'], 'pbs': pbs(), 'links_reverse': links_and_reverse()}
     print(json.dumps(result, ensure_ascii=False, indent=2))

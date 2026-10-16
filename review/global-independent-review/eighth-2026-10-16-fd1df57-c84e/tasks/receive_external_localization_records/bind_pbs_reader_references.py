@@ -6,6 +6,8 @@ import json
 T = Path(__file__).resolve().parent
 def load(p): return json.loads((T / p).read_text())
 named = load('continuation/received-parts/parent-acceptance.json')['records']
+previous_path = T/'continuation/pbs-field-binding/actual-reader-bindings.json'
+previous = {(r['unit'],r['field']):r for r in json.loads(previous_path.read_text())['rows']} if previous_path.exists() else {}
 readers = {r['id']: {'context':r['reader_context'],'part':r['part']} for r in named}
 for r in load('reading-ledger.json')['literal_record_reads']:
     readers[r['id']] = {'context':'01a14465-d18e-725b-b69c-2e6f52300005','part':'parent_actual_literal_read'}
@@ -31,7 +33,12 @@ for r in load('continuation/pbs-field-binding/unique-necessary-records.json'):
             domain,n,which=ref['CORPUS_EXACT_LITERAL']; value=raw[domain][2*n+2+(which=='value')]
             candidates=pool.get(value,[])
             if candidates:
-                out.update(status='EXACT_LITERAL_BOUND_TO_ACTUAL_RECEIVED_READER',actual_literal_reader=candidates[0])
+                old=previous.get((r['id'],field),{}).get('actual_literal_reader')
+                if old:
+                    rid=old['record_id']; dom,num=rid[4:].rsplit('-',1); number=int(num)
+                    assert rid in readers and raw[dom][2*number+2+(old['field']=='value')]==value
+                    assert old['context']==readers[rid]['context'] and old['part']==readers[rid]['part']
+                out.update(status='EXACT_LITERAL_BOUND_TO_ACTUAL_RECEIVED_READER',actual_literal_reader=old or candidates[0])
                 counts['corpus_literals_resolved']+=1
             else:
                 out['status']='PENDING_D_ACTUAL_LITERAL_RECEPTION';counts['corpus_literals_pending_D']+=1
