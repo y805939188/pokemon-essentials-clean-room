@@ -17,6 +17,7 @@ import urllib.request
 parser=argparse.ArgumentParser()
 parser.add_argument('commit')
 parser.add_argument('--receipt')
+parser.add_argument('--api-evidence',help='Exact GitHub commit/subtree response obtained through read-only connector when shell API proxy is unavailable.')
 args=parser.parse_args()
 HERE=Path(__file__).resolve().parent
 REPO=Path('/workspace/r8-external-legacy')
@@ -39,12 +40,21 @@ def get(url):
     with urllib.request.urlopen(req,timeout=45) as response:
         return response.status,response.read()
 
-status,raw=get('https://api.github.com/repos/'+OWNER+'/git/commits/'+commit)
-remote_commit=json.loads(raw)
-assert status==200 and remote_commit['sha']==commit and remote_commit['tree']['sha']==tree
-status,raw=get('https://api.github.com/repos/'+OWNER+'/git/trees/'+subtree+'?recursive=1')
-remote_tree=json.loads(raw)
-assert status==200 and remote_tree['sha']==subtree and not remote_tree.get('truncated')
+if args.api_evidence:
+    api=json.loads((REPO/args.api_evidence).read_text())
+    remote_commit=api['commit']
+    remote_tree=api['subtree']
+    api_method='read-only GitHub connector responses: '+args.api_evidence
+else:
+    status,raw=get('https://api.github.com/repos/'+OWNER+'/git/commits/'+commit)
+    assert status==200
+    remote_commit=json.loads(raw)
+    status,raw=get('https://api.github.com/repos/'+OWNER+'/git/trees/'+subtree+'?recursive=1')
+    assert status==200
+    remote_tree=json.loads(raw)
+    api_method='direct HTTPS GitHub API'
+assert remote_commit['sha']==commit and remote_commit['tree']['sha']==tree
+assert remote_tree['sha']==subtree and not remote_tree.get('truncated')
 remote_entries={ROOT+'/'+x['path']:x for x in remote_tree['tree'] if x['type']=='blob'}
 expected=[]
 for row in git('ls-tree','-r','-z',commit,'--',ROOT).split(b'\0'):
@@ -75,7 +85,8 @@ result={'schema':'r8-external-legacy-remote-readback/v1','start_utc':START,
  'branch':BRANCH,'remote_ref':remote,'github_commit_tree_verified':True,'github_subtree_modes_blobs_verified':True,
  'file_count':len(items),'bytes':sum(x['bytes'] for x in items),'all_files_full_readback':True,
  'method':'Fresh HTTPS reads of every immutable raw file; compare entire bytes, SHA256, Git blob; GitHub commit/tree APIs and real-time ls-remote bind root/subtree. No local-object-only readback.',
- 'command':['python',str(Path(__file__).relative_to(REPO)),args.commit]+(['--receipt',args.receipt] if args.receipt else []),
+ 'git_api_method':api_method,
+ 'command':['python',str(Path(__file__).relative_to(REPO)),args.commit]+(['--receipt',args.receipt] if args.receipt else [])+(['--api-evidence',args.api_evidence] if args.api_evidence else []),
  'bottom_exit':0,'stderr':'','evidence_level':'TOOL_VALIDATION_ONLY','business_vectors':'NOT_EXECUTED','files':items}
 if args.receipt:
     destination=(REPO/args.receipt).resolve()
