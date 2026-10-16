@@ -50,6 +50,13 @@ try:
   elif rel.startswith('inputs/original-transport/'):
    for x in json.loads(data['evidence/original-recovery.json'])['files']:
     if x['transport_local_path']==rel:expected=x['input'];break
+  if expected is None and rel.startswith('delegation/fanout-v1/'):
+   for rs_name,rs_bytes in data.items():
+    if rs_name.startswith('delegation/fanout-v1/shards/')and rs_name.endswith('/readset.json'):
+     for payload in json.loads(rs_bytes)['exact_payloads']:
+      if payload['path']==prefix+'/'+rel and 'decoded_identity'in payload:
+       if expected is not None:assert expected==payload['decoded_identity']
+       expected=payload['decoded_identity']
   assert expected is not None,rel
   sha=hashlib.sha256(b).hexdigest();oid=hashlib.sha1(f'blob {len(b)}\0'.encode()+b).hexdigest();assert len(b)==expected['bytes']and sha==expected['sha256']and oid==expected.get('git_blob',expected.get('git_blob_content_id'))
   decoded.append({'path':rel,'decoded_bytes':len(b),'decoded_sha256':sha,'decoded_blob':oid,'status':'VERIFIED'})
