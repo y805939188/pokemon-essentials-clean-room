@@ -1,6 +1,6 @@
 # external_ability_atomic_completion 实质审查交付
 
-本次状态为 `PARTIAL_SUBSTANTIVE_REVIEW_CAPACITY_SPLIT_REQUIRED`。已亲读全部主责源、两篇正式正文与两份共享目录，完成全部239个直接处理器的手工事实组；尚未完成合同要求的穷尽子断言分母、全部反向支持及必要接口接收。没有全域 PASS、没有 `NO_REQUIRED_UPDATE`；正式整改为 `UPDATE_NOT_STARTED`。根最终签收由主审负责。
+原始冻结core状态为 `PARTIAL_SUBSTANTIVE_REVIEW_CAPACITY_SPLIT_REQUIRED`；当前接续状态为 `CONT02_RECEIVED_WAITING_STARTED_CONT01_CONT03`。已亲读全部主责源、两篇正式正文与两份共享目录，完成全部239个直接处理器的手工事实组；穷尽子断言分母与全部反向支持仍待已启动的CONT-01；必要六接口已有限接收，旧证据/历史资格待已启动的CONT-03。没有全域 PASS、没有 `NO_REQUIRED_UPDATE`；正式整改为 `UPDATE_NOT_STARTED`。根最终签收由主审负责。
 
 ## 冻结输入与保护
 
@@ -43,10 +43,22 @@ RX-HANDLER 的 raw add/空子类、RX-ITEM-DISPATCH 的 Exp−1与EV登记即处
 
 新增正式 candidate0，已独立裁决required0；没有据此得出零缺口。BadDreams 在间伤许可拒绝前已展示拥有者能力条、局部 hide 只在效果伤害块内，这一前缀作为源观察保留；当前正文没有本地强清理承诺，尚未形成正式缺陷或独立裁决。
 
-仍开放的是完整子断言分母与反向支持；CORE入场/终局/场地等必要有限接收；CRE/PBS默认/备份的所需原值与激活；KERNEL编译/cache/reload；AI与实际Move override消费者；旧完整事实与历史资格。它们是可读未审/未接收，**不是宿主limit**。
+原始core开放了完整子断言分母/反向支持、六类有限接口和旧证据/历史资格。CONT-02现已完成六接口的有限接收；当前真实依赖是已启动CONT-01的完整原子/反向结果及CONT-03的旧证据/历史结果，**不是宿主limit**。
 
-`next-dispatch.json` 给出三个可直接由主审分配的精确续审合同：CONT-01完成本域原子/反向分母，CONT-02只接有限接口，CONT-03接旧证据与本域历史资格。逐项绑定既有文件/源范围/未接含义/读写集/保留/验收与独立性。132个未关联定位逐ID列出；不要求任何 provider 重复全系统审查。此处续审未启动，整改未启动。
+`next-dispatch.json` 给出三个可直接由主审分配的精确续审合同：CONT-01完成本域原子/反向分母，CONT-02只接有限接口，CONT-03接旧证据与本域历史资格。逐项绑定既有文件/源范围/未接含义/读写集/保留/验收与独立性。132个未关联定位逐ID列出；不要求任何 provider 重复全系统审查。原始core冻结时续审尚未启动；主审现已实际启动三份续审，CONT-02已接收，CONT-01/03结果待达。整改未启动。
 
 本轮本域参考Ruby、独立行为模型、native、游戏/Demo、媒体、真实存档/回放执行全部 `NOT_EXECUTED`。只运行Git/hash、无执行文本解析与审计台账序列化。截断、旧路径读取失败、初始fetch超时和gh API Forbidden均如实列入validation；后续可用普通Git已恢复传输，未申请权限、未安装或更改系统安全设置。
 
 本次交付为有界、可续接的实质证据包；容量边界保留在进度和精确拆分合同中，不能当作合同全量完成。语义core冻结后在专属分支普通push，新增文件逐件完整远端回读；固定core/publication身份及传输结果由后继publication-binding和最终回复绑定，不自填未来commit或自哈希。
+
+## CONT-02 有限接收增量
+
+固定提交 `5c1e9a4679f66f4f1a6a8fb85c21335dd46eb0b1` 的 `tasks/ability_cont_02/` 已接收。其最终workspace tree为 `a46be0ee1a0d846eb38144ed06c55705a6ad881c`，任务tree为 `12b5c38240da7232ce34dea805a8d8dea5e37739`。本上下文实际读完32组完整事实、32条反向记录、91调用点语义、62份原贡献完整对象及25条相关MOVE记录；保留所有原阅读者，未把接收转成新独立票。数据五套身份与24个选中完整记录作有限接收，不声称亲读1122条原始数据正文。
+
+IF-02/03/04/05/06/09以有限范围接收；具体映射与本接收者解释见 `continuation-02-reception.json`。91点包括005_AI17点和006_AI MoveEffects4点，实际AI共21点。六个换人/逃跑点原导航继承AC2-F16重量/速度锚点，本接收补WP48§7L179的实际操作条款；原提供者数组不改。导航更正不新增正式缺陷。Flags省略与显式空值不同、强制物品入口各自门、所有Battler强制更正均保留。
+
+GR8-COM-008保留原提案者 `/root/core_atomic_reception`、原反读者 `/root` 的原上下文及原历史待去重状态，只限定WP41§9item4，不新增票或重复计数。BadDreams保留能力显示先于间伤拒绝的源前缀；当前正文无无条件成对清理保证，仍未形成新正式提案。
+
+79项输入身份、全部91字面调用位置及其族登记ID集合与固定源一致；五套数据身份/选中记录原值与31强制伴件接收范围一致。CONT-02最终17文件已独立从固定提交完整远端回读，字节/SHA256/Git blob全部一致，见 `continuation-02-mechanics.json`、`continuation-02-remote-readback.json`。这些机械成功不授予额外语义或执行信用。
+
+CONT-01实际上下文 `01a14491-40f1-7528-87f6-8ef1c5759008`、CONT-03实际上下文 `01a14491-1ee3-7329-8551-0d6e83b1b005` 由主审报告已启动，结果尚未接收。本原任务保留跨组汇总职责，待两份结果后接合完整子断言分母、反向支持与历史资格；不重复全域主读，不新增审查层。当前743条仍是下界，根最终签收PENDING，正式整改 `UPDATE_NOT_STARTED`，全部业务执行 `NOT_EXECUTED`。
