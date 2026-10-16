@@ -1,0 +1,188 @@
+{
+  "schema": "r8-core-pbs-item-choice-lifecycle-finite-v1",
+  "utc": "2026-10-16T09:56:27.890278+00:00",
+  "original_reader": "/root/core_atomic_reception",
+  "fixed_R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+  "facts": [
+    {
+      "id": "CAR-PBS-CHOICE-01",
+      "units": [
+        "use_item_methods",
+        "item_register_consume_return"
+      ],
+      "meaning": [
+        "A rejected CanUse in party/battler/direct item executor calls ReturnUnusedItemToBag but does not clear choice item/action. Successful handler normalreturn clears choice item, not necessarily the action tag. Ball executor clears after its actual trigger returns.",
+        "For consumed player-owned items, ReturnUnused consults current global Bag can_add then add; otherwise raises. Earlier returned inventory and unchanged choice can coexist. Registration previously wrote choice before initial consume."
+      ],
+      "remaining": "Receiver owns full Bag/storage helpers and actual item handler/data qualification; no universal refund idempotency or arbitrary callback success is inferred."
+    },
+    {
+      "id": "CAR-PBS-CHOICE-02",
+      "units": [
+        "command_phase",
+        "can_show_commands",
+        "multiturn_query",
+        "choice_clear_cancel"
+      ],
+      "meaning": [
+        "Next CommandPhase sets flag, notifies scene, then for each nonnil actor whose CanShowCommands is true calls ClearChoice directly, without ReturnUnusedItem. CanShow needs actor alive and !usingMultiTurnAttack.",
+        "MultiTurn query checks truthy TwoTurnAttack or positive HyperBeam/Rollout/Outrage/Uproar/Bide. ClearChoice sets actionNone/index0/move-or-targetnil/target−1. If qualification false, this specific phase does not perform that clear."
+      ],
+      "remaining": "Other action-selection/callback writers may alter choices later; this is only actual next-phase initial clear."
+    },
+    {
+      "id": "CAR-PBS-CHOICE-03",
+      "units": [
+        "normal_end",
+        "choice_clear_cancel",
+        "item_register_consume_return",
+        "faint"
+      ],
+      "meaning": [
+        "Reached normal EndOfBattle calls Scene.EndBattle before its nonnil actor loop CancelChoice. CancelChoice sees UseItem and truthy item and returns unused item before unregisterMega/ClearChoice. A first failed-use refund that left these fields can therefore be returned again if unchanged and this normal path reaches it; no once-only ledger is present in these methods.",
+        "Formal Faint requires localHP<=0 and notalreadyfainted; after its earlier scene/effects/status/form steps calls ClearChoice directly, with no unused-item refund in that clear. Thus a reached faint clear can remove the residual reference before a later end CancelChoice.",
+        "Error during normalEnd before target CancelChoice, during refund or during earlier Faint callbacks can prevent laterclear; already added inventory/prior object writes remain. DebugAbort/nonordinary exit is not equated with normal EndOfBattle."
+      ],
+      "remaining": "These bounded source facts add no new formal finding, mandatory fixture or global exact-history classification. Existing WP28§3.5.1 correct qualified contract remains protected."
+    }
+  ],
+  "source_units": [
+    {
+      "id": "normal_end",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/002_Battle_StartAndEnd.rb",
+      "bytes": 23136,
+      "sha256": "e7d7b37b0a60fe4489f4252642abba52085ed344115acc36f42cf675e5fc1ee1",
+      "git_blob": "54d4f8d6a10df57937838b36ec145a96fdc7b91e",
+      "range": [
+        405,
+        512
+      ],
+      "content": "  def pbEndOfBattle\n    oldDecision = @decision\n    @decision = 4 if @decision == 1 && wildBattle? && @caughtPokemon.length > 0\n    case oldDecision\n    ##### WIN #####\n    when 1\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Player won =====\")\n      PBDebug.log(\"\")\n      if trainerBattle?\n        @scene.pbTrainerBattleSuccess\n        case @opponent.length\n        when 1\n          pbDisplayPaused(_INTL(\"You defeated {1}!\", @opponent[0].full_name))\n        when 2\n          pbDisplayPaused(_INTL(\"You defeated {1} and {2}!\", @opponent[0].full_name,\n                                @opponent[1].full_name))\n        when 3\n          pbDisplayPaused(_INTL(\"You defeated {1}, {2} and {3}!\", @opponent[0].full_name,\n                                @opponent[1].full_name, @opponent[2].full_name))\n        end\n        @opponent.each_with_index do |trainer, i|\n          @scene.pbShowOpponent(i)\n          msg = trainer.lose_text\n          msg = \"...\" if !msg || msg.empty?\n          pbDisplayPaused(msg.gsub(/\\\\[Pp][Nn]/, pbPlayer.name))\n        end\n        PBDebug.log(\"\")\n      end\n      # Gain money from winning a trainer battle, and from Pay Day\n      pbGainMoney if @decision != 4\n      # Hide remaining trainer\n      @scene.pbShowOpponent(@opponent.length) if trainerBattle? && @caughtPokemon.length > 0\n    ##### LOSE, DRAW #####\n    when 2, 5\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Player lost =====\") if @decision == 2\n      PBDebug.log_header(\"===== Player drew with opponent =====\") if @decision == 5\n      PBDebug.log(\"\")\n      if @internalBattle\n        pbDisplayPaused(_INTL(\"You have no more Pokémon that can fight!\"))\n        if trainerBattle?\n          case @opponent.length\n          when 1\n            pbDisplayPaused(_INTL(\"You lost against {1}!\", @opponent[0].full_name))\n          when 2\n            pbDisplayPaused(_INTL(\"You lost against {1} and {2}!\",\n                                  @opponent[0].full_name, @opponent[1].full_name))\n          when 3\n            pbDisplayPaused(_INTL(\"You lost against {1}, {2} and {3}!\",\n                                  @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))\n          end\n        end\n        # Lose money from losing a battle\n        pbLoseMoney\n        pbDisplayPaused(_INTL(\"You blacked out!\")) if !@canLose\n      elsif @decision == 2   # Lost in a Battle Frontier battle\n        if @opponent\n          @opponent.each_with_index do |trainer, i|\n            @scene.pbShowOpponent(i)\n            msg = trainer.win_text\n            msg = \"...\" if !msg || msg.empty?\n            pbDisplayPaused(msg.gsub(/\\\\[Pp][Nn]/, pbPlayer.name))\n          end\n          PBDebug.log(\"\")\n        end\n      end\n    ##### CAUGHT WILD POKÉMON #####\n    when 4\n      PBDebug.log(\"\")\n      PBDebug.log_header(\"===== Pokémon caught =====\")\n      PBDebug.log(\"\")\n      @scene.pbWildBattleSuccess if !Settings::GAIN_EXP_FOR_CAPTURE\n    end\n    # Register captured Pokémon in the Pokédex, and store them\n    pbRecordAndStoreCaughtPokemon\n    # Collect Pay Day money in a wild battle that ended in a capture\n    pbGainMoney if @decision == 4\n    # Pass on Pokérus within the party\n    if @internalBattle\n      infected = []\n      $player.party.each_with_index do |pkmn, i|\n        infected.push(i) if pkmn.pokerusStage == 1\n      end\n      infected.each do |idxParty|\n        strain = $player.party[idxParty].pokerusStrain\n        if idxParty > 0 && $player.party[idxParty - 1].pokerusStage == 0 && rand(3) == 0   # 33%\n          $player.party[idxParty - 1].givePokerus(strain)\n        end\n        if idxParty < $player.party.length - 1 && $player.party[idxParty + 1].pokerusStage == 0 && rand(3) == 0   # 33%\n          $player.party[idxParty + 1].givePokerus(strain)\n        end\n      end\n    end\n    # Clean up battle stuff\n    @scene.pbEndBattle(@decision)\n    @battlers.each do |b|\n      next if !b\n      pbCancelChoice(b.index)   # Restore unused items to Bag\n      Battle::AbilityEffects.triggerOnSwitchOut(b.ability, b, true) if b.abilityActive?\n    end\n    pbParty(0).each_with_index do |pkmn, i|\n      next if !pkmn\n      @peer.pbOnLeavingBattle(self, pkmn, @usedInBattle[0][i], true)   # Reset form\n      pkmn.item = @initialItems[0][i]\n    end\n    return @decision\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "FULL_FILE_READ previously completed; this payload embeds the named complete unit"
+    },
+    {
+      "id": "faint",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/002_Battler/003_Battler_ChangeSelf.rb",
+      "bytes": 12191,
+      "sha256": "079d59222dc879d895591bbf526092723ae5ddbe395e1f6f4fdd6589f2342afa",
+      "git_blob": "a3c00d47e159924e49f83aad5485718381ebae33",
+      "range": [
+        64,
+        99
+      ],
+      "content": "  def pbFaint(showMessage = true)\n    if !fainted?\n      PBDebug.log(\"!!!***Can't faint with HP greater than 0\")\n      return\n    end\n    return if @fainted   # Has already fainted properly\n    @battle.pbDisplayBrief(_INTL(\"{1} fainted!\", pbThis)) if showMessage\n    PBDebug.log(\"[Pokémon fainted] #{pbThis} (#{@index})\") if !showMessage\n    @battle.scene.pbFaintBattler(self)\n    @battle.pbSetDefeated(self) if opposes?\n    pbInitEffects(false)\n    # Reset status\n    self.status      = :NONE\n    self.statusCount = 0\n    # Lose happiness\n    if @pokemon && @battle.internalBattle\n      badLoss = @battle.allOtherSideBattlers(@index).any? { |b| b.level >= self.level + 30 }\n      @pokemon.changeHappiness((badLoss) ? \"faintbad\" : \"faint\")\n    end\n    # Reset form\n    @battle.peer.pbOnLeavingBattle(@battle, @pokemon, @battle.usedInBattle[idxOwnSide][@index / 2])\n    @pokemon.makeUnmega if mega?\n    @pokemon.makeUnprimal if primal?\n    # Do other things\n    @battle.pbClearChoice(@index)   # Reset choice\n    pbOwnSide.effects[PBEffects::LastRoundFainted] = @battle.turnCount\n    if $game_temp.party_direct_damage_taken &&\n       $game_temp.party_direct_damage_taken[@pokemonIndex] &&\n       pbOwnedByPlayer?\n      $game_temp.party_direct_damage_taken[@pokemonIndex] = 0\n    end\n    # Check other battlers' abilities that trigger upon a battler fainting\n    pbAbilitiesOnFainting\n    # Check for end of primordial weather\n    @battle.pbEndPrimordialWeather\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "FULL_FILE_READ previously completed; this payload embeds the named complete unit"
+    },
+    {
+      "id": "item_register_consume_return",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/006_Battle_ActionUseItem.rb",
+      "bytes": 5641,
+      "sha256": "f9fd7c8000d0383e9bd6db8b4fbc8ee8f97d4ecb0700ff2fe7d4c38ee83a7a8b",
+      "git_blob": "9fafeea89590e2ecdf7f438d8ea91188af8d7fe8",
+      "range": [
+        34,
+        75
+      ],
+      "content": "  def pbRegisterItem(idxBattler, item, idxTarget = nil, idxMove = nil)\n    # Register for use of item on a Pokémon in the party\n    @choices[idxBattler][0] = :UseItem\n    @choices[idxBattler][1] = item        # ID of item to be used\n    @choices[idxBattler][2] = idxTarget   # Party index of Pokémon to use item on\n    @choices[idxBattler][3] = idxMove     # Index of move to recharge (Ethers)\n    # Delete the item from the Bag. If it turns out it will have no effect, it\n    # will be re-added to the Bag later.\n    pbConsumeItemInBag(item, idxBattler)\n    return true\n  end\n\n  #=============================================================================\n  # Using an item\n  #=============================================================================\n  def pbConsumeItemInBag(item, idxBattler)\n    return if !item\n    return if !GameData::Item.get(item).consumed_after_use?\n    if pbOwnedByPlayer?(idxBattler)\n      if !$bag.remove(item)\n        raise _INTL(\"Tried to consume item that wasn't in the Bag somehow.\")\n      end\n    else\n      items = pbGetOwnerItems(idxBattler)\n      items.delete_at(items.index(item)) if items\n    end\n  end\n\n  def pbReturnUnusedItemToBag(item, idxBattler)\n    return if !item\n    return if !GameData::Item.get(item).consumed_after_use?\n    if pbOwnedByPlayer?(idxBattler)\n      if $bag&.can_add?(item)\n        $bag.add(item)\n      else\n        raise _INTL(\"Couldn't return unused item to Bag somehow.\")\n      end\n    else\n      items = pbGetOwnerItems(idxBattler)\n      items&.push(item)\n    end\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "FULL_FILE_READ previously completed; this payload embeds the named complete unit"
+    },
+    {
+      "id": "choice_clear_cancel",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/009_Battle_CommandPhase.rb",
+      "bytes": 9569,
+      "sha256": "779d5de9e804d8e97950ec69a437157d6802d977812e00eb2a9ba78146f5a9d6",
+      "git_blob": "9f38551f88dfb95dc6c1a4e31e2ed968019032b6",
+      "range": [
+        5,
+        23
+      ],
+      "content": "  def pbClearChoice(idxBattler)\n    @choices[idxBattler] = [] if !@choices[idxBattler]\n    @choices[idxBattler][0] = :None\n    @choices[idxBattler][1] = 0\n    @choices[idxBattler][2] = nil\n    @choices[idxBattler][3] = -1\n  end\n\n  def pbCancelChoice(idxBattler)\n    # If idxBattler's choice was to use an item, return that item to the Bag\n    if @choices[idxBattler][0] == :UseItem\n      item = @choices[idxBattler][1]\n      pbReturnUnusedItemToBag(item, idxBattler) if item\n    end\n    # If idxBattler chose to Mega Evolve, cancel it\n    pbUnregisterMegaEvolution(idxBattler)\n    # Clear idxBattler's choice\n    pbClearChoice(idxBattler)\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "FULL_FILE_READ previously completed; this payload embeds the named complete unit"
+    },
+    {
+      "id": "command_phase",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/009_Battle_CommandPhase.rb",
+      "bytes": 9569,
+      "sha256": "779d5de9e804d8e97950ec69a437157d6802d977812e00eb2a9ba78146f5a9d6",
+      "git_blob": "9f38551f88dfb95dc6c1a4e31e2ed968019032b6",
+      "range": [
+        174,
+        196
+      ],
+      "content": "  def pbCommandPhase\n    @command_phase = true\n    @scene.pbBeginCommandPhase\n    # Reset choices if commands can be shown\n    @battlers.each_with_index do |b, i|\n      next if !b\n      pbClearChoice(i) if pbCanShowCommands?(i)\n    end\n    # Reset choices to perform Mega Evolution if it wasn't done somehow\n    2.times do |side|\n      @megaEvolution[side].each_with_index do |megaEvo, i|\n        @megaEvolution[side][i] = -1 if megaEvo >= 0\n      end\n    end\n    # Choose actions for the round (player first, then AI)\n    pbCommandPhaseLoop(true)    # Player chooses their actions\n    if @decision != 0   # Battle ended, stop choosing actions\n      @command_phase = false\n      return\n    end\n    pbCommandPhaseLoop(false)   # AI chooses their actions\n    @command_phase = false\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "Own previously actual FULL_FILE_READ; this payload only named complete methods"
+    },
+    {
+      "id": "can_show_commands",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/009_Battle_CommandPhase.rb",
+      "bytes": 9569,
+      "sha256": "779d5de9e804d8e97950ec69a437157d6802d977812e00eb2a9ba78146f5a9d6",
+      "git_blob": "9f38551f88dfb95dc6c1a4e31e2ed968019032b6",
+      "range": [
+        35,
+        40
+      ],
+      "content": "  def pbCanShowCommands?(idxBattler)\n    battler = @battlers[idxBattler]\n    return false if !battler || battler.fainted?\n    return false if battler.usingMultiTurnAttack?\n    return true\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "Own previously actual FULL_FILE_READ; this payload only named complete methods"
+    },
+    {
+      "id": "multiturn_query",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/002_Battler/001_Battle_Battler.rb",
+      "bytes": 24627,
+      "sha256": "8bc4ae29ebef89d45bae20449632d454a6bed75f0116c9bc039f6e3f00675922",
+      "git_blob": "dfea2bb1c97725d8c01ec40fb34549539de04e23",
+      "range": [
+        627,
+        635
+      ],
+      "content": "  def usingMultiTurnAttack?\n    return true if @effects[PBEffects::TwoTurnAttack]\n    return true if @effects[PBEffects::HyperBeam] > 0\n    return true if @effects[PBEffects::Rollout] > 0\n    return true if @effects[PBEffects::Outrage] > 0\n    return true if @effects[PBEffects::Uproar] > 0\n    return true if @effects[PBEffects::Bide] > 0\n    return false\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "Own previously actual FULL_FILE_READ; this payload only named complete methods"
+    },
+    {
+      "id": "use_item_methods",
+      "repo": "/workspace/pokemon-essentials",
+      "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+      "path": "Data/Scripts/011_Battle/001_Battle/006_Battle_ActionUseItem.rb",
+      "bytes": 5641,
+      "sha256": "f9fd7c8000d0383e9bd6db8b4fbc8ee8f97d4ecb0700ff2fe7d4c38ee83a7a8b",
+      "git_blob": "9fafeea89590e2ecdf7f438d8ea91188af8d7fe8",
+      "range": [
+        87,
+        148
+      ],
+      "content": "  def pbUseItemOnPokemon(item, idxParty, userBattler)\n    trainerName = pbGetOwnerName(userBattler.index)\n    pbUseItemMessage(item, trainerName)\n    pkmn = pbParty(userBattler.index)[idxParty]\n    battler = pbFindBattler(idxParty, userBattler.index)\n    ch = @choices[userBattler.index]\n    if ItemHandlers.triggerCanUseInBattle(item, pkmn, battler, ch[3], true, self, @scene, false)\n      ItemHandlers.triggerBattleUseOnPokemon(item, pkmn, battler, ch, @scene)\n      ch[1] = nil   # Delete item from choice\n      return\n    end\n    pbDisplay(_INTL(\"But it had no effect!\"))\n    # Return unused item to Bag\n    pbReturnUnusedItemToBag(item, userBattler.index)\n  end\n\n  # Uses an item on a Pokémon in battle that belongs to the trainer.\n  def pbUseItemOnBattler(item, idxParty, userBattler)\n    trainerName = pbGetOwnerName(userBattler.index)\n    pbUseItemMessage(item, trainerName)\n    battler = pbFindBattler(idxParty, userBattler.index)\n    ch = @choices[userBattler.index]\n    if battler\n      if ItemHandlers.triggerCanUseInBattle(item, battler.pokemon, battler, ch[3], true, self, @scene, false)\n        ItemHandlers.triggerBattleUseOnBattler(item, battler, @scene)\n        ch[1] = nil   # Delete item from choice\n        battler.pbItemOnStatDropped\n        return\n      else\n        pbDisplay(_INTL(\"But it had no effect!\"))\n      end\n    else\n      pbDisplay(_INTL(\"But it's not where this item can be used!\"))\n    end\n    # Return unused item to Bag\n    pbReturnUnusedItemToBag(item, userBattler.index)\n  end\n\n  # Uses a Poké Ball in battle directly.\n  def pbUsePokeBallInBattle(item, idxBattler, userBattler)\n    idxBattler = userBattler.index if idxBattler < 0\n    battler = @battlers[idxBattler]\n    ItemHandlers.triggerUseInBattle(item, battler, self)\n    @choices[userBattler.index][1] = nil   # Delete item from choice\n  end\n\n  # Uses an item in battle directly.\n  def pbUseItemInBattle(item, idxBattler, userBattler)\n    trainerName = pbGetOwnerName(userBattler.index)\n    pbUseItemMessage(item, trainerName)\n    battler = (idxBattler < 0) ? userBattler : @battlers[idxBattler]\n    pkmn = battler.pokemon\n    ch = @choices[userBattler.index]\n    if ItemHandlers.triggerCanUseInBattle(item, pkmn, battler, ch[3], true, self, @scene, false)\n      ItemHandlers.triggerUseInBattle(item, battler, self)\n      ch[1] = nil   # Delete item from choice\n      return\n    end\n    pbDisplay(_INTL(\"But it had no effect!\"))\n    # Return unused item to Bag\n    pbReturnUnusedItemToBag(item, userBattler.index)\n  end\n",
+      "original_reader": "/root/core_atomic_reception",
+      "original_read_scope": "Own previously actual FULL_FILE_READ; this payload only named complete methods"
+    }
+  ],
+  "common_premise": "Registered consumed item, actual player-owned actor, valid current global Bag/current choice; each reached callback and scene normal unless the precise failure case is stated. No plugin or arbitrary array mutation assumed.",
+  "failure_prefix": "No rollback/ensure: choice/Bag/HP/scene/earlier actor mutations can survive later errors; only reached paths refund or clear.",
+  "persistence": "Bag and attached Pokemon mutations are persistent objects; choice runtime. Native save/reload not executed or certified by this package.",
+  "other_source_FULL_transfer": false,
+  "new_required": 0,
+  "new_context": 0,
+  "new_vote": 0,
+  "business_execution": "NOT_EXECUTED",
+  "UPDATE_NOT_STARTED": true
+}

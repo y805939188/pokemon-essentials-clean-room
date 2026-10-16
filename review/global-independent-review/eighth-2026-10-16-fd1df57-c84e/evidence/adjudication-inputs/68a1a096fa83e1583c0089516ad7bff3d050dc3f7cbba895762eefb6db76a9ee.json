@@ -1,0 +1,282 @@
+{
+  "schema": "gr8-root-exact-backup-version-inputs/v1",
+  "utc": "2026-10-16T09:40:37.276453+00:00",
+  "units": [
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/010_Data/002_PBS data/013_Encounter.rb",
+        "cloud_path": "/workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/013_Encounter.rb",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "e69d300dd0e21690e5970452017e4c2bd457021a",
+        "bytes": 2267,
+        "sha256": "d7ebeb1d00434f5da96165ad407101a14d007bce03fa0d0e267c5ee293c183f7",
+        "lines": 71,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        71
+      ],
+      "exact_text": "module GameData\n  class Encounter\n    attr_accessor :id\n    attr_accessor :map\n    attr_accessor :version\n    attr_reader   :step_chances\n    attr_reader   :types\n    attr_reader   :pbs_file_suffix\n\n    DATA = {}\n    DATA_FILENAME = \"encounters.dat\"\n    PBS_BASE_FILENAME = \"encounters\"\n\n    extend ClassMethodsSymbols\n    include InstanceMethods\n\n    # @param map_id [Integer]\n    # @param map_version [Integer, nil]\n    # @return [Boolean] whether there is encounter data for the given map ID/version\n    def self.exists?(map_id, map_version = 0)\n      validate map_id => [Integer]\n      validate map_version => [Integer]\n      key = sprintf(\"%s_%d\", map_id, map_version).to_sym\n      return !self::DATA[key].nil?\n    end\n\n    # @param map_id [Integer]\n    # @param map_version [Integer, nil]\n    # @return [self, nil]\n    def self.get(map_id, map_version = 0)\n      validate map_id => Integer\n      validate map_version => Integer\n      trial_key = sprintf(\"%s_%d\", map_id, map_version).to_sym\n      key = (self::DATA.has_key?(trial_key)) ? trial_key : sprintf(\"%s_0\", map_id).to_sym\n      return self::DATA[key]\n    end\n\n    # Yields all encounter data in order of their map and version numbers.\n    def self.each\n      keys = self::DATA.keys.sort do |a, b|\n        if self::DATA[a].map == self::DATA[b].map\n          self::DATA[a].version <=> self::DATA[b].version\n        else\n          self::DATA[a].map <=> self::DATA[b].map\n        end\n      end\n      keys.each { |key| yield self::DATA[key] }\n    end\n\n    # Yields all encounter data for the given version. Also yields encounter\n    # data for version 0 of a map if that map doesn't have encounter data for\n    # the given version.\n    def self.each_of_version(version = 0)\n      self.each do |data|\n        yield data if data.version == version\n        if version > 0 && data.version == 0 && !self::DATA.has_key?([data.map, version])\n          yield data\n        end\n      end\n    end\n\n    def initialize(hash)\n      @id              = hash[:id]\n      @map             = hash[:map]\n      @version         = hash[:version]         || 0\n      @step_chances    = hash[:step_chances]\n      @types           = hash[:types]           || {}\n      @pbs_file_suffix = hash[:pbs_file_suffix] || \"\"\n    end\n  end\nend\n",
+      "root_actual_read_io": "a9998c",
+      "whole_file": true
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb",
+        "cloud_path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "48e8b782e7175b2631b05d801d6bdcc391b5ddbe",
+        "bytes": 54958,
+        "sha256": "d24fe0388c78e4ab321dbfb6248c454fb3fe99933305c26bf2639068113dfbae",
+        "lines": 1321,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        658,
+        765
+      ],
+      "exact_text": "  def compile_encounters(*paths)\n    GameData::Encounter::DATA.clear\n    max_level = GameData::GrowthRate.max_level\n    paths.each do |path|\n      compile_pbs_file_message_start(path)\n      file_suffix = File.basename(path, \".txt\")[GameData::Encounter::PBS_BASE_FILENAME.length + 1, path.length] || \"\"\n      encounter_hash = nil\n      step_chances   = nil\n      current_type   = nil\n      idx = 0\n      pbCompilerEachPreppedLine(path) do |line, line_no|\n        echo \".\" if idx % 100 == 0\n        idx += 1\n        Graphics.update if idx % 500 == 0\n        next if line.length == 0\n        if current_type && line[/^\\d+,/]   # Species line\n          values = line.split(\",\").collect! { |v| v.strip }\n          if !values || values.length < 3\n            raise _INTL(\"Expected a species entry line for encounter type {1} for map {2}.\",\n                        GameData::EncounterType.get(current_type).real_name, encounter_hash[:map]) + \"\\n\" + FileLineData.linereport\n          end\n          values = get_csv_record(line, [nil, \"vevV\", nil, :Species])\n          values[3] = values[2] if !values[3]\n          if values[2] > max_level\n            raise _INTL(\"Level number {1} is not valid (max. {2}).\", values[2], max_level) + \"\\n\" + FileLineData.linereport\n          elsif values[3] > max_level\n            raise _INTL(\"Level number {1} is not valid (max. {2}).\", values[3], max_level) + \"\\n\" + FileLineData.linereport\n          elsif values[2] > values[3]\n            raise _INTL(\"Minimum level is greater than maximum level.\") + \"\\n\" + FileLineData.linereport\n          end\n          encounter_hash[:types][current_type].push(values)\n        elsif line[/^\\[\\s*(.+)\\s*\\]$/]   # Map ID line\n          values = $~[1].split(\",\").collect! { |v| v.strip.to_i }\n          values[1] = 0 if !values[1]\n          map_number = values[0]\n          map_version = values[1]\n          # Add map encounter's data to records\n          if encounter_hash\n            encounter_hash[:types].each_value do |slots|\n              next if !slots || slots.length == 0\n              slots.each_with_index do |slot, i|\n                next if !slot\n                slots.each_with_index do |other_slot, j|\n                  next if i == j || !other_slot\n                  next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]\n                  slot[0] += other_slot[0]\n                  slots[j] = nil\n                end\n              end\n              slots.compact!\n              slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }\n            end\n            GameData::Encounter.register(encounter_hash)\n          end\n          # Raise an error if a map/version combo is used twice\n          key = sprintf(\"%s_%d\", map_number, map_version).to_sym\n          if GameData::Encounter::DATA[key]\n            raise _INTL(\"Encounters for map '{1}' are defined twice.\", map_number) + \"\\n\" + FileLineData.linereport\n          end\n          step_chances = {}\n          # Construct encounter hash\n          encounter_hash = {\n            :id              => key,\n            :map             => map_number,\n            :version         => map_version,\n            :step_chances    => step_chances,\n            :types           => {},\n            :pbs_file_suffix => file_suffix\n          }\n          current_type = nil\n        elsif !encounter_hash   # File began with something other than a map ID line\n          raise _INTL(\"Expected a map number, got \\\"{1}\\\" instead.\", line) + \"\\n\" + FileLineData.linereport\n        else\n          # Check if line is an encounter method name or not\n          values = line.split(\",\").collect! { |v| v.strip }\n          current_type = (values[0] && !values[0].empty?) ? values[0].to_sym : nil\n          if current_type && GameData::EncounterType.exists?(current_type)   # Start of a new encounter method\n            step_chances[current_type] = values[1].to_i if values[1] && !values[1].empty?\n            step_chances[current_type] ||= GameData::EncounterType.get(current_type).trigger_chance\n            encounter_hash[:types][current_type] = []\n          else\n            raise _INTL(\"Undefined encounter type \\\"{1}\\\" for map '{2}'.\", line, encounter_hash[:map]) + \"\\n\" + FileLineData.linereport\n          end\n        end\n      end\n      # Add last map's encounter data to records\n      if encounter_hash\n        encounter_hash[:types].each_value do |slots|\n          next if !slots || slots.length == 0\n          slots.each_with_index do |slot, i|\n            next if !slot\n            slots.each_with_index do |other_slot, j|\n              next if i == j || !other_slot\n              next if slot[1] != other_slot[1] || slot[2] != other_slot[2] || slot[3] != other_slot[3]\n              slot[0] += other_slot[0]\n              slots[j] = nil\n            end\n          end\n          slots.compact!\n          slots.sort! { |a, b| (a[0] == b[0]) ? a[1].to_s <=> b[1].to_s : b[0] <=> a[0] }\n        end\n        GameData::Encounter.register(encounter_hash)\n      end\n      process_pbs_file_message_end\n    end\n    # Save all data\n    GameData::Encounter.save\n  end\n",
+      "root_actual_read_io": [
+        "713d78",
+        "4143a2"
+      ],
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb",
+        "cloud_path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/003_Overworld_WildEncounters.rb",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "7eec7d96aeb720822c776a611be8b105a25dbc84",
+        "bytes": 18557,
+        "sha256": "0af8bb2af002feec8227e797be14ffbfac95ebcc15cc0126ad57a4e8ff60caec",
+        "lines": 469,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        7,
+        23
+      ],
+      "exact_text": "  def initialize\n    @step_chances       = {}\n    @encounter_tables   = {}\n    @chance_accumulator = 0\n  end\n\n  def setup(map_ID)\n    @step_count       = 0\n    @step_chances     = {}\n    @encounter_tables = {}\n    encounter_data = GameData::Encounter.get(map_ID, $PokemonGlobal.encounter_version)\n    if encounter_data\n      encounter_data.step_chances.each { |type, value| @step_chances[type] = value }\n      @encounter_tables = Marshal.load(Marshal.dump(encounter_data.types))\n    end\n  end\n\n",
+      "root_actual_read_io": "c49e78",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/016_UI/004_UI_Pokedex_Entry.rb",
+        "cloud_path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/004_UI_Pokedex_Entry.rb",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "c2b43b0ed024526681dc0ecd5d56dbaa8affd972",
+        "bytes": 23314,
+        "sha256": "844ccfda3260deab48b4f916955a0b35fcb0f227d651b217f86dd67f4f560ef4",
+        "lines": 619,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        302,
+        352
+      ],
+      "exact_text": "  def pbFindEncounter(enc_types, species)\n    return false if !enc_types\n    enc_types.each_value do |slots|\n      next if !slots\n      slots.each { |slot| return true if GameData::Species.get(slot[1]).species == species }\n    end\n    return false\n  end\n\n  # Returns a 1D array of values corresponding to points on the Town Map. Each\n  # value is true or false.\n  def pbGetEncounterPoints\n    # Determine all visible points on the Town Map (i.e. only ones with a\n    # defined point in town_map.txt, and which either have no Self Switch\n    # controlling their visibility or whose Self Switch is ON)\n    visible_points = []\n    @mapdata.point.each do |loc|\n      next if loc[7] && !$game_switches[loc[7]]   # Point is not visible\n      visible_points.push([loc[0], loc[1]])\n    end\n    # Find all points with a visible area for @species\n    town_map_width = 1 + PokemonRegionMap_Scene::RIGHT - PokemonRegionMap_Scene::LEFT\n    ret = []\n    GameData::Encounter.each_of_version($PokemonGlobal.encounter_version) do |enc_data|\n      next if !pbFindEncounter(enc_data.types, @species)   # Species isn't in encounter table\n      # Get the map belonging to the encounter table\n      map_metadata = GameData::MapMetadata.try_get(enc_data.map)\n      next if !map_metadata || map_metadata.has_flag?(\"HideEncountersInPokedex\")\n      mappos = map_metadata.town_map_position\n      next if !mappos || mappos[0] != @region   # Map isn't in the region being shown\n      # Get the size and shape of the map in the Town Map\n      map_size = map_metadata.town_map_size\n      map_width = 1\n      map_height = 1\n      map_shape = \"1\"\n      if map_size && map_size[0] && map_size[0] > 0   # Map occupies multiple points\n        map_width = map_size[0]\n        map_shape = map_size[1]\n        map_height = (map_shape.length.to_f / map_width).ceil\n      end\n      # Mark each visible point covered by the map as containing the area\n      map_width.times do |i|\n        map_height.times do |j|\n          next if map_shape[i + (j * map_width), 1].to_i == 0   # Point isn't part of map\n          next if !visible_points.include?([mappos[1] + i, mappos[2] + j])   # Point isn't visible\n          ret[mappos[1] + i + ((mappos[2] + j) * town_map_width)] = true\n        end\n      end\n    end\n    return ret\n  end\n",
+      "root_actual_read_io": "6e78c5",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "deliverables/final-specification-set/creature-rpg/wp36-wild-encounters-and-modifiers.md",
+        "cloud_path": "/workspace/pokemon-essentials-clean-room/deliverables/final-specification-set/creature-rpg/wp36-wild-encounters-and-modifiers.md",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "475e69c48e0cac8e9f8f7ca74b4b4b3ff82c7a44",
+        "bytes": 31279,
+        "sha256": "52b53eaa6e5e84b164d11919381feb389091838282ce67f53007d9f94df7b92a",
+        "lines": 288,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        100
+      ],
+      "exact_text": "# 普通遭遇、触发与修正行为规格（净化正文；批次 9c）\n\n分类：creature-rpg（遭遇表/触发与集合口径）＋ Pokémon Rules（修正与生成细节）；性质：实现独立行为合同。\n\n本规格为净化正文：按统一交接将批准输入 WP36《普通遭遇、触发与修正》转写为独立行为文字，不含源文件路径、类名、行号与证据 URL（参考与已读集中登记于 `../../audit/source-traceability.md` 批次 9c 条目）。文中保留的类型名、字段名、配置键与物种/特性/物品身份名均为数据标识，不构成未来实现的数据结构或接口模板。全部内容为静态证据；**无运行确认**（见 `../scope-statement.md`）。\n\n---\n\n## 1. 目的、范围与非目标\n\n### 1.1 目的\n\n定义「从踩步/转向或主动请求到是否开战」的完整普通遭遇链——遭遇数据（地图×版本、类型目录、文本约束）、类型选择与时段回退、步进触发概率与加速器、多方修正（地图级/首队员道具与特性/驱虫剂/雷达直通）、候选选择与等级决定、生成期修正（持有物/闪光/性别/性格/病毒/钩子）、开战交接与状态清理；供场地能力（WP59）、钓鱼（WP60）、漫游/雷达（WP37）、捕获/战斗（WP38/WP39/WP42）与图鉴（WP62）引用。\n\n### 1.2 范围\n\n1. 遭遇数据：地图×版本键、版本回退、类型目录（26 项/6 类）、文本格式与编译校验、步骤概率缺省来源。\n2. 触发：步进/转向入口与抑制条件、机会判定（地形/冲浪/洞穴）、类型选择与时段细分回退、触发概率公式与步数宽限/累加器、双打判定。\n3. 选择与等级：候选偏好过滤（特性）、多次掷取最大、等级区间与取整、等级修正（特性/黑白哨）。\n4. 生成修正：持有物概率、闪光重掷、性别/性格倾向、病毒、创建钩子与示例修正目录。\n5. 开战交接：主动请求包装/步进路径的返回、临时字段 encounter_type 生命周期与消费者、清理。\n\n### 1.3 非目标\n\n- 不定义漫游个体与雷达连锁状态机（WP37；本规格只登记替换点与接口）、Safari/捕虫大会会话（WP53）。\n- 不定义战斗启动细节（WP39）、捕获（WP38）、战后结算与再遭遇抑制（WP42）。\n- 不重定义队伍/箱子集合口径（WP25）、个体生成字段与派生（WP18–WP21、WP19 引用）。\n- 不展开真实 Demo 地图的遭遇编排（U01）；不运行参考选取器/表达式。\n\n---\n\n## 2. 概念与术语\n\n| 术语 | 定义 |\n| --- | --- |\n| 遭遇数据 | 以「地图 ID + 版本」为键的一组表；每表含若干遭遇类型与各自的步骤概率；类型表内为若干槽位（权重， 物种， 最低等级， 最高等级）。 |\n| 遭遇类型 | 26 项；每项有类（land/cave/water/fishing/contest/none）与缺省触发概率（供文本省略概率时使用）。 |\n| 版本（encounter_version） | 玩家全局的遭遇版本号（缺省 0）；查询「地图×当前版本」不存在时回退到该地图的版本 0。 |\n| 步骤概率与累加器 | 基础概率来自该地图该类型的文本行；未中时把基础值累加到累加器字段，下次步进时折算进概率；驱虫剂活动时该次不累加（且清零）。 |\n| 步数宽限 | 距上次成功遭遇的步数不足时，额外先做一次「放大掷」；两个阶段都登记。 |\n| 首成员口径 | 首非蛋成员（排除蛋、允许濒死）与首位可战斗（另排除濒死）是两个查询，都不是队伍数组首项；本规格按各处实际用法引用（§4.2/§4.3/§5/§6）。 |\n| 双打遭遇 | 一次触发可能生成两个个体进入双打（条件见 §4.4）。 |\n| 生成钩子 | 生成个体后、开战前触发的「野生个体已创建」钩子（以及选择物种时的「野生物种已选择」钩子），供示例/插件修正。 |\n\n---\n\n## 3. 遭遇数据与类型目录（静态核对）\n\n### 3.1 数据键、版本回退与枚举反例\n\n- 遭遇数据以地图 ID 与版本组合区分；精确查询命中指定组合，未命中时回退版本 0；存在性查询只判定指定组合（不存在「全部查询都回退」的泛化）。\n- 枚举的固定快照反例：按版本枚举（v > 0）在正常编译数据下未排除已具有指定版本的地图所对应的版本 0——因此即使同地图已有版本 v 的表，枚举 v 仍会先产出其版本 0、再产出版本 v（同一地图出现两次，不是择一）。静态对照：地图 5 同时有 0/1 版时——精确查询（5, 1）→ 1 版；按版本枚举（1）→ 先 0 版后 1 版；仅 0 版时枚举 1 → 仍产 0 版；v = 0 枚举 → 无上述重复。文本的 [005] 与 [005,1] 为具名样本。不修参考、不把该反例传播成「单次查询也错误」、不提前展开图鉴。\n- 版本写入先校验整数；同值立即返回，不重装、不清宽限步数。异值先更新版本，仅在地图与遭遇上下文都存在时装载当前地图：装载重置宽限步数和表/步骤概率，保留累加器。异值但缺上下文只写版本。调试确认同值也适用该早退（WP73 交界）。\n- 静态对照：当前版本 1、宽限步数 4、累加器 210、地图与合法遭遇上下文存在；确认 1 → 表不重读、步数仍 4、累加器 210；确认 2 → 装载、步数 0、累加器仍 210。非整数在同值比较前拒绝。\n\n### 3.2 文本格式\n\n```\n[地图ID]            或 [地图ID,版本号]   # 段头；同一组合重复出现 → 编译错误\n类型名[,概率]                              # 开始/替换该类型槽；概率省略/空值按下述继承规则\n  权重,物种,最低等级[,最高等级]           # 槽位行（缩进非必需，以「数字+逗号」开头识别）\n```\n\n- 段头的地图 ID、版本按十进制整数前缀转换：无可转换前缀则为 0；版本省略则为 0。例如 [005tail,1tail] 对应地图 5、版本 1，[junk] 对应 0、0；转换后的同一地图×版本重复节仍拒绝。遇到下一段头时先合并/登记前一节，再检查新节是否重复；重复节错误不回滚此前登记，错误发生时尚未到最终数据档案保存。\n- 槽位行在已有类型且行以数字紧接逗号开头时识别；权重和等级必须为正整数字面值（0 拒绝），等级在 1..最大等级（100）、最低 ≤ 最高；最高省略/空值 = 最低；物种必须已登记。负权重不进入数字开头的槽分支，随后按类型行校验失败，不能说与零权重同阶段失败。\n- 编译处理：同物种且同等级区间的槽位合并（权重相加）；随后按「权重降序、物种名升序」排序。物种/类型/等级格式由编译期校验（未定义类型 → 编译错误）。\n- 非空概率字段按十进制整数前缀转换（例如 70tail → 70、junk → 0），不套用槽位的正整数校验。概率省略/空值：同节该类型已有概率则保留，否则取类型目录默认。重复类型声明会丢弃该类型旧槽、重新接收其后槽，独立于概率继承：同节先 Land,70＋PIDGEY 权重100/L5，再 Land（省略概率）＋RATTATA 权重100/L5 → 仅 RATTATA 槽，概率仍70；独立 Land,junk → 概率0。\n\n### 3.2.1 登记、文件与当前地图生效层\n\n当前地图在装载时取得步骤概率与类型槽的独立快照。直接地图数据查询读取登记数据；步进机会、类型、概率与当前地图候选选择读取快照。编辑/保存/调试编译不自动广播刷新快照，不能把注册或文件变化写成当前地图立即生效。\n\n| 操作（初态：登记/数据档案/文本/快照的 Land 概率均21） | 登记/数据档案/文本 | 当前地图快照 |\n| --- | --- | --- |\n| 编辑当前登记 Land 概率到0，尚未保存 | 登记0；数据档案和文本仍21 | 仍21 |\n| 确认保存，相关文件操作成功 | 登记0、数据档案0；反写文本为 Land（省略第二字段） | 仍21 |\n| 从编辑态取消、重新载入原数据档案21成功 | 登记恢复21；数据档案/文本未保存 | 仍21 |\n| 从保存后的 Land 无概率文本成功重编译 | 登记和数据档案恢复默认21；文本仍无第二字段 | 不因编译自动刷新 |\n| 编辑保存为0后，版本同值写入 | 保持已保存登记0 | 仍旧21；步数/累加器不变 |\n| 编辑保存为0后，异值版本或地图进入实际装载，所选版本回退命中这条记录 | 按装载时登记读取0 | 更新0；宽限步数0、累加器保留 |\n\n0→省略→21 是文件往返的语义损失，不是快照缺陷；本表不执行编译、转换或读档，也不保证某一步必定开战。\n\n### 3.3 遭遇类型目录（26 项）\n\n| 类 | 类型 id | 缺省触发概率 |\n| --- | --- | ---: |\n| land | Land、LandDay、LandNight、LandMorning、LandAfternoon、LandEvening | 21 |\n| land | PokeRadar | 20 |\n| cave | Cave、CaveDay、CaveNight、CaveMorning、CaveAfternoon、CaveEvening | 5 |\n| water | Water、WaterDay、WaterNight、WaterMorning、WaterAfternoon、WaterEvening | 2 |\n| fishing | OldRod、GoodRod、SuperRod | 无（0） |\n| none | RockSmash | 50 |\n| none | HeadbuttLow、HeadbuttHigh | 无（0） |\n| contest | BugContest | 21 |\n\n- 类语义：移动的陆地汇总包含 land 与 contest 的非空表；洞穴/水汇总分别为 cave/water。雷达许可使用的「普通陆地」查询仅含 land，排除 contest（WP37）。fishing 由钓鱼流程直接请求（WP60）；none 类由场地能力请求；contest 的会话与预算归 WP53。\n- 触发概率为 0 或未定义的类型在步进触发处一律被拒（§4.2 首道门），因此 fishing/Headbutt 等不会被走路触发。\n\n### 3.4 机会判定与类型选择\n",
+      "root_actual_read_io": "b9b429",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "deliverables/final-specification-set/pokemon-rules/wp62-pokedex-records-regions-and-content.md",
+        "cloud_path": "/workspace/pokemon-essentials-clean-room/deliverables/final-specification-set/pokemon-rules/wp62-pokedex-records-regions-and-content.md",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "2b60da1326ba16bc8d62cc22e3f4c1a751addd62",
+        "bytes": 35484,
+        "sha256": "68bd52e6720e5549ccb2a55375946bfbc4874ccb3f20e1eb06ccfe761685ede8",
+        "lines": 197,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        32
+      ],
+      "exact_text": "# 图鉴记录、区域与内容规则（净化正文；批次 8）\n\n分类：Pokémon Rules（主）／Creature-RPG（获得入口交界）／User Interface（可见性接点）。本文件回答「图鉴记录哪些事实、由谁在何时写入、区域列表如何构成与解锁、各界面按什么资格显示什么」。全部内容为静态证据与数据样本；**无运行确认**（见 `../scope-statement.md`）。本文件定义图鉴操作合同；捕获判定与完整接收流程由《捕获判定与接收策略》定义，本文件只登记其写入接点（不构成反向依赖）。\n\n## 1. 目的与可见流程\n\n可见流程：玩家获得图鉴（标志位）→ 区域列表按解锁与「是否见过任何成员」变为可访问 → 战斗与各获得入口写入记录 → 图鉴菜单／主列表／条目页按见过/拥有与区域资格显示；条目页「栖息地」页由**遭遇表**生成区域地图要点。\n\n边界：不定义物种/形态数据本身（《个体身份、物种与归属》/《动态形态与展示属性》）、不定义遭遇生成（遭遇规格）、不定义地图与存档（地图/《保存、启动、新游戏与继续》）；捕获公式与接收流程归《捕获判定与接收策略》；图鉴解锁剧情、图鉴授予与大多数解锁调用不在脚本内（事件侧，U01）。记录与区域规则全部为「已读静态＋数据样本」级别。\n\n## 2. 记录字段与结构\n\n记录存放在玩家对象的图鉴子对象内；随玩家一起存档。字段如下（「刷新可访问列表」的副作用**按入口分列**，见 §3.4——不是每次写入都刷新）：\n\n| 字段 | 结构 | 含义与备注 |\n| --- | --- | --- |\n| 见过 | 集合（按**基础物种**键） | 任何登记入口置真；只增不清（无逐项清除接口；公开的整体清理入口清记录并刷新、**保留区域解锁表**，见 §3.4） |\n| 拥有 | 集合（按基础物种键） | 与「见过」独立；战斗侧仅捕获流程写入（击倒对方不写拥有），获得侧多个入口直接写入（§3.2） |\n| 见过形态 | 物种 → [性别2档][异色2档][形态号] 布尔表 | 性别 2 档＝雄/雌；无性别在写入时并入第 0 档（雄） |\n| 见过蛋 | 集合 | 由**孵化时刻**写入（不是拿到蛋时）；无刷新副作用 |\n| 末次形态 | 物种 → [性别, 形态号, 异色] | 条目页缩略图/列表行引用；登记入口只在「尚为空」时写入，另有一个总是覆盖的「最近见到」入口与一个界面浏览写入（§6） |\n| 暗影拥有 | 集合 | 与「拥有」独立；由捕获流程对暗影个体附加写入 |\n| 捕获计数 | 物种 → 整数 | 每次捕获＋1；缺省 0 |\n| 击败计数 | 物种 → 整数 | 每次击倒对方个体＋1（战斗侧调用）；缺省 0 |\n| 合成「战斗过计数」 | 查询＝击败＋捕获 | 不是独立字段；条目页展示（§6）；野生遭遇的连锁异色判定另归遭遇规格消费 |\n| 区域解锁表 | 布尔数组，长度＝区域数＋1（末位＝全国） | 初始化只有索引 0 为真；解锁/锁定按区域号；越界或 −1 归到全国位 |\n| 可访问列表 | 区域号数组（派生） | 重算时机**按入口分列**（§3.4：可关闭参数与不刷新入口保留）；作为玩家数据一并保存，内容以重算结果为准 |\n| 全局观看状态 | 图鉴观看记录（3 项，随全局元数据保存） | 当前观看的区域号（默认：有区域则 0，否则全国 −1）；各区域「上次查看的物种索引」（长度＝区域数＋1）；搜索模式（默认数值序 0） |\n\n计数只按**基础物种**归并：形态不产生独立条目；「已见形态数」等按形态维度单独查询（§4——其实际计数限度见 §4 末）。未知标识（查不到物种数据）的行为**按入口分列**（§3.4）：守卫族静默、登记入口失败，不能统一概括为静默忽略。\n\n## 3. 写入入口与门\n",
+      "root_actual_read_io": "eaa471",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "deliverables/final-specification-set/pokemon-rules/wp62-pokedex-records-regions-and-content.md",
+        "cloud_path": "/workspace/pokemon-essentials-clean-room/deliverables/final-specification-set/pokemon-rules/wp62-pokedex-records-regions-and-content.md",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "2b60da1326ba16bc8d62cc22e3f4c1a751addd62",
+        "bytes": 35484,
+        "sha256": "68bd52e6720e5549ccb2a55375946bfbc4874ccb3f20e1eb06ccfe761685ede8",
+        "lines": 197,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        105,
+        135
+      ],
+      "exact_text": "\n区域表采用同会话惰性缓存，编号、成员及长度查询都读取它。合法区域0先预载仅 BULBASAUR，作者 PBS 改为仅 IVYSAUR，两物种已定义，直接全量编译全部成功且无独立失效/会话重建/覆写时：磁盘 regional_dexes.dat 为 IVYSAUR，编号查询仍给 BULBASAUR=1、IVYSAUR=0，成员仍 BULBASAUR。随后成功的区域单项导出或全量反写采用旧缓存，把 PBS 写为 BULBASAUR 内容，磁盘档案仍 IVYSAUR（不承诺旧文本原字节）。缓存尚未建立时，编译后首次读取才载入 IVYSAUR；地区图鉴编辑器总保存 Yes 先写其工作表档案、清区域缓存再反写，是独立入口。编辑器 No、区域解锁/记录刷新与宿主文件缓存重载不因此获得这次区域内容失效保证。完整生命周期、部分写出失败与其它缓存分界见 [WP04 §5.5–§5.6](../generic-kernel/wp04-pbs-lifecycle.md#56-磁盘产物与同会话缓存)，与图鉴记录/可访问列表的刷新参数分别观察。\n\n### 5.2 解锁与可访问\n\n- 解锁表初始化：仅索引 0 为真（末位全国默认锁定）。解锁/锁定接口对 −1 或越界一律作用到**全国位**。\n- 可访问重算（派生；触发时机按入口分列——可关闭参数与不刷新入口见 §3.4）：\n  - 若「使用当前区域」设置为开：取玩家当前地图的**区域号**（无地图默认 −1；区域号 ≥ 区域数时视作全国）；仅当该表「见过任何成员」时列入（只列一个）。\n  - 若只有全国定义：全国位解锁且见过任何成员时列入全国。\n  - 否则：逐区域按（解锁 ∧ 见过该区域任何成员）列入（区域在前），全国按（解锁 ∧ 见过任何成员）列在最后。\n- 「见过任何成员」查询：全国＝遍历全部物种有无见过（专门分支）；区域＝对该区域表成员遍历——**成员查询返回空（负区域/缺表/空表）时此遍历失败**，见末节边界。\n- 「物种在已解锁区域表内」查询：全国位解锁 → 真；否则任一已解锁区域的该物种编号 >0 → 真；否则假。空表或未知物种 → 假。\n- 计数（见过/拥有）按区域：全国＝全物种（−1 专门分支，不经成员查询）；区域＝对该区域表成员逐个查集合（含未解锁区域也能算数——**计数不检查解锁**；只有可访问列表检查；**成员查询为空时计数同样失败**）。\n- 空/缺表边界（按入口分列，不给参考补空值保护）：区域成员查询在负区域/缺表/空表**返回空（不是空数组）** → 数据层的区域计数与「见过任何成员」对该区域直接遍历时**失败**（不能写成计数 0/见过假）；区域编号查询对缺/空表返回 0；区域长度查询对缺表返回 0（负数区域返回全国长度）；主列表构建另有自己的空/空回退（改用全国序列，§6）——界面回退不覆盖数据层失败。\n\n### 5.3 区域与地图数据\n\n- 当前区域＝当前地图元数据的**城镇地图位置**首字段；无地图元数据时为 −1。\n- 条目页「栖息地」页：对当前区域，按**当前遭遇版本枚举**全部遭遇表，找出含该物种的表（任意槽位）；排除带「在图鉴中隐藏遭遇」标志的地图；要求地图的城镇地图位置区域号相符；按下述占位掩码折算成要点并与可见 Point 并集相交。无任何点为「区域未知」空态。\n- **版本枚举的具名缺陷（遭遇规格已审反例，本轮回源确认）**：枚举入口对 v>0 的回退检查使用与实际注册键不同的键形态，因此**同图 v>0 有表时 v0 表仍会被一并枚举**——同图 v0 含 X、v1 无 X 时，当前版本 v1 的栖息地仍可能被 v0 表点亮；单次 get 查询的版本优先回退正常，不受此缺陷影响。隐藏标志/区域/可见点门保持。\n- 遭遇版本是全局元数据中的整数值（默认 0）；图鉴只是它的读取者——修改与语义归遭遇规格。\n\n#### 5.3.1 栖息地格集合的计算\n\n前置资格逐表判断：含目标物种、地图元数据存在、无 HideEncountersInPokedex、MapPosition 存在且区域号等于当前区域；任一不成立，该表不贡献格。MapPosition 的三值为区域号、基格横坐标 a、基格纵坐标 b；MapSize 为非负宽与形状文本。作者正常形状仍以01指导；有限兼容域另包括已有文本中的单字符ASCII 0–9及x。任意Unicode、nil形状、非法宽度/坐标、未知地图及插件对象不由此扩张，不添加通用容错。\n\n- MapSize 缺省或宽为0：宽/高各1，默认形状为1，仅产生基格候选。宽 w>0 才启用给定形状 S；高度 h=ceil(|S|/w)，按行优先给文本字符编号 k（从0开始）。\n- 只考虑已有字符 0≤k<|S|；单字符ASCII 1–9均占位，0与x为空；2不是权重或第二种亮度，不把整串作为一个整数解析。局部坐标为 (k mod w, floor(k/w))，平移为 (a+(k mod w), b+floor(k/w))。不整行最后未提供的字符位置不占位，不能用 w×h 的整个矩形替代。\n- 当前区域全部 Point 记录中，无可见开关或其开关打开的记录，各贡献其坐标；所有这些坐标形成可见集合 V。同格只要任一记录可见即可进入 V，不要求首条可见。\n- 最终栖息地集合为所有资格通过表的占位平移集合与 V 相交后的并集；同格重复贡献只表示一格亮。它不同于 WP63 的玩家游标长度折算，也不同于名称/详情/治疗点的首条同格决定规则。\n\n",
+      "root_actual_read_io": "a507dd",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "PBS/Gen 5 backup/encounters.txt",
+        "cloud_path": "/workspace/pokemon-essentials/PBS/Gen 5 backup/encounters.txt",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "3300a444b3919b7e73a899d2fa6030702362ebff",
+        "bytes": 6032,
+        "sha256": "eb27b5fdc0465051fcb42767e1a5b54e37c6a2a3f24d23a24d71e089d7216dd5",
+        "lines": 311,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        55
+      ],
+      "exact_text": "﻿# See the documentation on the wiki to learn how to edit this file.\n#-------------------------------\n[002] # Lappet Town\nWater,2\n    60,TENTACOOL,14,19\n    30,MANTYKE,15,16\n    10,REMORAID,14,16\nOldRod\n    100,MAGIKARP,16,19\nGoodRod\n    60,BARBOACH,17,18\n    20,KRABBY,15,16\n    20,SHELLDER,16,19\nSuperRod\n    40,CHINCHOU,17,19\n    40,QWILFISH,16,19\n    15,CORSOLA,15,18\n    5,STARYU,15,17\n#-------------------------------\n[005] # Route 1\nLand,21\n    40,PIDGEY,11,14\n    40,RATTATA,11,14\n    9,PIDGEY,11,13\n    9,RATTATA,11,13\n    1,PIDGEY,14\n    1,RATTATA,14\nLandNight,21\n    39,RATTATA,10,14\n    30,HOOTHOOT,10,13\n    20,SPINARAK,8,12\n    9,HOOTHOOT,10,14\n    1,HOOTHOOT,14\n    1,RATTATA,15\nPokeRadar,20\n    100,STARLY,12,15\n#-------------------------------\n[005,1] # Route 1\nLand,21\n    40,PIDGEY,15,18\n    40,RATTATA,14,18\n    10,SENTRET,13,17\n    5,PIDGEY,14,16\n    5,RATTATA,13,16\nLandNight,21\n    40,RATTATA,14,18\n    30,HOOTHOOT,14,17\n    20,SPINARAK,12,16\n    10,CLEFAIRY,11,15\n#-------------------------------\n[021] # Route 2\nLand,21\n    50,RATTATA,12,15\n    30,POOCHYENA,11,15\n    10,SHINX,10,12\n",
+      "root_actual_read_io": "2eae2e",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "PBS/Gen 6 backup/encounters.txt",
+        "cloud_path": "/workspace/pokemon-essentials/PBS/Gen 6 backup/encounters.txt",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "3300a444b3919b7e73a899d2fa6030702362ebff",
+        "bytes": 6032,
+        "sha256": "eb27b5fdc0465051fcb42767e1a5b54e37c6a2a3f24d23a24d71e089d7216dd5",
+        "lines": 311,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        55
+      ],
+      "exact_text": "﻿# See the documentation on the wiki to learn how to edit this file.\n#-------------------------------\n[002] # Lappet Town\nWater,2\n    60,TENTACOOL,14,19\n    30,MANTYKE,15,16\n    10,REMORAID,14,16\nOldRod\n    100,MAGIKARP,16,19\nGoodRod\n    60,BARBOACH,17,18\n    20,KRABBY,15,16\n    20,SHELLDER,16,19\nSuperRod\n    40,CHINCHOU,17,19\n    40,QWILFISH,16,19\n    15,CORSOLA,15,18\n    5,STARYU,15,17\n#-------------------------------\n[005] # Route 1\nLand,21\n    40,PIDGEY,11,14\n    40,RATTATA,11,14\n    9,PIDGEY,11,13\n    9,RATTATA,11,13\n    1,PIDGEY,14\n    1,RATTATA,14\nLandNight,21\n    39,RATTATA,10,14\n    30,HOOTHOOT,10,13\n    20,SPINARAK,8,12\n    9,HOOTHOOT,10,14\n    1,HOOTHOOT,14\n    1,RATTATA,15\nPokeRadar,20\n    100,STARLY,12,15\n#-------------------------------\n[005,1] # Route 1\nLand,21\n    40,PIDGEY,15,18\n    40,RATTATA,14,18\n    10,SENTRET,13,17\n    5,PIDGEY,14,16\n    5,RATTATA,13,16\nLandNight,21\n    40,RATTATA,14,18\n    30,HOOTHOOT,14,17\n    20,SPINARAK,12,16\n    10,CLEFAIRY,11,15\n#-------------------------------\n[021] # Route 2\nLand,21\n    50,RATTATA,12,15\n    30,POOCHYENA,11,15\n    10,SHINX,10,12\n",
+      "root_actual_read_io": "2eae2e",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "PBS/Gen 7 backup/encounters.txt",
+        "cloud_path": "/workspace/pokemon-essentials/PBS/Gen 7 backup/encounters.txt",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "d6659ac63b05956afb505b3e8ad377973ab77734",
+        "bytes": 6044,
+        "sha256": "2a24bdbb9113ec53788f578d707a29793f5008ed791e2f50533b37ae9e1477a7",
+        "lines": 311,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        55
+      ],
+      "exact_text": "﻿# See the documentation on the wiki to learn how to edit this file.\n#-------------------------------\n[002] # Lappet Town\nWater,2\n    60,TENTACOOL,14,19\n    30,MANTYKE,15,16\n    10,REMORAID,14,16\nOldRod\n    100,MAGIKARP,16,19\nGoodRod\n    60,BARBOACH,17,18\n    20,KRABBY,15,16\n    20,SHELLDER,16,19\nSuperRod\n    40,CHINCHOU,17,19\n    40,QWILFISH,16,19\n    15,CORSOLA,15,18\n    5,STARYU,15,17\n#-------------------------------\n[005] # Route 1\nLand,21\n    40,PIDGEY,11,14\n    40,RATTATA,11,14\n    9,PIDGEY,11,13\n    9,RATTATA,11,13\n    1,PIDGEY,14\n    1,RATTATA,14\nLandNight,21\n    39,RATTATA,10,14\n    30,HOOTHOOT,10,13\n    20,SPINARAK,8,12\n    9,HOOTHOOT,10,14\n    1,HOOTHOOT,14\n    1,RATTATA,15\nPokeRadar,20\n    100,STARLY,12,15\n#-------------------------------\n[005,1] # Route 1\nLand,21\n    40,PIDGEY,15,18\n    40,RATTATA,14,18\n    10,SENTRET,13,17\n    5,PIDGEY,14,16\n    5,RATTATA,13,16\nLandNight,21\n    40,RATTATA,14,18\n    30,HOOTHOOT,14,17\n    20,SPINARAK,12,16\n    10,CLEFAIRY,11,15\n#-------------------------------\n[021] # Route 2\nLand,21\n    50,RATTATA,12,15\n    30,POOCHYENA,11,15\n    10,SHINX,10,12\n",
+      "root_actual_read_io": "2eae2e",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "PBS/Gen 8 backup/encounters.txt",
+        "cloud_path": "/workspace/pokemon-essentials/PBS/Gen 8 backup/encounters.txt",
+        "mode": "100644",
+        "kind": "blob",
+        "blob": "d6659ac63b05956afb505b3e8ad377973ab77734",
+        "bytes": 6044,
+        "sha256": "2a24bdbb9113ec53788f578d707a29793f5008ed791e2f50533b37ae9e1477a7",
+        "lines": 311,
+        "workspace_bytes_match_commit": true
+      },
+      "actual_read_range": [
+        1,
+        55
+      ],
+      "exact_text": "﻿# See the documentation on the wiki to learn how to edit this file.\n#-------------------------------\n[002] # Lappet Town\nWater,2\n    60,TENTACOOL,14,19\n    30,MANTYKE,15,16\n    10,REMORAID,14,16\nOldRod\n    100,MAGIKARP,16,19\nGoodRod\n    60,BARBOACH,17,18\n    20,KRABBY,15,16\n    20,SHELLDER,16,19\nSuperRod\n    40,CHINCHOU,17,19\n    40,QWILFISH,16,19\n    15,CORSOLA,15,18\n    5,STARYU,15,17\n#-------------------------------\n[005] # Route 1\nLand,21\n    40,PIDGEY,11,14\n    40,RATTATA,11,14\n    9,PIDGEY,11,13\n    9,RATTATA,11,13\n    1,PIDGEY,14\n    1,RATTATA,14\nLandNight,21\n    39,RATTATA,10,14\n    30,HOOTHOOT,10,13\n    20,SPINARAK,8,12\n    9,HOOTHOOT,10,14\n    1,HOOTHOOT,14\n    1,RATTATA,15\nPokeRadar,20\n    100,STARLY,12,15\n#-------------------------------\n[005,1] # Route 1\nLand,21\n    40,PIDGEY,15,18\n    40,RATTATA,14,18\n    10,SENTRET,13,17\n    5,PIDGEY,14,16\n    5,RATTATA,13,16\nLandNight,21\n    40,RATTATA,14,18\n    30,HOOTHOOT,14,17\n    20,SPINARAK,12,16\n    10,CLEFAIRY,11,15\n#-------------------------------\n[021] # Route 2\nLand,21\n    50,RATTATA,12,15\n    30,POOCHYENA,11,15\n    10,SHINX,10,12\n",
+      "root_actual_read_io": "2eae2e",
+      "whole_file": false
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "path": "Data/Scripts/010_Data/001_GameData.rb",
+        "bytes": 9010,
+        "sha256": "577359664875c9e2ae78fc1b979409d28b4be932f6b5e8297de76a7df604db26",
+        "blob": "ccfd971a29b3bab107e2da6865ac0050ed3256b0"
+      },
+      "actual_read_range": [
+        78,
+        115
+      ],
+      "exact_text": "  module ClassMethodsSymbols\n    def schema\n      return self::SCHEMA\n    end\n\n    def register(hash)\n      self::DATA[hash[:id]] = self.new(hash)\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [Boolean] whether the given other is defined as a self\n    def exists?(other)\n      return false if other.nil?\n      validate other => [Symbol, self, String]\n      other = other.id if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      return !self::DATA[other].nil?\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [self]\n    def get(other)\n      validate other => [Symbol, self, String]\n      return other if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      raise \"Unknown ID #{other}.\" unless self::DATA.has_key?(other)\n      return self::DATA[other]\n    end\n\n    # @param other [Symbol, self, String]\n    # @return [self, nil]\n    def try_get(other)\n      return nil if other.nil?\n      validate other => [Symbol, self, String]\n      return other if other.is_a?(self)\n      other = other.to_sym if other.is_a?(String)\n      return (self::DATA.has_key?(other)) ? self::DATA[other] : nil\n    end\n",
+      "root_actual_read_io": "530523",
+      "whole_file": false
+    }
+  ],
+  "qualification": "Actual necessary complete Encounter71, compiler658–765 including original omitted save/end, setup and full lookup-to-UI point methods, selected formal contexts and all4 map5 bodies. Only D03 is root newly whole-file. Others precise ranges; same-blob paths were each actually displayed for their selected ranges.",
+  "business_execution": "NOT_EXECUTED",
+  "UPDATE_NOT_STARTED": true
+}

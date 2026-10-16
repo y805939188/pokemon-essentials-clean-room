@@ -242,6 +242,12 @@ add("GR8-COM-006", "required", "P3",
            "origin_proposal_id": "GR8-CAR-CAND-003",
            "exact_history_dedup": "PENDING; no old closure reopened"})
 
+
+# Historical26-record builder cannot overwrite cumulative later independent receptions.
+existing_output = ROOT / 'adjudication/root-decisions.partial.json'
+if existing_output.exists() and len(json.loads(existing_output.read_text()).get('records', [])) > 26:
+    raise SystemExit('Historical26-record builder refused to overwrite later cumulative root receptions; preserve exact successor receipts.')
+
 counts = {"required": sum(r["classification"] == "required" for r in records),
           "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
           "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),

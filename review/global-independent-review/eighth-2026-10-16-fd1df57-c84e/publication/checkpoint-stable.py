@@ -60,7 +60,7 @@ if active_facility.exists():
  for record in json.loads(raw).get('records',[]):
   proposals.append({'origin_task':'facility_atomic_completion_cloud','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':record,'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':'delegation/prompts/recorded-scalar-existing-core-counterreview.md','root_semantic_read_credit_from_snapshot':0})
 # External full proposal inputs are frozen for actual independent reception; snapshots are not verdicts.
-for group,sha in [('localization_records','90b9e27ef03feb2c018bb2f258b5e0d5aaed012b'),('com_battler','5cf9503a99a855c06a8ac9c932e6778b57e71049'),('combat_presentation','18d21310bdc360c87d7ffd886df7d06aef8604a7'),('pbs_creature_backups','b6f12ecfbe006ef0f2ea463d6689d78094915e75'),('creature_d','ca4d37c00dd402c76b8dc3d10de0ab245cc18e19'),('h_c2_current_records','967b90fac83a6b0c3313087d8871312b4eac18b9'),('legacy_manifest_currentness','93d7df7f66adcaa25811fd6ff09352b754577af0')]:
+for group,sha in [('localization_records','90b9e27ef03feb2c018bb2f258b5e0d5aaed012b'),('com_battler','5cf9503a99a855c06a8ac9c932e6778b57e71049'),('combat_presentation','18d21310bdc360c87d7ffd886df7d06aef8604a7'),('pbs_creature_backups','b6f12ecfbe006ef0f2ea463d6689d78094915e75'),('creature_d','8434e69e1cc278a514c41f11335ba20d89a95419'),('h_c2_current_records','967b90fac83a6b0c3313087d8871312b4eac18b9'),('legacy_manifest_currentness','93d7df7f66adcaa25811fd6ff09352b754577af0')]:
  candidate=root/'evidence/external-recovered'/group/sha/('findings.json' if group=='h_c2_current_records' else 'proposals.json')
  raw=candidate.read_bytes();digest=hashlib.sha256(raw).hexdigest();target=snap/('external_'+group+'-'+digest+'.json');target.write_bytes(raw);obj=json.loads(raw)
  items=obj.get('records',obj.get('proposals',obj.get('items',obj.get('findings',[]))))
@@ -88,8 +88,8 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='c88ebbba8fd2c074c9787874f2c6d5a7a9fb6404'
-state['dispatch_remote_readback']={'files':8708,'bytes':937063724,'status':'VERIFIED','evidence':'publication/r8-external-adjudications-readback-20.json','semantic_credit':'NONE'}
+state['published_dispatch_checkpoint']='c5f0ea2bbf7fb4a7c9d3276a8f2e076ed2220fbc'
+state['dispatch_remote_readback']={'files':8906,'bytes':995886425,'status':'VERIFIED','evidence':'publication/r8-history-counter-contracts-readback-21.json','semantic_credit':'NONE'}
 state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':41,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':8,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_without_local_context':9,'global_logical_primary_groups_not_started':0,'actual_external_primary_contexts':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 state['new_additional_completion_plans']={'count':2,'status':'READY_NOT_STARTED_NO_ACTUAL_CREATION_RECEIPT','manifest':'delegation/handler-atomic-completion-parent-dispatch.json','actual_contexts_started':0,'requested':'gpt-6.1-sol ultra default normal Fastoff'}
@@ -125,6 +125,10 @@ for entry in findings['proposals']:
   entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
   entry['canonical_id']='GR8-COM-007'
   entry['root_decision_path']='adjudication/root-com007-generation-identity-counterreview.json'
+ elif rid == 'GR8-CAR-CAND-006':
+  entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
+  entry['canonical_id']='GR8-COM-008'
+  entry['root_decision_path']='adjudication/root-com008-switch-order-counterreview.v1.json'
  elif rid == 'GR8-FAC-001':
   entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
   entry['root_decision_path']='adjudication/root-recorded-scalar-reception.v1.json'
@@ -137,6 +141,9 @@ for entry in findings['proposals']:
  elif rid in ['GR8-ECB-001','GR8-ECB-002']:
   entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
   entry['root_decision_path']='adjudication/root-'+rid.lower()+'-reception.v1.json'
+ elif rid in ['GR8-XPCB-001','GR8-EXT-CD-001']:
+  entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
+  entry['root_decision_path']='adjudication/root-xpcb001-already-documented-counterreview.v1.json' if rid=='GR8-XPCB-001' else 'adjudication/root-cd001-nonpositive-selector-counterreview.v1.json'
  elif rid == 'GR8-UI-002':
   entry['root_status']='REJECTED_ORIGINAL_EXCEPTION_CANDIDATE_ONLY'
   entry['root_decision_path']='adjudication/root-ui002-reception.json'
@@ -150,6 +157,9 @@ findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counte
 findings['separate_rejected_proposals']={'path':'adjudication/root-ui002-reception.json','ids':['GR8-UI-002'],'qualification':'Rejected original exception counterexample only; no whole-UI approval.'}
 findings['bounded_no_required_reception']={'path':'adjudication/root-binary-bounded-receptions.json','count':4,'qualification':'Only four finite negative claims; no full controller/resource/binary-domain or whole-review NO_REQUIRED_UPDATE.'}
 findings['separate_bounded_no_required_candidates']={'ids':['GR8-KAR-001','GR8-CAR-CAND-004','GR8-FAC-001','GR8-ECB-001','GR8-ECB-002'],'receipts':['adjudication/root-hash-default-scope-counterreview.v1.json','adjudication/root-after-all-hits-reception.v1.json','adjudication/root-recorded-scalar-reception.v1.json','adjudication/root-gr8-ecb-001-reception.v1.json','adjudication/root-gr8-ecb-002-reception.v1.json'],'required_added':0,'optional_added':0,'global_qualification':'No whole-review NO_REQUIRED_UPDATE'}
+findings['separate_bounded_no_required_candidates']['ids'] += ['GR8-XPCB-001','GR8-EXT-CD-001']
+findings['separate_bounded_no_required_candidates']['receipts'] += ['adjudication/root-xpcb001-already-documented-counterreview.v1.json','adjudication/root-cd001-nonpositive-selector-counterreview.v1.json']
+findings['independent_receptions'] += ['adjudication/root-com008-switch-order-counterreview.v1.json','adjudication/root-cd001-nonpositive-selector-counterreview.v1.json','adjudication/root-cd002-negative-probability-counterreview.v1.json','adjudication/root-cd003-recording-attribution-reception.v1.json','adjudication/root-cd004-navigation-reception.v1.json','adjudication/root-xpcb001-already-documented-counterreview.v1.json']
 write('findings.json',findings)
 packed=load('publication/compressed-artifacts.json')
 packed_paths={r['original_path'] for r in packed['artifacts']}
