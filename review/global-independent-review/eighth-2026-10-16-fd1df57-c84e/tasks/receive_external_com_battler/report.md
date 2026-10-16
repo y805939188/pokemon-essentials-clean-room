@@ -1,6 +1,6 @@
-# receive_external_com_battler：有限实读与容量拆分交付
+# receive_external_com_battler：累计接收报告
 
-**状态：INCOMPLETE；UPDATE_NOT_STARTED。** 本次尚不能给出 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`。已完成固定输入恢复、逐对象分母冻结、强制伴件全文和31个必要单元的实读，以及八个事实的有限源码比较。810个producer子断言、160个反向条款子断言和累计交界仍未完整接收。它们可得，不能记成材料限制。根最终签收仍由主审负责。
+**状态：INCOMPLETE；UPDATE_NOT_STARTED。** 已完整接收组3固定交付 `faba225d554f0a4718f8d92bcf21f69d19c0614e` 的 P07–P10：27个方法、183个源子断言和36个反向主责贡献。剩余627个源子断言、124个其它反向主责贡献及累计交界等待其它组实际成果；本次不重读组3全部源码主责、不新建派发或审查层。初始31个必要单元实读和八事实有限比较保留。根最终签收仍由主审负责，尚不能给出 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`。
 
 固定合同为 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`；目标为 `5cf9503a99a855c06a8ac9c932e6778b57e71049`，checkout tree `1f7faa21b90bce1e7d89623407dd90133f260eb2`，原任务 tree `34bf2e1922a7cc2f4742df0fe09ea0b3b7ff1355`。从独立 bare 仓库普通 fetch 精确目标，恢复全部10文件、2,576,539 bytes；集合/mode/blob/bytes/SHA256/tree均吻合。原始字节在 `inputs/target-5cf9503a/`，凭据在 `evidence/target-recovery.json`。此项仅证明身份。
 
@@ -27,7 +27,17 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 | RX-SCENE-HP | HP写入早于通知；公共动画双门不关闭HP条等待；损伤记录/恢复跨半清理在显示返回后。保留异常时已提交前缀。 |
 | RX-SCENE-ILLUSION | 野生初始化bitmap取真实队伍对象；sendOut才明确优先Illusion。普通shiny与自身super_shiny的来源不同。原并列表述不能原样采用。 |
 
-这些是八个事实的有限必要定义比较，不是八个完整producer→consumer接口签字。仍未完整读的producer贡献不能由receiver方法或root旧收据代替。因而本次完成的中央接口整体为0/4，最终consumer join为0/24。root在固定合同中的24/24有限事实接合和强制资格保留为其原范围，不转成本上下文810/160信用。
+这些是八个事实的有限必要定义比较，不是八个完整producer→consumer接口签字。组3的已读贡献现已实际接合，但其有限接点不能代替其它组producer与主责receiver成果。中央接口整体仍为0/4，最终consumer join仍为0/24；组3提供13个必要consumer对象及补充Handler，均保留其实际reader、完整意义和限定。root原有24/24有限事实接合仍在其原范围，不转成810/160全文批准。
+
+## 组3实际贡献与跨组接合
+
+父协调者已绑定本组实际上下文 `01a14493-c641-76d5-98fd-8c075a60b028`，与原目标作者不同；保留子报告自身平台UUID/config回显UNVERIFIED，不以角色名创造独立票。本接收者逐项读取了全部183原断言及新理由、27完整方法贡献的限定、36反向业务对象及理由、33个去重完整formal关系对象、13个consumer对象、补充Handler和四接口的实际贡献。原值与固定父对象逐项相等；相同字段和纯身份索引明确去重。原源码完整阅读信用留在组3，不改写成本接收者再次SOURCE_FULL。
+
+接收保留普通/special/skip的不同门，计算损量/实际HP、整次/逐击reset、Snatch后user与原self、合法预选与共同添加器、Instruct真实槽普通PP、Dancer固定候选及有限恢复、反射后段、Gulp先改形态再读、BeakBlast既有局部错误、SheerForce两个外部门与直接SteamEngine。没有将这些静态前缀理想化成事务、统一finally、宿主继续或运行成功。
+
+36个分配反向贡献中，35个没有显式外域facet；`FC40-TURN.01`只签本地调度入口，完整Call/换人/物品/Mega合法建立方仍由CORE/R01累计接收。另保留RX-CORE-ENTRY有限意义，但组3的53行actual-reading manifest没有E039行；不捏造其IO，待R01实际结果绑定精确进入方法。它们不重开P10主责、不增加finding。四中央接口的累计图已按完整compound children构造；原子报告中为空的 `receiver_local_source_child_ids` 快捷数组保持原字节，不用它们抹掉已完整接收的183正文。
+
+组3仅佐证既有 `GR8-COM-001` required/P3的STALL/TRUANT示例区别，新required/optional均0。其完整非提案者counter阅读及有限结论支持保留 `GR8-ECB-001` 既有有界NO_REQUIRED；父对完整counter包与历史资格的最终接收仍随H01。`GR8-ECB-002`完整counter不属于本组已读范围。没有新独立最终投票，没有重开第七轮27项。
 
 ## 精确未完成分母
 
@@ -35,22 +45,22 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 
 | 人口 | 本次完整接收 | 必要未接收 |
 | --- | ---: | ---: |
-| 10主R完整文件 | 0 | 10；其中2文件有必要选段实读 |
-| 289结构/810显式子断言 | 0/0 | 289/810，逐ID在reception-ledger |
-| 58正式处置组/160子断言 | 0/0 | 58/160，逐ID在reception-ledger |
+| 10主R完整源审读贡献 | 4 | 6；源阅读者为实际组3，不声称父重复读源 |
+| 289结构/810显式子断言 | 27/183 | 262/627，逐ID在reception-ledger |
+| 160反向主责子断言 | 36个主责facet | 124个其它主责；已接36中另有1个显式外域接合OPEN |
 | 23外域facet | 0 | 23，随原完整formal对象保留 |
-| 24 consumer原事实文字 | 24 | 0文字；其中16的必要定义尚未完整实读 |
+| 24 consumer原事实文字 | 24 | 0文字；主责receiver的完整累计接收仍待R01/R02/R03/H01 |
 | 八事实必要定义比较 | 8 | 其完整producer贡献/累计接合仍OPEN |
 | 四中央接口整体 | 0 | 4 |
 | HISTORY/展示IF04整体 | 0/0 | 1/1 |
 
-主R选段实读仅：001的107–112、166–200、248–288、344–357、421–435，合111行；003的1–36，合36行。合147/4,646行是来源阅读范围，不是147个需求或签收数；精确剩余4,499行写入台账。额外完整父文件只有Move基类201行与Usage405行，不能计作10个Battler主R。所有其余主R和正文可得，状态是未完成，未改标limit。
+本接收者初始直接读源范围仍为001的107–112、166–200、248–288、344–357、421–435与003的1–36，合147/4,646行；没有随接收组3而冒领新的父SOURCE_FULL。组3另有4个完整主R、1,778行及完整必要上下文的实读证据，已按贡献接收，范围见P07共同evidence。阅读行数、810需求分母和父累计接收分母各自独立。所有其余主R和正文可得，未改标limit。
 
 两原提案的正常/反例/取消/失败/部分提交、建议最小修订与保留范围完整保留。root已有两个实际非作者的有限 `NO_REQUIRED_BOUNDED_SCOPE` 收据已全文读；其理由分别是现WP40/42/44可组合推出失败后模式标志/Octolock，以及WP43/47-B/49/45可组合推出Transform/WonderRoom读写结果。完整原counter包与具体历史资格本次尚未实读，不能以root收据标题继承它们。`proposal-counters.json`保留最强no-required解释及明确OPEN项，没有增加required/optional或新独立裁决，没有重开第七轮27项。
 
 ## 容量拆分合同与下一接收者
 
-本次上下文未能完成全部完整源体、810子断言、160反向子断言及必要交界的逐项实读。按用户“容量不足给精确拆分合同”要求，已生成15份可由父实际派发的完整prompt/readset，入口是 `split-dispatch.json`。每份prompt包含父接收合同、完整全局prompt、skill及AGENTS全文；readset包含分配对象的完整字段、全部身份索引、必要formal完整组、consumer完整事实及强制伴件定位。生成本身reading0。
+初始容量拆分的15份完整prompt/readset继续冻结在 `split-dispatch.json`。父协调者现已实际启动四组；本次仅接到了组3实际结果，其余组等待实际送达。每份prompt/readset仍保留全部合同、字段和必要对象，生成本身reading0；不为本次通知新增派发回执。
 
 | 片 | 结构 | 源children | 唯一主责反向children |
 | --- | ---: | ---: | ---: |
@@ -68,7 +78,7 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 
 P01在完整结构之间切开，不截函数；其余按完整主文件分片。289结构、810源children、160反向children分别完整分区、主责重叠0。R01负责八CORE事实；R02负责三schema/identity事实；R03负责五持久/Shadow/Peer事实。H01负责八事实累计接合、四中央接口、IF04、两个完整counter、有限历史资格以及元数据/crosswalk/外壳；仅接本任务必要范围，不重新审查全系统。24 consumer的唯一最终主责也无重叠；RX-PEER的多域依赖仍保留。
 
-这些都是 `PLANNED_CONTEXT_NOT_CREATED`。没有执行spawn，没有把计划数当实际slot/context/投票。父派发时须绑定真实非作者context。每片未来独占 `splits/<ID>/result/`；公共台账和父最终签字仍由主审负责。片间必要上下文不能因非主责而省略；源/反向片与receiver片的输出必须再逐贡献累计接收，不能以本表计数代替。
+原split-dispatch中的 `PLANNED_CONTEXT_NOT_CREATED` 是冻结生成时状态，不是当前活动状态。本接收者没有执行spawn，没有把计划数当实际slot或投票。组3已按父实际绑定接收；其余实际组的成果尚待送达。每片独占 `splits/<ID>/result/`，原子报告保持字节不变；公共累计台账和最终签字由主审负责。片间必要上下文必须逐贡献接合，不能以本表计数代替。
 
 ## 执行、限制与发布
 
