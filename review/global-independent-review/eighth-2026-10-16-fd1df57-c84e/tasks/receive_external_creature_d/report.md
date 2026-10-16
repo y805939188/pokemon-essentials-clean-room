@@ -1,62 +1,65 @@
-# creature_d 第八轮独立接收报告
+# creature_d 第八轮独立完整有限接收报告
 
-结论：**INCOMPLETE**。本次没有完成固定目标全部有效语义及必要交界的最终接收，不请求 READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE。原作者的完成声明、SUPPORTED、旧 PASS、身份核等及本报告的发布均不替代语义接收。UPDATE_NOT_STARTED；业务运行 0，NOT_EXECUTED。
+结论：**READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE**。固定目标的全部当前有效语义已逐对象处置，十个必要接口已有限接收，必要未读／未接收及材料不可得项均为0。根最终 task-final、canonical 去重及全局签收仍由主审负责。本报告不宣称 B8 全局 PASS，不替用户选择可选修订。UPDATE_NOT_STARTED；新增游戏／参考行为／模型／宿主／Demo／存档执行均0，NOT_EXECUTED。
 
 ## 固定对象与独立性
 
-合同提交 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`。目标唯一 C `8434e69e1cc278a514c41f11335ba20d89a95419`，checkout tree `73c82e354ddb6422d74fa6a3f3c1ea7e6222b96f`，目标任务 tree `abededbff0143caf5274acf9b4866ceff3216866`。原作者实际 context 为 `01a143ad-2f84-71dd-885d-3e43b80e8000`。本次按独立接收 delegation 执行，没有调用原作者签字代验，也没有通过重命名角色声称多一位审者；平台 opaque UUID 无权威回显，记 UNVERIFIED。自行 spawn 为 0，新投票 0。
+合同 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`；目标唯一 C `8434e69e1cc278a514c41f11335ba20d89a95419`，checkout tree `73c82e354ddb6422d74fa6a3f3c1ea7e6222b96f`，原任务 tree `abededbff0143caf5274acf9b4866ceff3216866`。原作者 context `01a143ad-2f84-71dd-885d-3e43b80e8000`。本接收沿独立 delegation 持续执行，未使用原作者自验，未重命名角色冒充不同审者；本平台 opaque UUID 无权威回显，UNVERIFIED。自行 spawn、新上下文、新投票均0。
 
-B8 为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，正式 tree `f292698cdd4a8e725525a9be6dc34b75faaf151e`；参考 R 为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`／tree `7589c800b61ba13a13040ed0d686979b80a84fd0`。实际云端 checkout 分别为 `/workspace/pokemon-essentials-clean-room` 与 `/workspace/pokemon-essentials`，不等同历史 Mac 工作树。
+B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`／正式 tree `f292698cdd4a8e725525a9be6dc34b75faaf151e`；R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`／tree `7589c800b61ba13a13040ed0d686979b80a84fd0`。实际云端 checkout 为 `/workspace/pokemon-essentials-clean-room` 与 `/workspace/pokemon-essentials`。接收 prompt/readset、完整全局 prompt、根 AGENTS、review-SKILL、恢复 helper 及原任务 prompt 均全文读；未执行恢复的旧脚本或游戏。
 
-已完整读接收 prompt/readset、全局 prompt、适用根 AGENTS、review-SKILL、恢复 helper；后者只作阅读参考，未执行恢复的旧代码。review-SKILL 的最终正文规范不替代审计史料。原任务 prompt 另完整阅读，旧作者写集/提交限制没有被误用为本接收合同。
+## 全部人口的处置
 
-## 已读人口与实际接收
+`frozen-denominator.json` 的精确人口未缩减：5主R／92完整定义，7主F／190父条款／1,681子义，228案例／644手工预期，77事实，10接口，4完整提案。原25文件／8,320,983B完整保存并独立核身份；生成 view／hash／精确别名核验均不产生阅读或语义通过信用。
 
-`frozen-denominator.json` 固定全部对象 ID／指针：5 主 R 的 92 definitions、7 主 F 的 190 clauses／1,681 children、228 cases／644 预期、77 forward facts、10 interfaces、4 完整候选。全部这些业务值已真实呈现并读过，完整原载荷保留在 `inputs/target/`。生成 view 的阅读信用为 0；同字节反向重复也只计一次实际阅读。
+`reception-ledger.json` 保留全部2,078个定义／子义／案例／事实的完整原值、定位和逐对象后继处置：91定义接收、1错误摘要更正；1,678子义有限接收、2子义确认CD002正式差异、1错误注释更正；228案例全部预期有限接收；76事实接收，F57部分无支持断言拒绝后接收其有效部分。190父条款原对象及子项关联另完整保存在 `clause-receptions.json`。这不是2,078条无条件真值或运行PASS。
 
-五主 R 全文和 92 定义意义已逐项核读，发现一条错误摘要（E01），其余处置只收到定义边界，未假称必要消费者全闭。当前七主 F 全文、WP58／WP32／WP63 全文已读；1,681 子断言与 228 案例（含全部 644 手工预期）完整读，BR27–31、PF01–09 共同前提及 E14／CP21–22 的调用资格另补读。累计自身完整读参考文件 45 份、正式文件 10 份；精确局部区间和固定字节见 `reading-ledger.json`。这些文件数不是通过分母。
+77份独立人工具名接合理由见 `continuation-fact-receptions.json`；每个子义／案例沿其原精确fact链接接入这些理由，含完整定义、正常对照、取消／失败／部分提交和当前跨篇限定。脚本只编码原值与精确关联，未生成“全部人工通过”。最初已实读的全部原业务值、52反向组、72 continuation、1,681精确反向别名及共同前提保持有效，不重新计一次阅读。
 
-**已经有限收口**：CD-I04 电话 TE／TP 与缺 helper 边界、CD-I07 保存／日托迁移／漫游标记失败前缀、CD-I08 交换条件和双收尾，共 3 个接口。定义、调用者、接收者、当前条款、原供应方和限制分别见 `finite-receptions.json` 三份人工凭据。10 个具体 forward facts（F29／F45–48／F69–70／F75–77）在这些有限范围内接收；不据此签整个 UI、Kernel、Creature 或 FAC。
+本接收累计自身实际读过至少部分的文件数为 121，其中参考全文 52、正式全文 11；仅作读片统计。实际区间、输出凭证和固定字节在 `reading-ledger.json` 与 `continuation-reading-ledger.json`，自身未全读的外域精确行差仍在 `expanded-reading-delta.json`。
 
-**尚未完整接收**：CD-I01／02／03／05／06／09／10，共 7 个必要接口；1,680 个尚未给完整消费者接合结论的子断言（另 1 条原注释 E02 拒绝）、全部 228 案例的最终接合、其余 67 个 forward fact 的全部或部分接合仍 OPEN。它们均已读业务值，不能混称“尚未读矩阵”。逐个 ID 与具名剩余义务见 `remaining-obligations.json`；每对象完整原义、定位、读片及当前判定见 `reception-ledger.json`。92 定义的消费者链仍随相关接口开放，不合计为任务 PASS。
+## 十个有限接口
 
-主要剩余是：五套 Species/forms 和具体 PBS 有效记录差异的独立逐值核接；Storage UI、消息/命名、部分 Combat/Scene/AttackPhase 的完整必要方法及相应当前跨篇条款；地图完成步、地形/载入和 WP12/59 的必要接点；特殊模式、净化/礼物/调试的其余必要 scene/data 与 WP53/64/73、SH37–44 资格；适用 R6/R7／GR010/011/013 的原 canonical 资格正文。只收 HISTORY 有限 meta 和 R7-U05 不能补全这些原始正文。
+`finite-receptions.json` 与 `interfaces.json` 逐事实接合，十接口均为 FINITE_RECEIVED：
 
-扩展 125 文件的固定身份独立核等无误。作者声称的 104 whole／21 partial、178,265 已读／20,987 范围外未读仅是作者记录，未转授给本接收。`expanded-reading-delta.json` 给出自身实际区间与作者声明范围的精确差集，但不把全部外域差集都扩为必要主责。
+| 接口 | 已接收的必要边界 |
+| --- | --- |
+| I01 | Species／Forms／祖先／incense／Offspring／egg数据；44繁殖向量、111子义、18具名完整原始记录与默认／条件夹具 |
+| I02 | 获得、Owner、party、storage、Dex、命名、Summary；六个完整UI供应对象和实际必要方法 |
+| I03 | 菜单映射→登记扣减→AttackPhase投球→队列→终局→Peer／存储；有效重量、真实睡眠、目标重解析、伙伴身份错配 |
+| I04 | Phone TE前四槽等权、TP／TE eager、UI Contact及缺helper边界；F57按E03限定 |
+| I05 | 一般完成→玩家步后、转向、主动请求、Repel通知前快照、地图装载／地形／载具／时间 |
+| I06 | 当前解析／编译／登记／默认／反写／快照；24当前PBS有限对象、45备份字段合同、16备份语义注释及全部原72注释 |
+| I07 | 默认保存注册、版本门、日托重复引用迁移、漫游terminal标记失败前缀 |
+| I08 | 交换七族、演出／进化／最终替换与条件双收尾；第二dispose先于第二检查 |
+| I09 | Safari、Contest、Gift、Purify、Debug具名实际消费者；净化Screen接收者及S0／跨级／双满资格 |
+| I10 | 适用历史资格、GR010／011／013当前接点、R7-U05；旧FAIL、有限复用、激活前后与当前状态分列 |
 
-## 三项证据注释更正
+有限供应均按合同固定版本取回，完整选定业务对象实际读；原reader、源范围及强制澄清保留于 `continuation-providers/`、`continuation-provider-identities.json` 与恢复凭据。未把原作者104 whole／21partial或供应方整域FULL转授本接收。十接口以外的全PBS原始记录、全Combat／UI／History等仍归原主责，见 `foreign-primary-not-received.json`；可得未读与真正未运行／宿主未知分别记录，均不冒充材料缺失。
 
-- **RX-CD-E01／CD-U01-007**：构造器只设空表及 acc=0；step_count=0 在 setup/reset 中，原“构造计步0”不受支持。F01 的分层原文可保留。
-- **RX-CD-E02／CD-A-wp33-020-10**：两槽且未置标记时，兼容度 0 仍执行一次 `rand(100)<0`；不会产蛋，但不能说“不抽”。当前正式 WP33 只写概率0不置标记，因此不是新增正式缺口。
-- **RX-CD-E03／CD-F57 部分**：完整 Phone706 与 DayCare564 没有原注释声称的日托电话通知实现/调用。已核电话生命周期与具体选槽事实保留；任意公共事件可能性不证明当前具名通知存在。
+## 证据更正与正式差异
 
-原注释与旧错误完整留存；更正只写本接收目录。没有改旧作者材料、正文或 R。
+- **E01／CD-U01-007**：构造只设空表和acc0；step_count0在setup/reset。拒绝原构造摘要，F01分层意义保留。
+- **E02／CD-A-wp33-020-10**：两槽且未置标记、兼容度0仍抽一次rand100<0；不产蛋但不能说不抽。当前WP33只写概率0，正确。
+- **E03／F57部分**：完整Phone与DayCare不支持原具名日托电话通知实现／调用断言；保留已核Phone生命周期与选槽意义，不扩大为全游戏通知不存在。
 
-## 四项提案与有限反证
+这些是证据精度更正，不构成新增正文整改阻塞。另接收净化室020-03强制接收者限定：Scene本身有pbUpdate，传给等级窗口的Screen无此方法；原限定失败前缀成立。
 
-`proposal-counters.json` 对四个完整原提案各给八节独立接收推导，正常/取消/失败/部分提交、最强 NO_REQUIRED、最小未来写集、正确保留、验收/回归及资格均保留。合同提交中的四份 root 精确裁决全文已读；CD003 的 FAC counter 和 CD004 的 CREA counter 也全文读。
+四个完整提案及根已发布精确裁决、CD003 FAC与CD004 CREA完整反证均已读。`proposal-counters.json` 保留各八节独立接收推导：
 
-| 提案 | 本次有限结论 | 保留边界 |
+| 提案 | 本片结论 | 最小边界 |
 | --- | --- | --- |
-| CD001 | 支持 root 有界 NO_REQUIRED | 非正次数内部 helper 的真实行为保留；当前普通/雷达调用为正，不自动新增未来 API、输入验证或测试 |
-| CD002 | 支持 root 必修 P3 | 编译器接受负步骤概率，正常健康成员可进调用链；整数性不能推出非负。只处理 WP36§4.2 步骤5限定，保正21/189/210、宽限、Repel清零及非步进不累加 |
-| CD003 | 支持 root 可选 P3 归属澄清 | 空 store 属记录模块；Tower Playback 继承普通存储。普通设施捕获不可达，不把直接方法诊断推为产品捕获或实时队伍写入 |
-| CD004 | 支持 root 可选 P3 导航 | WP34:158 的时点对照 BR24 应指 BR23；正文轮首算法与 BR23/24 自身正确，不新增行为要求 |
+| CD001 | 有界NO_REQUIRED | 内部非正chance_rolls真实行为保留；普通调用正1..3，不强设未来API |
+| CD002 | 必修P3 | WP36§4.2步骤5的非负前提不足；负chance可经编译和健康正常caller累加负acc。仅限定整数除法，保正21／189／210、宽限、Repel和非步进规则 |
+| CD003 | 可选P3 | 空store属于录制模块；Playback继承普通Battle。普通设施捕获不可达，不升格为产品捕获／实时party写入 |
+| CD004 | 可选P3导航 | WP34时点对照BR24应指BR23；算法和两案例自身正确 |
 
-这些不是新增 canonical 或全历史去重阴性。最终分类、全局去重和根 task-final 签名仍由主审独占；本接收没有替代用户作可选项选择。
+共享根COM005的外层straighten传播沿既有根裁决保留，不新增canonical。历史可选／Float／policy／limit／NO_REQUIRED资格不改变，第七轮27项不重开。本片已足供根最终接收；未来是否开始整改由主审按全局门处理，当前无任何整改。
 
-## 载荷、用途与限制
+## 限制、校验与发布
 
-目标 25 文件／8,320,983B 在自己的隔离 bare 精确 fetch C 后恢复，逐文件集合/mode/blob/bytes/SHA/tree 核等，见 `input-recovery.json`。初次未过滤 fetch 中断及之后成功恢复都保留。14 份原有限供应输入按 `ea3359282fe4e27132fa3ceaa2d8f308b0831510` 恢复，选定完整业务对象均实读；后继 `mandatory-locator-clarification.v1.json` 另完整恢复与阅读。物品 schema 强制澄清和 world item 定位修正已实读。不继承供应方整域 FULL_READ。
+游戏、真实随机序列、原生Marshal跨root别名／cycle、真实保存重载、图像／音频／输入输出、重复viewport.dispose及默认Demo事件可达性均未运行或未验证。任意插件／配置组合不由有限静态接口穷尽。请求gpt-6.1-sol／ultra／default普速／Fast off；实际model／effort／tier／speed／Fast／UUID逐项UNVERIFIED。
 
-`typed-purpose-dispositions.json` 明确列出纯身份、结构导航、反向精确别名和传输字段；没有用目的分类豁免业务。246 个 formal framing 原行均精确等于已全文读的七篇对应行；1,681 reverse rows 经完整父上下文核为 clause 子项精确别名；64 个外域 BE/CX 行只按原主责保留。部分 view 采用 JSONL 却沿用 `.json` 后缀，格式逐文件见 `view-formats.json`；首轮检查误当单 JSON 的失败保留，修复检查后无格式错误。
+`continuation-verification.json` 只记录集合、JSON／JSONL、跨引用、固定身份和写集的工具校验，不签语义真值；历史失败、截断及修复均保留，旧检查点仍可在已发布b05e011历史中读取。旧INCOMPLETE由同一接收上下文持续完成，差异与范围见 `continuation-closure.json`，没有以容量检查点代替任务完成。
 
-本次材料不可得项为 **0**。上列必要未接收均是可得工作，不能称宿主限制。本单次上下文容量内未完成剩余核接，故如实交付 INCOMPLETE，后继按精确剩余对象继续，不伪装完整签收。另有真正未运行/不可观察边界：游戏、原生 Marshal、真实保存重载、实际媒体、重复 viewport.dispose、宿主随机序列、demo 可达性与插件组合均未执行或未验证；它们与可得未读分列。
-
-请求配置 gpt-6.1-sol／ultra／default 普速／Fast off；实际 model、effort、tier、speed、Fast、opaque UUID 各自 UNVERIFIED。没有检查账号/额度或宣称模型认证。
-
-## 发布与继续凭据
-
-唯一写集为本目录，授权分支 `codex/r8-receive-creature-d-20261016`。只普通 commit/push 该分支；不整改、不合 main、不改 tag。`verification.json` 为本次工具校验，失败和修复另留；业务执行仍 0。`artifact-manifest.json` 固定普通报告载荷，后继 `publication.json` 将记录已发布 core 的隔离远端全文件回读；最终后继提交另在返回前再次完整远端核集合与每文件身份，不把传输成功写作语义完成。
-
-后继无需重读已确认精确别名。应按 `remaining-obligations.json` 的七个有限接口补齐必要定义/条款/数据/历史，再回到明确列出的 1,680 children／228 cases／67 facts 逐项给接合结论；保留三项证据更正及四份有界反证。最终根签收仍归主审。
+唯一写集本目录，普通发布分支 `codex/r8-receive-creature-d-20261016`；不整改、不合main、不改tag、不强推。`continuation-publication.json` 将绑定已发布core的完整隔离远端逐文件mode／blob／bytes／SHA／集合／tree回读，最终后继包含该凭据自身的完整远端回读身份在交付返回中给出。Git CLI缺HTTPS凭据的原失败保留；现有授权GitHub Git Data API以单父普通提交、expected_sha及force=false推进专属分支，远端与本地提交元数据不同而workspace tree须精确相同。传输成功不产生语义信用。
