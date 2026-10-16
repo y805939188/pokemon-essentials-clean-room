@@ -67,7 +67,8 @@ result={'schema':'r8-com-battler-full-remote-readback/v1',
  'total_bytes':sum(x['bytes'] for x in files),'files':files,
  'isolated_bare':str(bare),'alternates':False,'fetch':'remote depth1 blob:none, then complete remote blob reads',
  'remote_refs':refs.splitlines(),'changed_paths_from_contract':changed,
- 'file_set_mode_blob_bytes_sha256_tree':'ALL_MATCH','task_status':'INCOMPLETE',
+ 'file_set_mode_blob_bytes_sha256_tree':'ALL_MATCH',
+ 'task_status':json.loads((task/'progress.json').read_text())['status'],
  'semantic_credit':0,'behavior_execution':'NOT_EXECUTED','UPDATE_NOT_STARTED':True}
 receipt.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps({k:v for k,v in result.items() if k not in ['files','changed_paths_from_contract','remote_refs']}))
