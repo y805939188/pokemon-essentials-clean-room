@@ -77,3 +77,5 @@ ItemBall先strict get/正数量、portion单复数、Bag.add后成功/口袋消�
 后继核验将3,324个必要字段组合的11,647个字段槽逐项接到真实读者：6,058原语料字面槽已接收、150新字面槽已读、3,330缺席槽已读，2,109原语料槽等待D。这只是4,827条D记录的别名接合，不增加另一批记录分母。35路径没有实际空s字段。A/B/C对d14a合同基线的实际变化分别仅18/19/14路径，全部在各自parts写集；只复用已取固定提交，未重造传输身份或重复逐字阅读。
 
 环境断连通知后实际命令b2a7f1成功exit0，可继续；见environment-status.json。后继51db82bdcfd30980efdfa164ba705df5b11ad5c9已普通push并完整回读472载荷/65155023字节，checkout tree0be61792875579a06683fd371207e8f7a7951cad，task tree954a619aeaaaafc6ce77128d6aa134b50e177bbb，凭据publication-purpose.receipt.json。该保全不改变D未接收或ROOT最终签收边界。
+
+运行时语言入口的必要默认参数另补核完成：pbChooseLanguage603–609仅传(nil,commands)，完整pbShowCommands721–755默认取消码0/初始索引0；BACK单独不退出，同轮BACK+USE在正常前提下仍可确认当前索引。明确负取消码是另一输入，不能把作者工具取消套到此运行入口。普通退出先dispose再Input.update，异常无ensure。WP17§4/4.1(108–123)完整相关条款已准确覆盖，无新提案；详runtime-language-command-default.json。Messages859仍仅给239–274/721–755的个人范围，不冒全文；全部派生对照NOT_EXECUTED。
