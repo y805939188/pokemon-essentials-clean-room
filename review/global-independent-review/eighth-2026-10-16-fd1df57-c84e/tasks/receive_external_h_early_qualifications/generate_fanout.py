@@ -183,7 +183,7 @@ R5 primary ID集合（若空，只有上列R1–R4/执行范围）：{', '.join(
 
 {skill}
 '''
- (S/'prompt.md').write_text(header)
+ (S/'prompt.md').write_text(header.rstrip()+'\n')
  p['primary_R5_ids']=ids;p['primary_R5_criteria']=criteria;p['exclusive_write_set']=readset['exclusive_write_set'];p['readset_identity']=ident((S/'readset.json').read_bytes());p['prompt_identity']=ident((S/'prompt.md').read_bytes());p['complete_view_encoded_identity']=ident(z);p['complete_view_decoded_identity']=ident(raw);p['binding_occurrences_not_new_requirements']=len(bindings);p['original_complete_object_count_not_new_control_count']=len(units);p['necessary_initial_file_candidates']=len(candidates)
  write(S/'manifest.json',{'schema':'gr8.h-early-fanout.shard/v1',**p,'reading_credit':0,'started':False})
 # Explicit aggregation, including every R5 criterion once, without administrative leaf expansion.
