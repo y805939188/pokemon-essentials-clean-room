@@ -33,6 +33,7 @@ common='''# 四包共同完整合同\n\n这是剩余有效语义接收，不是�
 共同接合：D负责三个接口收口；A/B/C同时给所辖贡献的完整producer事实和精确B8/source身份，D必须真正读取所有必要producer贡献后才能签consumer。允许跨包必要只读交界，但一个canonical ID只在owner包计数。不得等待无关包才推进可独立部分。接口最终门如确实缺必要结果保持OPEN；所有结果由父线程最终汇总。\n\nD独占共同残余：各共享JSON未匹配到唯一ID/批次的全部有效root/common值，五实际原报告和5c完整阶段资格、原始中文handoff的共同文字/指令及所有未证精确别名的新语义、发布身份类型用途、三接口、最终全四包累计接合。D不能凭这个角色名继承其它包实读。A独占两版matrix全文及政策；B独占两版audit全文与Float；C独占PARTY004完整NO_REQUIRED；八optional按semantic-ownership逐ID归属。角色9–15同字节别名0–6、44别名38须核精确身份，信用一次。\n\n完成必须给精确已完整接收/必要未接收/真实不可得限制和实际配置/执行；任一所辖必要对象欠缺则INCOMPLETE。只普通commit/push父派发的包分支和自有目录，不强推、不改main/tag或其它包。远端完整回读新增/变更载荷一次，核文件集合/mode/blob/bytes/SHA/tree；复用未变输入身份，不递归大回执。最终包结果只能READY_FOR_PARENT_RECEPTION或INCOMPLETE，父主审独占task-final。\n\n'''
 for title,path in [('原完整全局prompt',T/'inputs/eighth-global-review-prompt.md'),('原完整专用接收prompt',T/'inputs/receive_external_h_r6_effective_contracts.md'),('完整AGENTS',T/'inputs/AGENTS.md'),('完整review-SKILL',T/'inputs/review-SKILL.md'),('原完整恢复helper（只读理解，禁止原样执行预置路径）',T/'recovered/inputs/recover_transport.py')]:
  common+='\n\n---\n\n## '+title+'\n\n'+path.read_text()+'\n'
+common+='\n完整原输入全文到此结束；恢复helper仅供读懂，不执行其预置路径。\n'
 (O/'COMMON.full.md').write_text(common)
 manifest=[]
 edge_owner={}
