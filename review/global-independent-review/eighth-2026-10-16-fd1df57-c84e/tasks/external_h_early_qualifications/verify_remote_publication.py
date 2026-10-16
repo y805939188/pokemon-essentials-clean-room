@@ -10,7 +10,7 @@ import argparse, hashlib, json, subprocess
 TASK=Path(__file__).resolve().parent
 REPO=next(p for p in TASK.parents if (p/'.git').exists())
 REL=TASK.relative_to(REPO).as_posix()
-BARE=TASK/'remote-verification.git'
+BARE=TASK/'remote-verification.git'/'bare'
 ORIGIN='https://github.com/y805939188/pokemon-essentials-clean-room.git'
 BRANCH='codex/r8-external-h-early-qualifications-20261016'
 
