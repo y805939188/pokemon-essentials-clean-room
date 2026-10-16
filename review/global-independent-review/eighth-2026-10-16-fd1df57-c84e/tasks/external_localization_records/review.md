@@ -1,3 +1,5 @@
+> 当前接口续审结论见 [continuation-review.md](continuation-review.md)：5组有限完整接收、2组部分接收；原同18个局部依赖仍6,655行本人未读，35PBS正文未接收。下文保留首交付时点的7组NOT_RECEIVED快照，不冒充当前状态。
+
 # 第八轮独立审读：external_localization_records
 
 本上下文已完整审读 primary 的18文件、841,275 bytes、21,466物理行、10,697条键/译文记录及18个文件头结构（合计10,715结构单元、21,394记录字段），primary未读0。primary正式文件分配为0；为双向核验另完整读取WP08、WP69主文和附表，部分读取WP15与共享测试目录。此为有限任务交付，**不构成全系统PASS或接口接收完成**。当前状态为 `WAIT_ROOT_RECEPTION_AND_INDEPENDENT_COUNTERREVIEW`、`UPDATE_NOT_STARTED`。
