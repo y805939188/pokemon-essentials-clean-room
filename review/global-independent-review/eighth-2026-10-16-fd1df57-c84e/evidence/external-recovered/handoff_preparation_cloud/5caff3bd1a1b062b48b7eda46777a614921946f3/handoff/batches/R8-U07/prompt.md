@@ -1,0 +1,1052 @@
+# 第八轮完整中文整改交接：有限已裁定合同准备版
+
+状态：PENDING_ROOT_CORE_FREEZE。UPDATE_NOT_STARTED，update_started:false。本包具体化当前33项有限分类（27必修：2P2/25P3；6可选），并分别保留8有限不必修、4binary负例与1已驳回原UI002。此数不是全轮最终总数。根最终签收由主审完成。
+
+本提示词只供用户在root最终冻结与后继发布绑定后另行手动委派整改。现在不得以WIP输入冒最终core或开始update。固定合同提交40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232；原root输入c44afe8bfa10ce91e1d55b88f7064918e5bd2510/tree4c0e8484120d4b6c6cfe7750f1036ba9e9cc0068。B8=fd1df570cad987dc3852a3b958f03916e317f7fe，workspace tree751dfde81048c81390f89a65ca1d1a565ba8e1ca，formal treef292698cdd4a8e725525a9be6dc34b75faaf151e；R=8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。云端项目/workspace/pokemon-essentials-clean-room，只读R /workspace/pokemon-essentials。原Mac路径仅是输入来源导航。
+
+范围只修改下列每项已裁定最小规格；参考只读、不开发框架、不合并main、不强推。不因补例有益就强制新测试，不自动采用optional或选择缺陷兼容政策。使用clean-document-revision：错误原位替换、必要缺项补齐、保留正确范围；正文只保正确行为，原提案/反证/撤销留审计。不得把Ruby类/方法组织或源码搬入未来规格。
+
+作者请求gpt-6.1-sol/xhigh，实际非作者reviewer请求gpt-6.1-sol/ultra，均default普速/Fast off；实际model/effort/tier/speed/Fast/UUID无权威回显逐项UNVERIFIED。逻辑入口、候选镜像和最终target在每批合同内；CLI/Desktop未实际测试，均UNVERIFIED，不编造可用命令/任务ID。
+
+全部业务/参考游戏/宿主/编译/独立行为模型/向量在本准备context均NOT_EXECUTED。已接收的PC-EXEC-GROWTH-MATH-01新增1为Python数值表达式替身过程，600表值+2断言、exit0；不是Ruby/API/游戏/状态模型、也不重跑。全局执行分类总表仍OPEN。L01–L14保持材料/宿主边界，真实未读/未接不得转为limit。
+
+候选PASS、actual整合PASS、ACCEPTED、CLOSED是四个门。全部正式target及公共audit/planning索引由R8-INTEGRATOR唯一写者逐贡献整合；候选作者只写隔离mirror，不写共享target。非作者须实读最终整合受影响全文与累计保留；依赖/policy仅阻对应范围。各项source/spec父身份及行/字段/工具定位随附，哈希、库存、旧PASS不替语义实读。
+
+发布门：root先冻结最终语义core commit/tree；外部后继入口绑定真实core及本包载荷。本文与manifest不含自身未来commit/tree；普通push后完整隔离远端逐文件核mode/blob/bytes/SHA/集合/tree。当前root历史/接口/全域最终接收仍OPEN，不能把本有限准备或传输成功称全局PASS。
+
+## 第一波与唯一主批次
+
+共同release满足后，以下9批候选镜像可彼此独立准备；9为逻辑数量，不是服务slots或已启动数。当前release未满足，实际可启动0、已启动0。批内共享文件归同一候选writer；正式整合另由R8-INTEGRATOR顺序接收。
+
+- R8-U01：存档有序失败与读取结果门；GR8-KER-001、GR8-KER-002。
+- R8-U02：PBS旧属性更新的输出边界；GR8-KER-003。
+- R8-U03：树果显式记录频数；GR8-PBSW-001。
+- R8-U04：地图/跳跃/解释器共享合同；GR8-PBSW-002、GR8-WORLD-001、GR8-WORLD-002、GR8-WORLD-003、GR8-WORLD-INT-001、GR8-WORLD-INT-002。
+- R8-U05：遭遇输入与驱虫引用；GR8-WORLD-004、GR8-EXT-CD-002。
+- R8-U06：战斗主合同与成长/AI共享目录；GR8-CRE-001、GR8-COM-001、GR8-COM-002、GR8-COM-003、GR8-COM-004、GR8-COM-005、GR8-COM-006、GR8-COM-007、GR8-COM-008、GR8-AI-001。
+- R8-U07：历史资格后继overlay；GR8-HIST-001、GR8-HIST-R2-BINDING-001、GR8-HIST-U06-CONTINUATION-001。
+- R8-U08：老虎机语言资源接点；GR8-ELR-001。
+- R8-U09：固定蛋群作者接受域；GR8-PBS-EGGGROUP-DOMAIN-001。
+
+## 本批独占合同
+
+{
+  "id": "R8-U07",
+  "title": "历史资格后继overlay",
+  "required_ids": [
+    "GR8-HIST-001",
+    "GR8-HIST-R2-BINDING-001",
+    "GR8-HIST-U06-CONTINUATION-001"
+  ],
+  "input_contract_commit": "40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232",
+  "R8_core": "PENDING_ROOT_CORE_FREEZE",
+  "candidate_mirror_prefix": "review/remediation-eighth-20261016-prepare/candidates/R8-U07/mirror/",
+  "candidate_write_set": [
+    "review/remediation-eighth-20261016-prepare/candidates/R8-U07/mirror/review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"
+  ],
+  "actual_target_write_set": [
+    "review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"
+  ],
+  "evidence_ids": [
+    "E0147",
+    "E0148",
+    "E0149",
+    "E0150",
+    "E0151",
+    "E0152",
+    "E0153",
+    "E0154",
+    "E0155",
+    "E0163",
+    "E0164",
+    "E0165",
+    "E0166",
+    "E0167",
+    "E0168"
+  ],
+  "semantic_predecessor_batches": [],
+  "independence": "候选镜像与其它批隔离；本批实际target整合由R8-INTEGRATOR唯一写。",
+  "author": {
+    "logical_entry": "R8-A-R8-U07",
+    "requested_model": "gpt-6.1-sol",
+    "effort": "xhigh",
+    "tier": "default",
+    "speed": "normal",
+    "Fast": "off",
+    "actual_task_id": "NOT_STARTED"
+  },
+  "reviewer": {
+    "logical_entry": "R8-R-R8-U07",
+    "requested_model": "gpt-6.1-sol",
+    "effort": "ultra",
+    "tier": "default",
+    "speed": "normal",
+    "Fast": "off",
+    "actual_task_id": "NOT_STARTED",
+    "independence": "必须实际不同于该批作者，不能改角色名自验。"
+  },
+  "shared_receivers": [
+    "R7 U06资格owner",
+    "R7资格owner",
+    "历史资格owner",
+    "未来唯一整合者"
+  ],
+  "state": "PLANNED_NOT_STARTED",
+  "current_launch_blocker": "PENDING_ROOT_CORE_FREEZE; UPDATE_NOT_STARTED"
+}
+
+## GR8-HIST-001 — required / P3
+
+### 1_身份与结论
+
+{
+  "primary": "R7 current registry阶段计数",
+  "root_cause_key": "GR8-HIST-001",
+  "canonical_status": "PROVISIONAL_GLOBAL_HISTORY_DEDUP_OPEN",
+  "aliases_or_origin": [],
+  "root_reason": "采纳有限当前导航资格：同一current registry已称根有限关闭完成，阶段计数仍为3/2及0且未标历史投影；新后继overlay具名限定旧计数并链接准确27/13最终接收。原registry、ledger和全部关闭证据只读，不能补造旧计数生成时间或把R7关闭判作无效。",
+  "history": "原根、别名/撤销和历史资格按完整冻结原记录保留；本任务不增改root分类或旧关闭台账。"
+}
+
+### 2_双向证据
+
+{
+  "fact_chain": "同一current registry已称有限关闭完成，却保未标历史的候选3项/2批、其余阶段0；准确ledger/当前接收为27项/13批四门完成。历史计数本身保持原时点。",
+  "evidence_ids": [
+    "E0148",
+    "E0149",
+    "E0150",
+    "E0151"
+  ],
+  "fixed_R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+  "fixed_B8": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+  "complete_locator_payload": {
+    "commit": "40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232",
+    "path": "review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/adjudication/root-decisions.partial.json",
+    "pointer": "/records/14"
+  },
+  "evidence_levels": [
+    "SOURCE_STATIC",
+    "DERIVED_VECTOR"
+  ],
+  "raw_tool_evidence": "原提出者/非提出者完整工具定位和范围保留于精确原记录及audit/typed-input-graph.json；私有流不称已公开重放。"
+}
+
+### 3_前提反例及全部路径
+
+{
+  "contract": "当前消费者读semantic_stage_counters与completion_state得到矛盾；任务42个和13作者/17候选/12实际正确。同生成时点快照可保留，但没有证据补造旧字段UTC。纯导航无游戏输入/取消/业务事务。",
+  "supporting_facts_and_vectors": {
+    "ordinary_control": "Registry counts/task completion describe42 tasks correctly; ledger/current-public-reception separately show27items/13batches at all four stages.",
+    "minimal_counterexample": "Registry /semantic_stage_counters reports candidate3items/2batches and integrated/accepted/closed0 while the same object says root scoped closure complete and current ledger reports27/13.",
+    "preserve_scope": [
+      "42unique tasks13authors17candidate12actual",
+      "U04/U05 one actual context",
+      "candidate/actual/ACCEPTED/CLOSED separate",
+      "all finite static/runtime/configuration limits",
+      "old56/92/27 ledgers unchanged until root adjudicates"
+    ],
+    "normal_cancel_failure_partial": "Text-only metadata; no gameplay cancellation/commit and no runtime vector executed."
+  },
+  "execution": "NOT_EXECUTED"
+}
+
+### 4_最小修订合同
+
+{
+  "rule": "仅在未来新overlay把旧计数限定为历史投影并链接27/13当前四阶段；旧registry/ledger不写。",
+  "required_target_write_set": [
+    "review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"
+  ],
+  "preserve": "42任务、U04/U05共享一次实际context、旧FAIL/WAIT、27/56/92有限关闭及L01–14。",
+  "conditional_public_sync": {
+    "writer": "R8-INTEGRATOR",
+    "paths": [
+      "audit/source-traceability.md",
+      "planning/feature-matrix.md"
+    ],
+    "activation": "仅最终整合实际需要对应追溯/索引变动时按每项精确贡献登记，不整表重写；各批不直接写公共层。"
+  },
+  "read_set": [
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/completion/current-public-reception.json",
+      "mode": "100644",
+      "blob": "42c60bce31bbec150b69d42be6ef9ca6f9fb9f85",
+      "bytes": 1510,
+      "sha256": "a4c9ae0ce2efa0646ce7a3e9dfd3ede8f3fc47f9eb4ad24e16b980a78361a95f"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/current-navigation-errata.json",
+      "mode": "100644",
+      "blob": "7cf724a5f13fa20aa05446fbbd47f0be44922aad",
+      "bytes": 5624,
+      "sha256": "9fd7cd216629b14f0c51fbdc18d07eb63a9f36a883cac3cdc8765d06f30aa4be"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+      "mode": "100644",
+      "blob": "a0ee7be02e2277c0db579d3c09860daf194ba318",
+      "bytes": 61068,
+      "sha256": "b2a2bbf03a4f391bbfbcf4c3052913679a39e74fae1ec0232c1393aad8035c0c"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/ledger.json",
+      "mode": "100644",
+      "blob": "af04b57b16d64b346014877b3e603b0730c1bf2c",
+      "bytes": 71782,
+      "sha256": "8fe56ef35cec62045e773aa1321438656dea22ae9a5c1bb11d0f7b0975abac26"
+    }
+  ],
+  "optional_not_selected": false
+}
+
+### 5_验收回归
+
+{
+  "criteria": [
+    "overlay明确旧字段历史用途与当前27/13四门",
+    "不伪造旧计数生成时间",
+    "旧文件逐字节保持"
+  ],
+  "preservation_regression": "42任务、U04/U05共享一次实际context、旧FAIL/WAIT、27/56/92有限关闭及L01–14。",
+  "gates": [
+    "candidate PASS",
+    "actual integrated PASS",
+    "ACCEPTED",
+    "CLOSED"
+  ],
+  "no_forced_new_tests": "以各项root最小裁决为准；已有正确目录不因补例有益而强制增加。"
+}
+
+### 6_独立裁决
+
+{
+  "original_proposer": "/root/history_current",
+  "actual_nonproposer": "/root",
+  "root_decider": "/root",
+  "root_reason": "采纳有限当前导航资格：同一current registry已称根有限关闭完成，阶段计数仍为3/2及0且未标历史投影；新后继overlay具名限定旧计数并链接准确27/13最终接收。原registry、ledger和全部关闭证据只读，不能补造旧计数生成时间或把R7关闭判作无效。",
+  "full_audit_record": "audit/received-root-records.json.gz#/records/14",
+  "new_independent_votes": 0,
+  "later_revision_review": "必须是实际非作者完整候选及实际整合受影响结果接收；本任务不自签。"
+}
+
+### 7_依赖接收与关闭
+
+{
+  "direct_semantic_required_ids": [],
+  "transitive_semantic_required_ids": [],
+  "reason": "现有限修订事实无另一个必修编辑先完成的语义前提；共享文件是写冲突，事实/历史/发布接收是关闭门，二者分开。",
+  "blocking": [
+    "PENDING_ROOT_CORE_FREEZE",
+    "root全历史canonical/alias及必要接口最终接收",
+    "用户另行手动启动update",
+    "实际非作者候选与整合验收及唯一正式接收/关闭"
+  ],
+  "nonblocking": [
+    "宿主/媒体未知不阻止上述有限静态判定",
+    "未来是否兼容源缺陷政策只阻塞实际依赖它的实现选择"
+  ],
+  "shared_receivers": [
+    "历史资格owner",
+    "未来唯一整合者"
+  ],
+  "integrator": "R8-INTEGRATOR",
+  "author_entry": "R8-A-R8-U07",
+  "reviewer_entry": "R8-R-R8-U07",
+  "closure": "候选PASS不等于actual PASS，后者不等于ACCEPTED/CLOSED；实际范围、共享与历史依赖均接收后由主审负责签收。",
+  "excluded_claims": [
+    "全局review完成",
+    "游戏/参考/模型/宿主/编译通过",
+    "optional自动采用",
+    "main merge",
+    "整改已开始"
+  ]
+}
+
+
+## GR8-HIST-R2-BINDING-001 — required / P3
+
+### 1_身份与结论
+
+{
+  "primary": "R7 U03/U07/U10审者身份",
+  "root_cause_key": "R7_FINAL_LEDGER_UNQUALIFIED_CURRENT_REVIEWER_TASK_ID_BINDS_EXCLUDED_R1",
+  "canonical_status": "PROVISIONAL_GLOBAL_HISTORY_DEDUP_OPEN",
+  "aliases_or_origin": [],
+  "root_reason": "采纳独立P3身份导航资格：U03/U07/U10同一最终batch的r2结果与reviewer_context已正确，但直接reviewer_task_id仍是被排除的r1。保留其初始派发历史，在新后继overlay具名标历史并链接准确r2结果/审者配对，不改原ledger或独立审者数。",
+  "history": "原根、别名/撤销和历史资格按完整冻结原记录保留；本任务不增改root分类或旧关闭台账。"
+}
+
+### 2_双向证据
+
+{
+  "fact_chain": "最终批ledger未限定reviewer_task_id仍指排除的r1 WAIT，而同记录r2结果和新context正确；原派发历史有价值，须后继明确配对。",
+  "evidence_ids": [
+    "E0150",
+    "E0151",
+    "E0152",
+    "E0153",
+    "E0154",
+    "E0163",
+    "E0164",
+    "E0165",
+    "E0166",
+    "E0167",
+    "E0168"
+  ],
+  "fixed_R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+  "fixed_B8": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+  "complete_locator_payload": {
+    "commit": "40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232",
+    "path": "review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/adjudication/root-decisions.partial.json",
+    "pointer": "/records/15"
+  },
+  "evidence_levels": [
+    "SOURCE_STATIC",
+    "DERIVED_VECTOR"
+  ],
+  "raw_tool_evidence": "原提出者/非提出者完整工具定位和范围保留于精确原记录及audit/typed-input-graph.json；私有流不称已公开重放。"
+}
+
+### 3_前提反例及全部路径
+
+{
+  "contract": "U03 a8a65bc4f29e2b19c8b63fd59c9c2a0941be6520→01a1401b-538b-764d-b23c-eafd6825c025；U07 1bd0799d1819ef87c3c383a7f8e50d78756333c4→01a1401b-7752-70f1-ab8b-2e9b903e1029；U10 d7337be83dae5aa7b848cd6a603c2aa7048ffa0c→01a1401b-a243-7253-9411-101ed805d019。原r1分别01a13ff0-363e-7412-826d-e4a795522002/01a13ff0-841d-7542-9d3a-d87b0e0cb00d/01a13ff0-e65d-7523-8410-0864772dd034，旧WAIT不删除。U02 r1身份一致为普通对照。元资料无业务取消/执行。",
+  "supporting_facts_and_vectors": {
+    "evidence": [
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/ledger.json",
+        "mode": "100644",
+        "bytes": 71782,
+        "sha256": "8fe56ef35cec62045e773aa1321438656dea22ae9a5c1bb11d0f7b0975abac26",
+        "git_blob": "af04b57b16d64b346014877b3e603b0730c1bf2c",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/ledger.json",
+        "pointers": [
+          "/batches/2",
+          "/batches/6",
+          "/batches/9"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+        "mode": "100644",
+        "bytes": 61068,
+        "sha256": "b2a2bbf03a4f391bbfbcf4c3052913679a39e74fae1ec0232c1393aad8035c0c",
+        "git_blob": "a0ee7be02e2277c0db579d3c09860daf194ba318",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+        "pointers": [
+          "/entries (all42 read; candidate r1 and r2 entries are separate)"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/reception.json",
+        "mode": "100644",
+        "bytes": 65038,
+        "sha256": "7bc494a7eea28db46bf81f1cbe642458f58d9dd81f144fb5478a4da00d229511",
+        "git_blob": "ad3be116367efdc2e0abb4d6555a42573a203652",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/reception.json",
+        "pointers": [
+          "/parent_receipt"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/reception.json",
+        "mode": "100644",
+        "bytes": 73111,
+        "sha256": "604f470e799de54236af6ac537171664a19dff7b0699c9ef3a2895b1c41936ce",
+        "git_blob": "11a3e021dbecbd8700bab390ef85cc66ba61afdb",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/reception.json",
+        "pointers": [
+          "/parent_receipt"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/reception.json",
+        "mode": "100644",
+        "bytes": 111944,
+        "sha256": "4b864612c900b8ce062218911f56c3c282db0c4da91bd9971acb3028afb1b531",
+        "git_blob": "359e1fbc208dffa9ac409509ae43708e0ef65469",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/reception.json",
+        "pointers": [
+          "/parent_receipt"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/report.md",
+        "mode": "100644",
+        "bytes": 12814,
+        "sha256": "3cfbea14a1674319cefa773e89b8b70f8a270af547c0562dc3807c153033ec92",
+        "git_blob": "bf13c8c114bed5c50761020741b5cd46bb71a774",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/report.md",
+        "pointers": [
+          "report identity and old r1 qualification sections"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/report.md",
+        "mode": "100644",
+        "bytes": 12549,
+        "sha256": "6fed6ab5b5df4ae7c8a81734ee76a553bc4923a42eb8562ac36a8bfa23c8c50c",
+        "git_blob": "a9f1db65c6381507af71948289e106bd4aa7a52e",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/report.md",
+        "pointers": [
+          "report identity and old r1 qualification sections"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/report.md",
+        "mode": "100644",
+        "bytes": 15114,
+        "sha256": "0aa586a5df890d8350bcab1c74870136f092edfd9c4f45fa2364246aee6da8cc",
+        "git_blob": "405f4f63519f3bf36adf4683cb59bd5c7783d707",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/report.md",
+        "pointers": [
+          "report identity and old r1 qualification sections"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      }
+    ],
+    "premises": "At B8 interpret an unqualified batch reviewer_task_id alongside the same batch r2 round/result/reception as the reviewer of that result. All three old r1 tasks have retained WAIT_INPUT_OR_INDEPENDENCE; actual r2 reports and immutable parent receptions identify different new contexts.",
+    "ordinary_control": "U02 has r1 round, reviewer_context and reviewer_task_id consistently01a13ff0-0f85-70d4-b48e-b15a4ba68038. Explicit candidate_review_history arrays correctly retain old r1 tasks separately.",
+    "minimal_counterexample": "Resolve ledger /batches/2/reviewer_task_id and /batches/2/candidate_review_commit as a pair: the pair attributes the accepted a8a65bc4 r2 result to excluded oldr1 task01a13ff0-363e. The r2 reception binds that result to01a1401b-538b instead. No gameplay input needed.",
+    "acceptance": [
+      "New navigation resolves each r2 result commit to its exact current_r2 task above",
+      "Old reviewer_task_id fields are explicitly historical, with unknown original generation time left UNVERIFIED",
+      "Original files and all task/result counts remain exact and unchanged"
+    ]
+  },
+  "execution": "NOT_EXECUTED"
+}
+
+### 4_最小修订合同
+
+{
+  "rule": "新overlay逐三组当前结果→真实r2审者配对，并把原reviewer_task_id/prompt限定为初次r1派发投影；链接固定原回执。",
+  "required_target_write_set": [
+    "review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"
+  ],
+  "preserve": "三个r2实际合格范围、r1违例/WAIT、42唯一任务及12实际context；不推翻R7关闭。",
+  "conditional_public_sync": {
+    "writer": "R8-INTEGRATOR",
+    "paths": [
+      "audit/source-traceability.md",
+      "planning/feature-matrix.md"
+    ],
+    "activation": "仅最终整合实际需要对应追溯/索引变动时按每项精确贡献登记，不整表重写；各批不直接写公共层。"
+  },
+  "read_set": [
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+      "mode": "100644",
+      "blob": "a0ee7be02e2277c0db579d3c09860daf194ba318",
+      "bytes": 61068,
+      "sha256": "b2a2bbf03a4f391bbfbcf4c3052913679a39e74fae1ec0232c1393aad8035c0c"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/ledger.json",
+      "mode": "100644",
+      "blob": "af04b57b16d64b346014877b3e603b0730c1bf2c",
+      "bytes": 71782,
+      "sha256": "8fe56ef35cec62045e773aa1321438656dea22ae9a5c1bb11d0f7b0975abac26"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/process-adjudications/R7-U06-IR-PROC-001/v1/decision.json",
+      "mode": "100644",
+      "blob": "07e074036e5f68bddb50997607bffcf0ddf665c5",
+      "bytes": 3018,
+      "sha256": "df84fbfb9318ac0ed8a8b9cd7bc1af2bd98f55f8fdd9585b2dc7abeb06bf3aa7"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/reception.json",
+      "mode": "100644",
+      "blob": "94504a139ebfa85a915a72d8cb5266554226d673",
+      "bytes": 119088,
+      "sha256": "b2e8e270851b19fc95a9454a30c90f565590fa9aea0c369497422a86092c5e13"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/report.md",
+      "mode": "100644",
+      "blob": "4f0968e944fff77bdf4828979a10caece2bc9ba2",
+      "bytes": 10827,
+      "sha256": "9f08572c6415facfee6db0af3362bde0e4b0a7248293e3abe32a6f17e5714f6e"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/reception.json",
+      "mode": "100644",
+      "blob": "ad3be116367efdc2e0abb4d6555a42573a203652",
+      "bytes": 65038,
+      "sha256": "7bc494a7eea28db46bf81f1cbe642458f58d9dd81f144fb5478a4da00d229511"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/report.md",
+      "mode": "100644",
+      "blob": "bf13c8c114bed5c50761020741b5cd46bb71a774",
+      "bytes": 12814,
+      "sha256": "3cfbea14a1674319cefa773e89b8b70f8a270af547c0562dc3807c153033ec92"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/reception.json",
+      "mode": "100644",
+      "blob": "11a3e021dbecbd8700bab390ef85cc66ba61afdb",
+      "bytes": 73111,
+      "sha256": "604f470e799de54236af6ac537171664a19dff7b0699c9ef3a2895b1c41936ce"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/report.md",
+      "mode": "100644",
+      "blob": "a9f1db65c6381507af71948289e106bd4aa7a52e",
+      "bytes": 12549,
+      "sha256": "6fed6ab5b5df4ae7c8a81734ee76a553bc4923a42eb8562ac36a8bfa23c8c50c"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/reception.json",
+      "mode": "100644",
+      "blob": "359e1fbc208dffa9ac409509ae43708e0ef65469",
+      "bytes": 111944,
+      "sha256": "4b864612c900b8ce062218911f56c3c282db0c4da91bd9971acb3028afb1b531"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/report.md",
+      "mode": "100644",
+      "blob": "405f4f63519f3bf36adf4683cb59bd5c7783d707",
+      "bytes": 15114,
+      "sha256": "0aa586a5df890d8350bcab1c74870136f092edfd9c4f45fa2364246aee6da8cc"
+    }
+  ],
+  "optional_not_selected": false
+}
+
+### 5_验收回归
+
+{
+  "criteria": [
+    "三个精确commit/task配对可核",
+    "原r1与旧UTC不改或倒填",
+    "不把续审/版本计为新审者"
+  ],
+  "preservation_regression": "三个r2实际合格范围、r1违例/WAIT、42唯一任务及12实际context；不推翻R7关闭。",
+  "gates": [
+    "candidate PASS",
+    "actual integrated PASS",
+    "ACCEPTED",
+    "CLOSED"
+  ],
+  "no_forced_new_tests": "以各项root最小裁决为准；已有正确目录不因补例有益而强制增加。"
+}
+
+### 6_独立裁决
+
+{
+  "original_proposer": "/root/h_r7_final_receptions",
+  "actual_nonproposer": "/root",
+  "root_decider": "/root",
+  "root_reason": "采纳独立P3身份导航资格：U03/U07/U10同一最终batch的r2结果与reviewer_context已正确，但直接reviewer_task_id仍是被排除的r1。保留其初始派发历史，在新后继overlay具名标历史并链接准确r2结果/审者配对，不改原ledger或独立审者数。",
+  "full_audit_record": "audit/received-root-records.json.gz#/records/15",
+  "new_independent_votes": 0,
+  "later_revision_review": "必须是实际非作者完整候选及实际整合受影响结果接收；本任务不自签。"
+}
+
+### 7_依赖接收与关闭
+
+{
+  "direct_semantic_required_ids": [],
+  "transitive_semantic_required_ids": [],
+  "reason": "现有限修订事实无另一个必修编辑先完成的语义前提；共享文件是写冲突，事实/历史/发布接收是关闭门，二者分开。",
+  "blocking": [
+    "PENDING_ROOT_CORE_FREEZE",
+    "root全历史canonical/alias及必要接口最终接收",
+    "用户另行手动启动update",
+    "实际非作者候选与整合验收及唯一正式接收/关闭"
+  ],
+  "nonblocking": [
+    "宿主/媒体未知不阻止上述有限静态判定",
+    "未来是否兼容源缺陷政策只阻塞实际依赖它的实现选择"
+  ],
+  "shared_receivers": [
+    "R7资格owner",
+    "未来唯一整合者"
+  ],
+  "integrator": "R8-INTEGRATOR",
+  "author_entry": "R8-A-R8-U07",
+  "reviewer_entry": "R8-R-R8-U07",
+  "closure": "候选PASS不等于actual PASS，后者不等于ACCEPTED/CLOSED；实际范围、共享与历史依赖均接收后由主审负责签收。",
+  "excluded_claims": [
+    "全局review完成",
+    "游戏/参考/模型/宿主/编译通过",
+    "optional自动采用",
+    "main merge",
+    "整改已开始"
+  ]
+}
+
+
+## GR8-HIST-U06-CONTINUATION-001 — required / P3
+
+### 1_身份与结论
+
+{
+  "primary": "R7 U06续审状态",
+  "root_cause_key": "R7_FINAL_LEDGER_UNQUALIFIED_U06_CONTINUATION_WAIT_AFTER_SIGNED_COMPLETION",
+  "canonical_status": "PROVISIONAL_GLOBAL_HISTORY_DEDUP_OPEN",
+  "aliases_or_origin": [],
+  "root_reason": "采纳独立P3续审进度导航资格：U06最终batch保留未限定的启动WAIT字样，却已有同context签发完成结果/closed。后继overlay限定旧启动快照并另列准确完成身份；程序裁定自身未授PASS、旧WAIT和违例保持，续审不新增审者。",
+  "history": "原根、别名/撤销和历史资格按完整冻结原记录保留；本任务不增改root分类或旧关闭台账。"
+}
+
+### 2_双向证据
+
+{
+  "fact_chain": "最终ledger closed=true并指完成结果，却残留未限定PARENT_CONTINUATION_STARTED_WAIT_RESULT；程序裁定本身没有授PASS，后继同context内容完成才提供有限actual PASS。",
+  "evidence_ids": [
+    "E0147",
+    "E0150",
+    "E0151",
+    "E0152",
+    "E0153",
+    "E0154",
+    "E0155",
+    "E0163",
+    "E0164",
+    "E0165",
+    "E0166",
+    "E0167",
+    "E0168"
+  ],
+  "fixed_R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+  "fixed_B8": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+  "complete_locator_payload": {
+    "commit": "40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232",
+    "path": "review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/adjudication/root-decisions.partial.json",
+    "pointer": "/records/16"
+  },
+  "evidence_levels": [
+    "SOURCE_STATIC",
+    "DERIVED_VECTOR"
+  ],
+  "raw_tool_evidence": "原提出者/非提出者完整工具定位和范围保留于精确原记录及audit/typed-input-graph.json；私有流不称已公开重放。"
+}
+
+### 3_前提反例及全部路径
+
+{
+  "contract": "初次程序裁定16:11:58 WAIT正确；同审者01a1401c-1527-75c6-9a36-7bc9b3a00007、续审turn01a140d9-0f0a-7559-983e-21717145aac0完成18:41:34、parent接收19:22:51，最终ledger19:32:27仍旧启动状态。精确完成commit为55a843b3ab01d26442f604770f30932e120f923b，绑定原真实完成报告及接收。无游戏取消或运行向量。",
+  "supporting_facts_and_vectors": {
+    "evidence": [
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/ledger.json",
+        "mode": "100644",
+        "bytes": 71782,
+        "sha256": "8fe56ef35cec62045e773aa1321438656dea22ae9a5c1bb11d0f7b0975abac26",
+        "git_blob": "af04b57b16d64b346014877b3e603b0730c1bf2c",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/ledger.json",
+        "pointers": [
+          "/batches/5/actual_integration_continuation_state",
+          "/batches/5/actual_integration_review_commit",
+          "/batches/5/state",
+          "/batches/5/closed"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+        "mode": "100644",
+        "bytes": 61068,
+        "sha256": "b2a2bbf03a4f391bbfbcf4c3052913679a39e74fae1ec0232c1393aad8035c0c",
+        "git_blob": "a0ee7be02e2277c0db579d3c09860daf194ba318",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+        "pointers": [
+          "/continuations/R7-U06",
+          "/same_context_continuation_ready/R7-U06",
+          "U06 actual reviewer entry/result_history"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/process-adjudications/R7-U06-IR-PROC-001/v1/decision.json",
+        "mode": "100644",
+        "bytes": 3018,
+        "sha256": "df84fbfb9318ac0ed8a8b9cd7bc1af2bd98f55f8fdd9585b2dc7abeb06bf3aa7",
+        "git_blob": "07e074036e5f68bddb50997607bffcf0ddf665c5",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/process-adjudications/R7-U06-IR-PROC-001/v1/decision.json",
+        "pointers": [
+          "/disposition",
+          "/current_semantic_state",
+          "/PASS_granted_by_this_decision"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/reception.json",
+        "mode": "100644",
+        "bytes": 119088,
+        "sha256": "b2e8e270851b19fc95a9454a30c90f565590fa9aea0c369497422a86092c5e13",
+        "git_blob": "94504a139ebfa85a915a72d8cb5266554226d673",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/reception.json",
+        "pointers": [
+          "/parent_receipt"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/report.md",
+        "mode": "100644",
+        "bytes": 10827,
+        "sha256": "9f08572c6415facfee6db0af3362bde0e4b0a7248293e3abe32a6f17e5714f6e",
+        "git_blob": "4f0968e944fff77bdf4828979a10caece2bc9ba2",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/report.md",
+        "pointers": [
+          "first signed completion table and preserved oldWAIT section"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1/report.md",
+        "mode": "100644",
+        "bytes": 10072,
+        "sha256": "bab785e9af7a3f1a7c4ef747242f6d6bb35c4e2237dda263a27d13e4fa56be1f",
+        "git_blob": "343dc562a891f2e8308951280829e3c98f540413",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1/report.md",
+        "pointers": [
+          "oldWAIT report full"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      },
+      {
+        "repository": "/workspace/pokemon-essentials-clean-room",
+        "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+        "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+        "path": "review/remediation-seventh-20261015-prepare/closure/final/decision.json",
+        "mode": "100644",
+        "bytes": 244459,
+        "sha256": "9f15d85991946e6e4434464277d0d08a61263d8fcd9342cc037a7254b1369eed",
+        "git_blob": "36724363b5857fde56ae4f9b26b59aa273c9b11c",
+        "local_path": "/workspace/pokemon-essentials-clean-room/review/remediation-seventh-20261015-prepare/closure/final/decision.json",
+        "pointers": [
+          "/records/10",
+          "/records/11"
+        ],
+        "actual_reader": "/root/h_r7_final_receptions"
+      }
+    ],
+    "premises": "The final19:32:27 ledger says U06 closed=true and references55a843b3 final result while /batches/5/actual_integration_continuation_state saysPARENT_CONTINUATION_STARTED_WAIT_RESULT without explicit snapshot/time qualifier. Actual same-context completion was signed18:41:34 and parent-received19:22:51.",
+    "ordinary_control": "The explicit process-adjudication16:11:58 record correctly saysWAIT_PENDING_NEW_EXPLICIT_INDEPENDENT_CONTENT_VERDICTS and PASS_granted=false; this is anchored before completion and remains accurate historical state. Registry continuation and same_context_continuation_ready explicitly sayCOMPLETED_EXPLICIT_ACTUAL_PASS.",
+    "minimal_counterexample": "A current progress consumer checks /batches/5/actual_integration_continuation_state and reports a pending U06 result; the same batch points to55a843b3 andclosed=true, and current registry marks completion. The consumer sees conflicting unqualified progress for one continuation.",
+    "acceptance": [
+      "Successor current progress marks the one U06 continuation completed with exact55a843 identity",
+      "Old start/WAIT fields are explicitly historical and kept exact",
+      "No original UTC, result or task count is backfilled"
+    ]
+  },
+  "execution": "NOT_EXECUTED"
+}
+
+### 4_最小修订合同
+
+{
+  "rule": "同一新overlay限定旧启动状态为历史快照，另列准确COMPLETED_EXPLICIT_ACTUAL_PASS及实际完成全身份。",
+  "required_target_write_set": [
+    "review/remediation-eighth-20261016-prepare/navigation/current-r7-metadata-qualification.json"
+  ],
+  "preserve": "旧84dd WAIT/一次auth-status程序违例不合规记录、程序裁定不授PASS、同context续审不增审者。",
+  "conditional_public_sync": {
+    "writer": "R8-INTEGRATOR",
+    "paths": [
+      "audit/source-traceability.md",
+      "planning/feature-matrix.md"
+    ],
+    "activation": "仅最终整合实际需要对应追溯/索引变动时按每项精确贡献登记，不整表重写；各批不直接写公共层。"
+  },
+  "read_set": [
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/closure/final/decision.json",
+      "mode": "100644",
+      "blob": "36724363b5857fde56ae4f9b26b59aa273c9b11c",
+      "bytes": 244459,
+      "sha256": "9f15d85991946e6e4434464277d0d08a61263d8fcd9342cc037a7254b1369eed"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/delegation/task-registry/current.json",
+      "mode": "100644",
+      "blob": "a0ee7be02e2277c0db579d3c09860daf194ba318",
+      "bytes": 61068,
+      "sha256": "b2a2bbf03a4f391bbfbcf4c3052913679a39e74fae1ec0232c1393aad8035c0c"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/ledger.json",
+      "mode": "100644",
+      "blob": "af04b57b16d64b346014877b3e603b0730c1bf2c",
+      "bytes": 71782,
+      "sha256": "8fe56ef35cec62045e773aa1321438656dea22ae9a5c1bb11d0f7b0975abac26"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/process-adjudications/R7-U06-IR-PROC-001/v1/decision.json",
+      "mode": "100644",
+      "blob": "07e074036e5f68bddb50997607bffcf0ddf665c5",
+      "bytes": 3018,
+      "sha256": "df84fbfb9318ac0ed8a8b9cd7bc1af2bd98f55f8fdd9585b2dc7abeb06bf3aa7"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/reception.json",
+      "mode": "100644",
+      "blob": "94504a139ebfa85a915a72d8cb5266554226d673",
+      "bytes": 119088,
+      "sha256": "b2e8e270851b19fc95a9454a30c90f565590fa9aea0c369497422a86092c5e13"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1-final/report.md",
+      "mode": "100644",
+      "blob": "4f0968e944fff77bdf4828979a10caece2bc9ba2",
+      "bytes": 10827,
+      "sha256": "9f08572c6415facfee6db0af3362bde0e4b0a7248293e3abe32a6f17e5714f6e"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/IR-R7-U06/r1/report.md",
+      "mode": "100644",
+      "blob": "343dc562a891f2e8308951280829e3c98f540413",
+      "bytes": 10072,
+      "sha256": "bab785e9af7a3f1a7c4ef747242f6d6bb35c4e2237dda263a27d13e4fa56be1f"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/reception.json",
+      "mode": "100644",
+      "blob": "ad3be116367efdc2e0abb4d6555a42573a203652",
+      "bytes": 65038,
+      "sha256": "7bc494a7eea28db46bf81f1cbe642458f58d9dd81f144fb5478a4da00d229511"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U03/r2/report.md",
+      "mode": "100644",
+      "blob": "bf13c8c114bed5c50761020741b5cd46bb71a774",
+      "bytes": 12814,
+      "sha256": "3cfbea14a1674319cefa773e89b8b70f8a270af547c0562dc3807c153033ec92"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/reception.json",
+      "mode": "100644",
+      "blob": "11a3e021dbecbd8700bab390ef85cc66ba61afdb",
+      "bytes": 73111,
+      "sha256": "604f470e799de54236af6ac537171664a19dff7b0699c9ef3a2895b1c41936ce"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U07/r2/report.md",
+      "mode": "100644",
+      "blob": "a9f1db65c6381507af71948289e106bd4aa7a52e",
+      "bytes": 12549,
+      "sha256": "6fed6ab5b5df4ae7c8a81734ee76a553bc4923a42eb8562ac36a8bfa23c8c50c"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/reception.json",
+      "mode": "100644",
+      "blob": "359e1fbc208dffa9ac409509ae43708e0ef65469",
+      "bytes": 111944,
+      "sha256": "4b864612c900b8ce062218911f56c3c282db0c4da91bd9971acb3028afb1b531"
+    },
+    {
+      "repo": "/workspace/pokemon-essentials-clean-room",
+      "commit": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+      "tree": "751dfde81048c81390f89a65ca1d1a565ba8e1ca",
+      "path": "review/remediation-seventh-20261015-prepare/review-receptions/R7-U10/r2/report.md",
+      "mode": "100644",
+      "blob": "405f4f63519f3bf36adf4683cb59bd5c7783d707",
+      "bytes": 15114,
+      "sha256": "0aa586a5df890d8350bcab1c74870136f092edfd9c4f45fa2364246aee6da8cc"
+    }
+  ],
+  "optional_not_selected": false
+}
+
+### 5_验收回归
+
+{
+  "criteria": [
+    "完成结果全SHA从原记录实际解析",
+    "旧WAIT和违例仍可恢复",
+    "12实际审者及27/56/92不变"
+  ],
+  "preservation_regression": "旧84dd WAIT/一次auth-status程序违例不合规记录、程序裁定不授PASS、同context续审不增审者。",
+  "gates": [
+    "candidate PASS",
+    "actual integrated PASS",
+    "ACCEPTED",
+    "CLOSED"
+  ],
+  "no_forced_new_tests": "以各项root最小裁决为准；已有正确目录不因补例有益而强制增加。"
+}
+
+### 6_独立裁决
+
+{
+  "original_proposer": "/root/h_r7_final_receptions",
+  "actual_nonproposer": "/root",
+  "root_decider": "/root",
+  "root_reason": "采纳独立P3续审进度导航资格：U06最终batch保留未限定的启动WAIT字样，却已有同context签发完成结果/closed。后继overlay限定旧启动快照并另列准确完成身份；程序裁定自身未授PASS、旧WAIT和违例保持，续审不新增审者。",
+  "full_audit_record": "audit/received-root-records.json.gz#/records/16",
+  "new_independent_votes": 0,
+  "later_revision_review": "必须是实际非作者完整候选及实际整合受影响结果接收；本任务不自签。"
+}
+
+### 7_依赖接收与关闭
+
+{
+  "direct_semantic_required_ids": [],
+  "transitive_semantic_required_ids": [],
+  "reason": "现有限修订事实无另一个必修编辑先完成的语义前提；共享文件是写冲突，事实/历史/发布接收是关闭门，二者分开。",
+  "blocking": [
+    "PENDING_ROOT_CORE_FREEZE",
+    "root全历史canonical/alias及必要接口最终接收",
+    "用户另行手动启动update",
+    "实际非作者候选与整合验收及唯一正式接收/关闭"
+  ],
+  "nonblocking": [
+    "宿主/媒体未知不阻止上述有限静态判定",
+    "未来是否兼容源缺陷政策只阻塞实际依赖它的实现选择"
+  ],
+  "shared_receivers": [
+    "R7 U06资格owner",
+    "未来唯一整合者"
+  ],
+  "integrator": "R8-INTEGRATOR",
+  "author_entry": "R8-A-R8-U07",
+  "reviewer_entry": "R8-R-R8-U07",
+  "closure": "候选PASS不等于actual PASS，后者不等于ACCEPTED/CLOSED；实际范围、共享与历史依赖均接收后由主审负责签收。",
+  "excluded_claims": [
+    "全局review完成",
+    "游戏/参考/模型/宿主/编译通过",
+    "optional自动采用",
+    "main merge",
+    "整改已开始"
+  ]
+}
+
+
+UPDATE_NOT_STARTED

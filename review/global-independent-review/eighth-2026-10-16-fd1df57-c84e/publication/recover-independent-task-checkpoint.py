@@ -59,7 +59,7 @@ try:
  formal=run(['git','--git-dir='+str(gitdir),'rev-parse',commit+':deliverables/final-specification-set']).stdout.decode().strip();assert formal=='f292698cdd4a8e725525a9be6dc34b75faaf151e'
  base='fd1df570cad987dc3852a3b958f03916e317f7fe';diff=run(['git','--git-dir='+str(gitdir),'diff','--name-only','-z',base,commit]).stdout.split(b'\0');report_prefix='review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/'
  assert all(not x or x.decode().startswith(report_prefix)for x in diff),'Protected source/formal or other path changed'
- task_name=group if group.startswith(('receive_external_','external_')) else 'external_'+group
+ task_name=group if group.startswith(('receive_external_','external_')) or group=='handoff_preparation_cloud' else 'external_'+group
  prefix=report_prefix+'tasks/'+task_name+'/'
  listing=run(['git','--git-dir='+str(gitdir),'ls-tree','-r','-z',commit,'--',prefix]).stdout.split(b'\0')
  entries=[];dest=ROOT/'evidence/external-recovered'/group/commit;assert not dest.exists();dest.mkdir(parents=True)
