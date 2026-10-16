@@ -1,0 +1,7 @@
+# 世界活动现有 root 路线审读
+
+五份正式正文已由root完整读625行，必要四源码完整读1295行；连续窗口、身份和限制见reading-ledger。16手工语义组覆盖已列事实，不能当全部语义原子闭合或全域通过。所有行为NOT_EXECUTED，UPDATE_NOT_STARTED。
+
+原WORLD reverse-wp60.manual.json对应engine-overworld钓鱼，不是pokemon-rules树果。先前provider覆盖五正文的root假设撤回；原时点记录保持不改，误选副本无树果信用。树果当前正式199行和源471行已另由root实际全文阅读。WORLD三源单元14事实、小游戏12单元与26必要依赖、13正式组和34向量已按完整对象实际有限接收；不继承原reader外域全读或历史批准。
+
+WP61除WORLD004有限反证外的完整source/消费者、树果8facts及default67/Gen5 64完整数据已另实际收到；其它3backup路径、等待时钟/存档/背包/私有开关接收、所有当前有效历史资格继续OPEN。可得未读不列宿主limit；原始platform stdout未本地捕捉者不补造时间和操作ID。

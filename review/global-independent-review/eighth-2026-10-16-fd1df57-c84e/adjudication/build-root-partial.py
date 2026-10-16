@@ -50,11 +50,15 @@ world_int_reception, wintb = take("adjudication/root-world-int001-reception.json
 world_int002, wint002b = take("adjudication/root-world-int002-counterreview.json")
 ui003_counter, ui003b = take("adjudication/root-ui003-counterreview.json")
 world004_counter, w004b = take("adjudication/root-world004-counterreview.json")
+com004_counter, com004b = take("adjudication/root-com004-counterreview.json")
+first_recorded, first_recorded_binding = take("adjudication/root-decision-first-recorded-bindings.json")
 
 records = []
 def add(id_, classification, severity, reason, evidence, binding, *, proposer=None, reviewer=None, extra=None):
     row = {
         "id": id_, "root_decider": "/root", "decision_utc": NOW,
+        "decision_utc_qualification": "Legacy field is this aggregate build/reconfirmation UTC, not the original first decision/source-read operation UTC; no new independent vote.",
+        "first_recorded_provenance": copy.deepcopy(first_recorded["records"].get(id_, {"status": "UNVERIFIED"})),
         "classification": classification, "severity": severity,
         "status": "CLASSIFIED_BOUNDED_SCOPE_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION",
         "root_reason": reason, "complete_semantic_contract_received": copy.deepcopy(evidence),
@@ -209,6 +213,15 @@ add("GR8-WORLD-004", "required", "P3",
            "independent_counterreview_binding": w004b,
            "exact_history_dedup": "PENDING; no old closure reopened"})
 
+add("GR8-COM-004", "required", "P3",
+    "采纳最小局部矛盾修正：WP39§3.4引导括注仅有消息差异排除了真实结果分叉；正常零可战斗前提下wild helper返回1、trainer helper返回0，pbSet参数相应不同。同段line113及现有BC-09已正确，须保留且不强制新增用例；旧no-battle概念关闭项不重开，历史全量去重仍OPEN。",
+    com004_counter["complete_proposal"], com004_counter["proposal_binding"],
+    proposer="/root/core_atomic_reception", reviewer="/root",
+    extra={"independent_counterreview": com004_counter,
+           "independent_counterreview_binding": com004b,
+           "origin_proposal_id": "GR8-CAR-CAND-001",
+           "exact_history_dedup": "PENDING; no old closure reopened"})
+
 counts = {"required": sum(r["classification"] == "required" for r in records),
           "required_P2": sum(r["classification"] == "required" and r["severity"] == "P2" for r in records),
           "required_P3": sum(r["classification"] == "required" and r["severity"] == "P3" for r in records),
@@ -218,18 +231,18 @@ out = {
     "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe", "R": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
     "status": "PARTIAL_REVIEW_NO_GLOBAL_PASS", "whole_review_required_count": None,
     "bounded_counts": counts,
-    "counts_qualification": "仅此已接收23项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
+    "counts_qualification": "仅此已接收24项的有限裁决；不是本轮最终分母/最终必修数。后续全局读证可能需有据修订。",
     "records": records, "root_read_complete_payloads": inputs,
     "root_read_credit": "完整独立反证/提案文件的综合接收，不冒充root已逐个重读其全部原source/formal，也不授其它领域覆盖。PBSW001另有root真实独立全读证据。",
-    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本23项required/optional或全域NO_REQUIRED_UPDATE。",
+    "separate_bounded_no_required_reception": "adjudication/root-binary-bounded-receptions.json: 四项实际非提出者有限接收，不计本24项required/optional或全域NO_REQUIRED_UPDATE。",
     "separate_rejected_original_candidate": "adjudication/root-ui002-reception.json: GR8-UI-002 v1异常反例已驳回，不计required/optional，不自动替换为显示缺项。",
     "pending_proposals_outside_this_receipt": ["后续新提案仍持续进入；全量未读、跨域及历史接收尚未完成。"],
     "actual_configuration": dict.fromkeys(["model", "effort", "tier", "speed", "opaque_platform_id"], "UNVERIFIED"),
     "requested_configuration": {"model": "gpt-6.1-sol", "effort": "ultra", "tier": "default", "speed": "normal/Fast off"},
     "behavior_execution_credit": 0, "update_started": False, "final_marker": "UPDATE_NOT_STARTED",
 }
-assert len(records) == 23 and len({r["id"] for r in records}) == 23
-assert sum(r["classification"] == "required" for r in records) == 19
+assert len(records) == 24 and len({r["id"] for r in records}) == 24
+assert sum(r["classification"] == "required" for r in records) == 20
 p = ROOT / "adjudication/root-decisions.partial.json"
 p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
 print(json.dumps({"path": str(p), "bytes": p.stat().st_size, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "status": out["status"], "bounded_counts": out["bounded_counts"]}, ensure_ascii=False))
