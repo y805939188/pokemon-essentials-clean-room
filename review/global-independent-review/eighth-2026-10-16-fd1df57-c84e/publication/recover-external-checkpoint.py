@@ -3,6 +3,15 @@ from pathlib import Path
 import datetime,hashlib,json,subprocess,sys
 ROOT=Path(__file__).resolve().parents[1]
 commit,group,expected_tree=sys.argv[1:4]
+assert expected_tree=='OBSERVE_FROM_FIXED_COMMIT' or (len(expected_tree)==40 and all(x in '0123456789abcdef' for x in expected_tree))
+def file_identity(path):
+ h=hashlib.sha256(); n=0
+ with path.open('rb') as f:
+  while True:
+   block=f.read(1024*1024)
+   if not block:break
+   h.update(block);n+=len(block)
+ return n,h.hexdigest()
 assert len(commit)==40 and all(x in '0123456789abcdef'for x in commit)
 assert group and all(x.islower()or x.isdigit()or x=='_'for x in group)
 work=Path('/workspace/scratch')/('r8-external-'+group+'-'+commit[:8]+'-recovery'+(sys.argv[4]if len(sys.argv)>4 else'1'))
@@ -31,7 +40,7 @@ try:
  assert (seed_alt/'pack').resolve()==(fixed_cache/'objects/pack').resolve()
  assert {x.name for x in(fixed_cache/'objects/pack').iterdir()}=={x['name']for x in scope['pack_files']}
  for x in scope['pack_files']:
-  raw=(fixed_cache/'objects/pack'/x['name']).read_bytes();assert len(raw)==x['bytes']and hashlib.sha256(raw).hexdigest()==x['sha256']
+  actual_bytes,actual_sha=file_identity(fixed_cache/'objects/pack'/x['name']);assert actual_bytes==x['bytes']and actual_sha==x['sha256']
  result['explicit_seed_alternate_chain']={'seed_alternate':str(seed_alt),'resolved_fixed_cache':str(fixed_cache),'scope_sha256':hashlib.sha256((fixed_cache/'cache-input-scope.json').read_bytes()).hexdigest(),'qualification':'OnlyexplicitverifiedB8closedpackalternateisallowedinseed. Freshrecoveryownpacksymlinkscontainbothverified17ownpackandverifiedB8packs; noalternatescreatedinnewbare.'}
  before=run(['git','--git-dir='+str(seed),'cat-file','-e',commit+'^{commit}'],expected=None)
  assert before.returncode!=0, 'Target already in seed: no independent recovery credit'
@@ -39,13 +48,14 @@ try:
  pack=gitdir/'objects/pack';pack.mkdir(exist_ok=True);bindings=[]
  for p in sorted(list((seed/'objects/pack').iterdir())+list((seed_alt/'pack').iterdir())):
   if p.suffix not in ['.pack','.idx','.rev']:continue
-  raw=p.read_bytes();assert not(pack/p.name).exists();bindings.append({'path':str(p),'resolved_path':str(p.resolve()),'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()});(pack/p.name).symlink_to(p.resolve())
+  actual_bytes,actual_sha=file_identity(p);assert not(pack/p.name).exists();bindings.append({'path':str(p),'resolved_path':str(p.resolve()),'bytes':actual_bytes,'sha256':actual_sha});(pack/p.name).symlink_to(p.resolve())
  result['seed']={'scope':'Independently full-byte verified17 report ancestry + exactB8 input packs; no externaltarget present before fetch. Read-only pack symlinks; noalternates. This seed is intentionally broader than B8-only ordinary publication verifier, explicitly named.','proof':'publication/r8-com006-nine-dispatch-readback-17.json','pack_bindings':bindings}
  run(['git','--git-dir='+str(gitdir),'update-ref','refs/inputs/verified-report17','6c31240ade5c761b1f405958583a81ed140d4682'])
  run(['git','--git-dir='+str(gitdir),'remote','add','origin',remote])
  before=run(['git','--git-dir='+str(gitdir),'cat-file','-e',commit+'^{commit}'],expected=None);assert before.returncode!=0
  run(['git','-c','gc.auto=0','--git-dir='+str(gitdir),'fetch','--no-tags','origin',commit])
- tree=run(['git','--git-dir='+str(gitdir),'rev-parse',commit+'^{tree}']).stdout.decode().strip();assert tree==expected_tree,(tree,expected_tree)
+ tree=run(['git','--git-dir='+str(gitdir),'rev-parse',commit+'^{tree}']).stdout.decode().strip();assert expected_tree=='OBSERVE_FROM_FIXED_COMMIT' or tree==expected_tree,(tree,expected_tree)
+ result['checkout_tree_expected_binding']='Observed from exact user-supplied remote commit; no independently pre-supplied tree' if expected_tree=='OBSERVE_FROM_FIXED_COMMIT' else 'Matches independently supplied expected tree'
  formal=run(['git','--git-dir='+str(gitdir),'rev-parse',commit+':deliverables/final-specification-set']).stdout.decode().strip();assert formal=='f292698cdd4a8e725525a9be6dc34b75faaf151e'
  base='fd1df570cad987dc3852a3b958f03916e317f7fe';diff=run(['git','--git-dir='+str(gitdir),'diff','--name-only','-z',base,commit]).stdout.split(b'\0');report_prefix='review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/'
  assert all(not x or x.decode().startswith(report_prefix)for x in diff),'Protected source/formal or other path changed'

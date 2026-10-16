@@ -1,0 +1,11 @@
+# 有限反证：GR8-ELR-001 / 已存在 KERNEL 独立上下文
+
+完整全局合同继续适用：inputs/eighth-global-review-prompt.md，36653 bytes，SHA256 63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b。固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe；正式tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。
+
+唯一新写集 tasks/counter_slot_localization_existing_kernel/；原提出者 external_localization_records 实际外部线程01a143ad-a413-739d-b640-d4896e2e5029，与本KERNEL实际上下文不同。此为已有KERNEL有限追加，新增上下文/独立票0。模型请求gpt-6.1-sol ultra default普通速度Fast off；实际未回显逐字段UNVERIFIED。先完成当前自然单位再执行，不遗弃KERNEL主审。禁止源码、正式、旧任务输入写入、自动整改或Git操作。
+
+完整提案已由root冻结：evidence/adjudication-inputs/27189e59106095f9d4df453efa843fc54067187567cb004bca691d74c8531bc3.json，13381 bytes。必须实际完整读8个要素，不以本合同摘要代替。核心待反证：老虎机七种图像先当前语言game域24→core→原身份再交图像包装，当前WP08指定消费者表/WP15/WP69是否已整体充分覆盖，还是有限非默认语言A→B身份丢失确需P3修订。认真采用最强非必须论证：总本地化规则是否已不限消费者、表是示例还是穷举、图像本体/渲染非目标、WP69与附表/总原则能否承接。不得仅未搜索命中即确认缺漏，也不得仅默认未启用就否认合法输入。
+
+实际全文接收：WP08、WP15、WP69老虎机主文和转轮附表、相关当前LZ39–41完整前提与目录标题/共同前提；同reader已有全文可准确关联而不重复冒新FULL。参考完整SlotMachine456L、Intl823L（已有全文可引用本人实际ledger）；AnimatedBitmap完整228L；BitmapSprite中IconSprite完整class及setBitmap；resolve/cache实际必要完整定义/调用者。提案列出的18文本中只需七个完整键值与当前language域/编码common envelope，不需重审其余10690条。图像失败普通/前缀、空译IconSprite/AnimatedBitmap区别、初始化失败已提交前缀/正常退出财务分别写明；不猜像素/文件存在/媒体尺寸。
+
+手工提交counterreview.json完整8节：裁决及有限范围；固定身份/实际全文或必要完整单位ledger；独立普通对照/最小反例和前提；全文正式/最强反证；可观察影响/取消/失败/部分提交与消费者；最小读写集和正确内容保留；验收；历史去重/实际不同上下文/未运行/剩余。可REQUIRED_PROPOSED、OPTIONAL_PROPOSED或NO_REQUIRED_BOUNDED_SCOPE，有理由即可。root保留最终分类。执行source/游戏/native行为均NOT_EXECUTED，工具I/O成功不得算业务通过。依赖仅此有限接点，禁止扩大成全系统重复审查。保留原提案、不回写作者；完成后回KERNEL主审。

@@ -59,6 +59,13 @@ if active_facility.exists():
  raw=active_facility.read_bytes();sha=hashlib.sha256(raw).hexdigest();target=snap/('facility_atomic_completion_cloud-'+sha+'.json');target.write_bytes(raw)
  for record in json.loads(raw).get('records',[]):
   proposals.append({'origin_task':'facility_atomic_completion_cloud','immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':sha,'record':record,'root_status':'WAIT_ACTUAL_DIFFERENT_CONTEXT_COMPLETE_COUNTERREVIEW_AND_ROOT_CLASSIFICATION','canonical_id':None,'independent_review':'delegation/prompts/recorded-scalar-existing-core-counterreview.md','root_semantic_read_credit_from_snapshot':0})
+# External full proposal inputs are frozen for actual independent reception; snapshots are not verdicts.
+for group,sha in [('localization_records','90b9e27ef03feb2c018bb2f258b5e0d5aaed012b'),('com_battler','ccbc1e3927dd933c23ea03f95e71a65f9d7f536d'),('combat_presentation','761c1c4ffc06030979f357ae4d67a270569d1773'),('pbs_creature_backups','962204cabaf50a2c2228d4ea3a01b61c5fc4d754'),('creature_d','ca4d37c00dd402c76b8dc3d10de0ab245cc18e19')]:
+ candidate=root/'evidence/external-recovered'/group/sha/'proposals.json'
+ raw=candidate.read_bytes();digest=hashlib.sha256(raw).hexdigest();target=snap/('external_'+group+'-'+digest+'.json');target.write_bytes(raw);obj=json.loads(raw)
+ items=obj.get('records',obj.get('proposals',[]))
+ for item in items:
+  proposals.append({'origin_task':'external_'+group,'immutable_external_commit':sha,'immutable_proposal_snapshot':str(target.relative_to(root)),'snapshot_sha256':digest,'record':item,'root_status':'WAIT_ACTUAL_ROOT_FULL_NONPROPOSER_RECEPTION_OR_CANONICAL_HISTORY_QUALIFICATION','root_semantic_read_credit_from_snapshot':0})
 write('findings.json',{'schema':'gr8-findings/v3','utc':now,'proposals':proposals,'adjudicated_required':[],'required_count':None,'required_count_reason':'Whole review and root final canonical adjudication are incomplete; no NO_REQUIRED_UPDATE conclusion','independent_receptions':['tasks/counter_kernel_first/adjudications.json','tasks/combat_review/adjudications-creature.json'],'root_partial_counterreview':'coverage/root-counterreview-notes.json','update_started':False})
 scope=load('publication/checkpoint-scope.json')
 completed=scope['completed'];running=scope['running']
@@ -81,8 +88,8 @@ state['report_metadata_corrections_completed']=[{'task':'counter_kernel_first','
 decisions=load('adjudication/root-decisions.partial.json')
 state['bounded_root_decisions']={'path':'adjudication/root-decisions.partial.json','counts':decisions['bounded_counts'],'qualification':decisions['counts_qualification'],'whole_review_required_count':None}
 state['declared_coverage_cutpoint']={'input':'tasks/coverage_acceptance_audit/review.md','utc':'2026-10-16T03:20:52.642310+00:00','R_text_full':175,'R_text_partial':43,'R_text_no_ranges':196,'R_binary_separate':18,'formal_full':46,'formal_partial':14,'formal_no_ranges':71,'qualification':'Actual declared read ranges at this cutpoint only; no independent business acceptance. Later running contributions await increment.'}
-state['published_dispatch_checkpoint']='6c31240ade5c761b1f405958583a81ed140d4682'
-state['dispatch_remote_readback']={'files':7882,'bytes':750123110,'status':'VERIFIED','evidence':'publication/r8-com006-nine-dispatch-readback-17.json','semantic_credit':'NONE'}
+state['published_dispatch_checkpoint']='a6e01f676a6d17587ec956a2fddfd5de4c0b3a2a'
+state['dispatch_remote_readback']={'files':8113,'bytes':795613355,'status':'VERIFIED','evidence':'publication/r8-external-nine-receptions-readback-18.json','semantic_credit':'NONE'}
 state['current_dispatch_plan']={'path':'delegation/current-plan.json','execution_leaf_plans_including_support':41,'current_primary_leaf_plans':31,'binary_supplement_and_child_plans':2,'actual_supporting_plans':8,'retired_never_started_ui_plans':2,'original_parent_routes_without_receipt':17,'logical_primary_groups_without_local_context':9,'global_logical_primary_groups_not_started':0,'actual_external_primary_contexts':9,'new_semantic_completion_contracts':'3ATOMIC_FROZEN_3ACTUAL_PLUS_FONT_ACTUAL1','supplemental_queue':'delegation/queued-followups.json','planned_is_not_started':True}
 state['cloud_input_package']={'library_file_id':'libfile_4b51216024e48191b2cf3166a331583d','bytes':16531493,'sha256':'6a2b23bd78ba13effe19dd00fc26c268edb9ac53a4927eb1ea13412db6e2511e','status':'NOT_MATERIALIZED_DNS_FAILURE','needed':'Exact same ZIP on independent Git branch fixed commit/path, or a working supported Library workspace transfer','cloud_prompt_status':'UNREAD; original full contract read; publisher states section4-end identical'}
 write('progress.json',state)
@@ -110,6 +117,13 @@ for entry in findings['proposals']:
   entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
   entry['canonical_id']='GR8-COM-006'
   entry['root_decision_path']='adjudication/root-com006-counterreview.json'
+ elif rid == 'GR8-CAR-CAND-005':
+  entry['root_status']='BOUNDED_REQUIRED_P3_PENDING_GLOBAL_HISTORY_AND_INTERFACE_RECEPTION'
+  entry['canonical_id']='GR8-COM-007'
+  entry['root_decision_path']='adjudication/root-com007-generation-identity-counterreview.json'
+ elif rid == 'GR8-FAC-001':
+  entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
+  entry['root_decision_path']='adjudication/root-recorded-scalar-reception.v1.json'
  elif rid == 'GR8-CAR-CAND-004':
   entry['root_status']='NO_REQUIRED_BOUNDED_SCOPE_SOURCE_FACT_RETAINED'
   entry['root_decision_path']='adjudication/root-after-all-hits-reception.v1.json'
@@ -125,10 +139,10 @@ for entry in findings['proposals']:
  else:entry['root_status']='WAIT_ROOT_CANONICAL_CLASSIFICATION_AND_NONPROPOSER_RECEPTION'
 findings['independent_receptions']+=['tasks/counter_combat_first/adjudications.json','tasks/counter_world_first/adjudications.json','tasks/world_topology_audit/refutation-ui001.json','tasks/world_topology_audit/refutation-pbsw002.json','coverage/root-pbsw-001-counterreview.json']
 findings['independent_receptions']+=['tasks/com_facility/adjudications-ai.json','adjudication/root-hist-001-counterreview.json','adjudication/root-history-facets-counterreview.json']
-findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json','adjudication/root-world003-counterreview.json','adjudication/root-world004-counterreview.json','adjudication/root-world-int001-reception.json','adjudication/root-world-int002-counterreview.json','adjudication/root-ui002-reception.json','adjudication/root-ui003-counterreview.json','adjudication/root-com004-counterreview.json','adjudication/root-com005-counterreview.json','adjudication/root-com006-counterreview.json']
+findings['independent_receptions']+=['adjudication/root-u12-receipt-scope-counterreview.json','adjudication/root-binary-bounded-receptions.json','adjudication/root-world003-counterreview.json','adjudication/root-world004-counterreview.json','adjudication/root-world-int001-reception.json','adjudication/root-world-int002-counterreview.json','adjudication/root-ui002-reception.json','adjudication/root-ui003-counterreview.json','adjudication/root-com004-counterreview.json','adjudication/root-com005-counterreview.json','adjudication/root-com006-counterreview.json','adjudication/root-com007-generation-identity-counterreview.json','adjudication/root-recorded-scalar-reception.v1.json','adjudication/root-com005-wp42-propagation-reception.v1.json']
 findings['separate_rejected_proposals']={'path':'adjudication/root-ui002-reception.json','ids':['GR8-UI-002'],'qualification':'Rejected original exception counterexample only; no whole-UI approval.'}
 findings['bounded_no_required_reception']={'path':'adjudication/root-binary-bounded-receptions.json','count':4,'qualification':'Only four finite negative claims; no full controller/resource/binary-domain or whole-review NO_REQUIRED_UPDATE.'}
-findings['separate_bounded_no_required_candidates']={'ids':['GR8-KAR-001','GR8-CAR-CAND-004'],'receipts':['adjudication/root-hash-default-scope-counterreview.v1.json','adjudication/root-after-all-hits-reception.v1.json'],'required_added':0,'optional_added':0,'global_qualification':'No whole-review NO_REQUIRED_UPDATE'}
+findings['separate_bounded_no_required_candidates']={'ids':['GR8-KAR-001','GR8-CAR-CAND-004','GR8-FAC-001'],'receipts':['adjudication/root-hash-default-scope-counterreview.v1.json','adjudication/root-after-all-hits-reception.v1.json','adjudication/root-recorded-scalar-reception.v1.json'],'required_added':0,'optional_added':0,'global_qualification':'No whole-review NO_REQUIRED_UPDATE'}
 write('findings.json',findings)
 packed=load('publication/compressed-artifacts.json')
 packed_paths={r['original_path'] for r in packed['artifacts']}
