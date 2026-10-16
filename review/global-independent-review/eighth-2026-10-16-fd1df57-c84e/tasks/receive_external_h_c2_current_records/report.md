@@ -42,4 +42,4 @@ frozen-denominator.json 冻结37个精确ID、全部实际字段用途、原31�
 
 逐片实际显示及读后说明在 view-state.json／views/，source-readings.json 给完整固定字节身份、实际范围、完整方法结束行和已发生截断／失败及补读。所有自动生成／哈希／恢复均 reading0。original-recovery.json、target-recovery.json、record0-extras-recovery.json 保留编码／解码／原始载荷身份；恢复方法只解析数据，不导入旧脚本。已知未读精确列明，未编造批量“人工通过”。
 
-报告 core 与后继发布凭据分开。publication.json保存原两条接收core与94文件完整远端读回；本次追加core由publication.continued.json绑定实际C/tree及完整逐文件读回；最终发布 C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告 INCOMPLETE 状态。
+报告 core 与后继发布凭据分开。publication.json保存原两条接收core与94文件完整远端读回；本次追加core e5f97c29bda6457a69566f7ead1f236be3f806c4由publication.continued.json绑定实际C/tree及131文件／8071937B完整逐文件读回。普通push后Git HTTPS曾临时认证失败，随后已有GitHub连接取回完整39个变更文件、commit、全部祖先树及任务递归树，另92个精确未变文件使用先前无alternates隔离远端字节；全部树重算、集合/mode/blob/bytes/SHA和gzip解码均相等，传输原值惰性封存于transport/。后续git ls-remote已恢复成功；此临时故障不再是阻塞，不授语义信用。verify_connector_remote.py只校验本接收者传输数据。最终发布 C/tree／任务tree由包外真实工具回显和最终答复提供，避免自指hash。普通push和传输完成不改变本报告 INCOMPLETE 状态。
