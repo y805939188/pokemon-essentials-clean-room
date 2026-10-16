@@ -1,6 +1,6 @@
 # receive_external_com_battler：累计接收报告
 
-**状态：INCOMPLETE；UPDATE_NOT_STARTED。** 已完整接收组3固定交付 `faba225d554f0a4718f8d92bcf21f69d19c0614e` 的 P07–P10：27个方法、183个源子断言和36个反向主责贡献。剩余627个源子断言、124个其它反向主责贡献及累计交界等待其它组实际成果；本次不重读组3全部源码主责、不新建派发或审查层。初始31个必要单元实读和八事实有限比较保留。根最终签收仍由主审负责，尚不能给出 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`。
+**状态：INCOMPLETE；UPDATE_NOT_STARTED。** 组3的P07–P10及组4的R01/R02/R03/H01实际贡献已接收：27个方法、183个源子断言、36个反向主责贡献，加24/24有限定义比较、两份完整八节非作者反证和元数据资格核验。剩余627个源子断言、124个其它反向主责贡献及累计交界等待组1/组2实际成果；本次不重读全部810/160、不新建派发或审查层。根最终签收仍由主审负责，尚不能给出 `READY_FOR_ROOT_TASK_FINAL_ACCEPTANCE`。
 
 固定合同为 `40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232`；目标为 `5cf9503a99a855c06a8ac9c932e6778b57e71049`，checkout tree `1f7faa21b90bce1e7d89623407dd90133f260eb2`，原任务 tree `34bf2e1922a7cc2f4742df0fe09ea0b3b7ff1355`。从独立 bare 仓库普通 fetch 精确目标，恢复全部10文件、2,576,539 bytes；集合/mode/blob/bytes/SHA256/tree均吻合。原始字节在 `inputs/target-5cf9503a/`，凭据在 `evidence/target-recovery.json`。此项仅证明身份。
 
@@ -27,7 +27,7 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 | RX-SCENE-HP | HP写入早于通知；公共动画双门不关闭HP条等待；损伤记录/恢复跨半清理在显示返回后。保留异常时已提交前缀。 |
 | RX-SCENE-ILLUSION | 野生初始化bitmap取真实队伍对象；sendOut才明确优先Illusion。普通shiny与自身super_shiny的来源不同。原并列表述不能原样采用。 |
 
-这些是八个事实的有限必要定义比较，不是八个完整producer→consumer接口签字。组3的已读贡献现已实际接合，但其有限接点不能代替其它组producer与主责receiver成果。中央接口整体仍为0/4，最终consumer join仍为0/24；组3提供13个必要consumer对象及补充Handler，均保留其实际reader、完整意义和限定。root原有24/24有限事实接合仍在其原范围，不转成810/160全文批准。
+上述为本接收者初始八事实有限比较，现已并入组4全部24事实的实际定义接收。组3producer与组4receiver已按精确关系接合；其它producer缺口逐事实列于interfaces.json，而非仅保留路由标题。中央接口整体仍为0/4，最终consumer join仍为0/24：每个事实仍涉及尚未送达的producer贡献。原有root有限24/24收据、组3的13必要consumer加Handler和新组4的24定义分别保留实际reader与范围，不叠加成虚构事实分母。
 
 ## 组3实际贡献与跨组接合
 
@@ -35,9 +35,21 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 
 接收保留普通/special/skip的不同门，计算损量/实际HP、整次/逐击reset、Snatch后user与原self、合法预选与共同添加器、Instruct真实槽普通PP、Dancer固定候选及有限恢复、反射后段、Gulp先改形态再读、BeakBlast既有局部错误、SheerForce两个外部门与直接SteamEngine。没有将这些静态前缀理想化成事务、统一finally、宿主继续或运行成功。
 
-36个分配反向贡献中，35个没有显式外域facet；`FC40-TURN.01`只签本地调度入口，完整Call/换人/物品/Mega合法建立方仍由CORE/R01累计接收。另保留RX-CORE-ENTRY有限意义，但组3的53行actual-reading manifest没有E039行；不捏造其IO，待R01实际结果绑定精确进入方法。它们不重开P10主责、不增加finding。四中央接口的累计图已按完整compound children构造；原子报告中为空的 `receiver_local_source_child_ids` 快捷数组保持原字节，不用它们抹掉已完整接收的183正文。
+36个分配反向贡献中，35个没有显式外域facet；`FC40-TURN.01`只签本地调度入口，完整Call/换人/物品/Mega合法建立方仍按CORE范围累计接收。组3的RX-CORE-ENTRY缺E039独立读片记录一项，现已由组4实际R01的E039 316–423完整进入定义、控制例及正式对应补齐，原缺记录事实仍保留；不重开P10主责、不增加finding。四中央接口的累计图按完整compound children构造；原子报告中为空的 `receiver_local_source_child_ids` 快捷数组保持原字节，不用它们抹掉已接183正文。
 
-组3仅佐证既有 `GR8-COM-001` required/P3的STALL/TRUANT示例区别，新required/optional均0。其完整非提案者counter阅读及有限结论支持保留 `GR8-ECB-001` 既有有界NO_REQUIRED；父对完整counter包与历史资格的最终接收仍随H01。`GR8-ECB-002`完整counter不属于本组已读范围。没有新独立最终投票，没有重开第七轮27项。
+组3仅佐证既有 `GR8-COM-001` required/P3的STALL/TRUANT示例区别，新required/optional均0。其ECB001有限结论保留；组3未读ECB002完整counter的原边界不改。两份完整counter现已通过组4送达并由本接收者逐八节实读，有限历史资格如下；没有新独立最终投票，没有重开第七轮27项。
+
+## 组4实际有限贡献
+
+固定交付 `9e210cc9d118a54a01612a469f1f869db75a8aff` 的48件增量原字节已恢复并保持不变。父实际派发绑定组4上下文 `01a14490-29b6-7509-9531-dc647c10f001`；子报告自身UUID/config回显继续UNVERIFIED。R01八事实、R02三事实、R03五事实、H01八事实完整原值、定义意义、前提、普通对照、取消/失败/部分提交与现正文比较均已接收；H01八个meaning与已经读过的强制更正全文值精确相同，明确复用而不重复计信用。
+
+接收包含持久HP的蛋例外、局部先写与持久夹限/拒绝、动态形态读取前缀、PP关联同步、旧Shadow索引及有效Hyper/存储标志区别、普通Peer和NullPeer/换下/终局边界、同类未登记记录的get例外、Item枚举/显示数量的不同语义，以及全部强制handler/Exp/EV/野生bitmap更正。组3所有必要接点现有组4完整有限receiver绑定；其余producer按原映射逐ID保持OPEN，不把24定义比较说成810/160或完整四接口通过。
+
+两份原非作者反证26,073/33,035 bytes的完整八节均已实读，SHA分别为 `d3ecbfde37326955fe37e431ebf8ce84d9598fb9eadbb5850049a93c36a05a62`、`4665d22e08e734745090e45548c10cdb4188c658a53c5cd6648c7dfb9dcd468c`。ECB001的普通失败/成功共同尾、nil物品回调、Octolock来源空及正负阶级对照；ECB002的60/100 getter复制、仍正/到期/取消、动画早于copy、逐字段前缀、伤害基础getter和Transform刷新守卫均保留。沿既有有界NO_REQUIRED，不声称原counter全部源sidecar或全局history已读/无等价，不新增canonical/optional。
+
+184行原阅读账及37组完整资格字段、88个旧新映射、10个外壳和四份prior provider报告已按全文业务或明确身份用途接收。旧FULL、PARTIAL、未读与后继continuation资格均留原审者，目录/映射核验不新增289/810或58/160信用；prior provider当时开放的全域/PBS/历史边界也不自动变成本任务新缺陷或通过。
+
+组4的执行环境启动失败，其原发布采用GitHub Git Data API与固定对象API回读；**组4自身未执行隔离bare回读**，原限定保留。本接收者在可用环境中获取其精确提交，并在普通发布累计结果后独立做bare逐文件回读；这是本接收者的新运输证据，不追认组4曾运行shell/bare。所有业务行为仍为NOT_EXECUTED。
 
 ## 精确未完成分母
 
@@ -49,18 +61,17 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 | 289结构/810显式子断言 | 27/183 | 262/627，逐ID在reception-ledger |
 | 160反向主责子断言 | 36个主责facet | 124个其它主责；已接36中另有1个显式外域接合OPEN |
 | 23外域facet | 0 | 23，随原完整formal对象保留 |
-| 24 consumer原事实文字 | 24 | 0文字；主责receiver的完整累计接收仍待R01/R02/R03/H01 |
-| 八事实必要定义比较 | 8 | 其完整producer贡献/累计接合仍OPEN |
+| 24 consumer原事实及有限定义比较 | 24/24 | 0有限定义；每项精确producer累计接合仍OPEN |
 | 四中央接口整体 | 0 | 4 |
 | HISTORY/展示IF04整体 | 0/0 | 1/1 |
 
 本接收者初始直接读源范围仍为001的107–112、166–200、248–288、344–357、421–435与003的1–36，合147/4,646行；没有随接收组3而冒领新的父SOURCE_FULL。组3另有4个完整主R、1,778行及完整必要上下文的实读证据，已按贡献接收，范围见P07共同evidence。阅读行数、810需求分母和父累计接收分母各自独立。所有其余主R和正文可得，未改标limit。
 
-两原提案的正常/反例/取消/失败/部分提交、建议最小修订与保留范围完整保留。root已有两个实际非作者的有限 `NO_REQUIRED_BOUNDED_SCOPE` 收据已全文读；其理由分别是现WP40/42/44可组合推出失败后模式标志/Octolock，以及WP43/47-B/49/45可组合推出Transform/WonderRoom读写结果。完整原counter包与具体历史资格本次尚未实读，不能以root收据标题继承它们。`proposal-counters.json`保留最强no-required解释及明确OPEN项，没有增加required/optional或新独立裁决，没有重开第七轮27项。
+两原提案全部字段、两root有界收据与两完整原counter包已实读；当前合同分别可组合推出模式标志/Octolock与Transform/WonderRoom读写结果。`proposal-counters.json`保留最强no-required解释及原始控制、失败/取消/部分提交、历史未决；全局无等价/新canonical/重开资格仍不声称，没有增加required/optional或新独立裁决。
 
 ## 容量拆分合同与下一接收者
 
-初始容量拆分的15份完整prompt/readset继续冻结在 `split-dispatch.json`。父协调者现已实际启动四组；本次仅接到了组3实际结果，其余组等待实际送达。每份prompt/readset仍保留全部合同、字段和必要对象，生成本身reading0；不为本次通知新增派发回执。
+初始容量拆分的15份完整prompt/readset继续冻结在 `split-dispatch.json`。父协调者已实际启动四组；组3与组4实际结果已接收，组1/组2等待送达。每份prompt/readset仍保留全部合同、字段和必要对象，生成本身reading0；不新增派发回执。
 
 | 片 | 结构 | 源children | 唯一主责反向children |
 | --- | ---: | ---: | ---: |
@@ -78,7 +89,7 @@ B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c
 
 P01在完整结构之间切开，不截函数；其余按完整主文件分片。289结构、810源children、160反向children分别完整分区、主责重叠0。R01负责八CORE事实；R02负责三schema/identity事实；R03负责五持久/Shadow/Peer事实。H01负责八事实累计接合、四中央接口、IF04、两个完整counter、有限历史资格以及元数据/crosswalk/外壳；仅接本任务必要范围，不重新审查全系统。24 consumer的唯一最终主责也无重叠；RX-PEER的多域依赖仍保留。
 
-原split-dispatch中的 `PLANNED_CONTEXT_NOT_CREATED` 是冻结生成时状态，不是当前活动状态。本接收者没有执行spawn，没有把计划数当实际slot或投票。组3已按父实际绑定接收；其余实际组的成果尚待送达。每片独占 `splits/<ID>/result/`，原子报告保持字节不变；公共累计台账和最终签字由主审负责。片间必要上下文必须逐贡献接合，不能以本表计数代替。
+原split-dispatch中的 `PLANNED_CONTEXT_NOT_CREATED` 是冻结生成时状态，不是当前活动状态。本接收者没有执行spawn，没有把计划数当实际slot或投票。组3/组4已按父实际绑定接收，其余两组成果尚待送达。每片独占 `splits/<ID>/result/`，原子报告保持字节不变；公共累计台账和最终签字由主审负责。片间必要上下文必须逐贡献接合，不能以本表计数代替。
 
 ## 执行、限制与发布
 
