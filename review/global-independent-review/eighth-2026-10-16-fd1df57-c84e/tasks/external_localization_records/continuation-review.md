@@ -20,7 +20,7 @@
 
 ## 精确的本人已读/未读
 
-原18个局部依赖中的6,782行并未被机械清零。本次个人阅读使StartGame余60行、BitmapSprite余27行、FileTests新增40行获得实读，原同18文件仍有 **6,655行本人未读**。逐原区间、当前区间、必要接口、其余条款/玩法归属见 [unread-scope-routing.json](evidence/continuation/unread-scope-routing.json)。其它本次加入的大源文件只按实际完整方法或连续范围给信用，另31个路径范围条目（30R＋1B）及49行派生Main视图单列，绝不冒充31个全文文件。
+原18个局部依赖中的6,782行并未被机械清零。本次个人阅读使StartGame余60行、BitmapSprite余27行、FileTests新增40行获得实读，原同18文件仍有 **6,655行本人未读**。逐原区间、当前区间、必要接口、其余条款/玩法归属见 [unread-scope-routing.json](evidence/continuation/unread-scope-routing.json)。全部直接依赖去重共54路径（12全文、42局部），合计22,022行本人未读，逐路径精确余区间另在 [all-dependency-personal-ranges.json](evidence/continuation/all-dependency-personal-ranges.json) 登记；这是其它primary完整文件的阅读余量，不是本组尚缺的必要方法数。其它本次加入的大源文件只按实际完整方法或连续范围给信用，另31个路径范围条目（30R＋1B）及49行派生Main视图单列，绝不冒充31个全文文件。
 
 没有因35份PBS可得而重做其它primary的全玩法审查：本组需要的是实际文本字段、构造缺省、域生产、getter与消费者的接口；原值与整记录玩法的全量接收仍明确交原owner/主审。`pbs_battle`原读者的完整报告及字段政策已读，但报告中的21路径读完声明不是本上下文逐字段接收全部21原文件。所有这些可读债务都没有改叫宿主/材料limit。
 
