@@ -352,7 +352,7 @@ GR7-M10-001-C1–C7分别由SE01/02、SE04、SE05–09、SE10、SE11、SE12/13�
 
 <a id="conversion-query-vectors"></a>
 
-独立 CV 组不改变既有 AI/AE 各族与57条原计数；均 SOURCE_STATIC / DERIVED_VECTOR、NOT_EXECUTED。共同前提：固定默认定义，合法 AI 上下文、注册身份与查询依赖正常，使用者可改类型、当前NORMAL，无外部类型覆写，传入分100；直接查询不额外插入整招失败预测门，不写HP/持物/背包/存档。
+CV 为独立向量组，AE 系列57条另行统计；均 SOURCE_STATIC / DERIVED_VECTOR、NOT_EXECUTED。共同前提：固定默认定义，合法 AI 上下文、注册身份与查询依赖正常，使用者可改类型、当前NORMAL，无外部类型覆写，传入分100；直接查询不额外插入整招失败预测门，不写HP/持物/背包/存档。
 
 | ID | 输入／前提 | 推导预期 |
 | --- | --- | --- |
