@@ -193,7 +193,7 @@ Physical+40、Special+40、Status+0 和两字段均省略是正常对照。Statu
 
 ### 5.2 PBS 文本改写（编译前）
 
-编译前改写对两处旧属性名自动改名：trainer_types.txt 的 `VictoryME` → `VictoryBGM`，moves.txt 的 `BaseDamage` → `Power`。机制：整文件读入，有变化才整体重写并提示「Changes made to file X」。**这是固定路径操作**（见 §4.3 的交界）。
+编译前改写对两处旧属性名自动改名：trainer_types.txt 的 `VictoryME` → `VictoryBGM`，moves.txt 的 `BaseDamage` → `Power`。机制：整文件读入，有变化才整体重写。**这是固定路径操作**（见 §4.3 的交界）。
 
 ### 5.3 地图与事件转换
 

@@ -2,7 +2,7 @@
 
 本任务在所属批次候选独立PASS且正式目标已串行整合后启动。父任务须提供批次ID、真实候选commit及独立候选报告、真实实际整合commit、完整实际diff/逐项变更记录，以及明确的独占审查输出目录。缺少冻结输入时报告BLOCKED，不以当前分支HEAD或候选镜像代替正式目标。
 
-配置为 `gpt-6.1-sol / ultra / service_tier default`、普通速度、Fast关闭。保存实际创建设置的证据，区分请求、创建设置和运行时回显；无法设置或存在冲突回显时报告阻塞，不换模型/强度/服务档。未提供的运行时回显记UNVERIFIED。审者必须是实际不同于作者的context；可以续用原合格候选审者，续turn不增加独立人数。作者或整合者不能给本人改动独立验收。
+配置为 `gpt-6.1-sol / ultra / service_tier default`、普通速度、Fast关闭。所有参与审读的实际context分别核验配置，父云任务设置不能转授给原生子代理；需要并行审者时由父任务通过可显式选择default的云通道创建，不能设置该档位的接口不启动审读任务。保存实际创建设置的证据，区分请求、创建设置和运行时回显；无法设置或存在冲突回显时报告阻塞，不换模型/强度/服务档。未提供的运行时回显记UNVERIFIED。审者必须是实际不同于作者的context；可以续用原合格候选审者，续turn不增加独立人数。作者或整合者不能给本人改动独立验收。
 
 固定原始交付为 `4575e80d041ab0c74a42e2e36399d05791dbaa5b`，B8为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，只读参考为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。完整读取AGENTS、原审查inputs/review-SKILL.md、所属批次的 `review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/handoff/batches/<批次>/reviewer-prompt.md`、所属完整合同、必要readset及accepted-facts/history/policy伴件。
 

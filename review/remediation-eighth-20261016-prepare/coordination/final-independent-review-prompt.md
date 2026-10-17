@@ -4,7 +4,7 @@
 
 ## 启动配置与固定输入
 
-创建任务必须显式指定 `gpt-6.1-sol / ultra / service_tier default`，普通速度、Fast 关闭。核验父任务实际创建结果中的设置，保存其来源；请求参数、创建设置及运行时权威回显分别登记。无法设置指定配置、或存在冲突回显时，报告 BLOCKED，不替换模型、强度或服务档。未提供的运行时回显如实写 UNVERIFIED，不用任务 UUID、模型自述或 CLI help 冒充回显。
+创建任务必须显式指定 `gpt-6.1-sol / ultra / service_tier default`，普通速度、Fast 关闭。所有参与审读的实际context分别核验配置，父云任务设置不能转授给原生子代理；需要并行审者时由父任务通过可显式选择default的云通道创建，不能设置该档位的接口不启动审读任务。核验父任务实际创建结果中的设置，保存其来源；请求参数、创建设置及运行时权威回显分别登记。无法设置指定配置、或存在冲突回显时，报告 BLOCKED，不替换模型、强度或服务档。未提供的运行时回显如实写 UNVERIFIED，不用任务 UUID、模型自述或 CLI help 冒充回显。
 
 父任务启动时必须给出真实的 `INPUT_BINDING_COMMIT` 与其中的输入 manifest 路径。先从该固定 commit 完整读取 manifest。它应绑定已存在的 `artifact_snapshot_commit`，并列出九批候选、独立候选及实际整合复审、批次ACCEPTED回执、可选处置、打标回填及交接载荷。批次实际PASS/ACCEPTED先于打标回填；本任务检验最终累计结果，不能把初次实际复核和批次接受都推迟到回填以后。manifest 必须处于 `FROZEN_READY_FOR_INDEPENDENT_REVIEW`。模板、空 commit、移动分支或口头“已完成”都不能代替冻结输入；缺项时只报告缺项，不授予 PASS。输入绑定属于后继记录，不要求文件包含自身未来 hash。
 
