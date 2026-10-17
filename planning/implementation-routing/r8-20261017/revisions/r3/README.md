@@ -1,6 +1,6 @@
 # R3 累计校准与精准作者返修
 
-本候选已经应用9批ACCEPTED最终来源 `5f87743293290de2e219ecdd6c19e88280f60c9a`，仍等待真正非作者 ultra/default 独立复审。来源包为 `8336249c78b4698cd77445653d3b05ff6a76ce94:review/remediation-eighth-20261016-prepare/accepted-cumulative/calibration-input.json`；U04最后接受回执为 `a974eb133bdb280ac46f2684df4b309a18fc6cc1`。工作区正式正文保留B8，current从独立Git对象读取。
+本候选已经应用9批ACCEPTED最终来源 `5f87743293290de2e219ecdd6c19e88280f60c9a`，已收到c0f62d9的固定独立报告34202eb：分类/职责/范围/依赖及原七项修正PASS，当前来源摘要两根七行FAIL；后继[七行作者修复](../r3-calibration-repair/README.md)仍等待真正非作者 ultra/default 有界复核。来源包为 `8336249c78b4698cd77445653d3b05ff6a76ce94:review/remediation-eighth-20261016-prepare/accepted-cumulative/calibration-input.json`；U04最后接受回执为 `a974eb133bdb280ac46f2684df4b309a18fc6cc1`。工作区正式正文保留B8，current从独立Git对象读取。
 
 131文档、历史2683标题/当前2704（新增21）、736活跃/33完整退役/33元数据；38文件变更、40目标贡献（含共享历史贡献）、9接受事件；230整改绑定全部回填，pending/partial均0，较旧191新增39行或新增/扩展47行。39项源接受为29 required+10 optional，CLOSED仍0。[最终校准证据](tools/final-calibration-proof.json)逐15项核对这些口径。
 
@@ -18,7 +18,7 @@
 | SOURCE-R2-002 | 完整prospective覆盖在写核心/归档前验schema；null归一化与初次旧代码应用失败分开留证。 |
 | SOURCE-R2-003 | 治理豁免限固定三文档/46标题；普通行为章不能用ALL_FORMAL_FEATURES清空消费者。 |
 
-上表均为作者修正待独立审查，未标PASS/CLOSED。详见[7项映射](finding-resolution.json)、[28行逐边理由](dependency-repairs.json)、[工具处置](tool-finding-resolution.json)、[736行处置](feature-resolution.json)、[44组传播](retained-pass-propagation.json)、[facet继承矩阵](facet-inheritance.json)。旧708 PASS仅对未改变且未受源/目标变化影响的facet保留信用，整行字节相等不证明依赖有真实用途。
+固定c0f62d9独立R3报告已判上表七项修正PASS；本表保留作者处置依据，不替代本轮七行来源摘要校准的后继独立判断，也不宣布全轮CLOSED。详见[7项映射](finding-resolution.json)、[28行逐边理由](dependency-repairs.json)、[工具处置](tool-finding-resolution.json)、[736行处置](feature-resolution.json)、[44组传播](retained-pass-propagation.json)、[facet继承矩阵](facet-inheritance.json)。旧708 PASS仅对未改变且未受源/目标变化影响的facet保留信用，整行字节相等不证明依赖有真实用途。
 
 ## 来源和精确变更
 
@@ -26,7 +26,7 @@
 
 [6行职责/依赖精化](source-plan-refinements.json)已应用：645/647末端运动门、92纹理查询、397蛋群目录、699/703语言图像与失败前缀。去向类别不变、无新增或退役ID。[统一补丁](source-refinement-patch.json)在接受后归档 `tools/post-source-pre-semantic-35175c7094b0.json.gz` 上以before/after描述78行/162字段；原始[应用回执](author-refinement-application.json)与[来源摘要纠正回执](source-narrative-correction.json)分开保存，最终补丁可以重建完整最终manifest。
 
-最终manifest SHA256为 `ee46bb7278bb21311115a62e93bd93770a205dc691a01a48f45c22b6c09b4f71`，补丁为 `f44f7e58d948365d212a18a892bfd051264b7613a6072b2ffa2bf3e97d5a79e4`。语义补丁保全source/current/upstream、类别/伙伴、阶段/实现与验收；58份R1/R2历史文件原字节保全，历史覆盖仍为2683。
+最终manifest SHA256为 `c6b2d3ea0346c82f4aa224b67a176c21901b50efc337df25af7aa26e0242e3ea`，补丁为 `6351505a314c88b1bed3aab98c6808639b319461e25f796ded87221225e0418b`。语义补丁保全source/current/upstream、类别/伙伴、阶段/实现与验收；58份R1/R2历史文件原字节保全，历史覆盖仍为2683。
 
 [相对 R2 的精确文件差分](changes-from-r2.json)列出每个变化文件的前后字节数、SHA256、Git blob 与行数；身份总表另绑定整个固定候选。
 
@@ -36,6 +36,6 @@
 
 初次累计应用确实用旧代码并暴露1776 null，相关旧代码/失败I/O/归一化证据完整保留，[工具记录](tool-finding-resolution.json)不倒填当时已有prospective门。阅读为完整差异与定向有效源章，不冒称131篇本轮新全文；机器解析不等同语义阅读。
 
-全部736行仍待验证、待定/未批准、未实现、未验收，四原型未运行；框架307/Showdown74/协作130/MZ225/排除0。没有Ruby/参考游戏/业务/宿主/未来框架执行，未自行独立验收。下一步由父任务固定新候选SHA并使用[完整复审prompt](review-prompt.md)另建ultra/default任务；配置有效echo缺失仍UNVERIFIED。来源9批接受不替代目标兼容、用户范围/阶段决定或全轮CLOSED。
+全部736行仍待验证、待定/未批准、未实现、未验收，四原型未运行；框架307/Showdown74/协作130/MZ225/排除0。没有Ruby/参考游戏/业务/宿主/未来框架执行，未自行独立验收。下一步由父任务固定新候选SHA并使用[七行有界复核prompt](../r3-calibration-repair/review-prompt.md)另建ultra/default任务；配置有效echo缺失仍UNVERIFIED。来源9批接受不替代目标兼容、用户范围/阶段决定或全轮CLOSED。
 
 21条新标题来源证据的标题hash保留`SHA256_UTF8_TITLE_ONLY`口径；current定位使用的原Markdown标题行hash单列保存。原映射字节与初sourceapply I/O匹配并已归档，初次口径探针与修正见[记录](tools/new-heading-hash-convention.json)；这是证据口径显式化，不改标题/消费者或核心17输入。

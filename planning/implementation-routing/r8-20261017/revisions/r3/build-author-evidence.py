@@ -15,13 +15,13 @@ manual={
 'wp39-battle-context-and-participants.md':('缺失野生数量与既存零可战斗队伍分开；原队伍顺序可形成配置布局、创建/存活席位、旧优先队列和场景实际遍历不同集合；普通无战斗返回和末尾动画复位边界一并澄清。','框架提供持久创建输入，战斗侧消费临时布局/命令/优先队列，MZ显示实际遍历；仍需验证这些集合与先行失败前缀而非仅核对数值。'),
 'wp40-commands-obedience-and-action-order.md':('Powder到门必失败而自损另受有效天气/间接伤害门；STALL优先括号与TRUANT行动拒绝、野生额外席位不自动补队列、KINGSSHIELD世代阶级与HYPERCUTTER免疫各自区分。','仍由战斗规则承载；框架与战斗方交接真实命令/缓存，需验证顺序、已消费PP和取消尾，不按名字等同规则。'),
 'wp41-switching-positioning-and-escape.md':('开启替补后速度重算时，在send-out后、入场特性消费前更新旧队列速度；不重掷tie/bracket，也不添加缺失队列项。','已有换人/入场时序合同可承载；目标引擎须验证缓存刷新点和入场天气先后。'),
-'wp42-growth-end-of-round-and-battle-outcomes.md':('超总量EV受领者先在单项负上界夹取失败，早于本受领者EV/EXP/刷新；先前受领者及已完成前缀保留；战后整姿不写方向。','成长持久写入和战斗受领时序继续为协作候选，异常点与表现尾职责需要验证。'),
+'wp42-growth-end-of-round-and-battle-outcomes.md':('普通非Shadow成长按WP19的正常模板HP255/攻击255（总量510）对照，在HP单项余量252−255=−3的首项反向区间失败，尚未到总量夹限及本接收者EV/经验写入或后续刷新；此前受领者与回调前缀不保证回滚，默认非内部设施仍在更早成长门返回。正常核心返回并完成外层善后及结束通知后，复位玩家行走动画状态与转向预锁记录；此处不写面向方向。','成长持久写入与战斗调用继续为协作候选；单项余量与总量余量按先后门分别验证，外层行走动画/转向预锁复位归世界交接，异常前缀和表现尾仍待验证。'),
 'wp52-a-generic-numerical-and-status-evaluation.md':('纹理直接目标贡献查询发现候选不查PP，匹配计算类型伤害槽时仅作PP过滤且只加14一次；正常User/0目标路径不消费该贡献；能力评级20直接+5复制计数澄清。','框架拥有策略/评分，战斗侧提供实际状态/计算类型查询；应细化FR92职责和消费路径，不接入新的默认AI路径。'),
 'wp58-battle-recording-and-playback.md':('局部随机Bag/Call/Fight属于直接DebugScene helper；正常设施/回放scene factory与controlPlayer=true AI路径分开。','仍是既有记录/回放与调试边界，不能提升为完全随机隔离，也不重开既有五元组/18字段合同。'),
 'wp18-creature-identity-species-ownership.md':('物种/形态EggGroups接受15精确身份，省略基础默认和形态克隆分开；未登记身份严格拒绝。','框架内容身份与亲本消费者分工不变，FR397须增加物种/寄养/后代消费者。'),
-'wp26-acquisition-gifts-and-script-trade.md':('神秘礼物命名ESC可返回原非空名而继续成功；拒绝空文停止确认和接受停止返回nil的语义分开。','既有获得事务与MZ命名交互职责适用；不把ESC统一解释为领域取消或回滚。'),
-'wp30-growth-learning-and-friendship.md':('设施模板超EV总量受普通非Shadow战斗成长消费时在首项负余量门失败，尚未发生本受领者EV/EXP/属性刷新。','成长协作候选继续保留；领域持久写入、战斗输入与先前受领者前缀分别验证。'),
-'wp36-wild-encounters-and-modifiers.md':('Repel默认比较首非蛋成员，允许濒死；替代设置才取首可战成员。','遭遇/野外被动由框架规则承载的候选不变，比较成员选择必须保留配置差别。'),
+'wp26-acquisition-gifts-and-script-trade.md':('记录战斗的收服存储为空操作；回放另按WP58 §6.2–6.4的副本、实时依赖及正常结束/中止分层合同，不能由记录战斗存储空操作推定回放隔离。','既有获得/存储与记录/回放交界分责保持；目标须分别验证记录战斗存储空操作、回放副本和实时依赖以及正常终局/中止，不把记录存储合同扩成回放整体隔离。'),
+'wp30-growth-learning-and-friendship.md':('普通非Shadow战斗成长消费正常设施模板HP255/攻击255（总量510）时，先在HP单项余量252−255=−3的夹限失败，尚未到总量夹限和本接收者EV/经验写入或后续重算；先前前缀与默认非内部设施的更早成长门分别保留。','成长协作候选保持；分别验证单项/总量夹限的实际首失败位置、本接收者未写状态、此前受领者前缀及非内部设施早退，不扩张到Shadow/道具。'),
+'wp36-wild-encounters-and-modifiers.md':('接受的负步骤概率前缀沿同一算法处理，累加器及整数商可为负；累加器除以200的整数商向下取整，不钳零。','既有框架遭遇触发候选保持；验证接受负概率、负累加器的向下取整及不钳零，不改变原有Repel比较成员规则。'),
 'wp64-mail-and-mystery-gift.md':('命名ESC返回原非空名可成功；空文选择停止才nil，已发生的别名/获得地前缀不回滚。','框架礼物持久处理与MZ命名/确认交接仍足够，需保留前缀及公共获得包装的不同返回。'),
 'wp11-map-topology-transfer.md':('并非仅目标图切换：邻图预取集合、玩家跨图会话、连接无效/重复的实际失败、运行时事件定位与存档/标题邻接消费者明确分开。','MZ地图/事件适配与框架地图数据、保存快照协作继续适用；新增5.2.1/5.2.2不另造伪功能。'),
 'wp12-terrain-movement-vehicles.md':('普通移动/碰撞计时与独立跳跃计时分开；逻辑地图末端门不额外等待活动跳跃，消息/新请求/已有请求消费门和微更新各自分开。','FR330已有运动合同足够，但FR645/647须新增明确运动消费者引用及生产/消费职责。'),
@@ -34,12 +34,12 @@ manual={
 'wp08-localization.md':('Slot指定图像角色按当前语言SCRIPT_TEXTS先game再core；空译为命中，不按缺译回退。','现有框架语言身份服务与MZ图像加载分界适用；FR699/703需显式消费，媒体/像素并未执行。'),
 'wp09-save-startup-continue.md':('主档先于备份删除，部分失败保留前缀且下次主档存在门可能跳过备份；空表适配、启动装配/语言、有效性与删除分流独立。','保存/迁移/标题交接类别不变；源非原子删除不自动成为目标政策，仍需明确兼容选择。'),
 'wp10-migration-failure-recovery.md':('新增可读旧序列转空表后的正常返回、装配启动项/语言后再验证失败，以及相邻备份/删除递归的分流边界。','既有框架适配器/启动消费者和MZ标题职责可承载；成功适配不等于可继续存档。'),
-'wp19-attributes-ability-and-stats.md':('设施255/255等超总量EV在属性重算时不自动归一化；普通成长单项负余量错误早于本受领者写入。','属性领域与战斗成长交接类别不变，异常前缀与设施internalBattle更早门分别验证。'),
+'wp19-attributes-ability-and-stats.md':('正常设施模板HP/攻击各255、其余0，总量510符合总量上限而超过单项252；属性重算保留存储值，普通非Shadow成长先在HP单项负余量夹限失败，未到总量夹限及本接收者写入。','属性领域与战斗成长交接类别保持；区分总量510但单项255越252的模板、重算不归一化、单项/总量实际失败顺序及设施internalBattle更早门。'),
 'wp23-shadow-data-and-vectors.md':('旧式SHADOW类别使用精确合法字段；资料附表不凭命名意图扩充有效接受域。','既有Shadow数据与规则消费边界足够，特殊玩法范围仍待用户决策。'),
 'wp31-basic-evolution.md':('作者未知进化方法在严格枚举编译处拒绝；已存在运行时记录扫描失败与作者前门分开。','框架内容/进化职责保持，拒绝阶段与已有状态前缀不能合并。'),
 'wp34-inheritance-and-offspring.md':('BR23与后代/蛋群目录的消费定位澄清，精确作者身份和亲本角色/集合交集保持区分。','框架遗传规则保持；增加FR397到本消费者的引用不改变生成规则所有权。'),
 'wp60-berry-plants.md':('3/15/2,5参数由多数说法改为明确CHERI/CHESTO/PECHA/RAWST/ASPEAR五身份范围。','参数域更精确，不改变植物生命周期或MZ表现承载假设。'),
-'wp61-field-passive-effects-and-blackout.md':('步骤概率/累加器整数商为向下取整；已接受负概率可产生负累加和负商，不能无依据夹零。','框架野外被动/计步合同保持，合法配置域及整数语义须验证。'),
+'wp61-field-passive-effects-and-blackout.md':('Repel遭遇允许门默认比较首个非蛋成员（含濒死），替代配置才取首位可战成员；野生等级低于所选成员等级时拒绝并清累积，计步与遭遇判定仍分别归现有消费者。','既有框架野外被动/计步和遭遇消费者分责保持；验证Repel默认首非蛋（含濒死）与替代首可战的配置差别，不以概率取整替代成员选择合同。'),
 'combat-requirements-wp39-40-41-42-45.md':('新增野生零/原序/稀疏席位与EV超额异常对照，分别观测配置、实际遍历、优先集合及写入前缀。','作为现有功能验收目录映射，不为静态用例新造功能；数值一致不能证明时序集合覆盖。'),
 'combat-requirements-wp49-51-52.md':('AE-T02保留ID并纠正普通User/0与直接纹理贡献区别，新增CV01–05限定PP/原始类型/计算类型和单次加分。','目录指向FR92及正常候选FR76，保持评分策略/真实命令分界。'),
 'creature-rpg-wp35-36-57-64-68.md':('神秘礼物名称取消对照准确区分ESC非空与空文停止，链接公共获得前缀。','只修已有目录消费者，不新建礼物功能或排除特殊活动。'),
@@ -68,9 +68,10 @@ for c in changes:
 write('source-file-reassessment.json',{'schema_version':'routing-r3-source-file-reassessment.v1','role':'AUTHOR_SOURCE_RECEPTION_NOT_INDEPENDENT_REVIEW','fixed_package_commit':PACKAGE,'baseline_commit':DELIVERY,'accepted_final_commit':FINAL,'changed_documents':38,'unchanged_documents':93,'full_diff_reading_reused_by_exact_identity':35,'final_UI65_repair_reread':1,'U02_U03_complete_diffs_reread':2,'records':records})
 # All direct source changes are quantified by parent source locator checker, then explained from the actually read section and per-document facts.
 direct=json.loads((R/'tools/accepted-backfill-result.json').read_text())['directly_changed_feature_units_vs_fixed_functional_source']; bydoc={x['document']:x for x in records}; fr=[]
+unit_narratives={'FR-000029': '普通非Shadow成长按WP19的正常模板HP255/攻击255（总量510）对照，在HP单项余量252−255=−3的首项反向区间失败，尚未到总量夹限及本接收者EV/经验写入或后续刷新；此前受领者与回调前缀不保证回滚，默认非内部设施仍在更早成长门返回。', 'FR-000032': '正常核心返回并完成外层善后及结束通知后，复位玩家行走动画状态与转向预锁记录；此处不写面向方向。'}
 for i in direct:
  f=fs[i];cur=finalfs[i];d=bydoc[f['source']['document']]; oldparts=[show(B8,f['source']['document']).decode().splitlines(keepends=True)[a-1:b] for a,b in f['functional_scope']['line_ranges']];newparts=[show(FINAL,f['source']['document']).decode().splitlines(keepends=True)[a-1:b] for a,b in cur['current_applicability']['locator']['line_ranges']]
- fr.append({'feature_id':i,'name':f['name'],'immutable_source':f['source'],'baseline_functional_scope':f['functional_scope'],'current_source':{'commit':FINAL,'document':f['source']['document'],**cur['current_applicability']['locator']},'changed_unit_comparison':{'baseline_effective_sha256':sha(''.join(''.join(x) for x in oldparts).encode()),'current_effective_sha256':sha(''.join(''.join(x) for x in newparts).encode()),'compared_equal':oldparts==newparts},'source_fact_delta':d['source_fact_reassessment'],'future_boundary_reassessment':d['future_plan_reassessment'],'category_retained':f['future_plan']['destination'],'destination_verified':False,'stage_approved':False,'responsibility_dependency_refinement_ref': 'source-plan-refinements.json#'+i if i in ['FR-000092','FR-000397','FR-000645','FR-000647','FR-000699','FR-000703'] else None,'underlying_file_reassessment':'source-file-reassessment.json#'+f['source']['document']})
+ fr.append({'feature_id':i,'name':f['name'],'immutable_source':f['source'],'baseline_functional_scope':f['functional_scope'],'current_source':{'commit':FINAL,'document':f['source']['document'],**cur['current_applicability']['locator']},'changed_unit_comparison':{'baseline_effective_sha256':sha(''.join(''.join(x) for x in oldparts).encode()),'current_effective_sha256':sha(''.join(''.join(x) for x in newparts).encode()),'compared_equal':oldparts==newparts},'source_fact_delta':unit_narratives.get(i,d['source_fact_reassessment']),'future_boundary_reassessment':d['future_plan_reassessment'],'category_retained':f['future_plan']['destination'],'destination_verified':False,'stage_approved':False,'responsibility_dependency_refinement_ref': 'source-plan-refinements.json#'+i if i in ['FR-000092','FR-000397','FR-000645','FR-000647','FR-000699','FR-000703'] else None,'underlying_file_reassessment':'source-file-reassessment.json#'+f['source']['document']})
 write('feature-source-deltas.json',{'schema_version':'routing-r3-feature-source-deltas.v1','role':'AUTHOR_CURRENT_SOURCE_DELTA_NOT_COMPATIBILITY_PROOF','direct_source_changed_units_count':len(fr),'unit_detection_authority':'tools/accepted-backfill-result.json#/directly_changed_feature_units_vs_fixed_functional_source','records':fr,'document_wide_bound_units_are_not_all_direct_text_changes':True,'inserted_or_revised_test_catalogs_are_metadata_consumers':True})
 # Specific author refinements. Historical source stays untouched; dependencies use existing B8 headings, current anchors remain separate.
 def dependency(fid,reason):

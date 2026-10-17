@@ -1,6 +1,6 @@
 # 正式规格去向清单
 
-当前为 **R3 累计来源校准及作者返修候选，等待真正非作者 ultra/default 独立复审**。9 批正式 ACCEPTED 来源已经应用到 `5f87743293290de2e219ecdd6c19e88280f60c9a`（正式树 `93dc967b4cdb653359afc123d3b8b318d6475fdd`）。131 份正式文档身份已核，当前 2704 个标题全部映射，含相对历史新增的 21 个标题；230 个整改绑定全部回填，待核与部分回填均为 0。39 项来源接受为 29 required＋10 optional，CLOSED 仍为 0。来源接收不代表目标去向、实现或全轮验收通过。
+当前为 **R3 七行来源摘要校准作者修复候选，等待真正非作者 ultra/default 有界复核**。固定独立报告 `34202eb7accfee48bb8761db88b340bd77f54a42` 对旧候选c0f62d9的分类、职责、范围、依赖各736行及原R2七项修复判PASS，当前来源校准仅两根七行FAIL；本候选完成其摘要与必要侧证据修正，见[精确修复及复核入口](revisions/r3-calibration-repair/README.md)。9 批正式 ACCEPTED 来源已经应用到 `5f87743293290de2e219ecdd6c19e88280f60c9a`（正式树 `93dc967b4cdb653359afc123d3b8b318d6475fdd`）。131 份正式文档身份已核，当前 2704 个标题全部映射，含相对历史新增的 21 个标题；230 个整改绑定全部回填，待核与部分回填均为 0。39 项来源接受为 29 required＋10 optional，CLOSED 仍为 0。来源接收不代表目标去向、实现或全轮验收通过。
 
 固定历史来源为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，R8 交付为 `4575e80d041ab0c74a42e2e36399d05791dbaa5b`，两者正式子树均为 `f292698cdd4a8e725525a9be6dc34b75faaf151e`。本打标分支正式正文继续保持这份 B8 树；当前接受源码从固定 Git 对象读取，不能用工作区 B8 字节代替 current5f。不可变 `source`、全部稳定 ID、完整退役历史与历史 2683 标题覆盖保留。
 
@@ -23,7 +23,7 @@ R2 固定候选 `a32873d2860b15d9f5e27727db8f131f4ec433b6` 的独立 FAIL 报告
 
 ## 核验与限制
 
-最终 `cumulative-source` 阶段10命令全部 exit0，17个登记输入哈希全程稳定：27结构负例、9自检、2导航负例、11生成物一致、19保全检查、5接受绑定负例、2704当前覆盖及4负例、4个来源门隔离夹具（覆盖3项工具问题）通过。显式导航为36父/39子/39边。58份R1/R2历史工件原字节保留。它们是作者静态检查，尚未给出独立语义复审 PASS。
+最终 `cumulative-source` 阶段10命令全部 exit0，17个登记输入哈希全程稳定：27结构负例、9自检、2导航负例、11生成物一致、19保全检查、5接受绑定负例、2704当前覆盖及4负例、4个来源门隔离夹具（覆盖3项工具问题）通过。显式导航为36父/39子/39边。58份R1/R2历史工件原字节保留。它们是作者静态检查；旧c0的独立结果与本轮七行待复核边界见当前修复入口。
 
 首次累计应用沿当时旧代码后暴露1776个显式null理由，初次失败、原代码gzip及后续归一化均保留；现行工具在写核心/归档前验证完整prospective输出，并拒绝旧回执授权后继未接受字节、普通行为标题借治理标签逃过空消费者等输入。[工具逐项记录](revisions/r3/tool-finding-resolution.json)区分初次失败与最终通过。
 
@@ -41,6 +41,6 @@ python planning/implementation-routing/r8-20261017/routing.py check-generated
 python planning/implementation-routing/r8-20261017/revisions/r3/tools/run-author-checks.py --phase cumulative-source
 ```
 
-接受接收/prepare/apply入口为 `revisions/r3/tools/backfill-accepted-sources.py`；精确参数与真实输入见工具I/O。旧seed入口拒绝重建，R1/R2迁移脚本与旧阶段结果只作固定历史，不能重跑覆盖已累计接受状态。新候选由父线程给40位SHA，再另建真正非作者gpt-6.1-sol ultra/default累计复审。
+接受接收/prepare/apply入口为 `revisions/r3/tools/backfill-accepted-sources.py`；精确参数与真实输入见工具I/O。旧seed入口拒绝重建，R1/R2迁移脚本与旧阶段结果只作固定历史，不能重跑覆盖已累计接受状态。新候选由父线程给40位SHA，再按[七行有界提示词](revisions/r3-calibration-repair/review-prompt.md)另建真正非作者gpt-6.1-sol ultra/default复核。
 
 21条新标题来源证据的标题hash保留`SHA256_UTF8_TITLE_ONLY`口径；current定位使用的原Markdown标题行hash单列保存。原映射字节与初sourceapply I/O匹配并已归档，初次口径探针与修正见[记录](revisions/r3/tools/new-heading-hash-convention.json)；这是证据口径显式化，不改标题/消费者或核心17输入。

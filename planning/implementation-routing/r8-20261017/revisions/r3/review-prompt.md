@@ -1,5 +1,7 @@
 # R8 去向打标 R3 固定候选累计独立复审
 
+当前后继为七行来源摘要作者修复候选；请先使用[有界复核提示词](../r3-calibration-repair/review-prompt.md)。下文保留原完整R3检查与固定输入，作为既有PASS信用和必要传播的核对背景；本轮不要求重开所有已通过范围。
+
 受审候选为**父任务调用消息给定的完整40位SHA**；缺失时不得以浮动分支/工作区HEAD代替。请求真正非作者 `gpt-6.1-sol / ultra / service_tier=default / normal / Fast off`，由父线程云任务创建。请记录创建参数与有效执行echo的区别；缺权威echo的model/effort/tier/speed/Fast/云UUID逐字段UNVERIFIED，工具广告priority或逻辑任务名不证明default/云UUID。审查分工构成一份独立审查，不增算接受票。
 
 本任务是独立语义与结构复审，不是作者续修。仅在新的独占review路径写输出，不修改作者候选、正式规格、参考仓库、R1/R2历史或main，不修清单来取得PASS。不运行Ruby、参考游戏、业务场景、宿主、Showdown/框架原型或新实现。读取根AGENTS及用户 `review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/inputs/review-SKILL.md`；尊重既有clean-room与文档格式，不凭技能推定需要额外用户批准才可进行只读复审。
