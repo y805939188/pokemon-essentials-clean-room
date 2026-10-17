@@ -1,33 +1,29 @@
-# 第八轮开发交接（待最终验收）
+# 第八轮开发交接（最终独立验收输入）
 
-状态：正式规格的29必改、10选入可选和9批均已接受；累计打标与整轮独立验收尚未通过，CLOSED=0。本文件是交接准备稿，尚不是最终实现基线发布，也不启动Ruby参考执行、Showdown原型或TS框架实现。
+29必改、10选入可选和9批已接受。最终打标分类与累计来源校准已获独立PASS并按固定载荷整合；整轮最终独立验收尚未完成，CLOSED=0。本交接供最终审者及后续开发定位材料，不启动Ruby参考执行、Showdown原型或新框架实现。
 
-## 已接受源与定位
+## 规格与接收链
 
-累计正式规格固定提交为 `5f87743293290de2e219ecdd6c19e88280f60c9a`，formal tree为 `93dc967b4cdb653359afc123d3b8b318d6475fdd`。参考固定为 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`；原R8交付 `4575e80d041ab0c74a42e2e36399d05791dbaa5b` 与历史main/B8 `fd1df570cad987dc3852a3b958f03916e317f7fe` 分别保留。
+累计正式源为 `5f87743293290de2e219ecdd6c19e88280f60c9a`，formal tree为 `93dc967b4cdb653359afc123d3b8b318d6475fdd`。原R8交付 `4575e80d041ab0c74a42e2e36399d05791dbaa5b`、历史main/B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`、只读参考 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b` 均保留。
 
-从[累计源入口](../accepted-cumulative/README.md)、[九批回执](../accepted-cumulative/batch-receipts.json)和[39项状态链](../accepted-cumulative/issue-status.json)定位原合同、修订、独立候选/实际报告、正反场景及接受身份。131正式文件中38变化/93保持；2,704个当前标题比原2,683新增21、删除0。[文件差异](../accepted-cumulative/source-file-changes.json)列出实际6份扩展文件和U07元资料；U07无正式玩法变化。UI65在U01贡献上叠加U04最后两行定义，保留两批来源。
+从[九批累计入口](../accepted-cumulative/README.md)、[九批回执](../accepted-cumulative/batch-receipts.json)和[39项状态链](../accepted-cumulative/issue-status.json)定位原合同、正确行为、修订位置、正反场景、候选/实际独立报告及验证资格。131文件中38变化/93保持；历史2,683标题至当前2,704，新增21、删除0。实际6份条件扩展文档已接收；U07只修历史资格overlay，无玩法正文delta。UI65保留U01历史贡献及U04最后两行修复，最终接收由U04真实回执绑定。
 
-## 打标交付的待补部分
+## 去向与当前章节
 
-本分支尚未接收任何可正式接受的打标清单。最近已完成的独立结论仍为a328候选R2 FAIL，剩7项（1P2/6P3）：28行依赖与3项来源/覆盖校验工具问题，736行分类facet通过不等于整体通过。现已收到R3累计候选 `c0f62d973180679134f2eb1a488c1dc359c8658f`；作者声明按最终5f源应用9批、230绑定回填清零、覆盖当前2,704标题。父任务已交原ultra/default独立累计复审，尚未收到PASS，详见[R3候选接收记录](../coordination/tagging-R3-candidate-reception.json)。
+从[去向整合入口](../../../planning/implementation-routing/README.md)、[当前2,704标题覆盖](../../../planning/implementation-routing/r8-20261017/current-coverage.md)、[机器清单](../../../planning/implementation-routing/r8-20261017/routing-manifest.json)及[整合回执](../acceptance/tagging-cumulative/receipt.json)进入。固定候选为 `7ed3e0554ac24339a7e61cab152f628037111644`，独立报告为 `1baee5d7346592478b72d8983b0109e1b2a5e2d9`，正文只取最终5f，不使用候选分支保留的B8工作树覆盖它。
 
-R3候选的正式工作树仍为B8，当前源通过固定Git对象单独读取。后续若通过，只接收经复审的打标路径及报告，不能合并其整树覆盖已接受的5f正文。当前仅完成159个候选文件的完整字节身份核验，未整合清单、未新增独立复审或运行信用。
+131文档、87WP、736活跃/33完整退役/33元数据、9接受事件/230绑定，pending与partial均0。分类及累计校准PASS只接收粗标和来源同步；框架307、Showdown74、协作130、MZ225、排除0，所有736去向仍待验证、阶段待定/未批准、未实现/未验收。先前R3两P3/七case的原FAIL及后继七case PASS完整保留；原作者候选README的待审文字按其原时点读取，当前状态由本交接与协调回执说明。
 
-后继必须使用[校准包](../accepted-cumulative/calibration-input.json)的5f877432源，覆盖当前131身份与2,704标题、最新UI65贡献、实际写集和消费者依赖；保留初始source、稳定ID、旧FAIL及各阶段分母。取得真实后继清单和明确绑定该累计结果的独立ultra/default PASS后，再在最终交接中补固定清单提交、入口、覆盖数字和报告链接。本稿不填未来hash或预授新候选通过。
+## 开发使用方式
 
-## 后续实现的使用方式
+先读取源行为的前提、状态与失败前缀，再结合经过校准的去向/依赖拆分工作。Showdown替代方向不撤销本轮原版行为修正。捕获、背包战斗道具、逃跑、战中成长四类协作边界要另固定目标版本/格式并验证；这不是本轮粗标通过的前置原型任务。
 
-先按已接受源读取具体行为、前提、失败前缀及现有静态场景，再结合通过校准的去向/依赖清单拆分模块。source行为事实、未来承载方向、兼容验证、实现状态和验收状态分别读取；Showdown替代计划不撤销本轮已修正的原版行为。未知去向可以待验证，不因本次粗标要求完成原型。
+[详细与简版路线](../../../planning/framework-roadmap/README.md)按用户原文保存并已获独立忠实性PASS；不等于架构、目标版本、原型或实现验收。用户范围/首版细项、XP工程/旧格式和特殊玩法按既定路线再决定，待定不自动排除。
 
-后续路线见[详细/简版计划](../../../planning/framework-roadmap/README.md)。三份计划已按用户文本完成独立忠实性复核并精确保存；保存PASS不等于架构、运行版本、原型或代码实现已验收。模块实施时再按相应阶段固定目标环境、版本与场景证据。
+所有本轮业务向量仍为SOURCE_STATIC/DERIVED_VECTOR/NOT_EXECUTED。此次9项集成命令仅为Markdown/JSON/Python/Git工具验证；原独立候选检查与历史隔离执行保持各自版本、process及有限范围。参考游戏、Ruby、宿主音画、保存回放、Showdown和框架执行均无本轮新增信用。详见[限制与资格](known-limits.md)。
 
-所有本轮行为向量保持SOURCE_STATIC/DERIVED_VECTOR/NOT_EXECUTED。Markdown/JSON/Git/schema/数学或静态工具结果不变成参考游戏、宿主、音画或保存回放执行通过。后续若开展参考运行，应依路线另建执行规则和时间/版本绑定，不倒填旧记录。
+## 最终门与发布交接
 
-## 最终发布仍需完成
+当前整体内容等待非作者gpt-6.1-sol ultra/default独立验收；输入绑定必须由后继manifest指向真实既有artifact。通过后协调者才登记整轮接受/CLOSED，再按授权核漂移、保护、必需检查并正常合并main，随后执行已证明可恢复的清理。请求/创建/admission与未暴露runtime echo分别登记，不转授辅助context档位或增加票数。
 
-累计打标独立通过后，冻结真实整轮输入，由实际非作者gpt-6.1-sol ultra/default审者接收跨批、共享整文件、引用、历史、打标和本交接。整体PASS后才登记本轮最终接受/CLOSED。创建设置与运行时回显分开，缺权威runtime echo保UNVERIFIED，不转授原生辅助context档位。
-
-用户已授权全部门通过后的正常main合并和可恢复清理；实际合并前核远端漂移、分支保护和必需检查。先清点保留/删除依据及恢复来源，保留正式规格、路线、清单、必要历史和可追溯提交，保全未提交用户改动，不force、不绕过保护、不作不可恢复删除。最终提供合并SHA、清理清单和CI/检查结果。
-
-用户本地预检与同步由父任务另设本地任务完成。云工作区不等于用户本地，本稿不声称用户本地已同步。已知限制见[限制与资格](known-limits.md)。
+收尾材料见[只读盘点入口](../cleanup-preflight/README.md)及[最终输入引用补充](../cleanup-preflight/final-input-ref-status.json)。合并SHA、最终main、清理和CI结果尚待实际操作后登记。用户本地的私有归档及同步由父任务单独执行，本云工作区不代表用户本地同步状态。
