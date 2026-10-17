@@ -2,7 +2,7 @@
 
 父协调任务创建新的实际上下文，requested配置为gpt-6.1-sol ultra/default 普速/Fast off；本作者不自行建立或代替正式review。actual配置若无权威echo逐项UNVERIFIED，不探测CLI/改模型。
 
-取最终交接的完整提交SHA，在独立分支/工作树核验它从固定输入4575e80d041ab0c74a42e2e36399d05791dbaa5b派生，读取本目录全部证据和12个mirror整文件，不以diff、身份或原审FULL代替本人实读。publication回读记录若后继提交存在，其绑定的payload提交与当前镜像身份必须一致。
+镜像载荷固定提交 `0384629ccf1c2c492ebab611bbbb858f825e9a31`，远端全字节回读见 [publication-readback.json](evidence/publication-readback.json)。取最终交接的完整提交SHA，在独立分支/工作树核验它从固定输入4575e80d041ab0c74a42e2e36399d05791dbaa5b派生，读取本目录全部证据和12个mirror整文件，不以diff、身份或原审FULL代替本人实读。publication回读记录若后继提交存在，其绑定的payload提交与当前镜像身份必须一致。
 
 合同路径为 review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/handoff/batches/R8-U06/{prompt.md,readset.json}；assignment在 handoff/batch-assignment.json。先读AGENTS及 inputs/review-SKILL.md，再读本批完整14合同、readset、accepted-facts/history/policy伴件、完整原裁决链与必要源单位。source/ref必须固定8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b；B8固定fd1df570cad987dc3852a3b958f03916e317f7fe，C35为2460370f1e410bd49cc29e377b89662838aed2b3。原5caff来源与C35恢复路径分别按dispositions保留。
 
