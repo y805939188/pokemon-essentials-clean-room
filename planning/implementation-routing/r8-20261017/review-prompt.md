@@ -1,4 +1,4 @@
-# R8 全正式规格章节去向打标：初版独立复审合同
+# R8 全正式规格章节去向打标：R1完整返修独立复审合同
 
 创建参数必须明确为 `gpt-6.1-sol`、thinking `ultra`、`service_tier=default`（普通档，Fast off）。这是独立 review 任务，不能由作者续 turn 自审，不能替换成较低 effort，不能用只有 priority 的入口冒充普通档。保存真实云任务ID、创建参数回显与可得执行配置；创建参数和实际执行 telemetry 分开，无权威执行 echo 的字段逐项 `UNVERIFIED`。配置不满足时报告缺口，不静默降级。
 
@@ -10,6 +10,8 @@
 
 本次受审固定候选：`父任务调用消息给定的40位受审SHA（缺失时不得以浮动分支代替）`，候选产物根：`planning/implementation-routing/r8-20261017/`。不要把浮动分支 HEAD 当固定输入。先取得并验证此 Git 对象，确认自己的只读候选内容与该 commit 一致，检查作者的文件身份清单；你的报告明确记录候选 SHA、正式子树和工具实际 I/O/exit。
 
+独立环境须显式取得并验证：新candidate SHA、旧候选`d62b41f4d620e50bb04c80a7505374bd284d8210`、旧FAIL报告`a0352c7fba38391afc535525988245701d5ce202`、当前接受payload`908273093e1f6b27fc58249417675dd62d146224`、ACCEPTED回执`861f7a44a6f763c265a11761ab17a8ec3b55f304`、actual报告`548d6bb9a21d0967680445c013e66d9d5661d2d6`及固定B8/R8来源对象。缺失时按精确对象fetch，不得以本地浮动HEAD代替。它们不在同一祖先线上：打标分支工作区的正式规格保持B8子树`f292698cdd4a8e725525a9be6dc34b75faaf151e`未改，工具通过`git show <固定对象>:<路径>`读取当前接受版本。不能把工作区B8字节当成current908；报告逐项记录对象取得和身份核对。
+
 固定来源交付：`4575e80d041ab0c74a42e2e36399d05791dbaa5b`；其正式子树为 `f292698cdd4a8e725525a9be6dc34b75faaf151e`。历史 main `fd1df570cad987dc3852a3b958f03916e317f7fe`。只读参考提交 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。本次去向复审一般不需要执行或修改参考材料；来源引用只能证明规格来源，不能证明 Showdown 行为兼容。
 
 先读候选根 `AGENTS.md`，以及固定 R8 目录 `review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/` 下的 `DELIVERY.md`、`inputs/review-SKILL.md`、`handoff/cloud-eighth-update-handoff-prompt.md` 和本次相关批次/范围索引。用户明确授权新增独立架构规划清单；此授权不允许把未来架构计划写回实现无关的正式规格。用户 skill `clean-document-revision` 用于作者形成最终态文本，审查报告仍保持审计事实，不伪称该 skill 用于报告写作。
@@ -17,6 +19,14 @@
 正式全集以固定源 commit 中 `deliverables/final-specification-set/README.md`、实际目录/Git树、正式测试目录和相关现行索引的联合核对结果为准。历史131份正式文档、87计划行只用于比对，不得硬编码忽略增删或分母差异。原始 specs/、规划 WP 行、正式净化正文、测试目录、共享范围文档分别保留口径；不能把某一分母替代另一分母。
 
 完整检查候选根的说明、机器可读主清单、schema、验证/生成工具、生成的逐文档可读视图、章节覆盖映射、例外/待决策记录、批次绑定及身份/覆盖证据。给出真实读取范围；仅遍历标题或通过机器校验不能声称已完整语义阅读。允许用分块读取和结构化统计，不能只抽几个样本便宣布全部通过。
+
+本轮是完整返修复核。固定旧失败候选为 `d62b41f4d620e50bb04c80a7505374bd284d8210`，固定独立FAIL报告为 `a0352c7fba38391afc535525988245701d5ce202:review/r8-disposition-independent-d62b41f-20261017/`。完整读取旧 `REPORT.md`、`findings.json`、`feature-results.json`、`reading-coverage.json`、全部domain报告/对应results及必要机器/源章证据；97份输入身份台账位于候选 `revisions/r1/tools/review-input-ledger.json`。逐44组问题、原227 FAIL和46待查复核具体处置；原448 PASS保留合理结论并检查同根因传播，不能把旧PASS自动转授给新字节。作者 `revisions/r1/finding-resolution.json`、`feature-resolution.json`、`retained-pass-propagation.json`是被审处置陈述，不是独立验收。
+
+新主清单为v2：`features`仅为活跃功能，`retired_features`保存完整旧行加retirement，`metadata_records`承担历史/责任/验收来源导航。逐旧ID检查其恰在active或retired中一次；active旧行的`source`必须与d62原对象完全相同，retired除retirement外必须逐字段保持d62原完整行；新增ID不能复用退役ID。当前范围`functional_scope`与immutable source独立，父范围精确排除子source且活跃范围不重叠；纯标题/来源/向量不能保留空壳伪功能。核对元数据关联真实消费者，不用同WP编号泛连不同子体系；测试目录具名跨领域向量应连接真实规则/原型消费者。
+
+重点复核：缺失行为已实际补回；退款残留、持久PP/物品/成长、Shadow和漫游跨战斗、AI策略/查询/登记、MZ交互/时钟/生命周期、特殊活动框架规则、作者工具/旧格式用户范围门、真实依赖与来源元数据是否符合对应源章。`dependencies.wp_refs`保留旧规划来源，`direct_refs`提供真实固定合同/具名交界；边界引用不都等于强制实现前置。WP77已归来源元数据，其依赖导航另见`revisions/r1/metadata-dependencies.json`，不得凭Demo材料存在新增未授权复刻功能。
+
+本轮已包含父任务依据正式ACCEPTED回执形成的U02/U03部分回填。实际payload为`908273093e1f6b27fc58249417675dd62d146224`，回执固定于`861f7a44a6f763c265a11761ab17a8ec3b55f304:review/remediation-eighth-20261016-prepare/acceptance/U02-U03/receipt.json`；当前正式树为`6ae817df5b11eafdec671214b0d04e542ad364bc`；观察131份文档身份已核对，17个相关活跃行已按回执复核，直接文本变更为FR-000403与FR-000588，191个已知绑定行中174个继续pending。当前locator单独保存anchor/ranges/unit/file身份。以受审候选实际事件表/快照为准；完整读取tools/accepted-backfill-result.json及真实payload/回执差分，独立核对这两份源差异、当前定位、间接消费者和其它批次继续pending，不能把ACCEPTED扩为CLOSED/全部上游完成或目标兼容通过。历史source和退役原行仍不得改动。
 
 逐项复审要求：
 
@@ -32,4 +42,4 @@
 
 输出独立报告（Markdown + 机器可读结果），至少包含：真实任务/配置资格、精确受审 commit 和文件身份、真实阅读及工具执行范围、各分母及逐项覆盖结果、按严重度列出的可复现问题（功能ID/源章节/候选文件位置/为何不满足/必要修正）、限定结论、仍待原型/用户决策/上游校准事项。报告不得改写作者工件。没有发现缺陷也不能把未执行范围标成通过。
 
-若需返修，固定当前失败候选和问题；作者使用 `gpt-6.1-sol / xhigh` 修订后提交新的精确候选。重新复核累计保留与受影响边界，旧报告保留。初版可被评为“固定基线粗标限定通过，最终校准和验收待办”，但前提是该限定结论有真实完整覆盖与必要语义核对支持。
+若需返修，固定当前失败候选和问题；作者使用 `gpt-6.1-sol / xhigh` 修订后提交新的精确候选。重新复核累计保留与受影响边界，旧报告保留。可给“当前固定候选的限定通过，剩余上游校准/目标验证待办”，但须有真实完整覆盖及必要语义核对支持；禁止仅复查旧FAIL样本、只看作者映射或用24项工具负例代替语义复核。报告逐组说明44项是否实际修正、273旧非PASS是否得到相应新判定、合理PASS的传播核对及所有新增/元数据单元的结论。
