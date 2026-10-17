@@ -27,12 +27,12 @@
 | deliverables/final-specification-set/combat-requirements/wp54-entry-rules-and-cup-data.md | behavior-or-data | 10 | FR-000119, FR-000120, FR-000121, FR-000123 | WP54 | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp55-facility-session-and-restoration.md | behavior-or-data | 15 | FR-000124, FR-000125, FR-000126, FR-000127 | WP55 | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp56-palace-and-arena-variants.md | behavior-or-data | 16 | FR-000128, FR-000129, FR-000130, FR-000737 | WP56 | 无当前已知正式写批 |
-| deliverables/final-specification-set/combat-requirements/wp58-battle-recording-and-playback.md | behavior-or-data | 19 | FR-000132, FR-000133, FR-000134, FR-000135, FR-000136, FR-000738 | WP58 | 无当前已知正式写批 |
+| deliverables/final-specification-set/combat-requirements/wp58-battle-recording-and-playback.md | behavior-or-data | 19 | FR-000132, FR-000133, FR-000134, FR-000135, FR-000136, FR-000738 | WP58 | R8-U06 |
 | deliverables/final-specification-set/creature-rpg/wp18-creature-identity-species-ownership.md | behavior-or-data | 33 | FR-000137, FR-000138, FR-000139, FR-000140, FR-000141, FR-000142, FR-000143, FR-000144 | WP18 | R8-U09 |
 | deliverables/final-specification-set/creature-rpg/wp20-hp-status-moves-helditem.md | behavior-or-data | 33 | FR-000145, FR-000146, FR-000147, FR-000148, FR-000149, FR-000150, FR-000151, FR-000739, FR-000740 | WP20 | 无当前已知正式写批 |
 | deliverables/final-specification-set/creature-rpg/wp24-player-trainers-partners.md | behavior-or-data | 32 | FR-000152, FR-000153, FR-000154, FR-000155, FR-000156, FR-000157, FR-000158, FR-000159, FR-000160, FR-000161, FR-000741, FR-000742 | WP24 | 无当前已知正式写批 |
 | deliverables/final-specification-set/creature-rpg/wp25-party-and-storage.md | behavior-or-data | 22 | FR-000162, FR-000163, FR-000164, FR-000165, FR-000166, FR-000167, FR-000168, FR-000169, FR-000170 | WP25 | 无当前已知正式写批 |
-| deliverables/final-specification-set/creature-rpg/wp26-acquisition-gifts-and-script-trade.md | behavior-or-data | 21 | FR-000171, FR-000172, FR-000173, FR-000174, FR-000175, FR-000176 | WP26 | 无当前已知正式写批 |
+| deliverables/final-specification-set/creature-rpg/wp26-acquisition-gifts-and-script-trade.md | behavior-or-data | 21 | FR-000171, FR-000172, FR-000173, FR-000174, FR-000175, FR-000176 | WP26 | R8-U09 |
 | deliverables/final-specification-set/creature-rpg/wp27-bag-and-item-storage.md | behavior-or-data | 24 | FR-000177, FR-000178, FR-000179, FR-000180, FR-000181, FR-000182, FR-000722, FR-000723 | WP27 | 无当前已知正式写批 |
 | deliverables/final-specification-set/creature-rpg/wp28-item-use-and-training.md | behavior-or-data | 33 | FR-000183, FR-000184, FR-000185, FR-000186, FR-000187, FR-000188, FR-000189, FR-000190, FR-000191, FR-000192, FR-000193, FR-000194, FR-000195 | WP28 | 无当前已知正式写批 |
 | deliverables/final-specification-set/creature-rpg/wp29-shops-and-exchanges.md | behavior-or-data | 24 | FR-000196, FR-000197, FR-000198, FR-000199, FR-000200, FR-000201, FR-000202 | WP29 | 无当前已知正式写批 |
@@ -76,12 +76,12 @@
 | deliverables/final-specification-set/pokemon-rules/wp21-dynamic-forms-and-display.md | behavior-or-data | 24 | FR-000461, FR-000462, FR-000463, FR-000464, FR-000465, FR-000466, FR-000467, FR-000468, FR-000746, FR-000747 | WP21 | 无当前已知正式写批 |
 | deliverables/final-specification-set/pokemon-rules/wp22-mega-and-primal-reversion.md | behavior-or-data | 14 | FR-000469, FR-000470, FR-000471, FR-000472, FR-000473, FR-000474 | WP22 | 无当前已知正式写批 |
 | deliverables/final-specification-set/pokemon-rules/wp22-transformation-data.md | behavior-or-data | 5 | FR-000475, FR-000476, FR-000477 | WP22 | 无当前已知正式写批 |
-| deliverables/final-specification-set/pokemon-rules/wp23-shadow-data-and-vectors.md | behavior-or-data | 7 | FR-000479, FR-000481 | WP23 | 无当前已知正式写批 |
+| deliverables/final-specification-set/pokemon-rules/wp23-shadow-data-and-vectors.md | behavior-or-data | 7 | FR-000479, FR-000481 | WP23 | R8-U09 |
 | deliverables/final-specification-set/pokemon-rules/wp23-shadow-hyper-and-purification.md | behavior-or-data | 17 | FR-000483, FR-000484, FR-000485, FR-000486, FR-000487, FR-000488, FR-000489, FR-000748, FR-000749 | WP23 | 无当前已知正式写批 |
-| deliverables/final-specification-set/pokemon-rules/wp31-basic-evolution.md | behavior-or-data | 28 | FR-000490, FR-000491, FR-000492, FR-000493, FR-000494, FR-000495, FR-000496, FR-000743 | WP31 | 无当前已知正式写批 |
+| deliverables/final-specification-set/pokemon-rules/wp31-basic-evolution.md | behavior-or-data | 28 | FR-000490, FR-000491, FR-000492, FR-000493, FR-000494, FR-000495, FR-000496, FR-000743 | WP31 | R8-U09 |
 | deliverables/final-specification-set/pokemon-rules/wp32-context-inputs-and-scenarios.md | behavior-or-data | 6 | FR-000497, FR-000498, FR-000499 | WP32 | 无当前已知正式写批 |
 | deliverables/final-specification-set/pokemon-rules/wp32-contextual-trade-and-post-battle-evolution.md | behavior-or-data | 15 | FR-000501, FR-000502, FR-000503, FR-000504, FR-000505, FR-000506, FR-000507, FR-000750 | WP32 | 无当前已知正式写批 |
-| deliverables/final-specification-set/pokemon-rules/wp34-inheritance-and-offspring.md | behavior-or-data | 30 | FR-000508, FR-000509, FR-000510, FR-000511, FR-000512, FR-000513, FR-000514, FR-000515, FR-000516 | WP34 | 无当前已知正式写批 |
+| deliverables/final-specification-set/pokemon-rules/wp34-inheritance-and-offspring.md | behavior-or-data | 30 | FR-000508, FR-000509, FR-000510, FR-000511, FR-000512, FR-000513, FR-000514, FR-000515, FR-000516 | WP34 | R8-U09 |
 | deliverables/final-specification-set/pokemon-rules/wp37-roaming-and-poke-radar.md | behavior-or-data | 28 | FR-000517, FR-000518, FR-000519, FR-000520, FR-000521, FR-000522, FR-000523, FR-000524, FR-000751, FR-000752 | WP37 | 无当前已知正式写批 |
 | deliverables/final-specification-set/pokemon-rules/wp38-capture-and-receiving.md | behavior-or-data | 12 | FR-000525, FR-000526, FR-000527, FR-000528, FR-000529, FR-000530, FR-000531 | WP38 | 无当前已知正式写批 |
 | deliverables/final-specification-set/pokemon-rules/wp43-types-accuracy-and-damage.md | behavior-or-data | 23 | FR-000532, FR-000533, FR-000534, FR-000535, FR-000536, FR-000537, FR-000538, FR-000724, FR-000753 | WP43 | 无当前已知正式写批 |
@@ -122,9 +122,9 @@
 | deliverables/final-specification-set/user-interface/wp17-messages-windows-input.md | behavior-or-data | 33 | FR-000625, FR-000626, FR-000627, FR-000628, FR-000629, FR-000630, FR-000631 | WP17 | 无当前已知正式写批 |
 | deliverables/final-specification-set/user-interface/wp63-pokegear-map-music-and-phone.md | behavior-or-data | 28 | FR-000632, FR-000633, FR-000634, FR-000635, FR-000636, FR-000637, FR-000638 | WP63 | 无当前已知正式写批 |
 | deliverables/final-specification-set/user-interface/wp65-controls-help-appendix.md | behavior-or-data | 8 | FR-000639, FR-000640, FR-000641 | WP65 | 无当前已知正式写批 |
-| deliverables/final-specification-set/user-interface/wp65-title-load-options-pause-and-pc.md | behavior-or-data | 32 | FR-000642, FR-000643, FR-000644, FR-000645, FR-000646, FR-000647, FR-000648, FR-000649 | WP65 | R8-U01 |
+| deliverables/final-specification-set/user-interface/wp65-title-load-options-pause-and-pc.md | behavior-or-data | 32 | FR-000642, FR-000643, FR-000644, FR-000645, FR-000646, FR-000647, FR-000648, FR-000649 | WP65 | R8-U01, R8-U04 |
 | deliverables/final-specification-set/user-interface/wp65-trainer-card-appendix.md | behavior-or-data | 9 | FR-000650, FR-000651, FR-000652, FR-000653 | WP65 | 无当前已知正式写批 |
-| deliverables/final-specification-set/user-interface/wp66-a-party-and-summary-ui.md | behavior-or-data | 34 | FR-000654, FR-000655, FR-000656, FR-000657, FR-000658, FR-000659, FR-000660, FR-000661 | WP66-A | 无当前已知正式写批 |
+| deliverables/final-specification-set/user-interface/wp66-a-party-and-summary-ui.md | behavior-or-data | 34 | FR-000654, FR-000655, FR-000656, FR-000657, FR-000658, FR-000659, FR-000660, FR-000661 | WP66-A | R8-U09 |
 | deliverables/final-specification-set/user-interface/wp66-b-storage-and-pokedex-ui.md | behavior-or-data | 34 | FR-000662, FR-000663, FR-000664, FR-000665, FR-000666, FR-000667, FR-000668, FR-000669 | WP66-B | 无当前已知正式写批 |
 | deliverables/final-specification-set/user-interface/wp66-c-bag-item-storage-and-shop-ui.md | behavior-or-data | 20 | FR-000670, FR-000671, FR-000672, FR-000673, FR-000674, FR-000675, FR-000676 | WP66-C | 无当前已知正式写批 |
 | deliverables/final-specification-set/user-interface/wp67-a-battle-interaction-and-presentation.md | behavior-or-data | 44 | FR-000677, FR-000678, FR-000679, FR-000680, FR-000681, FR-000682, FR-000683, FR-000684, FR-000685, FR-000686 | WP67-A | R8-U06 |

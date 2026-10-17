@@ -331,6 +331,21 @@ def integrity_errors(manifest, coverage, accepted_updates=None):
             fail(path + ": false source equivalence")
         if current["identity"]["sha256"] != doc["source"]["sha256"] and not doc["upstream"]["accepted_events"]:
             fail(path + ": changed current source requires accepted calibration")
+        if current["identity"]["sha256"] != doc["source"]["sha256"] and doc["upstream"]["accepted_events"]:
+            # A receipt for an ancestor/path cannot authorize later changed bytes.
+            # Shared consumers may retain several historical batch events; at least
+            # one exact receipted target must still match the complete current file.
+            matches = False
+            for eid in doc["upstream"]["accepted_events"]:
+                event = events.get(eid, {})
+                if current["path"] not in event.get("documents", []):
+                    continue
+                target = get_identity(event["commit"], current["path"], eid + " current target")
+                if target and all(current["identity"][key] == target[key]
+                                  for key in ["git_blob", "sha256", "bytes"]):
+                    matches = True
+            if not matches:
+                fail(path + ": current source bytes lack matching ACCEPTED target identity")
         hs, lines = headings(blob(doc["source"]["commit"], path))
         parsed[path] = (hs, lines)
         for h in hs:
