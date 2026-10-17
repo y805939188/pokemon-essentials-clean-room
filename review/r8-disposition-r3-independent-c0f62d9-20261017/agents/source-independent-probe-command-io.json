@@ -1,0 +1,321 @@
+[
+  {
+    "argv": [
+      "git",
+      "init",
+      "--quiet",
+      "/tmp/r3-independent-source-xnn8fnim"
+    ],
+    "cwd": "/workspace/r8-disposition-r3-review",
+    "started_utc": "2026-10-17T16:41:49.552406+00:00",
+    "ended_utc": "2026-10-17T16:41:49.554855+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-common-dir"
+    ],
+    "cwd": "/workspace/r8-disposition-r3-review",
+    "started_utc": "2026-10-17T16:41:49.554865+00:00",
+    "ended_utc": "2026-10-17T16:41:49.556354+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "/workspace/pokemon-essentials-clean-room/.git\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "a32873d2860b15d9f5e27727db8f131f4ec433b6:planning/implementation-routing/r8-20261017/routing.py"
+    ],
+    "cwd": "/workspace/r8-disposition-r3-review",
+    "started_utc": "2026-10-17T16:41:49.568055+00:00",
+    "ended_utc": "2026-10-17T16:41:49.570785+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "#!/usr/bin/env python3\n\"\"\"Document-only routing inventory. Does not load or execute reference/game code.\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport collections\nimport copy\nimport hashlib\nimport functools\nimport json\nfrom pathlib import Path\nimport re\nimport subprocess\nimport sys\nimport tempfile\nimport shutil\nimport unicodedata\n\nHERE = Path(__file__).resolve().parent\nDATA_HOME = HERE\nROOT = HERE.parents[2]\nFORMAL = \"deliverables/final-specification-set/\"\nB8 = \"fd1df570cad987dc3852a3b958f03916e317f7fe\"\nDELIVERY = \"4575e80d041ab0c74a42e2e36399d05791dbaa5b\"\nREPORT = \"review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/\"\nINDEX = REPORT + \"tasks/inventory_denominator/formal-inventory.json\"\nWP_INDEX = REPORT + \"coverage/wp-final-coverage.json\"\nBATCH_INDEX = REPORT + \"handoff/batch-assignment.json\"\nREPO_URL = \"https://github.com/y805939188/pokemon-essentials-clean-room/blob/\"\nINITIAL_CANDIDATE = \"d62b41f4d620e50bb04c80a7505374bd284d8210\"\n\n\ndef git(*args):\n    return subprocess.check_output([\"git\", *args], cwd=ROOT, stderr=subprocess.PIPE)\n\n\n@functools.lru_cache(maxsize=1024)\ndef blob(commit, path):\n    return git(\"show\", f\"{commit}:{path}\")\n\n\ndef digest(data):\n    return hashlib.sha256(data).hexdigest()\n\n\ndef read_json(path):\n    return json.loads(path.read_text())\n\n\ndef save_json(path, value):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + \"\\n\")\n\n\n@functools.lru_cache(maxsize=4096)\ndef identity(commit, path):\n    data = blob(commit, path)\n    return {\"commit\": commit, \"path\": path, \"bytes\": len(data),\n            \"sha256\": digest(data), \"git_blob\": git(\"rev-parse\", f\"{commit}:{path}\").decode().strip()}\n\n\ndef slug(title):\n    title = re.sub(r\"<[^>]*>\", \"\", title)\n    title = re.sub(r\"\\[([^]]+)\\]\\([^)]*\\)\", r\"\\1\", title).lower()\n    title = \"\".join(c for c in title if c in \" -_\" or unicodedata.category(c)[0] in \"LN\")\n    return title.replace(\" \", \"-\")\n\n\ndef headings(data):\n    lines = data.decode().splitlines(keepends=True)\n    out, used, fence = [], collections.Counter(), None\n    for i, line in enumerate(lines, 1):\n        fm = re.match(r\"^\\s{0,3}(`{3,}|~{3,})\", line)\n        if fm:\n            mark = fm.group(1)[0]\n            if fence is None:\n                fence = mark\n            elif fence == mark:\n                fence = None\n            continue\n        if fence:\n            continue\n        m = re.match(r\"^(#{1,6})[ \\t]+(.+?)[ \\t]*\\n?$\", line)\n        if not m:\n            continue\n        level, title = len(m.group(1)), re.sub(r\"[ \\t]+#+[ \\t]*$\", \"\", m.group(2))\n        base = slug(title)\n        anchor = base + (f\"-{used[base]}\" if used[base] else \"\")\n        used[base] += 1\n        num = re.match(r\"^(\\d+(?:\\.\\d+)*(?:-[A-Z]\\d+)?)\\.?\\s\", title)\n        out.append({\"level\": level, \"title\": title, \"anchor\": anchor,\n                    \"section\": num.group(1) if num else None, \"line_start\": i})\n    for i, h in enumerate(out):\n        h[\"line_end\"] = next((n[\"line_start\"] - 1 for n in out[i + 1:]\n                              if n[\"level\"] <= h[\"level\"]), len(lines))\n        h[\"heading_sha256\"] = digest(lines[h[\"line_start\"] - 1].encode())\n    return out, lines\n\n\ndef excerpt(lines, ranges, size=105):\n    for start, end in ranges:\n        for line in lines[start - 1:end]:\n            line = line.strip()\n            if line and not line.startswith((\"#\", \"|\", \"```\", \"---\", \"分类：\")):\n                return line[:size]\n    return \"本来源单元以表格或行为数据列出合同；完整内容见固定源定位。\"\n\n\ndef subtract_range(start, end, children):\n    ranges, cursor = [], start\n    for a, b in sorted(children):\n        if cursor < a:\n            ranges.append([cursor, a - 1])\n        cursor = max(cursor, b + 1)\n    if cursor <= end:\n        ranges.append([cursor, end])\n    return ranges\n\n\ndef fixed_inputs():\n    index = json.loads(blob(DELIVERY, INDEX))\n    wp = json.loads(blob(DELIVERY, WP_INDEX))\n    batches = json.loads(blob(DELIVERY, BATCH_INDEX))[\"batches\"]\n    indexed = [x[\"path\"] for x in index]\n    actual = git(\"ls-tree\", \"-r\", \"--name-only\", B8, \"--\", FORMAL).decode().splitlines()\n    actual = [p for p in actual if p.endswith(\".md\")]\n    if sorted(indexed) != sorted(actual) or len(set(indexed)) != len(indexed):\n        raise ValueError(\"Fixed formal index differs from actual formal Markdown tree\")\n    return index, wp, batches\n\n\ndef doc_bindings(path, wp, batches):\n    wps, deps = [], set()\n    for row in wp[\"rows\"]:\n        if any(path in row.get(k, []) for k in [\"formal_payloads\", \"catalogs\", \"data_appendix\", \"shared_formal_payloads\"]):\n            wps.append(row[\"wp\"])\n            deps.update(row.get(\"dependencies\", []))\n    affected = [b for b in batches if path in b.get(\"actual_target_write_set\", [])]\n    return sorted(wps), sorted(deps), {\n        \"binding_basis\": \"DOCUMENT_WRITE_SET_CONSERVATIVE\",\n        \"batches\": [b[\"id\"] for b in affected],\n        \"required_ids\": sorted({x for b in affected for x in b[\"required_ids\"]}),\n        \"status\": \"待整改后核对\" if affected else \"固定基线待后继差分核对\",\n        \"authority\": {\"commit\": DELIVERY, \"path\": BATCH_INDEX},\n        \"accepted_events\": []}\n\n\ndef effective_doc_bindings(path, wp, batches, events):\n    \"\"\"Keep original planned gates; fixed accepted events may add actual receivers.\"\"\"\n    wps, deps, binding = doc_bindings(path, wp, batches)\n    actual_batches = {batch for event in events.values() if path in event.get('documents', [])\n                      for batch in event.get('batches', [])}\n    binding['batches'] = sorted(set(binding['batches']) | actual_batches)\n    binding['required_ids'] = sorted(set(binding['required_ids']) | {\n        item for batch in batches if batch['id'] in actual_batches for item in batch['required_ids']})\n    return wps, deps, binding\n\n\ndef covered_batches(upstream, events):\n    return {batch for eid in upstream['accepted_events'] if eid in events\n            for batch in events[eid].get('batches', [])}\n\n\ndef seed():\n    raise ValueError(\"Refuse to reseed stable IDs; revise the explicit manifest and retain original source locators\")\n\n\ndef integrity_errors(manifest, coverage, accepted_updates=None):\n    \"\"\"Check Git identities and declared relationships, never authenticate semantics.\"\"\"\n    found = []\n    baseline, snapshot = manifest[\"source_baseline\"], manifest[\"current_snapshot\"]\n    active = {f[\"feature_id\"]: f for f in manifest[\"features\"]}\n    if len(active) != len(manifest[\"features\"]):\n        found.append(\"duplicate feature IDs\")\n    retired_rows = manifest.get(\"retired_features\", [])\n    retired = {f[\"feature_id\"]: f for f in retired_rows}\n    metadata_rows = manifest.get(\"metadata_records\", [])\n    metadata = {r[\"metadata_id\"]: r for r in metadata_rows}\n    documents = {d[\"document_id\"]: d for d in manifest[\"documents\"]}\n    by_path = {d[\"source\"][\"path\"]: d for d in manifest[\"documents\"]}\n    _, wp, batches = fixed_inputs()\n    valid_wp = {r[\"wp\"] for r in wp[\"rows\"]}\n    valid_batches = {b[\"id\"]: b for b in batches}\n\n    def fail(message):\n        found.append(message)\n\n    def get_identity(commit, path, label):\n        try:\n            return identity(commit, path)\n        except (subprocess.CalledProcessError, ValueError, UnicodeDecodeError):\n            fail(label + \": missing Git commit/path\")\n            return None\n\n    def check_identity(declared, label):\n        actual = get_identity(declared[\"commit\"], declared[\"path\"], label)\n        if actual is not None and declared != actual:\n            fail(label + \": complete Git identity mismatch\")\n        return actual\n\n    for key, commit in [(\"source_baseline\", baseline[\"commit\"]), (\"current_snapshot\", snapshot[\"commit\"])]:\n        try:\n            tree = git(\"rev-parse\", f\"{commit}:{FORMAL.rstrip('/')}\").decode().strip()\n            if manifest[key][\"formal_tree\"] != tree:\n                fail(key + \": formal tree mismatch\")\n        except subprocess.CalledProcessError:\n            fail(key + \": missing formal snapshot\")\n    if baseline[\"commit\"] != B8 or baseline[\"delivery_commit\"] != DELIVERY:\n        fail(\"immutable baseline/delivery authority changed\")\n    for key, path in [(\"index\", INDEX), (\"wp_index\", WP_INDEX)]:\n        if baseline[key] != identity(DELIVERY, path):\n            fail(\"source_baseline: \" + key + \" authority/identity mismatch\")\n    if coverage.get(\"schema_version\") != \"routing-section-coverage.v1\" or coverage.get(\"source_commit\") != baseline[\"commit\"]:\n        fail(\"heading coverage baseline/schema mismatch\")\n\n    original = json.loads(blob(INITIAL_CANDIDATE, str((DATA_HOME / \"routing-manifest.json\").relative_to(ROOT))))\n    original_rows = {f[\"feature_id\"]: f for f in original[\"features\"]}\n    if len(retired) != len(retired_rows) or set(active).intersection(retired):\n        fail(\"duplicate or reused retired feature IDs\")\n    if set(original_rows) - (set(active) | set(retired)):\n        fail(\"original stable feature IDs must remain active or retired\")\n    if len(metadata) != len(metadata_rows):\n        fail(\"duplicate metadata record IDs\")\n    for fid, f in active.items():\n        if fid in original_rows and f[\"source\"] != original_rows[fid][\"source\"]:\n            fail(fid + \": original immutable source changed\")\n    for fid, f in retired.items():\n        saved = {k: v for k, v in f.items() if k != \"retirement\"}\n        if fid not in original_rows or saved != original_rows.get(fid):\n            fail(fid + \": retired record must preserve complete original row\")\n        reason = f[\"retirement\"]\n        if reason[\"metadata_record_id\"] not in metadata or set(reason[\"replacement_feature_refs\"]) - set(active):\n            fail(fid + \": unresolved retirement metadata/replacement\")\n\n    accepted_updates = accepted_updates if accepted_updates is not None else read_json(DATA_HOME / \"accepted-source-updates.json\")\n    events = {}\n    if not isinstance(accepted_updates, dict) or not isinstance(accepted_updates.get(\"events\"), list):\n        return found + [\"accepted events: malformed registry\"]\n    for event in accepted_updates.get(\"events\", []):\n        if not isinstance(event, dict):\n            fail(\"accepted events: malformed event\")\n            continue\n        eid = event.get(\"event_id\")\n        if not eid or eid in events:\n            fail(\"accepted events: missing/duplicate event ID\")\n            continue\n        events[eid] = event\n        if (event.get(\"status\") != \"ACCEPTED\" or not event.get(\"documents\") or not event.get(\"batches\")\n                or not event.get(\"evidence\") or set(event.get(\"batches\", [])) - set(valid_batches)):\n            fail(eid + \": accepted event requires exact batch/document/evidence binding\")\n        commit = event.get(\"commit\", \"\")\n        if not re.fullmatch(r\"[0-9a-f]{40}\", commit) or commit == \"0\" * 40:\n            fail(eid + \": accepted event requires real commit\")\n        else:\n            try:\n                git(\"cat-file\", \"-e\", commit + \"^{commit}\")\n                git(\"merge-base\", \"--is-ancestor\", commit, snapshot[\"commit\"])\n            except subprocess.CalledProcessError:\n                fail(eid + \": accepted event commit not in current snapshot history\")\n        for evidence in event.get(\"evidence\", []):\n            if not isinstance(evidence, dict) or set(evidence) != {\"commit\", \"path\"}:\n                fail(eid + \": accepted event evidence must name fixed Git commit/path\")\n            else:\n                get_identity(evidence[\"commit\"], evidence[\"path\"], eid + \" evidence\")\n        try:\n            receipt_ref = event['evidence'][0]\n            receipt = json.loads(blob(receipt_ref['commit'], receipt_ref['path']))\n            pointer = event['receipt_record_pointer']\n            if not re.fullmatch(r'/records/\\d+', pointer):\n                raise ValueError('record pointer')\n            record = receipt['records'][int(pointer.rsplit('/', 1)[1])]\n            identities = record.get('actual_target_identities') or [record['actual_target_identity']]\n            if (record.get('ACCEPTED') is not True or record.get('actual_integrated_PASS') is not True\n                    or event['commit'] != record['actual_artifact_commit']\n                    or event['batches'] != [record['batch']]\n                    or set(event['documents']) != {item['path'] for item in identities}):\n                raise ValueError('receipt scope')\n            for item in identities:\n                actual = identity(event['commit'], item['path'])\n                if any(actual[key] != item[raw] for key, raw in [('git_blob', 'blob'), ('sha256', 'sha256'), ('bytes', 'bytes')]):\n                    raise ValueError('receipt target identity')\n        except (KeyError, IndexError, TypeError, ValueError, subprocess.CalledProcessError):\n            fail(eid + ': accepted event requires matching fixed ACCEPTED receipt record and target identities')\n\n    def check_upstream(upstream, path, label):\n        _, _, expected = effective_doc_bindings(path, wp, batches, events)\n        if upstream[\"authority\"] != {\"commit\": DELIVERY, \"path\": BATCH_INDEX}:\n            fail(label + \": batch authority mismatch\")\n        if set(upstream[\"batches\"]) - set(valid_batches):\n            fail(label + \": unknown R8 batch\")\n        expected_batches, expected_ids = set(expected[\"batches\"]), set(expected[\"required_ids\"])\n        if upstream[\"binding_basis\"] == \"DOCUMENT_WRITE_SET_CONSERVATIVE\":\n            if set(upstream[\"batches\"]) != expected_batches or set(upstream[\"required_ids\"]) != expected_ids:\n                fail(label + \": known conservative batch binding mismatch\")\n        elif (not upstream[\"accepted_events\"] or set(upstream[\"batches\"]) - expected_batches\n                or set(upstream[\"required_ids\"]) - expected_ids):\n            fail(label + \": section binding requires accepted evidence within fixed authority\")\n        for eid in upstream[\"accepted_events\"]:\n            event = events.get(eid)\n            if not event or path not in event.get(\"documents\", []) or not set(event.get(\"batches\", [])).issubset(upstream[\"batches\"]):\n                fail(label + \": unresolved or unrelated accepted event\")\n        if expected_batches - covered_batches(upstream, events) and upstream[\"status\"] != \"待整改后核对\":\n            fail(label + \": unaccepted batch must retain calibration gate\")\n\n    parsed = {}\n    current_parsed = {}\n    current_occupied = collections.defaultdict(set)\n    expected_headings = {}\n    for did, doc in documents.items():\n        path = doc[\"source\"][\"path\"]\n        if check_identity(doc[\"source\"], path + \" source\") is None:\n            continue\n        if doc[\"source\"][\"commit\"] != baseline[\"commit\"]:\n            fail(path + \": document source baseline mismatch\")\n        for key in [\"wp_refs\", \"dependency_wp_refs\"]:\n            if set(doc[key]) - valid_wp:\n                fail(path + \": unknown dependency WP\")\n        check_upstream(doc[\"upstream\"], path, did)\n        declared_retired = set(doc.get(\"retired_feature_ids\", []))\n        if declared_retired != {fid for fid, f in retired.items() if f[\"document_id\"] == did}:\n            fail(path + \": document retired feature membership mismatch\")\n        current = doc[\"current_applicability\"]\n        if current[\"path\"] != path and not doc[\"upstream\"][\"accepted_events\"]:\n            fail(path + \": renamed applicability requires accepted event\")\n        expected_current = get_identity(current[\"snapshot_commit\"], current[\"path\"], path + \" current\")\n        if expected_current and current[\"identity\"] != expected_current:\n            fail(path + \": current applicability complete identity mismatch\")\n        if current[\"identity\"][\"path\"] != current[\"path\"]:\n            fail(path + \": current identity path mismatch\")\n        if current[\"source_equivalence\"] == \"SAME_BYTES\" and current[\"identity\"][\"sha256\"] != doc[\"source\"][\"sha256\"]:\n            fail(path + \": false source equivalence\")\n        if current[\"identity\"][\"sha256\"] != doc[\"source\"][\"sha256\"] and not doc[\"upstream\"][\"accepted_events\"]:\n            fail(path + \": changed current source requires accepted calibration\")\n        hs, lines = headings(blob(doc[\"source\"][\"commit\"], path))\n        parsed[path] = (hs, lines)\n        for h in hs:\n            expected_headings[(path, h[\"line_start\"])] = {\"document_id\": did, \"path\": path,\n                **{k: h[k] for k in [\"level\", \"title\", \"anchor\", \"line_start\", \"line_end\", \"heading_sha256\"]}}\n\n    for fid, f in active.items():\n        doc = documents.get(f[\"document_id\"])\n        if not doc:\n            continue\n        path = doc[\"source\"][\"path\"]\n        current = f[\"current_applicability\"]\n        if current[\"snapshot_commit\"] != snapshot[\"commit\"] or current[\"snapshot_commit\"] != doc[\"current_applicability\"][\"snapshot_commit\"] or current[\"document\"] != doc[\"current_applicability\"][\"path\"]:\n            fail(fid + \": current feature snapshot/path mismatch\")\n            continue\n        if current[\"source_classification\"] != doc[\"source_classification\"]:\n            fail(fid + \": current source classification differs from document\")\n        locator = current[\"locator\"]\n        current_key = (current[\"snapshot_commit\"], current[\"document\"])\n        try:\n            if current_key not in current_parsed:\n                current_parsed[current_key] = headings(blob(*current_key))\n        except subprocess.CalledProcessError:\n            fail(fid + \": current feature locator missing snapshot/path\")\n            continue\n        current_headings, current_lines = current_parsed[current_key]\n        selected = next((h for h in current_headings if h[\"anchor\"] == locator[\"anchor\"]), None)\n        if not selected or any(locator[k] != selected[hk] for k,hk in [(\"heading\",\"title\"),(\"heading_level\",\"level\"),(\"heading_sha256\",\"heading_sha256\")]):\n            fail(fid + \": current feature locator heading mismatch\")\n        if selected and any(a < selected[\"line_start\"] or b > selected[\"line_end\"] or a > b for a,b in locator[\"line_ranges\"]):\n            fail(fid + \": current feature locator range mismatch\")\n        for a,b in locator['line_ranges']:\n            nums = set(range(a,b+1))\n            if current_occupied[current_key].intersection(nums):\n                fail(fid + \": current feature locator ranges overlap\")\n            current_occupied[current_key].update(nums)\n        current_unit = ''.join(''.join(current_lines[a-1:b]) for a,b in locator['line_ranges']).encode()\n        current_identity = doc['current_applicability']['identity']\n        if digest(current_unit) != locator['unit_sha256'] or locator['file_sha256'] != current_identity['sha256'] or locator['file_git_blob'] != current_identity['git_blob']:\n            fail(fid + \": current feature locator identity mismatch\")\n        if current_identity['sha256'] == doc['source']['sha256'] and locator['line_ranges'] != f['functional_scope']['line_ranges']:\n            fail(fid + \": unchanged current feature locator range mismatch\")\n        check_upstream(f[\"upstream\"], path, fid)\n        if f[\"upstream\"][\"accepted_events\"] != doc[\"upstream\"][\"accepted_events\"]:\n            fail(fid + \": feature/document accepted event mismatch\")\n        if set(f[\"dependencies\"][\"wp_refs\"] + f[\"dependencies\"][\"document_wp_refs\"]) - valid_wp:\n            fail(fid + \": unknown dependency WP\")\n        plan = f[\"future_plan\"]\n        parties = {r[\"party\"] for r in plan[\"responsibilities\"]}\n        if not plan[\"partners\"] or parties != set(plan[\"partners\"]):\n            fail(fid + \": nonempty collaborators and responsibilities must agree\")\n        for dep in f[\"dependencies\"][\"direct_refs\"]:\n            target = parsed.get(dep[\"document\"])\n            if not target or dep[\"anchor\"] not in {h[\"anchor\"] for h in target[0]}:\n                fail(fid + \": unresolved direct source dependency\")\n        scope = f[\"functional_scope\"]\n        source_lines = {n for a, b in f[\"source\"][\"line_ranges\"] for n in range(a, b + 1)}\n        selected_lines = {n for a, b in scope[\"line_ranges\"] for n in range(a, b + 1)}\n        if not selected_lines or selected_lines - source_lines or any(a > b for a, b in scope[\"line_ranges\"]):\n            fail(fid + \": invalid current functional scope\")\n        excluded = set()\n        for child_id in scope[\"excluded_child_refs\"]:\n            child = active.get(child_id)\n            if not child or child_id == fid or child[\"document_id\"] != f[\"document_id\"]:\n                fail(fid + \": invalid excluded child reference\")\n                continue\n            child_lines = {n for a, b in child[\"source\"][\"line_ranges\"] for n in range(a, b + 1)}\n            if not child_lines or child_lines - source_lines:\n                fail(fid + \": excluded child outside immutable parent source\")\n            excluded.update(child_lines)\n        if source_lines - excluded != selected_lines:\n            fail(fid + \": current functional scope does not match excluded children\")\n\n    for mid, record in metadata.items():\n        doc = documents.get(record[\"document_id\"])\n        if not doc or record[\"source\"][\"document\"] != doc[\"source\"][\"path\"]:\n            fail(mid + \": metadata document mismatch\")\n            continue\n        if set(record[\"feature_refs\"]) - set(active) or set(record[\"retired_feature_ids\"]) - set(retired):\n            fail(mid + \": unresolved metadata navigation reference\")\n        s = record[\"source\"]\n        hs, lines = parsed[s[\"document\"]]\n        h = next((h for h in hs if h[\"anchor\"] == s[\"anchor\"]), None)\n        if not h or h[\"title\"] != s[\"heading\"] or h[\"level\"] != s[\"heading_level\"] or h[\"heading_sha256\"] != s[\"heading_sha256\"]:\n            fail(mid + \": metadata source heading mismatch\")\n        if s[\"commit\"] != doc[\"source\"][\"commit\"] or (h and any(a < h[\"line_start\"] or b > h[\"line_end\"] or a > b for a,b in s[\"line_ranges\"])):\n            fail(mid + \": metadata source commit/range mismatch\")\n        unit = \"\".join(\"\".join(lines[a-1:b]) for a,b in s[\"line_ranges\"]).encode()\n        if digest(unit) != s[\"unit_sha256\"] or s[\"file_sha256\"] != doc[\"source\"][\"sha256\"] or s[\"file_git_blob\"] != doc[\"source\"][\"git_blob\"]:\n            fail(mid + \": metadata source identity mismatch\")\n    for c in coverage[\"sections\"]:\n        expected = expected_headings.get((c[\"path\"], c[\"line_start\"]))\n        if expected is None or any(c.get(k) != v for k,v in expected.items()):\n            fail(c[\"path\"] + \": complete heading coverage fields mismatch\")\n        if set(c.get(\"metadata_refs\", [])) - set(metadata) or set(c.get(\"retired_feature_refs\", [])) - set(retired):\n            fail(c[\"path\"] + \": unresolved metadata/retired coverage reference\")\n        if c.get(\"coverage_scope\") == \"ALL_FORMAL_FEATURES\" and documents.get(c[\"document_id\"], {}).get(\"document_role\") != \"shared-governance\":\n            fail(c[\"path\"] + \": ALL_FORMAL_FEATURES only applies to shared governance\")\n    return found\n\n\ndef errors(manifest, coverage, accepted_updates=None):\n    import jsonschema\n    found = []\n    schema = read_json(HERE / \"routing-manifest.schema.json\")\n    found += [f\"schema:{'/'.join(map(str, e.path))}: {e.message}\" for e in\n              jsonschema.Draft202012Validator(schema).iter_errors(manifest)]\n    if found:\n        return found\n    found += integrity_errors(manifest, coverage, accepted_updates)\n    if found:\n        return found\n    ids = [f[\"feature_id\"] for f in manifest[\"features\"]]\n    if len(ids) != len(set(ids)):\n        found.append(\"duplicate feature IDs\")\n    idset = set(ids)\n    decs = {d[\"id\"] for d in manifest[\"decisions\"]}\n    protos = {p[\"id\"] for p in manifest[\"prototypes\"]}\n    docs = {d[\"document_id\"]: d for d in manifest[\"documents\"]}\n    if len(docs) != len(manifest[\"documents\"]):\n        found.append(\"duplicate document IDs\")\n    paths = [d[\"source\"][\"path\"] for d in manifest[\"documents\"]]\n    index, _, _ = fixed_inputs()\n    if sorted(paths) != sorted(x[\"path\"] for x in index):\n        found.append(\"document coverage differs from fixed actual index\")\n    for f in manifest[\"features\"]:\n        prefix = f[\"feature_id\"] + \": \"\n        p, v = f[\"future_plan\"], f[\"destination_verification\"]\n        if f[\"document_id\"] not in docs:\n            found.append(prefix + \"unknown document ID\")\n            continue\n        if f[\"source\"][\"document\"] != docs[f[\"document_id\"]][\"source\"][\"path\"]:\n            found.append(prefix + \"document identity mismatch\")\n        if f[\"source\"][\"commit\"] != docs[f[\"document_id\"]][\"source\"][\"commit\"]:\n            found.append(prefix + \"immutable source commit mismatch\")\n        if set(f[\"decision_refs\"]) - decs or set(p[\"prototype_refs\"]) - protos:\n            found.append(prefix + \"unknown decision/prototype reference\")\n        if set(f[\"dependencies\"][\"feature_refs\"]) - idset:\n            found.append(prefix + \"unknown feature dependency\")\n        if p[\"destination\"] == \"不纳入目标\":\n            e = p[\"exclusion_decision\"]\n            if not isinstance(e, dict) or not all(e.get(x) for x in [\"user_decision_ref\", \"exact_scope\", \"decision_quote\"]):\n                found.append(prefix + \"exclusion requires explicit user scope decision\")\n            if p[\"stage\"] != \"明确不纳入\":\n                found.append(prefix + \"excluded scope/stage must agree\")\n        elif p[\"stage\"] == \"明确不纳入\":\n            found.append(prefix + \"excluded stage requires excluded destination and user decision\")\n        if p[\"stage\"] in [\"首版\", \"后续\"] and p[\"stage_approval\"] != \"用户已批准\":\n            found.append(prefix + \"unapproved phase cannot be presented as committed\")\n        if v[\"status\"] in [\"已验证\", \"已否决\"]:\n            if not v[\"evidence\"]:\n                found.append(prefix + \"verification result requires target evidence\")\n            if all(e.get(\"kind\") in [\"SOURCE_SPECIFICATION_ONLY\", \"SOURCE_STATIC\", \"NUMERICAL_ONLY\"] for e in v[\"evidence\"]):\n                found.append(prefix + \"source/numerical evidence cannot certify routing compatibility\")\n            if p[\"destination\"] in [\"Showdown承担\", \"框架与Showdown协作\"] and not any(\n                    e.get(\"kind\") in [\"TARGET_BEHAVIOR_PROTOTYPE\", \"TARGET_INTEGRATION_SCENARIO\"]\n                    and re.fullmatch(r\"[0-9a-f]{40}\", e.get(\"target_commit\", \"\"))\n                    and e.get(\"scope\") and e.get(\"result\") for e in v[\"evidence\"]):\n                found.append(prefix + \"Showdown result requires fixed-target scoped behavior evidence\")\n        implementation = f[\"implementation\"]\n        if implementation[\"status\"] == \"实现完成\" and not implementation[\"evidence\"]:\n            found.append(prefix + \"implementation completion requires separate implementation evidence\")\n        if implementation[\"acceptance_status\"] == \"已验收\" and not any(\n                e.get(\"kind\") == \"IMPLEMENTATION_ACCEPTANCE\" for e in implementation[\"evidence\"]):\n            found.append(prefix + \"implementation acceptance requires separate acceptance evidence\")\n        if f[\"upstream\"][\"batches\"] and not f[\"upstream\"][\"accepted_events\"] and f[\"current_applicability\"][\"status\"] != \"待整改后核对\":\n            found.append(prefix + \"affected baseline must retain upstream calibration gate\")\n    actual_headings = []\n    feature_units = collections.defaultdict(list)\n    for f in manifest[\"features\"]:\n        feature_units[f[\"source\"][\"document\"]].append(f)\n    for d in manifest[\"documents\"]:\n        path = d[\"source\"][\"path\"]\n        data = blob(d[\"source\"][\"commit\"], path)\n        hs, lines = headings(data)\n        if digest(data) != d[\"source\"][\"sha256\"]:\n            found.append(path + \": immutable source file hash mismatch\")\n        expected_ids = {f[\"feature_id\"] for f in feature_units[path]}\n        if set(d[\"feature_ids\"]) != expected_ids:\n            found.append(path + \": document feature ID membership mismatch\")\n        current = d[\"current_applicability\"]\n        if current[\"snapshot_commit\"] != manifest[\"current_snapshot\"][\"commit\"]:\n            found.append(path + \": current applicability snapshot mismatch\")\n        current_data = blob(current[\"snapshot_commit\"], current[\"path\"])\n        if digest(current_data) != current[\"identity\"][\"sha256\"] or current[\"identity\"][\"commit\"] != current[\"snapshot_commit\"]:\n            found.append(path + \": current applicability identity mismatch\")\n        for h in hs:\n            actual_headings.append((path, h[\"line_start\"], h[\"anchor\"], h[\"heading_sha256\"]))\n        occupied = set()\n        for f in feature_units[path]:\n            s = f[\"source\"]\n            selected = next((h for h in hs if h[\"anchor\"] == s[\"anchor\"] and h[\"heading_sha256\"] == s[\"heading_sha256\"]), None)\n            if not selected:\n                found.append(f[\"feature_id\"] + \": missing source heading\")\n                continue\n            if selected[\"title\"] != s[\"heading\"] or selected[\"level\"] != s[\"heading_level\"]:\n                found.append(f[\"feature_id\"] + \": source heading fields mismatch\")\n            for a, b in s[\"line_ranges\"]:\n                if a < selected[\"line_start\"] or b > selected[\"line_end\"] or a > b:\n                    found.append(f[\"feature_id\"] + \": invalid source range\")\n            for a, b in f[\"functional_scope\"][\"line_ranges\"]:\n                nums = set(range(a, b + 1))\n                if occupied.intersection(nums):\n                    found.append(f[\"feature_id\"] + \": overlapping functional source units\")\n                occupied.update(nums)\n            unit = \"\".join(\"\".join(lines[a - 1:b]) for a, b in s[\"line_ranges\"]).encode()\n            if digest(unit) != s[\"unit_sha256\"] or s[\"file_sha256\"] != d[\"source\"][\"sha256\"] or s[\"file_git_blob\"] != d[\"source\"][\"git_blob\"]:\n                found.append(f[\"feature_id\"] + \": immutable source unit hash mismatch\")\n    declared = [(c[\"path\"], c[\"line_start\"], c[\"anchor\"], c[\"heading_sha256\"]) for c in coverage[\"sections\"]]\n    if sorted(actual_headings) != sorted(declared) or len(set(declared)) != len(declared):\n        found.append(\"heading coverage has a missing, duplicate or stale source anchor\")\n    for c in coverage[\"sections\"]:\n        if set(c[\"feature_refs\"]) - idset:\n            found.append(c[\"path\"] + \": unknown coverage feature ID\")\n        if not c[\"feature_refs\"] and not c.get(\"metadata_refs\") and c.get(\"coverage_scope\") != \"ALL_FORMAL_FEATURES\":\n            found.append(c[\"path\"] + \": unmapped heading\")\n    return found\n\n\ndef report(manifest, coverage):\n    es = errors(manifest, coverage)\n    updates = read_json(DATA_HOME / 'accepted-source-updates.json')\n    events = {e['event_id']: e for e in (updates.get('events', []) if isinstance(updates, dict) else [])\n              if isinstance(e, dict) and 'event_id' in e}\n    def pending(f):\n        return bool(set(f['upstream']['batches']) - covered_batches(f['upstream'], events))\n    return {\"schema_version\": \"routing-validation.v1\", \"result\": \"PASS_TOOL_VALIDATION\" if not es else \"FAIL\",\n            \"errors\": es, \"documents\": len(manifest[\"documents\"]), \"functional_rows\": len(manifest[\"features\"]),\n            \"headings\": len(coverage[\"sections\"]),\n            \"retired_rows\": len(manifest.get(\"retired_features\", [])),\n            \"metadata_records\": len(manifest.get(\"metadata_records\", [])),\n            \"heading_levels\": dict(collections.Counter(str(c[\"level\"]) for c in coverage[\"sections\"])),\n            \"destinations\": dict(collections.Counter(f[\"future_plan\"][\"destination\"] for f in manifest[\"features\"])),\n            \"destination_verification\": dict(collections.Counter(f[\"destination_verification\"][\"status\"] for f in manifest[\"features\"])),\n            \"implementation_stage\": dict(collections.Counter(f[\"future_plan\"][\"stage\"] for f in manifest[\"features\"])),\n            \"known_upstream_rows\": sum(bool(f[\"upstream\"][\"batches\"]) for f in manifest[\"features\"]),\n            \"pending_upstream_rows\": sum(pending(f) for f in manifest[\"features\"]),\n            \"backfilled_upstream_rows\": sum(bool(f['upstream']['batches']) and not pending(f) for f in manifest['features']),\n            \"partially_backfilled_upstream_rows\": sum(bool(f['upstream']['accepted_events']) and pending(f) for f in manifest['features']),\n            \"historical_count_comparison_only\": {\"formal_documents_observed\": len(manifest[\"documents\"]),\n                \"wp_plan_rows_observed\": len(json.loads(blob(DELIVERY, WP_INDEX))[\"rows\"]),\n                \"hardcoded_denominator_enforced\": False},\n            \"scope\": \"JSON schema, identity, references and structural section coverage only; no semantic review, compatibility approval, game execution or upstream acceptance\"}\n\n\ndef md_cell(value):\n    return str(value).replace(\"|\", \"\\\\|\").replace(\"\\n\", \" \")\n\n\ndef render(manifest, coverage):\n    result = report(manifest, coverage)\n    if result[\"errors\"]:\n        raise ValueError(\"Cannot render invalid manifest: \" + str(result[\"errors\"][:5]))\n    by_doc = collections.defaultdict(list)\n    linked_children = {child for f in manifest['features'] for child in f['functional_scope']['excluded_child_refs']}\n    for f in manifest[\"features\"]:\n        by_doc[f[\"document_id\"]].append(f)\n    groups = collections.defaultdict(list)\n    for d in manifest[\"documents\"]:\n        rel = d[\"source\"][\"path\"][len(FORMAL):]\n        domain = rel.split(\"/\")[0] if \"/\" in rel else \"shared\"\n        if by_doc[d[\"document_id\"]]:\n            groups[domain].append(d)\n    views = HERE / \"views\"\n    views.mkdir(exist_ok=True)\n    for domain, ds in groups.items():\n        text = [f\"# {domain}：章节去向候选\", \"\", \"固定来源与未来计划分栏。去向均为建议；阶段、实现与验收分别登记。完整结构以 routing-manifest.json 为准。\", \"\"]\n        for d in ds:\n            text += [f\"## {Path(d['source']['path']).name}\", \"\", f\"{d['document_id']}；来源分类：{d['source_classification']}；关联WP：{', '.join(d['wp_refs'])}\", \"\", \"| 功能ID / 名称 | 来源事实与固定定位 | 当前适用定位 | 未来去向 / 协作方 | 依据与待验证问题 | 去向验证 | 阶段 / 实现 / 验收 | 依赖 / 差异 / 决策 / 原型 / 整改 |\", \"| --- | --- | --- | --- | --- | --- | --- | --- |\"]\n            for f in by_doc[d[\"document_id\"]]:\n                s, p = f[\"source\"], f[\"future_plan\"]\n                ranges = \",\".join(f\"L{a}-L{b}\" for a,b in s[\"line_ranges\"])\n                url = f\"{REPO_URL}{s['commit']}/{s['document']}#L{s['line_ranges'][0][0]}\"\n                source = f\"{s['fact_excerpt']} <br>[{s['heading']} · {ranges}]({url})；锚点 `#{s['anchor']}`；源 `{s['commit']}`\"\n                current_ranges = ','.join(f'L{a}-L{b}' for a,b in f['functional_scope']['line_ranges'])\n                current_locator = f['current_applicability']['locator']\n                current_url = f\"{REPO_URL}{f['current_applicability']['snapshot_commit']}/{f['current_applicability']['document']}#L{current_locator['line_ranges'][0][0]}\"\n                current = f\"{f['current_applicability']['status']}；[当前章节 #{current_locator['anchor']}]({current_url})；快照 `{f['current_applicability']['snapshot_commit']}`；目标范围：{f['current_applicability']['target_scope']}；职责对应的固定源区间：{current_ranges}；{f['functional_scope']['reason']}\"\n                if f['functional_scope']['excluded_child_refs']:\n                    current += '；排除的独立子功能：' + '、'.join(\n                        f'[{child}](#{child.lower()})' for child in f['functional_scope']['excluded_child_refs'])\n                direct = '；'.join(f\"{r['document']}#{r['anchor']}（{r['reason']}）\" for r in f['dependencies']['direct_refs']) or '无额外直接来源引用'\n                refs = f\"WP关联：{', '.join(f['dependencies']['wp_refs']) or '无独立WP依赖'}；来源合同/交界引用（性质见说明）：{direct}；功能依赖：{', '.join(f['dependencies']['feature_refs']) or '无独立功能依赖'}；差异：{' '.join(f['differences'])}；决策：{', '.join(f['decision_refs'])}；原型：{', '.join(p['prototype_refs']) or '待设计'}；整改：{', '.join(f['upstream']['batches']) or '无当前已知正式写批'}（{f['upstream']['status']}；整文件保守绑定）\"\n                responsibilities = '；'.join(r['party'] + '：' + r['scope'] for r in p['responsibilities'])\n                feature_label = f\"{f['feature_id']} / {f['name']}\"\n                if f['feature_id'] in linked_children:\n                    feature_label += f' <a id=\"{f[\"feature_id\"].lower()}\"></a>'\n                cells = [feature_label, source, current,\n                         f\"{p['destination']}（{p['proposal_status']}）；{responsibilities}\",\n                         p[\"rationale\"] + \" \" + \" \".join(p[\"questions\"]), f[\"destination_verification\"][\"status\"],\n                         f\"{p['stage']}（{p['stage_approval']}） / {f['implementation']['status']} / {f['implementation']['acceptance_status']}\", refs]\n                text.append(\"| \" + \" | \".join(md_cell(c) for c in cells) + \" |\")\n            text += [\"\"]\n        (views / f\"{domain}.md\").write_text(\"\\n\".join(text) + \"\\n\")\n    metadata_text = [\"# 元数据与退役功能ID导航\", \"\", \"以下记录承担来源覆盖、依赖、测试或历史导航，不登记为待实现的游戏功能。完整旧行保存在主清单 retired_features，原ID与source不变。\", \"\", \"| 元数据ID / 角色 | 固定来源 | 原功能ID | 关联活跃功能 | 依据 |\", \"| --- | --- | --- | --- | --- |\"]\n    for r in manifest.get(\"metadata_records\", []):\n        s = r['source']\n        cells = [r['metadata_id'] + ' / ' + r['kind'], f\"{s['commit']} / {s['document']}#{s['anchor']}\", ', '.join(r['retired_feature_ids']) or '无', ', '.join(r['feature_refs']) or '纯导航元数据', r['reason']]\n        metadata_text.append('| ' + ' | '.join(md_cell(c) for c in cells) + ' |')\n    (views / \"metadata.md\").write_text('\\n'.join(metadata_text) + '\\n')\n    cov_text = [\"# 全部正式文档与章节覆盖\", \"\", \"所有实际标题的固定定位、映射与哈希见 section-coverage.json。这里按文档汇总；标题覆盖不等于全文语义审查或去向验证。\", \"\", \"| 文档 | 角色 | 标题数 | 功能行 | WP | 整改批次 |\", \"| --- | --- | --- | --- | --- | --- |\"]\n    counts = collections.Counter(c[\"document_id\"] for c in coverage[\"sections\"])\n    for d in manifest[\"documents\"]:\n        cov_text.append(\"| \" + \" | \".join(md_cell(x) for x in [d[\"source\"][\"path\"], d[\"document_role\"], counts[d[\"document_id\"]], \", \".join(d[\"feature_ids\"]) or \"来源元数据（见精确覆盖映射）\", \", \".join(d[\"wp_refs\"]), \", \".join(d[\"upstream\"][\"batches\"]) or \"无当前已知正式写批\"]) + \" |\")\n    (HERE / \"coverage.md\").write_text(\"\\n\".join(cov_text) + \"\\n\")\n    save_json(HERE / \"validation-result.json\", result)\n    save_json(HERE / \"coverage-summary.json\", {\"schema_version\": \"routing-coverage-summary.v1\", **{k:v for k,v in result.items() if k not in [\"errors\"]},\n        \"unmapped_headings\": 0, \"semantic_reading\": \"REVISION_RECONCILES_EVERY_PRIOR_FEATURE_VERDICT_AND_TARGETED_SOURCE_BOUNDARIES; AUTHOR_RECONCILIATION_NOT_INDEPENDENT_REVIEW\",\n        \"compatibility_claim\": \"NONE\", \"upstream_acceptance_claim\": \"NONE\"})\n\n\ndef self_test(manifest, coverage):\n    cases = []\n    def check(name, mutate, expected):\n        m, c = copy.deepcopy(manifest), copy.deepcopy(coverage)\n        mutate(m, c)\n        es = errors(m, c)\n        cases.append({\"case\": name, \"expected_error_contains\": expected,\n                      \"rejected\": any(expected in e for e in es), \"errors\": es[:4]})\n    def excluded(m, c):\n        m[\"features\"][0][\"future_plan\"][\"destination\"] = \"不纳入目标\"\n    check(\"排除需要用户明确范围决策\", excluded, \"exclusion requires explicit user\")\n    def verified(m, c):\n        m[\"features\"][0][\"destination_verification\"].update(status=\"已验证\", evidence=[{\"kind\": \"SOURCE_STATIC\", \"ref\": \"source\"}])\n    check(\"纯来源证据不能确认目标兼容\", verified, \"cannot certify\")\n    check(\"遗漏章节锚点拒绝\", lambda m,c: c[\"sections\"].pop(), \"heading coverage\")\n    check(\"源单元漂移拒绝\", lambda m,c: m[\"features\"][0][\"source\"].update(unit_sha256=\"0\"*64), \"immutable source\")\n    check(\"未批准首版拒绝\", lambda m,c: m[\"features\"][0][\"future_plan\"].update(stage=\"首版\"), \"unapproved phase\")\n    check(\"重复稳定ID拒绝\", lambda m,c: m[\"features\"][1].update(feature_id=m[\"features\"][0][\"feature_id\"]), \"duplicate feature IDs\")\n    check(\"不存在去向拒绝\", lambda m,c: m[\"features\"][0][\"future_plan\"].update(destination=\"自动兼容\"), \"schema:\")\n    check(\"实现完成需独立证据\", lambda m,c: m[\"features\"][0][\"implementation\"].update(status=\"实现完成\"), \"completion requires separate\")\n    check(\"实现验收需独立证据\", lambda m,c: m[\"features\"][0][\"implementation\"].update(acceptance_status=\"已验收\"), \"acceptance requires separate\")\n    result = {\"schema_version\": \"routing-validator-negative-checks.v1\", \"scope\": \"TOOL_VALIDATION_ONLY\", \"cases\": cases,\n              \"all_rejected\": all(c[\"rejected\"] for c in cases)}\n    save_json(HERE / \"validator-negative-checks.json\", result)\n    if not result[\"all_rejected\"]:\n        raise ValueError(\"Validator failed a negative check\")\n    return result\n\n\ndef assess_current(manifest, commit):\n    actual_paths = git(\"ls-tree\", \"-r\", \"--name-only\", commit, \"--\", FORMAL).decode().splitlines()\n    old_paths = {d[\"source\"][\"path\"] for d in manifest[\"documents\"]}\n    changed = []\n    for d in manifest[\"documents\"]:\n        p = d[\"source\"][\"path\"]\n        if p not in actual_paths:\n            changed.append({\"path\": p, \"status\": \"REMOVED_REQUIRES_APPLICABILITY_DECISION\"})\n        else:\n            new = identity(commit, p)\n            if new[\"sha256\"] != d[\"current_applicability\"][\"identity\"][\"sha256\"]:\n                changed.append({\"path\": p, \"status\": \"CHANGED_REQUIRES_ACCEPTED_SECTION_BACKFILL\", \"identity\": new,\n                                \"feature_ids\": d[\"feature_ids\"], \"known_batches\": d[\"upstream\"][\"batches\"]})\n    return {\"snapshot_commit\": commit, \"changed_or_removed\": changed,\n            \"added_formal_markdown\": [p for p in actual_paths if p.endswith(\".md\") and p not in old_paths],\n            \"state\": \"ASSESSMENT_ONLY_NOT_APPLIED\", \"source_history_retained\": True}\n\n\ndef check_generated(manifest, coverage):\n    global HERE\n    original = HERE\n    try:\n        with tempfile.TemporaryDirectory(prefix=\"routing-generated-check-\") as tmp:\n            generated = Path(tmp)\n            shutil.copyfile(original / \"routing-manifest.schema.json\", generated / \"routing-manifest.schema.json\")\n            HERE = generated\n            render(manifest, coverage)\n            relative = [p.relative_to(generated) for p in generated.rglob(\"*\")\n                        if p.is_file() and p.name != \"routing-manifest.schema.json\"]\n            stale = [str(p) for p in relative if not (original / p).exists()\n                     or (original / p).read_bytes() != (generated / p).read_bytes()]\n            expected_views = {str(p) for p in relative if p.parts[0] == \"views\"}\n            actual_views = {str(p.relative_to(original)) for p in (original / \"views\").glob(\"*.md\")}\n            stale += sorted(actual_views - expected_views)\n            return {\"result\": \"PASS_GENERATED_FRESHNESS\" if not stale else \"FAIL\", \"errors\": stale,\n                    \"generated_files_compared\": len(relative), \"scope\": \"TOOL_VALIDATION_ONLY\"}\n    finally:\n        HERE = original\n\n\ndef main():\n    p = argparse.ArgumentParser(description=__doc__)\n    p.add_argument(\"command\", choices=[\"seed\", \"validate\", \"render\", \"self-test\", \"assess-current\", \"check-generated\"])\n    p.add_argument(\"--commit\")\n    args = p.parse_args()\n    if args.command == \"seed\":\n        seed()\n    m, c = read_json(HERE / \"routing-manifest.json\"), read_json(HERE / \"section-coverage.json\")\n    if args.command in [\"seed\", \"render\"]:\n        render(m,c)\n        result = report(m,c)\n    elif args.command == \"validate\":\n        result = report(m,c)\n    elif args.command == \"self-test\":\n        result = self_test(m,c)\n    elif args.command == \"check-generated\":\n        result = check_generated(m,c)\n    else:\n        if not args.commit:\n            p.error(\"assess-current requires --commit\")\n        result = assess_current(m,args.commit)\n    print(json.dumps(result, ensure_ascii=False, indent=2))\n    return 1 if result.get(\"errors\") else 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main())\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "hash-object",
+      "-w",
+      "--stdin"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.186328+00:00",
+    "ended_utc": "2026-10-17T16:41:52.189626+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "56d2bc8bb40e452ae29bd70c330b7b88f63382cd2908cad94f9aeeac417f708e",
+    "stdout": "c4c17f09e645960ab9945a2e30561ae56232dadd\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "read-tree",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.189666+00:00",
+    "ended_utc": "2026-10-17T16:41:52.362874+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "update-index",
+      "--cacheinfo",
+      "100644,c4c17f09e645960ab9945a2e30561ae56232dadd,deliverables/final-specification-set/generic-kernel/wp04-pbs-lifecycle.md"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.362901+00:00",
+    "ended_utc": "2026-10-17T16:41:52.472455+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "write-tree"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.472479+00:00",
+    "ended_utc": "2026-10-17T16:41:52.563672+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "bd556e1c39244f5f39f05d1443424d0d39c5139a\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "commit-tree",
+      "bd556e1c39244f5f39f05d1443424d0d39c5139a",
+      "-p",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.563698+00:00",
+    "ended_utc": "2026-10-17T16:41:52.566210+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "75ab33f5aa1552979fabc5fe49108f2d68284f64f10de6e1321a0b5b835f6576",
+    "stdout": "c6298e0b9022343fea2768034db098b00b2ba15c\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "c6298e0b9022343fea2768034db098b00b2ba15c:deliverables/final-specification-set"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:52.629463+00:00",
+    "ended_utc": "2026-10-17T16:41:52.632274+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "5e67739d24ef2bede8c556f2117a2a63b019b312\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "hash-object",
+      "-w",
+      "--stdin"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.439683+00:00",
+    "ended_utc": "2026-10-17T16:41:56.443234+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "f351cbe12c2ab821875b6d44ddbe96b8978030c14c154459bf7aecee15ce24b1",
+    "stdout": "a0db26792709a34e57a10fa1324ca2941f65d4cb\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "read-tree",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.443284+00:00",
+    "ended_utc": "2026-10-17T16:41:56.660492+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "update-index",
+      "--cacheinfo",
+      "100644,a0db26792709a34e57a10fa1324ca2941f65d4cb,deliverables/final-specification-set/test-catalog/combat-requirements-wp39-40-41-42-45.md"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.660524+00:00",
+    "ended_utc": "2026-10-17T16:41:56.721700+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "write-tree"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.721725+00:00",
+    "ended_utc": "2026-10-17T16:41:56.800792+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "8b8639e6f0d49d76d8ee9edf6303ae819c8c476a\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "commit-tree",
+      "8b8639e6f0d49d76d8ee9edf6303ae819c8c476a",
+      "-p",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.800826+00:00",
+    "ended_utc": "2026-10-17T16:41:56.803888+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "75ab33f5aa1552979fabc5fe49108f2d68284f64f10de6e1321a0b5b835f6576",
+    "stdout": "301d5db654aa6fb1302defb68ea88de9dfca7c86\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "301d5db654aa6fb1302defb68ea88de9dfca7c86:deliverables/final-specification-set"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:41:56.872603+00:00",
+    "ended_utc": "2026-10-17T16:41:56.875378+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "46fe9ab6e5532536726c742a08040e2938faf300\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "301d5db654aa6fb1302defb68ea88de9dfca7c86:deliverables/final-specification-set"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:00.258857+00:00",
+    "ended_utc": "2026-10-17T16:42:00.261209+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "46fe9ab6e5532536726c742a08040e2938faf300\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "hash-object",
+      "-w",
+      "--stdin"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.230024+00:00",
+    "ended_utc": "2026-10-17T16:42:08.232948+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "057aff94c33b39d5b5b63860427694e6ce5101f228c528049dcd8c21934d0cf4",
+    "stdout": "1e1138f8902ec55bb7c070b6c7291979149a39be\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "read-tree",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.232992+00:00",
+    "ended_utc": "2026-10-17T16:42:08.374702+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "update-index",
+      "--cacheinfo",
+      "100644,1e1138f8902ec55bb7c070b6c7291979149a39be,deliverables/final-specification-set/README.md"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.374728+00:00",
+    "ended_utc": "2026-10-17T16:42:08.501247+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "write-tree"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.501383+00:00",
+    "ended_utc": "2026-10-17T16:42:08.613295+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "87e25385087a273d0cc0be90b8fbf488e5bbf9b4\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "commit-tree",
+      "87e25385087a273d0cc0be90b8fbf488e5bbf9b4",
+      "-p",
+      "5f87743293290de2e219ecdd6c19e88280f60c9a"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.613325+00:00",
+    "ended_utc": "2026-10-17T16:42:08.617241+00:00",
+    "exit_code": 0,
+    "stdin_sha256": "75ab33f5aa1552979fabc5fe49108f2d68284f64f10de6e1321a0b5b835f6576",
+    "stdout": "64b11e33d39c19790692e4f5612543eedcb620a4\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "64b11e33d39c19790692e4f5612543eedcb620a4:deliverables/final-specification-set"
+    ],
+    "cwd": "/tmp/r3-independent-source-xnn8fnim",
+    "started_utc": "2026-10-17T16:42:08.701122+00:00",
+    "ended_utc": "2026-10-17T16:42:08.704352+00:00",
+    "exit_code": 0,
+    "stdin_sha256": null,
+    "stdout": "379070c514c3b3c6d1eb58f63fbf90d6892e8d89\n",
+    "stderr": ""
+  }
+]
