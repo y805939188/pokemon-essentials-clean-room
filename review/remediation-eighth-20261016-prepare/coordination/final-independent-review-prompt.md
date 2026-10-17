@@ -35,7 +35,7 @@
 5. 所有场景的 SOURCE_STATIC、DERIVED_VECTOR、TOOL_VALIDATION 与真实执行分开。本轮不得执行 Ruby 或开发框架；不得把静态场景标成游戏、保存/回放、音频/像素或参考 API 执行通过。
 6. 依赖与必要消费者均已接收。九批语义编辑边为0不代表关闭门为空；共享整文件、历史资格及最终整合接收不能跳过。
 
-重点保持两项P2的零可战缺项、混合输入顺序与普通行动集合，玩家skip/NPC/蛋/不等布局等各自前提；保持U06 WP67-A及U09共享Creature catalog的完整正确范围。核对32个既有Creature向量ID、别名前缀和EG/EN/FC/TT/MG、Factory/Triad/E贡献。不要把未来Showdown替代方案当成跳过原版行为修正的理由。
+重点保持两项P2的零可战缺项、混合输入顺序与普通行动集合，玩家skip/NPC/蛋/不等布局等各自前提；保持U06 WP67-A及U09共享Creature catalog的完整正确范围。核对127个既有Creature向量ID（EG20/EN32/FC17/TT26/MG32，32仅指MG小节）、别名前缀和EG/EN/FC/TT/MG、Factory/Triad/E贡献。不要把未来Showdown替代方案当成跳过原版行为修正的理由。
 
 ## 可选项与历史状态
 
