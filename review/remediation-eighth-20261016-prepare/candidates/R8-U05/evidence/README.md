@@ -13,3 +13,5 @@
 独立候选复审、实际整合复审、ACCEPTED、CLOSED均待后续。本作者不签正式接受。完整入口见 [independent-review.md](independent-review.md)；给单独打标任务的局部章节/锚点/行为变更见 [tagging-handoff.json](tagging-handoff.json)，未重复全面打标。
 
 最终提交的真实完整SHA与远端取回结果由实际提交/推送及父任务收到的最终消息绑定，不在本文填未来hash。候选字节身份见 [candidate-manifest.json](candidate-manifest.json)。
+
+候选内容已实际提交为 `931b2e50e3ba4fa7bf6ab924ef239d397365a7b9`，普通push成功，全新远端17/17文件完整字节/模式/哈希回读VERIFIED，凭据见 [publication-readback.json](publication-readback.json)。该凭据由后继证据封存提交携带；最终交付SHA及其回读由实际最终消息另绑定，未冒称此凭据属于被证实的内容提交。
