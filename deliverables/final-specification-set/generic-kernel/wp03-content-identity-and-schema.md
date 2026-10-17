@@ -310,6 +310,32 @@ Shape、Color、Habitat 采用下列精确身份。表内位置为固定定义�
 
 正常基础记录省略三字段仍采用 Head/Red/None。HeadArms、Gray、WatersEdge 是合法作者身份；三个未知词各在对应枚举处拒绝。图鉴体型/体色搜索消费本目录次序；Area 页仍消费地图、遭遇与占位掩码，不从 Habitat 字段推导物种出现地图。
 
+### 6.2 蛋群的固定作者身份目录
+
+无扩展或覆写的基线中，基础物种与形态的 EggGroups 字段逐值引用以下 15 个精确作者身份。位置是从 1 开始的定义次序，不是数值身份或界面排序要求；原始显示标签在展示时本地化。
+
+| 位置 | 作者身份 | 原始显示标签 |
+| --- | --- | --- |
+| 1 | Undiscovered | Undiscovered |
+| 2 | Monster | Monster |
+| 3 | Water1 | Water 1 |
+| 4 | Bug | Bug |
+| 5 | Flying | Flying |
+| 6 | Field | Field |
+| 7 | Fairy | Fairy |
+| 8 | Grass | Grass |
+| 9 | Humanlike | Humanlike |
+| 10 | Water3 | Water 3 |
+| 11 | Mineral | Mineral |
+| 12 | Amorphous | Amorphous |
+| 13 | Water2 | Water 2 |
+| 14 | Ditto | Ditto |
+| 15 | Dragon | Dragon |
+
+Humanlike、Field 是合法作者值；HumanShape、UnknownGroup 在本基线未登记，按 §5.2 的严格枚举规则在当前物种或形态节登记前拒绝。Water1/Water2/Water3 的作者身份不含空格。合法扩展登记可以改变接受域。
+
+基础物种省略蛋群仍为 [Undiscovered]，形态省略时克隆基础蛋群（[WP18 §3.1–3.2](../creature-rpg/wp18-creature-identity-species-ownership.md#31-物种记录的查找身份)）。失败时先前清空或成功登记的前缀按《PBS 生命周期》保留；寄养的 Undiscovered 先行门、Ditto/性别与普通集合交集规则及生成角色分别按 WP33/WP34。
+
 ## 7. 字段责任目录（字段组粒度）
 
 每类内容的字段语义由以下后续领域规格负责。**字段组 → 主要负责规格 → 必要引用/前向依赖**；单一责任的类按类整体归组。本表只指派责任，不展开语义。
@@ -354,7 +380,7 @@ Shape、Color、Habitat 采用下列精确身份。表内位置为固定定义�
 | PlayerMetadata（整数，回退 1 号） | 角色外观/家/初始位置 | WP24、WP09 | 角色资源（WP15） |
 | DungeonTileset（整数） | 全部字段组 | WP14 | 图块资源（WP15） |
 | DungeonParameters（符号） | 全部字段组 | WP14 | 随机种子（WP06） |
-| 固定规则 17 类 | GrowthRate→WP30；GenderRatio/EggGroup→WP18/WP34；BodyShape/BodyColor/Habitat→WP18/WP15；Evolution→WP31/WP32；Stat/Nature→WP19；Status→WP20/WP44；TerrainTag→WP12/WP36；Weather→WP59/WP45；EncounterType→WP36；Environment/BattleWeather/BattleTerrain→WP45；Target→WP43 | 各负责规格 | 见各规格 |
+| 固定规则 17 类 | GrowthRate→WP30；GenderRatio→WP18/WP34；EggGroup固定成员→本篇§6.2，物种/消费→WP18/WP33/WP34；BodyShape/BodyColor/Habitat→WP18/WP15；Evolution→WP31/WP32；Stat/Nature→WP19；Status→WP20/WP44；TerrainTag→WP12/WP36；Weather→WP59/WP45；EncounterType→WP36；Environment/BattleWeather/BattleTerrain→WP45；Target→WP43 | 各负责规格 | 见各规格 |
 | 非类产物与资源 | regional_dexes→WP62；map_connections→WP11；trainer_lists→WP54/WP55；战斗动画→WP67-A/WP74；move2anim→WP67-A；MapInfos→WP11 | 各负责规格 | 编译生命周期（WP04） |
 
 ## 8. 默认行为与配置变体

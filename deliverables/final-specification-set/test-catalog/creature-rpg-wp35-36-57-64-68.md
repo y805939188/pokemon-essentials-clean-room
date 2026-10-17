@@ -124,7 +124,7 @@ B18 本地后继：WP68–WP70 修订前原输入已有 2026-09-30／2026-10-03 
 | MG-29 | 管理中 Edit／Delete 礼物 G 后退出并重进；对照 Create | 重进仍读原主文件（Edit／Delete 不回写）；只有 Create 写主文件；管理Receive后共享玩家个体的Edit副作用另见MG-31（WP64-R04） |
 | MG-30 | 从现有队伍成员创建宝可梦礼物：先选新获得地短语，再在 ID 阶段确认停止 | 不创建礼物文件，但原成员的 obtain_text 已被原位改写且不恢复（WP64-R05） |
 | MG-31 | 合法主文件G：ID7、非蛋PICHU P、获得地Mystery Gift，在线空表；已加载玩家队伍有位、无图鉴提示、资源输入正常、无插件；同会话Receive成功→Edit选Faraway place→命名空文确认停止→关闭重进 | Receive入队同一P、玩家队列变[7]、管理仍共享P；Edit返回空、不替换条目/不写主文件，但队伍P获得地已Faraway place；重进重读文件不恢复P |
-| MG-32 | MG-31邻近对照：未Receive，G与玩家成员无共享；Edit选Faraway place后命名取消；另在Receive后未选新短语即取消 | 前者只改会话内G的P、玩家队伍不变、主文件不变；后者不产生本次获得地新写入；Create取消别名副作用MG-30保留 |
+| MG-32 | MG-31邻近对照，原礼物名Gift；独立复位：(a)未Receive且G与玩家成员无共享，Edit选Faraway place后删空名称、RETURN并确认停止；(b)同一前提在已有非空名Gift时ESCAPE，另含先删空再ESCAPE；(c)Receive后未选新短语即取消并确认停止 | (a)编辑返回 nil、不替换条目，但会话内G的P已改获得地；(b)返回原名Gift，无停止提示、编辑成功并替换会话条目，P已改获得地；a/b玩家队伍不变、主文件/导出/线上均不写。(c)不产生本次获得地新写入；Create取消别名副作用MG-30保留 |
 
 ## TT：Triple Triad（TT-01～TT-26）
 
