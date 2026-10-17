@@ -14,10 +14,10 @@
 | deliverables/final-specification-set/combat-requirements/wp47-a-move-attributes-targeting-and-calling.md | behavior-or-data | 20 | FR-000048, FR-000049, FR-000050, FR-000051, FR-000052, FR-000735 | WP47-A | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp47-b-control-items-coverage-data.md | behavior-or-data | 6 | FR-000053, FR-000054, FR-000055 | WP47-B | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp47-b-switching-control-and-item-changes.md | behavior-or-data | 20 | FR-000058, FR-000059, FR-000060, FR-000061, FR-000062 | WP47-B | 无当前已知正式写批 |
-| deliverables/final-specification-set/combat-requirements/wp49-ability-phase-triggers.md | behavior-or-data | 24 | FR-000064, FR-000065, FR-000066, FR-000067, FR-000068, FR-000069, FR-000070, FR-000071, FR-000072 | WP49 | 无当前已知正式写批 |
+| deliverables/final-specification-set/combat-requirements/wp49-ability-phase-triggers.md | behavior-or-data | 24 | FR-000064, FR-000065, FR-000066, FR-000067, FR-000068, FR-000069, FR-000070, FR-000071, FR-000072, FR-000769 | WP49 | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp51-ai-action-selection-and-skill.md | behavior-or-data | 11 | FR-000073, FR-000074, FR-000075, FR-000076 | WP51 | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp51-ai-decision-defaults.md | behavior-or-data | 6 | FR-000077, FR-000078, FR-000079, FR-000080 | WP51 | 无当前已知正式写批 |
-| deliverables/final-specification-set/combat-requirements/wp52-a-evaluation-coverage-and-data.md | behavior-or-data | 13 | FR-000082, FR-000083, FR-000084, FR-000085, FR-000086, FR-000087 | WP52-A | 无当前已知正式写批 |
+| deliverables/final-specification-set/combat-requirements/wp52-a-evaluation-coverage-and-data.md | behavior-or-data | 13 | FR-000082, FR-000083, FR-000084, FR-000085, FR-000087 | WP52-A | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp52-a-generic-numerical-and-status-evaluation.md | behavior-or-data | 17 | FR-000088, FR-000089, FR-000090, FR-000091, FR-000092, FR-000093 | WP52-A | R8-U06 |
 | deliverables/final-specification-set/combat-requirements/wp52-b-effect-coverage.md | behavior-or-data | 12 | FR-000094, FR-000095, FR-000096 | WP52-B | 无当前已知正式写批 |
 | deliverables/final-specification-set/combat-requirements/wp52-b-field-damage-healing-and-target-evaluation.md | behavior-or-data | 15 | FR-000098, FR-000099, FR-000100, FR-000101, FR-000102 | WP52-B | 无当前已知正式写批 |

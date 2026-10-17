@@ -145,6 +145,22 @@ def doc_bindings(path, wp, batches):
         "accepted_events": []}
 
 
+def effective_doc_bindings(path, wp, batches, events):
+    """Keep original planned gates; fixed accepted events may add actual receivers."""
+    wps, deps, binding = doc_bindings(path, wp, batches)
+    actual_batches = {batch for event in events.values() if path in event.get('documents', [])
+                      for batch in event.get('batches', [])}
+    binding['batches'] = sorted(set(binding['batches']) | actual_batches)
+    binding['required_ids'] = sorted(set(binding['required_ids']) | {
+        item for batch in batches if batch['id'] in actual_batches for item in batch['required_ids']})
+    return wps, deps, binding
+
+
+def covered_batches(upstream, events):
+    return {batch for eid in upstream['accepted_events'] if eid in events
+            for batch in events[eid].get('batches', [])}
+
+
 def seed():
     raise ValueError("Refuse to reseed stable IDs; revise the explicit manifest and retain original source locators")
 
@@ -246,9 +262,28 @@ def integrity_errors(manifest, coverage, accepted_updates=None):
                 fail(eid + ": accepted event evidence must name fixed Git commit/path")
             else:
                 get_identity(evidence["commit"], evidence["path"], eid + " evidence")
+        try:
+            receipt_ref = event['evidence'][0]
+            receipt = json.loads(blob(receipt_ref['commit'], receipt_ref['path']))
+            pointer = event['receipt_record_pointer']
+            if not re.fullmatch(r'/records/\d+', pointer):
+                raise ValueError('record pointer')
+            record = receipt['records'][int(pointer.rsplit('/', 1)[1])]
+            identities = record.get('actual_target_identities') or [record['actual_target_identity']]
+            if (record.get('ACCEPTED') is not True or record.get('actual_integrated_PASS') is not True
+                    or event['commit'] != record['actual_artifact_commit']
+                    or event['batches'] != [record['batch']]
+                    or set(event['documents']) != {item['path'] for item in identities}):
+                raise ValueError('receipt scope')
+            for item in identities:
+                actual = identity(event['commit'], item['path'])
+                if any(actual[key] != item[raw] for key, raw in [('git_blob', 'blob'), ('sha256', 'sha256'), ('bytes', 'bytes')]):
+                    raise ValueError('receipt target identity')
+        except (KeyError, IndexError, TypeError, ValueError, subprocess.CalledProcessError):
+            fail(eid + ': accepted event requires matching fixed ACCEPTED receipt record and target identities')
 
     def check_upstream(upstream, path, label):
-        _, _, expected = doc_bindings(path, wp, batches)
+        _, _, expected = effective_doc_bindings(path, wp, batches, events)
         if upstream["authority"] != {"commit": DELIVERY, "path": BATCH_INDEX}:
             fail(label + ": batch authority mismatch")
         if set(upstream["batches"]) - set(valid_batches):
@@ -262,9 +297,9 @@ def integrity_errors(manifest, coverage, accepted_updates=None):
             fail(label + ": section binding requires accepted evidence within fixed authority")
         for eid in upstream["accepted_events"]:
             event = events.get(eid)
-            if not event or path not in event.get("documents", []) or not set(upstream["batches"]).issubset(event.get("batches", [])):
+            if not event or path not in event.get("documents", []) or not set(event.get("batches", [])).issubset(upstream["batches"]):
                 fail(label + ": unresolved or unrelated accepted event")
-        if expected_batches and not upstream["accepted_events"] and upstream["status"] != "待整改后核对":
+        if expected_batches - covered_batches(upstream, events) and upstream["status"] != "待整改后核对":
             fail(label + ": unaccepted batch must retain calibration gate")
 
     parsed = {}
@@ -517,6 +552,11 @@ def errors(manifest, coverage, accepted_updates=None):
 
 def report(manifest, coverage):
     es = errors(manifest, coverage)
+    updates = read_json(DATA_HOME / 'accepted-source-updates.json')
+    events = {e['event_id']: e for e in (updates.get('events', []) if isinstance(updates, dict) else [])
+              if isinstance(e, dict) and 'event_id' in e}
+    def pending(f):
+        return bool(set(f['upstream']['batches']) - covered_batches(f['upstream'], events))
     return {"schema_version": "routing-validation.v1", "result": "PASS_TOOL_VALIDATION" if not es else "FAIL",
             "errors": es, "documents": len(manifest["documents"]), "functional_rows": len(manifest["features"]),
             "headings": len(coverage["sections"]),
@@ -527,8 +567,9 @@ def report(manifest, coverage):
             "destination_verification": dict(collections.Counter(f["destination_verification"]["status"] for f in manifest["features"])),
             "implementation_stage": dict(collections.Counter(f["future_plan"]["stage"] for f in manifest["features"])),
             "known_upstream_rows": sum(bool(f["upstream"]["batches"]) for f in manifest["features"]),
-            "pending_upstream_rows": sum(bool(f["upstream"]["batches"]) and not f["upstream"]["accepted_events"] for f in manifest["features"]),
-            "backfilled_upstream_rows": sum(bool(f["upstream"]["accepted_events"]) for f in manifest["features"]),
+            "pending_upstream_rows": sum(pending(f) for f in manifest["features"]),
+            "backfilled_upstream_rows": sum(bool(f['upstream']['batches']) and not pending(f) for f in manifest['features']),
+            "partially_backfilled_upstream_rows": sum(bool(f['upstream']['accepted_events']) and pending(f) for f in manifest['features']),
             "historical_count_comparison_only": {"formal_documents_observed": len(manifest["documents"]),
                 "wp_plan_rows_observed": len(json.loads(blob(DELIVERY, WP_INDEX))["rows"]),
                 "hardcoded_denominator_enforced": False},
@@ -544,6 +585,7 @@ def render(manifest, coverage):
     if result["errors"]:
         raise ValueError("Cannot render invalid manifest: " + str(result["errors"][:5]))
     by_doc = collections.defaultdict(list)
+    linked_children = {child for f in manifest['features'] for child in f['functional_scope']['excluded_child_refs']}
     for f in manifest["features"]:
         by_doc[f["document_id"]].append(f)
     groups = collections.defaultdict(list)
@@ -567,10 +609,16 @@ def render(manifest, coverage):
                 current_locator = f['current_applicability']['locator']
                 current_url = f"{REPO_URL}{f['current_applicability']['snapshot_commit']}/{f['current_applicability']['document']}#L{current_locator['line_ranges'][0][0]}"
                 current = f"{f['current_applicability']['status']}；[当前章节 #{current_locator['anchor']}]({current_url})；快照 `{f['current_applicability']['snapshot_commit']}`；目标范围：{f['current_applicability']['target_scope']}；职责对应的固定源区间：{current_ranges}；{f['functional_scope']['reason']}"
+                if f['functional_scope']['excluded_child_refs']:
+                    current += '；排除的独立子功能：' + '、'.join(
+                        f'[{child}](#{child.lower()})' for child in f['functional_scope']['excluded_child_refs'])
                 direct = '；'.join(f"{r['document']}#{r['anchor']}（{r['reason']}）" for r in f['dependencies']['direct_refs']) or '无额外直接来源引用'
                 refs = f"WP关联：{', '.join(f['dependencies']['wp_refs']) or '无独立WP依赖'}；来源合同/交界引用（性质见说明）：{direct}；功能依赖：{', '.join(f['dependencies']['feature_refs']) or '无独立功能依赖'}；差异：{' '.join(f['differences'])}；决策：{', '.join(f['decision_refs'])}；原型：{', '.join(p['prototype_refs']) or '待设计'}；整改：{', '.join(f['upstream']['batches']) or '无当前已知正式写批'}（{f['upstream']['status']}；整文件保守绑定）"
                 responsibilities = '；'.join(r['party'] + '：' + r['scope'] for r in p['responsibilities'])
-                cells = [f"{f['feature_id']} / {f['name']}", source, current,
+                feature_label = f"{f['feature_id']} / {f['name']}"
+                if f['feature_id'] in linked_children:
+                    feature_label += f' <a id="{f["feature_id"].lower()}"></a>'
+                cells = [feature_label, source, current,
                          f"{p['destination']}（{p['proposal_status']}）；{responsibilities}",
                          p["rationale"] + " " + " ".join(p["questions"]), f["destination_verification"]["status"],
                          f"{p['stage']}（{p['stage_approval']}） / {f['implementation']['status']} / {f['implementation']['acceptance_status']}", refs]
