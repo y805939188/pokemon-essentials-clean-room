@@ -30,3 +30,5 @@ python review/remediation-eighth-20261016-prepare/candidates/R8-U01/evidence/val
 工具57项通过不授予候选正式PASS。审者应按完整事实给独立结论；即便候选PASS，仍需R8-INTEGRATOR整合后另接收实际受影响全文和累计保留，分别登记actual integrated PASS、ACCEPTED、CLOSED。审者不要替本批直接写正式规格或main。
 
 打标任务入口为 [tagging-handoff.json](tagging-handoff.json)，含章节、候选行号、锚点、行为变更和13行ID；没有重复全面打标。
+
+R8-U01-REVIEW-LOC-01 的后继证据修订与原独立审者复核入口见 [recheck-entry.md](recheck-entry.md)。三项语义原独立PASS、完整交接证据原FAIL均按原报告保留；本作者不自行关闭。

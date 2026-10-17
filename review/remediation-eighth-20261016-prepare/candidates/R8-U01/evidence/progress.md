@@ -15,3 +15,5 @@
 公共层若需要同步，仅由 R8-INTEGRATOR 按单项贡献添加：GR8-KER-001 → WP10 §5.1.1 / WP09 §5.2 / KER001 五行；GR8-KER-002 → WP09 §4.1 / WP65 §3.1 / KER002 八行；可选GR8-UI-001 → WP65 §4.1括注。无需整表重写；本批没有直接写 audit/source-traceability.md 或 planning/feature-matrix.md。
 
 本地首次载荷提交 `06c5bc45974d2958cd7ba60fa171e07cb6515dd7` 后，仓库暂存检查发现证据diff的空上下文行被当作尾随空白；后继将4份差异改为合法无上下文格式。4个候选正文内容不变，保留原提交历史，不作amend/force push。
+
+独立报告 `1a5c6dab85b6638403ef6e42bc97f23e842580b1` 已全文接收：三项正文静态语义PASS，完整交接证据因WP09定位错位FAIL。后继修订将两处定位由33改102、tagging章节/锚点改§4.1，使用唯一正文前缀；原七个其它定位及四mirror不变。新增 refresh-locations.py 为本批定位的可重放生成/核验入口，拒绝原多匹配短前缀。旧57项与旧远端回读保原输入资格，不冒充它们已覆盖定位正确性；新核验单列 location-validation.json。待原独立ultra审者复核完整交接证据，不自签PASS/CLOSED。
