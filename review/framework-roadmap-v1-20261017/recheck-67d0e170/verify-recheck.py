@@ -114,7 +114,7 @@ result = {'verdict': 'PASS', 'scope': 'Final source-preservation fidelity only; 
           'original_source_wording_difference': 'The detailed source requires classifying differences before fixing the corresponding content; the quick source says to fix the specification. Both original formulations are preserved. PASS authorizes faithful storage, not an inferred substantive reconciliation.',
           'ruby_executions': 0, 'prototype_executions': 0}
 (HERE / 'checks.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-(HERE / 'candidate-change.patch').write_bytes(git('diff', '--unified=2', OLD, NEW, '--', QUICK))
+(HERE / 'candidate-change.patch').write_bytes(git('diff', '--unified=0', OLD, NEW, '--', QUICK))
 print(json.dumps({'verdict': 'PASS', 'changed_paths': len(changed), 'changed_lines': line_changes,
                   'restored_line_exact_source_match': True, 'previous_FAIL_files_preserved': len(history),
                   'links_checked': len(links)}, ensure_ascii=False))
