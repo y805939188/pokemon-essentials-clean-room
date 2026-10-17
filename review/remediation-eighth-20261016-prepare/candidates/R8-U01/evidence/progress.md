@@ -13,3 +13,5 @@
 候选提交后仍待真实非作者候选复审、R8-INTEGRATOR正式整合、实际整合全文及累计保留接收和分别登记 ACCEPTED/CLOSED。无材料或写集阻塞；运行、未来兼容政策和正式接受均未宣称完成。协调任务 `01a14a04-b178-7567-a4eb-0f0bfac9a0d9` 负责后续。
 
 公共层若需要同步，仅由 R8-INTEGRATOR 按单项贡献添加：GR8-KER-001 → WP10 §5.1.1 / WP09 §5.2 / KER001 五行；GR8-KER-002 → WP09 §4.1 / WP65 §3.1 / KER002 八行；可选GR8-UI-001 → WP65 §4.1括注。无需整表重写；本批没有直接写 audit/source-traceability.md 或 planning/feature-matrix.md。
+
+本地首次载荷提交 `06c5bc45974d2958cd7ba60fa171e07cb6515dd7` 后，仓库暂存检查发现证据diff的空上下文行被当作尾随空白；后继将4份差异改为合法无上下文格式。4个候选正文内容不变，保留原提交历史，不作amend/force push。

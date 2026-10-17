@@ -2,7 +2,7 @@
 
 此入口供父协调任务创建实际不同于作者的 `gpt-6.1-sol ultra/default` 审查任务。本任务只作候选修订与静态文档核验，没有正式 review。请求 speed normal / Fast off；实际配置无权威 echo 时逐项 UNVERIFIED，不探测CLI或改模型。
 
-候选载荷提交将在发布绑定记录提供；分支 `revision/r8-u01-20261017`。固定作者输入 `4575e80d041ab0c74a42e2e36399d05791dbaa5b`，B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`，参考 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。候选4文件精确身份见 [candidate-manifest.json](candidate-manifest.json)，逐项原证据/修改位置/区分场景/引用/依赖/去向见 [remediation-record.json](remediation-record.json)。
+候选4个mirror的冻结载荷提交为 `06c5bc45974d2958cd7ba60fa171e07cb6515dd7`；最终证据随本分支后继提交发布，实际完整SHA由父任务入口绑定。分支 `revision/r8-u01-20261017`。固定作者输入 `4575e80d041ab0c74a42e2e36399d05791dbaa5b`，B8 `fd1df570cad987dc3852a3b958f03916e317f7fe`，参考 `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`。候选4文件精确身份见 [candidate-manifest.json](candidate-manifest.json)，逐项原证据/修改位置/区分场景/引用/依赖/去向见 [remediation-record.json](remediation-record.json)。
 
 最新授权覆盖旧prompt中的全部optional未选限制。本批已按标准选择 GR8-UI-001，仅作普通保存拒绝括注限定，不新增UI目录写集或命名规则。原29 required / 10 optional分类和历史裁决不改；另9项可选不属本批。
 
