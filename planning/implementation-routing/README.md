@@ -1,6 +1,6 @@
 # 正式规格去向入口
 
-当前整合载荷固定为 `7ed3e0554ac24339a7e61cab152f628037111644`，来源正式规格为 `5f87743293290de2e219ecdd6c19e88280f60c9a`。分类与最终累计来源校准已通过[独立复核](../../review/r8-r3-seven-line-independent-7ed3e05-20261017/REPORT.md)，175文件按原字节整合；整轮最终独立验收尚未完成，CLOSED=0。
+当前整合载荷固定为 `7ed3e0554ac24339a7e61cab152f628037111644`，来源正式规格为 `5f87743293290de2e219ecdd6c19e88280f60c9a`。分类与最终累计来源校准已通过[独立复核](../../review/r8-r3-seven-line-independent-7ed3e05-20261017/REPORT.md)，175文件按原字节整合；最终独立验收已由1efc2c41判PASS，有限R8内容已接受闭环。
 
 [主清单与视图](r8-20261017/README.md)、[当前章节覆盖](r8-20261017/current-coverage.md)保留原作者候选时点的说明；当前接收状态见[整合回执](../../review/remediation-eighth-20261016-prepare/acceptance/tagging-cumulative/receipt.json)。131文档、87WP、2,704当前标题、736活跃/33完整退役/33元数据、9批230绑定，pending/partial均0。
 

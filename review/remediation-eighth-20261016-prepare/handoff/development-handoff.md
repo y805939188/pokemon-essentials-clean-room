@@ -1,6 +1,6 @@
-# 第八轮开发交接（最终独立验收输入）
+# 第八轮开发交接
 
-29必改、10选入可选和9批已接受。最终打标分类与累计来源校准已获独立PASS并按固定载荷整合；整轮最终独立验收尚未完成，CLOSED=0。本交接供最终审者及后续开发定位材料，不启动Ruby参考执行、Showdown原型或新框架实现。
+29必改、10选入可选和9批已接受。最终打标分类与累计来源校准已获独立PASS并按固定载荷整合；最终独立验收已由1efc2c41判PASS，有限R8内容已接受闭环。本交接供最终审者及后续开发定位材料，不启动Ruby参考执行、Showdown原型或新框架实现。
 
 ## 规格与接收链
 
@@ -24,6 +24,6 @@
 
 ## 最终门与发布交接
 
-当前整体内容等待非作者gpt-6.1-sol ultra/default独立验收；输入绑定必须由后继manifest指向真实既有artifact。通过后协调者才登记整轮接受/CLOSED，再按授权核漂移、保护、必需检查并正常合并main，随后执行已证明可恢复的清理。请求/创建/admission与未暴露runtime echo分别登记，不转授辅助context档位或增加票数。
+非作者gpt-6.1-sol ultra/default最终验收已PASS，29必改、10选入可选和9批有限内容已由协调者登记接受/闭环。规范、标签和计划保持已验收字节。仓库已精简重复载体，并在正常合并前核漂移、保护和精确CI；发布与远端清理实际结果由固定后继 `delivery/eighth-round-repository-closeout-20261018` 记录。请求/创建/admission与未暴露runtime echo分别登记，不转授辅助context档位或增加票数。
 
-收尾材料见[只读盘点入口](../cleanup-preflight/README.md)及[最终输入引用补充](../cleanup-preflight/final-input-ref-status.json)。合并SHA、最终main、清理和CI结果尚待实际操作后登记。用户本地的私有归档及同步由父任务单独执行，本云工作区不代表用户本地同步状态。
+收尾材料见[只读盘点入口](../closure/final/README.md)及[最终输入引用补充](../closure/final/repository-plan.json)。合并SHA、最终main、清理和CI结果尚待实际操作后登记。用户本地的私有归档及同步由父任务单独执行，本云工作区不代表用户本地同步状态。

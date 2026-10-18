@@ -4,7 +4,7 @@
 
 **分类修正 PASS；最终累计来源校准 FAIL；总体 FAIL。** 原R2七项问题全部修复，28行依赖及六行职责/依赖精化均通过。736行分类、职责、有效范围和依赖分别全部PASS；当前来源校准为729 PASS、7 FAIL。剩余仅两个P3根因：三行来源差分摘要归属错配，四行把EV单项越额混成总量越额。已接受的正式5f正文、九批回执及其身份没有因此被否定。
 
-本报告只写新的独占review目录，不修改清单来取得PASS，不改正式规格、参考、旧报告或main。**最小修复集是七行当前差异说明及相应侧证据/补丁/生成视图**，无需新增ID、重新设计去向或启动新一轮全局规格审查。具体固定源、指针、反例和修复见[findings.json](findings.json)。
+本报告只写新的独占review目录，不修改清单来取得PASS，不改正式规格、参考、旧报告或main。**最小修复集是七行当前差异说明及相应侧证据/补丁/生成视图**，无需新增ID、重新设计去向或启动新一轮全局规格审查。具体固定源、指针、反例和修复见[findings.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/findings.json)。
 
 ## 固定输入及审查资格
 
@@ -22,17 +22,17 @@
 | 五批回执 / actual报告 | `e042c2f061eb2951a8d662a5987804e3314cb6b4` / `834888e29f939d0a5ed9478d763deb86eb021211` |
 | U06回执 / actual报告 | `3157ef455fdac41f0bf5485b281ef2e1699c8599` / `8f71c18480a847348b8450c9df1e7e8194c03985` |
 
-所有对象按精确SHA取得，含旧908比较对象，完整tree/正式tree见[evidence/fixed-objects.json](evidence/fixed-objects.json)。R2报告94文件、累计包11文件与候选159文件逐项核bytes/SHA256/Git blob及适用行数/模式；相对R2的91项非自身payload差分加两项明确自身身份排除，与实际93个变化路径完全相等，全部限routing目录。作者的身份和修复声明均只作被审输入。
+所有对象按精确SHA取得，含旧908比较对象，完整tree/正式tree见[evidence/fixed-objects.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/evidence/fixed-objects.json)。R2报告94文件、累计包11文件与候选159文件逐项核bytes/SHA256/Git blob及适用行数/模式；相对R2的91项非自身payload差分加两项明确自身身份排除，与实际93个变化路径完全相等，全部限routing目录。作者的身份和修复声明均只作被审输入。
 
 当前5f正式树为`93dc967b4cdb653359afc123d3b8b318d6475fdd`；候选工作区正式树仍为B8的`f292698cdd4a8e725525a9be6dc34b75faaf151e`。所有current正文及定位从5f Git对象读取。参考HEAD为`8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，只读且clean。旧R1/R2 FAIL及当时未应用/U04待办事实完整保留。
 
-父委派的`gpt-6.1-sol / ultra / default / normal / Fast off`请求与admission可追溯；本环境没有权威实际runtime/model/effort/tier/speed/Fast/云UUID回显，各实际字段保持**UNVERIFIED**。这不是本次FAIL原因。工具广告priority或逻辑任务名不能证明实际default或云UUID。六个分工组成一份独立审查，不重复计接受票。详见[evidence/task-qualification.json](evidence/task-qualification.json)。
+父委派的`gpt-6.1-sol / ultra / default / normal / Fast off`请求与admission可追溯；本环境没有权威实际runtime/model/effort/tier/speed/Fast/云UUID回显，各实际字段保持**UNVERIFIED**。这不是本次FAIL原因。工具广告priority或逻辑任务名不能证明实际default或云UUID。六个分工组成一份独立审查，不重复计接受票。详见[evidence/task-qualification.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/evidence/task-qualification.json)。
 
 ## 覆盖、阅读和继承
 
 从正式索引及Git独立重算：131文档、87WP、历史2683/当前2704标题，新增21；736活跃、33完整退役、33元数据。五个primary归属为combat27、creature18、kernel13、demo/shared11、Pokémon/世界/UI62，合计131且无重复。全部721原ID、736active、33metadata、44原组、7项R2问题和12项R1残留逐项对齐，不是抽样。
 
-[reading-coverage.json](reading-coverage.json)逐131篇连接历史/当前身份、实际新读区间、固定旧全文信用和不受影响依据；[section-results.json](section-results.json)逐2704标题保存层级、锚点、末行、身份、消费者及读取责任人。21新增标题按主文档归属为combat3、kernel5、Pokémon/世界/UI13；creature、demo与source的交叉消费者证据单列，不重复计标题。
+[reading-coverage.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/reading-coverage.json)逐131篇连接历史/当前身份、实际新读区间、固定旧全文信用和不受影响依据；[section-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/section-results.json)逐2704标题保存层级、锚点、末行、身份、消费者及读取责任人。21新增标题按主文档归属为combat3、kernel5、Pokémon/世界/UI13；creature、demo与source的交叉消费者证据单列，不重复计标题。
 
 五域分别完整读自己的累计变源差异和全部受影响有效单元/必要消费者；source分工独立完整新读38文件差异、21新增标题正文及39个消费者的完整当前有效范围。root另完整读六域报告、51条源差异摘要投影及六个争议完整有效单元，重算全部身份/章节/locator与补丁。未声称本轮重新全文阅读131篇，也未把JSON/AST解析、标题枚举、字节相等或运行静态工具当语义全文。
 
@@ -51,7 +51,7 @@
 | 44原组具体case与分类/依赖facet | 44 | 0 |
 | 含新校准注记的扩大当前scope组 | 42 | 2 |
 
-扩大scope中COMBAT-05、POK-S05因新注记FAIL；其原具体case与R2依赖修复仍PASS。其它领域新注记单列，不凭一个词或无关新问题自动重开全部旧组。逐组两层含义见[finding-results.json](finding-results.json)，逐行五facet见[feature-results.json](feature-results.json)。
+扩大scope中COMBAT-05、POK-S05因新注记FAIL；其原具体case与R2依赖修复仍PASS。其它领域新注记单列，不凭一个词或无关新问题自动重开全部旧组。逐组两层含义见[finding-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/finding-results.json)，逐行五facet见[feature-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/feature-results.json)。
 
 ## 原七项修复与六职责精化
 
@@ -90,7 +90,7 @@ EV方面，255＋255＝510满足总量上限但越单项252；相反HP/ATK/DEF/S
 最小完整修复要求：
 
 1. 只替换上述七行`differences`的错误事实/差分归属，保留正确职责、范围、依赖、来源、阶段及未验证状态。
-2. 同步相应`feature-source-deltas`的源事实/未来边界重估、`source-file-reassessment`的事实/分责摘要、统一`source-refinement-patch`的对应after值及当前派生视图。每个具体侧证据指针在[findings.json](findings.json)中，七case合并成两根，不重复计分工票。可复用生成输入仍包含这些摘要时同时纠正其对应值；不要解除历史writer的固定输入保护强行重跑。
+2. 同步相应`feature-source-deltas`的源事实/未来边界重估、`source-file-reassessment`的事实/分责摘要、统一`source-refinement-patch`的对应after值及当前派生视图。每个具体侧证据指针在[findings.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/findings.json)中，七case合并成两根，不重复计分工票。可复用生成输入仍包含这些摘要时同时纠正其对应值；不要解除历史writer的固定输入保护强行重跑。
 3. 保留真实35175接受后归档和原应用回执，以更新的显式after值重建最终manifest；重新生成受影响resolution/facet/身份/摘要与静态I/O，冻结后继SHA，对这组有界校准修正再独立复核。正式5f、九批回执、R1/R2 FAIL及其它已核通过区域保留。
 
 这是当前新注记的正确性问题，不要求原型、用户范围决定或新的游戏功能；也不要求重开全部正式规格。
@@ -105,7 +105,7 @@ UI65的U01旧目标与final不同是历史贡献，不冒领最后两行；final
 
 全部2704标题的标题行/层级/锚点/范围/末行/消费者引用从Git重算一致，21新增标题全部按final正文及真实消费者重估，含原10pending-U04标题。21条标题字符串hash与原Markdown整行hash分别按声明核，不混为漂移。当前131行可读覆盖及全部736行/33metadata视图、36父/39子/39边链接独立投影通过。目录与治理/字段表可聚合，不伪造实现功能。
 
-33完整退役体剥去retirement后逐字段等于初d62，33metadata与R2完整对象相等，replacement/coverage/当前消费者导航同步。历史2683覆盖原字节保留，58份R1/R2作者历史文件原字节保留。精确35175归档＋78行/162字段before/after可重建**完整对象和最终序列化字节**，manifest SHA为`ee46bb7278bb21311115a62e93bd93770a205dc691a01a48f45c22b6c09b4f71`；重建通过仍不证明摘要语义正确。见[evidence/patch-reconstruction.json](evidence/patch-reconstruction.json)。
+33完整退役体剥去retirement后逐字段等于初d62，33metadata与R2完整对象相等，replacement/coverage/当前消费者导航同步。历史2683覆盖原字节保留，58份R1/R2作者历史文件原字节保留。精确35175归档＋78行/162字段before/after可重建**完整对象和最终序列化字节**，manifest SHA为`ee46bb7278bb21311115a62e93bd93770a205dc691a01a48f45c22b6c09b4f71`；重建通过仍不证明摘要语义正确。见[evidence/patch-reconstruction.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/evidence/patch-reconstruction.json)。
 
 ## 静态执行与保护
 
@@ -115,10 +115,10 @@ source分工另有七项实际Git/schema/apply负例：陈旧WP04回执在R2放�
 
 首次累计apply确用归档旧代码并已写入，随后完整current检查发现1776个null类型错误及陈旧可读覆盖。后继仅current规范化1776项、增prospective门是后来修复；原失败I/O、代码gzip及修后证据分别核对，不倒填首次已有门。R2当时七命令/后继未执行事实也未回写。
 
-输出格式检查151条提示均来自原样保留的读取证据：148个Git patch空白上下文、两行回执读取标签尾空格、一个readset末尾空行；逐项验证后保留冻结字节，报告/JSON/代码检查通过，见[evidence/output-whitespace-check.json](evidence/output-whitespace-check.json)。
+输出格式检查151条提示均来自原样保留的读取证据：148个Git patch空白上下文、两行回执读取标签尾空格、一个readset末尾空行；逐项验证后保留冻结字节，报告/JSON/代码检查通过，见[evidence/output-whitespace-check.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/evidence/output-whitespace-check.json)。
 
 审查自身的路径排除字典、扩大组scope及各分工的元数据/格式/探针构造假设错误均留证后纠正，未改候选求通过。被截断输出未计未打印语义信用。仅静态Markdown/JSON/Python/Git；Ruby、参考游戏、业务场景、宿主、Showdown/框架原型运行0。
 
-[evidence/protection-final-precommit.json](evidence/protection-final-precommit.json)记录正式diff空、参考clean及main/作者/R2报告远端引用。输出字节由`output-file-manifest.json`绑定，首次报告提交的全新无alternates远端逐文件回读保存在`publication-proof.json`；最终提交另再fresh回读并在交接给出精确SHA，不制造自身未来hash证明循环。
+[evidence/protection-final-precommit.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/34202eb7accfee48bb8761db88b340bd77f54a42/review/r8-disposition-r3-independent-c0f62d9-20261017/evidence/protection-final-precommit.json)记录正式diff空、参考clean及main/作者/R2报告远端引用。输出字节由`output-file-manifest.json`绑定，首次报告提交的全新无alternates远端逐文件回读保存在`publication-proof.json`；最终提交另再fresh回读并在交接给出精确SHA，不制造自身未来hash证明循环。
 
 全部去向仍待验证、阶段待定/未批准、未实现/未验收；框架307、Showdown74、协作130、MZ225、排除0。四协作原型、固定目标版本、用户范围/首版细项与全轮CLOSED仍为独立待办，未被静态通过代替，也未被拿来否决合理粗标。当前有界结论为：**分类修正PASS，最终累计校准FAIL，修七行摘要后再固定候选复核。**

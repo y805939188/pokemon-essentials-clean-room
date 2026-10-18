@@ -1,6 +1,6 @@
-# 第八轮整改整合报告（最终独立验收输入）
+# 第八轮整改整合报告
 
-29必改（2P2/27P3）、10已选可选、9批均已接受；最终打标分类与累计来源校准独立PASS，已按限定路径整合。当前整体待最终独立验收，CLOSED=0；本文不预授最终发布、main合并或用户本地同步。
+29必改（2P2/27P3）、10已选可选、9批均已接受；最终打标分类与累计来源校准独立PASS，已按限定路径整合。最终独立验收1efc2c41已PASS，内容阻塞及未满足内容依赖均0；29必改及10选入可选按本有限静态范围接受闭环。发布、main合并及本地同步按各自后继事实记录。
 
 ## 固定输入与范围
 
@@ -55,4 +55,8 @@
 
 [开发交接](handoff/development-handoff.md)和[限制](handoff/known-limits.md)保留native、材料、旧执行与未来兼容的有限范围。[三份路线图](../../planning/framework-roadmap/README.md)只有忠实保存PASS，未授予架构/实现验收。
 
-当前须完成最终固定输入的非作者gpt-6.1-sol ultra/default整体验收；通过后才登记CLOSED。已授权正常main合并及可恢复清理仍须实际核漂移、保护、必需检查、完整回读及恢复来源，不force、不绕过保护。用户本地由父任务单独保全同步；合并/main SHA、清理和CI/本地结果在发生后补真实证据。
+非作者gpt-6.1-sol ultra/default最终验收已通过，见[关闭决定](closure/final/decision.json)和[最终独立报告](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1efc2c41cd70c462789d5529ce98230ca5ff96da/review/remediation-eighth-20261016-prepare/reviews/final-ultra/r1/report.zh.md)。已授权正常main合并及可恢复清理仍须实际核漂移、保护、必需检查、完整回读及恢复来源，不force、不绕过保护。用户本地由父任务单独保全同步；合并/main SHA、清理和CI/本地结果在发生后补真实证据。
+
+## 进入main前的证据精简
+
+候选镜像、读取导航和重复审查载体已按[保全清单](closure/final/evidence-retention.json)移出发布工作树，完整原文保留在精确提交/归档引用。175标签文件、正式规格和三份计划不变。当前历史冻结输入及其旧CLOSED=0按原时点读取；当前内容关闭见closure/final。发布/清理实际结果从 `delivery/eighth-round-repository-closeout-20261018` 后继读取；本地同步仍由父任务另证。

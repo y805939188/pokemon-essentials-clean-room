@@ -19,11 +19,11 @@
 | 本次manifest SHA256 | `c6b2d3ea0346c82f4aa224b67a176c21901b50efc337df25af7aa26e0242e3ea` |
 | 累计补丁 SHA256 | `6351505a314c88b1bed3aab98c6808639b319461e25f796ded87221225e0418b` |
 
-候选完整打标目录独立枚举为175文件、**38,564,194字节**；174个非自身条目与候选身份表的bytes/SHA256/Git blob/适用行数逐项一致，身份表自身由固定提交绑定。相对c0实际41个变化路径，等于38个声明payload加3个明确自身/交叉身份排除项，无删除；实际16新增、25修改，排除身份后15新增、23修改，全部位于打标目录。见[evidence/candidate-identities.json](evidence/candidate-identities.json)及[evidence/candidate-delta-identities.json](evidence/candidate-delta-identities.json)。
+候选完整打标目录独立枚举为175文件、**38,564,194字节**；174个非自身条目与候选身份表的bytes/SHA256/Git blob/适用行数逐项一致，身份表自身由固定提交绑定。相对c0实际41个变化路径，等于38个声明payload加3个明确自身/交叉身份排除项，无删除；实际16新增、25修改，排除身份后15新增、23修改，全部位于打标目录。见[evidence/candidate-identities.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/candidate-identities.json)及[evidence/candidate-delta-identities.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/candidate-delta-identities.json)。
 
-本审查另从全新bare对象库、不使用本地alternates获取精确7ed提交，175文件全部逐字节、模式、blob、bytes和SHA256回读一致，见[evidence/candidate-fresh-remote-readback.json](evidence/candidate-fresh-remote-readback.json)。作者声称的回读未直接转授为本审查PASS。
+本审查另从全新bare对象库、不使用本地alternates获取精确7ed提交，175文件全部逐字节、模式、blob、bytes和SHA256回读一致，见[evidence/candidate-fresh-remote-readback.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/candidate-fresh-remote-readback.json)。作者声称的回读未直接转授为本审查PASS。
 
-先前报告全部111文件、52,119,792字节也按342提交逐项绑定，含110条输出身份表及其自身；原findings、七条FAIL证据、领域报告、逐736/721/33/44结果和131/2704阅读/覆盖账均保持固定历史。R1/R2及接受回执的所有原固定SHA继续经该完整历史证据链绑定，未重写为当时PASS。见[evidence/prior111-input-identities.json](evidence/prior111-input-identities.json)。
+先前报告全部111文件、52,119,792字节也按342提交逐项绑定，含110条输出身份表及其自身；原findings、七条FAIL证据、领域报告、逐736/721/33/44结果和131/2704阅读/覆盖账均保持固定历史。R1/R2及接受回执的所有原固定SHA继续经该完整历史证据链绑定，未重写为当时PASS。见[evidence/prior111-input-identities.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/prior111-input-identities.json)。
 
 候选正式树仍为B8 `f292698cdd4a8e725525a9be6dc34b75faaf151e`；实际current5f正式树为 `93dc967b4cdb653359afc123d3b8b318d6475fdd`。本轮current有效正文从5f Git对象读取，未将工作区B8当成current。根AGENTS、指定clean-document-revision文本及复核提示词已读；该技能明确排除评审/审计报告，本审查未据其要求修改正式文档或增加批准门。
 
@@ -47,7 +47,7 @@
 
 记录战斗存储空操作不证明回放隔离：固定WP58保留队伍/训练家副本、实时背包等依赖，以及正常结束与中止不同路径。floor(−1/200)＝−1区别于截断或钳零。活动Repel下首非蛋濒死L50、下一健康L10、野生L20，默认与替代配置选择不同成员，比较结果不同；概率取整不能替代该规则。FR244真实Gift命名、WP36原Repel条款及FR762排除子范围均保持。
 
-各case的完整固定源身份、反例、侧证据精确指针及依赖非影响理由见[agents/attribution-results.json](agents/attribution-results.json)和[agents/ev-results.json](agents/ev-results.json)；语义报告分别为[attribution-report](agents/attribution-report.md)、[ev-report](agents/ev-report.md)。
+各case的完整固定源身份、反例、侧证据精确指针及依赖非影响理由见[agents/attribution-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/attribution-results.json)和[agents/ev-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/ev-results.json)；语义报告分别为[attribution-report](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/attribution-report.md)、[ev-report](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/ev-report.md)。
 
 ## 必要传播与完整重建
 
@@ -55,11 +55,11 @@
 
 七条单元`feature-source-deltas`和六条文件`source-file-reassessment`仅修相应事实/未来边界；WP42文件摘要同时包含成长与战后变化，而FR29/FR32的生成输入使用独立unit override，避免再次把文件级摘要误当具体单元差分。生成器相应六组manual事实/边界与实际侧证据一致，历史固定35175输入保护原字节保留，未强行重跑历史writer。
 
-统一补丁仅七个after说明变化，所有before和原归档保持。真实接受后归档解压SHA256为`35175c7094b008e77af35cf6a7811c5fcd6f1a0dd20020b64d32b40d5670256e`；独立按全部78行、162字段的before/after重放，**完整对象及最终序列化字节**均等于当前manifest。原应用回执、原来源摘要纠正回执及58份R1/R2作者历史文件完全保留。见[agents/propagation-reconstruction.json](agents/propagation-reconstruction.json)。
+统一补丁仅七个after说明变化，所有before和原归档保持。真实接受后归档解压SHA256为`35175c7094b008e77af35cf6a7811c5fcd6f1a0dd20020b64d32b40d5670256e`；独立按全部78行、162字段的before/after重放，**完整对象及最终序列化字节**均等于当前manifest。原应用回执、原来源摘要纠正回执及58份R1/R2作者历史文件完全保留。见[agents/propagation-reconstruction.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/propagation-reconstruction.json)。
 
 facet-inheritance和feature-resolution只给七行增加作者修复待独立复核信息，保留收到的旧校准FAIL及其余四facet PASS。本报告的新PASS写在独立结果中，未改作者记录或原FAIL历史。三个受影响视图精确为旧行替换七处说明；全部736行/33metadata、36父/39子/39边的导航、职责及状态投影另外完整核验。11个可生成物从干净候选重放后字节一致。
 
-原c0生成器中三个与最终侧证据不同的WP13/WP14历史manual值在本候选未变，来自既有后继摘要纠正；它们不是本轮六组同步项。传播分工保留过宽探索断言及收窄到本合同的记录，没有改候选或伪装为新缺陷。完整路径/JSON指针差异、保全和传播结果见[agents/propagation-report.md](agents/propagation-report.md)。
+原c0生成器中三个与最终侧证据不同的WP13/WP14历史manual值在本候选未变，来自既有后继摘要纠正；它们不是本轮六组同步项。传播分工保留过宽探索断言及收窄到本合同的记录，没有改候选或伪装为新缺陷。完整路径/JSON指针差异、保全和传播结果见[agents/propagation-report.md](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/agents/propagation-report.md)。
 
 ## 全覆盖继承和最终累计口径
 
@@ -77,21 +77,21 @@ facet-inheritance和feature-resolution只给七行增加作者修复待独立复
 | 44原组具体case、分类依赖及扩大当前scope | 各44 | 0 |
 | R2失败28行 / R2通过708行传播 | 28 / 708 | 0 |
 
-COMBAT-05与POK-S05原case及分类/依赖原先已PASS；扩大当前scope中的29和596说明现已通过，故这两个扩大scope组本次均PASS。没有回写R2/R3当时FAIL，也没有以一个组通过隐含接受无关目标行为。逐行结果见[feature-results.json](feature-results.json)，逐组见[finding-results.json](finding-results.json)，两根七case见[issue-results.json](issue-results.json)。
+COMBAT-05与POK-S05原case及分类/依赖原先已PASS；扩大当前scope中的29和596说明现已通过，故这两个扩大scope组本次均PASS。没有回写R2/R3当时FAIL，也没有以一个组通过隐含接受无关目标行为。逐行结果见[feature-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/feature-results.json)，逐组见[finding-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/finding-results.json)，两根七case见[issue-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/issue-results.json)。
 
-正式集合重算仍为131文档、87WP、历史2683/当前2704标题（＋21）、736活跃/33退役/33metadata。当前131身份、全部2704标题及21新增映射从固定Git重算；历史覆盖字节、元数据与退役体/替换引用不变。逐131阅读继承和逐2704章节结果分别见[reading-coverage.json](reading-coverage.json)、[section-results.json](section-results.json)。标题的title-only hash与原Markdown标题行hash按各自声明核对。
+正式集合重算仍为131文档、87WP、历史2683/当前2704标题（＋21）、736活跃/33退役/33metadata。当前131身份、全部2704标题及21新增映射从固定Git重算；历史覆盖字节、元数据与退役体/替换引用不变。逐131阅读继承和逐2704章节结果分别见[reading-coverage.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/reading-coverage.json)、[section-results.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/section-results.json)。标题的title-only hash与原Markdown标题行hash按各自声明核对。
 
 九接受事件、40目标贡献、39事项（29 required＋10 optional）及230行绑定均逐项保全；230全部回填，pending0、partial0，原绑定义务不丢失，CLOSED0。接受registry、源身份、current覆盖和回执对象均未变。原R2七项工具/依赖修复、六职责精化、58历史文件及此前真实失败I/O保持原样；本轮没有借七说明替换来源接受或修复历史。
 
-原始183行绑定亦另从d62逐项追踪：175行原绑定身份字段完全相同，UI65八行在保留原批次/required IDs的基础上增加U04义务；180个原active行当前已绑定，另398/407/704三个完整退役体的旧“待整改后核对”标签原样保留，其对应当前文档均已ACCEPTED绑定。故230个当前active零pending没有偷偷改写完整退役历史。见[evidence/original183-bindings.json](evidence/original183-bindings.json)。
+原始183行绑定亦另从d62逐项追踪：175行原绑定身份字段完全相同，UI65八行在保留原批次/required IDs的基础上增加U04义务；180个原active行当前已绑定，另398/407/704三个完整退役体的旧“待整改后核对”标签原样保留，其对应当前文档均已ACCEPTED绑定。故230个当前active零pending没有偷偷改写完整退役历史。见[evidence/original183-bindings.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/original183-bindings.json)。
 
 ## 实际静态执行及发布保护
 
-独立干净shared clone逐字节使用本候选输入，实际重放原`run-author-checks.py --phase cumulative-source`十命令，全部exit0、17登记输入hash稳定且等于候选。27结构负例、9自检、2导航负例、11生成一致、19保全、5接受绑定负例、2704覆盖及4负例、4来源门夹具均通过；另实际调用原`check-repair.py`的12项及`final-calibration-proof.py`的15项，全部通过。真实argv/stdout/stderr/exit/UTC和前后hash保存在[evidence/tool-replay-io.json](evidence/tool-replay-io.json)、[evidence/replay-actual-command-io.json](evidence/replay-actual-command-io.json)，摘要见[evidence/tool-replay-summary.json](evidence/tool-replay-summary.json)。
+独立干净shared clone逐字节使用本候选输入，实际重放原`run-author-checks.py --phase cumulative-source`十命令，全部exit0、17登记输入hash稳定且等于候选。27结构负例、9自检、2导航负例、11生成一致、19保全、5接受绑定负例、2704覆盖及4负例、4来源门夹具均通过；另实际调用原`check-repair.py`的12项及`final-calibration-proof.py`的15项，全部通过。真实argv/stdout/stderr/exit/UTC和前后hash保存在[evidence/tool-replay-io.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/tool-replay-io.json)、[evidence/replay-actual-command-io.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/replay-actual-command-io.json)，摘要见[evidence/tool-replay-summary.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/tool-replay-summary.json)。
 
 未运行作者`run-repair-checks.py`封装来冒领其中硬编码的历史缺jsonschema环境观察；该观察保留为作者历史声明。本环境真实调用另行留证，未发生该准备失败。干净fixture使独立review输出不污染作者untracked保全器，未弱化候选检查。根身份/保护审计838检查通过；语义判断不由作者FACTS常量、验证器或这些通过数量自动产生。
 
-所有执行限静态Markdown/JSON/Python/Git，Ruby、参考游戏、业务向量、宿主、Showdown/框架及四原型执行均0。格式检查原样保留Git diff空白上下文和编号空源行的冒号空格前缀；编号源行逐条与固定Git验证，不为消除提示修改证据。报告、JSON和代码检查另行通过，见[evidence/output-validation.json](evidence/output-validation.json)。
+所有执行限静态Markdown/JSON/Python/Git，Ruby、参考游戏、业务向量、宿主、Showdown/框架及四原型执行均0。格式检查原样保留Git diff空白上下文和编号空源行的冒号空格前缀；编号源行逐条与固定Git验证，不为消除提示修改证据。报告、JSON和代码检查另行通过，见[evidence/output-validation.json](https://github.com/y805939188/pokemon-essentials-clean-room/blob/1baee5d7346592478b72d8983b0109e1b2a5e2d9/review/r8-r3-seven-line-independent-7ed3e05-20261017/evidence/output-validation.json)。
 
 main仍为fd1，原任务分支仍为c0，作者恢复分支仍为7ed；候选与正式/参考保护路径diff为空，参考HEAD `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`且clean。独立分支仅提交本review目录，不force、不merge。精确输出bytes/SHA256由`output-file-manifest.json`绑定；首个报告提交的全新远端逐文件回读保存为`publication-proof.json`，最终带证明提交再全新回读并在交接给出完整SHA，避免自证未来自身hash。
 
