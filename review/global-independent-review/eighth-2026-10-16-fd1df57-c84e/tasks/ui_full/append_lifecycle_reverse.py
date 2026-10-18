@@ -1,0 +1,681 @@
+"""Manually authored clauses after actual full source/formal reads; never parses source."""
+import json, hashlib, datetime, subprocess
+from pathlib import Path
+B = Path(__file__).parent
+NOW = datetime.datetime.now(datetime.timezone.utc).isoformat()
+f = json.loads((B/'forward-mapping.json').read_text())
+ids = json.loads((B/'identities.json').read_text())['records']
+identity = next(x for x in ids if x['path'].endswith('/007_UI_Credits.rb'))
+source = {'repo': identity['repo'], 'commit': identity['commit'], 'tree': identity['workspace_tree'], 'path': identity['path'], 'mode': identity['git_mode'], 'bytes': identity['bytes'], 'sha256': identity['sha256'], 'blob': identity['git_blob'], 'reader': '/root/ui_full', 'status': 'FULL_READ', 'ranges': [[1,233]], 'whole_file_read': True, 'lines':233}
+credits = [
+ '默认背景依次credits1到credits5，共5张。',
+ '默认BGM为Credits。',
+ '默认滚速40像素每秒。',
+ '每背景名义11秒。',
+ '文字色白255/255/255/255。',
+ '描边色0/0/128/255。',
+ '影色0/0/0/100。',
+ 'add_names长度至少5时每相邻两名以<s>合并。',
+ '奇数末名第二列为空字符串。',
+ '不足5名逐名独行。',
+ '末尾空行由with_final_new_line控制，缺省真。',
+ 'get_text先取Settings.game_credits或新空数组。',
+ '当前Settings.game_credits每次返回新建11行数组；不是共享常量。',
+ '默认游戏署名含可翻译标题和Maruno/Pizza等字面配置。',
+ '存在插件时先追加三个空行。',
+ '插件枚举沿PluginManager.plugins的注册keys。',
+ '各插件标题含名称和版本。',
+ '各插件作者由PluginManager.credits返回后交给分栏辅助。',
+ '随后追加固定Essentials创建者/贡献者段。',
+ '固定段还含mkxp-z、RPG Maker XP与Pokémon权利人。',
+ '最终含非营利/版权/支持正版三行文案。',
+ 'main先@quit=false并记录System.uptime。',
+ '初始背景索引0。',
+ 'trim为画面高度整除10。',
+ '初始滚动原点为负画面高度加trim。',
+ '完整文字生成先于视口和文字精灵分配。',
+ '背景首图经IconSprite.setBitmap直接请求。',
+ '文字总高度为行数乘32。',
+ '每文字位图容纳画面高度整除32行；位图本身额外16高。',
+ '尾部<s>先补空格再分割，保留空第二栏。',
+ '单列居中。',
+ '分栏左段右对齐、右段左对齐，中缝20像素。',
+ '各段先影字、再八次描边、再正字。',
+ '先存previousBGM，再停ME/BGS/SE。',
+ '先请求BGM淡出2秒，再请求Credits BGM。',
+ '进入循环前Graphics.transition。',
+ '每轮Graphics.update、Input.update、update后检查@quit。',
+ 'update先按已过时间/11取背景索引再检查取消。',
+ '背景变化先写索引后加载新图，失败保留该索引前缀。',
+ 'USE仅在creditsPlayed真时置@quit。',
+ 'BACK没有片尾跳过分支。',
+ '取消成立该轮不做last?与滚动写入。',
+ 'last?以旧@realOY大于总高度加trim为结束门。',
+ '自然结束检查通过时不再滚动更新。',
+ '否则@realOY由40乘总已过时间计算，不累加帧常数。',
+ '每个文字精灵原点由公共滚动值减位图索引高度。',
+ '循环结束先快照写game_temp.background_bitmap。',
+ '随后BGM淡出2秒与Graphics.freeze。',
+ '两个视口先置黑，再Graphics.transition(8,fadetoblack)。',
+ '正常过渡返回才释放快照、背景、各文字精灵、两视口。',
+ '释放之后才写creditsPlayed=true。',
+ '之后恢复previousBGM。',
+ '之后有game_map则新建Scene_Map，否则scene=nil。',
+ '没有SaveData/Game.save调用，内存标记不等于持久保存。',
+ '没有ensure，任何异常只保留已执行前缀。',
+ '首次不可跳过不证明自然段或宿主一定成功。',
+ '8个1/20单位的过渡请求目标0.4秒由已读EventScene/Graphics兼容链接收，不保证固定渲染次数。'
+]
+assert not any(u['id']=='UILC-U024' for u in f['semantic_units'])
+f['semantic_units'].append({'id':'UILC-U024','name':'片尾完整文本/滚动/跳过/收尾','sources':[source], 'facts':[{'id':f'UILC-F024-{i:02d}','assertion':a} for i,a in enumerate(credits,1)],'reader':'/root/ui_full','premise':'固定R，合法画面尺寸、默认配置/已注册有效插件、所需普通分配及消息/图形/音频依赖正常；源请求不保证host或像素。','disposition':'OWN_FULL_READ_WITH_BOUNDED_SETTINGS_AND_PLUGIN_ACCESSORS','execution':'NOT_EXECUTED'})
+f['hand_authored_unit_count']=len(f['semantic_units']); f['fact_count']=sum(len(u['facts']) for u in f['semantic_units']);f['utc']=NOW
+(B/'forward-mapping.json').write_text(json.dumps(f,ensure_ascii=False,indent=2)+'\n')
+
+r = json.loads((B/'reverse-mapping.json').read_text())
+assert not any(x['id'].startswith('UILC-C') for x in r['records'])
+groups=[]
+def g(clause, units, text, status='SOURCE_RECONCILED_FINITE'):
+    groups.append((clause,units,status,[x.strip() for x in text.strip().split('\n') if x.strip()]))
+g('开头/§1 lines1–13',[],'''
+分类含UI演出与领域责任交界。
+规格实现独立，不规定源类/方法API。
+A范围进化演出与取消。
+B范围孵化演出与命名。
+C范围交换演出与收尾。
+D范围净化室与遗迹石界面。
+E范围名人堂登记与浏览。
+F范围片尾流程。
+取证静态，无运行确认。
+目标含看见内容及输入窗口。
+目标含取消返回层与成功返回层。
+目标含状态提交顺序。
+进化资格与领域后置动作归WP31/32/22。
+蛋领域前序提交归WP35。
+交换资格/所有权/统计归WP26。
+净化领域资格/容器/暂存恢复归WP23。
+Shadow招式效果归WP43–49。
+图鉴登记语义归WP62。
+储存容量归WP25。
+共享消息输入归WP17。
+不执行真实存档/宿主/音频/编译。
+''','SCOPE_OR_EVIDENCE_BOUNDARY')
+g('§2 lines17–22',['UILC-U002','UILC-U007','UILC-U010','UILC-U024'],'''
+演出播放完成与领域提交不同。
+进化成功消息先于物种写入。
+调用者返回成功可能只表示找到目标并调用演出。
+消息承接与领域调用编排分别有界。
+进化普通入口参数缺省可取消。
+交换收尾传不可取消。
+进化石入口传不可取消。
+取消只在动画循环窗口判定。
+成功/收尾阶段不再判取消。
+孵化无取消输入。
+交换本段无取消输入。
+名人堂登记无取消输入。
+片尾跳过另受已播门。
+字段写入为内存提交。
+持久保存独立归WP09。
+通关主题不推自动保存。
+通关主题不推自动片尾或Demo。
+直接入口对照不得补正常入口守卫。
+''')
+g('§2 line23',['UILC-U016','UILC-U017','UILC-U020','UILC-U010'],'''
+WP23-N01正常UI/负位置Select/直接调用三层分别接收。
+选择取消不回滚此前储存操作。
+净化室默认跨级能力窗失败的前缀保持。
+遗迹石与同等级对照不可合并。
+WP32-N02两处收尾调用静态存在。
+重复释放宿主结果未证。
+不得推必定二次进化。
+不得推统一安全或幂等。
+历史已通过资格不从正文声明自动授予本轮批准。
+''','BOUNDED_SOURCE_RECONCILED_HISTORY_APPROVAL_NOT_TRANSFERRED')
+g('§3.1 lines31–39',['UILC-U005','UILC-U006','UILC-U007'],'''
+等级变化辅助后的进化普通可取消。
+满级糖配置开启且升级进化有目标才直接打开演出。
+满级糖配置默认世代>=8开启。
+配置关闭或无目标提示无效。
+无目标不开演出。
+无目标不消费糖。
+满级糖演出取消仍由物品处理器报成功。
+满级糖取消仍正常消费。
+进化石Shadow直接无效。
+进化石有目标才开场景。
+进化石不可取消。
+战后先升级进化否则战后条件检查。
+战后昏厥成员受配置门。
+战后入口默认可取消。
+事件入口扫描可战斗队伍。
+事件默认Kubfu/Yamask两例是数据驱动。
+事件入口默认可取消。
+交换收尾不可取消。
+蛋/Shadow/不变石/BattleBond守卫在演出前。
+调用者目标存在才打开场景。
+打开演出不等于完成进化。
+取消不回滚已升级等级。
+取消不回滚已写经验。
+糖果消耗遵循调用者，不从取消推退款。
+''','BOUNDED_CREATURE_AND_ITEM_PRODUCER_RECEPTION; OWN_SCENE_CONFIRMED')
+g('§3.2 line43',['UILC-U005','UILC-U006'],'''
+开场先停BGM。
+随后What消息及决定音。
+随后当前个体叫声。
+随后进化消息加1秒等待。
+随后Evolution start ME。
+随后Evolution BGM。
+''')
+g('§3.2 lines44–47',['UILC-U006','UILC-U007'],'''
+旧/新种缩放交替名义约9秒。
+节奏逐轮加快。
+每轮先更新两条动画。
+随后图形/输入及场景更新。
+可取消且BACK先于动画全结束判断。
+该取消先停BGM。
+该取消再请求取消音。
+该取消置取消状态并跳循环。
+末轮恰完成同轮BACK仍取消。
+相同末轮不可取消则继续成功。
+后续白闪阶段不再接该取消。
+准备目标隐藏。
+首次更新目标可见并满白覆盖。
+首次更新缩放0不形成非零大小图像。
+约2秒开始放大。
+约2.6秒首次放大白轮廓。
+白轮廓先于约9秒结束。
+成功白闪才复目标正常颜色。
+后来取消不抹去已请求的此前轮廓。
+轮廓对照要求有效非透明资源。
+轮廓对照要求正常时间推进无外遮挡。
+轮廓静态属性不证明实际像素。
+白出后依取消状态显示旧或新种。
+白入还原。
+取消先增evolutions_cancelled。
+取消再停进化消息。
+取消不写新物种。
+取消不走成功后置动作。
+取消不走后续图鉴学招链。
+重复入口可重播，不假定幂等。
+''')
+g('§3.2 lines48–49',['UILC-U005','UILC-U007'],'''
+成功先增evolution_count。
+成功新叫声按时长等待。
+随后停BGM。
+随后Evolution success ME。
+随后Congratulations成功消息含wt80。
+成功消息后才执行领域后置动作。
+后置动作可消费持物。
+Shedinja型复制清克隆标记/缎带。
+该复制重算能力并加入队伍。
+该复制登记图鉴。
+后置动作之后才变更原个体物种。
+原本昏厥在重算后保持HP0。
+物种提交伴重算与清进化准备标记。
+随后图鉴见过与拥有。
+随后按等级0及当前等级收集待学列表。
+随后新种图鉴条件页。
+随后逐个共享学招。
+领域物种提交与整演出完成不可合并。
+''')
+g('§3.3 lines53–54',['UILC-U007','UILC-U010','UILC-U002'],'''
+新种图鉴页受MORE_OFTEN配置门。
+该配置世代>=7默认真。
+此前未拥有才可进新页。
+持有图鉴才可进新页。
+物种在已解锁图鉴内才可进新页。
+条件满足先added消息。
+再登记最后见过。
+再淡出淡入打开条目。
+交换条件页内部不淡出收尾一次。
+交换外层之后仍通常收尾。
+交换收尾中有交换进化检查。
+无业务已结束标志保护二次收尾。
+精灵释放工具清精灵表使第二次消息窗释放跳过。
+第二次仍直接释放同视口。
+宿主重复释放结果未证。
+自定义连续交换进化有重复检查风险。
+进化条件页以待学列表是否空为门。
+待学列表非空只清消息窗不提前收尾。
+非空列表之后逐学招再外层收尾。
+待学列表空则页内不淡出收尾。
+空列表外层仍通常收尾。
+候选列表长度不是最终实学招式数。
+孵化图鉴页无提前结束原场景调用。
+孵化返回图鉴后继续命名。
+不得以三入口共有图鉴页推统一收尾协议。
+''')
+g('§4.1 lines60–62',['UILC-U004','UILC-U003'],'''
+正常迈步每只蛋计数减1。
+队伍加速孵化特性存在再减1。
+加速只算一次。
+计数归零时调用孵化领域提交。
+统计孵化数在演出前写。
+拥有者/亲密度/时间/获得方式/地图在演出前写。
+首招在演出前记录。
+多蛋各完整演出命名后再下一蛋。
+直接孵化同样做上述前序领域写入。
+直接孵化不负责正计数归零。
+直接孵化不自行检查蛋态。
+仅演出入口不做统计/拥有者/亲密度/来源前序写入。
+仅演出仍清昵称。
+仅演出仍图鉴登记。
+仅演出仍可按选项确认命名。
+演出包装正常返回明确true。
+纯消息回退因包装恒真在当前不可达。
+演出包装先Huh消息。
+包装带音乐淡出淡入再开场景。
+''')
+g('§4.2 lines66–72',['UILC-U001','UILC-U002','UILC-U003','UI17-U040','UI17-U042'],'''
+裂纹段Evolution BGM。
+蛋摇摆4轮。
+裂纹帧0到4。
+各轮球摇音效。
+摇摆逐轮加快。
+揭示白出目标0.4秒。
+白出后换个体图并按指标定位。
+随后白入。
+随后叫声按物种时长等待。
+随后停BGM和成功ME。
+成功消息前清昵称。
+成功消息含wt80。
+见过/拥有/见过蛋无条件登记。
+新种页仍受§3.3所有门。
+新种页不提前结束孵化场景。
+GiveNicknames为Give才询问命名。
+确认Yes才进文字输入。
+确认No不进入输入。
+命名画面有个体预览。
+命名传无淡出参数。
+默认光标BACK删除字符不退出。
+光标需OK提交。
+最短0允许空文本。
+键盘Esc返回空文本。
+返回字符串写个体名。
+空文本清昵称按物种名显示。
+输入返回不等于最终有昵称。
+已完成图鉴登记不回滚。
+已完成个体前序属性不回滚。
+已进入并返回命名则输入画面已淡出，原场景不再重复淡出。
+未命名则原场景正常淡出。
+Evolution音乐由外层恢复前音乐。
+裂纹资源存在性/播放保持未证。
+资源异常不虚构备用孵化流程。
+''')
+g('§5.1–5.3 lines78–90',['UILC-U009','UILC-U010','UILC-U007'],'''
+交换包装先增交换统计。
+随后取送出队伍成员。
+收到个体创建或沿用。
+收到个体拥有者/昵称/交换方式/重置招式/首招在演出前处理。
+包装带音乐淡出淡入。
+场景全部结束后才替换原队伍槽。
+前置选择取消归调用者。
+本交换演出没有取消输入。
+收到者见过/拥有在演出开始前无条件登记。
+交换先停BGM。
+先播送出叫声再信息卡。
+首卡显示名字/ID/OT。
+首卡50逻辑单位按20每秒为2.5秒。
+首卡USE可提前结束本次等待。
+首卡BACK可提前结束本次等待。
+首卡BACK推进不取消交换。
+随后决定音/Evolution BGM。
+送出变色收球并向屏幕上方飞出。
+随后交换说明和道别消息各按共享等待门。
+接收球落下弹跳开球。
+收到个体出现放大并叫声。
+随后停BGM/捕获成功ME。
+随后收到信息与Take good care消息。
+新种页条件相同但收尾两次风险独立保留。
+收尾检查收到者自己的基础物种与参数。
+特定交换条件另查送出旧成员不变石。
+收到者不变石归统一进化守卫。
+有目标则不可取消进化。
+默认Karrablast/Shelmet自身物种比对不符不进化。
+默认不进化仍照常接收。
+进化调用返回后才最终写队伍槽。
+收到者进化时尚未进入队伍。
+前置选择取消/已启动无取消/交换进化不可取消三层不合并。
+''','OWN_SCENE_WITH_BOUNDED_CREATURE_PRODUCER_RECEPTION')
+g('§6.1 lines96–99',['UILC-U015','UILC-U018','UILC-U019'],'''
+净化室9组。
+每组中心1Shadow位。
+每组外圈至多4普通位。
+tempo/flow按属性环。
+本模型Normal/Normal算优势。
+迈步先跳过初始心量0中心。
+仅初始正心量经本步减量变合格才迈步提示ready。
+已0组后续步不重复提示。
+编辑使0心量组变合格不靠下一步补提示。
+合格发现有打开与编辑结束检查点。
+Lugia要求9组tempo满。
+总览9编号/蓝tempo/紫心量。
+JUMPUP/JUMPDOWN或列表选组。
+详细中心与外圈均布。
+flow相邻强度0/1/2。
+正面成员另有指向flow。
+信息含名/等级/属性及三量条。
+中心游标0。
+入口先写见过净化室true。
+该写入先于打开画面。
+打开存在合格组直接进净化不先问。
+否则总览编辑循环。
+''','OWN_UI_MODEL_WITH_BOUNDED_WP23_DOMAIN_RECEPTION')
+g('§6.2 lines103–115',['UILC-U017','UILC-U018','UILC-U020'],'''
+总览BACK问Continue viewing。
+该确认Yes继续选组。
+该确认No退出。
+该确认BACK按共享No退出。
+组命令CANCEL/BACK仅回总览。
+组命令取消不弹退出确认。
+SWITCH目标BACK返回原组。
+SWITCH目标取消与自身互换内容不变。
+详细位置BACK持握时提示持握且不退。
+详细位置BACK无持握才确认Continue editing。
+该确认No退出详细组。
+详细操作菜单CANCEL/BACK仅回位置选择。
+该菜单取消不经过持握拒绝门。
+该菜单取消不弹退出确认。
+有当前成员或持握成员才建操作菜单。
+MOVE可从详细位置菜单正常到达。
+MOVE拿当前成员并清原位置。
+持握EXCHANGE换持有目标。
+持握PLACE放入空位并提示。
+ROTATE仅中心Shadow且组非空。
+ROTATE轮转直面下标。
+无持握SUMMARY按外圈数扫描候选。
+中心计候选但外圈0则候选为空。
+中心独存虽有SUMMARY菜单仍不开摘要。
+非空摘要返回游标跟随最后成员。
+持握SUMMARY独立只摘要持握单个。
+''')
+g('§6.2 lines116–121',['UILC-U016','UILC-U017','UILC-U020','UI17-U051'],'''
+WITHDRAW双满提示All boxes full。
+WITHDRAW双满保留源。
+WITHDRAW盒有位优先存盒不入队。
+WITHDRAW盒满队伍有位仍只尝试入盒。
+该失败不检查返回值。
+该失败仍清源位置/持握引用。
+该失败不保证任一容器持有成员。
+REPLACE比原始Shadow查询结果相等。
+nil普通与false已净化不等而拒绝。
+两已净化false相等可通过。
+REPLACE不走普通PLACE拒蛋门。
+双方原始值相同可用普通蛋替外圈。
+PLACE拒蛋。
+PLACE中心只Shadow。
+PLACE外圈只非Shadow。
+PLACE成功才删源。
+队伍源删除压紧。
+盒源删除不压紧。
+中心可净化而无普通成员提示至少一普通成员。
+储存选择按取出模式。
+正常盒选择Select才返盒格。
+BACK确认Continue Box operations。
+Close Box确认Exit from Box。
+选择退出返nil。
+特殊负位置先经外层映射盒格成员门。
+映射空则继续选择不返回不放置。
+映射有X先成员菜单。
+该菜单Select才返原负位置。
+随后可放X并删映射盒格。
+直接传队伍位置是独立入口。
+直接放置成功删队伍并压紧。
+该直接入口无最后可战斗成员保护。
+直接入口成功不证明正常UI可取队伍位置。
+选择nil只阻本次新放置/替换。
+选择期间既有存取不回滚。
+选择期间既有持物/标记/当前盒变化不回滚。
+详细退出仍持握则拒绝。
+编辑结束再次查合格组。
+编辑结束有合格则提示并净化。
+''')
+g('§6.3 lines125–128',['UILC-U018','UILC-U020'],'''
+统一净化资格Shadow且心量0。
+资格通过先增统计。
+随后清Shadow/Hyper并授缎带。
+随后开门消息。
+随后恢复招式逐个消息。
+随后记录首招。
+随后返暂存EV。
+随后返暂存经验80%。
+经验有变显示恢复经验消息。
+同等级写精确经验并重算。
+跨等级走等级设置辅助。
+该辅助包含设等级重算/刷新/升级消息/两个能力窗/学招/进化。
+之后Give且确认才命名。
+净化室选合格组再组视图。
+净化室演出接点仅刷新无独立仪式动画。
+统一净化后通用存放先队伍空位否则盒。
+存放后无条件清中心。
+有下一组合格提示并问切换。
+拒绝切换关闭并停止。
+后续组合格状态保留。
+默认跨级首能力窗缺刷新操作失败。
+该失败后续学招/进化/命名/存放/清中心不保证到达。
+该失败中心仍有已部分改对象。
+该失败Shadow清除/缎带/EV/经验按前缀不回滚。
+同等级含S0不进等级窗口而可继续。
+遗迹石有空刷新能力不在此点失败。
+同等级/遗迹石不保证任意后继host成功。
+通用存放双满只提示返回。
+双满返回后调用者仍清中心。
+此前Shadow/缎带/成长/可达命名不回滚。
+''','OWN_UI_WITH_BOUNDED_CREATURE_B_DOMAIN_RECEPTION; FULL_WP23_OWNER_NOT_TRANSFERRED')
+g('§6.4 lines132–135',['UILC-U020'],'''
+遗迹石外层一般查询Shadow/心量0/非Lugia。
+外层查询没有HP门。
+外层无成员提示无可净化而返。
+外层有成员先可开放消息。
+队伍选择显示整队伍不是仅合格。
+选择器合格要求非昏厥。
+选择器合格要求非蛋。
+选择器合格要求Shadow心量0。
+选择器不排Lugia。
+仅Lugia可净化时外层不开放。
+另有非Lugia开放时可选活Lugia净化。
+仅濒死非Lugia心量0Shadow外层开放但画面不可选。
+统一净化仅对最后选合格成员。
+取消不写净化状态但外围消息已显示。
+选人包装仍写下标/名字变量，不是全无副作用。
+遗迹石背景/消息窗正常前序要求保留。
+遗迹石仪式演出为空操作不证明素材。
+遗迹石成长刷新为空操作。
+遗迹石跨级可继续等级工具和精确经验写回。
+学招放弃/进化取消/昵称拒绝各自合同。
+遗迹石返回透传收尾结果不是净化成功标志。
+底层释放返回未取证不猜恒假/空/固定。
+香类非Shadow无效。
+香类亲密度满且心量0无效。
+Hyper先恢复理智并消息。
+心量未变只turned friendly不做准备检查。
+心量0但亲密度未满是该普通对照。
+仅心量变用adores加心门文案并准备检查。
+双值变用turned friendly加心门文案并准备检查。
+TIMEFLUTE拒非Shadow。
+TIMEFLUTE拒心量0。
+TIMEFLUTE拒Lugia。
+TIMEFLUTE拒绝不消费。
+通过TIMEFLUTE自身门心量非0。
+统一净化要求0故立即早退。
+该调用不清Shadow且无统一净化消息。
+TIMEFLUTE处理器仍报成功。
+外层普通门非蛋/非Hyper通过时仍消费。
+TIMEFLUTE不构成净化提交。
+''','BOUNDED_CREATURE_B_DOMAIN_RECEPTION; SOURCE_UI_CALLER_CONFIRMED; ITEM_PRODUCER_SCOPE_LIMITED')
+g('§7.1 lines141–146',['UILC-U011','UILC-U012','UILC-U013','UILC-U014'],'''
+基本显示准备先于登记。
+非空BGM请求正常返后才登记。
+空BGM跳过音乐请求。
+逐只克隆当前队伍入新届。
+默认ALLOW_EGGS真含蛋。
+追加到全局历史数组。
+编号增1。
+正上限默认50。
+超限每次只删最早一届。
+裁剪编号不回退。
+负上限不裁剪。
+上限0空历史先追加并编号1。
+随后只删最早一届使历史空。
+编号1仍使PC项可见。
+浏览最新得到nil。
+成员创建向nil取length失败。
+该静态失败不等宿主错误呈现。
+已有历史上限0每次只删一届不清空。
+演出默认Hall of Fame BGM。
+逐成员滑入目标0.4秒。
+逐成员叫声及数据卡。
+数据含图鉴号/名称物种性别/等级/ID。
+蛋卡Egg/Egg及?????ID。
+各成员停留3秒。
+其余成员变暗。
+欢迎消息停4秒。
+随后训练家滑入并移横条。
+训练家卡名字/ID/时间/拥有见过数。
+首届时间用首次名人堂进入用时统计。
+后届用总游戏时间。
+随后冠军消息/停留。
+结尾BGM1秒淡出和慢淡出。
+登记演出无BACK/USE取消分支。
+记录只写内存。
+登记不触发保存。
+不推自动片尾或剧情Demo。
+重复每次新增克隆届。
+重复编号递增无去重。
+''')
+g('§7.2 lines148–165',['UILC-U013','UILC-U014'],'''
+PC排序40。
+PC可见门编号>0。
+入浏览前Accessed消息。
+浏览从最新届。
+浏览无滑入。
+LEFT/RIGHT调届内成员并请求叫声/暗化/数据。
+USE以成员下标+10越界转更早届。
+越界换届分支不继续其内部剩余逻辑。
+外层同轮后续导航仍可覆盖继续值。
+BACK优先退出且该轮不导航。
+无BACK时USE再LEFT再RIGHT独立处理。
+最后继续值决定退出。
+不是三键互斥链。
+届号由累计编号与数组索引推算。
+裁剪后最旧号=编号-数组长度+1。
+一届三成员独立初态只LEFT得届1/员-1/旧届引用/false。
+同初态只RIGHT得届0/员1/旧届引用/true。
+LEFT+RIGHT先(1,-1,false)再(1,0,true)。
+该双键显示K+1。
+BACK+LEFT+RIGHT先退不导航。
+双键只改局部索引与请求。
+双键不改历史数组。
+双键不改累计编号。
+PC效果返回false回主菜单。
+''')
+g('§8 lines169–176',['UILC-U024','UI65-U024'],'''
+片尾事件设场景为入口，无菜单确认包装。
+Demo事件真实可达性未证。
+文本先游戏配置致谢。
+游戏配置可翻译且<s>分栏。
+插件名称/版本/作者自动追加。
+随后引擎/宿主/版权固定段。
+长名单相邻两名并栏。
+默认5背景11秒轮换。
+文本40像素/秒按经过时间滚动。
+停ME/BGS/SE。
+BGM先2秒淡出再Credits。
+自然滚动越全部高度结束。
+USE跳过要求creditsPlayed真。
+首次标记假不可跳过。
+循环结束先快照。
+随后BGM淡出2秒。
+随后渐黑请求8/20=0.4秒。
+该0.4为目标不保固定8或24次渲染。
+不保真实墙钟精确0.4秒。
+正常过渡返后释放资源。
+资源释放后写已播标记。
+随后恢复先前BGM。
+随后有地图回地图。
+无地图scene=nil。
+标记内存写不存档。
+调试手动标记开关另属对照。
+自然结束与跳过共用收尾。
+异常保已执行前缀，无统一清理保证。
+''')
+g('§9 lines180–186',['UILC-U001','UILC-U006','UILC-U010','UILC-U011','UILC-U018','UILC-U024'],'''
+进化默认取消/石与交换不可取消同前文。
+新种页MORE_OFTEN默认真同前文。
+战后昏厥检查默认真。
+满级糖世代>=8开启同前文。
+事件两默认例仍数据驱动。
+孵化通用/专用裂纹资源不保可用。
+孵化音乐与命名门同前文。
+多蛋串行同前文。
+交换统计与获得方式在前序领域链。
+交换图鉴门与不可取消进化同前文。
+净化室9x(1+4)同前文。
+净化室seen先写同前文。
+净化自动/下一组可拒绝同前文。
+遗迹石外门非Lugia/选择器不排Lugia同前文。
+名人堂HALL_ENTRIES_LIMIT默认50。
+0上限不是不登记。
+0空历史裁空但编号增且PC失败。
+0已有历史只删最早不清空。
+负上限不裁。
+ALLOW_EGGS默认真。
+SINGLE_ROW默认假为两行。
+ANIMATION默认真。
+ANIMATION假只跳滑入不改登记合同。
+ENTRY_WAIT_TIME3.0。
+WELCOME_WAIT_TIME4.0。
+FINAL_FADE_DURATION1.0。
+Hall BGM空串跳过。
+REMOVE_BARS默认真。
+PC排序40及编号门同前文。
+片尾5/11/40/Credits与假已播默认同前文。
+全部图形音频宿主结果保持未证。
+计时/帧率实际表现保持未证。
+Demo地图事件真实链具名未证。
+WP32-N02重复释放未证。
+净化跨级宿主错误呈现未证。
+''')
+g('§10 lines190–199',['UILC-U006','UILC-U003','UILC-U010','UILC-U017','UILC-U018','UILC-U024'],'''
+进化取消不成功提交且增加取消统计同前文。
+重复进化入口不幂等同前文。
+Shadow石无效同前文。
+满级糖配置门同前文。
+孵化包装恒真回退不可达同前文。
+直接孵化无蛋门同前文。
+交换最终替槽晚于不可取消进化同前文。
+交换两次收尾静态与host未知分开。
+净化跨级失败/同级/遗迹石分别保留。
+净化双满仍清中心同前文。
+净化持握拒退出同前文。
+打开/编辑结束两合格检查同前文。
+名人堂编号0未登记PC不可见。
+名人堂0空/非空历史对照同前文。
+名人堂裁剪不回编号同前文。
+名人堂登记不保存同前文。
+片尾首次不可跳过/循环后标记/无地图nil同前文。
+异常资源状态清理未逐项证明。
+真实事件可达性具名归WP77/U01。
+''')
+g('§11 lines203/§12 lines207–213',[],'''
+LC目录L01–L35覆盖引用不是本轮执行证据。
+LC每个实际字段仍需父catalog逐向量重建。
+WP22/23/31/32/35/26为具名前置领域。
+WP16/17为具名视觉消息前置。
+其它WP05/06/09/10/15/18/20/21/24/25/27/28/30/62/65/66/67A引用不授整个域批准。
+图形/音频存在播放结果未证。
+宿主时间表现未证。
+名人堂登记/用时/片尾/遗迹石/净化首次事件链未证。
+第二次同视口释放host未知。
+净化失败后host错误与清理未知。
+命名最大长度及完整两模式归WP17/66A。
+WP67B完成不等功能项全部完成。
+不强制未来采用参考类API。
+B17白轮廓/末轮BACK静态向量未执行。
+B17追溯链接为历史资格，尚需有效历史接收。
+''','SCOPE_OR_EXPLICIT_PARENT_CATALOG_AND_HISTORY_OPEN')
+new=[]
+for clause,units,status,assertions in groups:
+ for a in assertions:
+  new.append({'id':f'UILC-C{len(new)+1:03d}','formal':{'file':'wp67-b-lifecycle-presentations-and-history.md','clause':clause},'assertion':a,'source_units':units,'premise':'固定B8/R、所述入口/配置/普通依赖正常。域生产者仅按已实际完整接收的CRE-B等有限事实；未授全域、真实资源、host或Demo。','status':status,'execution':'NOT_EXECUTED'})
+r['records'].extend(new);r['manually_authored_assertion_count']=len(r['records']);r['utc']=NOW;r['scope']='WP17两正文304/WP63全文334/WP65主+两附录565/WP67B全部正文与附表语义段手工子断言；WP66独立重建/67A/完整catalog仍未最终。';r['formal_all_ui_atomic_denominator']='NOT_FINAL'
+(B/'reverse-mapping.json').write_text(json.dumps(r,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'credits_facts':len(credits),'new_lifecycle_reverse_assertions':len(new),'source_total_units':f['hand_authored_unit_count'],'source_total_facts':f['fact_count'],'reverse_total_assertions':r['manually_authored_assertion_count']},ensure_ascii=False))

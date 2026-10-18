@@ -1,0 +1,260 @@
+    1 #===============================================================================
+    2 # Map Factory (allows multiple maps to be loaded at once and connected)
+    3 #===============================================================================
+    4 class PokemonMapFactory
+    5   attr_reader :maps
+    6 
+    7   def initialize(id)
+    8     @maps       = []
+    9     @fixup      = false
+   10     @mapChanged = false   # transient instance variable
+   11     setup(id)
+   12   end
+   13 
+   14   # Clears all maps and sets up the current map with id. This function also sets
+   15   # the positions of neighboring maps and notifies the game system of a map
+   16   # change.
+   17   def setup(id)
+   18     @maps.clear
+   19     @maps[0] = Game_Map.new
+   20     @mapIndex = 0
+   21     oldID = ($game_map) ? $game_map.map_id : 0
+   22     setMapChanging(id, @maps[0]) if oldID != 0 && oldID != @maps[0].map_id
+   23     $game_map = @maps[0]
+   24     @maps[0].setup(id)
+   25     setMapsInRange
+   26     setMapChanged(oldID)
+   27   end
+   28 
+   29   def map
+   30     @mapIndex = 0 if !@mapIndex || @mapIndex < 0
+   31     return @maps[@mapIndex] if @maps[@mapIndex]
+   32     raise "No maps in save file... (mapIndex=#{@mapIndex})" if @maps.length == 0
+   33     if @maps[0]
+   34       echoln "Using next map, may be incorrect (mapIndex=#{@mapIndex}, length=#{@maps.length})"
+   35       return @maps[0]
+   36     end
+   37     raise "No maps in save file... (all maps empty; mapIndex=#{@mapIndex})"
+   38   end
+   39 
+   40   def hasMap?(id)
+   41     @maps.each do |map|
+   42       return true if map.map_id == id
+   43     end
+   44     return false
+   45   end
+   46 
+   47   def getMapIndex(id)
+   48     @maps.length.times do |i|
+   49       return i if @maps[i].map_id == id
+   50     end
+   51     return -1
+   52   end
+   53 
+   54   def getMap(id, add = true)
+   55     @maps.each do |map|
+   56       return map if map.map_id == id
+   57     end
+   58     map = Game_Map.new
+   59     map.setup(id)
+   60     @maps.push(map) if add
+   61     return map
+   62   end
+   63 
+   64   def getMapNoAdd(id)
+   65     return getMap(id, false)
+   66   end
+   67 
+   68   def getNewMap(playerX, playerY, map_id = nil)
+   69     id = map_id || $game_map.map_id
+   70     MapFactoryHelper.eachConnectionForMap(id) do |conn|
+   71       mapidB = nil
+   72       newx = 0
+   73       newy = 0
+   74       if conn[0] == id
+   75         mapidB = conn[3]
+   76         mapB = MapFactoryHelper.getMapDims(conn[3])
+   77         newx = conn[4] - conn[1] + playerX
+   78         newy = conn[5] - conn[2] + playerY
+   79       else
+   80         mapidB = conn[0]
+   81         mapB = MapFactoryHelper.getMapDims(conn[0])
+   82         newx = conn[1] - conn[4] + playerX
+   83         newy = conn[2] - conn[5] + playerY
+   84       end
+   85       if newx >= 0 && newx < mapB[0] && newy >= 0 && newy < mapB[1]
+   86         return [getMapNoAdd(mapidB), newx, newy] if map_id
+   87         return [getMap(mapidB), newx, newy]
+   88       end
+   89     end
+   90     return nil
+   91   end
+   92 
+   93   # Detects whether the player has moved onto a connected map, and if so, causes
+   94   # their transfer to that map.
+   95   def setCurrentMap
+   96     return if $game_player.moving?
+   97     return if $game_map.valid?($game_player.x, $game_player.y)
+   98     newmap = getNewMap($game_player.x, $game_player.y)
+   99     return if !newmap
+  100     oldmap = $game_map.map_id
+  101     if oldmap != 0 && oldmap != newmap[0].map_id
+  102       setMapChanging(newmap[0].map_id, newmap[0])
+  103     end
+  104     $game_map = newmap[0]
+  105     @mapIndex = getMapIndex($game_map.map_id)
+  106     $game_player.moveto(newmap[1], newmap[2])
+  107     $game_map.update
+  108     pbAutoplayOnTransition
+  109     $game_map.refresh
+  110     setMapChanged(oldmap)
+  111     $game_screen.weather_duration = 20
+  112   end
+  113 
+  114   def setMapsInRange
+  115     return if @fixup
+  116     @fixup = true
+  117     id = $game_map.map_id
+  118     MapFactoryHelper.eachConnectionForMap(id) do |conn|
+  119       if conn[0] == id
+  120         mapA = getMap(conn[0])
+  121         newdispx = ((conn[4] - conn[1]) * Game_Map::REAL_RES_X) + mapA.display_x
+  122         newdispy = ((conn[5] - conn[2]) * Game_Map::REAL_RES_Y) + mapA.display_y
+  123         if hasMap?(conn[3]) || MapFactoryHelper.mapInRangeById?(conn[3], newdispx, newdispy)
+  124           mapB = getMap(conn[3])
+  125           mapB.display_x = newdispx if mapB.display_x != newdispx
+  126           mapB.display_y = newdispy if mapB.display_y != newdispy
+  127         end
+  128       else
+  129         mapA = getMap(conn[3])
+  130         newdispx = ((conn[1] - conn[4]) * Game_Map::REAL_RES_X) + mapA.display_x
+  131         newdispy = ((conn[2] - conn[5]) * Game_Map::REAL_RES_Y) + mapA.display_y
+  132         if hasMap?(conn[0]) || MapFactoryHelper.mapInRangeById?(conn[0], newdispx, newdispy)
+  133           mapB = getMap(conn[0])
+  134           mapB.display_x = newdispx if mapB.display_x != newdispx
+  135           mapB.display_y = newdispy if mapB.display_y != newdispy
+  136         end
+  137       end
+  138     end
+  139     @fixup = false
+  140   end
+  141 
+  142   def setMapChanging(newID, newMap)
+  143     EventHandlers.trigger(:on_leave_map, newID, newMap)
+  144   end
+  145 
+  146   def setMapChanged(prevMap)
+  147     EventHandlers.trigger(:on_enter_map, prevMap)
+  148     @mapChanged = true
+  149   end
+  150 
+  151   def setSceneStarted(scene)
+  152     EventHandlers.trigger(:on_map_or_spriteset_change, scene, @mapChanged)
+  153     @mapChanged = false
+  154   end
+  155 
+  156   # Similar to Game_Player#passable?, but supports map connections
+  157   def isPassableFromEdge?(x, y)
+  158     return true if $game_map.valid?(x, y)
+  159     newmap = getNewMap(x, y, $game_map.map_id)
+  160     return false if !newmap
+  161     return isPassable?(newmap[0].map_id, newmap[1], newmap[2])
+  162   end
+  163 
+  164   def isPassable?(mapID, x, y, thisEvent = nil)
+  165     thisEvent = $game_player if !thisEvent
+  166     map = getMapNoAdd(mapID)
+  167     return false if !map
+  168     return false if !map.valid?(x, y)
+  169     return true if thisEvent.through
+  170     # Check passability of tile
+  171     return true if $DEBUG && Input.press?(Input::CTRL) && thisEvent.is_a?(Game_Player)
+  172     return false if !map.passable?(x, y, 0, thisEvent)
+  173     # Check passability of event(s) in that spot
+  174     map.events.each_value do |event|
+  175       next if event == thisEvent || !event.at_coordinate?(x, y)
+  176       return false if !event.through && event.character_name != ""
+  177     end
+  178     # Check passability of player
+  179     if !thisEvent.is_a?(Game_Player) &&
+  180        $game_map.map_id == mapID && $game_player.x == x && $game_player.y == y &&
+  181        !$game_player.through && $game_player.character_name != ""
+  182       return false
+  183     end
+  184     return true
+  185   end
+  186 
+  187   # Only used by follower events
+  188   def isPassableStrict?(mapID, x, y, thisEvent = nil)
+  189     thisEvent = $game_player if !thisEvent
+  190     map = getMapNoAdd(mapID)
+  191     return false if !map
+  192     return false if !map.valid?(x, y)
+  193     return true if thisEvent.through
+  194     return true if $DEBUG && Input.press?(Input::CTRL) && thisEvent.is_a?(Game_Player)
+  195     return false if !map.passableStrict?(x, y, 0, thisEvent)
+  196     map.events.each_value do |event|
+  197       next if event == thisEvent || !event.at_coordinate?(x, y)
+  198       return false if !event.through && event.character_name != ""
+  199     end
+  200     return true
+  201   end
+  202 
+  203   def getTerrainTag(mapid, x, y, countBridge = false)
+  204     map = getMapNoAdd(mapid)
+  205     return map.terrain_tag(x, y, countBridge)
+  206   end
+  207 
+  208   # NOTE: Assumes the event is 1x1 tile in size. Only returns one terrain tag.
+  209   def getFacingTerrainTag(dir = nil, event = nil)
+  210     tile = getFacingTile(dir, event)
+  211     return GameData::TerrainTag.get(:None) if !tile
+  212     return getTerrainTag(tile[0], tile[1], tile[2])
+  213   end
+  214 
+  215   def getTerrainTagFromCoords(mapid, x, y, countBridge = false)
+  216     tile = getRealTilePos(mapid, x, y)
+  217     return GameData::TerrainTag.get(:None) if !tile
+  218     return getTerrainTag(tile[0], tile[1], tile[2])
+  219   end
+  220 
+  221   def areConnected?(mapID1, mapID2)
+  222     return true if mapID1 == mapID2
+  223     return MapFactoryHelper.mapsConnected?(mapID1, mapID2)
+  224   end
+  225 
+  226   # Returns the coordinate change to go from this position to other position
+  227   def getRelativePos(thisMapID, thisX, thisY, otherMapID, otherX, otherY)
+  228     if thisMapID == otherMapID   # Both events share the same map
+  229       return [otherX - thisX, otherY - thisY]
+  230     end
+  231     MapFactoryHelper.eachConnectionForMap(thisMapID) do |conn|
+  232       if conn[0] == otherMapID
+  233         posX = conn[4] - conn[1] + otherX - thisX
+  234         posY = conn[5] - conn[2] + otherY - thisY
+  235         return [posX, posY]
+  236       elsif conn[3] == otherMapID
+  237         posX =  conn[1] - conn[4] + otherX - thisX
+  238         posY =  conn[2] - conn[5] + otherY - thisY
+  239         return [posX, posY]
+  240       end
+  241     end
+  242     return [0, 0]
+  243   end
+  244 
+  245   # Gets the distance from this event to another event.  Example: If this event's
+  246   # coordinates are (2,5) and the other event's coordinates are (5,1), returns
+  247   # the array (3,-4), because (5-2=3) and (1-5=-4).
+  248   def getThisAndOtherEventRelativePos(thisEvent, otherEvent)
+  249     return [0, 0] if !thisEvent || !otherEvent
+  250     return getRelativePos(thisEvent.map.map_id, thisEvent.x, thisEvent.y,
+  251                           otherEvent.map.map_id, otherEvent.x, otherEvent.y)
+  252   end
+  253 
+  254   def getThisAndOtherPosRelativePos(thisEvent, otherMapID, otherX, otherY)
+  255     return [0, 0] if !thisEvent
+  256     return getRelativePos(thisEvent.map.map_id, thisEvent.x, thisEvent.y,
+  257                           otherMapID, otherX, otherY)
+  258   end
+  259 
+  260   # Unused

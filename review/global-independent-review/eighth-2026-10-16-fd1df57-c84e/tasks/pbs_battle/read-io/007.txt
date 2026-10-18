@@ -1,0 +1,408 @@
+00001 module GameData
+00002   class Move
+00003     attr_reader :id
+00004     attr_reader :real_name
+00005     attr_reader :type
+00006     attr_reader :category
+00007     attr_reader :power
+00008     attr_reader :accuracy
+00009     attr_reader :total_pp
+00010     attr_reader :target
+00011     attr_reader :priority
+00012     attr_reader :function_code
+00013     attr_reader :flags
+00014     attr_reader :effect_chance
+00015     attr_reader :real_description
+00016     attr_reader :pbs_file_suffix
+00017 
+00018     DATA = {}
+00019     DATA_FILENAME = "moves.dat"
+00020     PBS_BASE_FILENAME = "moves"
+00021 
+00022     SCHEMA = {
+00023       "SectionName"  => [:id,               "m"],
+00024       "Name"         => [:real_name,        "s"],
+00025       "Type"         => [:type,             "e", :Type],
+00026       "Category"     => [:category,         "e", ["Physical", "Special", "Status"]],
+00027       "Power"        => [:power,            "u"],
+00028       "Accuracy"     => [:accuracy,         "u"],
+00029       "TotalPP"      => [:total_pp,         "u"],
+00030       "Target"       => [:target,           "e", :Target],
+00031       "Priority"     => [:priority,         "i"],
+00032       "FunctionCode" => [:function_code,    "s"],
+00033       "Flags"        => [:flags,            "*s"],
+00034       "EffectChance" => [:effect_chance,    "u"],
+00035       "Description"  => [:real_description, "q"]
+00036     }
+00037 
+00038     extend ClassMethodsSymbols
+00039     include InstanceMethods
+00040 
+00041     def initialize(hash)
+00042       @id               = hash[:id]
+00043       @real_name        = hash[:real_name]        || "Unnamed"
+00044       @type             = hash[:type]             || :NONE
+00045       @category         = hash[:category]         || 2
+00046       @power            = hash[:power]            || 0
+00047       @accuracy         = hash[:accuracy]         || 100
+00048       @total_pp         = hash[:total_pp]         || 5
+00049       @target           = hash[:target]           || :None
+00050       @priority         = hash[:priority]         || 0
+00051       @function_code    = hash[:function_code]    || "None"
+00052       @flags            = hash[:flags]            || []
+00053       @flags            = [@flags] if !@flags.is_a?(Array)
+00054       @effect_chance    = hash[:effect_chance]    || 0
+00055       @real_description = hash[:real_description] || "???"
+00056       @pbs_file_suffix  = hash[:pbs_file_suffix]  || ""
+00057     end
+00058 
+00059     # @deprecated This method is slated to be removed in v22.
+00060     def base_damage
+00061       Deprecation.warn_method("base_damage", "v22", "power")
+00062       return @power
+00063     end
+00064 
+00065     # @return [String] the translated name of this move
+00066     def name
+00067       return pbGetMessageFromHash(MessageTypes::MOVE_NAMES, @real_name)
+00068     end
+00069 
+00070     # @return [String] the translated description of this move
+00071     def description
+00072       return pbGetMessageFromHash(MessageTypes::MOVE_DESCRIPTIONS, @real_description)
+00073     end
+00074 
+00075     def has_flag?(flag)
+00076       return @flags.any? { |f| f.downcase == flag.downcase }
+00077     end
+00078 
+00079     def physical?
+00080       return false if @power == 0
+00081       return @category == 0 if Settings::MOVE_CATEGORY_PER_MOVE
+00082       return GameData::Type.get(@type).physical?
+00083     end
+00084 
+00085     def special?
+00086       return false if @power == 0
+00087       return @category == 1 if Settings::MOVE_CATEGORY_PER_MOVE
+00088       return GameData::Type.get(@type).special?
+00089     end
+00090 
+00091     def damaging?
+00092       return @category != 2
+00093     end
+00094 
+00095     def status?
+00096       return @category == 2
+00097     end
+00098 
+00099     def hidden_move?
+00100       GameData::Item.each do |i|
+00101         return true if i.is_HM? && i.move == @id
+00102       end
+00103       return false
+00104     end
+00105 
+00106     def display_type(pkmn, move = nil)
+00107 =begin
+00108       case @function_code
+00109       when "TypeDependsOnUserIVs"
+00110         return pbHiddenPower(pkmn)[0]
+00111       when "TypeAndPowerDependOnUserBerry"
+00112         type_array = {
+00113           :NORMAL   => [:CHILANBERRY],
+00114           :FIRE     => [:CHERIBERRY,  :BLUKBERRY,   :WATMELBERRY, :OCCABERRY],
+00115           :WATER    => [:CHESTOBERRY, :NANABBERRY,  :DURINBERRY,  :PASSHOBERRY],
+00116           :ELECTRIC => [:PECHABERRY,  :WEPEARBERRY, :BELUEBERRY,  :WACANBERRY],
+00117           :GRASS    => [:RAWSTBERRY,  :PINAPBERRY,  :RINDOBERRY,  :LIECHIBERRY],
+00118           :ICE      => [:ASPEARBERRY, :POMEGBERRY,  :YACHEBERRY,  :GANLONBERRY],
+00119           :FIGHTING => [:LEPPABERRY,  :KELPSYBERRY, :CHOPLEBERRY, :SALACBERRY],
+00120           :POISON   => [:ORANBERRY,   :QUALOTBERRY, :KEBIABERRY,  :PETAYABERRY],
+00121           :GROUND   => [:PERSIMBERRY, :HONDEWBERRY, :SHUCABERRY,  :APICOTBERRY],
+00122           :FLYING   => [:LUMBERRY,    :GREPABERRY,  :COBABERRY,   :LANSATBERRY],
+00123           :PSYCHIC  => [:SITRUSBERRY, :TAMATOBERRY, :PAYAPABERRY, :STARFBERRY],
+00124           :BUG      => [:FIGYBERRY,   :CORNNBERRY,  :TANGABERRY,  :ENIGMABERRY],
+00125           :ROCK     => [:WIKIBERRY,   :MAGOSTBERRY, :CHARTIBERRY, :MICLEBERRY],
+00126           :GHOST    => [:MAGOBERRY,   :RABUTABERRY, :KASIBBERRY,  :CUSTAPBERRY],
+00127           :DRAGON   => [:AGUAVBERRY,  :NOMELBERRY,  :HABANBERRY,  :JABOCABERRY],
+00128           :DARK     => [:IAPAPABERRY, :SPELONBERRY, :COLBURBERRY, :ROWAPBERRY, :MARANGABERRY],
+00129           :STEEL    => [:RAZZBERRY,   :PAMTREBERRY, :BABIRIBERRY],
+00130           :FAIRY    => [:ROSELIBERRY, :KEEBERRY]
+00131         }
+00132         if pkmn.hasItem?
+00133           type_array.each do |type, items|
+00134             return type if items.include?(pkmn.item_id) && GameData::Type.exists?(type)
+00135           end
+00136         end
+00137       when "TypeDependsOnUserPlate"
+00138         item_types = {
+00139           :FISTPLATE   => :FIGHTING,
+00140           :SKYPLATE    => :FLYING,
+00141           :TOXICPLATE  => :POISON,
+00142           :EARTHPLATE  => :GROUND,
+00143           :STONEPLATE  => :ROCK,
+00144           :INSECTPLATE => :BUG,
+00145           :SPOOKYPLATE => :GHOST,
+00146           :IRONPLATE   => :STEEL,
+00147           :FLAMEPLATE  => :FIRE,
+00148           :SPLASHPLATE => :WATER,
+00149           :MEADOWPLATE => :GRASS,
+00150           :ZAPPLATE    => :ELECTRIC,
+00151           :MINDPLATE   => :PSYCHIC,
+00152           :ICICLEPLATE => :ICE,
+00153           :DRACOPLATE  => :DRAGON,
+00154           :DREADPLATE  => :DARK,
+00155           :PIXIEPLATE  => :FAIRY
+00156         }
+00157         if pkmn.hasItem?
+00158           item_types.each do |item, item_type|
+00159             return item_type if pkmn.item_id == item && GameData::Type.exists?(item_type)
+00160           end
+00161         end
+00162       when "TypeDependsOnUserMemory"
+00163         item_types = {
+00164           :FIGHTINGMEMORY => :FIGHTING,
+00165           :FLYINGMEMORY   => :FLYING,
+00166           :POISONMEMORY   => :POISON,
+00167           :GROUNDMEMORY   => :GROUND,
+00168           :ROCKMEMORY     => :ROCK,
+00169           :BUGMEMORY      => :BUG,
+00170           :GHOSTMEMORY    => :GHOST,
+00171           :STEELMEMORY    => :STEEL,
+00172           :FIREMEMORY     => :FIRE,
+00173           :WATERMEMORY    => :WATER,
+00174           :GRASSMEMORY    => :GRASS,
+00175           :ELECTRICMEMORY => :ELECTRIC,
+00176           :PSYCHICMEMORY  => :PSYCHIC,
+00177           :ICEMEMORY      => :ICE,
+00178           :DRAGONMEMORY   => :DRAGON,
+00179           :DARKMEMORY     => :DARK,
+00180           :FAIRYMEMORY    => :FAIRY
+00181         }
+00182         if pkmn.hasItem?
+00183           item_types.each do |item, item_type|
+00184             return item_type if pkmn.item_id == item && GameData::Type.exists?(item_type)
+00185           end
+00186         end
+00187       when "TypeDependsOnUserDrive"
+00188         item_types = {
+00189           :SHOCKDRIVE => :ELECTRIC,
+00190           :BURNDRIVE  => :FIRE,
+00191           :CHILLDRIVE => :ICE,
+00192           :DOUSEDRIVE => :WATER
+00193         }
+00194         if pkmn.hasItem?
+00195           item_types.each do |item, item_type|
+00196             return item_type if pkmn.item_id == item && GameData::Type.exists?(item_type)
+00197           end
+00198         end
+00199       when "TypeIsUserFirstType"
+00200         return pkmn.types[0]
+00201       end
+00202 =end
+00203       return @type
+00204     end
+00205 
+00206     def display_damage(pkmn, move = nil)
+00207 =begin
+00208       case @function_code
+00209       when "TypeDependsOnUserIVs"
+00210         return pbHiddenPower(pkmn)[1]
+00211       when "TypeAndPowerDependOnUserBerry"
+00212         damage_array = {
+00213           60 => [:CHERIBERRY,  :CHESTOBERRY, :PECHABERRY,  :RAWSTBERRY,  :ASPEARBERRY,
+00214                  :LEPPABERRY,  :ORANBERRY,   :PERSIMBERRY, :LUMBERRY,    :SITRUSBERRY,
+00215                  :FIGYBERRY,   :WIKIBERRY,   :MAGOBERRY,   :AGUAVBERRY,  :IAPAPABERRY,
+00216                  :RAZZBERRY,   :OCCABERRY,   :PASSHOBERRY, :WACANBERRY,  :RINDOBERRY,
+00217                  :YACHEBERRY,  :CHOPLEBERRY, :KEBIABERRY,  :SHUCABERRY,  :COBABERRY,
+00218                  :PAYAPABERRY, :TANGABERRY,  :CHARTIBERRY, :KASIBBERRY,  :HABANBERRY,
+00219                  :COLBURBERRY, :BABIRIBERRY, :CHILANBERRY, :ROSELIBERRY],
+00220           70 => [:BLUKBERRY,   :NANABBERRY,  :WEPEARBERRY, :PINAPBERRY,  :POMEGBERRY,
+00221                  :KELPSYBERRY, :QUALOTBERRY, :HONDEWBERRY, :GREPABERRY,  :TAMATOBERRY,
+00222                  :CORNNBERRY,  :MAGOSTBERRY, :RABUTABERRY, :NOMELBERRY,  :SPELONBERRY,
+00223                  :PAMTREBERRY],
+00224           80 => [:WATMELBERRY, :DURINBERRY,  :BELUEBERRY,  :LIECHIBERRY, :GANLONBERRY,
+00225                  :SALACBERRY,  :PETAYABERRY, :APICOTBERRY, :LANSATBERRY, :STARFBERRY,
+00226                  :ENIGMABERRY, :MICLEBERRY,  :CUSTAPBERRY, :JABOCABERRY, :ROWAPBERRY,
+00227                  :KEEBERRY,    :MARANGABERRY]
+00228         }
+00229         if pkmn.hasItem?
+00230           damage_array.each do |dmg, items|
+00231             next if !items.include?(pkmn.item_id)
+00232             ret = dmg
+00233             ret += 20 if Settings::MECHANICS_GENERATION >= 6
+00234             return ret
+00235           end
+00236         end
+00237       when "ThrowUserItemAtTarget"
+00238         fling_powers = {
+00239           130 => [:IRONBALL
+00240                  ],
+00241           100 => [:HARDSTONE,:RAREBONE,
+00242                   # Fossils
+00243                   :ARMORFOSSIL,:CLAWFOSSIL,:COVERFOSSIL,:DOMEFOSSIL,:HELIXFOSSIL,
+00244                   :JAWFOSSIL,:OLDAMBER,:PLUMEFOSSIL,:ROOTFOSSIL,:SAILFOSSIL,
+00245                   :SKULLFOSSIL
+00246                  ],
+00247            90 => [:DEEPSEATOOTH,:GRIPCLAW,:THICKCLUB,
+00248                   # Plates
+00249                   :DRACOPLATE,:DREADPLATE,:EARTHPLATE,:FISTPLATE,:FLAMEPLATE,
+00250                   :ICICLEPLATE,:INSECTPLATE,:IRONPLATE,:MEADOWPLATE,:MINDPLATE,
+00251                   :PIXIEPLATE,:SKYPLATE,:SPLASHPLATE,:SPOOKYPLATE,:STONEPLATE,
+00252                   :TOXICPLATE,:ZAPPLATE
+00253                  ],
+00254            80 => [:ASSAULTVEST,:CHIPPEDPOT,:CRACKEDPOT,:DAWNSTONE,:DUSKSTONE,
+00255                   :ELECTIRIZER,:HEAVYDUTYBOOTS,:MAGMARIZER,:ODDKEYSTONE,:OVALSTONE,
+00256                   :PROTECTOR,:QUICKCLAW,:RAZORCLAW,:SACHET,:SAFETYGOGGLES,
+00257                   :SHINYSTONE,:STICKYBARB,:WEAKNESSPOLICY,:WHIPPEDDREAM
+00258                  ],
+00259            70 => [:DRAGONFANG,:POISONBARB,
+00260                   # EV-training items (Macho Brace is 60)
+00261                   :POWERANKLET,:POWERBAND,:POWERBELT,:POWERBRACER,:POWERLENS,
+00262                   :POWERWEIGHT,
+00263                   # Drives
+00264                   :BURNDRIVE,:CHILLDRIVE,:DOUSEDRIVE,:SHOCKDRIVE
+00265                  ],
+00266            60 => [:ADAMANTORB,:DAMPROCK,:GRISEOUSORB,:HEATROCK,:LEEK,:LUSTROUSORB,
+00267                   :MACHOBRACE,:ROCKYHELMET,:STICK,:TERRAINEXTENDER
+00268                  ],
+00269            50 => [:DUBIOUSDISC,:SHARPBEAK,
+00270                   # Memories
+00271                   :BUGMEMORY,:DARKMEMORY,:DRAGONMEMORY,:ELECTRICMEMORY,:FAIRYMEMORY,
+00272                   :FIGHTINGMEMORY,:FIREMEMORY,:FLYINGMEMORY,:GHOSTMEMORY,
+00273                   :GRASSMEMORY,:GROUNDMEMORY,:ICEMEMORY,:POISONMEMORY,
+00274                   :PSYCHICMEMORY,:ROCKMEMORY,:STEELMEMORY,:WATERMEMORY
+00275                  ],
+00276            40 => [:EVIOLITE,:ICYROCK,:LUCKYPUNCH
+00277                  ],
+00278            30 => [:ABSORBBULB,:ADRENALINEORB,:AMULETCOIN,:BINDINGBAND,:BLACKBELT,
+00279                   :BLACKGLASSES,:BLACKSLUDGE,:BOTTLECAP,:CELLBATTERY,:CHARCOAL,
+00280                   :CLEANSETAG,:DEEPSEASCALE,:DRAGONSCALE,:EJECTBUTTON,:ESCAPEROPE,
+00281                   :EXPSHARE,:FLAMEORB,:FLOATSTONE,:FLUFFYTAIL,:GOLDBOTTLECAP,
+00282                   :HEARTSCALE,:HONEY,:KINGSROCK,:LIFEORB,:LIGHTBALL,:LIGHTCLAY,
+00283                   :LUCKYEGG,:LUMINOUSMOSS,:MAGNET,:METALCOAT,:METRONOME,
+00284                   :MIRACLESEED,:MYSTICWATER,:NEVERMELTICE,:PASSORB,:POKEDOLL,
+00285                   :POKETOY,:PRISMSCALE,:PROTECTIVEPADS,:RAZORFANG,:SACREDASH,
+00286                   :SCOPELENS,:SHELLBELL,:SHOALSALT,:SHOALSHELL,:SMOKEBALL,:SNOWBALL,
+00287                   :SOULDEW,:SPELLTAG,:TOXICORB,:TWISTEDSPOON,:UPGRADE,
+00288                   # Healing items
+00289                   :ANTIDOTE,:AWAKENING,:BERRYJUICE,:BIGMALASADA,:BLUEFLUTE,
+00290                   :BURNHEAL,:CASTELIACONE,:ELIXIR,:ENERGYPOWDER,:ENERGYROOT,:ETHER,
+00291                   :FRESHWATER,:FULLHEAL,:FULLRESTORE,:HEALPOWDER,:HYPERPOTION,
+00292                   :ICEHEAL,:LAVACOOKIE,:LEMONADE,:LUMIOSEGALETTE,:MAXELIXIR,
+00293                   :MAXETHER,:MAXHONEY,:MAXPOTION,:MAXREVIVE,:MOOMOOMILK,:OLDGATEAU,
+00294                   :PARALYZEHEAL,:PARLYZHEAL,:PEWTERCRUNCHIES,:POTION,:RAGECANDYBAR,
+00295                   :REDFLUTE,:REVIVALHERB,:REVIVE,:SHALOURSABLE,:SODAPOP,
+00296                   :SUPERPOTION,:SWEETHEART,:YELLOWFLUTE,
+00297                   # Battle items
+00298                   :XACCURACY,:XACCURACY2,:XACCURACY3,:XACCURACY6,
+00299                   :XATTACK,:XATTACK2,:XATTACK3,:XATTACK6,
+00300                   :XDEFEND,:XDEFEND2,:XDEFEND3,:XDEFEND6,
+00301                   :XDEFENSE,:XDEFENSE2,:XDEFENSE3,:XDEFENSE6,
+00302                   :XSPATK,:XSPATK2,:XSPATK3,:XSPATK6,
+00303                   :XSPECIAL,:XSPECIAL2,:XSPECIAL3,:XSPECIAL6,
+00304                   :XSPDEF,:XSPDEF2,:XSPDEF3,:XSPDEF6,
+00305                   :XSPEED,:XSPEED2,:XSPEED3,:XSPEED6,
+00306                   :DIREHIT,:DIREHIT2,:DIREHIT3,
+00307                   :ABILITYURGE,:GUARDSPEC,:ITEMDROP,:ITEMURGE,:RESETURGE,
+00308                   :MAXMUSHROOMS,
+00309                   # Vitamins
+00310                   :CALCIUM,:CARBOS,:HPUP,:IRON,:PPUP,:PPMAX,:PROTEIN,:ZINC,
+00311                   :RARECANDY,
+00312                   # Most evolution stones (see also 80)
+00313                   :EVERSTONE,:FIRESTONE,:ICESTONE,:LEAFSTONE,:MOONSTONE,:SUNSTONE,
+00314                   :THUNDERSTONE,:WATERSTONE,:SWEETAPPLE,:TARTAPPLE, :GALARICACUFF,
+00315                   :GALARICAWREATH,
+00316                   # Repels
+00317                   :MAXREPEL,:REPEL,:SUPERREPEL,
+00318                   # Mulches
+00319                   :AMAZEMULCH,:BOOSTMULCH,:DAMPMULCH,:GOOEYMULCH,:GROWTHMULCH,
+00320                   :RICHMULCH,:STABLEMULCH,:SURPRISEMULCH,
+00321                   # Shards
+00322                   :BLUESHARD,:GREENSHARD,:REDSHARD,:YELLOWSHARD,
+00323                   # Valuables
+00324                   :BALMMUSHROOM,:BIGMUSHROOM,:BIGNUGGET,:BIGPEARL,:COMETSHARD,
+00325                   :NUGGET,:PEARL,:PEARLSTRING,:RELICBAND,:RELICCOPPER,:RELICCROWN,
+00326                   :RELICGOLD,:RELICSILVER,:RELICSTATUE,:RELICVASE,:STARDUST,
+00327                   :STARPIECE,:STRANGESOUVENIR,:TINYMUSHROOM,
+00328                   # Exp Candies
+00329                   :EXPCANDYXS, :EXPCANDYS, :EXPCANDYM, :EXPCANDYL, :EXPCANDYXL
+00330                  ],
+00331            20 => [# Feathers
+00332                   :CLEVERFEATHER,:GENIUSFEATHER,:HEALTHFEATHER,:MUSCLEFEATHER,
+00333                   :PRETTYFEATHER,:RESISTFEATHER,:SWIFTFEATHER,
+00334                   :CLEVERWING,:GENIUSWING,:HEALTHWING,:MUSCLEWING,:PRETTYWING,
+00335                   :RESISTWING,:SWIFTWING
+00336                  ],
+00337            10 => [:AIRBALLOON,:BIGROOT,:BRIGHTPOWDER,:CHOICEBAND,:CHOICESCARF,
+00338                   :CHOICESPECS,:DESTINYKNOT,:DISCOUNTCOUPON,:EXPERTBELT,:FOCUSBAND,
+00339                   :FOCUSSASH,:LAGGINGTAIL,:LEFTOVERS,:MENTALHERB,:METALPOWDER,
+00340                   :MUSCLEBAND,:POWERHERB,:QUICKPOWDER,:REAPERCLOTH,:REDCARD,
+00341                   :RINGTARGET,:SHEDSHELL,:SILKSCARF,:SILVERPOWDER,:SMOOTHROCK,
+00342                   :SOFTSAND,:SOOTHEBELL,:WHITEHERB,:WIDELENS,:WISEGLASSES,:ZOOMLENS,
+00343                   # Terrain seeds
+00344                   :ELECTRICSEED,:GRASSYSEED,:MISTYSEED,:PSYCHICSEED,
+00345                   # Nectar
+00346                   :PINKNECTAR,:PURPLENECTAR,:REDNECTAR,:YELLOWNECTAR,
+00347                   # Incenses
+00348                   :FULLINCENSE,:LAXINCENSE,:LUCKINCENSE,:ODDINCENSE,:PUREINCENSE,
+00349                   :ROCKINCENSE,:ROSEINCENSE,:SEAINCENSE,:WAVEINCENSE,
+00350                   # Scarves
+00351                   :BLUESCARF,:GREENSCARF,:PINKSCARF,:REDSCARF,:YELLOWSCARF,
+00352                   # Mints
+00353                   :LONELYMINT, :ADAMANTMINT, :NAUGHTYMINT, :BRAVEMINT, :BOLDMINT,
+00354                   :IMPISHMINT, :LAXMINT, :RELAXEDMINT, :MODESTMINT, :MILDMINT,
+00355                   :RASHMINT, :QUIETMINT, :CALMMINT, :GENTLEMINT, :CAREFULMINT,
+00356                   :SASSYMINT, :TIMIDMINT, :HASTYMINT, :JOLLYMINT, :NAIVEMINT,
+00357                   :SERIOUSMINT,
+00358                   # Sweets
+00359                   :STRAWBERRYSWEET, :LOVESWEET, :BERRYSWEET, :CLOVERSWEET,
+00360                   :FLOWERSWEET, :STARSWEET, :RIBBONSWEET
+00361                  ]
+00362         }
+00363         return 0 if !pkmn.item
+00364         return 10 if pkmn.item.is_berry?
+00365         return 80 if pkmn.item.is_mega_stone?
+00366         if pkmn.item.is_TR?
+00367           ret = GameData::Move.get(pkmn.item.move).power
+00368           ret = 10 if ret < 10
+00369           return ret
+00370         end
+00371         fling_powers.each do |power,items|
+00372           return power if items.include?(pkmn.item_id)
+00373         end
+00374         return 10
+00375       when "PowerHigherWithUserHP"
+00376         return [150 * pkmn.hp / pkmn.totalhp, 1].max
+00377       when "PowerLowerWithUserHP"
+00378         n = 48 * pkmn.hp / pkmn.totalhp
+00379         return 200 if n < 2
+00380         return 150 if n < 5
+00381         return 100 if n < 10
+00382         return 80 if n < 17
+00383         return 40 if n < 33
+00384         return 20
+00385       when "PowerHigherWithUserHappiness"
+00386         return [(pkmn.happiness * 2 / 5).floor, 1].max
+00387       when "PowerLowerWithUserHappiness"
+00388         return [((255 - pkmn.happiness) * 2 / 5).floor, 1].max
+00389       when "PowerHigherWithLessPP"
+00390         dmgs = [200, 80, 60, 50, 40]
+00391         ppLeft = [[(move&.pp || @total_pp) - 1, 0].max, dmgs.length - 1].min
+00392         return dmgs[ppLeft]
+00393       end
+00394 =end
+00395       return @power
+00396     end
+00397 
+00398     def display_category(pkmn, move = nil); return @category; end
+00399     def display_accuracy(pkmn, move = nil); return @accuracy; end
+00400 
+00401     alias __orig__get_property_for_PBS get_property_for_PBS unless method_defined?(:__orig__get_property_for_PBS)
+00402     def get_property_for_PBS(key)
+00403       ret = __orig__get_property_for_PBS(key)
+00404       ret = nil if ["Power", "Priority", "EffectChance"].include?(key) && ret == 0
+00405       return ret
+00406     end
+00407   end
+00408 end

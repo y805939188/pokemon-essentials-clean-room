@@ -1,0 +1,126 @@
+00944     MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_SPEECHES_LOSE, lose_texts)
+00945     MessageTypes.setMessagesAsHash(MessageTypes::POKEMON_NICKNAMES, pokemon_nicknames)
+00946   end
+00947 
+00948   #=============================================================================
+00949   # Compile Battle Tower and other Cups trainers/Pokémon
+00950   #=============================================================================
+00951   def compile_trainer_lists(path = "PBS/battle_facility_lists.txt")
+00952     compile_pbs_file_message_start(path)
+00953     btTrainersRequiredTypes = {
+00954       "Trainers"   => [0, "s"],
+00955       "Pokemon"    => [1, "s"],
+00956       "Challenges" => [2, "*s"]
+00957     }
+00958     if !FileTest.exist?(path)
+00959       File.open(path, "wb") do |f|
+00960         f.write(0xEF.chr)
+00961         f.write(0xBB.chr)
+00962         f.write(0xBF.chr)
+00963         f.write("[DefaultTrainerList]\r\n")
+00964         f.write("Trainers = battle_tower_trainers.txt\r\n")
+00965         f.write("Pokemon = battle_tower_pokemon.txt\r\n")
+00966       end
+00967     end
+00968     sections = []
+00969     MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_INTRO_SPEECHES, [])
+00970     MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, [])
+00971     MessageTypes.setMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, [])
+00972     File.open(path, "rb") do |f|
+00973       FileLineData.file = path
+00974       idx = 0
+00975       pbEachFileSection(f) do |section, name|
+00976         echo "."
+00977         idx += 1
+00978         Graphics.update
+00979         next if name != "DefaultTrainerList" && name != "TrainerList"
+00980         rsection = []
+00981         section.each_key do |key|
+00982           FileLineData.setSection(name, key, section[key])
+00983           schema = btTrainersRequiredTypes[key]
+00984           next if key == "Challenges" && name == "DefaultTrainerList"
+00985           next if !schema
+00986           record = get_csv_record(section[key], schema)
+00987           rsection[schema[0]] = record
+00988         end
+00989         if !rsection[0]
+00990           raise _INTL("No trainer data file given in section {1}.", name) + "\n" + FileLineData.linereport
+00991         end
+00992         if !rsection[1]
+00993           raise _INTL("No trainer data file given in section {1}.", name) + "\n" + FileLineData.linereport
+00994         end
+00995         rsection[3] = rsection[0]
+00996         rsection[4] = rsection[1]
+00997         rsection[5] = (name == "DefaultTrainerList")
+00998         if FileTest.exist?("PBS/" + rsection[0])
+00999           rsection[0] = compile_battle_tower_trainers("PBS/" + rsection[0])
+01000         else
+01001           rsection[0] = []
+01002         end
+01003         if FileTest.exist?("PBS/" + rsection[1])
+01004           filename = "PBS/" + rsection[1]
+01005           rsection[1] = []
+01006           pbCompilerEachCommentedLine(filename) do |line, _lineno|
+01007             rsection[1].push(PBPokemon.fromInspected(line))
+01008           end
+01009         else
+01010           rsection[1] = []
+01011         end
+01012         rsection[2] = [] if !rsection[2]
+01013         while rsection[2].include?("")
+01014           rsection[2].delete("")
+01015         end
+01016         rsection[2].compact!
+01017         sections.push(rsection)
+01018       end
+01019     end
+01020     save_data(sections, "Data/trainer_lists.dat")
+01021     process_pbs_file_message_end
+01022   end
+01023 
+01024   def compile_battle_tower_trainers(filename)
+01025     sections = []
+01026     requiredtypes = {
+01027       "Type"          => [0, "e", :TrainerType],
+01028       "Name"          => [1, "s"],
+01029       "BeginSpeech"   => [2, "s"],
+01030       "EndSpeechWin"  => [3, "s"],
+01031       "EndSpeechLose" => [4, "s"],
+01032       "PokemonNos"    => [5, "*u"]
+01033     }
+01034     trainernames  = []
+01035     beginspeech   = []
+01036     endspeechwin  = []
+01037     endspeechlose = []
+01038     if FileTest.exist?(filename)
+01039       File.open(filename, "rb") do |f|
+01040         FileLineData.file = filename
+01041         pbEachFileSection(f) do |section, name|
+01042           rsection = []
+01043           section.each_key do |key|
+01044             FileLineData.setSection(name, key, section[key])
+01045             schema = requiredtypes[key]
+01046             next if !schema
+01047             record = get_csv_record(section[key], schema)
+01048             rsection[schema[0]] = record
+01049           end
+01050           trainernames.push(rsection[1])
+01051           beginspeech.push(rsection[2])
+01052           endspeechwin.push(rsection[3])
+01053           endspeechlose.push(rsection[4])
+01054           sections.push(rsection)
+01055         end
+01056       end
+01057     end
+01058     MessageTypes.addMessagesAsHash(MessageTypes::TRAINER_NAMES, trainernames)
+01059     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_INTRO_SPEECHES, beginspeech)
+01060     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_WIN, endspeechwin)
+01061     MessageTypes.addMessagesAsHash(MessageTypes::FRONTIER_END_SPEECHES_LOSE, endspeechlose)
+01062     return sections
+01063   end
+01064 
+01065   #=============================================================================
+01066   # Compile metadata
+01067   # NOTE: Doesn't use compile_PBS_file_generic because it contains data for two
+01068   #       different GameData classes.
+01069   #=============================================================================

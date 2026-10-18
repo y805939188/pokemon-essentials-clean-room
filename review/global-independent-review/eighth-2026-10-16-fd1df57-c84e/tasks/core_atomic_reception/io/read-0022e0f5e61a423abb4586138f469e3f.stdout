@@ -1,0 +1,120 @@
+00099:     end
+00100:     # Destiny Bond
+00101:     # NOTE: Although Destiny Bond is similar to Grudge, they don't apply at
+00102:     #       the same time (however, Destiny Bond does check whether it's going
+00103:     #       to trigger at the same time as Grudge).
+00104:     if user.effects[PBEffects::DestinyBondTarget] >= 0 && !user.fainted?
+00105:       dbName = @battle.battlers[user.effects[PBEffects::DestinyBondTarget]].pbThis
+00106:       @battle.pbDisplay(_INTL("{1} took its attacker down with it!", dbName))
+00107:       user.pbReduceHP(user.hp, false)
+00108:       user.pbItemHPHealCheck
+00109:       user.pbFaint
+00110:       @battle.pbJudgeCheckpoint(user)
+00111:     end
+00112:     # User's ability
+00113:     if user.abilityActive?
+00114:       Battle::AbilityEffects.triggerOnEndOfUsingMove(user.ability, user, targets, move, @battle)
+00115:     end
+00116:     if !user.fainted? && !user.effects[PBEffects::Transform] &&
+00117:        !@battle.pbAllFainted?(user.idxOpposingSide)
+00118:       # Greninja - Battle Bond
+00119:       if user.isSpecies?(:GRENINJA) && user.ability == :BATTLEBOND &&
+00120:          !@battle.battleBond[user.index & 1][user.pokemonIndex]
+00121:         numFainted = 0
+00122:         targets.each { |b| numFainted += 1 if b.damageState.fainted }
+00123:         if numFainted > 0 && user.form == 1
+00124:           @battle.battleBond[user.index & 1][user.pokemonIndex] = true
+00125:           @battle.pbDisplay(_INTL("{1} became fully charged due to its bond with its Trainer!", user.pbThis))
+00126:           @battle.pbShowAbilitySplash(user, true)
+00127:           @battle.pbHideAbilitySplash(user)
+00128:           user.pbChangeForm(2, _INTL("{1} became Ash-Greninja!", user.pbThis))
+00129:         end
+00130:       end
+00131:       # Cramorant = Gulp Missile
+00132:       if user.isSpecies?(:CRAMORANT) && user.ability == :GULPMISSILE && user.form == 0 &&
+00133:          ((move.id == :SURF && numHits > 0) || (move.id == :DIVE && move.chargingTurn))
+00134:         # NOTE: Intentionally no ability splash or message here.
+00135:         user.pbChangeForm((user.hp > user.totalhp / 2) ? 1 : 2, nil)
+00136:       end
+00137:     end
+00138:     # Room Service
+00139:     if move.function_code == "StartSlowerBattlersActFirst" && @battle.field.effects[PBEffects::TrickRoom] > 0
+00140:       @battle.allBattlers.each do |b|
+00141:         next if !b.hasActiveItem?(:ROOMSERVICE)
+00142:         next if !b.pbCanLowerStatStage?(:SPEED)
+00143:         @battle.pbCommonAnimation("UseItem", b)
+00144:         b.pbLowerStatStage(:SPEED, 1, nil)
+00145:         b.pbConsumeItem
+00146:       end
+00147:     end
+00148:     # Consume user's Gem
+00149:     if user.effects[PBEffects::GemConsumed]
+00150:       # NOTE: The consume animation and message for Gems are shown immediately
+00151:       #       after the move's animation, but the item is only consumed now.
+00152:       user.pbConsumeItem
+00153:     end
+00154:     switched_battlers = []   # Indices of battlers that were switched out somehow
+00155:     # Target switching caused by Roar, Whirlwind, Circle Throw, Dragon Tail
+00156:     move.pbSwitchOutTargetEffect(user, targets, numHits, switched_battlers)
+00157:     # Target's item, user's item, target's ability (all negated by Sheer Force)
+00158:     if !(user.hasActiveAbility?(:SHEERFORCE) && move.addlEffect > 0)
+00159:       pbEffectsAfterMove2(user, targets, move, numHits, switched_battlers)
+00160:     end
+00161:     # Some move effects that need to happen here, i.e. user switching caused by
+00162:     # U-turn/Volt Switch/Baton Pass/Parting Shot, Relic Song's form changing,
+00163:     # Fling/Natural Gift consuming item.
+00164:     if !switched_battlers.include?(user.index)
+00165:       move.pbEndOfMoveUsageEffect(user, targets, numHits, switched_battlers)
+00166:     end
+00167:     # User's ability/item that switches the user out (all negated by Sheer Force)
+00168:     if !(user.hasActiveAbility?(:SHEERFORCE) && move.addlEffect > 0)
+00169:       pbEffectsAfterMove3(user, targets, move, numHits, switched_battlers)
+00170:     end
+00171:     if numHits > 0
+00172:       @battle.allBattlers.each { |b| b.pbItemEndOfMoveCheck }
+00173:     end
+00174:   end
+00175: 
+00176:   # Everything in this method is negated by Sheer Force.
+00177:   def pbEffectsAfterMove2(user, targets, move, numHits, switched_battlers)
+00178:     # Target's held item (Eject Button, Red Card, Eject Pack)
+00179:     @battle.pbPriority(true).each do |b|
+00180:       if targets.any? { |targetB| targetB.index == b.index } &&
+00181:          !b.damageState.unaffected && b.damageState.calcDamage > 0 && b.itemActive?
+00182:         Battle::ItemEffects.triggerAfterMoveUseFromTarget(b.item, b, user, move, switched_battlers, @battle)
+00183:       end
+00184:       # Target's Eject Pack
+00185:       if switched_battlers.empty? && b.index != user.index && b.pbItemOnStatDropped(user)
+00186:         switched_battlers.push(b.index)
+00187:       end
+00188:     end
+00189:     # User's held item (Life Orb, Shell Bell, Throat Spray, Eject Pack)
+00190:     if !switched_battlers.include?(user.index) && user.itemActive?   # Only if user hasn't switched out
+00191:       Battle::ItemEffects.triggerAfterMoveUseFromUser(user.item, user, targets, move, numHits, @battle)
+00192:     end
+00193:     # Target's ability (Berserk, Color Change, Emergency Exit, Pickpocket, Wimp Out)
+00194:     @battle.pbPriority(true).each do |b|
+00195:       if targets.any? { |targetB| targetB.index == b.index } &&
+00196:          !b.damageState.unaffected && !switched_battlers.include?(b.index) && b.abilityActive?
+00197:         Battle::AbilityEffects.triggerAfterMoveUseFromTarget(b.ability, b, user, move, switched_battlers, @battle)
+00198:       end
+00199:       # Target's Emergency Exit, Wimp Out (including for Pokémon hurt by Flame Burst)
+00200:       if switched_battlers.empty? && move.damagingMove? &&
+00201:          b.index != user.index && b.pbAbilitiesOnDamageTaken(user)
+00202:         switched_battlers.push(b.index)
+00203:       end
+00204:     end
+00205:   end
+00206: 
+00207:   # Everything in this method is negated by Sheer Force.
+00208:   def pbEffectsAfterMove3(user, targets, move, numHits, switched_battlers)
+00209:     # User's held item that switches it out (Eject Pack)
+00210:     if switched_battlers.empty? && user.pbItemOnStatDropped(user)
+00211:       switched_battlers.push(user.index)
+00212:     end
+00213:     # User's ability (Emergency Exit, Wimp Out)
+00214:     if switched_battlers.empty? && move.damagingMove? && user.pbAbilitiesOnDamageTaken(user)
+00215:       switched_battlers.push(user.index)
+00216:     end
+00217:   end
+00218: end

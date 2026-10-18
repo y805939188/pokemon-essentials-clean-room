@@ -1,0 +1,114 @@
+00107:   def rate_replacement_pokemon(idxBattler, pkmn, score)
+00108:     pkmn_types = pkmn.types
+00109:     entry_hazard_damage = calculate_entry_hazard_damage(pkmn, idxBattler & 1)
+00110:     if entry_hazard_damage >= pkmn.hp
+00111:       score -= 50   # pkmn will just faint
+00112:     elsif entry_hazard_damage > 0
+00113:       score -= 50 * entry_hazard_damage / pkmn.hp
+00114:     end
+00115:     if !pkmn.hasItem?(:HEAVYDUTYBOOTS) && !pokemon_airborne?(pkmn)
+00116:       # Toxic Spikes
+00117:       if @user.pbOwnSide.effects[PBEffects::ToxicSpikes] > 0
+00118:         score -= 20 if pokemon_can_be_poisoned?(pkmn)
+00119:       end
+00120:       # Sticky Web
+00121:       if @user.pbOwnSide.effects[PBEffects::StickyWeb]
+00122:         score -= 15
+00123:       end
+00124:     end
+00125:     # Predict effectiveness of foe's last used move against pkmn
+00126:     each_foe_battler(@user.side) do |b, i|
+00127:       next if !b.battler.lastMoveUsed
+00128:       move_data = GameData::Move.try_get(b.battler.lastMoveUsed)
+00129:       next if !move_data || move_data.status?
+00130:       move_type = move_data.type
+00131:       eff = Effectiveness.calculate(move_type, *pkmn_types)
+00132:       score -= move_data.power * eff / 5
+00133:     end
+00134:     # Add power * effectiveness / 10 of all pkmn's moves to score
+00135:     pkmn.moves.each do |m|
+00136:       next if m.power == 0 || (m.pp == 0 && m.total_pp > 0)
+00137:       @battle.battlers[idxBattler].allOpposing.each do |b|
+00138:         next if pokemon_can_absorb_move?(b.pokemon, m, m.type)
+00139:         bTypes = b.pbTypes(true)
+00140:         score += m.power * Effectiveness.calculate(m.type, *bTypes) / 10
+00141:       end
+00142:     end
+00143:     # Prefer if pkmn has lower HP and its position will be healed by Wish
+00144:     position = @battle.positions[idxBattler]
+00145:     if position.effects[PBEffects::Wish] > 0
+00146:       amt = position.effects[PBEffects::WishAmount]
+00147:       if pkmn.totalhp - pkmn.hp > amt * 2 / 3
+00148:         score += 20 * [pkmn.totalhp - pkmn.hp, amt].min / pkmn.totalhp
+00149:       end
+00150:     end
+00151:     # Prefer if user is about to faint from Perish Song
+00152:     score += 20 if @user.effects[PBEffects::PerishSong] == 1
+00153:     return score
+00154:   end
+00155: 
+00156:   def calculate_entry_hazard_damage(pkmn, side)
+00157:     return 0 if pkmn.hasAbility?(:MAGICGUARD) || pkmn.hasItem?(:HEAVYDUTYBOOTS)
+00158:     ret = 0
+00159:     # Stealth Rock
+00160:     if @battle.sides[side].effects[PBEffects::StealthRock] && GameData::Type.exists?(:ROCK)
+00161:       pkmn_types = pkmn.types
+00162:       eff = Effectiveness.calculate(:ROCK, *pkmn_types)
+00163:       ret += pkmn.totalhp * eff / 8 if !Effectiveness.ineffective?(eff)
+00164:     end
+00165:     # Spikes
+00166:     if @battle.sides[side].effects[PBEffects::Spikes] > 0 && !pokemon_airborne?(pkmn)
+00167:       spikes_div = [8, 6, 4][@battle.sides[side].effects[PBEffects::Spikes] - 1]
+00168:       ret += pkmn.totalhp / spikes_div
+00169:     end
+00170:     return ret
+00171:   end
+00172: end
+00173: 
+00174: #===============================================================================
+00175: # Pokémon is about to faint because of Perish Song.
+00176: #===============================================================================
+00177: Battle::AI::Handlers::ShouldSwitch.add(:perish_song,
+00178:   proc { |battler, reserves, ai, battle|
+00179:     if battler.effects[PBEffects::PerishSong] == 1
+00180:       PBDebug.log_ai("#{battler.name} wants to switch because it is about to faint from Perish Song")
+00181:       next true
+00182:     end
+00183:     next false
+00184:   }
+00185: )
+00186: 
+00187: #===============================================================================
+00188: # Pokémon will take a significant amount of damage at the end of this round, or
+00189: # it has an effect that causes it damage at the end of this round which it can
+00190: # remove by switching.
+00191: #===============================================================================
+00192: Battle::AI::Handlers::ShouldSwitch.add(:significant_eor_damage,
+00193:   proc { |battler, reserves, ai, battle|
+00194:     eor_damage = battler.rough_end_of_round_damage
+00195:     # Switch if battler will take significant EOR damage
+00196:     if eor_damage >= battler.hp / 2 || eor_damage >= battler.totalhp / 4
+00197:       PBDebug.log_ai("#{battler.name} wants to switch because it will take a lot of EOR damage")
+00198:       next true
+00199:     end
+00200:     # Switch to remove certain effects that cause the battler EOR damage
+00201:     if ai.trainer.high_skill? && eor_damage > 0
+00202:       if battler.effects[PBEffects::LeechSeed] >= 0 && ai.pbAIRandom(100) < 50
+00203:         PBDebug.log_ai("#{battler.name} wants to switch to get rid of its Leech Seed")
+00204:         next true
+00205:       end
+00206:       if battler.effects[PBEffects::Nightmare]
+00207:         PBDebug.log_ai("#{battler.name} wants to switch to get rid of its Nightmare")
+00208:         next true
+00209:       end
+00210:       if battler.effects[PBEffects::Curse]
+00211:         PBDebug.log_ai("#{battler.name} wants to switch to get rid of its Curse")
+00212:         next true
+00213:       end
+00214:       if battler.status == :POISON && battler.statusCount > 0 && !battler.has_active_ability?(:POISONHEAL)
+00215:         poison_damage = battler.totalhp / 8
+00216:         next_toxic_damage = battler.totalhp * (battler.effects[PBEffects::Toxic] + 1) / 16
+00217:         if (battler.hp <= next_toxic_damage && battler.hp > poison_damage) ||
+00218:            next_toxic_damage > poison_damage * 2
+00219:           PBDebug.log_ai("#{battler.name} wants to switch to reduce toxic to regular poisoning")
+00220:           next true

@@ -1,0 +1,242 @@
+   104	    return pbGetMapNameFromId(@map_id)
+   105	  end
+   106	
+   107	  def metadata
+   108	    return GameData::MapMetadata.try_get(@map_id)
+   109	  end
+   110	
+   111	  # Returns the name of this map's BGM. If it's night time, returns the night
+   112	  # version of the BGM (if it exists).
+   113	  def bgm_name
+   114	    if PBDayNight.isNight? && FileTest.audio_exist?("Audio/BGM/" + @map.bgm.name + "_n")
+   115	      return @map.bgm.name + "_n"
+   116	    end
+   117	    return @map.bgm.name
+   118	  end
+   119	
+   120	  # Autoplays background music
+   121	  # Plays music called "[normal BGM]_n" if it's night time and it exists
+   122	  def autoplayAsCue
+   123	    pbCueBGM(bgm_name, 1.0, @map.bgm.volume, @map.bgm.pitch) if @map.autoplay_bgm
+   124	    pbBGSPlay(@map.bgs) if @map.autoplay_bgs
+   125	  end
+   126	
+   127	  # Plays background music
+   128	  # Plays music called "[normal BGM]_n" if it's night time and it exists
+   129	  def autoplay
+   130	    pbBGMPlay(bgm_name, @map.bgm.volume, @map.bgm.pitch) if @map.autoplay_bgm
+   131	    pbBGSPlay(@map.bgs) if @map.autoplay_bgs
+   132	  end
+   133	
+   134	  def valid?(x, y)
+   135	    return x >= 0 && x < width && y >= 0 && y < height
+   136	  end
+   137	
+   138	  def validLax?(x, y)
+   139	    return x >= -10 && x <= width + 10 && y >= -10 && y <= height + 10
+   140	  end
+   141	
+   142	  def passable?(x, y, d, self_event = nil)
+   143	    return false if !valid?(x, y)
+   144	    bit = (1 << ((d / 2) - 1)) & 0x0f
+   145	    events.each_value do |event|
+   146	      next if event.tile_id <= 0
+   147	      next if event == self_event
+   148	      next if !event.at_coordinate?(x, y)
+   149	      next if event.through
+   150	      next if GameData::TerrainTag.try_get(@terrain_tags[event.tile_id]).ignore_passability
+   151	      passage = @passages[event.tile_id]
+   152	      return false if passage & bit != 0
+   153	      return false if passage & 0x0f == 0x0f
+   154	      return true if @priorities[event.tile_id] == 0
+   155	    end
+   156	    return playerPassable?(x, y, d, self_event) if self_event == $game_player
+   157	    # All other events
+   158	    newx = x
+   159	    newy = y
+   160	    case d
+   161	    when 1
+   162	      newx -= 1
+   163	      newy += 1
+   164	    when 2
+   165	      newy += 1
+   166	    when 3
+   167	      newx += 1
+   168	      newy += 1
+   169	    when 4
+   170	      newx -= 1
+   171	    when 6
+   172	      newx += 1
+   173	    when 7
+   174	      newx -= 1
+   175	      newy -= 1
+   176	    when 8
+   177	      newy -= 1
+   178	    when 9
+   179	      newx += 1
+   180	      newy -= 1
+   181	    end
+    50	    next if $game_temp.in_menu || $game_temp.in_battle || $game_player.move_route_forcing ||
+    51	            $game_temp.message_window_showing || pbMapInterpreterRunning?
+    52	    $game_temp.warned_low_battery = true
+    53	    pbMessage(_INTL("The game has detected that the battery is low. You should save soon to avoid losing your progress."))
+    54	  }
+    55	)
+    56	
+    57	EventHandlers.add(:on_frame_update, :cue_bgm_after_delay,
+    58	  proc {
+    59	    next if $game_temp.cue_bgm_delay.nil?
+    60	    next if System.uptime - $game_temp.cue_bgm_timer_start < $game_temp.cue_bgm_delay
+    61	    $game_temp.cue_bgm_delay = nil
+    62	    pbBGMPlay($game_temp.cue_bgm) if $game_system.getPlayingBGM.nil?
+    63	  }
+    64	)
+    65	
+    66	#===============================================================================
+   390	  end
+   391	  return true
+   392	end
+   393	
+   394	# Returns whether the two events are standing next to each other and facing each
+   395	# other.
+   396	def pbFacingEachOther(event1, event2)
+   397	  return pbEventFacesPlayer?(event1, event2, 1) && pbEventFacesPlayer?(event2, event1, 1)
+   398	end
+   399	
+   400	#===============================================================================
+   401	# Audio playing
+   402	#===============================================================================
+   403	def pbCueBGM(bgm, seconds, volume = nil, pitch = nil)
+   404	  return if !bgm
+   405	  bgm = pbResolveAudioFile(bgm, volume, pitch)
+   406	  playingBGM = $game_system.playing_bgm
+   407	  if !playingBGM || playingBGM.name != bgm.name || playingBGM.pitch != bgm.pitch
+   408	    pbBGMFade(seconds)
+   409	    $game_temp.cue_bgm = bgm
+   410	    if !$game_temp.cue_bgm_delay
+   411	      $game_temp.cue_bgm_delay = seconds * 0.6
+   412	      $game_temp.cue_bgm_timer_start = System.uptime
+   413	    end
+   414	  elsif playingBGM
+   415	    pbBGMPlay(bgm)
+   416	  end
+   417	end
+   418	
+   419	def pbAutoplayOnTransition
+   420	  surfbgm = GameData::Metadata.get.surf_BGM
+   421	  if $PokemonGlobal.surfing && surfbgm
+   422	    pbBGMPlay(surfbgm)
+   423	  else
+   424	    $game_map.autoplayAsCue
+   425	  end
+   426	end
+   427	
+   428	def pbAutoplayOnSave
+   429	  surfbgm = GameData::Metadata.get.surf_BGM
+   430	  if $PokemonGlobal.surfing && surfbgm
+   431	    pbBGMPlay(surfbgm)
+   432	  else
+   433	    $game_map.autoplay
+   434	  end
+   435	end
+   436	
+   437	#===============================================================================
+   438	# Event movement
+   439	#===============================================================================
+   440	module PBMoveRoute
+   441	  DOWN                  = 1
+   442	  LEFT                  = 2
+   443	  RIGHT                 = 3
+   444	  UP                    = 4
+   445	  LOWER_LEFT            = 5
+   446	  LOWER_RIGHT           = 6
+   447	  UPPER_LEFT            = 7
+   448	  UPPER_RIGHT           = 8
+   449	  RANDOM                = 9
+   450	  TOWARD_PLAYER         = 10
+   451	  AWAY_FROM_PLAYER      = 11
+   452	  FORWARD               = 12
+   453	  BACKWARD              = 13
+   454	  JUMP                  = 14   # xoffset, yoffset
+   455	  WAIT                  = 15   # frames
+   456	  TURN_DOWN             = 16
+   457	  TURN_LEFT             = 17
+   458	  TURN_RIGHT            = 18
+   459	  TURN_UP               = 19
+   460	  TURN_RIGHT90          = 20
+   461	  TURN_LEFT90           = 21
+   462	  TURN180               = 22
+   463	  TURN_RIGHT_OR_LEFT90  = 23
+   464	  TURN_RANDOM           = 24
+   465	  TURN_TOWARD_PLAYER    = 25
+   382	# Options Menu commands
+   383	#===============================================================================
+   384	MenuHandlers.add(:options_menu, :bgm_volume, {
+   385	  "name"        => _INTL("Music Volume"),
+   386	  "order"       => 10,
+   387	  "type"        => SliderOption,
+   388	  "parameters"  => [0, 100, 5],   # [minimum_value, maximum_value, interval]
+   389	  "description" => _INTL("Adjust the volume of the background music."),
+   390	  "get_proc"    => proc { next $PokemonSystem.bgmvolume },
+   391	  "set_proc"    => proc { |value, scene|
+   392	    next if $PokemonSystem.bgmvolume == value
+   393	    $PokemonSystem.bgmvolume = value
+   394	    next if scene.in_load_screen || $game_system.playing_bgm.nil?
+   395	    playingBGM = $game_system.getPlayingBGM
+   396	    $game_system.bgm_pause
+   397	    $game_system.bgm_resume(playingBGM)
+   398	  }
+   399	})
+   400	
+   401	MenuHandlers.add(:options_menu, :se_volume, {
+   402	  "name"        => _INTL("SE Volume"),
+   403	  "order"       => 20,
+   404	  "type"        => SliderOption,
+   405	  "parameters"  => [0, 100, 5],   # [minimum_value, maximum_value, interval]
+   406	  "description" => _INTL("Adjust the volume of sound effects."),
+   407	  "get_proc"    => proc { next $PokemonSystem.sevolume },
+   408	  "set_proc"    => proc { |value, _scene|
+   409	    next if $PokemonSystem.sevolume == value
+   410	    $PokemonSystem.sevolume = value
+   411	    if $game_system.playing_bgs
+   412	      $game_system.playing_bgs.volume = value
+   413	      playingBGS = $game_system.getPlayingBGS
+   414	      $game_system.bgs_pause
+   415	      $game_system.bgs_resume(playingBGS)
+   416	    end
+   417	    pbPlayCursorSE
+   418	  }
+   419	})
+   420	
+   421	MenuHandlers.add(:options_menu, :text_speed, {
+   422	  "name"        => _INTL("Text Speed"),
+    55	  ret = pbStringToAudioFile("Battle capture success") if !ret
+    56	  ret.name = "../../Audio/ME/" + ret.name
+    57	  return ret
+    58	end
+    59	
+    60	#===============================================================================
+    61	# Load/play various trainer battle music
+    62	#===============================================================================
+    63	def pbPlayTrainerIntroBGM(trainer_type)
+    64	  trainer_type_data = GameData::TrainerType.get(trainer_type)
+    65	  return if nil_or_empty?(trainer_type_data.intro_BGM)
+    66	  bgm = pbStringToAudioFile(trainer_type_data.intro_BGM)
+    67	  if !$game_temp.memorized_bgm
+    68	    if $game_temp.cue_bgm_delay
+    69	      $game_temp.cue_bgm_delay = nil
+    70	      $game_temp.memorized_bgm = $game_temp.cue_bgm
+    71	      $game_temp.memorized_bgm_position = 0
+    72	    else
+    73	      $game_temp.memorized_bgm = $game_system.getPlayingBGM
+    74	      $game_temp.memorized_bgm_position = (Audio.bgm_pos rescue 0)
+    75	    end
+    76	  end
+    77	  pbBGMPlay(bgm)
+    78	end
+    79	
+    80	# Can be a Player, NPCTrainer or an array of them.
+    81	def pbGetTrainerBattleBGM(trainer)
+    82	  return $PokemonGlobal.nextBattleBGM.clone if $PokemonGlobal.nextBattleBGM
+    83	  ret = nil
+    84	  music = nil

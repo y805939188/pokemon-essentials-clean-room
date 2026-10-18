@@ -1,0 +1,125 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/015_Trainers and player/002_Trainer_LoadAndNew.rb", "range": [1, 124], "file_lines": 124, "bytes": 4362, "sha256": "af7028e34df61e77d4257ed2e78781a0b3e185c70118ade925a4c0260d5ba03c", "began_utc": "2026-10-16T03:34:04.403505+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 def pbLoadTrainer(tr_type, tr_name, tr_version = 0)
+00005   tr_type_data = GameData::TrainerType.try_get(tr_type)
+00006   raise _INTL("Trainer type {1} does not exist.", tr_type) if !tr_type_data
+00007   tr_type = tr_type_data.id
+00008   trainer_data = GameData::Trainer.try_get(tr_type, tr_name, tr_version)
+00009   return (trainer_data) ? trainer_data.to_trainer : nil
+00010 end
+00011 
+00012 def pbNewTrainer(tr_type, tr_name, tr_version, save_changes = true)
+00013   party = []
+00014   Settings::MAX_PARTY_SIZE.times do |i|
+00015     if i == 0
+00016       pbMessage(_INTL("Please enter the first Pokémon.", i))
+00017     elsif !pbConfirmMessage(_INTL("Add another Pokémon?"))
+00018       break
+00019     end
+00020     loop do
+00021       species = pbChooseSpeciesList
+00022       if species
+00023         params = ChooseNumberParams.new
+00024         params.setRange(1, GameData::GrowthRate.max_level)
+00025         params.setDefaultValue(10)
+00026         level = pbMessageChooseNumber(_INTL("Set the level for {1} (max. {2}).",
+00027                                             GameData::Species.get(species).name, params.maxNumber), params)
+00028         party.push([species, level])
+00029         break
+00030       else
+00031         break if i > 0
+00032         pbMessage(_INTL("This trainer must have at least 1 Pokémon!"))
+00033       end
+00034     end
+00035   end
+00036   trainer = [tr_type, tr_name, [], party, tr_version]
+00037   if save_changes
+00038     trainer_hash = {
+00039       :trainer_type => tr_type,
+00040       :real_name    => tr_name,
+00041       :version      => tr_version,
+00042       :pokemon      => []
+00043     }
+00044     party.each do |pkmn|
+00045       trainer_hash[:pokemon].push(
+00046         {
+00047           :species => pkmn[0],
+00048           :level   => pkmn[1]
+00049         }
+00050       )
+00051     end
+00052     # Add trainer's data to records
+00053     trainer_hash[:id] = [trainer_hash[:trainer_type], trainer_hash[:real_name], trainer_hash[:version]]
+00054     GameData::Trainer.register(trainer_hash)
+00055     GameData::Trainer.save
+00056     pbConvertTrainerData
+00057     pbMessage(_INTL("The Trainer's data was added to the list of battles and in PBS/trainers.txt."))
+00058   end
+00059   return trainer
+00060 end
+00061 
+00062 def pbConvertTrainerData
+00063   tr_type_names = []
+00064   GameData::TrainerType.each { |t| tr_type_names.push(t.real_name) }
+00065   MessageTypes.setMessagesAsHash(MessageTypes::TRAINER_TYPE_NAMES, tr_type_names)
+00066   Compiler.write_trainer_types
+00067   Compiler.write_trainers
+00068 end
+00069 
+00070 def pbTrainerTypeCheck(trainer_type)
+00071   return true if !$DEBUG
+00072   return true if GameData::TrainerType.exists?(trainer_type)
+00073   if pbConfirmMessage(_INTL("Add new trainer type {1}?", trainer_type.to_s))
+00074     pbTrainerTypeEditorNew(trainer_type.to_s)
+00075   end
+00076   pbMapInterpreter&.command_end
+00077   return false
+00078 end
+00079 
+00080 # Called from trainer events to ensure the trainer exists
+00081 def pbTrainerCheck(tr_type, tr_name, max_battles, tr_version = 0)
+00082   return true if !$DEBUG
+00083   # Check for existence of trainer type
+00084   pbTrainerTypeCheck(tr_type)
+00085   tr_type_data = GameData::TrainerType.try_get(tr_type)
+00086   return false if !tr_type_data
+00087   tr_type = tr_type_data.id
+00088   # Check for existence of trainer with given ID number
+00089   return true if GameData::Trainer.exists?(tr_type, tr_name, tr_version)
+00090   # Add new trainer
+00091   if pbConfirmMessage(_INTL("Add new trainer variant {1} (of {2}) for {3} {4}?",
+00092                             tr_version, max_battles, tr_type.to_s, tr_name))
+00093     pbNewTrainer(tr_type, tr_name, tr_version)
+00094   end
+00095   return true
+00096 end
+00097 
+00098 def pbGetFreeTrainerParty(tr_type, tr_name)
+00099   tr_type_data = GameData::TrainerType.try_get(tr_type)
+00100   raise _INTL("Trainer type {1} does not exist.", tr_type) if !tr_type_data
+00101   tr_type = tr_type_data.id
+00102   256.times do |i|
+00103     return i if !GameData::Trainer.try_get(tr_type, tr_name, i)
+00104   end
+00105   return -1
+00106 end
+00107 
+00108 def pbMissingTrainer(tr_type, tr_name, tr_version)
+00109   tr_type_data = GameData::TrainerType.try_get(tr_type)
+00110   raise _INTL("Trainer type {1} does not exist.", tr_type) if !tr_type_data
+00111   tr_type = tr_type_data.id
+00112   if !$DEBUG
+00113     raise _INTL("Can't find trainer ({1}, {2}, ID {3})", tr_type.to_s, tr_name, tr_version)
+00114   end
+00115   message = ""
+00116   if tr_version == 0
+00117     message = _INTL("Add new trainer ({1}, {2})?", tr_type.to_s, tr_name)
+00118   else
+00119     message = _INTL("Add new trainer ({1}, {2}, ID {3})?", tr_type.to_s, tr_name, tr_version)
+00120   end
+00121   cmd = pbMessage(message, [_INTL("Yes"), _INTL("No")], 2)
+00122   pbNewTrainer(tr_type, tr_name, tr_version) if cmd == 0
+00123   return cmd
+00124 end

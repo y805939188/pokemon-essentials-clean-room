@@ -1,0 +1,211 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon-related/002_ShadowPokemon_Other.rb", "range": [251, 460], "file_lines": 460, "bytes": 15747, "sha256": "2c51301c6b96c59fe969eba2aafefb757fc1373f173bb16124d1b4ee391b0ff4", "began_utc": "2026-10-16T03:31:34.299757+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00251     pkmn.hyper_mode = false
+00252     ret = true
+00253   end
+00254   next pbRaiseHappinessAndReduceHeart(pkmn, scene, 1, !ret) || ret
+00255 })
+00256 
+00257 ItemHandlers::UseOnPokemon.add(:EXCITESCENT, proc { |item, qty, pkmn, scene|
+00258   ret = false
+00259   if pkmn.hyper_mode
+00260     scene.pbDisplay(_INTL("{1} came to its senses from the {2}.", pkmn.name, GameData::Item.get(item).name))
+00261     pkmn.hyper_mode = false
+00262     ret = true
+00263   end
+00264   next pbRaiseHappinessAndReduceHeart(pkmn, scene, 2, !ret) || ret
+00265 })
+00266 
+00267 ItemHandlers::UseOnPokemon.add(:VIVIDSCENT, proc { |item, qty, pkmn, scene|
+00268   ret = false
+00269   if pkmn.hyper_mode
+00270     scene.pbDisplay(_INTL("{1} came to its senses from the {2}.", pkmn.name, GameData::Item.get(item).name))
+00271     pkmn.hyper_mode = false
+00272     ret = true
+00273   end
+00274   next pbRaiseHappinessAndReduceHeart(pkmn, scene, 3, !ret) || ret
+00275 })
+00276 
+00277 ItemHandlers::UseOnPokemon.add(:TIMEFLUTE, proc { |item, qty, pkmn, scene|
+00278   if !pkmn.shadowPokemon? || pkmn.heart_gauge == 0 || pkmn.isSpecies?(:LUGIA)
+00279     scene.pbDisplay(_INTL("It won't have any effect."))
+00280     next false
+00281   end
+00282   pbPurify(pkmn, scene)
+00283   next true
+00284 })
+00285 
+00286 ItemHandlers::CanUseInBattle.add(:JOYSCENT, proc { |item, pokemon, battler, move, firstAction, battle, scene, showMessages|
+00287   if !pokemon.shadowPokemon? || (pokemon.happiness == 255 && pokemon.heart_gauge == 0)
+00288     scene.pbDisplay(_INTL("It won't have any effect.")) if showMessages
+00289     next false
+00290   end
+00291   next true
+00292 })
+00293 
+00294 ItemHandlers::CanUseInBattle.copy(:JOYSCENT, :EXCITESCENT, :VIVIDSCENT)
+00295 
+00296 ItemHandlers::BattleUseOnPokemon.add(:JOYSCENT, proc { |item, pokemon, battler, choices, scene|
+00297   if pokemon.hyper_mode
+00298     pokemon.hyper_mode = false
+00299     scene.pbDisplay(_INTL("{1} came to its senses from the {2}!",
+00300                           battler&.pbThis || pokemon.name, GameData::Item.get(item).name))
+00301   end
+00302   pbRaiseHappinessAndReduceHeart(pokemon, scene, 1, false)
+00303   next true
+00304 })
+00305 
+00306 ItemHandlers::BattleUseOnPokemon.add(:EXCITESCENT, proc { |item, pokemon, battler, choices, scene|
+00307   if pokemon.hyper_mode
+00308     pokemon.hyper_mode = false
+00309     scene.pbDisplay(_INTL("{1} came to its senses from the {2}!",
+00310                           battler&.pbThis || pokemon.name, GameData::Item.get(item).name))
+00311   end
+00312   pbRaiseHappinessAndReduceHeart(pokemon, scene, 2, false)
+00313   next true
+00314 })
+00315 
+00316 ItemHandlers::BattleUseOnPokemon.add(:VIVIDSCENT, proc { |item, pokemon, battler, choices, scene|
+00317   if pokemon.hyper_mode
+00318     pokemon.hyper_mode = false
+00319     scene.pbDisplay(_INTL("{1} came to its senses from the {2}!",
+00320                           battler&.pbThis || pokemon.name, GameData::Item.get(item).name))
+00321   end
+00322   pbRaiseHappinessAndReduceHeart(pokemon, scene, 3, false)
+00323   next true
+00324 })
+00325 
+00326 #===============================================================================
+00327 # Two turn attack. On first turn, halves the HP of all active Pokémon.
+00328 # Skips second turn (if successful). (Shadow Half)
+00329 #===============================================================================
+00330 class Battle::Move::AllBattlersLoseHalfHPUserSkipsNextTurn < Battle::Move
+00331   def pbMoveFailed?(user, targets)
+00332     if @battle.allBattlers.none? { |b| b.hp > 1 }
+00333       @battle.pbDisplay(_INTL("But it failed!"))
+00334       return true
+00335     end
+00336     return false
+00337   end
+00338 
+00339   def pbEffectGeneral(user)
+00340     @battle.allBattlers.each do |b|
+00341       b.pbReduceHP(b.hp / 2, false) if b.hp > 1
+00342     end
+00343     @battle.pbDisplay(_INTL("Each Pokémon's HP was halved!"))
+00344     @battle.allBattlers.each { |b| b.pbItemHPHealCheck }
+00345     user.effects[PBEffects::HyperBeam] = 2
+00346     user.currentMove = @id
+00347   end
+00348 end
+00349 
+00350 #===============================================================================
+00351 # User takes recoil damage equal to 1/2 of its current HP. (Shadow End)
+00352 #===============================================================================
+00353 class Battle::Move::UserLosesHalfHP < Battle::Move::RecoilMove
+00354   def pbRecoilDamage(user, target)
+00355     return (user.hp / 2.0).round
+00356   end
+00357 
+00358   def pbEffectAfterAllHits(user, target)
+00359     return if user.fainted? || target.damageState.unaffected
+00360     # NOTE: This move's recoil is not prevented by Rock Head/Magic Guard.
+00361     amt = pbRecoilDamage(user, target)
+00362     amt = 1 if amt < 1
+00363     user.pbReduceHP(amt, false)
+00364     @battle.pbDisplay(_INTL("{1} is damaged by recoil!", user.pbThis))
+00365     user.pbItemHPHealCheck
+00366   end
+00367 end
+00368 
+00369 #===============================================================================
+00370 # Starts shadow weather. (Shadow Sky)
+00371 #===============================================================================
+00372 class Battle::Move::StartShadowSkyWeather < Battle::Move::WeatherMove
+00373   def initialize(battle, move)
+00374     super
+00375     @weatherType = :ShadowSky
+00376   end
+00377 end
+00378 
+00379 #===============================================================================
+00380 # Ends the effects of Light Screen, Reflect and Safeguard on both sides.
+00381 # (Shadow Shed)
+00382 #===============================================================================
+00383 class Battle::Move::RemoveAllScreensAndSafeguard < Battle::Move
+00384   def pbMoveFailed?(user, targets)
+00385     will_fail = true
+00386     @battle.sides.each do |side|
+00387       will_fail = false if side.effects[PBEffects::AuroraVeil] > 0 ||
+00388                            side.effects[PBEffects::LightScreen] > 0 ||
+00389                            side.effects[PBEffects::Reflect] > 0 ||
+00390                            side.effects[PBEffects::Safeguard] > 0
+00391     end
+00392     if will_fail
+00393       @battle.pbDisplay(_INTL("But it failed!"))
+00394       return true
+00395     end
+00396     return false
+00397   end
+00398 
+00399   def pbEffectGeneral(user)
+00400     @battle.sides.each do |i|
+00401       i.effects[PBEffects::AuroraVeil]  = 0
+00402       i.effects[PBEffects::LightScreen] = 0
+00403       i.effects[PBEffects::Reflect]     = 0
+00404       i.effects[PBEffects::Safeguard]   = 0
+00405     end
+00406     @battle.pbDisplay(_INTL("It broke all barriers!"))
+00407   end
+00408 end
+00409 
+00410 #===============================================================================
+00411 #
+00412 #===============================================================================
+00413 class Game_Temp
+00414   attr_accessor :party_heart_gauges_before_battle
+00415 end
+00416 
+00417 #===============================================================================
+00418 #
+00419 #===============================================================================
+00420 # Record current heart gauges of Pokémon in party, to see if they drop to zero
+00421 # during battle and need to say they're ready to be purified afterwards
+00422 EventHandlers.add(:on_start_battle, :record_party_heart_gauges,
+00423   proc {
+00424     $game_temp.party_heart_gauges_before_battle = []
+00425     $player.party.each_with_index do |pkmn, i|
+00426       $game_temp.party_heart_gauges_before_battle[i] = pkmn.heart_gauge
+00427     end
+00428   }
+00429 )
+00430 
+00431 EventHandlers.add(:on_end_battle, :check_ready_to_purify,
+00432   proc { |_decision, _canLose|
+00433     $game_temp.party_heart_gauges_before_battle.each_with_index do |value, i|
+00434       pkmn = $player.party[i]
+00435       next if !pkmn || !value || value == 0
+00436       pkmn.check_ready_to_purify if pkmn.heart_gauge == 0
+00437     end
+00438   }
+00439 )
+00440 
+00441 EventHandlers.add(:on_player_step_taken, :lower_heart_gauges,
+00442   proc {
+00443     $player.able_party.each do |pkmn|
+00444       next if pkmn.heart_gauge == 0
+00445       pkmn.heart_gauge_step_counter = 0 if !pkmn.heart_gauge_step_counter
+00446       pkmn.heart_gauge_step_counter += 1
+00447       next if pkmn.heart_gauge_step_counter < 256
+00448       old_stage = pkmn.heartStage
+00449       pkmn.change_heart_gauge("walking")
+00450       new_stage = pkmn.heartStage
+00451       if new_stage == 0
+00452         pkmn.check_ready_to_purify
+00453       elsif new_stage != old_stage
+00454         pkmn.update_shadow_moves
+00455       end
+00456       pkmn.heart_gauge_step_counter = 0
+00457     end
+00458     $PokemonGlobal.purifyChamber&.update
+00459   }
+00460 )

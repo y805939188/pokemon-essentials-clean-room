@@ -1,0 +1,156 @@
+00380: def pbCreateMessageWindow(viewport = nil, skin = nil)
+00381:   msgwindow = Window_AdvancedTextPokemon.new("")
+00382:   if viewport
+00383:     msgwindow.viewport = viewport
+00384:   else
+00385:     msgwindow.z = 99999
+00386:   end
+00387:   msgwindow.visible = true
+00388:   msgwindow.letterbyletter = true
+00389:   msgwindow.back_opacity = MessageConfig::WINDOW_OPACITY
+00390:   pbBottomLeftLines(msgwindow, 2)
+00391:   $game_temp.message_window_showing = true if $game_temp
+00392:   skin = MessageConfig.pbGetSpeechFrame if !skin
+00393:   msgwindow.setSkin(skin)
+00394:   return msgwindow
+00395: end
+00396: 
+00397: def pbDisposeMessageWindow(msgwindow)
+00398:   $game_temp.message_window_showing = false if $game_temp
+00399:   msgwindow.dispose
+00400: end
+00401: 
+00402: #===============================================================================
+00403: # Main message-displaying function
+00404: #===============================================================================
+00405: def pbMessageDisplay(msgwindow, message, letterbyletter = true, commandProc = nil)
+00406:   return if !msgwindow
+00407:   oldletterbyletter = msgwindow.letterbyletter
+00408:   msgwindow.letterbyletter = (letterbyletter) ? true : false
+00409:   ret = nil
+00410:   commands = nil
+00411:   facewindow = nil
+00412:   goldwindow = nil
+00413:   coinwindow = nil
+00414:   battlepointswindow = nil
+00415:   cmdvariable = 0
+00416:   cmdIfCancel = 0
+00417:   msgwindow.waitcount = 0
+00418:   autoresume = false
+00419:   text = message.clone
+00420:   linecount = (Graphics.height > 400) ? 3 : 2
+00421:   ### Text replacement
+00422:   text.gsub!(/\\sign\[([^\]]*)\]/i) do      # \sign[something] gets turned into
+00423:     next "\\op\\cl\\ts[]\\w[" + $1 + "]"    # \op\cl\ts[]\w[something]
+00424:   end
+00425:   text.gsub!(/\\\\/, "\5")
+00426:   text.gsub!(/\\1/, "\1")
+00427:   if $game_actors
+00428:     text.gsub!(/\\n\[([1-8])\]/i) { next $game_actors[$1.to_i].name }
+00429:   end
+00430:   text.gsub!(/\\pn/i,  $player.name) if $player
+00431:   text.gsub!(/\\pm/i,  _INTL("${1}", $player.money.to_s_formatted)) if $player
+00432:   text.gsub!(/\\n/i,   "\n")
+00433:   text.gsub!(/\\\[([0-9a-f]{8,8})\]/i) { "<c2=" + $1 + ">" }
+00434:   text.gsub!(/\\pg/i,  "\\b") if $player&.male?
+00435:   text.gsub!(/\\pg/i,  "\\r") if $player&.female?
+00436:   text.gsub!(/\\pog/i, "\\r") if $player&.male?
+00437:   text.gsub!(/\\pog/i, "\\b") if $player&.female?
+00438:   text.gsub!(/\\pg/i,  "")
+00439:   text.gsub!(/\\pog/i, "")
+00440:   male_text_tag = shadowc3tag(MessageConfig::MALE_TEXT_MAIN_COLOR, MessageConfig::MALE_TEXT_SHADOW_COLOR)
+00441:   female_text_tag = shadowc3tag(MessageConfig::FEMALE_TEXT_MAIN_COLOR, MessageConfig::FEMALE_TEXT_SHADOW_COLOR)
+00442:   text.gsub!(/\\b/i,   male_text_tag)
+00443:   text.gsub!(/\\r/i,   female_text_tag)
+00444:   text.gsub!(/\\[Ww]\[([^\]]*)\]/) do
+00445:     w = $1.to_s
+00446:     if w == ""
+00447:       msgwindow.windowskin = nil
+00448:     else
+00449:       msgwindow.setSkin("Graphics/Windowskins/#{w}", false)
+00450:     end
+00451:     next ""
+00452:   end
+00453:   isDarkSkin = isDarkWindowskin(msgwindow.windowskin)
+00454:   text.gsub!(/\\c\[([0-9]+)\]/i) do
+00455:     next getSkinColor(msgwindow.windowskin, $1.to_i, isDarkSkin)
+00456:   end
+00457:   loop do
+00458:     last_text = text.clone
+00459:     text.gsub!(/\\v\[([0-9]+)\]/i) { $game_variables[$1.to_i] }
+00460:     break if text == last_text
+00461:   end
+00462:   loop do
+00463:     last_text = text.clone
+00464:     text.gsub!(/\\l\[([0-9]+)\]/i) do
+00465:       linecount = [1, $1.to_i].max
+00466:       next ""
+00467:     end
+00468:     break if text == last_text
+00469:   end
+00470:   colortag = ""
+00471:   if $game_system && $game_system.message_frame != 0
+00472:     colortag = getSkinColor(msgwindow.windowskin, 0, true)
+00473:   else
+00474:     colortag = getSkinColor(msgwindow.windowskin, 0, isDarkSkin)
+00475:   end
+00476:   text = colortag + text
+00477:   ### Controls
+00478:   textchunks = []
+00479:   controls = []
+00480:   while text[/(?:\\(f|ff|ts|cl|me|se|wt|wtnp|ch)\[([^\]]*)\]|\\(g|cn|pt|wd|wm|op|cl|wu|\.|\||\!|\^))/i]
+00481:     textchunks.push($~.pre_match)
+00482:     if $~[1]
+00483:       controls.push([$~[1].downcase, $~[2], -1])
+00484:     else
+00485:       controls.push([$~[3].downcase, "", -1])
+00486:     end
+00487:     text = $~.post_match
+00488:   end
+00489:   textchunks.push(text)
+00490:   textchunks.each do |chunk|
+00491:     chunk.gsub!(/\005/, "\\")
+00492:   end
+00493:   textlen = 0
+00494:   controls.length.times do |i|
+00495:     control = controls[i][0]
+00496:     case control
+00497:     when "wt", "wtnp", ".", "|"
+00498:       textchunks[i] += "\2"
+00499:     when "!"
+00500:       textchunks[i] += "\1"
+00501:     end
+00502:     textlen += toUnformattedText(textchunks[i]).scan(/./m).length
+00503:     controls[i][2] = textlen
+00504:   end
+00505:   text = textchunks.join
+00506:   appear_timer_start = nil
+00507:   appear_duration = 0.5   # In seconds
+00508:   haveSpecialClose = false
+00509:   specialCloseSE = ""
+00510:   startSE = nil
+00511:   controls.length.times do |i|
+00512:     control = controls[i][0]
+00513:     param = controls[i][1]
+00514:     case control
+00515:     when "op"
+00516:       appear_timer_start = System.uptime
+00517:     when "cl"
+00518:       text = text.sub(/\001\z/, "")   # fix: '$' can match end of line as well
+00519:       haveSpecialClose = true
+00520:       specialCloseSE = param
+00521:     when "f"
+00522:       facewindow&.dispose
+00523:       facewindow = PictureWindow.new("Graphics/Pictures/#{param}")
+00524:     when "ff"
+00525:       facewindow&.dispose
+00526:       facewindow = FaceWindowVX.new(param)
+00527:     when "ch"
+00528:       cmds = param.clone
+00529:       cmdvariable = pbCsvPosInt!(cmds)
+00530:       cmdIfCancel = pbCsvField!(cmds).to_i
+00531:       commands = []
+00532:       while cmds.length > 0
+00533:         commands.push(pbCsvField!(cmds))
+00534:       end
+00535:     when "wtnp", "^"

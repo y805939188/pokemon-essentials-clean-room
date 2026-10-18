@@ -1,0 +1,160 @@
+00001: class Battle::Battler
+00002:   # Fundamental to this object
+00003:   attr_reader   :battle
+00004:   attr_accessor :index
+00005:   # The Pokémon and its properties
+00006:   attr_reader   :pokemon
+00007:   attr_accessor :pokemonIndex
+00008:   attr_accessor :species
+00009:   attr_accessor :types
+00010:   attr_accessor :ability_id
+00011:   attr_accessor :item_id
+00012:   attr_accessor :moves
+00013:   attr_accessor :attack
+00014:   attr_accessor :spatk
+00015:   attr_accessor :speed
+00016:   attr_accessor :stages
+00017:   attr_reader   :totalhp
+00018:   attr_reader   :fainted    # Boolean to mark whether self has fainted properly
+00019:   attr_accessor :captured   # Boolean to mark whether self was captured
+00020:   attr_reader   :dummy
+00021:   attr_accessor :effects
+00022:   # Things the battler has done in battle
+00023:   attr_accessor :turnCount
+00024:   attr_accessor :participants
+00025:   attr_accessor :lastAttacker
+00026:   attr_accessor :lastFoeAttacker
+00027:   attr_accessor :lastHPLost
+00028:   attr_accessor :lastHPLostFromFoe
+00029:   attr_accessor :lastMoveUsed
+00030:   attr_accessor :lastMoveUsedType
+00031:   attr_accessor :lastRegularMoveUsed
+00032:   attr_accessor :lastRegularMoveTarget   # For Instruct
+00033:   attr_accessor :lastRoundMoved
+00034:   attr_accessor :lastMoveFailed        # For Stomping Tantrum
+00035:   attr_accessor :lastRoundMoveFailed   # For Stomping Tantrum
+00036:   attr_accessor :movesUsed
+00037:   attr_accessor :currentMove   # ID of multi-turn move currently being used
+00038:   attr_accessor :droppedBelowHalfHP   # Used for Emergency Exit/Wimp Out
+00039:   attr_accessor :statsDropped   # Used for Eject Pack
+00040:   attr_accessor :tookMoveDamageThisRound   # Boolean for Focus Punch
+00041:   attr_accessor :tookDamageThisRound   # Boolean for whether self took damage this round
+00042:   attr_accessor :tookPhysicalHit
+00043:   attr_accessor :statsRaisedThisRound   # Boolean for whether self's stat(s) raised this round
+00044:   attr_accessor :statsLoweredThisRound   # Boolean for whether self's stat(s) lowered this round
+00045:   attr_accessor :canRestoreIceFace   # Whether Hail started in the round
+00046:   attr_accessor :damageState
+00047: 
+00048:   # These arrays should all have the same number of values in them
+00049:   STAT_STAGE_MULTIPLIERS    = [2, 2, 2, 2, 2, 2, 2, 3, 4, 5, 6, 7, 8]
+00050:   STAT_STAGE_DIVISORS       = [8, 7, 6, 5, 4, 3, 2, 2, 2, 2, 2, 2, 2]
+00051:   ACC_EVA_STAGE_MULTIPLIERS = [3, 3, 3, 3, 3, 3, 3, 4, 5, 6, 7, 8, 9]
+00052:   ACC_EVA_STAGE_DIVISORS    = [9, 8, 7, 6, 5, 4, 3, 3, 3, 3, 3, 3, 3]
+00053:   STAT_STAGE_MAXIMUM        = 6   # Is also the minimum (-6)
+00054: 
+00055:   #=============================================================================
+00056:   # Complex accessors
+00057:   #=============================================================================
+00058:   attr_reader :level
+00059: 
+00060:   def level=(value)
+00061:     @level = value
+00062:     @pokemon.level = value if @pokemon
+00063:   end
+00064: 
+00065:   attr_reader :form
+00066: 
+00067:   def form=(value)
+00068:     @form = value
+00069:     @pokemon.form = value if @pokemon
+00070:   end
+00071: 
+00072:   def ability
+00073:     return GameData::Ability.try_get(@ability_id)
+00074:   end
+00075: 
+00076:   def ability=(value)
+00077:     new_ability = GameData::Ability.try_get(value)
+00078:     @ability_id = (new_ability) ? new_ability.id : nil
+00079:   end
+00080: 
+00081:   def item
+00082:     return GameData::Item.try_get(@item_id)
+00083:   end
+00084: 
+00085:   def item=(value)
+00086:     new_item = GameData::Item.try_get(value)
+00087:     @item_id = (new_item) ? new_item.id : nil
+00088:     @pokemon.item = @item_id if @pokemon
+00089:   end
+00090: 
+00091:   def defense
+00092:     return @spdef if @battle.field.effects[PBEffects::WonderRoom] > 0
+00093:     return @defense
+00094:   end
+00095: 
+00096:   attr_writer :defense
+00097: 
+00098:   def spdef
+00099:     return @defense if @battle.field.effects[PBEffects::WonderRoom] > 0
+00100:     return @spdef
+00101:   end
+00102: 
+00103:   attr_writer :spdef
+00104: 
+00105:   attr_reader :hp
+00106: 
+00107:   def hp=(value)
+00108:     @hp = value.to_i
+00109:     @pokemon.hp = value.to_i if @pokemon
+00110:   end
+00111: 
+00112:   def fainted?; return @hp <= 0; end
+00113: 
+00114:   attr_reader :status
+00115: 
+00116:   def status=(value)
+00117:     @effects[PBEffects::Truant] = false if @status == :SLEEP && value != :SLEEP
+00118:     @effects[PBEffects::Toxic]  = 0 if value != :POISON || self.statusCount == 0
+00119:     @status = value
+00120:     @pokemon.status = value if @pokemon
+00121:     self.statusCount = 0 if value != :POISON && value != :SLEEP
+00122:     @battle.scene.pbRefreshOne(@index)
+00123:   end
+00124: 
+00125:   attr_reader :statusCount
+00126: 
+00127:   def statusCount=(value)
+00128:     @statusCount = value
+00129:     @pokemon.statusCount = value if @pokemon
+00130:     @battle.scene.pbRefreshOne(@index)
+00131:   end
+00132: 
+00133:   #=============================================================================
+00134:   # Properties from Pokémon
+00135:   #=============================================================================
+00136:   def happiness;       return @pokemon ? @pokemon.happiness : 0;       end
+00137:   def affection_level; return @pokemon ? @pokemon.affection_level : 2; end
+00138:   def gender;          return @pokemon ? @pokemon.gender : 0;          end
+00139:   def nature;          return @pokemon ? @pokemon.nature : nil;        end
+00140:   def pokerusStage;    return @pokemon ? @pokemon.pokerusStage : 0;    end
+00141: 
+00142:   #=============================================================================
+00143:   # Mega Evolution, Primal Reversion, Shadow Pokémon
+00144:   #=============================================================================
+00145:   def hasMega?
+00146:     return false if @effects[PBEffects::Transform]
+00147:     return @pokemon&.hasMegaForm?
+00148:   end
+00149: 
+00150:   def mega?; return @pokemon&.mega?; end
+00151: 
+00152:   def hasPrimal?
+00153:     return false if @effects[PBEffects::Transform]
+00154:     return @pokemon&.hasPrimalForm?
+00155:   end
+00156: 
+00157:   def primal?; return @pokemon&.primal?; end
+00158: 
+00159:   def shadowPokemon?; return false; end
+00160: 

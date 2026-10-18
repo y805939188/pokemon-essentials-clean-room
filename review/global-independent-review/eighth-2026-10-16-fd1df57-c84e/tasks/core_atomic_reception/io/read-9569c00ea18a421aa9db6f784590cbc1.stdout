@@ -1,0 +1,180 @@
+00583:   def pbProcessMoveHit(move, user, targets, hitNum, skipAccuracyCheck)
+00584:     return false if user.fainted?
+00585:     # For two-turn attacks being used in a single turn
+00586:     move.pbInitialEffect(user, targets, hitNum)
+00587:     numTargets = 0   # Number of targets that are affected by this hit
+00588:     # Count a hit for Parental Bond (if it applies)
+00589:     user.effects[PBEffects::ParentalBond] -= 1 if user.effects[PBEffects::ParentalBond] > 0
+00590:     # Accuracy check (accuracy/evasion calc)
+00591:     if hitNum == 0 || move.successCheckPerHit?
+00592:       targets.each do |b|
+00593:         b.damageState.missed = false
+00594:         next if b.damageState.unaffected
+00595:         if pbSuccessCheckPerHit(move, user, b, skipAccuracyCheck)
+00596:           numTargets += 1
+00597:         else
+00598:           b.damageState.missed     = true
+00599:           b.damageState.unaffected = true
+00600:         end
+00601:       end
+00602:       # If failed against all targets
+00603:       if targets.length > 0 && numTargets == 0 && !move.worksWithNoTargets?
+00604:         targets.each do |b|
+00605:           next if !b.damageState.missed || b.damageState.magicCoat
+00606:           pbMissMessage(move, user, b)
+00607:           if user.itemActive?
+00608:             Battle::ItemEffects.triggerOnMissingTarget(user.item, user, b, move, hitNum, @battle)
+00609:           end
+00610:           break if move.pbRepeatHit?   # Dragon Darts only shows one failure message
+00611:         end
+00612:         move.pbCrashDamage(user)
+00613:         user.pbItemHPHealCheck
+00614:         pbCancelMoves
+00615:         return false
+00616:       end
+00617:     end
+00618:     # If we get here, this hit will happen and do something
+00619:     all_targets = targets
+00620:     targets = move.pbDesignateTargetsForHit(targets, hitNum)   # For Dragon Darts
+00621:     targets.each { |b| b.damageState.resetPerHit }
+00622:     #---------------------------------------------------------------------------
+00623:     # Calculate damage to deal
+00624:     if move.pbDamagingMove?
+00625:       targets.each do |b|
+00626:         next if b.damageState.unaffected
+00627:         # Check whether Substitute/Disguise will absorb the damage
+00628:         move.pbCheckDamageAbsorption(user, b)
+00629:         # Calculate the damage against b
+00630:         # pbCalcDamage shows the "eat berry" animation for SE-weakening
+00631:         # berries, although the message about it comes after the additional
+00632:         # effect below
+00633:         move.pbCalcDamage(user, b, targets.length)   # Stored in damageState.calcDamage
+00634:         # Lessen damage dealt because of False Swipe/Endure/etc.
+00635:         move.pbReduceDamage(user, b)   # Stored in damageState.hpLost
+00636:       end
+00637:     end
+00638:     # Show move animation (for this hit)
+00639:     move.pbShowAnimation(move.id, user, targets, hitNum)
+00640:     # Type-boosting Gem consume animation/message
+00641:     if user.effects[PBEffects::GemConsumed] && hitNum == 0
+00642:       # NOTE: The consume animation and message for Gems are shown now, but the
+00643:       #       actual removal of the item happens in def pbEffectsAfterMove.
+00644:       @battle.pbCommonAnimation("UseItem", user)
+00645:       @battle.pbDisplay(_INTL("The {1} strengthened {2}'s power!",
+00646:                               GameData::Item.get(user.effects[PBEffects::GemConsumed]).name, move.name))
+00647:     end
+00648:     # Messages about missed target(s) (relevant for multi-target moves only)
+00649:     if !move.pbRepeatHit?
+00650:       targets.each do |b|
+00651:         next if !b.damageState.missed
+00652:         pbMissMessage(move, user, b)
+00653:         if user.itemActive?
+00654:           Battle::ItemEffects.triggerOnMissingTarget(user.item, user, b, move, hitNum, @battle)
+00655:         end
+00656:       end
+00657:     end
+00658:     # Deal the damage (to all allies first simultaneously, then all foes
+00659:     # simultaneously)
+00660:     if move.pbDamagingMove?
+00661:       # This just changes the HP amounts and does nothing else
+00662:       targets.each { |b| move.pbInflictHPDamage(b) if !b.damageState.unaffected }
+00663:       # Animate the hit flashing and HP bar changes
+00664:       move.pbAnimateHitAndHPLost(user, targets)
+00665:     end
+00666:     # Self-Destruct/Explosion's damaging and fainting of user
+00667:     move.pbSelfKO(user) if hitNum == 0
+00668:     user.pbFaint if user.fainted?
+00669:     if move.pbDamagingMove?
+00670:       targets.each do |b|
+00671:         next if b.damageState.unaffected
+00672:         # NOTE: This method is also used for the OHKO special message.
+00673:         move.pbHitEffectivenessMessages(user, b, targets.length)
+00674:         # Record data about the hit for various effects' purposes
+00675:         move.pbRecordDamageLost(user, b)
+00676:       end
+00677:       # Close Combat/Superpower's stat-lowering, Flame Burst's splash damage,
+00678:       # and Incinerate's berry destruction
+00679:       targets.each do |b|
+00680:         next if b.damageState.unaffected
+00681:         move.pbEffectWhenDealingDamage(user, b)
+00682:       end
+00683:       # Ability/item effects such as Static/Rocky Helmet, and Grudge, etc.
+00684:       targets.each do |b|
+00685:         next if b.damageState.unaffected
+00686:         pbEffectsOnMakingHit(move, user, b)
+00687:       end
+00688:       # Disguise/Endure/Sturdy/Focus Sash/Focus Band messages
+00689:       targets.each do |b|
+00690:         next if b.damageState.unaffected
+00691:         move.pbEndureKOMessage(b)
+00692:       end
+00693:       # HP-healing held items (checks all battlers rather than just targets
+00694:       # because Flame Burst's splash damage affects non-targets)
+00695:       @battle.pbPriority(true).each do |b|
+00696:         next if move.preventsBattlerConsumingHealingBerry?(b, targets)
+00697:         b.pbItemHPHealCheck
+00698:       end
+00699:       # Animate battlers fainting (checks all battlers rather than just targets
+00700:       # because Flame Burst's splash damage affects non-targets)
+00701:       @battle.pbPriority(true).each { |b| b.pbFaint if b&.fainted? }
+00702:     end
+00703:     @battle.pbJudgeCheckpoint(user, move)
+00704:     # Main effect (recoil/drain, etc.)
+00705:     targets.each do |b|
+00706:       next if b.damageState.unaffected
+00707:       move.pbEffectAgainstTarget(user, b)
+00708:     end
+00709:     move.pbEffectGeneral(user)
+00710:     targets.each { |b| b.pbFaint if b&.fainted? }
+00711:     user.pbFaint if user.fainted?
+00712:     # Additional effect
+00713:     if !user.hasActiveAbility?(:SHEERFORCE)
+00714:       targets.each do |b|
+00715:         next if b.damageState.calcDamage == 0
+00716:         chance = move.pbAdditionalEffectChance(user, b)
+00717:         next if chance <= 0
+00718:         move.pbAdditionalEffect(user, b) if @battle.pbRandom(100) < chance
+00719:       end
+00720:     end
+00721:     # Make the target flinch (because of an item/ability)
+00722:     targets.each do |b|
+00723:       next if b.fainted?
+00724:       next if b.damageState.calcDamage == 0 || b.damageState.substitute
+00725:       chance = move.pbFlinchChance(user, b)
+00726:       next if chance <= 0
+00727:       if @battle.pbRandom(100) < chance
+00728:         PBDebug.log("[Item/ability triggered] #{user.pbThis}'s King's Rock/Razor Fang or Stench")
+00729:         b.pbFlinch(user)
+00730:       end
+00731:     end
+00732:     # Message for and consuming of type-weakening berries
+00733:     # NOTE: The "consume held item" animation for type-weakening berries occurs
+00734:     #       during pbCalcDamage above (before the move's animation), but the
+00735:     #       message about it only shows here.
+00736:     targets.each do |b|
+00737:       next if b.damageState.unaffected
+00738:       next if !b.damageState.berryWeakened
+00739:       @battle.pbDisplay(_INTL("The {1} weakened the damage to {2}!", b.itemName, b.pbThis(true)))
+00740:       b.pbConsumeItem
+00741:     end
+00742:     # Steam Engine (goes here because it should be after stat changes caused by
+00743:     # the move)
+00744:     if [:FIRE, :WATER].include?(move.calcType)
+00745:       targets.each do |b|
+00746:         next if b.damageState.unaffected
+00747:         next if b.damageState.calcDamage == 0 || b.damageState.substitute
+00748:         next if !b.hasActiveAbility?(:STEAMENGINE)
+00749:         b.pbRaiseStatStageByAbility(:SPEED, 6, b) if b.pbCanRaiseStatStage?(:SPEED, b)
+00750:       end
+00751:     end
+00752:     # Fainting
+00753:     targets.each { |b| b.pbFaint if b&.fainted? }
+00754:     user.pbFaint if user.fainted?
+00755:     # Dragon Darts' second half of attack
+00756:     if move.pbRepeatHit? && hitNum == 0 &&
+00757:        targets.any? { |b| !b.fainted? && !b.damageState.unaffected }
+00758:       pbProcessMoveHit(move, user, all_targets, 1, skipAccuracyCheck)
+00759:     end
+00760:     return true
+00761:   end
+00762: end

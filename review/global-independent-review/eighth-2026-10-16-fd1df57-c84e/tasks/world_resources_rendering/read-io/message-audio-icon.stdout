@@ -1,0 +1,417 @@
+   380	def pbCreateMessageWindow(viewport = nil, skin = nil)
+   381	  msgwindow = Window_AdvancedTextPokemon.new("")
+   382	  if viewport
+   383	    msgwindow.viewport = viewport
+   384	  else
+   385	    msgwindow.z = 99999
+   386	  end
+   387	  msgwindow.visible = true
+   388	  msgwindow.letterbyletter = true
+   389	  msgwindow.back_opacity = MessageConfig::WINDOW_OPACITY
+   390	  pbBottomLeftLines(msgwindow, 2)
+   391	  $game_temp.message_window_showing = true if $game_temp
+   392	  skin = MessageConfig.pbGetSpeechFrame if !skin
+   393	  msgwindow.setSkin(skin)
+   394	  return msgwindow
+   395	end
+   396	
+   397	def pbDisposeMessageWindow(msgwindow)
+   398	  $game_temp.message_window_showing = false if $game_temp
+   399	  msgwindow.dispose
+   400	end
+   401	
+   402	#===============================================================================
+   403	# Main message-displaying function
+   404	#===============================================================================
+   405	def pbMessageDisplay(msgwindow, message, letterbyletter = true, commandProc = nil)
+   406	  return if !msgwindow
+   407	  oldletterbyletter = msgwindow.letterbyletter
+   408	  msgwindow.letterbyletter = (letterbyletter) ? true : false
+   409	  ret = nil
+   410	  commands = nil
+   411	  facewindow = nil
+   412	  goldwindow = nil
+   413	  coinwindow = nil
+   414	  battlepointswindow = nil
+   415	  cmdvariable = 0
+   416	  cmdIfCancel = 0
+   417	  msgwindow.waitcount = 0
+   418	  autoresume = false
+   419	  text = message.clone
+   420	  linecount = (Graphics.height > 400) ? 3 : 2
+   421	  ### Text replacement
+   422	  text.gsub!(/\\sign\[([^\]]*)\]/i) do      # \sign[something] gets turned into
+   423	    next "\\op\\cl\\ts[]\\w[" + $1 + "]"    # \op\cl\ts[]\w[something]
+   424	  end
+   425	  text.gsub!(/\\\\/, "\5")
+   426	  text.gsub!(/\\1/, "\1")
+   427	  if $game_actors
+   428	    text.gsub!(/\\n\[([1-8])\]/i) { next $game_actors[$1.to_i].name }
+   429	  end
+   430	  text.gsub!(/\\pn/i,  $player.name) if $player
+   431	  text.gsub!(/\\pm/i,  _INTL("${1}", $player.money.to_s_formatted)) if $player
+   432	  text.gsub!(/\\n/i,   "\n")
+   433	  text.gsub!(/\\\[([0-9a-f]{8,8})\]/i) { "<c2=" + $1 + ">" }
+   434	  text.gsub!(/\\pg/i,  "\\b") if $player&.male?
+   435	  text.gsub!(/\\pg/i,  "\\r") if $player&.female?
+   436	  text.gsub!(/\\pog/i, "\\r") if $player&.male?
+   437	  text.gsub!(/\\pog/i, "\\b") if $player&.female?
+   438	  text.gsub!(/\\pg/i,  "")
+   439	  text.gsub!(/\\pog/i, "")
+   440	  male_text_tag = shadowc3tag(MessageConfig::MALE_TEXT_MAIN_COLOR, MessageConfig::MALE_TEXT_SHADOW_COLOR)
+   441	  female_text_tag = shadowc3tag(MessageConfig::FEMALE_TEXT_MAIN_COLOR, MessageConfig::FEMALE_TEXT_SHADOW_COLOR)
+   442	  text.gsub!(/\\b/i,   male_text_tag)
+   443	  text.gsub!(/\\r/i,   female_text_tag)
+   444	  text.gsub!(/\\[Ww]\[([^\]]*)\]/) do
+   445	    w = $1.to_s
+   446	    if w == ""
+   447	      msgwindow.windowskin = nil
+   448	    else
+   449	      msgwindow.setSkin("Graphics/Windowskins/#{w}", false)
+   450	    end
+   451	    next ""
+   452	  end
+   453	  isDarkSkin = isDarkWindowskin(msgwindow.windowskin)
+   454	  text.gsub!(/\\c\[([0-9]+)\]/i) do
+   455	    next getSkinColor(msgwindow.windowskin, $1.to_i, isDarkSkin)
+   456	  end
+   457	  loop do
+   458	    last_text = text.clone
+   459	    text.gsub!(/\\v\[([0-9]+)\]/i) { $game_variables[$1.to_i] }
+   460	    break if text == last_text
+   461	  end
+   462	  loop do
+   463	    last_text = text.clone
+   464	    text.gsub!(/\\l\[([0-9]+)\]/i) do
+   465	      linecount = [1, $1.to_i].max
+   466	      next ""
+   467	    end
+   468	    break if text == last_text
+   469	  end
+   470	  colortag = ""
+   471	  if $game_system && $game_system.message_frame != 0
+   472	    colortag = getSkinColor(msgwindow.windowskin, 0, true)
+   473	  else
+   474	    colortag = getSkinColor(msgwindow.windowskin, 0, isDarkSkin)
+   475	  end
+   476	  text = colortag + text
+   477	  ### Controls
+   478	  textchunks = []
+   479	  controls = []
+   480	  while text[/(?:\\(f|ff|ts|cl|me|se|wt|wtnp|ch)\[([^\]]*)\]|\\(g|cn|pt|wd|wm|op|cl|wu|\.|\||\!|\^))/i]
+   481	    textchunks.push($~.pre_match)
+   482	    if $~[1]
+   483	      controls.push([$~[1].downcase, $~[2], -1])
+   484	    else
+   485	      controls.push([$~[3].downcase, "", -1])
+   486	    end
+   487	    text = $~.post_match
+   488	  end
+   489	  textchunks.push(text)
+   490	  textchunks.each do |chunk|
+   491	    chunk.gsub!(/\005/, "\\")
+   492	  end
+   493	  textlen = 0
+   494	  controls.length.times do |i|
+   495	    control = controls[i][0]
+   496	    case control
+   497	    when "wt", "wtnp", ".", "|"
+   498	      textchunks[i] += "\2"
+   499	    when "!"
+   500	      textchunks[i] += "\1"
+   501	    end
+   502	    textlen += toUnformattedText(textchunks[i]).scan(/./m).length
+   503	    controls[i][2] = textlen
+   504	  end
+   505	  text = textchunks.join
+   506	  appear_timer_start = nil
+   507	  appear_duration = 0.5   # In seconds
+   508	  haveSpecialClose = false
+   509	  specialCloseSE = ""
+   510	  startSE = nil
+   511	  controls.length.times do |i|
+   512	    control = controls[i][0]
+   513	    param = controls[i][1]
+   514	    case control
+   515	    when "op"
+   516	      appear_timer_start = System.uptime
+   517	    when "cl"
+   518	      text = text.sub(/\001\z/, "")   # fix: '$' can match end of line as well
+   519	      haveSpecialClose = true
+   520	      specialCloseSE = param
+   521	    when "f"
+   522	      facewindow&.dispose
+   523	      facewindow = PictureWindow.new("Graphics/Pictures/#{param}")
+   524	    when "ff"
+   525	      facewindow&.dispose
+   526	      facewindow = FaceWindowVX.new(param)
+   527	    when "ch"
+   528	      cmds = param.clone
+   529	      cmdvariable = pbCsvPosInt!(cmds)
+   530	      cmdIfCancel = pbCsvField!(cmds).to_i
+   531	      commands = []
+   532	      while cmds.length > 0
+   533	        commands.push(pbCsvField!(cmds))
+   534	      end
+   535	    when "wtnp", "^"
+   536	      text = text.sub(/\001\z/, "")   # fix: '$' can match end of line as well
+   537	    when "se"
+   538	      if controls[i][2] == 0
+   539	        startSE = param
+   540	        controls[i] = nil
+   541	      end
+   542	    end
+   543	  end
+   544	  if startSE
+   545	    pbSEPlay(pbStringToAudioFile(startSE))
+   546	  elsif !appear_timer_start && letterbyletter
+   547	    pbPlayDecisionSE
+   548	  end
+   549	  # Position message window
+   550	  pbRepositionMessageWindow(msgwindow, linecount)
+   551	  if facewindow
+   552	    pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   553	    facewindow.viewport = msgwindow.viewport
+   554	    facewindow.z        = msgwindow.z
+   555	  end
+   556	  atTop = (msgwindow.y == 0)
+   557	  # Show text
+   558	  msgwindow.text = text
+   559	  loop do
+   560	    if appear_timer_start
+   561	      y_start = (atTop) ? -msgwindow.height : Graphics.height
+   562	      y_end = (atTop) ? 0 : Graphics.height - msgwindow.height
+   563	      msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+   564	      appear_timer_start = nil if msgwindow.y == y_end
+   565	    end
+   566	    controls.length.times do |i|
+   567	      next if !controls[i]
+   568	      next if controls[i][2] > msgwindow.position || msgwindow.waitcount != 0
+   569	      control = controls[i][0]
+   570	      param = controls[i][1]
+   571	      case control
+   572	      when "f"
+   573	        facewindow&.dispose
+   574	        facewindow = PictureWindow.new("Graphics/Pictures/#{param}")
+   575	        pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   576	        facewindow.viewport = msgwindow.viewport
+   577	        facewindow.z        = msgwindow.z
+   578	      when "ff"
+   579	        facewindow&.dispose
+   580	        facewindow = FaceWindowVX.new(param)
+   581	        pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   582	        facewindow.viewport = msgwindow.viewport
+   583	        facewindow.z        = msgwindow.z
+   584	      when "g"      # Display gold window
+   585	        goldwindow&.dispose
+   586	        goldwindow = pbDisplayGoldWindow(msgwindow)
+   587	      when "cn"     # Display coins window
+   588	        coinwindow&.dispose
+   589	        coinwindow = pbDisplayCoinsWindow(msgwindow, goldwindow)
+   590	      when "pt"     # Display battle points window
+   591	        battlepointswindow&.dispose
+   592	        battlepointswindow = pbDisplayBattlePointsWindow(msgwindow)
+   593	      when "wu"
+   594	        atTop = true
+   595	        msgwindow.y = 0
+   596	        pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   597	        if appear_timer_start
+   598	          msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+   599	        end
+   600	      when "wm"
+   601	        atTop = false
+   602	        msgwindow.y = (Graphics.height - msgwindow.height) / 2
+   603	        pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   604	      when "wd"
+   605	        atTop = false
+   606	        msgwindow.y = Graphics.height - msgwindow.height
+   607	        pbPositionNearMsgWindow(facewindow, msgwindow, :left)
+   608	        if appear_timer_start
+   609	          msgwindow.y = lerp(y_start, y_end, appear_duration, appear_timer_start, System.uptime)
+   610	        end
+   611	      when "ts"     # Change text speed
+   612	        msgwindow.textspeed = (param == "") ? 0 : param.to_i / 80.0
+   613	      when "."      # Wait 0.25 seconds
+   614	        msgwindow.waitcount += 0.25
+   615	      when "|"      # Wait 1 second
+   616	        msgwindow.waitcount += 1.0
+   617	      when "wt"     # Wait X/20 seconds
+   618	        param = param.sub(/\A\s+/, "").sub(/\s+\z/, "")
+   619	        msgwindow.waitcount += param.to_i / 20.0
+   620	      when "wtnp"   # Wait X/20 seconds, no pause
+   621	        param = param.sub(/\A\s+/, "").sub(/\s+\z/, "")
+   622	        msgwindow.waitcount = param.to_i / 20.0
+   623	        autoresume = true
+   624	      when "^"      # Wait, no pause
+   625	        autoresume = true
+   626	      when "se"     # Play SE
+   627	        pbSEPlay(pbStringToAudioFile(param))
+   628	      when "me"     # Play ME
+   629	        pbMEPlay(pbStringToAudioFile(param))
+   630	      end
+   631	      controls[i] = nil
+   632	    end
+   633	    break if !letterbyletter
+   634	    Graphics.update
+   635	    Input.update
+   636	    facewindow&.update
+   637	    if autoresume && msgwindow.waitcount == 0
+   638	      msgwindow.resume if msgwindow.busy?
+   639	      break if !msgwindow.busy?
+   640	    end
+   641	    if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+   642	      if msgwindow.busy?
+   643	        pbPlayDecisionSE if msgwindow.pausing?
+   644	        msgwindow.resume
+   645	      elsif !appear_timer_start
+   646	        break
+   647	      end
+   648	    end
+   649	    pbUpdateSceneMap
+   650	    msgwindow.update
+   651	    yield if block_given?
+   652	    break if (!letterbyletter || commandProc || commands) && !msgwindow.busy?
+   653	  end
+   654	  Input.update   # Must call Input.update again to avoid extra triggers
+   655	  msgwindow.letterbyletter = oldletterbyletter
+   656	  if commands
+   657	    $game_variables[cmdvariable] = pbShowCommands(msgwindow, commands, cmdIfCancel)
+   658	    $game_map.need_refresh = true if $game_map
+   659	  end
+   660	  ret = commandProc.call(msgwindow) if commandProc
+   661	  goldwindow&.dispose
+   662	  coinwindow&.dispose
+   663	  battlepointswindow&.dispose
+   664	  facewindow&.dispose
+   665	  if haveSpecialClose
+   666	    pbSEPlay(pbStringToAudioFile(specialCloseSE))
+   667	    atTop = (msgwindow.y == 0)
+   668	    y_start = (atTop) ? 0 : Graphics.height - msgwindow.height
+   669	    y_end = (atTop) ? -msgwindow.height : Graphics.height
+   670	    disappear_duration = 0.5   # In seconds
+   671	    disappear_timer_start = System.uptime
+   672	    loop do
+   673	      msgwindow.y = lerp(y_start, y_end, disappear_duration, disappear_timer_start, System.uptime)
+   674	      Graphics.update
+   675	      Input.update
+   676	      pbUpdateSceneMap
+   677	      msgwindow.update
+   678	      break if msgwindow.y == y_end
+   679	    end
+   680	  end
+   681	  return ret
+   682	end
+   683	
+   684	#===============================================================================
+   685	# Message-displaying functions
+   686	#===============================================================================
+   687	def pbMessage(message, commands = nil, cmdIfCancel = 0, skin = nil, defaultCmd = 0, &block)
+   688	  ret = 0
+   689	  msgwindow = pbCreateMessageWindow(nil, skin)
+   690	  if commands
+   691	    ret = pbMessageDisplay(msgwindow, message, true,
+   692	                           proc { |msgwndw|
+   693	                             next Kernel.pbShowCommands(msgwndw, commands, cmdIfCancel, defaultCmd, &block)
+   694	                           }, &block)
+   695	  else
+   696	    pbMessageDisplay(msgwindow, message, &block)
+   697	  end
+   698	  pbDisposeMessageWindow(msgwindow)
+   699	  Input.update
+   700	  return ret
+   701	end
+   702	
+   703	def pbConfirmMessage(message, &block)
+   704	  return (pbMessage(message, [_INTL("Yes"), _INTL("No")], 2, &block) == 0)
+   705	end
+   130	    super
+   131	    if @playing
+   132	      new_frame = (System.uptime / @time_per_frame).to_i % self.framecount
+   133	      self.frame = new_frame if self.frame != new_frame
+   134	    end
+   135	  end
+   136	end
+   137	
+   138	#===============================================================================
+   139	# Displays an icon bitmap in a sprite. Supports animated images.
+   140	#===============================================================================
+   141	class IconSprite < Sprite
+   142	  attr_reader :name
+   143	
+   144	  def initialize(*args)
+   145	    case args.length
+   146	    when 0
+   147	      super(nil)
+   148	      self.bitmap = nil
+   149	    when 1
+   150	      super(args[0])
+   151	      self.bitmap = nil
+   152	    when 2
+   153	      super(nil)
+   154	      self.x = args[0]
+   155	      self.y = args[1]
+   156	    else
+   157	      super(args[2])
+   158	      self.x = args[0]
+   159	      self.y = args[1]
+   160	    end
+   161	    @name = ""
+   162	    @_iconbitmap = nil
+   163	  end
+   164	
+   165	  def dispose
+   166	    clearBitmaps
+   167	    super
+   168	  end
+   169	
+   170	  # Sets the icon's filename.  Alias for setBitmap.
+   171	  def name=(value)
+   172	    setBitmap(value)
+   173	  end
+   174	
+   175	  # Sets the icon's filename.
+   176	  def setBitmap(file, hue = 0)
+   177	    oldrc = self.src_rect
+   178	    clearBitmaps
+   179	    @name = file
+   180	    return if file.nil?
+   181	    if file == ""
+   182	      @_iconbitmap = nil
+   183	    else
+   184	      @_iconbitmap = AnimatedBitmap.new(file, hue)
+   185	      # for compatibility
+   186	      self.bitmap = @_iconbitmap ? @_iconbitmap.bitmap : nil
+   187	      self.src_rect = oldrc
+   188	    end
+   189	  end
+   190	
+   191	  def clearBitmaps
+   192	    @_iconbitmap&.dispose
+   193	    @_iconbitmap = nil
+   194	    self.bitmap = nil if !self.disposed?
+   195	  end
+   196	
+   197	  def update
+   198	    super
+   199	    return if !@_iconbitmap
+   200	    @_iconbitmap.update
+   201	    if self.bitmap != @_iconbitmap.bitmap
+   202	      oldrc = self.src_rect
+   203	      self.bitmap = @_iconbitmap.bitmap
+   204	      self.src_rect = oldrc
+   205	    end
+   206	  end
+   207	end
+   208	
+   209	#===============================================================================
+   210	# Sprite class that stores multiple bitmaps, and displays only one at once.
+   211	#===============================================================================
+   212	class ChangelingSprite < Sprite
+   213	  def initialize(x = 0, y = 0, viewport = nil)
+   214	    super(viewport)
+   215	    self.x = x
+   216	    self.y = y
+   217	    @bitmaps = {}
+   218	    @currentBitmap = nil
+   219	  end
+   220	

@@ -1,0 +1,678 @@
+     1	#===============================================================================
+     2	# Location signpost
+     3	#===============================================================================
+     4	class LocationWindow
+     5	  APPEAR_TIME = 0.4   # In seconds; is also the disappear time
+     6	  LINGER_TIME = 1.6   # In seconds; time during which self is fully visible
+     7	
+     8	  def initialize(name)
+     9	    @window = Window_AdvancedTextPokemon.new(name)
+    10	    @window.resizeToFit(name, Graphics.width)
+    11	    @window.x        = 0
+    12	    @window.y        = -@window.height
+    13	    @window.viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+    14	    @window.viewport.z = 99999
+    15	    @currentmap = $game_map.map_id
+    16	    @timer_start = System.uptime
+    17	    @delayed = !$game_temp.fly_destination.nil?
+    18	  end
+    19	
+    20	  def disposed?
+    21	    return @window.disposed?
+    22	  end
+    23	
+    24	  def dispose
+    25	    @window.dispose
+    26	  end
+    27	
+    28	  def update
+    29	    return if @window.disposed? || $game_temp.fly_destination
+    30	    if @delayed
+    31	      @timer_start = System.uptime
+    32	      @delayed = false
+    33	    end
+    34	    @window.update
+    35	    if $game_temp.message_window_showing || @currentmap != $game_map.map_id
+    36	      @window.dispose
+    37	      return
+    38	    end
+    39	    if System.uptime - @timer_start >= APPEAR_TIME + LINGER_TIME
+    40	      @window.y = lerp(0, -@window.height, APPEAR_TIME, @timer_start + APPEAR_TIME + LINGER_TIME, System.uptime)
+    41	      @window.dispose if @window.y + @window.height <= 0
+    42	    else
+    43	      @window.y = lerp(-@window.height, 0, APPEAR_TIME, @timer_start, System.uptime)
+    44	    end
+    45	  end
+    46	end
+    47	
+    48	#===============================================================================
+    49	# Visibility circle in dark maps
+    50	#===============================================================================
+    51	class DarknessSprite < Sprite
+    52	  attr_reader :radius
+    53	
+    54	  def initialize(viewport = nil)
+    55	    super(viewport)
+    56	    @darkness = Bitmap.new(Graphics.width, Graphics.height)
+    57	    @radius = radiusMin
+    58	    self.bitmap = @darkness
+    59	    self.z      = 99998
+    60	    refresh
+    61	  end
+    62	
+    63	  def dispose
+    64	    @darkness.dispose
+    65	    super
+    66	  end
+    67	
+    68	  def radiusMin; return 64;  end   # Before using Flash
+    69	  def radiusMax; return 176; end   # After using Flash
+    70	
+    71	  def radius=(value)
+    72	    @radius = value.round
+    73	    refresh
+    74	  end
+    75	
+    76	  def refresh
+    77	    @darkness.fill_rect(0, 0, Graphics.width, Graphics.height, Color.black)
+    78	    cx = Graphics.width / 2
+    79	    cy = Graphics.height / 2
+    80	    cradius = @radius
+    81	    numfades = 5
+    82	    (1..numfades).each do |i|
+    83	      (cx - cradius..cx + cradius).each do |j|
+    84	        diff2 = (cradius * cradius) - ((j - cx) * (j - cx))
+    85	        diff = Math.sqrt(diff2)
+    86	        @darkness.fill_rect(j, cy - diff, 1, diff * 2, Color.new(0, 0, 0, 255.0 * (numfades - i) / numfades))
+    87	      end
+    88	      cradius = (cradius * 0.9).floor
+    89	    end
+    90	  end
+    91	end
+    92	
+    93	#===============================================================================
+    94	# Light effects
+    95	#===============================================================================
+    96	class LightEffect
+    97	  def initialize(event, viewport = nil, map = nil, filename = nil)
+    98	    @light = IconSprite.new(0, 0, viewport)
+    99	    if !nil_or_empty?(filename) && pbResolveBitmap("Graphics/Pictures/" + filename)
+   100	      @light.setBitmap("Graphics/Pictures/" + filename)
+   101	    else
+   102	      @light.setBitmap("Graphics/Pictures/LE")
+   103	    end
+   104	    @light.z = 1000
+   105	    @event = event
+   106	    @map = (map) ? map : $game_map
+   107	    @disposed = false
+   108	  end
+   109	
+   110	  def disposed?
+   111	    return @disposed
+   112	  end
+   113	
+   114	  def dispose
+   115	    @light.dispose
+   116	    @map = nil
+   117	    @event = nil
+   118	    @disposed = true
+   119	  end
+   120	
+   121	  def update
+   122	    @light.update
+   123	  end
+   124	end
+   125	
+   126	#===============================================================================
+   127	#
+   128	#===============================================================================
+   129	class LightEffect_Lamp < LightEffect
+   130	  def initialize(event, viewport = nil, map = nil)
+   131	    lamp = AnimatedBitmap.new("Graphics/Pictures/LE")
+   132	    @light = Sprite.new(viewport)
+   133	    @light.bitmap = Bitmap.new(128, 64)
+   134	    src_rect = Rect.new(0, 0, 64, 64)
+   135	    @light.bitmap.blt(0, 0, lamp.bitmap, src_rect)
+   136	    @light.bitmap.blt(20, 0, lamp.bitmap, src_rect)
+   137	    @light.visible = true
+   138	    @light.z       = 1000
+   139	    lamp.dispose
+   140	    @map = (map) ? map : $game_map
+   141	    @event = event
+   142	  end
+   143	end
+   144	
+   145	#===============================================================================
+   146	#
+   147	#===============================================================================
+   148	class LightEffect_Basic < LightEffect
+   149	  def initialize(event, viewport = nil, map = nil, filename = nil)
+   150	    super
+   151	    @light.ox = @light.bitmap.width / 2
+   152	    @light.oy = @light.bitmap.height / 2
+   153	    @light.opacity = 100
+   154	  end
+   155	
+   156	  def update
+   157	    return if !@light || !@event
+   158	    super
+   159	    if (Object.const_defined?(:ScreenPosHelper) rescue false)
+   160	      @light.x      = ScreenPosHelper.pbScreenX(@event)
+   161	      @light.y      = ScreenPosHelper.pbScreenY(@event) - (@event.height * Game_Map::TILE_HEIGHT / 2)
+   162	      @light.zoom_x = ScreenPosHelper.pbScreenZoomX(@event)
+   163	      @light.zoom_y = @light.zoom_x
+   164	    else
+   165	      @light.x = @event.screen_x
+   166	      @light.y = @event.screen_y - (Game_Map::TILE_HEIGHT / 2)
+   167	    end
+   168	    @light.tone = $game_screen.tone
+   169	  end
+   170	end
+   171	
+   172	#===============================================================================
+   173	#
+   174	#===============================================================================
+   175	class LightEffect_DayNight < LightEffect
+   176	  def initialize(event, viewport = nil, map = nil, filename = nil)
+   177	    super
+   178	    @light.ox = @light.bitmap.width / 2
+   179	    @light.oy = @light.bitmap.height / 2
+   180	  end
+   181	
+   182	  def update
+   183	    return if !@light || !@event
+   184	    super
+   185	    shade = PBDayNight.getShade
+   186	    if shade >= 144   # If light enough, call it fully day
+   187	      shade = 255
+   188	    elsif shade <= 64   # If dark enough, call it fully night
+   189	      shade = 0
+   190	    else
+   191	      shade = 255 - (255 * (144 - shade) / (144 - 64))
+   192	    end
+   193	    @light.opacity = 255 - shade
+   194	    if @light.opacity > 0
+   195	      if (Object.const_defined?(:ScreenPosHelper) rescue false)
+   196	        @light.x      = ScreenPosHelper.pbScreenX(@event)
+   197	        @light.y      = ScreenPosHelper.pbScreenY(@event) - (@event.height * Game_Map::TILE_HEIGHT / 2)
+   198	        @light.zoom_x = ScreenPosHelper.pbScreenZoomX(@event)
+   199	        @light.zoom_y = ScreenPosHelper.pbScreenZoomY(@event)
+   200	      else
+   201	        @light.x = @event.screen_x
+   202	        @light.y = @event.screen_y - (Game_Map::TILE_HEIGHT / 2)
+   203	      end
+   204	      @light.tone.set($game_screen.tone.red,
+   205	                      $game_screen.tone.green,
+   206	                      $game_screen.tone.blue,
+   207	                      $game_screen.tone.gray)
+   208	    end
+   209	  end
+   210	end
+   211	
+   212	#===============================================================================
+   213	#
+   214	#===============================================================================
+   215	EventHandlers.add(:on_new_spriteset_map, :add_light_effects,
+   216	  proc { |spriteset, viewport|
+   217	    map = spriteset.map   # Map associated with the spriteset (not necessarily the current map)
+   218	    map.events.each_key do |i|
+   219	      if map.events[i].name[/^outdoorlight\((\w+)\)$/i]
+   220	        filename = $~[1].to_s
+   221	        spriteset.addUserSprite(LightEffect_DayNight.new(map.events[i], viewport, map, filename))
+   222	      elsif map.events[i].name[/^outdoorlight$/i]
+   223	        spriteset.addUserSprite(LightEffect_DayNight.new(map.events[i], viewport, map))
+   224	      elsif map.events[i].name[/^light\((\w+)\)$/i]
+   225	        filename = $~[1].to_s
+   226	        spriteset.addUserSprite(LightEffect_Basic.new(map.events[i], viewport, map, filename))
+   227	      elsif map.events[i].name[/^light$/i]
+   228	        spriteset.addUserSprite(LightEffect_Basic.new(map.events[i], viewport, map))
+   229	      end
+   230	    end
+   231	  }
+   232	)
+     1	#===============================================================================
+     2	# Entering/exiting cave animations
+     3	#===============================================================================
+     4	def pbCaveEntranceEx(exiting)
+     5	  # Create bitmap
+     6	  sprite = BitmapSprite.new(Graphics.width, Graphics.height)
+     7	  sprite.z = 100000
+     8	  # Define values used for the animation
+     9	  duration = 0.4
+    10	  totalBands = 15
+    11	  bandheight = ((Graphics.height / 2.0) - 10) / totalBands
+    12	  bandwidth  = ((Graphics.width / 2.0) - 12) / totalBands
+    13	  start_gray = (exiting) ? 0 : 255
+    14	  end_gray = (exiting) ? 255 : 0
+    15	  # Create initial array of band colors (black if exiting, white if entering)
+    16	  grays = Array.new(totalBands) { |i| start_gray }
+    17	  # Animate bands changing color
+    18	  timer_start = System.uptime
+    19	  until System.uptime - timer_start >= duration
+    20	    x = 0
+    21	    y = 0
+    22	    # Calculate color of each band
+    23	    totalBands.times do |k|
+    24	      grays[k] = lerp(start_gray, end_gray, duration, timer_start + (k * duration / totalBands), System.uptime)
+    25	    end
+    26	    # Draw gray rectangles
+    27	    rectwidth  = Graphics.width
+    28	    rectheight = Graphics.height
+    29	    totalBands.times do |i|
+    30	      currentGray = grays[i]
+    31	      sprite.bitmap.fill_rect(Rect.new(x, y, rectwidth, rectheight),
+    32	                              Color.new(currentGray, currentGray, currentGray))
+    33	      x += bandwidth
+    34	      y += bandheight
+    35	      rectwidth  -= bandwidth * 2
+    36	      rectheight -= bandheight * 2
+    37	    end
+    38	    Graphics.update
+    39	    Input.update
+    40	  end
+    41	  # Set the tone at end of band animation
+    42	  if exiting
+    43	    pbToneChangeAll(Tone.new(255, 255, 255), 0)
+    44	  else
+    45	    pbToneChangeAll(Tone.new(-255, -255, -255), 0)
+    46	  end
+    47	  # Animate fade to white (if exiting) or black (if entering)
+    48	  timer_start = System.uptime
+    49	  loop do
+    50	    sprite.color = Color.new(end_gray, end_gray, end_gray,
+    51	                             lerp(0, 255, duration, timer_start, System.uptime))
+    52	    Graphics.update
+    53	    Input.update
+    54	    break if sprite.color.alpha >= 255
+    55	  end
+    56	  # Set the tone at end of fading animation
+    57	  pbToneChangeAll(Tone.new(0, 0, 0), 8)
+    58	  # Pause briefly
+    59	  timer_start = System.uptime
+    60	  until System.uptime - timer_start >= 0.1
+    61	    Graphics.update
+    62	    Input.update
+    63	  end
+    64	  sprite.dispose
+    65	end
+    66	
+    67	def pbCaveEntrance
+    68	  pbSetEscapePoint
+    69	  pbCaveEntranceEx(false)
+    70	end
+    71	
+    72	def pbCaveExit
+    73	  pbEraseEscapePoint
+    74	  pbCaveEntranceEx(true)
+    75	end
+    76	
+    77	#===============================================================================
+    78	# Blacking out animation
+    79	#===============================================================================
+    80	def pbStartOver(gameover = false)
+    81	  if pbInBugContest?
+    82	    pbBugContestStartOver
+    83	    return
+    84	  end
+    85	  $stats.blacked_out_count += 1
+    86	  $player.heal_party
+    87	  if $PokemonGlobal.pokecenterMapId && $PokemonGlobal.pokecenterMapId >= 0
+    88	    if gameover
+    89	      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+    90	                _INTL("After the unfortunate defeat, you scurry back to a Pokémon Center."))
+    91	    else
+    92	      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+    93	                _INTL("You scurry back to a Pokémon Center, protecting your exhausted Pokémon from any further harm..."))
+    94	    end
+    95	    pbCancelVehicles
+    96	    Followers.clear
+    97	    $game_switches[Settings::STARTING_OVER_SWITCH] = true
+    98	    $game_temp.player_new_map_id    = $PokemonGlobal.pokecenterMapId
+    99	    $game_temp.player_new_x         = $PokemonGlobal.pokecenterX
+   100	    $game_temp.player_new_y         = $PokemonGlobal.pokecenterY
+   101	    $game_temp.player_new_direction = $PokemonGlobal.pokecenterDirection
+   102	    pbDismountBike
+   103	    $scene.transfer_player if $scene.is_a?(Scene_Map)
+   104	    $game_map.refresh
+   105	  else
+   106	    homedata = GameData::PlayerMetadata.get($player.character_ID)&.home
+   107	    homedata = GameData::Metadata.get.home if !homedata
+   108	    if homedata && !pbRgssExists?(sprintf("Data/Map%03d.rxdata", homedata[0]))
+   109	      if $DEBUG
+   110	        pbMessage(_ISPRINTF("Can't find the map 'Map{1:03d}' in the Data folder. The game will resume at the player's position.", homedata[0]))
+   111	      end
+   112	      $player.heal_party
+   113	      return
+   114	    end
+   115	    if gameover
+   116	      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+   117	                _INTL("After the unfortunate defeat, you scurry back home."))
+   118	    else
+   119	      pbMessage("\\w[]\\wm\\c[8]\\l[3]" +
+   120	                _INTL("You scurry back home, protecting your exhausted Pokémon from any further harm..."))
+   121	    end
+   122	    if homedata
+   123	      pbCancelVehicles
+   124	      Followers.clear
+   125	      $game_switches[Settings::STARTING_OVER_SWITCH] = true
+   126	      $game_temp.player_new_map_id    = homedata[0]
+   127	      $game_temp.player_new_x         = homedata[1]
+   128	      $game_temp.player_new_y         = homedata[2]
+   129	      $game_temp.player_new_direction = homedata[3]
+   130	      pbDismountBike
+   131	      $scene.transfer_player if $scene.is_a?(Scene_Map)
+   132	      $game_map.refresh
+   133	    else
+   134	      $player.heal_party
+   135	    end
+   136	  end
+   137	  pbEraseEscapePoint
+   138	end
+     1	#===============================================================================
+     2	# Load various wild battle music
+     3	#===============================================================================
+     4	# wildParty is an array of Pokémon objects.
+     5	def pbGetWildBattleBGM(_wildParty)
+     6	  return $PokemonGlobal.nextBattleBGM.clone if $PokemonGlobal.nextBattleBGM
+     7	  ret = nil
+     8	  if !ret
+     9	    # Check map metadata
+    10	    music = $game_map.metadata&.wild_battle_BGM
+    11	    ret = pbStringToAudioFile(music) if music && music != ""
+    12	  end
+    13	  if !ret
+    14	    # Check global metadata
+    15	    music = GameData::Metadata.get.wild_battle_BGM
+    16	    ret = pbStringToAudioFile(music) if music && music != ""
+    17	  end
+    18	  ret = pbStringToAudioFile("Battle wild") if !ret
+    19	  return ret
+    20	end
+    21	
+    22	def pbGetWildVictoryBGM
+    23	  if $PokemonGlobal.nextBattleVictoryBGM
+    24	    return $PokemonGlobal.nextBattleVictoryBGM.clone
+    25	  end
+    26	  ret = nil
+    27	  # Check map metadata
+    28	  music = $game_map.metadata&.wild_victory_BGM
+    29	  ret = pbStringToAudioFile(music) if music && music != ""
+    30	  if !ret
+    31	    # Check global metadata
+    32	    music = GameData::Metadata.get.wild_victory_BGM
+    33	    ret = pbStringToAudioFile(music) if music && music != ""
+    34	  end
+    35	  ret = pbStringToAudioFile("Battle victory") if !ret
+    36	  ret.name = "../../Audio/BGM/" + ret.name
+    37	  return ret
+    38	end
+    39	
+    40	def pbGetWildCaptureME
+    41	  if $PokemonGlobal.nextBattleCaptureME
+    42	    return $PokemonGlobal.nextBattleCaptureME.clone
+    43	  end
+    44	  ret = nil
+    45	  if !ret
+    46	    # Check map metadata
+    47	    music = $game_map.metadata&.wild_capture_ME
+    48	    ret = pbStringToAudioFile(music) if music && music != ""
+    49	  end
+    50	  if !ret
+    51	    # Check global metadata
+    52	    music = GameData::Metadata.get.wild_capture_ME
+    53	    ret = pbStringToAudioFile(music) if music && music != ""
+    54	  end
+    55	  ret = pbStringToAudioFile("Battle capture success") if !ret
+    56	  ret.name = "../../Audio/ME/" + ret.name
+    57	  return ret
+    58	end
+    59	
+    60	#===============================================================================
+    61	# Load/play various trainer battle music
+    62	#===============================================================================
+    63	def pbPlayTrainerIntroBGM(trainer_type)
+    64	  trainer_type_data = GameData::TrainerType.get(trainer_type)
+    65	  return if nil_or_empty?(trainer_type_data.intro_BGM)
+    66	  bgm = pbStringToAudioFile(trainer_type_data.intro_BGM)
+    67	  if !$game_temp.memorized_bgm
+    68	    if $game_temp.cue_bgm_delay
+    69	      $game_temp.cue_bgm_delay = nil
+    70	      $game_temp.memorized_bgm = $game_temp.cue_bgm
+    71	      $game_temp.memorized_bgm_position = 0
+    72	    else
+    73	      $game_temp.memorized_bgm = $game_system.getPlayingBGM
+    74	      $game_temp.memorized_bgm_position = (Audio.bgm_pos rescue 0)
+    75	    end
+    76	  end
+    77	  pbBGMPlay(bgm)
+    78	end
+    79	
+    80	# Can be a Player, NPCTrainer or an array of them.
+    81	def pbGetTrainerBattleBGM(trainer)
+    82	  return $PokemonGlobal.nextBattleBGM.clone if $PokemonGlobal.nextBattleBGM
+    83	  ret = nil
+    84	  music = nil
+    85	  trainerarray = (trainer.is_a?(Array)) ? trainer : [trainer]
+    86	  trainerarray.each do |t|
+    87	    trainer_type_data = GameData::TrainerType.get(t.trainer_type)
+    88	    music = trainer_type_data.battle_BGM if trainer_type_data.battle_BGM
+    89	  end
+    90	  ret = pbStringToAudioFile(music) if music && music != ""
+    91	  if !ret
+    92	    # Check map metadata
+    93	    music = $game_map.metadata&.trainer_battle_BGM
+    94	    ret = pbStringToAudioFile(music) if music && music != ""
+    95	  end
+    96	  if !ret
+    97	    # Check global metadata
+    98	    music = GameData::Metadata.get.trainer_battle_BGM
+    99	    ret = pbStringToAudioFile(music) if music && music != ""
+   100	  end
+   101	  ret = pbStringToAudioFile("Battle trainer") if !ret
+   102	  return ret
+   103	end
+   104	
+   105	def pbGetTrainerBattleBGMFromType(trainertype)
+   106	  return $PokemonGlobal.nextBattleBGM.clone if $PokemonGlobal.nextBattleBGM
+   107	  trainer_type_data = GameData::TrainerType.get(trainertype)
+   108	  ret = trainer_type_data.battle_BGM if trainer_type_data.battle_BGM
+   109	  if !ret
+   110	    # Check map metadata
+   111	    music = $game_map.metadata&.trainer_battle_BGM
+   112	    ret = pbStringToAudioFile(music) if music && music != ""
+   113	  end
+   114	  if !ret
+   115	    # Check global metadata
+   116	    music = GameData::Metadata.get.trainer_battle_BGM
+   117	    ret = pbStringToAudioFile(music) if music && music != ""
+   118	  end
+   119	  ret = pbStringToAudioFile("Battle trainer") if !ret
+   120	  return ret
+   121	end
+   122	
+   123	# Can be a Player, NPCTrainer or an array of them.
+   124	def pbGetTrainerVictoryBGM(trainer)
+   125	  if $PokemonGlobal.nextBattleVictoryBGM
+   126	    return $PokemonGlobal.nextBattleVictoryBGM.clone
+   127	  end
+   128	  music = nil
+   129	  trainerarray = (trainer.is_a?(Array)) ? trainer : [trainer]
+   130	  trainerarray.each do |t|
+   131	    trainer_type_data = GameData::TrainerType.get(t.trainer_type)
+   132	    music = trainer_type_data.victory_BGM if trainer_type_data.victory_BGM
+   133	  end
+   134	  ret = nil
+   135	  ret = pbStringToAudioFile(music) if music && music != ""
+   136	  if !ret
+   137	    # Check map metadata
+   138	    music = $game_map.metadata&.trainer_victory_BGM
+   139	    ret = pbStringToAudioFile(music) if music && music != ""
+   140	  end
+   141	  if !ret
+   142	    # Check global metadata
+   143	    music = GameData::Metadata.get.trainer_victory_BGM
+   144	    ret = pbStringToAudioFile(music) if music && music != ""
+   145	  end
+   146	  ret = pbStringToAudioFile("Battle victory") if !ret
+   147	  ret.name = "../../Audio/BGM/" + ret.name
+   148	  return ret
+   149	end
+     1	//==============================================================================
+     2	// Since this is a JSON file, comments are written with // instead of a #. Any
+     3	// backslashes in file paths written in here need to be escaped (i.e. a single
+     4	// backslash becomes a double backslash). If that's too much hassle, you can use
+     5	// a single forward slash instead (even on Windows).
+     6	//==============================================================================
+     7	{
+     8	    //==========================================================================
+     9	    // Things you may want to/should change.
+    10	    //==========================================================================
+    11	
+    12	    // The name shown in the game window's title. Is the game's display name.
+    13	    // Note that the "Game Title" defined in RPG Maker XP should not have
+    14	    // accented characters in it, which is why this property is useful.
+    15	    //
+    16	    "windowTitle": "Pokémon Essentials v21.1",
+    17	
+    18	    // The game window's width and height, in pixels.
+    19	    //
+    20	    "defScreenW": 512,
+    21	    "defScreenH": 384,
+    22	
+    23	    // The path to the game window's icon. For Linux only. (Default: none)
+    24	    //
+    25	    // "iconPath": "/path/to/icon.png",
+    26	
+    27	    // Enable F12 to make the game soft reset.
+    28	    //
+    29	    // "enableReset": true,
+    30	
+    31	    // Enable F1 to open the keybinding menu.
+    32	    //
+    33	    // "enableSettings": true,
+    34	
+    35	    // The names of each input, as seen in the F1 keybinding menu. The names
+    36	    // have no other use.
+    37	    //
+    38	    "bindingNames": {
+    39	      "c": "Use",
+    40	      "b": "Back",
+    41	      "a": "Action",
+    42	      "x": "JumpUp",
+    43	      "y": "JumpDown",
+    44	      "z": "Special",
+    45	      "l": "(unused)",
+    46	      "r": "(unused)"
+    47	    },
+    48	
+    49	    // The name of this game's save folder. If undefined, the save folder's name
+    50	    // will be the "Game Title" as defined in RPG Maker XP. It should not
+    51	    // contain any accented characters.
+    52	    //
+    53	    // "dataPathApp": "Pokemon Essentials v21",
+    54	
+    55	    // If defined, the game's save folder goes into a folder with this name (in
+    56	    // C:\Users\USERNAME\AppData\Roaming). If undefined, the game's save folder
+    57	    // goes directly into C:\Users\USERNAME\AppData\Roaming. It should not
+    58	    // contain any accented characters.
+    59	    // This acts as a company/creator name, and this folder could contain save
+    60	    // folders for multiple games made by the same company/creator.
+    61	    //
+    62	    // "dataPathOrg": "PKMN Essentials",
+    63	
+    64	    // SoundFont to use for midi playback (via fluidsynth).
+    65	    //
+    66	    "midiSoundFont": "soundfont.sf2",
+    67	
+    68	    // Number of streams to open for BGM tracks. If the game needs multi-track
+    69	    // audio, this should be set to as many available tracks as the game needs.
+    70	    // Maximum: 16.
+    71	    //
+    72	    // "BGMTrackCount": 1,
+    73	
+    74	    // Number of OpenAL sources to allocate for SE playback. If there are a lot
+    75	    // of sounds playing at the same time and audibly cutting each other off,
+    76	    // try increasing this number. Maximum: 64.
+    77	    //
+    78	    // "SESourceCount": 6,
+    79	
+    80	    // Index all accessible assets via their lower case path (emulates Windows
+    81	    // case insensitivity).
+    82	    //
+    83	    "pathCache": false,
+    84	
+    85	    //==========================================================================
+    86	    // Window size, scaling, rendering and frame rate.
+    87	    // You shouldn't need to change any of these.
+    88	    //==========================================================================
+    89	
+    90	    // Whether the game starts in full-screen mode (this can always be toggled
+    91	    // with Alt-Enter during runtime).
+    92	    //
+    93	    // "fullscreen": false,
+    94	
+    95	    // Whether you can toggle full-screen mode by pressing Alt + Enter with
+    96	    // either the left or right Alt key.
+    97	    //
+    98	    // "anyAltToggleFS": false,
+    99	
+   100	    // Whether the game window is freely resizable.
+   101	    //
+   102	    // "winResizable": true,
+   103	
+   104	    // Whether the game screen's aspect ratio is preserved when resizing the
+   105	    // window. If false, the game screen will stretch and distort to fill the
+   106	    // entire window.
+   107	    //
+   108	    // "fixedAspectRatio": true,
+   109	
+   110	    // When resizing the game screen to fit the window, whether to scale up the
+   111	    // game screen by an integer amount (as large as the current window size
+   112	    // allows) before doing any last additional scalings to fill part/all of the
+   113	    // remaining window space (or none at all if integerScalingLastMile is
+   114	    // disabled).
+   115	    // If fixedAspectRatio is disabled, the integer scale factors in horizontal
+   116	    // and vertical direction can differ depending on how much space is
+   117	    // available; otherwise they are forced to the smaller of the two.
+   118	    //
+   119	    // "integerScalingActive": false,
+   120	
+   121	    // When integerScalingActive is enabled, this option controls whether the
+   122	    // scaled game screen is further scaled (with linear interpolation when
+   123	    // smoothScaling is enabled) to fill the rest of the game window.
+   124	    // Note that this option still respects fixedAspectRatio.
+   125	    //
+   126	    // "integerScalingLastMile": true,
+   127	
+   128	    // Whether to apply linear interpolation when the game screen is upscaled.
+   129	    //
+   130	    // "smoothScaling": false,
+   131	
+   132	    // Whether to apply Lanczos3 interpolation when the game screen is upscaled
+   133	    // (typically higher quality than the linear smoothScaling).
+   134	    //
+   135	    // "lanczos3Scaling": false,
+   136	
+   137	    // Workaround for buggy graphics drivers that don't properly synchronize
+   138	    // texture access. This is most apparent when text doesn't show up or the
+   139	    // map tileset doesn't render at all.
+   140	    //
+   141	    "subImageFix": true,
+   142	
+   143	    // Sync screen redraws to the monitor refresh rate, to reduce screen
+   144	    // tearing.
+   145	    //
+   146	    "vsync": true,
+   147	
+   148	    // Use a fixed framerate that is approx. equal to the native screen refresh
+   149	    // rate. This is different from "fixedFramerate" because the actual frame
+   150	    // rate is reported back to the game, ensuring correct timers. If the screen
+   151	    // refresh rate cannot be determined, this option is force-disabled. This
+   152	    // option may be force-disabled at build time.
+   153	    //
+   154	    "syncToRefreshrate": true,
+   155	
+   156	    // The game's frame rate, if "syncToRefreshrate" is false.
+   157	    //
+   158	    // "fixedFramerate": 60,
+   159	}

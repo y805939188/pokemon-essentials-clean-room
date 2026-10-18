@@ -1,0 +1,323 @@
+  701 
+  702   def move_toward_player
+  703     sx = @x + (@width / 2.0) - ($game_player.x + ($game_player.width / 2.0))
+  704     sy = @y - (@height / 2.0) - ($game_player.y - ($game_player.height / 2.0))
+  705     return if sx == 0 && sy == 0
+  706     abs_sx = sx.abs
+  707     abs_sy = sy.abs
+  708     if abs_sx == abs_sy
+  709       (rand(2) == 0) ? abs_sx += 1 : abs_sy += 1
+  710     end
+  711     if abs_sx > abs_sy
+  712       (sx > 0) ? move_left : move_right
+  713       if !moving? && sy != 0
+  714         (sy > 0) ? move_up : move_down
+  715       end
+  716     else
+  717       (sy > 0) ? move_up : move_down
+  718       if !moving? && sx != 0
+  719         (sx > 0) ? move_left : move_right
+  720       end
+  721     end
+  722   end
+  723 
+  724   def move_away_from_player
+  725     sx = @x + (@width / 2.0) - ($game_player.x + ($game_player.width / 2.0))
+  726     sy = @y - (@height / 2.0) - ($game_player.y - ($game_player.height / 2.0))
+  727     return if sx == 0 && sy == 0
+  728     abs_sx = sx.abs
+  729     abs_sy = sy.abs
+  730     if abs_sx == abs_sy
+  731       (rand(2) == 0) ? abs_sx += 1 : abs_sy += 1
+  732     end
+  733     if abs_sx > abs_sy
+  734       (sx > 0) ? move_right : move_left
+  735       if !moving? && sy != 0
+  736         (sy > 0) ? move_down : move_up
+  737       end
+  738     else
+  739       (sy > 0) ? move_down : move_up
+  740       if !moving? && sx != 0
+  741         (sx > 0) ? move_right : move_left
+  742       end
+  743     end
+  744   end
+  745 
+  746   def move_forward
+  747     case @direction
+  748     when 2 then move_down(false)
+  749     when 4 then move_left(false)
+  750     when 6 then move_right(false)
+  751     when 8 then move_up(false)
+  752     end
+  753   end
+  754 
+  755   def move_backward
+  756     last_direction_fix = @direction_fix
+  757     @direction_fix = true
+  758     case @direction
+  759     when 2 then move_up(false)
+  760     when 4 then move_right(false)
+  761     when 6 then move_left(false)
+  762     when 8 then move_down(false)
+  763     end
+  764     @direction_fix = last_direction_fix
+  765   end
+  766 
+  767   def jump(x_plus, y_plus)
+  768     if x_plus != 0 || y_plus != 0
+  769       if x_plus.abs > y_plus.abs
+  770         (x_plus < 0) ? turn_left : turn_right
+  771       else
+  772         (y_plus < 0) ? turn_up : turn_down
+  773       end
+  774       each_occupied_tile { |i, j| return if !passable?(i + x_plus, j + y_plus, 0) }
+  775     end
+  776     @jump_initial_x = @x
+  777     @jump_initial_y = @y
+  778     @x += x_plus
+  779     @y += y_plus
+  780     @jump_timer = 0.0
+  781     real_distance = Math.sqrt((x_plus**2) + (y_plus**2))
+  782     distance = [1, real_distance].max
+  783     @jump_peak = distance * Game_Map::TILE_HEIGHT * 3 / 8   # 3/4 of tile for ledge jumping
+  784     @jump_distance = [x_plus.abs * Game_Map::REAL_RES_X, y_plus.abs * Game_Map::REAL_RES_Y].max
+  785     @jumping_on_spot = (real_distance == 0)
+  786     increase_steps
+  787   end
+  788 
+  789   def jumpForward(distance = 1)
+  790     return false if distance == 0
+  791     old_x = @x
+  792     old_y = @y
+  793     case self.direction
+  794     when 2 then jump(0, distance)    # down
+  795     when 4 then jump(-distance, 0)   # left
+  796     when 6 then jump(distance, 0)    # right
+  797     when 8 then jump(0, -distance)   # up
+  798     end
+  799     return @x != old_x || @y != old_y
+  800   end
+  801 
+  802   def jumpBackward(distance = 1)
+  803     return false if distance == 0
+  804     old_x = @x
+  805     old_y = @y
+  806     case self.direction
+  807     when 2 then jump(0, -distance)   # down
+  808     when 4 then jump(distance, 0)    # left
+  809     when 6 then jump(-distance, 0)   # right
+  810     when 8 then jump(0, distance)    # up
+  811     end
+  812     return @x != old_x || @y != old_y
+  813   end
+  814 
+  815   def turn_generic(dir)
+  816     return if @direction_fix
+  817     oldDirection = @direction
+  818     @direction = dir
+  819     @stop_count = 0
+  820     check_event_trigger_after_turning if dir != oldDirection
+  821   end
+  822 
+  823   def turn_down;  turn_generic(2); end
+  824   def turn_left;  turn_generic(4); end
+  825   def turn_right; turn_generic(6); end
+  826   def turn_up;    turn_generic(8); end
+  827 
+  828   def turn_right_90
+  829     case @direction
+  830     when 2 then turn_left
+  831     when 4 then turn_up
+  832     when 6 then turn_down
+  833     when 8 then turn_right
+  834     end
+  835   end
+  836 
+  837   def turn_left_90
+  838     case @direction
+  839     when 2 then turn_right
+  840     when 4 then turn_down
+  841     when 6 then turn_up
+  842     when 8 then turn_left
+  843     end
+  844   end
+  845 
+  846   def turn_180
+  847     case @direction
+  848     when 2 then turn_up
+  849     when 4 then turn_right
+  850     when 6 then turn_left
+  851     when 8 then turn_down
+  852     end
+  853   end
+  854 
+  855   def turn_right_or_left_90
+  856     (rand(2) == 0) ? turn_right_90 : turn_left_90
+  857   end
+  858 
+  859   def turn_random
+  860     case rand(4)
+  861     when 0 then turn_up
+  862     when 1 then turn_right
+  863     when 2 then turn_left
+  864     when 3 then turn_down
+  865     end
+  866   end
+  867 
+  868   def turn_toward_player
+  869     sx = @x + (@width / 2.0) - ($game_player.x + ($game_player.width / 2.0))
+  870     sy = @y - (@height / 2.0) - ($game_player.y - ($game_player.height / 2.0))
+  871     return if sx == 0 && sy == 0
+  872     if sx.abs > sy.abs
+  873       (sx > 0) ? turn_left : turn_right
+  874     else
+  875       (sy > 0) ? turn_up : turn_down
+  876     end
+  877   end
+  878 
+  879   def turn_away_from_player
+  880     sx = @x + (@width / 2.0) - ($game_player.x + ($game_player.width / 2.0))
+  881     sy = @y - (@height / 2.0) - ($game_player.y - ($game_player.height / 2.0))
+  882     return if sx == 0 && sy == 0
+  883     if sx.abs > sy.abs
+  884       (sx > 0) ? turn_right : turn_left
+  885     else
+  886       (sy > 0) ? turn_down : turn_up
+  887     end
+  888   end
+  889 
+  890   #=============================================================================
+  891   # Updating
+  892   #=============================================================================
+  893   def update
+  894     return if $game_temp.in_menu
+  895     time_now = System.uptime
+  896     @last_update_time = time_now if !@last_update_time || @last_update_time > time_now
+  897     @delta_t = time_now - @last_update_time
+  898     @last_update_time = time_now
+  899     return if @delta_t > 0.25   # Was in a menu; delay movement
+  900     @moved_last_frame = @moved_this_frame
+  901     @stopped_last_frame = @stopped_this_frame
+  902     @moved_this_frame = false
+  903     @stopped_this_frame = false
+  904     # Update command
+  905     update_command
+  906     # Update movement
+  907     (moving? || jumping?) ? update_move : update_stop
+  908     # Update animation
+  909     update_pattern
+  910   end
+  911 
+  912   def update_command
+  913     if @wait_count > 0
+  914       return if System.uptime - @wait_start < @wait_count
+  915       @wait_count = 0
+  916       @wait_start = nil
+  917     end
+  918     if @move_route_forcing
+  919       move_type_custom
+  920     elsif !@starting && !lock? && !moving? && !jumping?
+  921       update_command_new
+  922     end
+  923   end
+  924 
+  925   def update_command_new
+  926     if @stop_count >= @command_delay
+  927       case @move_type
+  928       when 1 then move_type_random
+  929       when 2 then move_type_toward_player
+  930       when 3 then move_type_custom
+  931       end
+  932     end
+  933   end
+  934 
+  935   def update_move
+  936     if @move_timer
+  937       @move_timer += @delta_t
+  938       # Move horizontally
+  939       if @x != @move_initial_x
+  940         dist = (@move_initial_x - @x).abs
+  941         @real_x = lerp(@move_initial_x, @x, @move_time * dist, @move_timer) * Game_Map::REAL_RES_X
+  942       end
+  943       # Move vertically
+  944       if @y != @move_initial_y
+  945         dist = (@move_initial_y - @y).abs
+  946         @real_y = lerp(@move_initial_y, @y, @move_time * dist, @move_timer) * Game_Map::REAL_RES_Y
+  947       end
+  948     elsif @jump_timer
+  949       self.jump_speed = 3 if !@jump_time
+  950       @jump_timer += @delta_t
+  951       dist = [(@x - @jump_initial_x).abs, (@y - @jump_initial_y).abs].max
+  952       dist = 1 if dist == 0   # Jumping on spot
+  953       # Move horizontally
+  954       if @x != @jump_initial_x
+  955         @real_x = lerp(@jump_initial_x, @x, @jump_time * dist, @jump_timer) * Game_Map::REAL_RES_X
+  956       end
+  957       # Move vertically
+  958       if @y != @jump_initial_y
+  959         @real_y = lerp(@jump_initial_y, @y, @jump_time * dist, @jump_timer) * Game_Map::REAL_RES_Y
+  960       end
+  961       # Calculate how far through the jump we are (from 0 to 1)
+  962       @jump_fraction = @jump_timer / (@jump_time * dist)
+  963     end
+  964     # Snap to end position if close enough
+  965     @real_x = @x * Game_Map::REAL_RES_X if (@real_x - (@x * Game_Map::REAL_RES_X)).abs < Game_Map::X_SUBPIXELS / 2
+  966     @real_y = @y * Game_Map::REAL_RES_Y if (@real_y - (@y * Game_Map::REAL_RES_Y)).abs < Game_Map::Y_SUBPIXELS / 2
+  967     # End of move
+  968     if moving? && @move_timer >= @move_time &&
+  969        @real_x == @x * Game_Map::REAL_RES_X && @real_y == @y * Game_Map::REAL_RES_Y
+  970       @move_timer = nil
+  971       @bumping = false
+  972     end
+  973     # End of jump
+  974     if jumping? && @jump_fraction >= 1
+  975       @jump_timer = nil
+  976       @jump_peak = 0
+  977       @jump_distance = 0
+  978       @jump_fraction = 0
+  979       @jumping_on_spot = false
+  980     end
+  981     # End of a step, so perform events that happen at this time
+  982     if !jumping? && !moving?
+  983       EventHandlers.trigger(:on_step_taken, self)
+  984       calculate_bush_depth
+  985       @stopped_this_frame = true
+  986     elsif !@moved_last_frame || @stopped_last_frame   # Started a new step
+  987       calculate_bush_depth
+  988     end
+  989     # Increment animation counter
+  990     @anime_count += @delta_t if @walk_anime || @step_anime
+  991     @moved_this_frame = true
+  992   end
+  993 
+  994   def update_stop
+  995     @anime_count += @delta_t if @step_anime
+  996     @stop_count += @delta_t if !@starting && !lock?
+  997   end
+  998 
+  999   def update_pattern
+ 1000     return if @lock_pattern
+ 1001 #    return if @jumping_on_spot   # Don't animate if jumping on the spot
+ 1002     # Character has stopped moving, return to original pattern
+ 1003     if @moved_last_frame && !@moved_this_frame && !@step_anime
+ 1004       @pattern = @original_pattern
+ 1005       @anime_count = 0
+ 1006       return
+ 1007     end
+ 1008     # Character has started to move, change pattern immediately
+ 1009     if !@moved_last_frame && @moved_this_frame && !@step_anime
+ 1010       @pattern = (@pattern + 1) % 4 if @walk_anime
+ 1011       @anime_count = 0
+ 1012       return
+ 1013     end
+ 1014     # Calculate how many frames each pattern should display for, i.e. the time
+ 1015     # it takes to move half a tile (or a whole tile if cycling). We assume the
+ 1016     # game uses square tiles.
+ 1017     pattern_time = pattern_update_speed / 4   # 4 frames per cycle in a charset
+ 1018     return if @anime_count < pattern_time
+ 1019     # Advance to the next animation frame
+ 1020     @pattern = (@pattern + 1) % 4
+ 1021     @anime_count -= pattern_time
+ 1022   end
+ 1023 end

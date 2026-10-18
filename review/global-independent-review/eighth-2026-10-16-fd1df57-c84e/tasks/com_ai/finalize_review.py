@@ -1,0 +1,24 @@
+from pathlib import Path
+import json,datetime,hashlib,subprocess
+o=Path(__file__).resolve().parent;root=o.parents[3];now=datetime.datetime.now(datetime.timezone.utc).isoformat();ids=json.loads((o/'identities.json').read_text());sem=json.loads((o/'semantic-units.json').read_text());fw=json.loads((o/'forward-mapping.json').read_text());rv=json.loads((o/'reverse-mapping.json').read_text());it=json.loads((o/'interfaces.json').read_text());le=json.loads((o/'reading-ledger.json').read_text())
+for u in sem['units']:
+ if 'unreceived' in u:
+  u['previous_unreceived_disposition']={'initial':u.pop('unreceived'),'now':'Received only as the named scoped source consumers, not full other-domain formal acceptance.','interfaces':['IF-COMAI-BATTLER-QUERIES','IF-COMAI-ABILITY-ITEM-CALLBACKS','IF-COMAI-CORE-ITEM-REGISTER','IF-COMAI-MOVE-BASE125']}
+sem['updated_utc']=now;sem['status']='PRIMARY_AI_MANUAL_SEMANTICS_COMPLETE; REQUIRED_CONVERSION_DEFINITION_GAP_RECORDED; OUTER_DATA_RECEPTION_OPEN';(o/'semantic-units.json').write_text(json.dumps(sem,ensure_ascii=False,indent=2)+'\n')
+fw['external_reception']='interfaces.json:14scopedreceipts/1outerPBS-compile-reloadinterfaceOPEN; notwholeglobalAI/defaultdataacceptance';fw['updated_utc']=now
+for f in fw['manual_units']:
+ u=next(x for x in sem['units'] if x['id']==f['id']);f.pop('unreceived',None)
+ if 'previous_unreceived_disposition' in u:f['previous_unreceived_disposition']=u['previous_unreceived_disposition']
+fw['status']='PRIMARY_AI_LOCAL_FACT_MAPPING_AND_NAMED_SOURCE_CONSUMERS_COMPLETE; OUTER_DATA_RECEPTION_OPEN';(o/'forward-mapping.json').write_text(json.dumps(fw,ensure_ascii=False,indent=2)+'\n')
+for f in le['files']:
+ f['mapping_status']='MANUAL_LOCAL_FACT_AND_FORMAL_MAPPING_COMPLETE; OUTER_DATA_RECEPTION_OPEN'
+ f['manual_source_units']=[u['id'] for u in sem['units'] if f['kind']=='reference' and u['source']==f['index']]
+ f['manual_formal_clause_groups']=[r['id'] for r in rv['records'] if f['kind']=='formal' and r['formal_index']==f['index']]
+ if f['kind']=='formal' and f['index']==8:f['manual_catalog_rows']=[r['id'] for r in rv['vectors']]
+ f['full_read_is_not_global_pass']=True
+le['updated_utc']=now;le['source_semantic_groups']=65;le['source_manual_facts']=196;le['formal_manual_groups']=72;le['formal_manual_branch_assertions']=273;le['catalog_rows_read_and_locally_received']=285;le['named_scoped_interfaces']=14;le['outer_data_interfaces_unreceived']=1;le['current_required_definition_omissions']=['GR8-AI-001'];le['formal_administrative_disposition']='Titles/classification/provenance/separators/source-navigation andscope/noexecutionprose readfully; no hidden behavior waived. Exactcensus validatedseparately, administrative23vs25 optionalonly.';(o/'reading-ledger.json').write_text(json.dumps(le,ensure_ascii=False,indent=2)+'\n')
+for f in ids['files']:
+ l=next(x for x in le['files'] if x['kind']==f['kind'] and x['index']==f['index']);f['initial_inventory_semantic_status']=f.get('semantic_status');f['semantic_status']=l['semantic_status'];f['read_intervals']=l['read_intervals'];f['read_range']=[1,f['line_count']];f['evidence_level']=l['evidence_level'];f['mapping_record']='forward-mapping.json' if f['kind']=='reference' else'reverse-mapping.json'
+ids['final_local_checkpoint_utc']=now;ids['actual_config_remains_unverified']=True;(o/'identities.json').write_text(json.dumps(ids,ensure_ascii=False,indent=2)+'\n')
+progress=json.loads((o/'progress.json').read_text());progress.update({'status':'PRIMARY_COMPLETE_WITH_ONE_OUTER_RECEPTION_OPEN','updated_utc':now,'end_utc':None,'accepted_interfaces':14,'unreceived_interfaces':1,'mapping':'65manualsourceunits196facts;72manualformalgroup273branchassertions;285catalogrows, alllocalfinitefactreception. OuterPBS/default/backupcompile-reload joinopen.','execution':{'SOURCE_STATIC':'PRIMARY_COMPLETE_SCOPED_CONSUMERS_RECEIVED','business':'NOT_EXECUTED','new_behavior_runs':0},'findings':{'required':1,'required_ids':['GR8-AI-001'],'optional':1,'optional_ids':['GR8-AI-002'],'root_decision':'Boundedactualrootreception,notglobalclosure'},'notes':['All20R9formal actualfullcontinuousread andfrozenactualidentitymatch. Primaryunreadfiles0/lines0.','Generated134method/786registrationindexesonlymechanicalcrosscheck;manualfact/assertionreviewandreceptionretainedseparately.','All285sharedcatalogrowsfullyread/locallyreceived;noRsource/gameexecution.','14namedfiniteinterfaces received; completePBS/backup/compiler/reload remainsactualavailableouterreceivergap,notlimit.','Rootownsallpublicstate/commit/push/finalclassificationandglobalhistory. Noformal/R/planning/audit/historymodified;UPDATE_NOT_STARTED.']});(o/'progress.json').write_text(json.dumps(progress,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'primary_full':le['full_read'],'primary_unread_lines':le['remaining_unread_lines'],'manual_facts':196,'formal_branches':273,'catalog':285,'scoped_receipts':14,'outer_open':1,'status':progress['status']}))

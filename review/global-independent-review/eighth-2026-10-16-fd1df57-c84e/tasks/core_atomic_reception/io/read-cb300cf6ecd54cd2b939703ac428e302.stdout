@@ -1,0 +1,82 @@
+00112:   def pbThrowPokeBall(idxBattler, ball, catch_rate = nil, showPlayer = false)
+00113:     # Determine which Pokémon you're throwing the Poké Ball at
+00114:     battler = nil
+00115:     if opposes?(idxBattler)
+00116:       battler = @battlers[idxBattler]
+00117:     else
+00118:       battler = @battlers[idxBattler].pbDirectOpposing(true)
+00119:     end
+00120:     battler = battler.allAllies[0] if battler.fainted?
+00121:     # Messages
+00122:     itemName = GameData::Item.get(ball).name
+00123:     if battler.fainted?
+00124:       if itemName.starts_with_vowel?
+00125:         pbDisplay(_INTL("{1} threw an {2}!", pbPlayer.name, itemName))
+00126:       else
+00127:         pbDisplay(_INTL("{1} threw a {2}!", pbPlayer.name, itemName))
+00128:       end
+00129:       pbDisplay(_INTL("But there was no target..."))
+00130:       return
+00131:     end
+00132:     if itemName.starts_with_vowel?
+00133:       pbDisplayBrief(_INTL("{1} threw an {2}!", pbPlayer.name, itemName))
+00134:     else
+00135:       pbDisplayBrief(_INTL("{1} threw a {2}!", pbPlayer.name, itemName))
+00136:     end
+00137:     # Animation of opposing trainer blocking Poké Balls (unless it's a Snag Ball
+00138:     # at a Shadow Pokémon)
+00139:     if trainerBattle? && !(GameData::Item.get(ball).is_snag_ball? && battler.shadowPokemon?)
+00140:       @scene.pbThrowAndDeflect(ball, 1)
+00141:       pbDisplay(_INTL("The Trainer blocked your Poké Ball! Don't be a thief!"))
+00142:       return
+00143:     end
+00144:     # Calculate the number of shakes (4=capture)
+00145:     pkmn = battler.pokemon
+00146:     @criticalCapture = false
+00147:     numShakes = pbCaptureCalc(pkmn, battler, catch_rate, ball)
+00148:     PBDebug.log("[Threw Poké Ball] #{itemName}, #{numShakes} shakes (4=capture)")
+00149:     # Animation of Ball throw, absorb, shake and capture/burst out
+00150:     @scene.pbThrow(ball, numShakes, @criticalCapture, battler.index, showPlayer)
+00151:     # Outcome message
+00152:     case numShakes
+00153:     when 0
+00154:       pbDisplay(_INTL("Oh no! The Pokémon broke free!"))
+00155:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+00156:     when 1
+00157:       pbDisplay(_INTL("Aww! It appeared to be caught!"))
+00158:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+00159:     when 2
+00160:       pbDisplay(_INTL("Aargh! Almost had it!"))
+00161:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+00162:     when 3
+00163:       pbDisplay(_INTL("Gah! It was so close, too!"))
+00164:       Battle::PokeBallEffects.onFailCatch(ball, self, battler)
+00165:     when 4
+00166:       pbDisplayBrief(_INTL("Gotcha! {1} was caught!", pkmn.name))
+00167:       @scene.pbThrowSuccess   # Play capture success jingle
+00168:       pbRemoveFromParty(battler.index, battler.pokemonIndex)
+00169:       # Gain Exp
+00170:       if Settings::GAIN_EXP_FOR_CAPTURE
+00171:         battler.captured = true
+00172:         pbGainExp
+00173:         battler.captured = false
+00174:       end
+00175:       battler.pbReset
+00176:       if pbAllFainted?(battler.index)
+00177:         @decision = (trainerBattle?) ? 1 : 4   # Battle ended by win/capture
+00178:       end
+00179:       # Modify the Pokémon's properties because of the capture
+00180:       if GameData::Item.get(ball).is_snag_ball?
+00181:         pkmn.owner = Pokemon::Owner.new_from_trainer(pbPlayer)
+00182:       end
+00183:       Battle::PokeBallEffects.onCatch(ball, self, pkmn)
+00184:       pkmn.poke_ball = ball
+00185:       pkmn.makeUnmega if pkmn.mega?
+00186:       pkmn.makeUnprimal
+00187:       pkmn.update_shadow_moves if pkmn.shadowPokemon?
+00188:       pkmn.record_first_moves
+00189:       # Reset form
+00190:       pkmn.forced_form = nil if MultipleForms.hasFunction?(pkmn.species, "getForm")
+00191:       @peer.pbOnLeavingBattle(self, pkmn, true, true)
+00192:       # Make the Poké Ball and data box disappear
+00193:       @scene.pbHideCaptureBall(idxBattler)

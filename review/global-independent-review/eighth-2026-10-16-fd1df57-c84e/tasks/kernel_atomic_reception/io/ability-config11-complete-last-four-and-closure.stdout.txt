@@ -1,0 +1,145 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb RANGE 610-635
+Battle::AbilityEffects::StatusCure.add(:OBLIVIOUS,
+  proc { |ability, battler|
+    next if battler.effects[PBEffects::Attract] < 0 &&
+            (battler.effects[PBEffects::Taunt] == 0 || Settings::MECHANICS_GENERATION <= 5)
+    battler.battle.pbShowAbilitySplash(battler)
+    if battler.effects[PBEffects::Attract] >= 0
+      battler.pbCureAttract
+      if Battle::Scene::USE_ABILITY_SPLASH
+        battler.battle.pbDisplay(_INTL("{1} got over its infatuation.", battler.pbThis))
+      else
+        battler.battle.pbDisplay(_INTL("{1}'s {2} cured its infatuation status!",
+           battler.pbThis, battler.abilityName))
+      end
+    end
+    if battler.effects[PBEffects::Taunt] > 0 && Settings::MECHANICS_GENERATION >= 6
+      battler.effects[PBEffects::Taunt] = 0
+      if Battle::Scene::USE_ABILITY_SPLASH
+        battler.battle.pbDisplay(_INTL("{1}'s Taunt wore off!", battler.pbThis))
+      else
+        battler.battle.pbDisplay(_INTL("{1}'s {2} made its taunt wear off!",
+           battler.pbThis, battler.abilityName))
+      end
+    end
+    battler.battle.pbHideAbilitySplash(battler)
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb RANGE 2588-2620
+Battle::AbilityEffects::OnSwitchIn.add(:ANTICIPATION,
+  proc { |ability, battler, battle, switch_in|
+    next if !battler.pbOwnedByPlayer?
+    battlerTypes = battler.pbTypes(true)
+    types = battlerTypes
+    found = false
+    battle.allOtherSideBattlers(battler.index).each do |b|
+      b.eachMove do |m|
+        next if m.statusMove?
+        if types.length > 0
+          moveType = m.type
+          if Settings::MECHANICS_GENERATION >= 6 && m.function_code == "TypeDependsOnUserIVs"   # Hidden Power
+            moveType = pbHiddenPower(b.pokemon)[0]
+          end
+          eff = Effectiveness.calculate(moveType, *types)
+          next if Effectiveness.ineffective?(eff)
+          next if !Effectiveness.super_effective?(eff) &&
+                  !["OHKO", "OHKOIce", "OHKOHitsUndergroundTarget"].include?(m.function_code)
+        elsif !["OHKO", "OHKOIce", "OHKOHitsUndergroundTarget"].include?(m.function_code)
+          next
+        end
+        found = true
+        break
+      end
+      break if found
+    end
+    if found
+      battle.pbShowAbilitySplash(battler)
+      battle.pbDisplay(_INTL("{1} shuddered with anticipation!", battler.pbThis))
+      battle.pbHideAbilitySplash(battler)
+    end
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb RANGE 2738-2788
+Battle::AbilityEffects::OnSwitchIn.add(:FOREWARN,
+  proc { |ability, battler, battle, switch_in|
+    next if !battler.pbOwnedByPlayer?
+    highestPower = 0
+    forewarnMoves = []
+    battle.allOtherSideBattlers(battler.index).each do |b|
+      b.eachMove do |m|
+        power = m.power
+        power = 160 if ["OHKO", "OHKOIce", "OHKOHitsUndergroundTarget"].include?(m.function_code)
+        power = 150 if ["PowerHigherWithUserHP"].include?(m.function_code)    # Eruption
+        # Counter, Mirror Coat, Metal Burst
+        power = 120 if ["CounterPhysicalDamage",
+                        "CounterSpecialDamage",
+                        "CounterDamagePlusHalf"].include?(m.function_code)
+        # Sonic Boom, Dragon Rage, Night Shade, Endeavor, Psywave,
+        # Return, Frustration, Crush Grip, Gyro Ball, Hidden Power,
+        # Natural Gift, Trump Card, Flail, Grass Knot
+        power = 80 if ["FixedDamage20",
+                       "FixedDamage40",
+                       "FixedDamageUserLevel",
+                       "LowerTargetHPToUserHP",
+                       "FixedDamageUserLevelRandom",
+                       "PowerHigherWithUserHappiness",
+                       "PowerLowerWithUserHappiness",
+                       "PowerHigherWithUserHP",
+                       "PowerHigherWithTargetFasterThanUser",
+                       "TypeAndPowerDependOnUserBerry",
+                       "PowerHigherWithLessPP",
+                       "PowerLowerWithUserHP",
+                       "PowerHigherWithTargetWeight"].include?(m.function_code)
+        power = 80 if Settings::MECHANICS_GENERATION <= 5 && m.function_code == "TypeDependsOnUserIVs"
+        next if power < highestPower
+        forewarnMoves = [] if power > highestPower
+        forewarnMoves.push(m.name)
+        highestPower = power
+      end
+    end
+    if forewarnMoves.length > 0
+      battle.pbShowAbilitySplash(battler)
+      forewarnMoveName = forewarnMoves[battle.pbRandom(forewarnMoves.length)]
+      if Battle::Scene::USE_ABILITY_SPLASH
+        battle.pbDisplay(_INTL("{1} was alerted to {2}!",
+          battler.pbThis, forewarnMoveName))
+      else
+        battle.pbDisplay(_INTL("{1}'s Forewarn alerted it to {2}!",
+          battler.pbThis, forewarnMoveName))
+      end
+      battle.pbHideAbilitySplash(battler)
+    end
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb RANGE 2790-2809
+Battle::AbilityEffects::OnSwitchIn.add(:FRISK,
+  proc { |ability, battler, battle, switch_in|
+    next if !battler.pbOwnedByPlayer?
+    foes = battle.allOtherSideBattlers(battler.index).select { |b| b.item }
+    if foes.length > 0
+      battle.pbShowAbilitySplash(battler)
+      if Settings::MECHANICS_GENERATION >= 6
+        foes.each do |b|
+          battle.pbDisplay(_INTL("{1} frisked {2} and found its {3}!",
+             battler.pbThis, b.pbThis(true), b.itemName))
+        end
+      else
+        foe = foes[battle.pbRandom(foes.length)]
+        battle.pbDisplay(_INTL("{1} frisked the foe and found one {2}!",
+           battler.pbThis, foe.itemName))
+      end
+      battle.pbHideAbilitySplash(battler)
+    end
+  }
+)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb RANGE 3193-3198
+Battle::AbilityEffects::OnIntimidated.add(:RATTLED,
+  proc { |ability, battler, battle|
+    next if Settings::MECHANICS_GENERATION < 8
+    battler.pbRaiseStatStageByAbility(:SPEED, 1, battler)
+  }
+)

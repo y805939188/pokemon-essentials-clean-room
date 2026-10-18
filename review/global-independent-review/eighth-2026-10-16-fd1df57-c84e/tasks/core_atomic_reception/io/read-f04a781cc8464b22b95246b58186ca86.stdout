@@ -1,0 +1,153 @@
+00648: 
+00649: #===============================================================================
+00650: # For 5 rounds, for each priority bracket, slow Pokémon move before fast ones.
+00651: # (Trick Room)
+00652: #===============================================================================
+00653: class Battle::Move::StartSlowerBattlersActFirst < Battle::Move
+00654:   def pbEffectGeneral(user)
+00655:     if @battle.field.effects[PBEffects::TrickRoom] > 0
+00656:       @battle.field.effects[PBEffects::TrickRoom] = 0
+00657:       @battle.pbDisplay(_INTL("{1} reverted the dimensions!", user.pbThis))
+00658:     else
+00659:       @battle.field.effects[PBEffects::TrickRoom] = 5
+00660:       @battle.pbDisplay(_INTL("{1} twisted the dimensions!", user.pbThis))
+00661:     end
+00662:   end
+00663: 
+00664:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00665:     return if @battle.field.effects[PBEffects::TrickRoom] > 0   # No animation
+00666:     super
+00667:   end
+00668: end
+00669: 
+00670: #===============================================================================
+00671: # If Grassy Terrain applies, priority is increased by 1. (Grassy Glide)
+00672: #===============================================================================
+00673: class Battle::Move::HigherPriorityInGrassyTerrain < Battle::Move
+00674:   def pbPriority(user)
+00675:     ret = super
+00676:     ret += 1 if @battle.field.terrain == :Grassy && user.affectedByTerrain?
+00677:     return ret
+00678:   end
+00679: end
+00680: 
+00681: #===============================================================================
+00682: # Target's last move used loses 3 PP. Damaging move. (Eerie Spell)
+00683: #===============================================================================
+00684: class Battle::Move::LowerPPOfTargetLastMoveBy3 < Battle::Move
+00685:   def pbAdditionalEffect(user, target)
+00686:     return if target.fainted? || target.damageState.substitute
+00687:     last_move = target.pbGetMoveWithID(target.lastRegularMoveUsed)
+00688:     return if !last_move || last_move.pp == 0 || last_move.total_pp <= 0
+00689:     reduction = [3, last_move.pp].min
+00690:     target.pbSetPP(last_move, last_move.pp - reduction)
+00691:     @battle.pbDisplay(_INTL("It reduced the PP of {1}'s {2} by {3}!",
+00692:                             target.pbThis(true), last_move.name, reduction))
+00693:   end
+00694: end
+00695: 
+00696: #===============================================================================
+00697: # Target's last move used loses 4 PP. Status move. (Spite)
+00698: #===============================================================================
+00699: class Battle::Move::LowerPPOfTargetLastMoveBy4 < Battle::Move
+00700:   def ignoresSubstitute?(user); return true; end
+00701:   def canMagicCoat?;            return true; end
+00702: 
+00703:   def pbFailsAgainstTarget?(user, target, show_message)
+00704:     last_move = target.pbGetMoveWithID(target.lastRegularMoveUsed)
+00705:     if !last_move || last_move.pp == 0 || last_move.total_pp <= 0
+00706:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00707:       return true
+00708:     end
+00709:     return false
+00710:   end
+00711: 
+00712:   def pbEffectAgainstTarget(user, target)
+00713:     last_move = target.pbGetMoveWithID(target.lastRegularMoveUsed)
+00714:     reduction = [4, last_move.pp].min
+00715:     target.pbSetPP(last_move, last_move.pp - reduction)
+00716:     @battle.pbDisplay(_INTL("It reduced the PP of {1}'s {2} by {3}!",
+00717:                             target.pbThis(true), last_move.name, reduction))
+00718:   end
+00719: end
+00720: 
+00721: #===============================================================================
+00722: # For 5 rounds, disables the last move the target used. (Disable)
+00723: #===============================================================================
+00724: class Battle::Move::DisableTargetLastMoveUsed < Battle::Move
+00725:   def ignoresSubstitute?(user); return true; end
+00726:   def canMagicCoat?;            return true; end
+00727: 
+00728:   def pbFailsAgainstTarget?(user, target, show_message)
+00729:     if target.effects[PBEffects::Disable] > 0 || !target.lastRegularMoveUsed
+00730:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00731:       return true
+00732:     end
+00733:     return true if pbMoveFailedAromaVeil?(user, target, show_message)
+00734:     canDisable = false
+00735:     target.eachMove do |m|
+00736:       next if m.id != target.lastRegularMoveUsed
+00737:       next if m.pp == 0 && m.total_pp > 0
+00738:       canDisable = true
+00739:       break
+00740:     end
+00741:     if !canDisable
+00742:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00743:       return true
+00744:     end
+00745:     return false
+00746:   end
+00747: 
+00748:   def pbEffectAgainstTarget(user, target)
+00749:     target.effects[PBEffects::Disable]     = 5
+00750:     target.effects[PBEffects::DisableMove] = target.lastRegularMoveUsed
+00751:     @battle.pbDisplay(_INTL("{1}'s {2} was disabled!", target.pbThis,
+00752:                             GameData::Move.get(target.lastRegularMoveUsed).name))
+00753:     target.pbItemStatusCureCheck
+00754:   end
+00755: end
+00756: 
+00757: #===============================================================================
+00758: # The target can no longer use the same move twice in a row. (Torment)
+00759: # NOTE: Torment is only supposed to start applying at the end of the round in
+00760: #       which it is used, unlike Taunt which starts applying immediately. I've
+00761: #       decided to make Torment apply immediately.
+00762: #===============================================================================
+00763: class Battle::Move::DisableTargetUsingSameMoveConsecutively < Battle::Move
+00764:   def ignoresSubstitute?(user); return true; end
+00765:   def canMagicCoat?;            return true; end
+00766: 
+00767:   def pbFailsAgainstTarget?(user, target, show_message)
+00768:     if target.effects[PBEffects::Torment]
+00769:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00770:       return true
+00771:     end
+00772:     return true if pbMoveFailedAromaVeil?(user, target, show_message)
+00773:     return false
+00774:   end
+00775: 
+00776:   def pbEffectAgainstTarget(user, target)
+00777:     target.effects[PBEffects::Torment] = true
+00778:     @battle.pbDisplay(_INTL("{1} was subjected to torment!", target.pbThis))
+00779:     target.pbItemStatusCureCheck
+00780:   end
+00781: end
+00782: 
+00783: #===============================================================================
+00784: # For 4 rounds, the target must use the same move each round. (Encore)
+00785: #===============================================================================
+00786: class Battle::Move::DisableTargetUsingDifferentMove < Battle::Move
+00787:   attr_reader :moveBlacklist
+00788: 
+00789:   def ignoresSubstitute?(user); return true; end
+00790:   def canMagicCoat?;            return true; end
+00791: 
+00792:   def initialize(battle, move)
+00793:     super
+00794:     @moveBlacklist = [
+00795:       "DisableTargetUsingDifferentMove",               # Encore
+00796:       # Struggle
+00797:       "Struggle",                                      # Struggle
+00798:       # Moves that affect the moveset
+00799:       "ReplaceMoveThisBattleWithTargetLastMoveUsed",   # Mimic
+00800:       "ReplaceMoveWithTargetLastMoveUsed",             # Sketch

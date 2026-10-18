@@ -1,0 +1,5 @@
+本组独立部分已完成：909条记录、17943显式字段绑定、16618省略/继承处置、71个有限原子和HC-FORM均已实际接收。原271条加本次638条的完整凭证在reading-ledger、continuation-reads及两份无损archive，未留下本组基础记录容量欠读。
+
+IF02/IF07保持INCOMPLETE_CROSS_GENERATION_PRODUCERS。精确固定提交、缺口和原完整接口在interfaces.json与interface-reception.json：Gen7/Gen8尚未提供全量合格producer；Gen5主责完整但其全量适用值尚未在本Gen6-onlyjoin导入。主审与原接收者收到真实完整producer后，在原累计接收中接入这些值和各自完整前提/限定即可。不要重读本组909条，不派发新审查层，不把报告状态当值接收，也不把跨代阻塞改记材料/宿主limit。
+
+合同30afe79aabc084e3baf9842cb87b90acbc5c6d0a、唯一写集本目录、用户指定分支codex/r8-final-pbs-gen6-20261016保持。所有原始作者断言、原读者和历史资格保留；仅原主审签root/task-final。无新正式提案/投票，不整改、不改规格、不合main、不开发TS、不自行spawn。UPDATE_NOT_STARTED；参考与宿主行为均NOT_EXECUTED。真实发布C/tree/逐文件完整远端回读由publication及最终交付绑定。

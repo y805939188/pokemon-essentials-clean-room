@@ -1,0 +1,313 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/002_Files/003_HTTP_Utilities.rb RANGE 1-83
+#===============================================================================
+# HTTP utility functions
+#===============================================================================
+def pbPostData(url, postdata, filename = nil, depth = 0)
+  if url[/^http:\/\/([^\/]+)(.*)$/]
+    host = $1
+#    path = $2
+#    path = "/" if path.length == 0
+    userAgent = "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.14) Gecko/2009082707 Firefox/3.0.14"
+    body = postdata.map do |key, value|
+      keyString   = key.to_s
+      valueString = value.to_s
+      keyString.gsub!(/[^a-zA-Z0-9_\.\-]/n) { |s| sprintf("%%%02x", s[0]) }
+      valueString.gsub!(/[^a-zA-Z0-9_\.\-]/n) { |s| sprintf("%%%02x", s[0]) }
+      next "#{keyString}=#{valueString}"
+    end.join("&")
+    ret = HTTPLite.post_body(
+      url,
+      body,
+      "application/x-www-form-urlencoded",
+      {
+        "Host"             => host, # might not be necessary
+        "Proxy-Connection" => "Close",
+        "Content-Length"   => body.bytesize.to_s,
+        "Pragma"           => "no-cache",
+        "User-Agent"       => userAgent
+      }
+    ) rescue ""
+    return ret if !ret.is_a?(Hash)
+    return "" if ret[:status] != 200
+    return ret[:body] if !filename
+    File.open(filename, "wb") { |f| f.write(ret[:body]) }
+    return ""
+  end
+  return ""
+end
+
+def pbDownloadData(url, filename = nil, authorization = nil, depth = 0, &block)
+  headers = {
+    "Proxy-Connection" => "Close",
+    "Pragma"           => "no-cache",
+    "User-Agent"       => "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.14) Gecko/2009082707 Firefox/3.0.14"
+  }
+  headers["authorization"] = authorization if authorization
+  ret = HTTPLite.get(url, headers) rescue ""
+  return ret if !ret.is_a?(Hash)
+  return "" if ret[:status] != 200
+  return ret[:body] if !filename
+  File.open(filename, "wb") { |f| f.write(ret[:body]) }
+  return ""
+end
+
+def pbDownloadToString(url)
+  begin
+    data = pbDownloadData(url)
+    return data
+  rescue
+    return ""
+  end
+end
+
+def pbDownloadToFile(url, file)
+  begin
+    pbDownloadData(url, file)
+  rescue
+  end
+end
+
+def pbPostToString(url, postdata)
+  begin
+    data = pbPostData(url, postdata)
+    return data
+  rescue
+    return ""
+  end
+end
+
+def pbPostToFile(url, postdata, file)
+  begin
+    pbPostData(url, postdata, file)
+  rescue
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/001_Debugging/001_PBDebug.rb RANGE 1-77
+module PBDebug
+  @@log = []
+
+  def self.logonerr
+    begin
+      yield
+    rescue
+      PBDebug.log("")
+      PBDebug.log("**Exception: #{$!.message}")
+      backtrace = ""
+      $!.backtrace.each { |line| backtrace += line + "\r\n" }
+      PBDebug.log(backtrace)
+      PBDebug.log("")
+      pbPrintException($!)   # if $INTERNAL
+      PBDebug.flush
+    end
+  end
+
+  def self.flush
+    if $DEBUG && $INTERNAL && @@log.length > 0
+      File.open("Data/debuglog.txt", "a+b") { |f| f.write(@@log.join) }
+    end
+    @@log.clear
+  end
+
+  def self.log(msg)
+    if $DEBUG && $INTERNAL
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_header(msg)
+    if $DEBUG && $INTERNAL
+      echoln Console.markup_style(msg.gsub("%", "%%"), text: :light_purple)
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_message(msg)
+    if $DEBUG && $INTERNAL
+      msg = "\"" + msg + "\""
+      echoln Console.markup_style(msg.gsub("%", "%%"), text: :dark_gray)
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_ai(msg)
+    if $DEBUG && $INTERNAL
+      msg = "[AI] " + msg
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.log_score_change(amt, msg)
+    return if amt == 0
+    if $DEBUG && $INTERNAL
+      sign = (amt > 0) ? "+" : "-"
+      amt_text = sprintf("%3d", amt.abs)
+      msg = "     #{sign}#{amt_text}: #{msg}"
+      echoln msg.gsub("%", "%%")
+      @@log.push(msg + "\r\n")
+      PBDebug.flush   # if @@log.length > 1024
+    end
+  end
+
+  def self.dump(msg)
+    if $DEBUG && $INTERNAL
+      File.open("Data/dumplog.txt", "a+b") { |f| f.write("#{msg}\r\n") }
+    end
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/001_Debugging/003_Errors.rb RANGE 1-94
+#===============================================================================
+# Exceptions and critical code
+#===============================================================================
+class Reset < Exception
+end
+
+class EventScriptError < Exception
+  attr_accessor :event_message
+
+  def initialize(message)
+    super(nil)
+    @event_message = message
+  end
+end
+
+def pbGetExceptionMessage(e, _script = "")
+  return e.event_message.dup if e.is_a?(EventScriptError)   # Message with map/event ID generated elsewhere
+  emessage = e.message.dup
+  emessage.force_encoding(Encoding::UTF_8)
+  case e
+  when Hangup
+    emessage = "The script is taking too long. The game will restart."
+  when Errno::ENOENT
+    filename = emessage.sub("No such file or directory - ", "")
+    emessage = "File #{filename} not found."
+  end
+  emessage.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+  return emessage
+end
+
+def pbPrintException(e)
+  emessage = pbGetExceptionMessage(e)
+  # begin message formatting
+  message = "[Pokémon Essentials version #{Essentials::VERSION}]\r\n"
+  message += "#{Essentials::ERROR_TEXT}\r\n"   # For third party scripts to add to
+  if !e.is_a?(EventScriptError)
+    message += "Exception: #{e.class}\r\n"
+    message += "Message: "
+  end
+  message += emessage
+  # show last 10/25 lines of backtrace
+  if !e.is_a?(EventScriptError)
+    message += "\r\n\r\nBacktrace:\r\n"
+    backtrace_text = ""
+    if e.backtrace
+      maxlength = ($INTERNAL) ? 25 : 10
+      e.backtrace[0, maxlength].each { |i| backtrace_text += "#{i}\r\n" }
+    end
+    backtrace_text.gsub!(/Section(\d+)/) { $RGSS_SCRIPTS[$1.to_i][1] } rescue nil
+    message += backtrace_text
+  end
+  # output to log
+  errorlog = "errorlog.txt"
+  File.open(errorlog, "ab") do |f|
+    f.write("\r\n=================\r\n\r\n[#{Time.now}]\r\n")
+    f.write(message)
+  end
+  # format/censor the error log directory
+  errorlogline = errorlog.gsub("/", "\\")
+  errorlogline.sub!(Dir.pwd + "\\", "")
+  errorlogline.sub!(pbGetUserName, "USERNAME")
+  errorlogline = "\r\n" + errorlogline if errorlogline.length > 20
+  # output message
+  print("#{message}\r\nThis exception was logged in #{errorlogline}.\r\nHold Ctrl when closing this message to copy it to the clipboard.")
+  # Give a ~500ms coyote time to start holding Control
+  t = System.uptime
+  until System.uptime - t >= 0.5
+    Input.update
+    if Input.press?(Input::CTRL)
+      Input.clipboard = message
+      break
+    end
+  end
+end
+
+def pbCriticalCode
+  ret = 0
+  begin
+    yield
+    ret = 1
+  rescue Exception
+    e = $!
+    if e.is_a?(Reset) || e.is_a?(SystemExit)
+      raise
+    else
+      pbPrintException(e)
+      if e.is_a?(Hangup)
+        ret = 2
+        raise Reset.new
+      end
+    end
+  end
+  return ret
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/001_Technical/001_Debugging/005_Deprecation.rb RANGE 1-52
+# The Deprecation module is used to warn game & plugin creators of deprecated
+# methods.
+module Deprecation
+  module_function
+
+  # Sends a warning of a deprecated method into the debug console.
+  # @param method_name [String] name of the deprecated method
+  # @param removal_version [String] version the method is removed in
+  # @param alternative [String] preferred alternative method
+  def warn_method(method_name, removal_version = nil, alternative = nil)
+    text = _INTL('Usage of deprecated method "{1}" or its alias.', method_name)
+    unless removal_version.nil?
+      text += "\n" + _INTL("The method is slated to be removed in Essentials {1}.", removal_version)
+    end
+    unless alternative.nil?
+      text += "\n" + _INTL("Use \"{1}\" instead.", alternative)
+    end
+    Console.echo_warn text
+  end
+end
+
+# The Module class is extended to allow easy deprecation of instance and class methods.
+class Module
+  private
+
+  # Creates a deprecated alias for a method.
+  # Using it sends a warning to the debug console.
+  # @param name [Symbol] name of the new alias
+  # @param aliased_method [Symbol] name of the aliased method
+  # @param removal_in [String] version the alias is removed in
+  # @param class_method [Boolean] whether the method is a class method
+  def deprecated_method_alias(name, aliased_method, removal_in: nil, class_method: false)
+    validate name => Symbol, aliased_method => Symbol, removal_in => [NilClass, String],
+             class_method => [TrueClass, FalseClass]
+
+    target = class_method ? self.class : self
+    class_name = self.name
+
+    unless target.method_defined?(aliased_method)
+      raise ArgumentError, "#{class_name} does not have method #{aliased_method} defined"
+    end
+
+    delimiter = class_method ? "." : "#"
+
+    target.define_method(name) do |*args, **kvargs|
+      alias_name = sprintf("%s%s%s", class_name, delimiter, name)
+      aliased_method_name = sprintf("%s%s%s", class_name, delimiter, aliased_method)
+      Deprecation.warn_method(alias_name, removal_in, aliased_method_name)
+      method(aliased_method).call(*args, **kvargs)
+    end
+  end
+end

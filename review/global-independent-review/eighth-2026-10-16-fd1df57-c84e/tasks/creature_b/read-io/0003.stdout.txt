@@ -1,0 +1,258 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/013_Items/001_Item_Utilities.rb", "range": [661, 917], "file_lines": 917, "bytes": 32865, "sha256": "d475b64f3f0011bf9312ff3e0fbe415edc51edb46a60e00db084b4fc12b1bff8", "began_utc": "2026-10-16T03:28:04.531392+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00661     pbFadeOutIn do
+00662       scene = PokemonParty_Scene.new
+00663       screen = PokemonPartyScreen.new(scene, $player.party)
+00664       screen.pbStartScene(_INTL("Use on which Pokémon?"), false, annot)
+00665       loop do
+00666         scene.pbSetHelpText(_INTL("Use on which Pokémon?"))
+00667         chosen = screen.pbChoosePokemon
+00668         if chosen < 0
+00669           ret = false
+00670           break
+00671         end
+00672         pkmn = $player.party[chosen]
+00673         next if !pbCheckUseOnPokemon(item, pkmn, screen)
+00674         qty = 1
+00675         max_at_once = ItemHandlers.triggerUseOnPokemonMaximum(item, pkmn)
+00676         max_at_once = [max_at_once, $bag.quantity(item)].min
+00677         if max_at_once > 1
+00678           qty = screen.scene.pbChooseNumber(
+00679             _INTL("How many {1} do you want to use?", GameData::Item.get(item).portion_name_plural), max_at_once
+00680           )
+00681           screen.scene.pbSetHelpText("") if screen.is_a?(PokemonPartyScreen)
+00682         end
+00683         next if qty <= 0
+00684         ret = ItemHandlers.triggerUseOnPokemon(item, qty, pkmn, screen)
+00685         next unless ret && itm.consumed_after_use?
+00686         bag.remove(item, qty)
+00687         next if bag.has?(item)
+00688         pbMessage(_INTL("You used your last {1}.", itm.portion_name)) { screen.pbUpdate }
+00689         break
+00690       end
+00691       screen.pbEndScene
+00692       bagscene&.pbRefresh
+00693     end
+00694     return (ret) ? 1 : 0
+00695   elsif useType == 2 || itm.is_machine?   # Item is usable from Bag or teaches a move
+00696     intret = ItemHandlers.triggerUseFromBag(item)
+00697     if intret >= 0
+00698       bag.remove(item) if intret == 1 && itm.consumed_after_use?
+00699       return intret
+00700     end
+00701     pbMessage(_INTL("Can't use that here."))
+00702     return 0
+00703   end
+00704   pbMessage(_INTL("Can't use that here."))
+00705   return 0
+00706 end
+00707 
+00708 # Only called when in the party screen and having chosen an item to be used on
+00709 # the selected Pokémon
+00710 def pbUseItemOnPokemon(item, pkmn, scene)
+00711   itm = GameData::Item.get(item)
+00712   # TM or HM
+00713   if itm.is_machine?
+00714     machine = itm.move
+00715     return false if !machine
+00716     movename = GameData::Move.get(machine).name
+00717     if pkmn.shadowPokemon?
+00718       pbMessage(_INTL("Shadow Pokémon can't be taught any moves.")) { scene.pbUpdate }
+00719     elsif !pkmn.compatible_with_move?(machine)
+00720       pbMessage(_INTL("{1} can't learn {2}.", pkmn.name, movename)) { scene.pbUpdate }
+00721     else
+00722       pbMessage("\\se[PC access]" + _INTL("You booted up the {1}.", itm.portion_name) + "\1") { scene.pbUpdate }
+00723       if pbConfirmMessage(_INTL("Do you want to teach {1} to {2}?", movename, pkmn.name)) { scene.pbUpdate }
+00724         if pbLearnMove(pkmn, machine, false, true) { scene.pbUpdate }
+00725           $bag.remove(item) if itm.consumed_after_use?
+00726           return true
+00727         end
+00728       end
+00729     end
+00730     return false
+00731   end
+00732   # Other item
+00733   qty = 1
+00734   max_at_once = ItemHandlers.triggerUseOnPokemonMaximum(item, pkmn)
+00735   max_at_once = [max_at_once, $bag.quantity(item)].min
+00736   if max_at_once > 1
+00737     qty = scene.scene.pbChooseNumber(
+00738       _INTL("How many {1} do you want to use?", itm.portion_name_plural), max_at_once
+00739     )
+00740     scene.scene.pbSetHelpText("") if scene.is_a?(PokemonPartyScreen)
+00741   end
+00742   return false if qty <= 0
+00743   ret = ItemHandlers.triggerUseOnPokemon(item, qty, pkmn, scene)
+00744   scene.pbClearAnnotations
+00745   scene.pbHardRefresh
+00746   if ret && itm.consumed_after_use?
+00747     $bag.remove(item, qty)
+00748     if !$bag.has?(item)
+00749       pbMessage(_INTL("You used your last {1}.", itm.portion_name)) { scene.pbUpdate }
+00750     end
+00751   end
+00752   return ret
+00753 end
+00754 
+00755 def pbUseKeyItemInField(item)
+00756   ret = ItemHandlers.triggerUseInField(item)
+00757   if ret == -1   # Item effect not found
+00758     pbMessage(_INTL("Can't use that here."))
+00759   elsif ret > 0 && GameData::Item.get(item).consumed_after_use?
+00760     $bag.remove(item)
+00761   end
+00762   return ret > 0
+00763 end
+00764 
+00765 def pbUseItemMessage(item)
+00766   itemname = GameData::Item.get(item).portion_name
+00767   if itemname.starts_with_vowel?
+00768     pbMessage(_INTL("You used an {1}.", itemname))
+00769   else
+00770     pbMessage(_INTL("You used a {1}.", itemname))
+00771   end
+00772 end
+00773 
+00774 def pbCheckUseOnPokemon(item, pkmn, _screen)
+00775   return pkmn && !pkmn.egg? && (!pkmn.hyper_mode || GameData::Item.get(item)&.is_scent?)
+00776 end
+00777 
+00778 #===============================================================================
+00779 # Give an item to a Pokémon to hold, and take a held item from a Pokémon
+00780 #===============================================================================
+00781 def pbGiveItemToPokemon(item, pkmn, scene, pkmnid = 0)
+00782   newitemname = GameData::Item.get(item).portion_name
+00783   if pkmn.egg?
+00784     scene.pbDisplay(_INTL("Eggs can't hold items."))
+00785     return false
+00786   elsif pkmn.mail
+00787     scene.pbDisplay(_INTL("{1}'s mail must be removed before giving it an item.", pkmn.name))
+00788     return false if !pbTakeItemFromPokemon(pkmn, scene)
+00789   end
+00790   if pkmn.hasItem?
+00791     olditemname = pkmn.item.portion_name
+00792     if newitemname.starts_with_vowel?
+00793       scene.pbDisplay(_INTL("{1} is already holding an {2}.", pkmn.name, olditemname) + "\1")
+00794     else
+00795       scene.pbDisplay(_INTL("{1} is already holding a {2}.", pkmn.name, olditemname) + "\1")
+00796     end
+00797     if scene.pbConfirm(_INTL("Would you like to switch the two items?"))
+00798       $bag.remove(item)
+00799       if !$bag.add(pkmn.item)
+00800         raise _INTL("Couldn't re-store deleted item in Bag somehow") if !$bag.add(item)
+00801         scene.pbDisplay(_INTL("The Bag is full. The Pokémon's item could not be removed."))
+00802       elsif GameData::Item.get(item).is_mail?
+00803         if pbWriteMail(item, pkmn, pkmnid, scene)
+00804           pkmn.item = item
+00805           scene.pbDisplay(_INTL("Took the {1} from {2} and gave it the {3}.", olditemname, pkmn.name, newitemname))
+00806           return true
+00807         elsif !$bag.add(item)
+00808           raise _INTL("Couldn't re-store deleted item in Bag somehow")
+00809         end
+00810       else
+00811         pkmn.item = item
+00812         scene.pbDisplay(_INTL("Took the {1} from {2} and gave it the {3}.", olditemname, pkmn.name, newitemname))
+00813         return true
+00814       end
+00815     end
+00816   elsif !GameData::Item.get(item).is_mail? || pbWriteMail(item, pkmn, pkmnid, scene)
+00817     $bag.remove(item)
+00818     pkmn.item = item
+00819     scene.pbDisplay(_INTL("{1} is now holding the {2}.", pkmn.name, newitemname))
+00820     return true
+00821   end
+00822   return false
+00823 end
+00824 
+00825 def pbTakeItemFromPokemon(pkmn, scene)
+00826   ret = false
+00827   if !pkmn.hasItem?
+00828     scene.pbDisplay(_INTL("{1} isn't holding anything.", pkmn.name))
+00829   elsif !$bag.can_add?(pkmn.item)
+00830     scene.pbDisplay(_INTL("The Bag is full. The Pokémon's item could not be removed."))
+00831   elsif pkmn.mail
+00832     if scene.pbConfirm(_INTL("Save the removed mail in your PC?"))
+00833       if pbMoveToMailbox(pkmn)
+00834         scene.pbDisplay(_INTL("The mail was saved in your PC."))
+00835         pkmn.item = nil
+00836         ret = true
+00837       else
+00838         scene.pbDisplay(_INTL("Your PC's Mailbox is full."))
+00839       end
+00840     elsif scene.pbConfirm(_INTL("If the mail is removed, its message will be lost. OK?"))
+00841       $bag.add(pkmn.item)
+00842       scene.pbDisplay(_INTL("Received the {1} from {2}.", pkmn.item.portion_name, pkmn.name))
+00843       pkmn.item = nil
+00844       pkmn.mail = nil
+00845       ret = true
+00846     end
+00847   else
+00848     $bag.add(pkmn.item)
+00849     scene.pbDisplay(_INTL("Received the {1} from {2}.", pkmn.item.portion_name, pkmn.name))
+00850     pkmn.item = nil
+00851     ret = true
+00852   end
+00853   return ret
+00854 end
+00855 
+00856 #===============================================================================
+00857 # Choose an item from the Bag
+00858 #===============================================================================
+00859 def pbChooseItem(var = 0, *args)
+00860   ret = nil
+00861   pbFadeOutIn do
+00862     scene = PokemonBag_Scene.new
+00863     screen = PokemonBagScreen.new(scene, $bag)
+00864     ret = screen.pbChooseItemScreen
+00865   end
+00866   $game_variables[var] = ret || :NONE if var > 0
+00867   return ret
+00868 end
+00869 
+00870 def pbChooseApricorn(var = 0)
+00871   ret = nil
+00872   pbFadeOutIn do
+00873     scene = PokemonBag_Scene.new
+00874     screen = PokemonBagScreen.new(scene, $bag)
+00875     ret = screen.pbChooseItemScreen(proc { |item| GameData::Item.get(item).is_apricorn? })
+00876   end
+00877   $game_variables[var] = ret || :NONE if var > 0
+00878   return ret
+00879 end
+00880 
+00881 def pbChooseFossil(var = 0)
+00882   ret = nil
+00883   pbFadeOutIn do
+00884     scene = PokemonBag_Scene.new
+00885     screen = PokemonBagScreen.new(scene, $bag)
+00886     ret = screen.pbChooseItemScreen(proc { |item| GameData::Item.get(item).is_fossil? })
+00887   end
+00888   $game_variables[var] = ret || :NONE if var > 0
+00889   return ret
+00890 end
+00891 
+00892 # Shows a list of items to choose from, with the chosen item's ID being stored
+00893 # in the given Game Variable. Only items which the player has are listed.
+00894 def pbChooseItemFromList(message, variable, *args)
+00895   commands = []
+00896   itemid   = []
+00897   args.each do |item|
+00898     next if !GameData::Item.exists?(item)
+00899     itm = GameData::Item.get(item)
+00900     next if !$bag.has?(itm)
+00901     commands.push(itm.name)
+00902     itemid.push(itm.id)
+00903   end
+00904   if commands.length == 0
+00905     $game_variables[variable] = :NONE
+00906     return nil
+00907   end
+00908   commands.push(_INTL("Cancel"))
+00909   itemid.push(nil)
+00910   ret = pbMessage(message, commands, -1)
+00911   if ret < 0 || ret >= commands.length - 1
+00912     $game_variables[variable] = :NONE
+00913     return nil
+00914   end
+00915   $game_variables[variable] = itemid[ret] || :NONE
+00916   return itemid[ret]
+00917 end

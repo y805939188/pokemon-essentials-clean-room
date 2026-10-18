@@ -1,0 +1,563 @@
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 class Battle::AI::AIMove
+00005   attr_reader :move
+00006 
+00007   def initialize(ai)
+00008     @ai = ai
+00009   end
+00010 
+00011   def set_up(move)
+00012     @move = move
+00013     @move.calcType = rough_type
+00014     @ai.battle.moldBreaker ||= ["IgnoreTargetAbility",
+00015                                 "CategoryDependsOnHigherDamageIgnoreTargetAbility"].include?(function_code)
+00016   end
+00017 
+00018   #-----------------------------------------------------------------------------
+00019 
+00020   def id;                            return @move.id;                      end
+00021   def name;                          return @move.name;                    end
+00022   def physicalMove?(thisType = nil); return @move.physicalMove?(thisType); end
+00023   def specialMove?(thisType = nil);  return @move.specialMove?(thisType);  end
+00024   def damagingMove?;                 return @move.damagingMove?;           end
+00025   def statusMove?;                   return @move.statusMove?;             end
+00026   def function_code;                 return @move.function_code;           end
+00027 
+00028   #-----------------------------------------------------------------------------
+00029 
+00030   def type; return @move.type; end
+00031 
+00032   def rough_type
+00033     return @move.pbCalcType(@ai.user.battler) if @ai.trainer.medium_skill?
+00034     return @move.type
+00035   end
+00036 
+00037   #-----------------------------------------------------------------------------
+00038 
+00039   def pbTarget(user)
+00040     return @move.pbTarget((user.is_a?(Battle::AI::AIBattler)) ? user.battler : user)
+00041   end
+00042 
+00043   # Returns whether this move targets multiple battlers.
+00044   def targets_multiple_battlers?
+00045     user_battler = @ai.user.battler
+00046     target_data = pbTarget(user_battler)
+00047     return false if target_data.num_targets <= 1
+00048     num_targets = 0
+00049     case target_data.id
+00050     when :AllAllies
+00051       @ai.battle.allSameSideBattlers(user_battler).each { |b| num_targets += 1 if b.index != user_battler.index }
+00052     when :UserAndAllies
+00053       @ai.battle.allSameSideBattlers(user_battler).each { |_b| num_targets += 1 }
+00054     when :AllNearFoes
+00055       @ai.battle.allOtherSideBattlers(user_battler).each { |b| num_targets += 1 if b.near?(user_battler) }
+00056     when :AllFoes
+00057       @ai.battle.allOtherSideBattlers(user_battler).each { |_b| num_targets += 1 }
+00058     when :AllNearOthers
+00059       @ai.battle.allBattlers.each { |b| num_targets += 1 if b.near?(user_battler) }
+00060     when :AllBattlers
+00061       @ai.battle.allBattlers.each { |_b| num_targets += 1 }
+00062     end
+00063     return num_targets > 1
+00064   end
+00065 
+00066   #-----------------------------------------------------------------------------
+00067 
+00068   def rough_priority(user)
+00069     ret = @move.pbPriority(user.battler)
+00070     if user.ability_active?
+00071       ret = Battle::AbilityEffects.triggerPriorityChange(user.ability, user.battler, @move, ret)
+00072       user.battler.effects[PBEffects::Prankster] = false   # Untrigger this
+00073     end
+00074     return ret
+00075   end
+00076 
+00077   #-----------------------------------------------------------------------------
+00078 
+00079   # Returns this move's base power, taking into account various effects that
+00080   # modify it.
+00081   def base_power
+00082     ret = @move.power
+00083     ret = 60 if ret == 1
+00084     return ret if !@ai.trainer.medium_skill?
+00085     return Battle::AI::Handlers.get_base_power(function_code,
+00086        ret, self, @ai.user, @ai.target, @ai, @ai.battle)
+00087   end
+00088 
+00089   # Full damage calculation.
+00090   def rough_damage
+00091     base_dmg = base_power
+00092     return base_dmg if @move.is_a?(Battle::Move::FixedDamageMove)
+00093     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+00094     stage_mul = Battle::Battler::STAT_STAGE_MULTIPLIERS
+00095     stage_div = Battle::Battler::STAT_STAGE_DIVISORS
+00096     # Get the user and target of this move
+00097     user = @ai.user
+00098     user_battler = user.battler
+00099     target = @ai.target
+00100     target_battler = target.battler
+00101     # Get the move's type
+00102     calc_type = rough_type
+00103     # Decide whether the move has 50% chance of higher of being a critical hit
+00104     crit_stage = rough_critical_hit_stage
+00105     is_critical = crit_stage >= Battle::Move::CRITICAL_HIT_RATIOS.length ||
+00106                   Battle::Move::CRITICAL_HIT_RATIOS[crit_stage] <= 2
+00107     ##### Calculate user's attack stat #####
+00108     if ["CategoryDependsOnHigherDamagePoisonTarget",
+00109         "CategoryDependsOnHigherDamageIgnoreTargetAbility"].include?(function_code)
+00110       @move.pbOnStartUse(user.battler, [target.battler])   # Calculate category
+00111     end
+00112     atk, atk_stage = @move.pbGetAttackStats(user.battler, target.battler)
+00113     if !target.has_active_ability?(:UNAWARE) || @ai.battle.moldBreaker
+00114       atk_stage = max_stage if is_critical && atk_stage < max_stage
+00115       atk = (atk.to_f * stage_mul[atk_stage] / stage_div[atk_stage]).floor
+00116     end
+00117     ##### Calculate target's defense stat #####
+00118     defense, def_stage = @move.pbGetDefenseStats(user.battler, target.battler)
+00119     if !user.has_active_ability?(:UNAWARE) || @ai.battle.moldBreaker
+00120       def_stage = max_stage if is_critical && def_stage > max_stage
+00121       defense = (defense.to_f * stage_mul[def_stage] / stage_div[def_stage]).floor
+00122     end
+00123     ##### Calculate all multiplier effects #####
+00124     multipliers = {
+00125       :power_multiplier        => 1.0,
+00126       :attack_multiplier       => 1.0,
+00127       :defense_multiplier      => 1.0,
+00128       :final_damage_multiplier => 1.0
+00129     }
+00130     # Global abilities
+00131     if @ai.trainer.medium_skill? &&
+00132        ((@ai.battle.pbCheckGlobalAbility(:DARKAURA) && calc_type == :DARK) ||
+00133         (@ai.battle.pbCheckGlobalAbility(:FAIRYAURA) && calc_type == :FAIRY))
+00134       if @ai.battle.pbCheckGlobalAbility(:AURABREAK)
+00135         multipliers[:power_multiplier] *= 3 / 4.0
+00136       else
+00137         multipliers[:power_multiplier] *= 4 / 3.0
+00138       end
+00139     end
+00140     # Ability effects that alter damage
+00141     if user.ability_active?
+00142       case user.ability_id
+00143       when :AERILATE, :GALVANIZE, :PIXILATE, :REFRIGERATE
+00144         multipliers[:power_multiplier] *= 1.2 if type == :NORMAL   # NOTE: Not calc_type.
+00145       when :ANALYTIC
+00146         if rough_priority(user) <= 0
+00147           user_faster = false
+00148           @ai.each_battler do |b, i|
+00149             user_faster = (i != user.index && user.faster_than?(b))
+00150             break if user_faster
+00151           end
+00152           multipliers[:power_multiplier] *= 1.3 if !user_faster
+00153         end
+00154       when :NEUROFORCE
+00155         if Effectiveness.super_effective_type?(calc_type, *target.pbTypes(true))
+00156           multipliers[:final_damage_multiplier] *= 1.25
+00157         end
+00158       when :NORMALIZE
+00159         multipliers[:power_multiplier] *= 1.2 if Settings::MECHANICS_GENERATION >= 7
+00160       when :SNIPER
+00161         multipliers[:final_damage_multiplier] *= 1.5 if is_critical
+00162       when :STAKEOUT
+00163         # NOTE: Can't predict whether the target will switch out this round.
+00164       when :TINTEDLENS
+00165         if Effectiveness.resistant_type?(calc_type, *target.pbTypes(true))
+00166           multipliers[:final_damage_multiplier] *= 2
+00167         end
+00168       else
+00169         Battle::AbilityEffects.triggerDamageCalcFromUser(
+00170           user.ability, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00171         )
+00172       end
+00173     end
+00174     if !@ai.battle.moldBreaker
+00175       user_battler.allAllies.each do |b|
+00176         next if !b.abilityActive?
+00177         Battle::AbilityEffects.triggerDamageCalcFromAlly(
+00178           b.ability, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00179         )
+00180       end
+00181       if target.ability_active?
+00182         case target.ability_id
+00183         when :FILTER, :SOLIDROCK
+00184           if Effectiveness.super_effective_type?(calc_type, *target.pbTypes(true))
+00185             multipliers[:final_damage_multiplier] *= 0.75
+00186           end
+00187         else
+00188           Battle::AbilityEffects.triggerDamageCalcFromTarget(
+00189             target.ability, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00190           )
+00191         end
+00192       end
+00193     end
+00194     if target.ability_active?
+00195       Battle::AbilityEffects.triggerDamageCalcFromTargetNonIgnorable(
+00196         target.ability, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00197       )
+00198     end
+00199     if !@ai.battle.moldBreaker
+00200       target_battler.allAllies.each do |b|
+00201         next if !b.abilityActive?
+00202         Battle::AbilityEffects.triggerDamageCalcFromTargetAlly(
+00203           b.ability, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00204         )
+00205       end
+00206     end
+00207     # Item effects that alter damage
+00208     if user.item_active?
+00209       case user.item_id
+00210       when :EXPERTBELT
+00211         if Effectiveness.super_effective_type?(calc_type, *target.pbTypes(true))
+00212           multipliers[:final_damage_multiplier] *= 1.2
+00213         end
+00214       when :LIFEORB
+00215         multipliers[:final_damage_multiplier] *= 1.3
+00216       else
+00217         Battle::ItemEffects.triggerDamageCalcFromUser(
+00218           user.item, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00219         )
+00220         user.effects[PBEffects::GemConsumed] = nil   # Untrigger consuming of Gems
+00221       end
+00222     end
+00223     if target.item_active? && target.item && !target.item.is_berry?
+00224       Battle::ItemEffects.triggerDamageCalcFromTarget(
+00225         target.item, user_battler, target_battler, @move, multipliers, base_dmg, calc_type
+00226       )
+00227     end
+00228     # Parental Bond
+00229     if user.has_active_ability?(:PARENTALBOND)
+00230       multipliers[:power_multiplier] *= (Settings::MECHANICS_GENERATION >= 7) ? 1.25 : 1.5
+00231     end
+00232     # Me First - n/a because can't predict the move Me First will use
+00233     # Helping Hand - n/a
+00234     # Charge
+00235     if @ai.trainer.medium_skill? &&
+00236        user.effects[PBEffects::Charge] > 0 && calc_type == :ELECTRIC
+00237       multipliers[:power_multiplier] *= 2
+00238     end
+00239     # Mud Sport and Water Sport
+00240     if @ai.trainer.medium_skill?
+00241       case calc_type
+00242       when :ELECTRIC
+00243         if @ai.battle.allBattlers.any? { |b| b.effects[PBEffects::MudSport] }
+00244           multipliers[:power_multiplier] /= 3
+00245         end
+00246         if @ai.battle.field.effects[PBEffects::MudSportField] > 0
+00247           multipliers[:power_multiplier] /= 3
+00248         end
+00249       when :FIRE
+00250         if @ai.battle.allBattlers.any? { |b| b.effects[PBEffects::WaterSport] }
+00251           multipliers[:power_multiplier] /= 3
+00252         end
+00253         if @ai.battle.field.effects[PBEffects::WaterSportField] > 0
+00254           multipliers[:power_multiplier] /= 3
+00255         end
+00256       end
+00257     end
+00258     # Terrain moves
+00259     if @ai.trainer.medium_skill?
+00260       terrain_multiplier = (Settings::MECHANICS_GENERATION >= 8) ? 1.3 : 1.5
+00261       case @ai.battle.field.terrain
+00262       when :Electric
+00263         multipliers[:power_multiplier] *= terrain_multiplier if calc_type == :ELECTRIC && user_battler.affectedByTerrain?
+00264       when :Grassy
+00265         multipliers[:power_multiplier] *= terrain_multiplier if calc_type == :GRASS && user_battler.affectedByTerrain?
+00266       when :Psychic
+00267         multipliers[:power_multiplier] *= terrain_multiplier if calc_type == :PSYCHIC && user_battler.affectedByTerrain?
+00268       when :Misty
+00269         multipliers[:power_multiplier] /= 2 if calc_type == :DRAGON && target_battler.affectedByTerrain?
+00270       end
+00271     end
+00272     # Badge multipliers
+00273     if @ai.trainer.high_skill? && @ai.battle.internalBattle && target_battler.pbOwnedByPlayer?
+00274       # Don't need to check the Atk/Sp Atk-boosting badges because the AI
+00275       # won't control the player's Pokémon.
+00276       if physicalMove?(calc_type) && @ai.battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_DEFENSE
+00277         multipliers[:defense_multiplier] *= 1.1
+00278       elsif specialMove?(calc_type) && @ai.battle.pbPlayer.badge_count >= Settings::NUM_BADGES_BOOST_SPDEF
+00279         multipliers[:defense_multiplier] *= 1.1
+00280       end
+00281     end
+00282     # Multi-targeting attacks
+00283     if @ai.trainer.high_skill? && targets_multiple_battlers?
+00284       multipliers[:final_damage_multiplier] *= 0.75
+00285     end
+00286     # Weather
+00287     if @ai.trainer.medium_skill?
+00288       case user_battler.effectiveWeather
+00289       when :Sun, :HarshSun
+00290         case calc_type
+00291         when :FIRE
+00292           multipliers[:final_damage_multiplier] *= 1.5
+00293         when :WATER
+00294           multipliers[:final_damage_multiplier] /= 2
+00295         end
+00296       when :Rain, :HeavyRain
+00297         case calc_type
+00298         when :FIRE
+00299           multipliers[:final_damage_multiplier] /= 2
+00300         when :WATER
+00301           multipliers[:final_damage_multiplier] *= 1.5
+00302         end
+00303       when :Sandstorm
+00304         if target.has_type?(:ROCK) && specialMove?(calc_type) &&
+00305            function_code != "UseTargetDefenseInsteadOfTargetSpDef"   # Psyshock
+00306           multipliers[:defense_multiplier] *= 1.5
+00307         end
+00308       end
+00309     end
+00310     # Critical hits
+00311     if is_critical
+00312       if Settings::NEW_CRITICAL_HIT_RATE_MECHANICS
+00313         multipliers[:final_damage_multiplier] *= 1.5
+00314       else
+00315         multipliers[:final_damage_multiplier] *= 2
+00316       end
+00317     end
+00318     # Random variance - n/a
+00319     # STAB
+00320     if calc_type && user.has_type?(calc_type)
+00321       if user.has_active_ability?(:ADAPTABILITY)
+00322         multipliers[:final_damage_multiplier] *= 2
+00323       else
+00324         multipliers[:final_damage_multiplier] *= 1.5
+00325       end
+00326     end
+00327     # Type effectiveness
+00328     typemod = target.effectiveness_of_type_against_battler(calc_type, user, @move)
+00329     multipliers[:final_damage_multiplier] *= typemod
+00330     # Burn
+00331     if @ai.trainer.high_skill? && user.status == :BURN && physicalMove?(calc_type) &&
+00332        @move.damageReducedByBurn? && !user.has_active_ability?(:GUTS)
+00333       multipliers[:final_damage_multiplier] /= 2
+00334     end
+00335     # Aurora Veil, Reflect, Light Screen
+00336     if @ai.trainer.medium_skill? && !@move.ignoresReflect? && !is_critical &&
+00337        !user.has_active_ability?(:INFILTRATOR)
+00338       if target.pbOwnSide.effects[PBEffects::AuroraVeil] > 0
+00339         if @ai.battle.pbSideBattlerCount(target_battler) > 1
+00340           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00341         else
+00342           multipliers[:final_damage_multiplier] /= 2
+00343         end
+00344       elsif target.pbOwnSide.effects[PBEffects::Reflect] > 0 && physicalMove?(calc_type)
+00345         if @ai.battle.pbSideBattlerCount(target_battler) > 1
+00346           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00347         else
+00348           multipliers[:final_damage_multiplier] /= 2
+00349         end
+00350       elsif target.pbOwnSide.effects[PBEffects::LightScreen] > 0 && specialMove?(calc_type)
+00351         if @ai.battle.pbSideBattlerCount(target_battler) > 1
+00352           multipliers[:final_damage_multiplier] *= 2 / 3.0
+00353         else
+00354           multipliers[:final_damage_multiplier] /= 2
+00355         end
+00356       end
+00357     end
+00358     # Minimize
+00359     if @ai.trainer.medium_skill? && target.effects[PBEffects::Minimize] && @move.tramplesMinimize?
+00360       multipliers[:final_damage_multiplier] *= 2
+00361     end
+00362     # NOTE: No need to check pbBaseDamageMultiplier, as it's already accounted
+00363     #       for in an AI's MoveBasePower handler or can't be checked now anyway.
+00364     # NOTE: No need to check pbModifyDamage, as it's already accounted for in an
+00365     #       AI's MoveBasePower handler.
+00366     ##### Main damage calculation #####
+00367     base_dmg = [(base_dmg * multipliers[:power_multiplier]).round, 1].max
+00368     atk      = [(atk      * multipliers[:attack_multiplier]).round, 1].max
+00369     defense  = [(defense  * multipliers[:defense_multiplier]).round, 1].max
+00370     damage   = ((((2.0 * user.level / 5) + 2).floor * base_dmg * atk / defense).floor / 50).floor + 2
+00371     damage   = [(damage * multipliers[:final_damage_multiplier]).round, 1].max
+00372     ret = damage.floor
+00373     ret = target.hp - 1 if @move.nonLethal?(user_battler, target_battler) && ret >= target.hp
+00374     return ret
+00375   end
+00376 
+00377   #-----------------------------------------------------------------------------
+00378 
+00379   def accuracy
+00380     return @move.pbBaseAccuracy(@ai.user.battler, @ai.target.battler) if @ai.trainer.medium_skill?
+00381     return @move.accuracy
+00382   end
+00383 
+00384   # Full accuracy calculation.
+00385   def rough_accuracy
+00386     # Determine user and target
+00387     user = @ai.user
+00388     user_battler = user.battler
+00389     target = @ai.target
+00390     target_battler = target.battler
+00391     # OHKO move accuracy
+00392     if @move.is_a?(Battle::Move::OHKO)
+00393       ret = self.accuracy + user.level - target.level
+00394       ret -= 10 if function_code == "OHKOIce" && !user.has_type?(:ICE)
+00395       return [ret, 0].max
+00396     end
+00397     # "Always hit" effects and "always hit" accuracy
+00398     if @ai.trainer.medium_skill?
+00399       return 100 if target.effects[PBEffects::Telekinesis] > 0
+00400       return 100 if target.effects[PBEffects::Minimize] && @move.tramplesMinimize? &&
+00401                     Settings::MECHANICS_GENERATION >= 6
+00402     end
+00403     # Get base accuracy
+00404     baseAcc = self.accuracy
+00405     return 100 if baseAcc == 0
+00406     # Get the move's type
+00407     type = rough_type
+00408     # Calculate all modifier effects
+00409     modifiers = {}
+00410     modifiers[:base_accuracy]  = baseAcc
+00411     modifiers[:accuracy_stage] = user.stages[:ACCURACY]
+00412     modifiers[:evasion_stage]  = target.stages[:EVASION]
+00413     modifiers[:accuracy_multiplier] = 1.0
+00414     modifiers[:evasion_multiplier]  = 1.0
+00415     apply_rough_accuracy_modifiers(user, target, type, modifiers)
+00416     # Check if move certainly misses/can't miss
+00417     return 0 if modifiers[:base_accuracy] < 0
+00418     return 100 if modifiers[:base_accuracy] == 0
+00419     # Calculation
+00420     max_stage = Battle::Battler::STAT_STAGE_MAXIMUM
+00421     accStage = [[modifiers[:accuracy_stage], -max_stage].max, max_stage].min + max_stage
+00422     evaStage = [[modifiers[:evasion_stage], -max_stage].max, max_stage].min + max_stage
+00423     stageMul = Battle::Battler::ACC_EVA_STAGE_MULTIPLIERS
+00424     stageDiv = Battle::Battler::ACC_EVA_STAGE_DIVISORS
+00425     accuracy = 100.0 * stageMul[accStage] / stageDiv[accStage]
+00426     evasion  = 100.0 * stageMul[evaStage] / stageDiv[evaStage]
+00427     accuracy = (accuracy * modifiers[:accuracy_multiplier]).round
+00428     evasion  = (evasion  * modifiers[:evasion_multiplier]).round
+00429     evasion = 1 if evasion < 1
+00430     return modifiers[:base_accuracy] * accuracy / evasion
+00431   end
+00432 
+00433   def apply_rough_accuracy_modifiers(user, target, calc_type, modifiers)
+00434     user_battler = user.battler
+00435     target_battler = target.battler
+00436     # Ability effects that alter accuracy calculation
+00437     if user.ability_active?
+00438       Battle::AbilityEffects.triggerAccuracyCalcFromUser(
+00439         user.ability, modifiers, user_battler, target_battler, @move, calc_type
+00440       )
+00441     end
+00442     user_battler.allAllies.each do |b|
+00443       next if !b.abilityActive?
+00444       Battle::AbilityEffects.triggerAccuracyCalcFromAlly(
+00445         b.ability, modifiers, user_battler, target_battler, @move, calc_type
+00446       )
+00447     end
+00448     if !@ai.battle.moldBreaker && target.ability_active?
+00449       Battle::AbilityEffects.triggerAccuracyCalcFromTarget(
+00450         target.ability, modifiers, user_battler, target_battler, @move, calc_type
+00451       )
+00452     end
+00453     # Item effects that alter accuracy calculation
+00454     if user.item_active?
+00455       if user.item == :ZOOMLENS
+00456         if rough_priority(user) <= 0
+00457           modifiers[:accuracy_multiplier] *= 1.2 if target.faster_than?(user)
+00458         end
+00459       else
+00460         Battle::ItemEffects.triggerAccuracyCalcFromUser(
+00461           user.item, modifiers, user_battler, target_battler, @move, calc_type
+00462         )
+00463       end
+00464     end
+00465     if target.item_active?
+00466       Battle::ItemEffects.triggerAccuracyCalcFromTarget(
+00467         target.item, modifiers, user_battler, target_battler, @move, calc_type
+00468       )
+00469     end
+00470     # Other effects, inc. ones that set accuracy_multiplier or evasion_stage to specific values
+00471     if @ai.battle.field.effects[PBEffects::Gravity] > 0
+00472       modifiers[:accuracy_multiplier] *= 5 / 3.0
+00473     end
+00474     if @ai.trainer.medium_skill?
+00475       if user.effects[PBEffects::MicleBerry]
+00476         modifiers[:accuracy_multiplier] *= 1.2
+00477       end
+00478       modifiers[:evasion_stage] = 0 if target.effects[PBEffects::Foresight] && modifiers[:evasion_stage] > 0
+00479       modifiers[:evasion_stage] = 0 if target.effects[PBEffects::MiracleEye] && modifiers[:evasion_stage] > 0
+00480     end
+00481     # "AI-specific calculations below"
+00482     modifiers[:evasion_stage] = 0 if function_code == "IgnoreTargetDefSpDefEvaStatStages"   # Chip Away
+00483     if @ai.trainer.medium_skill?
+00484       modifiers[:base_accuracy] = 0 if user.effects[PBEffects::LockOn] > 0 &&
+00485                                        user.effects[PBEffects::LockOnPos] == target.index
+00486     end
+00487     if @ai.trainer.medium_skill?
+00488       case function_code
+00489       when "BadPoisonTarget"
+00490         modifiers[:base_accuracy] = 0 if Settings::MORE_TYPE_EFFECTS &&
+00491                                          @move.statusMove? && user.has_type?(:POISON)
+00492       end
+00493     end
+00494   end
+00495 
+00496   #-----------------------------------------------------------------------------
+00497 
+00498   # Full critical hit chance calculation (returns the determined critical hit
+00499   # stage).
+00500   def rough_critical_hit_stage
+00501     user = @ai.user
+00502     user_battler = user.battler
+00503     target = @ai.target
+00504     target_battler = target.battler
+00505     return -1 if target_battler.pbOwnSide.effects[PBEffects::LuckyChant] > 0
+00506     crit_stage = 0
+00507     # Ability effects that alter critical hit rate
+00508     if user.ability_active?
+00509       crit_stage = Battle::AbilityEffects.triggerCriticalCalcFromUser(user_battler.ability,
+00510          user_battler, target_battler, crit_stage)
+00511       return -1 if crit_stage < 0
+00512     end
+00513     if !@ai.battle.moldBreaker && target.ability_active?
+00514       crit_stage = Battle::AbilityEffects.triggerCriticalCalcFromTarget(target_battler.ability,
+00515          user_battler, target_battler, crit_stage)
+00516       return -1 if crit_stage < 0
+00517     end
+00518     # Item effects that alter critical hit rate
+00519     if user.item_active?
+00520       crit_stage = Battle::ItemEffects.triggerCriticalCalcFromUser(user_battler.item,
+00521          user_battler, target_battler, crit_stage)
+00522       return -1 if crit_stage < 0
+00523     end
+00524     if target.item_active?
+00525       crit_stage = Battle::ItemEffects.triggerCriticalCalcFromTarget(user_battler.item,
+00526          user_battler, target_battler, crit_stage)
+00527       return -1 if crit_stage < 0
+00528     end
+00529     # Other effects
+00530     case @move.pbCritialOverride(user_battler, target_battler)
+00531     when 1  then return 99
+00532     when -1 then return -1
+00533     end
+00534     return 99 if crit_stage > 50   # Merciless
+00535     return 99 if user_battler.effects[PBEffects::LaserFocus] > 0
+00536     crit_stage += 1 if @move.highCriticalRate?
+00537     crit_stage += user_battler.effects[PBEffects::FocusEnergy]
+00538     crit_stage += 1 if user_battler.inHyperMode? && @move.type == :SHADOW
+00539     crit_stage = [crit_stage, Battle::Move::CRITICAL_HIT_RATIOS.length - 1].min
+00540     return crit_stage
+00541   end
+00542 
+00543   #-----------------------------------------------------------------------------
+00544 
+00545   # Return values:
+00546   #   0: Regular additional effect chance or isn't an additional effect
+00547   #   -999: Additional effect will be negated
+00548   #   Other: Amount to add to a move's score
+00549   def get_score_change_for_additional_effect(user, target = nil)
+00550     # Doesn't have an additional effect
+00551     return 0 if @move.addlEffect == 0
+00552     # Additional effect will be negated
+00553     return -999 if user.has_active_ability?(:SHEERFORCE)
+00554     return -999 if target && user.index != target.index &&
+00555                    target.has_active_ability?(:SHIELDDUST) && !@ai.battle.moldBreaker
+00556     # Prefer if the additional effect will have an increased chance of working
+00557     return 5 if @move.addlEffect < 100 &&
+00558                 (Settings::MECHANICS_GENERATION >= 6 || function_code != "EffectDependsOnEnvironment") &&
+00559                 (user.has_active_ability?(:SERENEGRACE) || user.pbOwnSide.effects[PBEffects::Rainbow] > 0)
+00560     # No change to score
+00561     return 0
+00562   end
+00563 end

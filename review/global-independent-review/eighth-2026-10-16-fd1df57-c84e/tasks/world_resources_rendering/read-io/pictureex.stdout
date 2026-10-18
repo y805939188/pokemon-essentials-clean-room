@@ -1,0 +1,548 @@
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class PictureOrigin
+     5	  TOP_LEFT     = 0
+     6	  CENTER       = 1
+     7	  TOP_RIGHT    = 2
+     8	  BOTTOM_LEFT  = 3
+     9	  LOWER_LEFT   = 3
+    10	  BOTTOM_RIGHT = 4
+    11	  LOWER_RIGHT  = 4
+    12	  TOP          = 5
+    13	  BOTTOM       = 6
+    14	  LEFT         = 7
+    15	  RIGHT        = 8
+    16	end
+    17	
+    18	#===============================================================================
+    19	#
+    20	#===============================================================================
+    21	class Processes
+    22	  XY          = 0
+    23	  DELTA_XY    = 1
+    24	  Z           = 2
+    25	  CURVE       = 3
+    26	  ZOOM        = 4
+    27	  ANGLE       = 5
+    28	  TONE        = 6
+    29	  COLOR       = 7
+    30	  HUE         = 8
+    31	  OPACITY     = 9
+    32	  VISIBLE     = 10
+    33	  BLEND_TYPE  = 11
+    34	  SE          = 12
+    35	  NAME        = 13
+    36	  ORIGIN      = 14
+    37	  SRC         = 15
+    38	  SRC_SIZE    = 16
+    39	  CROP_BOTTOM = 17
+    40	end
+    41	
+    42	#===============================================================================
+    43	#
+    44	#===============================================================================
+    45	def getCubicPoint2(src, t)
+    46	  x0  = src[0]
+    47	  y0  = src[1]
+    48	  cx0 = src[2]
+    49	  cy0 = src[3]
+    50	  cx1 = src[4]
+    51	  cy1 = src[5]
+    52	  x1  = src[6]
+    53	  y1  = src[7]
+    54	
+    55	  x1 = cx1 + ((x1 - cx1) * t)
+    56	  x0 += ((cx0 - x0) * t)
+    57	  cx0 += ((cx1 - cx0) * t)
+    58	  cx1 = cx0 + ((x1 - cx0) * t)
+    59	  cx0 = x0 + ((cx0 - x0) * t)
+    60	  cx = cx0 + ((cx1 - cx0) * t)
+    61	  # a = x1 - 3 * cx1 + 3 * cx0 - x0
+    62	  # b = 3 * (cx1 - 2 * cx0 + x0)
+    63	  # c = 3 * (cx0 - x0)
+    64	  # d = x0
+    65	  # cx = a*t*t*t + b*t*t + c*t + d
+    66	  y1 = cy1 + ((y1 - cy1) * t)
+    67	  y0 += ((cy0 - y0) * t)
+    68	  cy0 += ((cy1 - cy0) * t)
+    69	  cy1 = cy0 + ((y1 - cy0) * t)
+    70	  cy0 = y0 + ((cy0 - y0) * t)
+    71	  cy = cy0 + ((cy1 - cy0) * t)
+    72	  # a = y1 - 3 * cy1 + 3 * cy0 - y0
+    73	  # b = 3 * (cy1 - 2 * cy0 + y0)
+    74	  # c = 3 * (cy0 - y0)
+    75	  # d = y0
+    76	  # cy = a*t*t*t + b*t*t + c*t + d
+    77	  return [cx, cy]
+    78	end
+    79	
+    80	#===============================================================================
+    81	# PictureEx
+    82	#===============================================================================
+    83	class PictureEx
+    84	  attr_accessor :x              # x-coordinate
+    85	  attr_accessor :y              # y-coordinate
+    86	  attr_accessor :z              # z value
+    87	  attr_accessor :zoom_x         # x directional zoom rate
+    88	  attr_accessor :zoom_y         # y directional zoom rate
+    89	  attr_accessor :angle          # rotation angle
+    90	  attr_accessor :tone           # tone
+    91	  attr_accessor :color          # color
+    92	  attr_accessor :hue            # filename hue
+    93	  attr_accessor :opacity        # opacity level
+    94	  attr_accessor :visible        # visibility boolean
+    95	  attr_accessor :blend_type     # blend method
+    96	  attr_accessor :name           # file name
+    97	  attr_accessor :origin         # starting point
+    98	  attr_reader   :src_rect       # source rect
+    99	  attr_reader   :cropBottom     # crops sprite to above this y-coordinate
+   100	  attr_reader   :frameUpdates   # Array of processes updated in a frame
+   101	
+   102	  def move_processes
+   103	    ret = []
+   104	    @processes.each do |p|
+   105	      next if ![Processes::XY, Processes::DELTA_XY].include?(p[0])
+   106	      pro = []
+   107	      pro.push(p[0] == Processes::XY ? "XY" : "DELTA")
+   108	      if p[1] == 0 && p[2] == 0
+   109	        pro.push("start " + p[7].to_i.to_s + ", " + p[8].to_i.to_s)
+   110	      else
+   111	        pro.push("for " + p[2].to_s) if p[2] > 0
+   112	        if p[0] == Processes::XY
+   113	          pro.push("go to " + p[7].to_i.to_s + ", " + p[8].to_i.to_s)
+   114	        else
+   115	          pro.push("move by " + p[7].to_i.to_s + ", " + p[8].to_i.to_s)
+   116	        end
+   117	      end
+   118	      ret.push(pro)
+   119	    end
+   120	    return ret
+   121	  end
+   122	
+   123	  def initialize(z)
+   124	    # process: [type, delay, total_duration, frame_counter, cb, etc.]
+   125	    @processes     = []
+   126	    @x             = 0.0
+   127	    @y             = 0.0
+   128	    @z             = z
+   129	    @zoom_x        = 100.0
+   130	    @zoom_y        = 100.0
+   131	    @angle         = 0
+   132	    @rotate_speed  = 0
+   133	    @auto_angle    = 0   # Cumulative angle change caused by @rotate_speed
+   134	    @tone          = Tone.new(0, 0, 0, 0)
+   135	    @tone_duration = 0
+   136	    @color         = Color.new(0, 0, 0, 0)
+   137	    @hue           = 0
+   138	    @opacity       = 255.0
+   139	    @visible       = true
+   140	    @blend_type    = 0
+   141	    @name          = ""
+   142	    @origin        = PictureOrigin::TOP_LEFT
+   143	    @src_rect      = Rect.new(0, 0, -1, -1)
+   144	    @cropBottom    = -1
+   145	    @frameUpdates  = []
+   146	  end
+   147	
+   148	  def callback(cb)
+   149	    case cb
+   150	    when Proc
+   151	      cb.call(self)
+   152	    when Array
+   153	      cb[0].method(cb[1]).call(self, *cb[2])
+   154	    when Method
+   155	      cb.call(self)
+   156	    end
+   157	  end
+   158	
+   159	  def setCallback(delay, cb = nil)
+   160	    delay = ensureDelayAndDuration(delay)
+   161	    @processes.push([nil, delay, 0, false, cb])
+   162	  end
+   163	
+   164	  def running?
+   165	    return @processes.length > 0
+   166	  end
+   167	
+   168	  def totalDuration
+   169	    ret = 0
+   170	    @processes.each do |process|
+   171	      dur = process[1] + process[2]
+   172	      ret = dur if dur > ret
+   173	    end
+   174	    return ret
+   175	  end
+   176	
+   177	  def ensureDelayAndDuration(delay, duration = nil)
+   178	    delay = self.totalDuration if delay < 0
+   179	    return delay, duration if !duration.nil?
+   180	    return delay
+   181	  end
+   182	
+   183	  def ensureDelay(delay)
+   184	    return ensureDelayAndDuration(delay)
+   185	  end
+   186	
+   187	  # speed is the angle to change by in 1/20 of a second. @rotate_speed is the
+   188	  # angle to change by per frame.
+   189	  # NOTE: This is not compatible with manually changing the angle at a certain
+   190	  #       point. If you make a sprite auto-rotate, you should not try to alter
+   191	  #       the angle another way too.
+   192	  def rotate(speed)
+   193	    @rotate_speed = speed * 20.0
+   194	  end
+   195	
+   196	  def erase
+   197	    self.name = ""
+   198	  end
+   199	
+   200	  def clearProcesses
+   201	    @processes = []
+   202	    @timer_start = nil
+   203	  end
+   204	
+   205	  def adjustPosition(xOffset, yOffset)
+   206	    @processes.each do |process|
+   207	      next if process[0] != Processes::XY
+   208	      process[5] += xOffset
+   209	      process[6] += yOffset
+   210	      process[7] += xOffset
+   211	      process[8] += yOffset
+   212	    end
+   213	  end
+   214	
+   215	  def move(delay, duration, origin, x, y, zoom_x = 100.0, zoom_y = 100.0, opacity = 255)
+   216	    setOrigin(delay, duration, origin)
+   217	    moveXY(delay, duration, x, y)
+   218	    moveZoomXY(delay, duration, zoom_x, zoom_y)
+   219	    moveOpacity(delay, duration, opacity)
+   220	  end
+   221	
+   222	  def moveXY(delay, duration, x, y, cb = nil)
+   223	    delay, duration = ensureDelayAndDuration(delay, duration)
+   224	    @processes.push([Processes::XY, delay, duration, false, cb, @x, @y, x, y])
+   225	  end
+   226	
+   227	  def setXY(delay, x, y, cb = nil)
+   228	    moveXY(delay, 0, x, y, cb)
+   229	  end
+   230	
+   231	  def moveCurve(delay, duration, x1, y1, x2, y2, x3, y3, cb = nil)
+   232	    delay, duration = ensureDelayAndDuration(delay, duration)
+   233	    @processes.push([Processes::CURVE, delay, duration, false, cb, [@x, @y, x1, y1, x2, y2, x3, y3]])
+   234	  end
+   235	
+   236	  def moveDelta(delay, duration, x, y, cb = nil)
+   237	    delay, duration = ensureDelayAndDuration(delay, duration)
+   238	    @processes.push([Processes::DELTA_XY, delay, duration, false, cb, @x, @y, x, y])
+   239	  end
+   240	
+   241	  def setDelta(delay, x, y, cb = nil)
+   242	    moveDelta(delay, 0, x, y, cb)
+   243	  end
+   244	
+   245	  def moveZ(delay, duration, z, cb = nil)
+   246	    delay, duration = ensureDelayAndDuration(delay, duration)
+   247	    @processes.push([Processes::Z, delay, duration, false, cb, @z, z])
+   248	  end
+   249	
+   250	  def setZ(delay, z, cb = nil)
+   251	    moveZ(delay, 0, z, cb)
+   252	  end
+   253	
+   254	  def moveZoomXY(delay, duration, zoom_x, zoom_y, cb = nil)
+   255	    delay, duration = ensureDelayAndDuration(delay, duration)
+   256	    @processes.push([Processes::ZOOM, delay, duration, false, cb, @zoom_x, @zoom_y, zoom_x, zoom_y])
+   257	  end
+   258	
+   259	  def setZoomXY(delay, zoom_x, zoom_y, cb = nil)
+   260	    moveZoomXY(delay, 0, zoom_x, zoom_y, cb)
+   261	  end
+   262	
+   263	  def moveZoom(delay, duration, zoom, cb = nil)
+   264	    moveZoomXY(delay, duration, zoom, zoom, cb)
+   265	  end
+   266	
+   267	  def setZoom(delay, zoom, cb = nil)
+   268	    moveZoomXY(delay, 0, zoom, zoom, cb)
+   269	  end
+   270	
+   271	  def moveAngle(delay, duration, angle, cb = nil)
+   272	    delay, duration = ensureDelayAndDuration(delay, duration)
+   273	    @processes.push([Processes::ANGLE, delay, duration, false, cb, @angle, angle])
+   274	  end
+   275	
+   276	  def setAngle(delay, angle, cb = nil)
+   277	    moveAngle(delay, 0, angle, cb)
+   278	  end
+   279	
+   280	  def moveTone(delay, duration, tone, cb = nil)
+   281	    delay, duration = ensureDelayAndDuration(delay, duration)
+   282	    target = (tone) ? tone.clone : Tone.new(0, 0, 0, 0)
+   283	    @processes.push([Processes::TONE, delay, duration, false, cb, @tone.clone, target])
+   284	  end
+   285	
+   286	  def setTone(delay, tone, cb = nil)
+   287	    moveTone(delay, 0, tone, cb)
+   288	  end
+   289	
+   290	  def moveColor(delay, duration, color, cb = nil)
+   291	    delay, duration = ensureDelayAndDuration(delay, duration)
+   292	    target = (color) ? color.clone : Color.new(0, 0, 0, 0)
+   293	    @processes.push([Processes::COLOR, delay, duration, false, cb, @color.clone, target])
+   294	  end
+   295	
+   296	  def setColor(delay, color, cb = nil)
+   297	    moveColor(delay, 0, color, cb)
+   298	  end
+   299	
+   300	  # Hue changes don't actually work.
+   301	  def moveHue(delay, duration, hue, cb = nil)
+   302	    delay, duration = ensureDelayAndDuration(delay, duration)
+   303	    @processes.push([Processes::HUE, delay, duration, false, cb, @hue, hue])
+   304	  end
+   305	
+   306	  # Hue changes don't actually work.
+   307	  def setHue(delay, hue, cb = nil)
+   308	    moveHue(delay, 0, hue, cb)
+   309	  end
+   310	
+   311	  def moveOpacity(delay, duration, opacity, cb = nil)
+   312	    delay, duration = ensureDelayAndDuration(delay, duration)
+   313	    @processes.push([Processes::OPACITY, delay, duration, false, cb, @opacity, opacity])
+   314	  end
+   315	
+   316	  def setOpacity(delay, opacity, cb = nil)
+   317	    moveOpacity(delay, 0, opacity, cb)
+   318	  end
+   319	
+   320	  def setVisible(delay, visible, cb = nil)
+   321	    delay = ensureDelay(delay)
+   322	    @processes.push([Processes::VISIBLE, delay, 0, false, cb, visible])
+   323	  end
+   324	
+   325	  # Only values of 0 (normal), 1 (additive) and 2 (subtractive) are allowed.
+   326	  def setBlendType(delay, blend, cb = nil)
+   327	    delay = ensureDelayAndDuration(delay)
+   328	    @processes.push([Processes::BLEND_TYPE, delay, 0, false, cb, blend])
+   329	  end
+   330	
+   331	  def setSE(delay, seFile, volume = nil, pitch = nil, cb = nil)
+   332	    delay = ensureDelay(delay)
+   333	    @processes.push([Processes::SE, delay, 0, false, cb, seFile, volume, pitch])
+   334	  end
+   335	
+   336	  def setName(delay, name, cb = nil)
+   337	    delay = ensureDelay(delay)
+   338	    @processes.push([Processes::NAME, delay, 0, false, cb, name])
+   339	  end
+   340	
+   341	  def setOrigin(delay, origin, cb = nil)
+   342	    delay = ensureDelay(delay)
+   343	    @processes.push([Processes::ORIGIN, delay, 0, false, cb, origin])
+   344	  end
+   345	
+   346	  def setSrc(delay, srcX, srcY, cb = nil)
+   347	    delay = ensureDelay(delay)
+   348	    @processes.push([Processes::SRC, delay, 0, false, cb, srcX, srcY])
+   349	  end
+   350	
+   351	  def setSrcSize(delay, srcWidth, srcHeight, cb = nil)
+   352	    delay = ensureDelay(delay)
+   353	    @processes.push([Processes::SRC_SIZE, delay, 0, false, cb, srcWidth, srcHeight])
+   354	  end
+   355	
+   356	  # Used to cut Pokémon sprites off when they faint and sink into the ground.
+   357	  def setCropBottom(delay, y, cb = nil)
+   358	    delay = ensureDelay(delay)
+   359	    @processes.push([Processes::CROP_BOTTOM, delay, 0, false, cb, y])
+   360	  end
+   361	
+   362	  def update
+   363	    time_now = System.uptime
+   364	    @timer_start = time_now if !@timer_start
+   365	    this_frame = ((time_now - @timer_start) * 20).to_i   # 20 frames per second
+   366	    procEnded = false
+   367	    @frameUpdates.clear
+   368	    @processes.each_with_index do |process, i|
+   369	      # Skip processes that aren't due to start yet
+   370	      next if process[1] > this_frame
+   371	      # Set initial values if the process has just started
+   372	      if !process[3]   # Not started yet
+   373	        process[3] = true   # Running
+   374	        case process[0]
+   375	        when Processes::XY
+   376	          process[5] = @x
+   377	          process[6] = @y
+   378	        when Processes::DELTA_XY
+   379	          process[5] = @x
+   380	          process[6] = @y
+   381	          process[7] += @x
+   382	          process[8] += @y
+   383	        when Processes::CURVE
+   384	          process[5][0] = @x
+   385	          process[5][1] = @y
+   386	        when Processes::Z
+   387	          process[5] = @z
+   388	        when Processes::ZOOM
+   389	          process[5] = @zoom_x
+   390	          process[6] = @zoom_y
+   391	        when Processes::ANGLE
+   392	          process[5] = @angle
+   393	        when Processes::TONE
+   394	          process[5] = @tone.clone
+   395	        when Processes::COLOR
+   396	          process[5] = @color.clone
+   397	        when Processes::HUE
+   398	          process[5] = @hue
+   399	        when Processes::OPACITY
+   400	          process[5] = @opacity
+   401	        end
+   402	      end
+   403	      # Update process
+   404	      @frameUpdates.push(process[0]) if !@frameUpdates.include?(process[0])
+   405	      start_time = @timer_start + (process[1] / 20.0)
+   406	      duration = process[2] / 20.0
+   407	      case process[0]
+   408	      when Processes::XY, Processes::DELTA_XY
+   409	        @x = lerp(process[5], process[7], duration, start_time, time_now)
+   410	        @y = lerp(process[6], process[8], duration, start_time, time_now)
+   411	      when Processes::CURVE
+   412	        @x, @y = getCubicPoint2(process[5], (time_now - start_time) / duration)
+   413	      when Processes::Z
+   414	        @z = lerp(process[5], process[6], duration, start_time, time_now)
+   415	      when Processes::ZOOM
+   416	        @zoom_x = lerp(process[5], process[7], duration, start_time, time_now)
+   417	        @zoom_y = lerp(process[6], process[8], duration, start_time, time_now)
+   418	      when Processes::ANGLE
+   419	        @angle = lerp(process[5], process[6], duration, start_time, time_now)
+   420	      when Processes::TONE
+   421	        @tone.red = lerp(process[5].red, process[6].red, duration, start_time, time_now)
+   422	        @tone.green = lerp(process[5].green, process[6].green, duration, start_time, time_now)
+   423	        @tone.blue = lerp(process[5].blue, process[6].blue, duration, start_time, time_now)
+   424	        @tone.gray = lerp(process[5].gray, process[6].gray, duration, start_time, time_now)
+   425	      when Processes::COLOR
+   426	        @color.red = lerp(process[5].red, process[6].red, duration, start_time, time_now)
+   427	        @color.green = lerp(process[5].green, process[6].green, duration, start_time, time_now)
+   428	        @color.blue = lerp(process[5].blue, process[6].blue, duration, start_time, time_now)
+   429	        @color.alpha = lerp(process[5].alpha, process[6].alpha, duration, start_time, time_now)
+   430	      when Processes::HUE
+   431	        @hue = lerp(process[5], process[6], duration, start_time, time_now)
+   432	      when Processes::OPACITY
+   433	        @opacity = lerp(process[5], process[6], duration, start_time, time_now)
+   434	      when Processes::VISIBLE
+   435	        @visible = process[5]
+   436	      when Processes::BLEND_TYPE
+   437	        @blend_type = process[5]
+   438	      when Processes::SE
+   439	        pbSEPlay(process[5], process[6], process[7])
+   440	      when Processes::NAME
+   441	        @name = process[5]
+   442	      when Processes::ORIGIN
+   443	        @origin = process[5]
+   444	      when Processes::SRC
+   445	        @src_rect.x = process[5]
+   446	        @src_rect.y = process[6]
+   447	      when Processes::SRC_SIZE
+   448	        @src_rect.width  = process[5]
+   449	        @src_rect.height = process[6]
+   450	      when Processes::CROP_BOTTOM
+   451	        @cropBottom = process[5]
+   452	      end
+   453	      # Erase process if its duration has elapsed
+   454	      if process[1] + process[2] <= this_frame
+   455	        callback(process[4]) if process[4]
+   456	        @processes[i] = nil
+   457	        procEnded = true
+   458	      end
+   459	    end
+   460	    # Clear out empty spaces in @processes array caused by finished processes
+   461	    @processes.compact! if procEnded
+   462	    @timer_start = nil if @processes.empty? && @rotate_speed == 0
+   463	    # Add the constant rotation speed
+   464	    if @rotate_speed != 0
+   465	      @frameUpdates.push(Processes::ANGLE) if !@frameUpdates.include?(Processes::ANGLE)
+   466	      @auto_angle = @rotate_speed * (time_now - @timer_start)
+   467	      while @auto_angle < 0
+   468	        @auto_angle += 360
+   469	      end
+   470	      @auto_angle %= 360
+   471	      @angle += @rotate_speed
+   472	      while @angle < 0
+   473	        @angle += 360
+   474	      end
+   475	      @angle %= 360
+   476	    end
+   477	  end
+   478	end
+   479	
+   480	#===============================================================================
+   481	#
+   482	#===============================================================================
+   483	def setPictureSprite(sprite, picture, iconSprite = false)
+   484	  return if picture.frameUpdates.length == 0
+   485	  picture.frameUpdates.each do |type|
+   486	    case type
+   487	    when Processes::XY, Processes::DELTA_XY
+   488	      sprite.x = picture.x.round
+   489	      sprite.y = picture.y.round
+   490	    when Processes::Z
+   491	      sprite.z = picture.z
+   492	    when Processes::ZOOM
+   493	      sprite.zoom_x = picture.zoom_x / 100.0
+   494	      sprite.zoom_y = picture.zoom_y / 100.0
+   495	    when Processes::ANGLE
+   496	      sprite.angle = picture.angle
+   497	    when Processes::TONE
+   498	      sprite.tone = picture.tone
+   499	    when Processes::COLOR
+   500	      sprite.color = picture.color
+   501	    when Processes::HUE
+   502	      # This doesn't do anything.
+   503	    when Processes::BLEND_TYPE
+   504	      sprite.blend_type = picture.blend_type
+   505	    when Processes::OPACITY
+   506	      sprite.opacity = picture.opacity
+   507	    when Processes::VISIBLE
+   508	      sprite.visible = picture.visible
+   509	    when Processes::NAME
+   510	      sprite.name = picture.name if iconSprite && sprite.name != picture.name
+   511	    when Processes::ORIGIN
+   512	      case picture.origin
+   513	      when PictureOrigin::TOP_LEFT, PictureOrigin::LEFT, PictureOrigin::BOTTOM_LEFT
+   514	        sprite.ox = 0
+   515	      when PictureOrigin::TOP, PictureOrigin::CENTER, PictureOrigin::BOTTOM
+   516	        sprite.ox = (sprite.bitmap && !sprite.bitmap.disposed?) ? sprite.src_rect.width / 2 : 0
+   517	      when PictureOrigin::TOP_RIGHT, PictureOrigin::RIGHT, PictureOrigin::BOTTOM_RIGHT
+   518	        sprite.ox = (sprite.bitmap && !sprite.bitmap.disposed?) ? sprite.src_rect.width : 0
+   519	      end
+   520	      case picture.origin
+   521	      when PictureOrigin::TOP_LEFT, PictureOrigin::TOP, PictureOrigin::TOP_RIGHT
+   522	        sprite.oy = 0
+   523	      when PictureOrigin::LEFT, PictureOrigin::CENTER, PictureOrigin::RIGHT
+   524	        sprite.oy = (sprite.bitmap && !sprite.bitmap.disposed?) ? sprite.src_rect.height / 2 : 0
+   525	      when PictureOrigin::BOTTOM_LEFT, PictureOrigin::BOTTOM, PictureOrigin::BOTTOM_RIGHT
+   526	        sprite.oy = (sprite.bitmap && !sprite.bitmap.disposed?) ? sprite.src_rect.height : 0
+   527	      end
+   528	    when Processes::SRC
+   529	      next unless iconSprite && sprite.src_rect
+   530	      sprite.src_rect.x = picture.src_rect.x
+   531	      sprite.src_rect.y = picture.src_rect.y
+   532	    when Processes::SRC_SIZE
+   533	      next unless iconSprite && sprite.src_rect
+   534	      sprite.src_rect.width  = picture.src_rect.width
+   535	      sprite.src_rect.height = picture.src_rect.height
+   536	    end
+   537	  end
+   538	  if iconSprite && sprite.src_rect && picture.cropBottom >= 0
+   539	    spriteBottom = sprite.y - sprite.oy + sprite.src_rect.height
+   540	    if spriteBottom > picture.cropBottom
+   541	      sprite.src_rect.height = [picture.cropBottom - sprite.y + sprite.oy, 0].max
+   542	    end
+   543	  end
+   544	end
+   545	
+   546	def setPictureIconSprite(sprite, picture)
+   547	  setPictureSprite(sprite, picture, true)
+   548	end

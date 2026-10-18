@@ -1,0 +1,94 @@
+00163:   def pbCheckDamageAbsorption(user, target)
+00164:     # Substitute will take the damage
+00165:     if target.effects[PBEffects::Substitute] > 0 && !ignoresSubstitute?(user) &&
+00166:        (!user || user.index != target.index)
+00167:       target.damageState.substitute = true
+00168:       return
+00169:     end
+00170:     # Ice Face will take the damage
+00171:     if !@battle.moldBreaker && target.isSpecies?(:EISCUE) &&
+00172:        target.form == 0 && target.ability == :ICEFACE && physicalMove?
+00173:       target.damageState.iceFace = true
+00174:       return
+00175:     end
+00176:     # Disguise will take the damage
+00177:     if !@battle.moldBreaker && target.isSpecies?(:MIMIKYU) &&
+00178:        target.form == 0 && target.ability == :DISGUISE
+00179:       target.damageState.disguise = true
+00180:       return
+00181:     end
+00182:   end
+00183: 
+00184:   def pbReduceDamage(user, target)
+00185:     damage = target.damageState.calcDamage
+00186:     # Substitute takes the damage
+00187:     if target.damageState.substitute
+00188:       damage = target.effects[PBEffects::Substitute] if damage > target.effects[PBEffects::Substitute]
+00189:       target.damageState.hpLost       = damage
+00190:       target.damageState.totalHPLost += damage
+00191:       return
+00192:     end
+00193:     # Disguise/Ice Face takes the damage
+00194:     return if target.damageState.disguise || target.damageState.iceFace
+00195:     # Target takes the damage
+00196:     if damage >= target.hp
+00197:       damage = target.hp
+00198:       # Survive a lethal hit with 1 HP effects
+00199:       if nonLethal?(user, target)
+00200:         damage -= 1
+00201:       elsif target.effects[PBEffects::Endure]
+00202:         target.damageState.endured = true
+00203:         damage -= 1
+00204:       elsif damage == target.totalhp
+00205:         if target.hasActiveAbility?(:STURDY) && !@battle.moldBreaker
+00206:           target.damageState.sturdy = true
+00207:           damage -= 1
+00208:         elsif target.hasActiveItem?(:FOCUSSASH) && target.hp == target.totalhp
+00209:           target.damageState.focusSash = true
+00210:           damage -= 1
+00211:         elsif target.hasActiveItem?(:FOCUSBAND) && @battle.pbRandom(100) < 10
+00212:           target.damageState.focusBand = true
+00213:           damage -= 1
+00214:         elsif Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+00215:               target.pbOwnedByPlayer? && !target.mega?
+00216:           chance = [0, 0, 0, 10, 15, 25][target.affection_level]
+00217:           if chance > 0 && @battle.pbRandom(100) < chance
+00218:             target.damageState.affection_endured = true
+00219:             damage -= 1
+00220:           end
+00221:         end
+00222:       end
+00223:     end
+00224:     damage = 0 if damage < 0
+00225:     target.damageState.hpLost       = damage
+00226:     target.damageState.totalHPLost += damage
+00227:   end
+00228: 
+00229:   #=============================================================================
+00230:   # Change the target's HP by the amount calculated above
+00231:   #=============================================================================
+00232:   def pbInflictHPDamage(target)
+00233:     if target.damageState.substitute
+00234:       target.effects[PBEffects::Substitute] -= target.damageState.hpLost
+00235:     elsif target.damageState.hpLost > 0
+00236:       target.pbReduceHP(target.damageState.hpLost, false, true, false)
+00237:     end
+00238:   end
+00239: 
+00240:   #=============================================================================
+00241:   # Animate the damage dealt, including lowering the HP
+00242:   #=============================================================================
+00243:   # Animate being damaged and losing HP (by a move)
+00244:   def pbAnimateHitAndHPLost(user, targets)
+00245:     # Animate allies first, then foes
+00246:     animArray = []
+00247:     2.times do |side|   # side here means "allies first, then foes"
+00248:       targets.each do |b|
+00249:         next if b.damageState.unaffected || b.damageState.hpLost == 0
+00250:         next if (side == 0 && b.opposes?(user)) || (side == 1 && !b.opposes?(user))
+00251:         oldHP = b.hp
+00252:         if b.damageState.substitute
+00253:           old_sub_hp = b.effects[PBEffects::Substitute] + b.damageState.hpLost
+00254:           PBDebug.log("[Substitute HP change] #{b.pbThis}'s substitute lost #{b.damageState.hpLost} HP (#{old_sub_hp} -> #{b.effects[PBEffects::Substitute]})")
+00255:         else
+00256:           oldHP += b.damageState.hpLost

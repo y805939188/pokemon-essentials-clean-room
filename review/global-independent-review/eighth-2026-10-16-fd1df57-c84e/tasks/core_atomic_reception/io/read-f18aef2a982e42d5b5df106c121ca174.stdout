@@ -1,0 +1,184 @@
+00170: 
+00171:   def partner_can_participate?(foe_party)
+00172:     return false if !$PokemonGlobal.partner || $game_temp.battle_rules["noPartner"]
+00173:     return true if foe_party.length > 1
+00174:     if $game_temp.battle_rules["size"]
+00175:       return false if $game_temp.battle_rules["size"] == "single" ||
+00176:                       $game_temp.battle_rules["size"][/^1v/i]   # "1v1", "1v2", "1v3", etc.
+00177:       return true
+00178:     end
+00179:     return false
+00180:   end
+00181: 
+00182:   # Generate information for the player and partner trainer(s)
+00183:   def set_up_player_trainers(foe_party)
+00184:     trainer_array = [$player]
+00185:     ally_items    = []
+00186:     pokemon_array = $player.party
+00187:     party_starts  = [0]
+00188:     if partner_can_participate?(foe_party)
+00189:       ally = NPCTrainer.new($PokemonGlobal.partner[1], $PokemonGlobal.partner[0])
+00190:       ally.id    = $PokemonGlobal.partner[2]
+00191:       ally.party = $PokemonGlobal.partner[3]
+00192:       data = GameData::Trainer.try_get($PokemonGlobal.partner[0], $PokemonGlobal.partner[1], $PokemonGlobal.partner[2])
+00193:       ally_items[1] = data&.items.clone || []
+00194:       trainer_array.push(ally)
+00195:       pokemon_array = []
+00196:       $player.party.each { |pkmn| pokemon_array.push(pkmn) }
+00197:       party_starts.push(pokemon_array.length)
+00198:       ally.party.each { |pkmn| pokemon_array.push(pkmn) }
+00199:       setBattleRule("double") if $game_temp.battle_rules["size"].nil?
+00200:     end
+00201:     return trainer_array, ally_items, pokemon_array, party_starts
+00202:   end
+00203: 
+00204:   def create_battle_scene
+00205:     return Battle::Scene.new
+00206:   end
+00207: 
+00208:   # Sets up various battle parameters and applies special rules.
+00209:   def prepare_battle(battle)
+00210:     battleRules = $game_temp.battle_rules
+00211:     # The size of the battle, i.e. how many Pokémon on each side (default: "single")
+00212:     battle.setBattleMode(battleRules["size"]) if !battleRules["size"].nil?
+00213:     # Whether the game won't black out even if the player loses (default: false)
+00214:     battle.canLose = battleRules["canLose"] if !battleRules["canLose"].nil?
+00215:     # Whether the player can choose to run from the battle (default: true)
+00216:     battle.canRun = battleRules["canRun"] if !battleRules["canRun"].nil?
+00217:     # Whether the player can manually choose to switch out Pokémon (default: true)
+00218:     battle.canSwitch = battleRules["canSwitch"] if !battleRules["canSwitch"].nil?
+00219:     # Whether wild Pokémon always try to run from battle (default: nil)
+00220:     battle.rules["alwaysflee"] = battleRules["roamerFlees"]
+00221:     # Whether Pokémon gain Exp/EVs from defeating/catching a Pokémon (default: true)
+00222:     battle.expGain = battleRules["expGain"] if !battleRules["expGain"].nil?
+00223:     # Whether the player gains/loses money at the end of the battle (default: true)
+00224:     battle.moneyGain = battleRules["moneyGain"] if !battleRules["moneyGain"].nil?
+00225:     # Whether Poké Balls cannot be thrown at all
+00226:     battle.disablePokeBalls = battleRules["disablePokeBalls"] if !battleRules["disablePokeBalls"].nil?
+00227:     # Whether the player is asked what to do with a new Pokémon when their party is full
+00228:     battle.sendToBoxes = $PokemonSystem.sendtoboxes if Settings::NEW_CAPTURE_CAN_REPLACE_PARTY_MEMBER
+00229:     battle.sendToBoxes = 2 if battleRules["forceCatchIntoParty"]
+00230:     # Whether the player is able to switch when an opponent's Pokémon faints
+00231:     battle.switchStyle = ($PokemonSystem.battlestyle == 0)
+00232:     battle.switchStyle = battleRules["switchStyle"] if !battleRules["switchStyle"].nil?
+00233:     # Whether battle animations are shown
+00234:     battle.showAnims = ($PokemonSystem.battlescene == 0)
+00235:     battle.showAnims = battleRules["battleAnims"] if !battleRules["battleAnims"].nil?
+00236:     # Terrain
+00237:     if battleRules["defaultTerrain"].nil?
+00238:       if Settings::OVERWORLD_WEATHER_SETS_BATTLE_TERRAIN
+00239:         case $game_screen.weather_type
+00240:         when :Storm
+00241:           battle.defaultTerrain = :Electric
+00242:         when :Fog
+00243:           battle.defaultTerrain = :Misty
+00244:         end
+00245:       end
+00246:     else
+00247:       battle.defaultTerrain = battleRules["defaultTerrain"]
+00248:     end
+00249:     # Weather
+00250:     if battleRules["defaultWeather"].nil?
+00251:       case GameData::Weather.get($game_screen.weather_type).category
+00252:       when :Rain, :Storm
+00253:         battle.defaultWeather = :Rain
+00254:       when :Hail
+00255:         battle.defaultWeather = :Hail
+00256:       when :Sandstorm
+00257:         battle.defaultWeather = :Sandstorm
+00258:       when :Sun
+00259:         battle.defaultWeather = :Sun
+00260:       end
+00261:     else
+00262:       battle.defaultWeather = battleRules["defaultWeather"]
+00263:     end
+00264:     # Environment
+00265:     if battleRules["environment"].nil?
+00266:       battle.environment = pbGetEnvironment
+00267:     else
+00268:       battle.environment = battleRules["environment"]
+00269:     end
+00270:     # Backdrop graphic filename
+00271:     if !battleRules["backdrop"].nil?
+00272:       backdrop = battleRules["backdrop"]
+00273:     elsif $PokemonGlobal.nextBattleBack
+00274:       backdrop = $PokemonGlobal.nextBattleBack
+00275:     elsif $PokemonGlobal.surfing
+00276:       backdrop = "water"   # This applies wherever you are, including in caves
+00277:     elsif $game_map.metadata
+00278:       back = $game_map.metadata.battle_background
+00279:       backdrop = back if back && back != ""
+00280:     end
+00281:     backdrop = "indoor1" if !backdrop
+00282:     battle.backdrop = backdrop
+00283:     # Choose a name for bases depending on environment
+00284:     if battleRules["base"].nil?
+00285:       environment_data = GameData::Environment.try_get(battle.environment)
+00286:       base = environment_data.battle_base if environment_data
+00287:     else
+00288:       base = battleRules["base"]
+00289:     end
+00290:     battle.backdropBase = base if base
+00291:     # Time of day
+00292:     if $game_map.metadata&.battle_environment == :Cave
+00293:       battle.time = 2   # This makes Dusk Balls work properly in caves
+00294:     elsif Settings::TIME_SHADING
+00295:       timeNow = pbGetTimeNow
+00296:       if PBDayNight.isNight?(timeNow)
+00297:         battle.time = 2
+00298:       elsif PBDayNight.isEvening?(timeNow)
+00299:         battle.time = 1
+00300:       else
+00301:         battle.time = 0
+00302:       end
+00303:     end
+00304:   end
+00305: 
+00306:   def after_battle(outcome, can_lose)
+00307:     $player.party.each do |pkmn|
+00308:       pkmn.statusCount = 0 if pkmn.status == :POISON   # Bad poison becomes regular
+00309:       pkmn.makeUnmega
+00310:       pkmn.makeUnprimal
+00311:     end
+00312:     if $PokemonGlobal.partner
+00313:       $player.heal_party
+00314:       $PokemonGlobal.partner[3].each do |pkmn|
+00315:         pkmn.heal
+00316:         pkmn.makeUnmega
+00317:         pkmn.makeUnprimal
+00318:       end
+00319:     end
+00320:     if [2, 5].include?(outcome) && can_lose   # if loss or draw
+00321:       $player.party.each { |pkmn| pkmn.heal }
+00322:       timer_start = System.uptime
+00323:       until System.uptime - timer_start >= 0.25
+00324:         Graphics.update
+00325:       end
+00326:     end
+00327:     EventHandlers.trigger(:on_end_battle, outcome, can_lose)
+00328:     $game_player.straighten
+00329:   end
+00330: 
+00331:   # Save the result of the battle in a Game Variable (1 by default)
+00332:   #    0 - Undecided or aborted
+00333:   #    1 - Player won
+00334:   #    2 - Player lost
+00335:   #    3 - Player or wild Pokémon ran from battle, or player forfeited the match
+00336:   #    4 - Wild Pokémon was caught
+00337:   #    5 - Draw
+00338:   def set_outcome(outcome, outcome_variable = 1, trainer_battle = false)
+00339:     case outcome
+00340:     when 1, 4   # Won, caught
+00341:       $stats.wild_battles_won += 1 if !trainer_battle
+00342:       $stats.trainer_battles_won += 1 if trainer_battle
+00343:     when 2, 3, 5   # Lost, fled, draw
+00344:       $stats.wild_battles_lost += 1 if !trainer_battle
+00345:       $stats.trainer_battles_lost += 1 if trainer_battle
+00346:     end
+00347:     pbSet(outcome_variable, outcome)
+00348:   end
+00349: end
+00350: 
+00351: #===============================================================================
+00352: # Wild battles
+00353: #===============================================================================

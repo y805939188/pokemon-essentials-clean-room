@@ -1,0 +1,166 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/004_Game classes/005_Game_MapFactory.rb RANGE 383-1000
+module MapFactoryHelper
+  @@MapConnections = nil
+  @@MapDims        = nil
+
+  def self.clear
+    @@MapConnections = nil
+    @@MapDims        = nil
+  end
+
+  def self.getMapConnections
+    if !@@MapConnections
+      @@MapConnections = []
+      conns = load_data("Data/map_connections.dat")
+      conns.each do |conn|
+        # Ensure both maps in a connection are valid
+        dimensions = getMapDims(conn[0])
+        next if dimensions[0] == 0 || dimensions[1] == 0
+        dimensions = getMapDims(conn[3])
+        next if dimensions[0] == 0 || dimensions[1] == 0
+        # Convert first map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(conn[0], conn[1])
+        case conn[1]
+        when "N", "S"
+          conn[1] = conn[2]
+          conn[2] = edge
+        when "E", "W"
+          conn[1] = edge
+        end
+        # Convert second map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(conn[3], conn[4])
+        case conn[4]
+        when "N", "S"
+          conn[4] = conn[5]
+          conn[5] = edge
+        when "E", "W"
+          conn[4] = edge
+        end
+        # Add connection to arrays for both maps
+        @@MapConnections[conn[0]] = [] if !@@MapConnections[conn[0]]
+        @@MapConnections[conn[0]].push(conn)
+        @@MapConnections[conn[3]] = [] if !@@MapConnections[conn[3]]
+        @@MapConnections[conn[3]].push(conn)
+      end
+    end
+    return @@MapConnections
+  end
+
+  def self.hasConnections?(id)
+    conns = MapFactoryHelper.getMapConnections
+    return conns[id] ? true : false
+  end
+
+  def self.mapsConnected?(id1, id2)
+    MapFactoryHelper.eachConnectionForMap(id1) do |conn|
+      return true if conn[0] == id2 || conn[3] == id2
+    end
+    return false
+  end
+
+  def self.eachConnectionForMap(id)
+    conns = MapFactoryHelper.getMapConnections
+    return if !conns[id]
+    conns[id].each { |conn| yield conn }
+  end
+
+  # Gets the height and width of the map with id
+  def self.getMapDims(id)
+    # Create cache if doesn't exist
+    @@MapDims = [] if !@@MapDims
+    # Add map to cache if can't be found
+    if !@@MapDims[id]
+      begin
+        map = load_data(sprintf("Data/Map%03d.rxdata", id))
+        @@MapDims[id] = [map.width, map.height]
+      rescue
+        @@MapDims[id] = [0, 0]
+      end
+    end
+    # Return map in cache
+    return @@MapDims[id]
+  end
+
+  # Returns the X or Y coordinate of an edge on the map with id.
+  # Considers the special strings "N","W","E","S"
+  def self.getMapEdge(id, edge)
+    return 0 if ["N", "W"].include?(edge)
+    dims = getMapDims(id)   # Get dimensions
+    return dims[0] if edge == "E"
+    return dims[1] if edge == "S"
+    return dims[0]   # real dimension (use width)
+  end
+
+  def self.mapInRange?(map)
+    range = 6   # Number of tiles
+    dispx = map.display_x
+    dispy = map.display_y
+    return false if dispx >= (map.width + range) * Game_Map::REAL_RES_X
+    return false if dispy >= (map.height + range) * Game_Map::REAL_RES_Y
+    return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+    return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+    return true
+  end
+
+  def self.mapInRangeById?(id, dispx, dispy)
+    range = 6   # Number of tiles
+    dims = MapFactoryHelper.getMapDims(id)
+    return false if dispx >= (dims[0] + range) * Game_Map::REAL_RES_X
+    return false if dispy >= (dims[1] + range) * Game_Map::REAL_RES_Y
+    return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+    return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+    return true
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+# Unused
+def updateTilesets
+  maps = $map_factory.maps
+  maps.each do |map|
+    map&.updateTileset
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/016_UI/001_Non-interactive UI/003_UI_EggHatching.rb RANGE 230-270
+    $player.pokedex.set_seen_egg(pokemon.species)
+    # Show Pokédex entry for new species if it hasn't been owned before
+    if Settings::SHOW_NEW_SPECIES_POKEDEX_ENTRY_MORE_OFTEN && !was_owned &&
+       $player.has_pokedex && $player.pokedex.species_in_unlocked_dex?(pokemon.species)
+      pbMessage(_INTL("{1}'s data was added to the Pokédex.", speciesname))
+      $player.pokedex.register_last_seen(pokemon)
+      pbFadeOutIn do
+        scene = PokemonPokedexInfo_Scene.new
+        screen = PokemonPokedexInfoScreen.new(scene)
+        screen.pbDexEntry(pokemon.species)
+      end
+    end
+    # Nickname the Pokémon
+    if $PokemonSystem.givenicknames == 0 &&
+       pbConfirmMessage(_INTL("Would you like to nickname the newly hatched {1}?", speciesname))
+      nickname = pbEnterPokemonName(_INTL("{1}'s nickname?", speciesname),
+                                    0, Pokemon::MAX_NAME_SIZE, "", pokemon)
+      pokemon.name = nickname
+    end
+  end
+end
+
+EventHandlers.add(:on_player_step_taken, :hatch_eggs,
+  proc {
+    $player.party.each do |egg|
+      next if egg.steps_to_hatch <= 0
+      egg.steps_to_hatch -= 1
+      $player.pokemon_party.each do |pkmn|
+        next if !pkmn.ability&.has_flag?("FasterEggHatching")
+        egg.steps_to_hatch -= 1
+        break
+      end
+      if egg.steps_to_hatch <= 0
+        egg.steps_to_hatch = 0
+        pbHatch(egg)
+      end
+    end
+  }
+)

@@ -1,0 +1,350 @@
+  351 
+  352   def jumping?
+  353     return !@jump_timer.nil?
+  354   end
+  355 
+  356   def straighten
+  357     @pattern = 0 if @walk_anime || @step_anime
+  358     @anime_count = 0
+  359     @prelock_direction = 0
+  360   end
+  361 
+  362   def force_move_route(move_route)
+  363     if @original_move_route.nil?
+  364       @original_move_route       = @move_route
+  365       @original_move_route_index = @move_route_index
+  366     end
+  367     @move_route         = move_route
+  368     @move_route_index   = 0
+  369     @move_route_forcing = true
+  370     @prelock_direction  = 0
+  371     @wait_count         = 0
+  372     @wait_start         = nil
+  373     move_type_custom
+  374   end
+  375 
+  376   def moveto(x, y)
+  377     @x = x % self.map.width
+  378     @y = y % self.map.height
+  379     @real_x = @x * Game_Map::REAL_RES_X
+  380     @real_y = @y * Game_Map::REAL_RES_Y
+  381     @prelock_direction = 0
+  382     @moveto_happened = true
+  383     calculate_bush_depth
+  384     triggerLeaveTile
+  385   end
+  386 
+  387   def triggerLeaveTile
+  388     if @oldX && @oldY && @oldMap &&
+  389        (@oldX != self.x || @oldY != self.y || @oldMap != self.map.map_id)
+  390       EventHandlers.trigger(:on_leave_tile, self, @oldMap, @oldX, @oldY)
+  391     end
+  392     @oldX = self.x
+  393     @oldY = self.y
+  394     @oldMap = self.map.map_id
+  395   end
+  396 
+  397   def increase_steps
+  398     @stop_count = 0
+  399     triggerLeaveTile
+  400   end
+  401 
+  402   #=============================================================================
+  403   # Movement commands
+  404   #=============================================================================
+  405   def move_type_random
+  406     case rand(6)
+  407     when 0..3 then move_random
+  408     when 4    then move_forward
+  409     when 5    then @stop_count = 0
+  410     end
+  411   end
+  412 
+  413   def move_type_toward_player
+  414     sx = @x + (@width / 2.0) - ($game_player.x + ($game_player.width / 2.0))
+  415     sy = @y - (@height / 2.0) - ($game_player.y - ($game_player.height / 2.0))
+  416     if sx.abs + sy.abs >= 20
+  417       move_random
+  418       return
+  419     end
+  420     case rand(6)
+  421     when 0..3 then move_toward_player
+  422     when 4    then move_random
+  423     when 5    then move_forward
+  424     end
+  425   end
+  426 
+  427   def move_type_custom
+  428     return if jumping? || moving?
+  429     return if @move_route.list.size <= 1   # Empty move route
+  430     start_index = @move_route_index
+  431     (@move_route.list.size - 1).times do
+  432       command = @move_route.list[@move_route_index]
+  433       if command.code == 0
+  434         if @move_route.repeat
+  435           @move_route_index = 0
+  436           command = @move_route.list[@move_route_index]
+  437         else
+  438           if @move_route_forcing
+  439             @move_route_forcing = false
+  440             @move_route       = @original_move_route
+  441             @move_route_index = @original_move_route_index
+  442             @original_move_route = nil
+  443           end
+  444           @stop_count = 0
+  445           return
+  446         end
+  447       end
+  448       done_one_command = true
+  449       # The below move route commands wait for a frame (i.e. return) after
+  450       # executing them
+  451       if command.code <= 14
+  452         case command.code
+  453         when 1  then move_down
+  454         when 2  then move_left
+  455         when 3  then move_right
+  456         when 4  then move_up
+  457         when 5  then move_lower_left
+  458         when 6  then move_lower_right
+  459         when 7  then move_upper_left
+  460         when 8  then move_upper_right
+  461         when 9  then move_random
+  462         when 10 then move_toward_player
+  463         when 11 then move_away_from_player
+  464         when 12 then move_forward
+  465         when 13 then move_backward
+  466         when 14 then jump(command.parameters[0], command.parameters[1])
+  467         end
+  468         @move_route_index += 1 if @move_route.skippable || moving? || jumping?
+  469         return
+  470       end
+  471       # The below move route commands wait for a frame (i.e. return) after
+  472       # executing them
+  473       if command.code >= 15 && command.code <= 26
+  474         case command.code
+  475         when 15   # Wait
+  476           @wait_count = command.parameters[0] / 20.0
+  477           @wait_start = System.uptime
+  478         when 16 then turn_down
+  479         when 17 then turn_left
+  480         when 18 then turn_right
+  481         when 19 then turn_up
+  482         when 20 then turn_right_90
+  483         when 21 then turn_left_90
+  484         when 22 then turn_180
+  485         when 23 then turn_right_or_left_90
+  486         when 24 then turn_random
+  487         when 25 then turn_toward_player
+  488         when 26 then turn_away_from_player
+  489         end
+  490         @move_route_index += 1
+  491         return
+  492       end
+  493       # The below move route commands don't wait for a frame (i.e. return) after
+  494       # executing them
+  495       if command.code >= 27
+  496         case command.code
+  497         when 27
+  498           $game_switches[command.parameters[0]] = true
+  499           self.map.need_refresh = true
+  500         when 28
+  501           $game_switches[command.parameters[0]] = false
+  502           self.map.need_refresh = true
+  503         when 29 then self.move_speed = command.parameters[0]
+  504         when 30 then self.move_frequency = command.parameters[0]
+  505         when 31 then @walk_anime = true
+  506         when 32 then @walk_anime = false
+  507         when 33 then @step_anime = true
+  508         when 34 then @step_anime = false
+  509         when 35 then @direction_fix = true
+  510         when 36 then @direction_fix = false
+  511         when 37 then @through = true
+  512         when 38 then @through = false
+  513         when 39
+  514           old_always_on_top = @always_on_top
+  515           @always_on_top = true
+  516           calculate_bush_depth if @always_on_top != old_always_on_top
+  517         when 40
+  518           old_always_on_top = @always_on_top
+  519           @always_on_top = false
+  520           calculate_bush_depth if @always_on_top != old_always_on_top
+  521         when 41
+  522           old_tile_id = @tile_id
+  523           @tile_id = 0
+  524           @character_name = command.parameters[0]
+  525           @character_hue = command.parameters[1]
+  526           if @original_direction != command.parameters[2]
+  527             @direction = command.parameters[2]
+  528             @original_direction = @direction
+  529             @prelock_direction = 0
+  530           end
+  531           if @original_pattern != command.parameters[3]
+  532             @pattern = command.parameters[3]
+  533             @original_pattern = @pattern
+  534           end
+  535           calculate_bush_depth if @tile_id != old_tile_id
+  536         when 42 then @opacity = command.parameters[0]
+  537         when 43 then @blend_type = command.parameters[0]
+  538         when 44 then pbSEPlay(command.parameters[0])
+  539         when 45
+  540           eval(command.parameters[0])
+  541           if command.parameters[0][/^move_random_range/] ||
+  542              command.parameters[0][/^move_random_UD/] ||
+  543              command.parameters[0][/^move_random_LR/]
+  544             @move_route_index += 1
+  545             return
+  546           end
+  547         end
+  548         @move_route_index += 1
+  549       end
+  550     end
+  551   end
+  552 
+  553   def move_generic(dir, turn_enabled = true)
+  554     turn_generic(dir) if turn_enabled
+  555     if can_move_in_direction?(dir)
+  556       turn_generic(dir)
+  557       @move_initial_x = @x
+  558       @move_initial_y = @y
+  559       @x += (dir == 4) ? -1 : (dir == 6) ? 1 : 0
+  560       @y += (dir == 8) ? -1 : (dir == 2) ? 1 : 0
+  561       @move_timer = 0.0
+  562       increase_steps
+  563     else
+  564       check_event_trigger_touch(dir)
+  565     end
+  566   end
+  567 
+  568   def move_down(turn_enabled = true)
+  569     move_generic(2, turn_enabled)
+  570   end
+  571 
+  572   def move_left(turn_enabled = true)
+  573     move_generic(4, turn_enabled)
+  574   end
+  575 
+  576   def move_right(turn_enabled = true)
+  577     move_generic(6, turn_enabled)
+  578   end
+  579 
+  580   def move_up(turn_enabled = true)
+  581     move_generic(8, turn_enabled)
+  582   end
+  583 
+  584   def move_upper_left
+  585     unless @direction_fix
+  586       @direction = (@direction == 6 ? 4 : @direction == 2 ? 8 : @direction)
+  587     end
+  588     if can_move_in_direction?(7)
+  589       @move_initial_x = @x
+  590       @move_initial_y = @y
+  591       @x -= 1
+  592       @y -= 1
+  593       @move_timer = 0.0
+  594       increase_steps
+  595     end
+  596   end
+  597 
+  598   def move_upper_right
+  599     unless @direction_fix
+  600       @direction = (@direction == 4 ? 6 : @direction == 2 ? 8 : @direction)
+  601     end
+  602     if can_move_in_direction?(9)
+  603       @move_initial_x = @x
+  604       @move_initial_y = @y
+  605       @x += 1
+  606       @y -= 1
+  607       @move_timer = 0.0
+  608       increase_steps
+  609     end
+  610   end
+  611 
+  612   def move_lower_left
+  613     unless @direction_fix
+  614       @direction = (@direction == 6 ? 4 : @direction == 8 ? 2 : @direction)
+  615     end
+  616     if can_move_in_direction?(1)
+  617       @move_initial_x = @x
+  618       @move_initial_y = @y
+  619       @x -= 1
+  620       @y += 1
+  621       @move_timer = 0.0
+  622       increase_steps
+  623     end
+  624   end
+  625 
+  626   def move_lower_right
+  627     unless @direction_fix
+  628       @direction = (@direction == 4 ? 6 : @direction == 8 ? 2 : @direction)
+  629     end
+  630     if can_move_in_direction?(3)
+  631       @move_initial_x = @x
+  632       @move_initial_y = @y
+  633       @x += 1
+  634       @y += 1
+  635       @move_timer = 0.0
+  636       increase_steps
+  637     end
+  638   end
+  639 
+  640   # Anticlockwise.
+  641   def moveLeft90
+  642     case self.direction
+  643     when 2 then move_right   # down
+  644     when 4 then move_down    # left
+  645     when 6 then move_up      # right
+  646     when 8 then move_left    # up
+  647     end
+  648   end
+  649 
+  650   # Clockwise.
+  651   def moveRight90
+  652     case self.direction
+  653     when 2 then move_left    # down
+  654     when 4 then move_up      # left
+  655     when 6 then move_down    # right
+  656     when 8 then move_right   # up
+  657     end
+  658   end
+  659 
+  660   def move_random
+  661     case rand(4)
+  662     when 0 then move_down(false)
+  663     when 1 then move_left(false)
+  664     when 2 then move_right(false)
+  665     when 3 then move_up(false)
+  666     end
+  667   end
+  668 
+  669   def move_random_range(xrange = -1, yrange = -1)
+  670     dirs = []   # 0=down, 1=left, 2=right, 3=up
+  671     if xrange < 0
+  672       dirs.push(1)
+  673       dirs.push(2)
+  674     elsif xrange > 0
+  675       dirs.push(1) if @x > @original_x - xrange
+  676       dirs.push(2) if @x < @original_x + xrange
+  677     end
+  678     if yrange < 0
+  679       dirs.push(0)
+  680       dirs.push(3)
+  681     elsif yrange > 0
+  682       dirs.push(0) if @y < @original_y + yrange
+  683       dirs.push(3) if @y > @original_y - yrange
+  684     end
+  685     return if dirs.length == 0
+  686     case dirs[rand(dirs.length)]
+  687     when 0 then move_down(false)
+  688     when 1 then move_left(false)
+  689     when 2 then move_right(false)
+  690     when 3 then move_up(false)
+  691     end
+  692   end
+  693 
+  694   def move_random_UD(range = -1)
+  695     move_random_range(0, range)
+  696   end
+  697 
+  698   def move_random_LR(range = -1)
+  699     move_random_range(range, 0)
+  700   end

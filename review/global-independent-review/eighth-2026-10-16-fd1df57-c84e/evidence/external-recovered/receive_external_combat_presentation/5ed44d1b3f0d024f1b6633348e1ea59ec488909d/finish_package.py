@@ -1,0 +1,90 @@
+"""Build review ledgers, exact bounded continuation contracts and mechanical validation."""
+from pathlib import Path
+import json,hashlib,datetime,os,subprocess
+T=Path(__file__).resolve().parent;ROOT=T.parents[1];P=T/'recovered/18d21310bdc360c87d7ffd886df7d06aef8604a7';S=T/'continuation';S.mkdir(exist_ok=True)
+C='18d21310bdc360c87d7ffd886df7d06aef8604a7';CT='40f45dddcdea5522b4bf7d0fea1a0f74f7d3d232';B='fd1df570cad987dc3852a3b958f03916e317f7fe';R='8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b';reader=os.environ.get('CODEX_THREAD_ID','UNVERIFIED');utc=datetime.datetime.now(datetime.timezone.utc).isoformat()
+def load(p):return json.loads(p.read_text())
+def dump(p,d):p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+def ident(p):
+ b=p.read_bytes();return {'path':str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p),'mode':'100644','bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'git_blob':hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()}
+frozen=load(T/'frozen-denominator.json'); rec=load(T/'reception-ledger.json');authorreads=load(P/'reading-ledger.json');refs=load(T/'reference-identities.json');byname={Path(r['path']).name:r for r in refs}
+read_map={
+'007_Battle_Scene_BaseAnimation.rb':([[1,823]],['dfe443:1–254','8a2b0d:255–457','a71646:458–725','89a1b0:726–823']),
+'008_Battle_Scene_Animations.rb':([[381,849]],['21a5ea:381–657','b27eb3:658–849']),
+'001_Battle_Scene.rb':([[1,140]],['d389ec:1–74','7b59b2:75–140']),
+'006_Battle_Scene_Objects.rb':([[508,698]],['7b59b2:508–698']),
+'004_Scene_PlayAnimations.rb':([[87,180],[313,385],[566,579]],['7b59b2:87–180','21a5ea:313–385,566–579']),
+'010_PictureEx.rb':([[1,548]],['89a1b0:1–275','80426c:276–548']),
+'009_Species_files.rb':([[183,246]],['b27eb3:183–246'])}
+def complement(n,spans):
+ out=[];nextline=1
+ for a,b in spans:
+  if nextline<a:out.append([nextline,a-1])
+  nextline=b+1
+ if nextline<=n:out.append([nextline,n])
+ return out
+rl=[]
+for r in refs:
+ spans,io=read_map.get(Path(r['path']).name,([],[]));rl.append({**r,'read_intervals':spans,'unread_intervals':complement(r['lines'],spans),'actual_read_lines':sum(b-a+1 for a,b in spans),'reading_io':io,'semantic_status':'FULL_READ'if spans==[[1,r['lines']]]else('PARTIAL_READ'if spans else'AVAILABLE_UNREAD'),'scope':'Actual source reading here; author original ledger never upgrades this scope.'})
+contractpaths=['inputs/eighth-global-review-prompt.md','inputs/review-SKILL.md','delegation/prompts/receive_external_combat_presentation.md','delegation/readsets/receive_external_combat_presentation.complete.json','delegation/battler-reception-mandatory-supplement.v1.json','adjudication/root-battler-eight-consumer-facts-reception.v1.json','delegation/prompts/external-cp002-existing-elr-counterreview.md','delegation/external-cp002-existing-elr-counter-dispatch.json']
+contract_reads=[{**ident(ROOT/p),'commit':CT,'status':'FULL_READ'}for p in contractpaths]
+contract_reads.append({**ident(Path('/workspace/pokemon-essentials-clean-room/AGENTS.md')),'commit':CT,'status':'FULL_READ'})
+formal=[]
+for path,spans in [('deliverables/final-specification-set/user-interface/wp67-a-battle-interaction-and-presentation.md',[[254,270]]),('deliverables/final-specification-set/engine-overworld/wp16-world-rendering-and-visual-transitions.md',[[297,311]])]:
+ p=Path('/workspace/pokemon-essentials-clean-room')/path;b=p.read_bytes();formal.append({'path':path,'commit':B,'blob':hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest(),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'read_intervals':spans,'source_io':'d389ec','qualification':'Only these exact full clauses; earlier companion preview fragments not upgraded to whole formal files.'})
+trunc=[{'io':'0e285c','issue':'Combined global-prompt output truncated in middle','repair':'Complete1–110 IO9503cf and111–241 IO94b535; repaired full prompt'}, {'io':'424021','issue':'Mixed target preview truncated; no whole atomic/coverage/reverse/reading ledger credit','repair':'Full main review/interfaces prefix retained; selected atomic groups read b27eb3/d389ec, all typed value vectors80426c. Other content stays unread.'},{'io':'f8cd88','issue':'Battler evidence combined output truncated','repair':'No full 31-unit evidence adoption; current necessary UI source units separately read from fixed R. Applicable whole Battler companion evidence remains an explicit continuation obligation, not a limit.'},{'io':'4b0ee3','issue':'Combined identity/limits/env/author contract preview truncated','repair':'limits and author prompt read in full db752c; environment/other unread semantic fields remain OPEN.'}]
+# All31 payloads get identity without inventing full semantic disposition.
+fullpayload={'review.md':'424021 full prefix','interfaces.json':'424021 full prefix','proposals.json':'9b2617 full','identities.json':'4b0ee3 full prefix','checkpoint.json':'424021 full prefix','validation-incidents.json':'4b0ee3 full prefix','limits.json':'db752c full','inputs/combat_presentation.md':'db752c full','inputs/eighth-global-review-prompt.md':'exact byte alias of full contract','inputs/review-SKILL.md':'exact byte alias of full contract'}
+partialpayload={'atomic-assertions.json':'Only168 selected manual assertions; IDs explicit in reception-ledger','release-variance-fields.json':'All224 values, common fields and consumer crosswalk presented80426c; source definition and fullconsumer actually read. Per-field line metadata identity only, no extra reading credit.','capture-variance-fields.json':'All272 values, common fields and consumer crosswalk presented80426c; source definition and fullconsumer actually read.','ball-color-fields.json':'All16 records presented80426c and callers read.','forward-mapping.json':'79 IDs/ranges/structure labels only; all remaining claim text OPEN.','reverse-mapping.json':'Mapping identities/ranges/source groups only;150+20 business assertions not fully read.','reading-ledger.json':'Source identity/ranges inventory used; original semantic notes are not inherited.','bounded-contributions.json':'Six unit identities/scope only,66 assertion bodies OPEN.','coverage-and-gaps.json':'Schema/population metadata previews only; per-path meaning/status incomplete.'}
+payloads=[]
+for row in load(T/'recovery.json')['files']:
+ n=row['relative_to_target_task'];payloads.append({**row,'purpose':'Current operative review contribution including meaning-bearing fields; no blanket transport exemption.','actual_read_status':'FULL_TEXT_RECEIVED_AS_CLAIM_NOT_FACT_VERIFIED'if n in fullpayload else('PARTIAL_EXACT_SCOPE'if n in partialpayload else'AVAILABLE_NOT_SEMANTICALLY_READ'),'read_scope':fullpayload.get(n,partialpayload.get(n,'Identity verified only; executable/script literals, administrative current assertions and qualification/validation/publication claims remain to be purpose-reviewed. No recovered code executed.'))})
+dump(T/'reading-ledger.json',{'schema':'gr8-cp-actual-reading-ledger/v1','utc':utc,'reader':reader,'requested':{'model':'gpt-6.1-sol','effort':'ultra','tier':'default','speed':'normal','Fast':'off'},'actual':{k:'UNVERIFIED'for k in ['model','effort','tier','speed','Fast']},'actual_thread_id':reader,'independence':'Different from01a143b2-8ba3-76f5-a39d-7904a2dd1000; no subagents/context renaming. Newcontexts spawned by this task0.','contracts':contract_reads,'source':rl,'formal':formal,'payloads':payloads,'truncation_incidents':trunc,'proof_boundary':'reading_io references platform tool chunks. Full private runtime stream is not saved in repository; generated exact source/payload copies are replayable material, not fabricated historical stdout.','executions':{'reference':0,'independent_business_model':0,'native_media':0,'game':0,'save_replay':0,'status':'NOT_EXECUTED'},'current_host_capability_probe':'Not performed: no host observation used; author Ruby127 remains historical only.','UPDATE_NOT_STARTED':True})
+# Partition exact all1045 object IDs. These are frozen parent-dispatch materials only.
+parts={
+ '01_scene_input_objects':list(range(1,19))+list(range(28,42)),
+ '02_ball_base_fields':list(range(42,51)),
+ '03_fixed_choreography':list(range(19,25))+list(range(51,60)),
+ '04_author_player':list(range(25,28))+list(range(67,76)),
+ '05_capture_debug':list(range(60,67))+list(range(76,80)),
+ '06_qualifications_interfaces':[]}
+assert sorted(sum(parts.values(),[]))==list(range(1,80))
+baseprompt=(ROOT/'delegation/prompts/receive_external_combat_presentation.md').read_text();globalprompt=(ROOT/'inputs/eighth-global-review-prompt.md').read_text();skill=(ROOT/'inputs/review-SKILL.md').read_text();agents=Path('/workspace/pokemon-essentials-clean-room/AGENTS.md').read_text()
+readset=load(ROOT/'delegation/readsets/receive_external_combat_presentation.complete.json');splitrows=[]
+for key,nums in parts.items():
+ gs={f'EXTCP-F{x:03}'for x in nums};objs=[o for o in frozen['objects']if o['group']in gs];forward=[g for g in frozen['primary_groups']if g['id']in gs];rev=frozen['reverse_population']['objects'];relevant=[x for x in rev['clauses']if set(x['source_groups'])&gs or key.startswith('06')];sel=[x for x in rev['selected_interface_assertions']if set(x['source_groups'])&gs or key.startswith('06')]
+ out=S/key;out.mkdir(exist_ok=True);write=f'tasks/receive_external_combat_presentation/continuation-results/{key}/'
+ unit={'schema':'gr8-cp-bounded-continuation/v1','status':'READY_PARENT_DISPATCH_NOT_STARTED','contract_commit':CT,'target_commit':C,'target_checkout_tree':frozen['target_checkout_tree'],'target_task_tree':frozen['target_task_tree'],'fixed_B8':B,'fixed_R':R,'original_complete_readset':readset,'exclusive_write_set':write,'source_groups':forward,'primary_objects':objs,'object_count':len(objs),'reverse_current_contribution_objects':relevant,'selected_reverse_interfaces':sel,'all_dependency_identity_candidates':authorreads['dependency'],'necessary_unit_rule':'Original author full/partial ledger is a locator only. Read complete needed definitions ending conditions/receivers and current B8 full relevant clauses. Avoid full foreign domain re-review; precisely list any remaining necessary unit OPEN.','qualified_existing_reader_result':'Current receiver source-checked680 but fully received onlyF042.A01–03; per-object prior receipt is evidence, not automatic new-reader credit.','original_proposal_full':load(P/'proposals.json'),'required_or_policy_decision':'Never promote GR8-EXTCP-002 or source RGB tables to required without true nonproposer complete counterevidence and root decision. Existing ELR dispatch is not a receipt.','full_battler_supplement':{n:load(ROOT/n)for n in ['delegation/battler-reception-mandatory-supplement.v1.json','adjudication/root-battler-eight-consumer-facts-reception.v1.json']},'output_required':['reading-ledger.json','reception-ledger.json','interfaces.json','report.md'],'same_source_duplicate_rule':'Preserve exact aliases and shared fields; one fact credit only. Each current value and active claim must be actually presented/read, not batch templated PASS.','final_authority':'Root final canonical/task-final acceptance only','UPDATE_NOT_STARTED':True}
+ if key.startswith('06'):
+  unit['operative_payload_obligation']=payloads
+  unit['qualification_obligations']={'full_battler_exact_inputs':'adjudication/root-battler-eight-facts-exact-inputs.v1.json if adopting any mandatory original Battler facts; record all31 necessary units and full8 corrections.','six_provider_units_full':load(P/'bounded-contributions.json'),'reverse_all':rev,'coverage_full':load(P/'coverage-and-gaps.json'),'author_provenance':'Read all remaining current operative script literals/validation/publication/state claims in31payload set; prove byte aliases or explicitly classify each field. No executing recovered code.','historical':'Full target-applicable R6limit originals/current successors and cited qualifications required; keep historical optionals/Float/policy/no-required separate. Do not reopen wholeR7 27 or entire global history.','interfaces_all':load(P/'interfaces.json')}
+ dump(out/'readset.complete.json',unit)
+ text=f'''# 第八轮combat presentation有限续接 {key}
+
+状态READY_PARENT_DISPATCH_NOT_STARTED；本文件没有创建context、没有授权原作者自验。父派发须绑定本文件所在的最终实际commit及tree，不用移动branchHEAD替代。目标原作者01a143b2-8ba3-76f5-a39d-7904a2dd1000不得作唯一独立接收者。
+
+唯一子写集 `{write}`；分支由父给专用review分支。只读其余所有目录，普通commit/push需沿既有用户授权，不整改、不合并main、不强推、不改tag、不自行spawn。
+
+先全文读下面完整全局合同、AGENTS、skill、原始完整接收合同，随后全文读相邻readset.complete.json。子读集内{len(nums)}主R组/{len(objs)}精确源对象逐个核收，31旧反向组/150子断言和20新接口按必要producer逐事实接合；06任务不另计1045主对象。所有原始当前意义均在完整raw载荷或逐对象读集中，不能仅靠导航/摘要。
+
+核对自己的实际不同context。请求gpt-6.1-sol/ultra/default普速/Fast off，实际无回显逐项UNVERIFIED。恢复对象惰性保存，只运行新写且读懂的身份工具；不执行恢复旧脚本/游戏。所有必要可得内容读完才可交有限接收凭据，余项精确OPEN。保留失败与后继澄清、取消/异常/部分提交、普通对照、默认/枚举、例子、历史范围；source静态与真实宿主分开。允许只在指定子范围给READY_FOR_PARENT_RECEPTION，根签收仍属主审。完成后普通push及全逐文件远端回读。
+
+## 原始完整接收合同
+
+{baseprompt}
+## 完整全局合同
+
+{globalprompt}
+## 项目AGENTS全文
+
+{agents}
+## 指定skill全文
+
+{skill}
+'''
+ (out/'prompt.zh.md').write_text(text.rstrip()+'\n')
+ splitrows.append({'id':key,'status':'READY_PARENT_DISPATCH_NOT_STARTED','groups':sorted(gs),'objects':len(objs),'ids':[o['id']for o in objs],'prompt':str((out/'prompt.zh.md').relative_to(T)),'prompt_identity':ident(out/'prompt.zh.md'),'readset':str((out/'readset.complete.json').relative_to(T)),'readset_identity':ident(out/'readset.complete.json'),'exclusive_write_set':write,'actual_context':'NOT_CREATED_NOT_DISPATCHED'})
+assert len({rid for x in splitrows for rid in x['ids']})==1045
+# Existing3receipts remain marked; no count is invented by partition.
+dump(T/'continuation-contracts.json',{'schema':'gr8-cp-capacity-split/v1','status':'READY_PARENT_DISPATCH_NOT_STARTED','reason':'Remaining365 unread source objects plus677 source-checked but formally unreceived objects, full150+20 reverse assertions,66 provider facts, remaining operative payload/provenance and necessary dependencies exceed reliable remaining single-context capacity. User forbids self-spawn; explicit six bounded contracts supplied to parent.','source_objects_partition_exact':True,'group_partition_exact':True,'jobs':splitrows,'new_contexts_created':0,'new_votes':0,'root_task_final':'OPEN','UPDATE_NOT_STARTED':True})
+print(json.dumps({'split_count':len(splitrows),'counts':{r['id']:r['objects']for r in splitrows},'source_read_lines':sum(r['actual_read_lines']for r in rl),'primary_source_full_files':sum(r['semantic_status']=='FULL_READ'for r in rl[:12]),'state':'INCOMPLETE'}))

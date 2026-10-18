@@ -1,0 +1,66 @@
+import pathlib,json,hashlib,datetime,collections
+b=pathlib.Path('/workspace/pokemon-essentials-clean-room/review/global-independent-review/eighth-2026-10-16-fd1df57-c84e');c=b/'tasks/creature_c_existing_crea';p=b/'evidence/external-recovered/receive_external_pbs_creature_backups/96ee9a69e24d5e2063be7ebcf8de0fdb2e019510';now=datetime.datetime.now(datetime.timezone.utc).isoformat()
+def j(q):return json.loads(q.read_text())
+def ident(q):
+ z=q.read_bytes();return {'path':str(q.relative_to(b)),'bytes':len(z),'sha256':hashlib.sha256(z).hexdigest()}
+def freeze(q,z):
+ assert not q.exists(),q;q.write_text(json.dumps(z,ensure_ascii=False,indent=2)+'\n');return ident(q)
+rootfinal=b/'adjudication/root-pbs-backups-task-final-acceptance.v1.json';rf=j(rootfinal);assert rf['task_final_accepted'] and rf['qualified_contribution']['commit']=='96ee9a69e24d5e2063be7ebcf8de0fdb2e019510'
+ci=ident(p/'interfaces.json');assert ci['sha256']=='75b28c4a7959fad7db3a083c4586bf9ef0f8e3d59397b66953cd156572932067';ni=ident(p/'necessary-provider-reception.json');assert ni['sha256']=='da5f0dde61946cba3019af9151b3a23d7051a6c76a83cf153b4360d81ab19aac'
+requirements=j(c/'four-needed-backup-base-interfaces.v1.json');anchors=[];generations=[]
+for g in [5,6,7,8]:
+ root=next((p/'received'/f'gen{g}').iterdir());q=root/('record-reception-ledger.jsonl' if g==8 else 'record-reception-ledger.json')
+ if g==8:rs=[json.loads(s) for s in q.read_text().splitlines() if s.strip()]
+ else:
+  z=j(q);rs=z.get('records',z.get('entries'))
+ base={r['section']:r for r in rs if ',' not in r['section']};forms={r['section']:r for r in rs if ',' in r['section']};own=c/f'gen{g}-forms-complete-meaning.v1.json';old=j(own);ownrs=old['complete_records'];assert set(forms)=={r['section'] for r in ownrs}
+ req=next(x for x in requirements['interfaces'] if x['interface_id']==f'C-BACKUP-BASE-G{g}');assert set(req['exact_own_forms_base_ID_set'])=={s.split(',')[0] for s in forms}
+ index={r['id']:i for i,r in enumerate(rs)}
+ for i,r in enumerate(ownrs):
+  fr=forms[r['section']];br=base[r['section'].split(',')[0]];assert fr['source_lines']==r['range'],(g,r['section'])
+  actual=fr.get('base_section',fr.get('same_generation_base_id',fr.get('same_generation_base')))
+  if g!=5:assert actual==br['id'],(g,r['section'],actual,br['id'])
+  elif 'Name' in fr['property_resolution']:
+   name=fr['property_resolution']['Name'];assert name.get('concrete_source',name.get('value',{})).get('record')==br['id']
+  anchors.append({'generation':g,'form_section':r['section'],'own_complete_form_packet':ident(own),'own_complete_form_pointer':f'/complete_records/{i}','qualified_original_form_id':fr['id'],'qualified_original_base_id':br['id'],'base_section':br['section'],'original_provider_ledger':ident(q),'original_form_index':index[fr['id']],'original_base_index':index[br['id']],'base_source_lines':br['source_lines'],'base_source_unit_sha256':br.get('source_unit_sha256',br.get('sha256')),'form_source_unit_sha256':fr.get('source_unit_sha256',fr.get('sha256')),'scope':'Exact mechanicaloriginbinding to actualqualifiedoriginal reader; not new raw/source semanticreading or allpropertyexecution.'})
+ receipt=j(p/f'received-gen{g}.json');generations.append({'generation':g,'primary_reader':receipt['primary_reader'],'reader_identity_qualification':receipt.get('reader_identity_qualification','Originalactualparentdispatchandqualifiedcontribution retained; model/effort/tier/speed/FastUNVERIFIED'),'commit':receipt['contribution_commit'],'qualified_receipt':ident(p/f'received-gen{g}.json'),'original_atomic_parent':ident(root/'atomic-reception.json'),'base_records':len(base),'forms_records':len(forms),'needed_unique_form_base_anchors':len(req['exact_own_forms_base_ID_set']),'data_reading_credit':'Full author values/default/inheritance read by originalactual primaryreader; adopted here as qualifiedcompleteproducer contribution for declared12necessaryfamilies. No ownFULLBase transferred.'})
+assert len(anchors)==863 and sum(x['base_records'] for x in generations)==3077
+ai=freeze(c/'backup-same-generation-anchors.v1.json',{'schema':'gr8-crec-qualified-actual-provider-origin-index/v1','utc':now,'rows':anchors,'counts':{'form_rows':863,'generation_basepopulations':3077,'needed_distinct_generation_base_IDs':sum(x['needed_unique_form_base_anchors'] for x in generations)},'identity_or_locator_checks_only':True,'semantic_basis':'Qualifieddifferentactualoriginal readers completed full values; rootfinal acceptedexactcontribution. CRE-A/C ownForm863actualfull retained independently. This index doesnot substitute reading or grant extraSourceFULL.','business':'NOT_EXECUTED','update':'UPDATE_NOT_STARTED'})
+fc={1:['FC01','FC33'],2:['FC02','FC03','FC08','FC09','FC10','FC11','FC16','FC17','FC18','FC19','FC20','FC21','FC24','FC33','FC37','FC38'],3:['FC09','FC11','FC13','FC15'],4:['FC10','FC16','FC17'],5:['FC11','FC12','FC13','FC15'],6:['FC18','FC19','FC20'],7:['FC21','FC22','FC23','FC24','FC37','FC38'],8:['FC33'],9:['FC37','FC38'],10:['FC08','FC25','FC26','FC33'],11:['FC04','FC05','FC06','FC07','FC08','FC09','FC16','FC17'],12:['FC32']}
+ifs={1:['IF01','IF02'],2:['IF02','IF07','IF08'],3:['IF02','IF08'],4:['IF02','IF08','CD-I01'],5:['IF08'],6:['IF08'],7:['CD-I01','IF08'],8:['CD-I01','IF02'],9:['IF08','CD-I01'],10:['IF02','IF07'],11:['IF02'],12:['IF01','CD-I06']}
+manual=[
+'Exactselectedbase identity/presence/order and DefaultForm source now has qualified Gen5–8 producer support. Filename/Generationneveractivates data or replacescurrentmechanics; inheritedName remainsbase ratherthansiblingalias.',
+'Each ownForm maps to explicit same-generationbase in pairedvariant fixture; all863anchors agree. Independent currentBase+backupForms or currentForms+backupBase remainsconditionalonly, not a testedmixeddataset orautomatic pairing.',
+'Actualbase numeric tuples/EVyield/Growth/Happiness are retained by originalqualifiedsource reader. Mega48target/46base perGen6–8 chooses actualvarianttuple; do not substitute currentHP/officialvalue or assume everyMegaHPsame. Existingcalc_stats/HPwriteprefix controls.',
+'Qualified gender/ability orderedarrays feed existingPID/cache/index/fallback definitions. Forcedgender/cachedability/ability_index and effectivespeciesform stay separate; alloldmandatoryspecies/form correction applies.',
+'QualifiedliteralGrowthRate/BaseExp/EV/Happiness feed sixcurrentcurve code and exactreward/admission/Shadowdelta paths. Rawconstructorhappiness isnotclampedbyPBS255; later change/table andfailureprefix remain separate.',
+'Actualorderedlevel/Tutor/Egglists and repeats retained. OnlyTypescompileuniq; reset_moveslatestduplicate/last4 is differentconsumer. TWISTER oneTutor pluslevelMoves isnotduplicateTutor. ExistingMovefiniteproducer/PP/relearncompletefacts reused.',
+'QualifiedEggGroups/HatchSteps/Incense/Offspring and orderedancestry support firstprevoincense→babyoffspring sampling. Directgeneration/collect versuscyclecompatibility gates andlaterfullpartyprefix retained; nodataflag aloneprovesnormalreachability.',
+'Actualvariantflaglists/order and caseinsensitivechecks link to species_parent/mother-beforefatherEverstone. Dynamicformread cancommitparent, explicitsamevalueeggformsetter stillacts; defaultDEERLINGauthor-addedfixture staysconditional.',
+'Qualifiedpervariantforward rawtables and complete finalprevo/None rules preservepluralbefore singular/firstprevo/targetformpriority. Current460edge packetisnotoldervariantvalue proof; qualifiedactualvariantproducer supplies that value side. Runtimefirsttruthy after guards remains ownCEC-R001.',
+'Qualifiedtypes/height/weight/flags selectsimpledata whileordinaryformread maycommit. Displayresource/shadow/alias predicates retain actualreceiver, rawkey/gender distinctions, nativepixels notexecuted. ExistingUI finite/sourceownFULL reused.',
+'MegaStone OR knownMegaMove keeps no any-held-otherMegaStoneblock; PPisnotbareknownmovequalification. Primalcurrentitemhandler nonnil andstoredform aredistinct, and rawGen5file0Mega entries doesnottakebattlecodeaway. ActiveDataregistryconditional.',
+'Allsource/referenceenum anddefault/explicit/empty claims retain qualifiedactualsource reader/identity/premises. Genericcompile/startup/load/liveobjects/failureprefix andsave17 graph reuses existingactualfacts; no native aliascycle/rollback/run approval.'
+]
+contractifs=j(p/'interfaces.json')['interfaces'];adopt=[]
+for i,row in enumerate(requirements['shared_finite_field_and_branch_requirements'],1):
+ adopt.append({'id':row['id'],'required_fields':row['fields'],'previous_frozen_requirement':{'packet':ident(c/'four-needed-backup-base-interfaces.v1.json'),'pointer':f'/shared_finite_field_and_branch_requirements/{i-1}'},'original_own_complete_receiver':row['receiver'],'adopted_provider_field_contract_ids':fc[i],'complete_qualified_receiver_interface_ids':ifs[i],'manual_complete_finite_join':manual[i-1],'common_premises':'FixedR/B8; explicitlyselectedvaliddatasetandreferencedregistries/earliercallsnormal; no plugin/redefinition. Fullauthorliteral/propertiesorigins areoriginaldifferentreadercredit; normalbranchnotperformed. Exactcancellation/exception/prefix from existingwholeownreceivercontracts reused, not overridden by producer status.','disposition':'NECESSARY_FINITE_FIELD_AND_RECEIVER_JOIN_COMPLETE_FOR_ROOT','task_final_accepted_by_this_reader':False})
+received={
+ 'root_final':'1d609f complete10115B',
+ 'complete_receiver_report':['d121eb lines1–70','bc65a9 lines71–EOF126'],
+ 'complete_12_interface_objects':['2a2d71 IF01–04','9f7e76 IF05–08','298530 IF09/ELR-I03/CD-I01/CD-I06+currentmetadata'],
+ 'complete_necessary_provider_all_objects':['03748a envelope/3corrections/locator','34e997 completeCREB5facts+completeMAIL5113mandatory','d312f6 completelocalization/metricsqualification/directreadextent'],
+ 'gen5_complete_selected_receipt_objects':'89d6f6 explicitselectedkeys; transportidentitynotwholemetadata reading',
+ 'gen5_all17_businessfacets_header':'4ca0e2 completeassertions/reasons/qualifiers; repeatedsource/formal locatorarrays remainoriginalparent, no newsource read',
+ 'gen5_complete_record_common_and38defaults':'a392f2 allcommonkeys excludingrecords',
+ 'gen6_complete_selected_receipt_objects':'c53250 completefinite_meanings/default/wordingcorrections/cumulativealiascase/allqualification-selectedkeys',
+ 'gen7_complete_selected_receipt_objects':'e2bd22 completebusiness/identity/readership/qualification-selectedkeys',
+ 'gen7_all58_businessfacets':'a3e77e objects0–27 and9cac24 objects28–57; completeassertion/reason/status/remaining; source/spec/repeatedevidencelocators retained in originalimmutable parent, not rereread',
+ 'gen8_complete_selected_receipt_objects':'489584 explicitselectedkeys',
+ 'gen8_complete_semantic_reception':'902314 entire5958B finalfinite meaning',
+ 'shared_field_common':'555e8c complete commonpremises/explicitlimit',
+ 'origin_anchor_mapping':'Mechanical863uniqueownForms→samegenerationBaseID/range only; no additional semanticcredit'
+}
+rep={'schema':'gr8-crea-crec-qualified-backup-final-reception/v1','utc':now,'actual_receiver':'/root/creature_a_atomic_reception','status':'ALL_FOUR_PREVIOUSLY_WAITING_PRODUCERS_NECESSARY_CONTRACTS_RECEIVED','previous_waiting_handoff':ident(c/'four-needed-backup-base-interfaces.v1.json'),'root_task_final_acceptance':ident(rootfinal),'qualified_external_commit':'96ee9a69e24d5e2063be7ebcf8de0fdb2e019510','root_transport_proof_scope':'249files87607015Bexactrecovery acceptedroot; notreceiver semanticreadcredit','complete_received_operatives':[ident(p/n) for n in ['report.md','interfaces.json','necessary-provider-reception.json']],'actual_reception_IO':received,'generations':generations,'same_generation_anchor_index':ai,'twelve_manual_necessary_joins':adopt,'complete_received_interfaces':{'identity':ci,'IDs':[x['id'] for x in contractifs],'qualified_necessary_remaining':0,'original_old_status_and_accepted_false':'Preserved at source; rootfinal andthisnewreceipt areexplicitlaterstate, never backfilloldrows'},'mandatory_corrections_received':['NoanyheldMegaStoneblock; existingPCRmandatoryMegaack controlling','Gen6TWISTERoneTutor andMoveslevel1separate','OnlyTypescompileuniq; TutorDOUBLETEAM/TRICKROOM duplicatesremain','Encountertrue vsreset separate; gracecanincrementbeforetrue','CaptureactualEOF271/completepbCaptureCalc206–263; no272–275credit','CompleteCREB MAIL5113 companion actual006_Item_Mail not005','ExistingownCOREC0122faint andF054straighten completequalifiers retained','Gen7UUIDselfechoUNVERIFIED; originalparentdispatch providesreaderassociation, not modelproof'],'not_adopted_as_whole_new_read':['All3940originalrawrecords oralloriginalsourcebodies reread bythisreceiver','AllwholeforeignCREB/ELR/Developer/CORE/KERNEL/domainapproval','Everybackupmixedactivationcombination orallMove/Abilitycallbacks','Oldstageacceptedfalse->true rewrites ornewsourceFULLcount'],'own_full_counts_unchanged':{'R':116,'F':25},'business':'NOT_EXECUTED','update':'UPDATE_NOT_STARTED','new_contexts':0,'new_votes':0,'new_own_FULL':0,'new_formal_findings':0,'global_completion':False}
+ri=freeze(c/'backup-producer-qualified-final-reception.v1.json',rep)
+print(json.dumps({'utc':now,'receipt':ri,'anchorindex':ai,'CBVfamilies':len(adopt),'qualified_remaining':0},ensure_ascii=False,indent=2))

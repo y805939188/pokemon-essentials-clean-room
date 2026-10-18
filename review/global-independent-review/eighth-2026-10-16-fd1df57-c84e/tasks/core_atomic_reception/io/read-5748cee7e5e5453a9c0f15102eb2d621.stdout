@@ -1,0 +1,70 @@
+00001: """Serialize explicitly authored review atoms; never derive them from text."""
+00002: import datetime
+00003: import json
+00004: import pathlib
+00005: import sys
+00006: 
+00007: P = pathlib.Path(__file__).resolve().parent
+00008: data = json.loads((P / sys.argv[1]).read_text())
+00009: now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+00010: manual = json.loads((P / "manual-atomic-clauses.json").read_text())
+00011: old = json.loads((P / "old-locator-disposition.json").read_text())
+00012: by_id = {row["id"]: row for row in old["rows"]}
+00013: existing = {row["id"] for row in manual["rows"]}
+00014: for authored in data["rows"]:
+00015:     number = authored["number"]
+00016:     locator = f"CORE-C{number:04d}"
+00017:     row = by_id[locator]
+00018:     if "layout_reason" in authored:
+00019:         row.update({"decomposition": "MANUAL_NONBEHAVIOR_TYPE_DISPOSITION", "all_children_received": True,
+00020:                     "status": "LAYOUT_SCOPE_OR_NAVIGATION_ONLY", "manual_type_reason": authored["layout_reason"], "missing_action": []})
+00021:         continue
+00022:     ids = []
+00023:     for index, assertion in enumerate(authored["children"], 1):
+00024:         ident = f"CAR-C{number:04d}-{index:02d}"
+00025:         ids.append(ident)
+00026:         if ident in existing:
+00027:             raise ValueError("manual atom already frozen: " + ident)
+00028:         source_units = [dict(data["source_dictionary"][x]) if isinstance(x, str) else x for x in authored["source_units"]]
+00029:         manual["rows"].append({
+00030:             "id": ident, "old_locator": locator,
+00031:             "spec": {"path": row["original"]["path"], "range": row["original"]["range"]},
+00032:             "assertion": assertion,
+00033:             "source_units": source_units,
+00034:             "premise": authored.get("premise", data["common_premise"]),
+00035:             "producer_write_consumer_chain": authored["chain"],
+00036:             "support": authored.get("support", "SUPPORTED_BOUNDED_SOURCE_STATIC"),
+00037:             "pending_consumers": authored.get("open", []),
+00038:             "cancel": authored.get("cancel", data["common_cancel"]),
+00039:             "exception_partial_commit": authored.get("failure", data["common_failure"]),
+00040:             "persistence_reload": authored.get("persistence", data["common_persistence"]),
+00041:             "evidence": "SOURCE_STATIC", "business_execution": "NOT_EXECUTED", "manual_authored_utc": now,
+00042:             "authoring_packet": sys.argv[1],
+00043:         })
+00044:     pending = authored.get("open", [])
+00045:     row.update({"manual_atom_ids": ids, "decomposition": "MANUAL_BY_ACTUAL_SEMANTIC_CHILDREN",
+00046:                 "all_children_received": not pending and authored.get("support") not in ["EXISTING_ROOT_REQUIRED_BOUNDED", "CANDIDATE_REQUIRES_OTHER_REVIEW"],
+00047:                 "status": authored.get("support") or ("OPEN_EXACT_FOREIGN_RECEIVER" if pending else "RECEIVED_BOUNDED_SOURCE_STATIC"),
+00048:                 "missing_action": pending})
+00049: manual.update({"updated_utc": now, "frozen_subset": len(manual["rows"]), "global_atomic_denominator": "NOT_FROZEN"})
+00050: (P / "manual-atomic-clauses.json").write_text(json.dumps(manual, ensure_ascii=False, indent=2) + "\n")
+00051: (P / "old-locator-disposition.json").write_text(json.dumps(old, ensure_ascii=False, indent=2) + "\n")
+00052: progress = json.loads((P / "progress.json").read_text())
+00053: progress.update({"updated_utc": now, "manual_atomic_frozen_subset": len(manual["rows"]),
+00054:                  "manual_locator_frozen_subset": sum(bool(x["manual_atom_ids"]) for x in old["rows"]),
+00055:                  "old_layout_disposed": sum(x["status"] == "LAYOUT_SCOPE_OR_NAVIGATION_ONLY" for x in old["rows"]),
+00056:                  "old_bounded_source_received": sum(x["status"] == "RECEIVED_BOUNDED_SOURCE_STATIC" for x in old["rows"]),
+00057:                  "old_locators_complete": sum(x["all_children_received"] for x in old["rows"]),
+00058:                  "global_atomic_denominator": "NOT_FROZEN"})
+00059: (P / "progress.json").write_text(json.dumps(progress, ensure_ascii=False, indent=2) + "\n")
+00060: gaps = json.loads((P / "coverage-gaps.json").read_text())
+00061: gaps.update({"updated_utc": now,
+00062:              "undecomposed_exact_ids": [x["id"] for x in old["rows"] if x["decomposition"] == "OPEN_NOT_MANUALLY_DECOMPOSED"],
+00063:              "decomposed_but_foreign_join_open": [x["id"] for x in old["rows"] if x["manual_atom_ids"] and not x["all_children_received"]],
+00064:              "manual_decomposed_locator_subset": [x["id"] for x in old["rows"] if x["manual_atom_ids"]],
+00065:              "manual_atoms_frozen_subset": len(manual["rows"]), "atomic_denominator_frozen": False,
+00066:              "material_or_host_limit_for_available_unread": False})
+00067: (P / "coverage-gaps.json").write_text(json.dumps(gaps, ensure_ascii=False, indent=2) + "\n")
+00068: print(json.dumps({"utc": now, "manual_atoms": len(manual["rows"]), "manual_locators": progress["manual_locator_frozen_subset"],
+00069:                   "layout": progress["old_layout_disposed"], "bounded_source_rows": progress["old_bounded_source_received"],
+00070:                   "undecomposed_old_locators": len(gaps["undecomposed_exact_ids"])}))

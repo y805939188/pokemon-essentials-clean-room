@@ -1,0 +1,432 @@
+     1	#===============================================================================
+     2	# Registers special battle transition animations which may be used instead of
+     3	# the default ones. There are examples below of how to register them.
+     4	#
+     5	# The register call has 4 arguments:
+     6	#    1) The name of the animation. Typically unused, but helps to identify the
+     7	#       registration code for a particular animation if necessary.
+     8	#    2) The animation's priority. If multiple special animations could trigger
+     9	#       for the same battle, the one with the highest priority number is used.
+    10	#    3) A condition proc which decides whether the animation should trigger.
+    11	#    4) The animation itself. Could be a bunch of code, or a call to, say,
+    12	#       pbCommonEvent(20) or something else. By the end of the animation, the
+    13	#       screen should be black.
+    14	# Note that you can get an image of the current game screen with
+    15	# Graphics.snap_to_bitmap.
+    16	#===============================================================================
+    17	module SpecialBattleIntroAnimations
+    18	  # [name, priority number, "trigger if" proc, animation proc]
+    19	  @@anims = []
+    20	
+    21	  def self.register(name, priority, condition, hash)
+    22	    @@anims.push([name, priority, condition, hash])
+    23	  end
+    24	
+    25	  def self.remove(name)
+    26	    @@anims.delete_if { |anim| anim[0] == name }
+    27	  end
+    28	
+    29	  def self.each
+    30	    ret = @@anims.sort { |a, b| b[1] <=> a[1] }
+    31	    ret.each { |anim| yield anim[0], anim[1], anim[2], anim[3] }
+    32	  end
+    33	
+    34	  def self.has?(name)
+    35	    return @@anims.any? { |anim| anim[0] == name }
+    36	  end
+    37	
+    38	  def self.get(name)
+    39	    @@anims.each { |anim| return anim if anim[0] == name }
+    40	    return nil
+    41	  end
+    42	end
+    43	
+    44	#===============================================================================
+    45	# Battle intro animation
+    46	#===============================================================================
+    47	class Game_Temp
+    48	  attr_accessor :transition_animation_data
+    49	end
+    50	
+    51	def pbSceneStandby
+    52	  $scene.disposeSpritesets if $scene.is_a?(Scene_Map)
+    53	  RPG::Cache.clear
+    54	  Graphics.frame_reset
+    55	  yield
+    56	  $scene.createSpritesets if $scene.is_a?(Scene_Map)
+    57	end
+    58	
+    59	def pbBattleAnimation(bgm = nil, battletype = 0, foe = nil)
+    60	  $game_temp.in_battle = true
+    61	  viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+    62	  viewport.z = 99999
+    63	  # Set up audio
+    64	  playingBGS = nil
+    65	  playingBGM = nil
+    66	  if $game_system.is_a?(Game_System)
+    67	    playingBGS = $game_system.getPlayingBGS
+    68	    playingBGM = $game_system.getPlayingBGM
+    69	    $game_system.bgm_pause
+    70	    $game_system.bgs_pause
+    71	    if $game_temp.memorized_bgm
+    72	      playingBGM = $game_temp.memorized_bgm
+    73	      $game_system.bgm_position = $game_temp.memorized_bgm_position
+    74	    end
+    75	  end
+    76	  # Play battle music
+    77	  bgm = pbGetWildBattleBGM([]) if !bgm
+    78	  pbBGMPlay(bgm)
+    79	  # Determine location of battle
+    80	  location = 0   # 0=outside, 1=inside, 2=cave, 3=water
+    81	  if $PokemonGlobal.surfing || $PokemonGlobal.diving
+    82	    location = 3
+    83	  elsif $game_temp.encounter_type &&
+    84	        GameData::EncounterType.get($game_temp.encounter_type).type == :fishing
+    85	    location = 3
+    86	  elsif $PokemonEncounters.has_cave_encounters?
+    87	    location = 2
+    88	  elsif !$game_map.metadata&.outdoor_map
+    89	    location = 1
+    90	  end
+    91	  # Check for custom battle intro animations
+    92	  handled = false
+    93	  SpecialBattleIntroAnimations.each do |name, priority, condition, animation|
+    94	    next if !condition.call(battletype, foe, location)
+    95	    animation.call(viewport, battletype, foe, location)
+    96	    handled = true
+    97	    break
+    98	  end
+    99	  # Default battle intro animation
+   100	  if !handled
+   101	    # Determine which animation is played
+   102	    anim = ""
+   103	    if PBDayNight.isDay?
+   104	      case battletype
+   105	      when 0, 2   # Wild, double wild
+   106	        anim = ["SnakeSquares", "DiagonalBubbleTL", "DiagonalBubbleBR", "RisingSplash"][location]
+   107	      when 1      # Trainer
+   108	        anim = ["TwoBallPass", "ThreeBallDown", "BallDown", "WavyThreeBallUp"][location]
+   109	      when 3      # Double trainer
+   110	        anim = "FourBallBurst"
+   111	      end
+   112	    else
+   113	      case battletype
+   114	      when 0, 2   # Wild, double wild
+   115	        anim = ["SnakeSquares", "DiagonalBubbleBR", "DiagonalBubbleBR", "RisingSplash"][location]
+   116	      when 1      # Trainer
+   117	        anim = ["SpinBallSplit", "BallDown", "BallDown", "WavySpinBall"][location]
+   118	      when 3      # Double trainer
+   119	        anim = "FourBallBurst"
+   120	      end
+   121	    end
+   122	    pbBattleAnimationCore(anim, viewport, location)
+   123	  end
+   124	  pbPushFade
+   125	  # Yield to the battle scene
+   126	  yield if block_given?
+   127	  # After the battle
+   128	  pbPopFade
+   129	  if $game_system.is_a?(Game_System)
+   130	    $game_system.bgm_resume(playingBGM)
+   131	    $game_system.bgs_resume(playingBGS)
+   132	  end
+   133	  $game_temp.memorized_bgm            = nil
+   134	  $game_temp.memorized_bgm_position   = 0
+   135	  $PokemonGlobal.nextBattleBGM        = nil
+   136	  $PokemonGlobal.nextBattleVictoryBGM = nil
+   137	  $PokemonGlobal.nextBattleCaptureME  = nil
+   138	  $PokemonGlobal.nextBattleBack       = nil
+   139	  $PokemonEncounters.reset_step_count
+   140	  # Fade back to the overworld in 0.4 seconds
+   141	  viewport.color = Color.black
+   142	  timer_start = System.uptime
+   143	  loop do
+   144	    Graphics.update
+   145	    Input.update
+   146	    pbUpdateSceneMap
+   147	    viewport.color.alpha = 255 * (1 - ((System.uptime - timer_start) / 0.4))
+   148	    break if viewport.color.alpha <= 0
+   149	  end
+   150	  viewport.dispose
+   151	  $game_temp.in_battle = false
+   152	end
+   153	
+   154	def pbBattleAnimationCore(anim, viewport, location, num_flashes = 2)
+   155	  # Initial screen flashing
+   156	  if num_flashes > 0
+   157	    c = (location == 2 || PBDayNight.isNight?) ? 0 : 255   # Dark=black, light=white
+   158	    viewport.color = Color.new(c, c, c)   # Fade to black/white a few times
+   159	    half_flash_time = 0.2   # seconds
+   160	    num_flashes.times do   # 2 flashes
+   161	      fade_out = false
+   162	      timer_start = System.uptime
+   163	      loop do
+   164	        if fade_out
+   165	          viewport.color.alpha = lerp(255, 0, half_flash_time, timer_start, System.uptime)
+   166	        else
+   167	          viewport.color.alpha = lerp(0, 255, half_flash_time, timer_start, System.uptime)
+   168	        end
+   169	        Graphics.update
+   170	        pbUpdateSceneMap
+   171	        break if fade_out && viewport.color.alpha <= 0
+   172	        if !fade_out && viewport.color.alpha >= 255
+   173	          fade_out = true
+   174	          timer_start = System.uptime
+   175	        end
+   176	      end
+   177	    end
+   178	  end
+   179	  # Take screenshot of game, for use in some animations
+   180	  $game_temp.background_bitmap&.dispose
+   181	  $game_temp.background_bitmap = Graphics.snap_to_bitmap
+   182	  # Play main animation
+   183	  Graphics.freeze
+   184	  viewport.color = Color.black   # Ensure screen is black
+   185	  Graphics.transition(25, "Graphics/Transitions/" + anim)
+   186	  # Slight pause after animation before starting up the battle scene
+   187	  pbWait(0.1)
+   188	end
+   189	
+   190	#===============================================================================
+   191	# Play the HGSS "VSTrainer" battle transition animation for any single trainer
+   192	# battle where the following graphics exist in the Graphics/Transitions/
+   193	# folder for the opponent:
+   194	#   * "hgss_vs_TRAINERTYPE.png" and "hgss_vsBar_TRAINERTYPE.png"
+   195	# This animation makes use of $game_temp.transition_animation_data, and expects
+   196	# it to be an array like so: [:TRAINERTYPE, "display name"]
+   197	#===============================================================================
+   198	SpecialBattleIntroAnimations.register("vs_trainer_animation", 60,   # Priority 60
+   199	  proc { |battle_type, foe, location|   # Condition
+   200	    next false if battle_type.even? || foe.length != 1   # Trainer battle against 1 trainer
+   201	    tr_type = foe[0].trainer_type
+   202	    next pbResolveBitmap("Graphics/Transitions/hgss_vs_#{tr_type}") &&
+   203	         pbResolveBitmap("Graphics/Transitions/hgss_vsBar_#{tr_type}")
+   204	  },
+   205	  proc { |viewport, battle_type, foe, location|   # Animation
+   206	    $game_temp.transition_animation_data = [foe[0].trainer_type, foe[0].name]
+   207	    pbBattleAnimationCore("VSTrainer", viewport, location, 1)
+   208	    $game_temp.transition_animation_data = nil
+   209	  }
+   210	)
+   211	
+   212	#===============================================================================
+   213	# Play the "VSEliteFour" battle transition animation for any single trainer
+   214	# battle where the following graphics exist in the Graphics/Transitions/
+   215	# folder for the opponent:
+   216	#   * "vsE4_TRAINERTYPE.png" and "vsE4Bar_TRAINERTYPE.png"
+   217	# This animation makes use of $game_temp.transition_animation_data, and expects
+   218	# it to be an array like so:
+   219	#   [:TRAINERTYPE, "display name", "player sprite name minus 'vsE4_'"]
+   220	#===============================================================================
+   221	SpecialBattleIntroAnimations.register("vs_elite_four_animation", 60,   # Priority 60
+   222	  proc { |battle_type, foe, location|   # Condition
+   223	    next false if battle_type.even? || foe.length != 1   # Trainer battle against 1 trainer
+   224	    tr_type = foe[0].trainer_type
+   225	    next pbResolveBitmap("Graphics/Transitions/vsE4_#{tr_type}") &&
+   226	         pbResolveBitmap("Graphics/Transitions/vsE4Bar_#{tr_type}")
+   227	  },
+   228	  proc { |viewport, battle_type, foe, location|   # Animation
+   229	    tr_sprite_name = $player.trainer_type.to_s
+   230	    if pbResolveBitmap("Graphics/Transitions/vsE4_#{tr_sprite_name}_#{$player.outfit}")
+   231	      tr_sprite_name += "_#{$player.outfit}"
+   232	    end
+   233	    $game_temp.transition_animation_data = [foe[0].trainer_type, foe[0].name, tr_sprite_name]
+   234	    pbBattleAnimationCore("VSEliteFour", viewport, location, 0)
+   235	    $game_temp.transition_animation_data = nil
+   236	  }
+   237	)
+   238	
+   239	#===============================================================================
+   240	# Play the "VSRocketAdmin" battle transition animation for any trainer battle
+   241	# where the following graphic exists in the Graphics/Transitions/ folder for any
+   242	# of the opponents:
+   243	#   * "rocket_TRAINERTYPE.png"
+   244	# This animation makes use of $game_temp.transition_animation_data, and expects
+   245	# it to be an array like so: [:TRAINERTYPE, "display name"]
+   246	#===============================================================================
+   247	SpecialBattleIntroAnimations.register("vs_admin_animation", 60,   # Priority 60
+   248	  proc { |battle_type, foe, location|   # Condition
+   249	    next false if ![1, 3].include?(battle_type)   # Trainer battles only
+   250	    found = false
+   251	    foe.each do |f|
+   252	      found = pbResolveBitmap("Graphics/Transitions/rocket_#{f.trainer_type}")
+   253	      break if found
+   254	    end
+   255	    next found
+   256	  },
+   257	  proc { |viewport, battle_type, foe, location|   # Animation
+   258	    foe.each do |f|
+   259	      tr_type = f.trainer_type
+   260	      next if !pbResolveBitmap("Graphics/Transitions/rocket_#{tr_type}")
+   261	      $game_temp.transition_animation_data = [tr_type, f.name]
+   262	      break
+   263	    end
+   264	    pbBattleAnimationCore("VSRocketAdmin", viewport, location, 0)
+   265	    $game_temp.transition_animation_data = nil
+   266	  }
+   267	)
+   268	
+   269	#===============================================================================
+   270	# Play the original Vs. Trainer battle transition animation for any single
+   271	# trainer battle where the following graphics exist in the Graphics/Transitions/
+   272	# folder for the opponent:
+   273	#   * "vsTrainer_TRAINERTYPE.png" and "vsBar_TRAINERTYPE.png"
+   274	#===============================================================================
+   275	##### VS. animation, by Luka S.J. #####
+   276	##### Tweaked by Maruno           #####
+   277	SpecialBattleIntroAnimations.register("alternate_vs_trainer_animation", 50,   # Priority 50
+   278	  proc { |battle_type, foe, location|   # Condition
+   279	    next false if battle_type.even? || foe.length != 1   # Trainer battle against 1 trainer
+   280	    tr_type = foe[0].trainer_type
+   281	    next pbResolveBitmap("Graphics/Transitions/vsTrainer_#{tr_type}") &&
+   282	         pbResolveBitmap("Graphics/Transitions/vsBar_#{tr_type}")
+   283	  },
+   284	  proc { |viewport, battle_type, foe, location|   # Animation
+   285	    # Determine filenames of graphics to be used
+   286	    tr_type = foe[0].trainer_type
+   287	    trainer_bar_graphic = sprintf("vsBar_%s", tr_type.to_s) rescue nil
+   288	    trainer_graphic     = sprintf("vsTrainer_%s", tr_type.to_s) rescue nil
+   289	    player_tr_type = $player.trainer_type
+   290	    outfit = $player.outfit
+   291	    player_bar_graphic = sprintf("vsBar_%s_%d", player_tr_type.to_s, outfit) rescue nil
+   292	    if !pbResolveBitmap("Graphics/Transitions/" + player_bar_graphic)
+   293	      player_bar_graphic = sprintf("vsBar_%s", player_tr_type.to_s) rescue nil
+   294	    end
+   295	    player_graphic = sprintf("vsTrainer_%s_%d", player_tr_type.to_s, outfit) rescue nil
+   296	    if !pbResolveBitmap("Graphics/Transitions/" + player_graphic)
+   297	      player_graphic = sprintf("vsTrainer_%s", player_tr_type.to_s) rescue nil
+   298	    end
+   299	    # Set up viewports
+   300	    viewplayer = Viewport.new(0, Graphics.height / 3, Graphics.width / 2, 128)
+   301	    viewplayer.z = viewport.z
+   302	    viewopp = Viewport.new(Graphics.width / 2, Graphics.height / 3, Graphics.width / 2, 128)
+   303	    viewopp.z = viewport.z
+   304	    viewvs = Viewport.new(0, 0, Graphics.width, Graphics.height)
+   305	    viewvs.z = viewport.z
+   306	    # Set up sprites
+   307	    fade = Sprite.new(viewport)
+   308	    fade.bitmap  = RPG::Cache.transition("vsFlash")
+   309	    fade.tone    = Tone.new(-255, -255, -255)
+   310	    fade.opacity = 100
+   311	    overlay = Sprite.new(viewport)
+   312	    overlay.bitmap = Bitmap.new(Graphics.width, Graphics.height)
+   313	    pbSetSystemFont(overlay.bitmap)
+   314	    xoffset = ((Graphics.width / 2) / 10) * 10
+   315	    bar1 = Sprite.new(viewplayer)
+   316	    bar1.bitmap = RPG::Cache.transition(player_bar_graphic)
+   317	    bar1.x      = -xoffset
+   318	    bar2 = Sprite.new(viewopp)
+   319	    bar2.bitmap = RPG::Cache.transition(trainer_bar_graphic)
+   320	    bar2.x      = xoffset
+   321	    vs_x = Graphics.width / 2
+   322	    vs_y = Graphics.height / 1.5
+   323	    vs = Sprite.new(viewvs)
+   324	    vs.bitmap  = RPG::Cache.transition("vs")
+   325	    vs.ox      = vs.bitmap.width / 2
+   326	    vs.oy      = vs.bitmap.height / 2
+   327	    vs.x       = vs_x
+   328	    vs.y       = vs_y
+   329	    vs.visible = false
+   330	    flash = Sprite.new(viewvs)
+   331	    flash.bitmap  = RPG::Cache.transition("vsFlash")
+   332	    flash.opacity = 0
+   333	    # Animate bars sliding in from either side
+   334	    pbWait(0.25) do |delta_t|
+   335	      bar1.x = lerp(-xoffset, 0, 0.25, delta_t)
+   336	      bar2.x = lerp(xoffset, 0, 0.25, delta_t)
+   337	    end
+   338	    bar1.dispose
+   339	    bar2.dispose
+   340	    # Make whole screen flash white
+   341	    pbSEPlay("Vs flash")
+   342	    pbSEPlay("Vs sword")
+   343	    flash.opacity = 255
+   344	    # Replace bar sprites with AnimatedPlanes, set up trainer sprites
+   345	    bar1 = AnimatedPlane.new(viewplayer)
+   346	    bar1.bitmap = RPG::Cache.transition(player_bar_graphic)
+   347	    bar2 = AnimatedPlane.new(viewopp)
+   348	    bar2.bitmap = RPG::Cache.transition(trainer_bar_graphic)
+   349	    player = Sprite.new(viewplayer)
+   350	    player.bitmap = RPG::Cache.transition(player_graphic)
+   351	    player.x      = -xoffset
+   352	    trainer = Sprite.new(viewopp)
+   353	    trainer.bitmap = RPG::Cache.transition(trainer_graphic)
+   354	    trainer.x      = xoffset
+   355	    trainer.tone   = Tone.new(-255, -255, -255)
+   356	    # Dim the flash and make the trainer sprites appear, while animating bars
+   357	    pbWait(1.2) do |delta_t|
+   358	      flash.opacity = lerp(255, 0, 0.25, delta_t)
+   359	      bar1.ox = lerp(0, -bar1.bitmap.width * 3, 1.2, delta_t)
+   360	      bar2.ox = lerp(0, bar2.bitmap.width * 3, 1.2, delta_t)
+   361	      player.x = lerp(-xoffset, 0, 0.25, delta_t - 0.6)
+   362	      trainer.x = lerp(xoffset, 0, 0.25, delta_t - 0.6)
+   363	    end
+   364	    player.x = 0
+   365	    trainer.x = 0
+   366	    # Make whole screen flash white again
+   367	    flash.opacity = 255
+   368	    pbSEPlay("Vs sword")
+   369	    # Make the Vs logo and trainer names appear, and reset trainer's tone
+   370	    vs.visible = true
+   371	    trainer.tone = Tone.new(0, 0, 0)
+   372	    trainername = foe[0].name
+   373	    textpos = [
+   374	      [$player.name, Graphics.width / 4, (Graphics.height / 1.5) + 16, :center,
+   375	       Color.new(248, 248, 248), Color.new(72, 72, 72)],
+   376	      [trainername, (Graphics.width / 4) + (Graphics.width / 2), (Graphics.height / 1.5) + 16, :center,
+   377	       Color.new(248, 248, 248), Color.new(72, 72, 72)]
+   378	    ]
+   379	    pbDrawTextPositions(overlay.bitmap, textpos)
+   380	    # Fade out flash, shudder Vs logo and expand it, and then fade to black
+   381	    shudder_time = 1.75
+   382	    zoom_time = 2.5
+   383	    pbWait(2.8) do |delta_t|
+   384	      if delta_t <= shudder_time
+   385	        flash.opacity = lerp(255, 0, 0.25, delta_t)   # Fade out the white flash
+   386	      elsif delta_t >= zoom_time
+   387	        flash.tone = Tone.new(-255, -255, -255)   # Make the flash black
+   388	        flash.opacity = lerp(0, 255, 0.25, delta_t - zoom_time)   # Fade to black
+   389	      end
+   390	      bar1.ox = lerp(0, -bar1.bitmap.width * 7, 2.8, delta_t)
+   391	      bar2.ox = lerp(0, bar2.bitmap.width * 7, 2.8, delta_t)
+   392	      if delta_t <= shudder_time
+   393	        # +2, -2, -2, +2, repeat
+   394	        period = (delta_t / 0.025).to_i % 4
+   395	        shudder_delta = [2, 0, -2, 0][period]
+   396	        vs.x = vs_x + shudder_delta
+   397	        vs.y = vs_y - shudder_delta
+   398	      elsif delta_t <= zoom_time
+   399	        vs.zoom_x = lerp(1.0, 7.0, zoom_time - shudder_time, delta_t - shudder_time)
+   400	        vs.zoom_y = vs.zoom_x
+   401	      end
+   402	    end
+   403	    # End of animation
+   404	    player.dispose
+   405	    trainer.dispose
+   406	    flash.dispose
+   407	    vs.dispose
+   408	    bar1.dispose
+   409	    bar2.dispose
+   410	    overlay.dispose
+   411	    fade.dispose
+   412	    viewvs.dispose
+   413	    viewopp.dispose
+   414	    viewplayer.dispose
+   415	    viewport.color = Color.black   # Ensure screen is black
+   416	  }
+   417	)
+   418	
+   419	#===============================================================================
+   420	# Play the "RocketGrunt" battle transition animation for any trainer battle
+   421	# involving a Team Rocket Grunt. Is lower priority than the Vs. animation above.
+   422	#===============================================================================
+   423	SpecialBattleIntroAnimations.register("rocket_grunt_animation", 40,   # Priority 40
+   424	  proc { |battle_type, foe, location|   # Condition
+   425	    next false unless [1, 3].include?(battle_type)   # Only if a trainer battle
+   426	    trainer_types = [:TEAMROCKET_M, :TEAMROCKET_F]
+   427	    next foe.any? { |f| trainer_types.include?(f.trainer_type) }
+   428	  },
+   429	  proc { |viewport, battle_type, foe, location|   # Animation
+   430	    pbBattleAnimationCore("RocketGrunt", viewport, location)
+   431	  }
+   432	)

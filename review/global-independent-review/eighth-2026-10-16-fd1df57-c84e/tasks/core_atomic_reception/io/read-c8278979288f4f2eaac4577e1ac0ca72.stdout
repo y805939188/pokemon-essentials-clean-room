@@ -1,0 +1,118 @@
+00335:     activeTypes.delete(GameData::Type.get(type).id)
+00336:     return activeTypes.length > 0
+00337:   end
+00338: 
+00339:   # NOTE: Do not create any held item which affects whether a Pokémon's ability
+00340:   #       is active. The ability Klutz affects whether a Pokémon's item is
+00341:   #       active, and the code for the two combined would cause an infinite loop
+00342:   #       (regardless of whether any Pokémon actually has either the ability or
+00343:   #       the item - the code existing is enough to cause the loop).
+00344:   def abilityActive?(ignore_fainted = false, check_ability = nil)
+00345:     return false if fainted? && !ignore_fainted
+00346:     return false if @effects[PBEffects::GastroAcid]
+00347:     return false if check_ability != :NEUTRALIZINGGAS && self.ability != :NEUTRALIZINGGAS &&
+00348:                     @battle.pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+00349:     return true
+00350:   end
+00351: 
+00352:   def hasActiveAbility?(check_ability, ignore_fainted = false)
+00353:     return false if !abilityActive?(ignore_fainted, check_ability)
+00354:     return check_ability.include?(@ability_id) if check_ability.is_a?(Array)
+00355:     return self.ability == check_ability
+00356:   end
+00357:   alias hasWorkingAbility hasActiveAbility?
+00358: 
+00359:   # Applies to both losing self's ability (i.e. being replaced by another) and
+00360:   # having self's ability be negated.
+00361:   def unstoppableAbility?(abil = nil)
+00362:     abil = @ability_id if !abil
+00363:     abil = GameData::Ability.try_get(abil)
+00364:     return false if !abil
+00365:     ability_blacklist = [
+00366:       # Form-changing abilities
+00367:       :BATTLEBOND,
+00368:       :DISGUISE,
+00369: #      :FLOWERGIFT,                                        # This can be stopped
+00370: #      :FORECAST,                                          # This can be stopped
+00371:       :GULPMISSILE,
+00372:       :ICEFACE,
+00373:       :MULTITYPE,
+00374:       :POWERCONSTRUCT,
+00375:       :SCHOOLING,
+00376:       :SHIELDSDOWN,
+00377:       :STANCECHANGE,
+00378:       :ZENMODE,
+00379:       # Abilities intended to be inherent properties of a certain species
+00380:       :ASONECHILLINGNEIGH,
+00381:       :ASONEGRIMNEIGH,
+00382:       :COMATOSE,
+00383:       :RKSSYSTEM
+00384:     ]
+00385:     return ability_blacklist.include?(abil.id)
+00386:   end
+00387: 
+00388:   # Applies to gaining the ability.
+00389:   def ungainableAbility?(abil = nil)
+00390:     abil = @ability_id if !abil
+00391:     abil = GameData::Ability.try_get(abil)
+00392:     return false if !abil
+00393:     ability_blacklist = [
+00394:       # Form-changing abilities
+00395:       :BATTLEBOND,
+00396:       :DISGUISE,
+00397:       :FLOWERGIFT,
+00398:       :FORECAST,
+00399:       :GULPMISSILE,
+00400:       :ICEFACE,
+00401:       :MULTITYPE,
+00402:       :POWERCONSTRUCT,
+00403:       :SCHOOLING,
+00404:       :SHIELDSDOWN,
+00405:       :STANCECHANGE,
+00406:       :ZENMODE,
+00407:       # Appearance-changing abilities
+00408:       :ILLUSION,
+00409:       :IMPOSTER,
+00410:       # Abilities intended to be inherent properties of a certain species
+00411:       :ASONECHILLINGNEIGH,
+00412:       :ASONEGRIMNEIGH,
+00413:       :COMATOSE,
+00414:       :RKSSYSTEM,
+00415:       # Abilities that can't be negated
+00416:       :NEUTRALIZINGGAS
+00417:     ]
+00418:     return ability_blacklist.include?(abil.id)
+00419:   end
+00420: 
+00421:   def itemActive?(ignoreFainted = false)
+00422:     return false if fainted? && !ignoreFainted
+00423:     return false if @effects[PBEffects::Embargo] > 0
+00424:     return false if @battle.field.effects[PBEffects::MagicRoom] > 0
+00425:     return false if @battle.corrosiveGas[@index % 2][@pokemonIndex]
+00426:     return false if hasActiveAbility?(:KLUTZ, ignoreFainted)
+00427:     return true
+00428:   end
+00429: 
+00430:   def hasActiveItem?(check_item, ignore_fainted = false)
+00431:     return false if !itemActive?(ignore_fainted)
+00432:     return check_item.include?(@item_id) if check_item.is_a?(Array)
+00433:     return self.item == check_item
+00434:   end
+00435:   alias hasWorkingItem hasActiveItem?
+00436: 
+00437:   # Returns whether the specified item will be unlosable for this Pokémon.
+00438:   def unlosableItem?(check_item)
+00439:     return false if !check_item
+00440:     item_data = GameData::Item.get(check_item)
+00441:     return true if item_data.is_mail?
+00442:     return false if @effects[PBEffects::Transform]
+00443:     # Items that change a Pokémon's form
+00444:     if mega?   # Check if item was needed for this Mega Evolution
+00445:       return true if @pokemon.species_data.mega_stone == item_data.id
+00446:     else   # Check if item could cause a Mega Evolution
+00447:       GameData::Species.each do |data|
+00448:         next if data.species != @species || data.unmega_form != @form
+00449:         return true if data.mega_stone == item_data.id
+00450:       end
+00451:     end
+00452:     # Other unlosable items

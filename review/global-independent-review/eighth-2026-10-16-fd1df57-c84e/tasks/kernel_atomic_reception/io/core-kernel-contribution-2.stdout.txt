@@ -1,0 +1,84 @@
+PATH /workspace/pokemon-essentials-clean-room/review/global-independent-review/eighth-2026-10-16-fd1df57-c84e/tasks/kernel_atomic_reception/received/core-kernel-forward-88d3fcf6.json RANGE 251-333
+            92,
+            224
+          ],
+          "file_bytes": 11465,
+          "file_sha256": "ea74697615054880cdfb7b9da4444bc9dfc97ef6f1142fc639806b1aaf792c9e",
+          "actual_source_reader": "/root/core_atomic_reception",
+          "source_reading": "FULL_FILE_READ",
+          "complete_unit_text": "  def pbGainExpOne(idxParty, defeatedBattler, numPartic, expShare, expAll, showMessages = true)\n    pkmn = pbParty(0)[idxParty]   # The Pokémon gaining Exp from defeatedBattler\n    growth_rate = pkmn.growth_rate\n    # Don't bother calculating if gainer is already at max Exp\n    if pkmn.exp >= growth_rate.maximum_exp\n      pkmn.calc_stats   # To ensure new EVs still have an effect\n      return\n    end\n    isPartic    = defeatedBattler.participants.include?(idxParty)\n    hasExpShare = expShare.include?(idxParty)\n    level = defeatedBattler.level\n    # Main Exp calculation\n    exp = 0\n    a = level * defeatedBattler.pokemon.base_exp\n    if expShare.length > 0 && (isPartic || hasExpShare)\n      if numPartic == 0   # No participants, all Exp goes to Exp Share holders\n        exp = a / (Settings::SPLIT_EXP_BETWEEN_GAINERS ? expShare.length : 1)\n      elsif Settings::SPLIT_EXP_BETWEEN_GAINERS   # Gain from participating and/or Exp Share\n        exp = a / (2 * numPartic) if isPartic\n        exp += a / (2 * expShare.length) if hasExpShare\n      else   # Gain from participating and/or Exp Share (Exp not split)\n        exp = (isPartic) ? a : a / 2\n      end\n    elsif isPartic   # Participated in battle, no Exp Shares held by anyone\n      exp = a / (Settings::SPLIT_EXP_BETWEEN_GAINERS ? numPartic : 1)\n    elsif expAll   # Didn't participate in battle, gaining Exp due to Exp All\n      # NOTE: Exp All works like the Exp Share from Gen 6+, not like the Exp All\n      #       from Gen 1, i.e. Exp isn't split between all Pokémon gaining it.\n      exp = a / 2\n    end\n    return if exp <= 0\n    # Pokémon gain more Exp from trainer battles\n    exp = (exp * 1.5).floor if Settings::MORE_EXP_FROM_TRAINER_POKEMON && trainerBattle?\n    # Scale the gained Exp based on the gainer's level (or not)\n    if Settings::SCALED_EXP_FORMULA\n      exp /= 5\n      levelAdjust = ((2 * level) + 10.0) / (pkmn.level + level + 10.0)\n      levelAdjust **= 5\n      levelAdjust = Math.sqrt(levelAdjust)\n      exp *= levelAdjust\n      exp = exp.floor\n      exp += 1 if isPartic || hasExpShare\n    else\n      exp /= 7\n    end\n    # Foreign Pokémon gain more Exp\n    isOutsider = (pkmn.owner.id != pbPlayer.id ||\n                 (pkmn.owner.language != 0 && pkmn.owner.language != pbPlayer.language))\n    if isOutsider\n      if pkmn.owner.language != 0 && pkmn.owner.language != pbPlayer.language\n        exp = (exp * 1.7).floor\n      else\n        exp = (exp * 1.5).floor\n      end\n    end\n    # Exp. Charm increases Exp gained\n    exp = exp * 3 / 2 if $bag.has?(:EXPCHARM)\n    # Modify Exp gain based on pkmn's held item\n    i = Battle::ItemEffects.triggerExpGainModifier(pkmn.item, pkmn, exp)\n    if i < 0\n      i = Battle::ItemEffects.triggerExpGainModifier(@initialItems[0][idxParty], pkmn, exp)\n    end\n    exp = i if i >= 0\n    # Boost Exp gained with high affection\n    if Settings::AFFECTION_EFFECTS && @internalBattle && pkmn.affection_level >= 4 && !pkmn.mega?\n      exp = exp * 6 / 5\n      isOutsider = true   # To show the \"boosted Exp\" message\n    end\n    # Make sure Exp doesn't exceed the maximum\n    expFinal = growth_rate.add_exp(pkmn.exp, exp)\n    expGained = expFinal - pkmn.exp\n    return if expGained <= 0\n    # \"Exp gained\" message\n    if showMessages\n      if isOutsider\n        pbDisplayPaused(_INTL(\"{1} got a boosted {2} Exp. Points!\", pkmn.name, expGained))\n      else\n        pbDisplayPaused(_INTL(\"{1} got {2} Exp. Points!\", pkmn.name, expGained))\n      end\n    end\n    curLevel = pkmn.level\n    newLevel = growth_rate.level_from_exp(expFinal)\n    if newLevel < curLevel\n      debugInfo = \"Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}\"\n      raise _INTL(\"{1}'s new level is less than its current level, which shouldn't happen.\", pkmn.name) + \"\\n[#{debugInfo}]\"\n    end\n    # Give Exp\n    if pkmn.shadowPokemon?\n      if pkmn.heartStage <= 3\n        pkmn.exp += expGained\n        $stats.total_exp_gained += expGained\n      end\n      return\n    end\n    $stats.total_exp_gained += expGained\n    tempExp1 = pkmn.exp\n    battler = pbFindBattler(idxParty)\n    loop do   # For each level gained in turn...\n      # EXP Bar animation\n      levelMinExp = growth_rate.minimum_exp_for_level(curLevel)\n      levelMaxExp = growth_rate.minimum_exp_for_level(curLevel + 1)\n      tempExp2 = (levelMaxExp < expFinal) ? levelMaxExp : expFinal\n      pkmn.exp = tempExp2\n      @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)\n      tempExp1 = tempExp2\n      curLevel += 1\n      if curLevel > newLevel\n        # Gained all the Exp now, end the animation\n        pkmn.calc_stats\n        battler&.pbUpdate(false)\n        @scene.pbRefreshOne(battler.index) if battler\n        break\n      end\n      # Levelled up\n      pbCommonAnimation(\"LevelUp\", battler) if battler\n      oldTotalHP = pkmn.totalhp\n      oldAttack  = pkmn.attack\n      oldDefense = pkmn.defense\n      oldSpAtk   = pkmn.spatk\n      oldSpDef   = pkmn.spdef\n      oldSpeed   = pkmn.speed\n      battler.pokemon.changeHappiness(\"levelup\") if battler&.pokemon\n      pkmn.calc_stats\n      battler&.pbUpdate(false)\n      @scene.pbRefreshOne(battler.index) if battler\n      pbDisplayPaused(_INTL(\"{1} grew to Lv. {2}!\", pkmn.name, curLevel)) { pbSEPlay(\"Pkmn level up\") }\n      @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,\n                       oldSpAtk, oldSpDef, oldSpeed)\n      # Learn all moves learned at this level\n      moveList = pkmn.getMoveList\n      moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }\n    end\n  end\n"
+        }
+      ],
+      "complete_meaning": "Outer pbGainExp gates internalBattle && expGain after optional wild-success scene and routes able owner/participants/share/all with EV allocation before Exp. pbGainExpOne maxexp recalculates stats and returns, computes current exp modifiers/fallback, clips GrowthRate, positive increment only, optional message and backwards-level guard precede writes. Ordinary branch adds full expGained once to $stats before finding battler and sequential exp/EXPBar/levels/stats/happiness/move learning. Conditional Shadow branch first pkmn.exp += gain and then stat only heartStage<=3, returns regardless; no Shadow whole-domain approval.",
+      "write_prefix": "Ordinary statistic can remain increased if later curve/read/exp assignment/animation/learning fails before all Exp applied. Stat does not wait for successful completion of every level. EVs may already have changed before any Exp stage.",
+      "formal_scope": [
+        "WP42 experience distribution and growth",
+        "WP30 limited growth join; CRE001 bounded failure remains separate"
+      ],
+      "open": [
+        "GrowthRate concrete records and Pokemon.calc_stats",
+        "Shadow overrides/heart-source complete domain",
+        "Move learning UI receivers",
+        "KERNEL $stats default/save/reload"
+      ],
+      "premises": [
+        "Fixed R; no plugin overrides; normal referenced dependencies unless failure branch named.",
+        "Actual reached source path required; inventory text or identifier match does not establish reachability."
+      ],
+      "evidence": "SOURCE_STATIC",
+      "business_execution": "NOT_EXECUTED",
+      "update_status": "UPDATE_NOT_STARTED",
+      "actual_reader": "/root/core_atomic_reception",
+      "status": "FINITE_COMPLETE_CONTRIBUTION_PENDING_OTHER_RECEIVER"
+    },
+    {
+      "id": "CAR-KERNEL-F06",
+      "title": "mega_evolution_count is an early permitted attempt prefix",
+      "source_units": [
+        {
+          "path": "Data/Scripts/011_Battle/001_Battle/008_Battle_ActionOther.rb",
+          "range": [
+            92,
+            178
+          ],
+          "file_bytes": 7699,
+          "file_sha256": "5c310385a86ba444e341110f09bbf21e19e97f4194a3d9042d6e46e4e9ae281d",
+          "actual_source_reader": "/root/core_atomic_reception",
+          "source_reading": "FULL_FILE_READ",
+          "complete_unit_text": "  def pbCanMegaEvolve?(idxBattler)\n    return false if $game_switches[Settings::NO_MEGA_EVOLUTION]\n    return false if !@battlers[idxBattler].hasMega?\n    return false if @battlers[idxBattler].wild?\n    return true if $DEBUG && Input.press?(Input::CTRL)\n    return false if @battlers[idxBattler].effects[PBEffects::SkyDrop] >= 0\n    return false if !pbHasMegaRing?(idxBattler)\n    side  = @battlers[idxBattler].idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    return @megaEvolution[side][owner] == -1\n  end\n\n  def pbRegisterMegaEvolution(idxBattler)\n    side  = @battlers[idxBattler].idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    @megaEvolution[side][owner] = idxBattler\n  end\n\n  def pbUnregisterMegaEvolution(idxBattler)\n    side  = @battlers[idxBattler].idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    @megaEvolution[side][owner] = -1 if @megaEvolution[side][owner] == idxBattler\n  end\n\n  def pbToggleRegisteredMegaEvolution(idxBattler)\n    side  = @battlers[idxBattler].idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    if @megaEvolution[side][owner] == idxBattler\n      @megaEvolution[side][owner] = -1\n    else\n      @megaEvolution[side][owner] = idxBattler\n    end\n  end\n\n  def pbRegisteredMegaEvolution?(idxBattler)\n    side  = @battlers[idxBattler].idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    return @megaEvolution[side][owner] == idxBattler\n  end\n\n  #=============================================================================\n  # Mega Evolving a battler\n  #=============================================================================\n  def pbMegaEvolve(idxBattler)\n    battler = @battlers[idxBattler]\n    return if !battler || !battler.pokemon\n    return if !battler.hasMega? || battler.mega?\n    $stats.mega_evolution_count += 1 if battler.pbOwnedByPlayer?\n    trainerName = pbGetOwnerName(idxBattler)\n    old_ability = battler.ability_id\n    # Break Illusion\n    if battler.hasActiveAbility?(:ILLUSION)\n      Battle::AbilityEffects.triggerOnBeingHit(battler.ability, nil, battler, nil, self)\n    end\n    # Mega Evolve\n    case battler.pokemon.megaMessage\n    when 1   # Rayquaza\n      pbDisplay(_INTL(\"{1}'s fervent wish has reached {2}!\", trainerName, battler.pbThis))\n    else\n      pbDisplay(_INTL(\"{1}'s {2} is reacting to {3}'s {4}!\",\n                      battler.pbThis, battler.itemName, trainerName, pbGetMegaRingName(idxBattler)))\n    end\n    pbCommonAnimation(\"MegaEvolution\", battler)\n    battler.pokemon.makeMega\n    battler.form = battler.pokemon.form\n    battler.pbUpdate(true)\n    @scene.pbChangePokemon(battler, battler.pokemon)\n    @scene.pbRefreshOne(idxBattler)\n    pbCommonAnimation(\"MegaEvolution2\", battler)\n    megaName = battler.pokemon.megaName\n    megaName = _INTL(\"Mega {1}\", battler.pokemon.speciesName) if nil_or_empty?(megaName)\n    pbDisplay(_INTL(\"{1} has Mega Evolved into {2}!\", battler.pbThis, megaName))\n    side  = battler.idxOwnSide\n    owner = pbGetOwnerIndexFromBattlerIndex(idxBattler)\n    @megaEvolution[side][owner] = -2\n    if battler.isSpecies?(:GENGAR) && battler.mega?\n      battler.effects[PBEffects::Telekinesis] = 0\n    end\n    # Trigger ability\n    battler.pbOnLosingAbility(old_ability)\n    battler.pbTriggerAbilityOnGainingIt\n    # Recalculate turn order\n    pbCalculatePriority(false, [idxBattler]) if Settings::RECALCULATE_TURN_ORDER_AFTER_MEGA_EVOLUTION\n  end\n\n  #=============================================================================\n  # Primal Reverting a battler\n"
+        }
+      ],
+      "complete_meaning": "pbCanMegaEvolve? has NO_MEGA_EVOLUTION switch first, hasMega/wild guards, DEBUG+Ctrl early true before SkyDrop/ring/perowner registration. Actual pbMegaEvolve separately only returns for missing battler/Pokemon or noMega/alreadyMega; after those guards player-owned increments mega_evolution_count before owner name, Illusion, form/ability changes and scene paths. It does not re-run entire eligibility query, so source allows direct calls with different earlier qualification.",
+      "write_prefix": "Count may already increase before subsequent display/form/callback failure; direct method completion is not guaranteed and no rollback exists. Eligibility, registration, actual method and success display are different stages.",
+      "formal_scope": [
+        "WP40 Mega registration/execution",
+        "WP39 player ownership and local/individual form writes"
+      ],
+      "open": [
+        "KERNEL switch/Input/$stats actual receiver",
+        "CRE Mega/MultipleForms complete receiver",
+        "UI scene/animation",
+        "Any custom direct callers outside28 source files"
+      ],
+      "premises": [
+        "Fixed R; no plugin overrides; normal referenced dependencies unless failure branch named.",
+        "Actual reached source path required; inventory text or identifier match does not establish reachability."
+      ],
+      "evidence": "SOURCE_STATIC",
+      "business_execution": "NOT_EXECUTED",
+      "update_status": "UPDATE_NOT_STARTED",
+      "actual_reader": "/root/core_atomic_reception",
+      "status": "FINITE_COMPLETE_CONTRIBUTION_PENDING_OTHER_RECEIVER"
+    }
+  ],
+  "original_sourcefacts63": "sourcefact-consumer-receptions.json preserves original whole records/old reader; those are not substituted for these manually scoped facts",
+  "not_granted": [
+    "WholeCORE semantic pass",
+    "All Settings consumers",
+    "All $stats fields or reset paths globally",
+    "Foreign Move/AI/Capture behaviors from mere configuration definitions",
+    "Host execution or actual save/reload"
+  ],
+  "business_execution": "NOT_EXECUTED",
+  "update_status": "UPDATE_NOT_STARTED"
+}

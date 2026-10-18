@@ -1,0 +1,9 @@
+# 有限不同实际上下文反证：ECB002 奇妙空间当前读值Transform写入raw字段→再次getter/到期
+
+完整全局合同inputs/eighth-global-review-prompt.md（36653 bytes/SHA63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b）继续适用。固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe；formal f292698cdd4a8e725525a9be6dc34b75faaf151e；R8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。
+
+完整有限提案/全部被引源与正式身份在delegation/external-gr8-ecb-002-counter-input.json，14230bytes/SHAab6ef4464456e2e4e23b6d9f694db7fd3b0f4579e8a98b259637c4a9f85a7f05，不可用本摘要代替完整接收。源外部作者实际线程01a143b2-64d2-72d2-ae62-0058869a3010，与本现有/root/creature_a_atomic_reception不同实际上下文；0新增context/票。当前自然单元结束后执行，随后继续本人全域主责。仅新增写tasks/counter_ecb_transform_existing_crea/，源/正式/旧材料只读、不Git、不自动修复。
+
+必须首先试最强NO_REQUIRED：当前跨篇合同是否已完整推得联合trace？不是能新增向量就必修；不得从只有组合未显式命名推缺漏。若已有充分producer→caller→reader/阶段顺序与失败非finally规则，则保留真实源码事实并NO_REQUIRED_BOUNDED_SCOPE或optional有据建议。亦须独立核合法当前状态、普通对照、确切失败/取消/部分提交、实际消费者；不能用默认物种没有特性免审合法current ability fixture，也不能忽略任何实际reset。按完整identity读必要完整方法/类/注册和全文正式共同前提/作用域，不扩成全系统重复审查；本人已有实际全文可关联原ledger，未读foreign定义需有限原始贡献或亲读，不拿搜索/索引代替。
+
+提交完整8节counterreview.json：裁决/有限scope、固定身份/亲读ledger、独立推导/普通对照/最小反例、完整正式与最强反证、影响/正常取消失败/异常已提交前缀、最小读写集与正确规则保留、验收、历史去重/真实独立/执行资格/剩余。分类可NO_REQUIRED_BOUNDED_SCOPE/OPTIONAL_PROPOSED/REQUIRED_PROPOSED，root终裁。保留外部原提案和精确I/O/时间，全部源/Ruby/游戏/native业务未跑为NOT_EXECUTED；模型请求solultra/default普通速度/Fastoff，实际未权威回显逐字段UNVERIFIED。不得做全域PASS/作者自验或将可审未读标hostlimit。

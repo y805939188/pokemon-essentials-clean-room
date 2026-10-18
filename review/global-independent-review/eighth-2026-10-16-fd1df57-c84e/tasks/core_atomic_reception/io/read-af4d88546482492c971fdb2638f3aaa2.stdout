@@ -1,0 +1,95 @@
+00001: #===============================================================================
+00002: #
+00003: #===============================================================================
+00004: class Battle::AI
+00005:   def pbAIRandom(x); return rand(x); end
+00006: 
+00007:   #-----------------------------------------------------------------------------
+00008: 
+00009:   def each_battler
+00010:     @battlers.each_with_index do |battler, i|
+00011:       next if !battler || battler.fainted?
+00012:       yield battler, i
+00013:     end
+00014:   end
+00015: 
+00016:   def each_foe_battler(side)
+00017:     @battlers.each_with_index do |battler, i|
+00018:       next if !battler || battler.fainted?
+00019:       yield battler, i if i.even? != side.even?
+00020:     end
+00021:   end
+00022: 
+00023:   def each_same_side_battler(side)
+00024:     @battlers.each_with_index do |battler, i|
+00025:       next if !battler || battler.fainted?
+00026:       yield battler, i if i.even? == side.even?
+00027:     end
+00028:   end
+00029: 
+00030:   def each_ally(index)
+00031:     @battlers.each_with_index do |battler, i|
+00032:       next if !battler || battler.fainted?
+00033:       yield battler, i if i != index && i.even? == index.even?
+00034:     end
+00035:   end
+00036: 
+00037:   #-----------------------------------------------------------------------------
+00038: 
+00039:   # Assumes that pkmn's ability is not negated by a global effect (e.g.
+00040:   # Neutralizing Gas).
+00041:   # pkmn is either a Battle::AI::AIBattler or a Pokemon.
+00042:   # move is a Battle::Move or a Pokemon::Move.
+00043:   def pokemon_can_absorb_move?(pkmn, move, move_type)
+00044:     return false if pkmn.is_a?(Battle::AI::AIBattler) && !pkmn.ability_active?
+00045:     # Check pkmn's ability
+00046:     # Anything with a Battle::AbilityEffects::MoveImmunity handler
+00047:     case pkmn.ability_id
+00048:     when :BULLETPROOF
+00049:       move_data = GameData::Move.get(move.id)
+00050:       return move_data.has_flag?("Bomb")
+00051:     when :FLASHFIRE
+00052:       return move_type == :FIRE
+00053:     when :LIGHTNINGROD, :MOTORDRIVE, :VOLTABSORB
+00054:       return move_type == :ELECTRIC
+00055:     when :SAPSIPPER
+00056:       return move_type == :GRASS
+00057:     when :SOUNDPROOF
+00058:       move_data = GameData::Move.get(move.id)
+00059:       return move_data.has_flag?("Sound")
+00060:     when :STORMDRAIN, :WATERABSORB, :DRYSKIN
+00061:       return move_type == :WATER
+00062:     when :TELEPATHY
+00063:       # NOTE: The move is being used by a foe of pkmn.
+00064:       return false
+00065:     when :WONDERGUARD
+00066:       types = pkmn.types
+00067:       types = pkmn.pbTypes(true) if pkmn.is_a?(Battle::AI::AIBattler)
+00068:       return !Effectiveness.super_effective_type?(move_type, *types)
+00069:     end
+00070:     return false
+00071:   end
+00072: 
+00073:   # Used by Toxic Spikes.
+00074:   def pokemon_can_be_poisoned?(pkmn)
+00075:     # Check pkmn's immunity to being poisoned
+00076:     return false if @battle.field.terrain == :Misty
+00077:     return false if pkmn.hasType?(:POISON)
+00078:     return false if pkmn.hasType?(:STEEL)
+00079:     return false if pkmn.hasAbility?(:IMMUNITY)
+00080:     return false if pkmn.hasAbility?(:PASTELVEIL)
+00081:     return false if pkmn.hasAbility?(:FLOWERVEIL) && pkmn.hasType?(:GRASS)
+00082:     return false if pkmn.hasAbility?(:LEAFGUARD) && [:Sun, :HarshSun].include?(@battle.pbWeather)
+00083:     return false if pkmn.hasAbility?(:COMATOSE) && pkmn.isSpecies?(:KOMALA)
+00084:     return false if pkmn.hasAbility?(:SHIELDSDOWN) && pkmn.isSpecies?(:MINIOR) && pkmn.form < 7
+00085:     return true
+00086:   end
+00087: 
+00088:   def pokemon_airborne?(pkmn)
+00089:     return false if pkmn.hasItem?(:IRONBALL)
+00090:     return false if @battle.field.effects[PBEffects::Gravity] > 0
+00091:     return true if pkmn.hasType?(:FLYING)
+00092:     return true if pkmn.hasAbility?(:LEVITATE)
+00093:     return true if pkmn.hasItem?(:AIRBALLOON)
+00094:     return false
+00095:   end

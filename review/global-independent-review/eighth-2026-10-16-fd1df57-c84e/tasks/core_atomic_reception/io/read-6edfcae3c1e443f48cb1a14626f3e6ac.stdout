@@ -1,0 +1,160 @@
+00001: class Battle
+00002:   #=============================================================================
+00003:   # End Of Round end weather check and weather effects
+00004:   #=============================================================================
+00005:   def pbEOREndWeather(priority)
+00006:     # NOTE: Primordial weather doesn't need to be checked here, because if it
+00007:     #       could wear off here, it will have worn off already.
+00008:     # Count down weather duration
+00009:     @field.weatherDuration -= 1 if @field.weatherDuration > 0
+00010:     # Weather wears off
+00011:     if @field.weatherDuration == 0
+00012:       case @field.weather
+00013:       when :Sun       then pbDisplay(_INTL("The sunlight faded."))
+00014:       when :Rain      then pbDisplay(_INTL("The rain stopped."))
+00015:       when :Sandstorm then pbDisplay(_INTL("The sandstorm subsided."))
+00016:       when :Hail      then pbDisplay(_INTL("The hail stopped."))
+00017:       when :ShadowSky then pbDisplay(_INTL("The shadow sky faded."))
+00018:       end
+00019:       @field.weather = :None
+00020:       # Check for form changes caused by the weather changing
+00021:       allBattlers.each { |battler| battler.pbCheckFormOnWeatherChange }
+00022:       # Start up the default weather
+00023:       pbStartWeather(nil, @field.defaultWeather) if @field.defaultWeather != :None
+00024:       return if @field.weather == :None
+00025:     end
+00026:     # Weather continues
+00027:     weather_data = GameData::BattleWeather.try_get(@field.weather)
+00028:     pbCommonAnimation(weather_data.animation) if weather_data
+00029:     case @field.weather
+00030:     when :Sun         then pbDisplay(_INTL("The sunlight is strong."))
+00031:     when :Rain        then pbDisplay(_INTL("Rain continues to fall."))
+00032:     when :Sandstorm   then pbDisplay(_INTL("The sandstorm is raging."))
+00033:     when :Hail        then pbDisplay(_INTL("The hail is crashing down."))
+00034:     when :HarshSun    then pbDisplay(_INTL("The sunlight is extremely harsh."))
+00035:     when :HeavyRain   then pbDisplay(_INTL("It is raining heavily."))
+00036:     when :StrongWinds then pbDisplay(_INTL("The wind is strong."))
+00037:     when :ShadowSky   then pbDisplay(_INTL("The shadow sky continues."))
+00038:     end
+00039:     # Effects due to weather
+00040:     priority.each do |battler|
+00041:       # Weather-related abilities
+00042:       if battler.abilityActive?
+00043:         Battle::AbilityEffects.triggerEndOfRoundWeather(battler.ability, battler.effectiveWeather, battler, self)
+00044:         battler.pbFaint if battler.fainted?
+00045:       end
+00046:       # Weather damage
+00047:       pbEORWeatherDamage(battler)
+00048:     end
+00049:   end
+00050: 
+00051:   def pbEORWeatherDamage(battler)
+00052:     return if battler.fainted?
+00053:     amt = -1
+00054:     case battler.effectiveWeather
+00055:     when :Sandstorm
+00056:       return if !battler.takesSandstormDamage?
+00057:       pbDisplay(_INTL("{1} is buffeted by the sandstorm!", battler.pbThis))
+00058:       amt = battler.totalhp / 16
+00059:     when :Hail
+00060:       return if !battler.takesHailDamage?
+00061:       pbDisplay(_INTL("{1} is buffeted by the hail!", battler.pbThis))
+00062:       amt = battler.totalhp / 16
+00063:     when :ShadowSky
+00064:       return if !battler.takesShadowSkyDamage?
+00065:       pbDisplay(_INTL("{1} is hurt by the shadow sky!", battler.pbThis))
+00066:       amt = battler.totalhp / 16
+00067:     end
+00068:     return if amt < 0
+00069:     @scene.pbDamageAnimation(battler)
+00070:     battler.pbReduceHP(amt, false)
+00071:     battler.pbItemHPHealCheck
+00072:     battler.pbFaint if battler.fainted?
+00073:   end
+00074: 
+00075:   #=============================================================================
+00076:   # End Of Round use delayed moves (Future Sight, Doom Desire)
+00077:   #=============================================================================
+00078:   def pbEORUseFutureSight(position, position_index)
+00079:     return if !position || position.effects[PBEffects::FutureSightCounter] == 0
+00080:     position.effects[PBEffects::FutureSightCounter] -= 1
+00081:     return if position.effects[PBEffects::FutureSightCounter] > 0
+00082:     return if !@battlers[position_index] || @battlers[position_index].fainted?   # No target
+00083:     moveUser = nil
+00084:     allBattlers.each do |battler|
+00085:       next if battler.opposes?(position.effects[PBEffects::FutureSightUserIndex])
+00086:       next if battler.pokemonIndex != position.effects[PBEffects::FutureSightUserPartyIndex]
+00087:       moveUser = battler
+00088:       break
+00089:     end
+00090:     return if moveUser && moveUser.index == position_index   # Target is the user
+00091:     if !moveUser   # User isn't in battle, get it from the party
+00092:       party = pbParty(position.effects[PBEffects::FutureSightUserIndex])
+00093:       pkmn = party[position.effects[PBEffects::FutureSightUserPartyIndex]]
+00094:       if pkmn&.able?
+00095:         moveUser = Battler.new(self, position.effects[PBEffects::FutureSightUserIndex])
+00096:         moveUser.pbInitDummyPokemon(pkmn, position.effects[PBEffects::FutureSightUserPartyIndex])
+00097:       end
+00098:     end
+00099:     return if !moveUser   # User is fainted
+00100:     move = position.effects[PBEffects::FutureSightMove]
+00101:     pbDisplay(_INTL("{1} took the {2} attack!", @battlers[position_index].pbThis,
+00102:                     GameData::Move.get(move).name))
+00103:     # NOTE: Future Sight failing against the target here doesn't count towards
+00104:     #       Stomping Tantrum.
+00105:     userLastMoveFailed = moveUser.lastMoveFailed
+00106:     @futureSight = true
+00107:     moveUser.pbUseMoveSimple(move, position_index)
+00108:     @futureSight = false
+00109:     moveUser.lastMoveFailed = userLastMoveFailed
+00110:     @battlers[position_index].pbFaint if @battlers[position_index].fainted?
+00111:     position.effects[PBEffects::FutureSightCounter]        = 0
+00112:     position.effects[PBEffects::FutureSightMove]           = nil
+00113:     position.effects[PBEffects::FutureSightUserIndex]      = -1
+00114:     position.effects[PBEffects::FutureSightUserPartyIndex] = -1
+00115:   end
+00116: 
+00117:   #=============================================================================
+00118:   # End Of Round healing from Wish
+00119:   #=============================================================================
+00120:   def pbEORWishHealing
+00121:     @positions.each_with_index do |pos, idxPos|
+00122:       next if !pos || pos.effects[PBEffects::Wish] == 0
+00123:       pos.effects[PBEffects::Wish] -= 1
+00124:       next if pos.effects[PBEffects::Wish] > 0
+00125:       next if !@battlers[idxPos] || !@battlers[idxPos].canHeal?
+00126:       wishMaker = pbThisEx(idxPos, pos.effects[PBEffects::WishMaker])
+00127:       @battlers[idxPos].pbRecoverHP(pos.effects[PBEffects::WishAmount])
+00128:       pbDisplay(_INTL("{1}'s wish came true!", wishMaker))
+00129:     end
+00130:   end
+00131: 
+00132:   #=============================================================================
+00133:   # End Of Round Sea of Fire damage (Fire Pledge + Grass Pledge combination)
+00134:   #=============================================================================
+00135:   def pbEORSeaOfFireDamage(priority)
+00136:     2.times do |side|
+00137:       next if sides[side].effects[PBEffects::SeaOfFire] == 0
+00138:       sides[side].effects[PBEffects::SeaOfFire] -= 1
+00139:       next if sides[side].effects[PBEffects::SeaOfFire] == 0
+00140:       pbCommonAnimation("SeaOfFire") if side == 0
+00141:       pbCommonAnimation("SeaOfFireOpp") if side == 1
+00142:       priority.each do |battler|
+00143:         next if battler.opposes?(side)
+00144:         next if !battler.takesIndirectDamage? || battler.pbHasType?(:FIRE)
+00145:         @scene.pbDamageAnimation(battler)
+00146:         battler.pbTakeEffectDamage(battler.totalhp / 8, false) do |hp_lost|
+00147:           pbDisplay(_INTL("{1} is hurt by the sea of fire!", battler.pbThis))
+00148:         end
+00149:       end
+00150:     end
+00151:   end
+00152: 
+00153:   #=============================================================================
+00154:   # End Of Round healing from Grassy Terrain
+00155:   #=============================================================================
+00156:   def pbEORTerrainHealing(battler)
+00157:     return if battler.fainted?
+00158:     # Grassy Terrain (healing)
+00159:     if @field.terrain == :Grassy && battler.affectedByTerrain? && battler.canHeal?
+00160:       PBDebug.log("[Lingering effect] Grassy Terrain heals #{battler.pbThis(true)}")

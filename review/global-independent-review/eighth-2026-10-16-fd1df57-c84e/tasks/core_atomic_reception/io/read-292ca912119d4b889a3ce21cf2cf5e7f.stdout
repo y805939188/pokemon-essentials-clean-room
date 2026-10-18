@@ -1,0 +1,72 @@
+00138: module BattleCreationHelperMethods
+00139:   module_function
+00140: 
+00141:   # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode
+00142:   def skip_battle?
+00143:     return true if $player.able_pokemon_count == 0
+00144:     return true if $DEBUG && Input.press?(Input::CTRL)
+00145:     return false
+00146:   end
+00147: 
+00148:   def skip_battle(outcome_variable, trainer_battle = false)
+00149:     pbMessage(_INTL("SKIPPING BATTLE...")) if !trainer_battle && $player.pokemon_count > 0
+00150:     pbMessage(_INTL("SKIPPING BATTLE...")) if trainer_battle && $DEBUG
+00151:     pbMessage(_INTL("AFTER WINNING...")) if trainer_battle && $player.able_pokemon_count > 0
+00152:     $game_temp.clear_battle_rules
+00153:     if $game_temp.memorized_bgm && $game_system.is_a?(Game_System)
+00154:       $game_system.bgm_pause
+00155:       $game_system.bgm_position = $game_temp.memorized_bgm_position
+00156:       $game_system.bgm_resume($game_temp.memorized_bgm)
+00157:     end
+00158:     $game_temp.memorized_bgm            = nil
+00159:     $game_temp.memorized_bgm_position   = 0
+00160:     $PokemonGlobal.nextBattleBGM        = nil
+00161:     $PokemonGlobal.nextBattleVictoryBGM = nil
+00162:     $PokemonGlobal.nextBattleCaptureME  = nil
+00163:     $PokemonGlobal.nextBattleBack       = nil
+00164:     $PokemonEncounters.reset_step_count
+00165:     outcome = 1   # Win
+00166:     outcome = 0 if trainer_battle && $player.able_pokemon_count == 0   # Undecided
+00167:     pbSet(outcome_variable, outcome)
+00168:     return outcome
+00169:   end
+00170: 
+00171:   def partner_can_participate?(foe_party)
+00172:     return false if !$PokemonGlobal.partner || $game_temp.battle_rules["noPartner"]
+00173:     return true if foe_party.length > 1
+00174:     if $game_temp.battle_rules["size"]
+00175:       return false if $game_temp.battle_rules["size"] == "single" ||
+00176:                       $game_temp.battle_rules["size"][/^1v/i]   # "1v1", "1v2", "1v3", etc.
+00177:       return true
+00178:     end
+00179:     return false
+00180:   end
+00181: 
+00182:   # Generate information for the player and partner trainer(s)
+00183:   def set_up_player_trainers(foe_party)
+00184:     trainer_array = [$player]
+00185:     ally_items    = []
+00186:     pokemon_array = $player.party
+00187:     party_starts  = [0]
+00188:     if partner_can_participate?(foe_party)
+00189:       ally = NPCTrainer.new($PokemonGlobal.partner[1], $PokemonGlobal.partner[0])
+00190:       ally.id    = $PokemonGlobal.partner[2]
+00191:       ally.party = $PokemonGlobal.partner[3]
+00192:       data = GameData::Trainer.try_get($PokemonGlobal.partner[0], $PokemonGlobal.partner[1], $PokemonGlobal.partner[2])
+00193:       ally_items[1] = data&.items.clone || []
+00194:       trainer_array.push(ally)
+00195:       pokemon_array = []
+00196:       $player.party.each { |pkmn| pokemon_array.push(pkmn) }
+00197:       party_starts.push(pokemon_array.length)
+00198:       ally.party.each { |pkmn| pokemon_array.push(pkmn) }
+00199:       setBattleRule("double") if $game_temp.battle_rules["size"].nil?
+00200:     end
+00201:     return trainer_array, ally_items, pokemon_array, party_starts
+00202:   end
+00203: 
+00204:   def create_battle_scene
+00205:     return Battle::Scene.new
+00206:   end
+00207: 
+00208:   # Sets up various battle parameters and applies special rules.
+00209:   def prepare_battle(battle)

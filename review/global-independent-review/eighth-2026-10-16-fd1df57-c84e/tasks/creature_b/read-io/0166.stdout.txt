@@ -1,0 +1,383 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/017_UI_PokemonStorage.rb", "range": [1641, 2022], "file_lines": 2022, "bytes": 60290, "sha256": "ea28f0f062a7fe1b6d40d6b798cfb3f3bac9baf0194f03200ecfd24ebe5962ed", "began_utc": "2026-10-16T03:56:59.022500+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+01641                                     _INTL("Summary"),
+01642                                     _INTL("Mark"),
+01643                                     _INTL("Release"),
+01644                                     _INTL("Cancel")])
+01645           case command
+01646           when 0 then pbStore([-1, selected], nil)
+01647           when 1 then pbSummary([-1, selected], nil)
+01648           when 2 then pbMark([-1, selected], nil)
+01649           when 3 then pbRelease([-1, selected], nil)
+01650           end
+01651         end
+01652       end
+01653       @scene.pbCloseBox
+01654     when 3
+01655       @scene.pbStartBox(self, command)
+01656       @scene.pbCloseBox
+01657     end
+01658     $game_temp.in_storage = false
+01659   end
+01660 
+01661   # For debug purposes.
+01662   def pbUpdate
+01663     @scene.update
+01664   end
+01665 
+01666   # For debug purposes.
+01667   def pbHardRefresh
+01668     @scene.pbHardRefresh
+01669   end
+01670 
+01671   # For debug purposes.
+01672   def pbRefreshSingle(i)
+01673     @scene.pbUpdateOverlay(i[1], (i[0] == -1) ? @storage.party : nil)
+01674     @scene.pbHardRefresh
+01675   end
+01676 
+01677   def pbDisplay(message)
+01678     @scene.pbDisplay(message)
+01679   end
+01680 
+01681   def pbConfirm(str)
+01682     return pbShowCommands(str, [_INTL("Yes"), _INTL("No")]) == 0
+01683   end
+01684 
+01685   def pbShowCommands(msg, commands, index = 0)
+01686     return @scene.pbShowCommands(msg, commands, index)
+01687   end
+01688 
+01689   def pbAble?(pokemon)
+01690     pokemon && !pokemon.egg? && pokemon.hp > 0
+01691   end
+01692 
+01693   def pbAbleCount
+01694     count = 0
+01695     @storage.party.each do |p|
+01696       count += 1 if pbAble?(p)
+01697     end
+01698     return count
+01699   end
+01700 
+01701   def pbHeldPokemon
+01702     return @heldpkmn
+01703   end
+01704 
+01705   def pbWithdraw(selected, heldpoke)
+01706     box = selected[0]
+01707     index = selected[1]
+01708     raise _INTL("Can't withdraw from party...") if box == -1
+01709     if @storage.party_full?
+01710       pbDisplay(_INTL("Your party's full!"))
+01711       return false
+01712     end
+01713     @scene.pbWithdraw(selected, heldpoke, @storage.party.length)
+01714     if heldpoke
+01715       @storage.pbMoveCaughtToParty(heldpoke)
+01716       @heldpkmn = nil
+01717     else
+01718       @storage.pbMove(-1, -1, box, index)
+01719     end
+01720     @scene.pbRefresh
+01721     return true
+01722   end
+01723 
+01724   def pbStore(selected, heldpoke)
+01725     box = selected[0]
+01726     index = selected[1]
+01727     raise _INTL("Can't deposit from box...") if box != -1
+01728     if pbAbleCount <= 1 && pbAble?(@storage[box, index]) && !heldpoke
+01729       pbPlayBuzzerSE
+01730       pbDisplay(_INTL("That's your last Pokémon!"))
+01731     elsif heldpoke&.mail
+01732       pbDisplay(_INTL("Please remove the Mail."))
+01733     elsif !heldpoke && @storage[box, index].mail
+01734       pbDisplay(_INTL("Please remove the Mail."))
+01735     elsif heldpoke&.cannot_store
+01736       pbDisplay(_INTL("{1} refuses to go into storage!", heldpoke.name))
+01737     elsif !heldpoke && @storage[box, index].cannot_store
+01738       pbDisplay(_INTL("{1} refuses to go into storage!", @storage[box, index].name))
+01739     else
+01740       loop do
+01741         destbox = @scene.pbChooseBox(_INTL("Deposit in which Box?"))
+01742         if destbox >= 0
+01743           firstfree = @storage.pbFirstFreePos(destbox)
+01744           if firstfree < 0
+01745             pbDisplay(_INTL("The Box is full."))
+01746             next
+01747           end
+01748           if heldpoke || selected[0] == -1
+01749             p = (heldpoke) ? heldpoke : @storage[-1, index]
+01750             if Settings::HEAL_STORED_POKEMON
+01751               old_ready_evo = p.ready_to_evolve
+01752               p.heal
+01753               p.ready_to_evolve = old_ready_evo
+01754             end
+01755           end
+01756           @scene.pbStore(selected, heldpoke, destbox, firstfree)
+01757           if heldpoke
+01758             @storage.pbMoveCaughtToBox(heldpoke, destbox)
+01759             @heldpkmn = nil
+01760           else
+01761             @storage.pbMove(destbox, -1, -1, index)
+01762           end
+01763         end
+01764         break
+01765       end
+01766       @scene.pbRefresh
+01767     end
+01768   end
+01769 
+01770   def pbHold(selected)
+01771     box = selected[0]
+01772     index = selected[1]
+01773     if box == -1 && pbAble?(@storage[box, index]) && pbAbleCount <= 1
+01774       pbPlayBuzzerSE
+01775       pbDisplay(_INTL("That's your last Pokémon!"))
+01776       return
+01777     end
+01778     @scene.pbHold(selected)
+01779     @heldpkmn = @storage[box, index]
+01780     @storage.pbDelete(box, index)
+01781     @scene.pbRefresh
+01782   end
+01783 
+01784   def pbPlace(selected)
+01785     box = selected[0]
+01786     index = selected[1]
+01787     if @storage[box, index]
+01788       raise _INTL("Position {1},{2} is not empty...", box, index)
+01789     elsif box != -1
+01790       if index >= @storage.maxPokemon(box)
+01791         pbDisplay("Can't place that there.")
+01792         return
+01793       elsif @heldpkmn.mail
+01794         pbDisplay("Please remove the mail.")
+01795         return
+01796       elsif @heldpkmn.cannot_store
+01797         pbDisplay(_INTL("{1} refuses to go into storage!", @heldpkmn.name))
+01798         return
+01799       end
+01800     end
+01801     if Settings::HEAL_STORED_POKEMON && box >= 0
+01802       old_ready_evo = @heldpkmn.ready_to_evolve
+01803       @heldpkmn.heal
+01804       @heldpkmn.ready_to_evolve = old_ready_evo
+01805     end
+01806     @scene.pbPlace(selected, @heldpkmn)
+01807     @storage[box, index] = @heldpkmn
+01808     @storage.party.compact! if box == -1
+01809     @scene.pbRefresh
+01810     @heldpkmn = nil
+01811   end
+01812 
+01813   def pbSwap(selected)
+01814     box = selected[0]
+01815     index = selected[1]
+01816     if !@storage[box, index]
+01817       raise _INTL("Position {1},{2} is empty...", box, index)
+01818     end
+01819     if @heldpkmn.cannot_store && box != -1
+01820       pbPlayBuzzerSE
+01821       pbDisplay(_INTL("{1} refuses to go into storage!", @heldpkmn.name))
+01822       return false
+01823     elsif box == -1 && pbAble?(@storage[box, index]) && pbAbleCount <= 1 && !pbAble?(@heldpkmn)
+01824       pbPlayBuzzerSE
+01825       pbDisplay(_INTL("That's your last Pokémon!"))
+01826       return false
+01827     end
+01828     if box != -1 && @heldpkmn.mail
+01829       pbDisplay("Please remove the mail.")
+01830       return false
+01831     end
+01832     if Settings::HEAL_STORED_POKEMON && box >= 0
+01833       old_ready_evo = @heldpkmn.ready_to_evolve
+01834       @heldpkmn.heal
+01835       @heldpkmn.ready_to_evolve = old_ready_evo
+01836     end
+01837     @scene.pbSwap(selected, @heldpkmn)
+01838     tmp = @storage[box, index]
+01839     @storage[box, index] = @heldpkmn
+01840     @heldpkmn = tmp
+01841     @scene.pbRefresh
+01842     return true
+01843   end
+01844 
+01845   def pbRelease(selected, heldpoke)
+01846     box = selected[0]
+01847     index = selected[1]
+01848     pokemon = (heldpoke) ? heldpoke : @storage[box, index]
+01849     return if !pokemon
+01850     if pokemon.egg?
+01851       pbDisplay(_INTL("You can't release an Egg."))
+01852       return false
+01853     elsif pokemon.mail
+01854       pbDisplay(_INTL("Please remove the mail."))
+01855       return false
+01856     elsif pokemon.cannot_release
+01857       pbDisplay(_INTL("{1} refuses to leave you!", pokemon.name))
+01858       return false
+01859     end
+01860     if box == -1 && pbAbleCount <= 1 && pbAble?(pokemon) && !heldpoke
+01861       pbPlayBuzzerSE
+01862       pbDisplay(_INTL("That's your last Pokémon!"))
+01863       return
+01864     end
+01865     command = pbShowCommands(_INTL("Release this Pokémon?"), [_INTL("No"), _INTL("Yes")])
+01866     if command == 1
+01867       pkmnname = pokemon.name
+01868       @scene.pbRelease(selected, heldpoke)
+01869       if heldpoke
+01870         @heldpkmn = nil
+01871       else
+01872         @storage.pbDelete(box, index)
+01873       end
+01874       @scene.pbRefresh
+01875       pbDisplay(_INTL("{1} was released.", pkmnname))
+01876       pbDisplay(_INTL("Bye-bye, {1}!", pkmnname))
+01877       @scene.pbRefresh
+01878     end
+01879     return
+01880   end
+01881 
+01882   def pbChooseMove(pkmn, helptext, index = 0)
+01883     movenames = []
+01884     pkmn.moves.each do |i|
+01885       if i.total_pp <= 0
+01886         movenames.push(_INTL("{1} (PP: ---)", i.name))
+01887       else
+01888         movenames.push(_INTL("{1} (PP: {2}/{3})", i.name, i.pp, i.total_pp))
+01889       end
+01890     end
+01891     return @scene.pbShowCommands(helptext, movenames, index)
+01892   end
+01893 
+01894   def pbSummary(selected, heldpoke)
+01895     @scene.pbSummary(selected, heldpoke)
+01896   end
+01897 
+01898   def pbMark(selected, heldpoke)
+01899     @scene.pbMark(selected, heldpoke)
+01900   end
+01901 
+01902   def pbItem(selected, heldpoke)
+01903     box = selected[0]
+01904     index = selected[1]
+01905     pokemon = (heldpoke) ? heldpoke : @storage[box, index]
+01906     if pokemon.egg?
+01907       pbDisplay(_INTL("Eggs can't hold items."))
+01908       return
+01909     elsif pokemon.mail
+01910       pbDisplay(_INTL("Please remove the mail."))
+01911       return
+01912     end
+01913     if pokemon.item
+01914       itemname = pokemon.item.portion_name
+01915       if pbConfirm(_INTL("Take the {1}?", itemname))
+01916         if $bag.add(pokemon.item)
+01917           pbDisplay(_INTL("Took the {1}.", itemname))
+01918           pokemon.item = nil
+01919           @scene.pbHardRefresh
+01920         else
+01921           pbDisplay(_INTL("Can't store the {1}.", itemname))
+01922         end
+01923       end
+01924     else
+01925       item = scene.pbChooseItem($bag)
+01926       if item
+01927         itemname = GameData::Item.get(item).name
+01928         pokemon.item = item
+01929         $bag.remove(item)
+01930         pbDisplay(_INTL("{1} is now being held.", itemname))
+01931         @scene.pbHardRefresh
+01932       end
+01933     end
+01934   end
+01935 
+01936   def pbBoxCommands
+01937     commands = [
+01938       _INTL("Jump"),
+01939       _INTL("Wallpaper"),
+01940       _INTL("Name"),
+01941       _INTL("Cancel")
+01942     ]
+01943     command = pbShowCommands(_INTL("What do you want to do?"), commands)
+01944     case command
+01945     when 0
+01946       destbox = @scene.pbChooseBox(_INTL("Jump to which Box?"))
+01947       @scene.pbJumpToBox(destbox) if destbox >= 0
+01948     when 1
+01949       papers = @storage.availableWallpapers
+01950       index = 0
+01951       papers[1].length.times do |i|
+01952         if papers[1][i] == @storage[@storage.currentBox].background
+01953           index = i
+01954           break
+01955         end
+01956       end
+01957       wpaper = pbShowCommands(_INTL("Pick the wallpaper."), papers[0], index)
+01958       @scene.pbChangeBackground(papers[1][wpaper]) if wpaper >= 0
+01959     when 2
+01960       @scene.pbBoxName(_INTL("Box name?"), 0, 12)
+01961     end
+01962   end
+01963 
+01964   def pbChoosePokemon(_party = nil)
+01965     $game_temp.in_storage = true
+01966     @heldpkmn = nil
+01967     @scene.pbStartBox(self, 1)
+01968     retval = nil
+01969     loop do
+01970       selected = @scene.pbSelectBox(@storage.party)
+01971       if selected && selected[0] == -3   # Close box
+01972         if pbConfirm(_INTL("Exit from the Box?"))
+01973           pbSEPlay("PC close")
+01974           break
+01975         end
+01976         next
+01977       end
+01978       if selected.nil?
+01979         next if pbConfirm(_INTL("Continue Box operations?"))
+01980         break
+01981       elsif selected[0] == -4   # Box name
+01982         pbBoxCommands
+01983       else
+01984         pokemon = @storage[selected[0], selected[1]]
+01985         next if !pokemon
+01986         commands = [
+01987           _INTL("Select"),
+01988           _INTL("Summary"),
+01989           _INTL("Withdraw"),
+01990           _INTL("Item"),
+01991           _INTL("Mark")
+01992         ]
+01993         commands.push(_INTL("Cancel"))
+01994         commands[2] = _INTL("Store") if selected[0] == -1
+01995         helptext = _INTL("{1} is selected.", pokemon.name)
+01996         command = pbShowCommands(helptext, commands)
+01997         case command
+01998         when 0   # Select
+01999           if pokemon
+02000             retval = selected
+02001             break
+02002           end
+02003         when 1
+02004           pbSummary(selected, nil)
+02005         when 2   # Store/Withdraw
+02006           if selected[0] == -1
+02007             pbStore(selected, nil)
+02008           else
+02009             pbWithdraw(selected, nil)
+02010           end
+02011         when 3
+02012           pbItem(selected, nil)
+02013         when 4
+02014           pbMark(selected, nil)
+02015         end
+02016       end
+02017     end
+02018     @scene.pbCloseBox
+02019     $game_temp.in_storage = false
+02020     return retval
+02021   end
+02022 end

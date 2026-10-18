@@ -1,0 +1,190 @@
+00221:   def pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00222:     trainer = (opposes?(idxBattler)) ? @opponent : @player
+00223:     return 0 if !trainer
+00224:     case trainer.length
+00225:     when 2
+00226:       n = pbSideSize(idxBattler % 2)
+00227:       return [0, 0, 1][idxBattler / 2] if n == 3
+00228:       return idxBattler / 2   # Same as [0,1][idxBattler/2], i.e. 2 battler slots
+00229:     when 3
+00230:       return idxBattler / 2
+00231:     end
+00232:     return 0
+00233:   end
+00234: 
+00235:   def pbGetOwnerFromBattlerIndex(idxBattler)
+00236:     idxTrainer = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00237:     trainer = (opposes?(idxBattler)) ? @opponent : @player
+00238:     return (trainer.nil?) ? nil : trainer[idxTrainer]
+00239:   end
+00240: 
+00241:   def pbGetOwnerIndexFromPartyIndex(idxBattler, idxParty)
+00242:     ret = -1
+00243:     pbPartyStarts(idxBattler).each_with_index do |start, i|
+00244:       break if start > idxParty
+00245:       ret = i
+00246:     end
+00247:     return ret
+00248:   end
+00249: 
+00250:   # Only used for the purpose of an error message when one trainer tries to
+00251:   # switch another trainer's Pokémon.
+00252:   def pbGetOwnerFromPartyIndex(idxBattler, idxParty)
+00253:     idxTrainer = pbGetOwnerIndexFromPartyIndex(idxBattler, idxParty)
+00254:     trainer = (opposes?(idxBattler)) ? @opponent : @player
+00255:     return (trainer.nil?) ? nil : trainer[idxTrainer]
+00256:   end
+00257: 
+00258:   def pbGetOwnerName(idxBattler)
+00259:     idxTrainer = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00260:     return @opponent[idxTrainer].full_name if opposes?(idxBattler)   # Opponent
+00261:     return @player[idxTrainer].full_name if idxTrainer > 0   # Ally trainer
+00262:     return @player[idxTrainer].name   # Player
+00263:   end
+00264: 
+00265:   def pbGetOwnerItems(idxBattler)
+00266:     if opposes?(idxBattler)
+00267:       return [] if !@items
+00268:       return @items[pbGetOwnerIndexFromBattlerIndex(idxBattler)]
+00269:     end
+00270:     return [] if !@ally_items
+00271:     return @ally_items[pbGetOwnerIndexFromBattlerIndex(idxBattler)]
+00272:   end
+00273: 
+00274:   # Returns whether the battler in position idxBattler is owned by the same
+00275:   # trainer that owns the Pokémon in party slot idxParty. This assumes that
+00276:   # both the battler position and the party slot are from the same side.
+00277:   def pbIsOwner?(idxBattler, idxParty)
+00278:     idxTrainer1 = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00279:     idxTrainer2 = pbGetOwnerIndexFromPartyIndex(idxBattler, idxParty)
+00280:     return idxTrainer1 == idxTrainer2
+00281:   end
+00282: 
+00283:   def pbOwnedByPlayer?(idxBattler)
+00284:     return false if opposes?(idxBattler)
+00285:     return pbGetOwnerIndexFromBattlerIndex(idxBattler) == 0
+00286:   end
+00287: 
+00288:   # Returns the number of Pokémon positions controlled by the given trainerIndex
+00289:   # on the given side of battle.
+00290:   def pbNumPositions(side, idxTrainer)
+00291:     ret = 0
+00292:     pbSideSize(side).times do |i|
+00293:       t = pbGetOwnerIndexFromBattlerIndex((i * 2) + side)
+00294:       next if t != idxTrainer
+00295:       ret += 1
+00296:     end
+00297:     return ret
+00298:   end
+00299: 
+00300:   #=============================================================================
+00301:   # Get party information (counts all teams on the same side)
+00302:   #=============================================================================
+00303:   def pbParty(idxBattler)
+00304:     return (opposes?(idxBattler)) ? @party2 : @party1
+00305:   end
+00306: 
+00307:   def pbOpposingParty(idxBattler)
+00308:     return (opposes?(idxBattler)) ? @party1 : @party2
+00309:   end
+00310: 
+00311:   def pbPartyOrder(idxBattler)
+00312:     return (opposes?(idxBattler)) ? @party2order : @party1order
+00313:   end
+00314: 
+00315:   def pbPartyStarts(idxBattler)
+00316:     return (opposes?(idxBattler)) ? @party2starts : @party1starts
+00317:   end
+00318: 
+00319:   # Returns the player's team in its display order. Used when showing the party
+00320:   # screen.
+00321:   def pbPlayerDisplayParty(idxBattler = 0)
+00322:     partyOrders = pbPartyOrder(idxBattler)
+00323:     idxStart, _idxEnd = pbTeamIndexRangeFromBattlerIndex(idxBattler)
+00324:     ret = []
+00325:     eachInTeamFromBattlerIndex(idxBattler) { |pkmn, i| ret[partyOrders[i] - idxStart] = pkmn }
+00326:     return ret
+00327:   end
+00328: 
+00329:   def pbAbleCount(idxBattler = 0)
+00330:     party = pbParty(idxBattler)
+00331:     count = 0
+00332:     party.each { |pkmn| count += 1 if pkmn&.able? }
+00333:     return count
+00334:   end
+00335: 
+00336:   def pbAbleNonActiveCount(idxBattler = 0)
+00337:     party = pbParty(idxBattler)
+00338:     inBattleIndices = allSameSideBattlers(idxBattler).map { |b| b.pokemonIndex }
+00339:     count = 0
+00340:     party.each_with_index do |pkmn, idxParty|
+00341:       next if !pkmn || !pkmn.able?
+00342:       next if inBattleIndices.include?(idxParty)
+00343:       count += 1
+00344:     end
+00345:     return count
+00346:   end
+00347: 
+00348:   def pbAllFainted?(idxBattler = 0)
+00349:     return pbAbleCount(idxBattler) == 0
+00350:   end
+00351: 
+00352:   def pbTeamAbleNonActiveCount(idxBattler = 0)
+00353:     inBattleIndices = allSameSideBattlers(idxBattler).map { |b| b.pokemonIndex }
+00354:     count = 0
+00355:     eachInTeamFromBattlerIndex(idxBattler) do |pkmn, i|
+00356:       next if !pkmn || !pkmn.able?
+00357:       next if inBattleIndices.include?(i)
+00358:       count += 1
+00359:     end
+00360:     return count
+00361:   end
+00362: 
+00363:   # For the given side of the field (0=player's, 1=opponent's), returns an array
+00364:   # containing the number of able Pokémon in each team.
+00365:   def pbAbleTeamCounts(side)
+00366:     party = pbParty(side)
+00367:     partyStarts = pbPartyStarts(side)
+00368:     ret = []
+00369:     idxTeam = -1
+00370:     nextStart = 0
+00371:     party.each_with_index do |pkmn, i|
+00372:       if i >= nextStart
+00373:         idxTeam += 1
+00374:         nextStart = (idxTeam < partyStarts.length - 1) ? partyStarts[idxTeam + 1] : party.length
+00375:       end
+00376:       next if !pkmn || !pkmn.able?
+00377:       ret[idxTeam] = 0 if !ret[idxTeam]
+00378:       ret[idxTeam] += 1
+00379:     end
+00380:     return ret
+00381:   end
+00382: 
+00383:   #=============================================================================
+00384:   # Get team information (a team is only the Pokémon owned by a particular
+00385:   # trainer)
+00386:   #=============================================================================
+00387:   def pbTeamIndexRangeFromBattlerIndex(idxBattler)
+00388:     partyStarts = pbPartyStarts(idxBattler)
+00389:     idxTrainer = pbGetOwnerIndexFromBattlerIndex(idxBattler)
+00390:     idxPartyStart = partyStarts[idxTrainer]
+00391:     idxPartyEnd   = (idxTrainer < partyStarts.length - 1) ? partyStarts[idxTrainer + 1] : pbParty(idxBattler).length
+00392:     return idxPartyStart, idxPartyEnd
+00393:   end
+00394: 
+00395:   def pbTeamLengthFromBattlerIndex(idxBattler)
+00396:     idxPartyStart, idxPartyEnd = pbTeamIndexRangeFromBattlerIndex(idxBattler)
+00397:     return idxPartyEnd - idxPartyStart
+00398:   end
+00399: 
+00400:   def eachInTeamFromBattlerIndex(idxBattler)
+00401:     party = pbParty(idxBattler)
+00402:     idxPartyStart, idxPartyEnd = pbTeamIndexRangeFromBattlerIndex(idxBattler)
+00403:     party.each_with_index { |pkmn, i| yield pkmn, i if pkmn && i >= idxPartyStart && i < idxPartyEnd }
+00404:   end
+00405: 
+00406:   def eachInTeam(side, idxTrainer)
+00407:     party       = pbParty(side)
+00408:     partyStarts = pbPartyStarts(side)
+00409:     idxPartyStart = partyStarts[idxTrainer]
+00410:     idxPartyEnd   = (idxTrainer < partyStarts.length - 1) ? partyStarts[idxTrainer + 1] : party.length

@@ -1,0 +1,108 @@
+00405:   def pbEndOfBattle
+00406:     oldDecision = @decision
+00407:     @decision = 4 if @decision == 1 && wildBattle? && @caughtPokemon.length > 0
+00408:     case oldDecision
+00409:     ##### WIN #####
+00410:     when 1
+00411:       PBDebug.log("")
+00412:       PBDebug.log_header("===== Player won =====")
+00413:       PBDebug.log("")
+00414:       if trainerBattle?
+00415:         @scene.pbTrainerBattleSuccess
+00416:         case @opponent.length
+00417:         when 1
+00418:           pbDisplayPaused(_INTL("You defeated {1}!", @opponent[0].full_name))
+00419:         when 2
+00420:           pbDisplayPaused(_INTL("You defeated {1} and {2}!", @opponent[0].full_name,
+00421:                                 @opponent[1].full_name))
+00422:         when 3
+00423:           pbDisplayPaused(_INTL("You defeated {1}, {2} and {3}!", @opponent[0].full_name,
+00424:                                 @opponent[1].full_name, @opponent[2].full_name))
+00425:         end
+00426:         @opponent.each_with_index do |trainer, i|
+00427:           @scene.pbShowOpponent(i)
+00428:           msg = trainer.lose_text
+00429:           msg = "..." if !msg || msg.empty?
+00430:           pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+00431:         end
+00432:         PBDebug.log("")
+00433:       end
+00434:       # Gain money from winning a trainer battle, and from Pay Day
+00435:       pbGainMoney if @decision != 4
+00436:       # Hide remaining trainer
+00437:       @scene.pbShowOpponent(@opponent.length) if trainerBattle? && @caughtPokemon.length > 0
+00438:     ##### LOSE, DRAW #####
+00439:     when 2, 5
+00440:       PBDebug.log("")
+00441:       PBDebug.log_header("===== Player lost =====") if @decision == 2
+00442:       PBDebug.log_header("===== Player drew with opponent =====") if @decision == 5
+00443:       PBDebug.log("")
+00444:       if @internalBattle
+00445:         pbDisplayPaused(_INTL("You have no more Pokémon that can fight!"))
+00446:         if trainerBattle?
+00447:           case @opponent.length
+00448:           when 1
+00449:             pbDisplayPaused(_INTL("You lost against {1}!", @opponent[0].full_name))
+00450:           when 2
+00451:             pbDisplayPaused(_INTL("You lost against {1} and {2}!",
+00452:                                   @opponent[0].full_name, @opponent[1].full_name))
+00453:           when 3
+00454:             pbDisplayPaused(_INTL("You lost against {1}, {2} and {3}!",
+00455:                                   @opponent[0].full_name, @opponent[1].full_name, @opponent[2].full_name))
+00456:           end
+00457:         end
+00458:         # Lose money from losing a battle
+00459:         pbLoseMoney
+00460:         pbDisplayPaused(_INTL("You blacked out!")) if !@canLose
+00461:       elsif @decision == 2   # Lost in a Battle Frontier battle
+00462:         if @opponent
+00463:           @opponent.each_with_index do |trainer, i|
+00464:             @scene.pbShowOpponent(i)
+00465:             msg = trainer.win_text
+00466:             msg = "..." if !msg || msg.empty?
+00467:             pbDisplayPaused(msg.gsub(/\\[Pp][Nn]/, pbPlayer.name))
+00468:           end
+00469:           PBDebug.log("")
+00470:         end
+00471:       end
+00472:     ##### CAUGHT WILD POKÉMON #####
+00473:     when 4
+00474:       PBDebug.log("")
+00475:       PBDebug.log_header("===== Pokémon caught =====")
+00476:       PBDebug.log("")
+00477:       @scene.pbWildBattleSuccess if !Settings::GAIN_EXP_FOR_CAPTURE
+00478:     end
+00479:     # Register captured Pokémon in the Pokédex, and store them
+00480:     pbRecordAndStoreCaughtPokemon
+00481:     # Collect Pay Day money in a wild battle that ended in a capture
+00482:     pbGainMoney if @decision == 4
+00483:     # Pass on Pokérus within the party
+00484:     if @internalBattle
+00485:       infected = []
+00486:       $player.party.each_with_index do |pkmn, i|
+00487:         infected.push(i) if pkmn.pokerusStage == 1
+00488:       end
+00489:       infected.each do |idxParty|
+00490:         strain = $player.party[idxParty].pokerusStrain
+00491:         if idxParty > 0 && $player.party[idxParty - 1].pokerusStage == 0 && rand(3) == 0   # 33%
+00492:           $player.party[idxParty - 1].givePokerus(strain)
+00493:         end
+00494:         if idxParty < $player.party.length - 1 && $player.party[idxParty + 1].pokerusStage == 0 && rand(3) == 0   # 33%
+00495:           $player.party[idxParty + 1].givePokerus(strain)
+00496:         end
+00497:       end
+00498:     end
+00499:     # Clean up battle stuff
+00500:     @scene.pbEndBattle(@decision)
+00501:     @battlers.each do |b|
+00502:       next if !b
+00503:       pbCancelChoice(b.index)   # Restore unused items to Bag
+00504:       Battle::AbilityEffects.triggerOnSwitchOut(b.ability, b, true) if b.abilityActive?
+00505:     end
+00506:     pbParty(0).each_with_index do |pkmn, i|
+00507:       next if !pkmn
+00508:       @peer.pbOnLeavingBattle(self, pkmn, @usedInBattle[0][i], true)   # Reset form
+00509:       pkmn.item = @initialItems[0][i]
+00510:     end
+00511:     return @decision
+00512:   end

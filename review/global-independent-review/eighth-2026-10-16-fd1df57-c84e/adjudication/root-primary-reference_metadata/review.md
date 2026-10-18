@@ -1,0 +1,7 @@
+# 参考元资料当前有限审读
+
+/root 既有上下文已完整读5个primary：.gitignore、.rubocop.yml、wiki快捷方式、LICENSE、README；没有新增context或独立票。42个完整配置组及7个内容处置记录逐意义列出，不能当全局行为分母。额外实际全文读取两个183行脚本及安全恢复的49行Main，独立静态字节核验两脚本内压缩字面/当前Scripts.rxdata与同一Main完全相等；未执行Ruby、目标或反序列化对象。
+
+配置是作者工具输入，不把TargetRubyVersion3.0当目标Ruby版本，不把disabled安全cop当运行安全证明。许可完整类型/身份处置，不作法律结论；外部wiki只是固定URL元资料，不认证当前外部内容。README的排序加载与当前Main一致，提取/组合的门、先清理/逐步写入与无总回滚保留。缺失工程材料按实际云端库存，不能仅由ignore推断。
+
+本片未提出新formal候选。全局三公共文档一致性、完整WP75及两个实际消费者接收仍OPEN；无整域NO_REQUIRED_UPDATE或任务级最终验收。原读取UTC没有同期本地捕获者UNVERIFIED，当前冻结UTC不倒填原读时点；平台输出流与公开可恢复精确输入分别。UPDATE_NOT_STARTED。

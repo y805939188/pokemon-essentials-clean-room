@@ -1,0 +1,106 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/011_Battle/001_Battle/005_Battle_ActionSwitching.rb", "range": [131, 235], "file_lines": 469, "bytes": 20010, "sha256": "d72e947b222af17449e49af57226a5ee466a2295f4ca8182ca697f0c75299f53", "began_utc": "2026-10-16T14:37:31.592805+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00131   # things happening (U-turn, Baton Pass, in def pbEORSwitch).
+00132   def pbSwitchInBetween(idxBattler, checkLaxOnly = false, canCancel = false)
+00133     return pbPartyScreen(idxBattler, checkLaxOnly, canCancel) if !@controlPlayer && pbOwnedByPlayer?(idxBattler)
+00134     return @battleAI.pbDefaultChooseNewEnemy(idxBattler)
+00135   end
+00136 
+00137   #=============================================================================
+00138   # Switching Pokémon
+00139   #=============================================================================
+00140   # General switching method that checks if any Pokémon need to be sent out and,
+00141   # if so, does. Called at the end of each round.
+00142   def pbEORSwitch(favorDraws = false)
+00143     return if @decision > 0 && !favorDraws
+00144     return if @decision == 5 && favorDraws
+00145     pbJudge
+00146     return if @decision > 0
+00147     # Check through each fainted battler to see if that spot can be filled.
+00148     switched = []
+00149     loop do
+00150       switched.clear
+00151       @battlers.each do |b|
+00152         next if !b || !b.fainted?
+00153         idxBattler = b.index
+00154         next if !pbCanChooseNonActive?(idxBattler)
+00155         if !pbOwnedByPlayer?(idxBattler)   # Opponent/ally is switching in
+00156           next if b.wild?   # Wild Pokémon can't switch
+00157           idxPartyNew = pbSwitchInBetween(idxBattler)
+00158           opponent = pbGetOwnerFromBattlerIndex(idxBattler)
+00159           # NOTE: The player is only offered the chance to switch their own
+00160           #       Pokémon when an opponent replaces a fainted Pokémon in single
+00161           #       battles. In double battles, etc. there is no such offer.
+00162           if @internalBattle && @switchStyle && trainerBattle? && pbSideSize(0) == 1 &&
+00163              opposes?(idxBattler) && !@battlers[0].fainted? && !switched.include?(0) &&
+00164              pbCanChooseNonActive?(0) && @battlers[0].effects[PBEffects::Outrage] == 0
+00165             idxPartyForName = idxPartyNew
+00166             enemyParty = pbParty(idxBattler)
+00167             if enemyParty[idxPartyNew].ability == :ILLUSION && !pbCheckGlobalAbility(:NEUTRALIZINGGAS)
+00168               new_index = pbLastInTeam(idxBattler)
+00169               idxPartyForName = new_index if new_index >= 0 && new_index != idxPartyNew
+00170             end
+00171             if pbDisplayConfirm(_INTL("{1} is about to send out {2}. Will you switch your Pokémon?",
+00172                                       opponent.full_name, enemyParty[idxPartyForName].name))
+00173               idxPlayerPartyNew = pbSwitchInBetween(0, false, true)
+00174               if idxPlayerPartyNew >= 0
+00175                 pbMessageOnRecall(@battlers[0])
+00176                 pbRecallAndReplace(0, idxPlayerPartyNew)
+00177                 switched.push(0)
+00178               end
+00179             end
+00180           end
+00181           pbRecallAndReplace(idxBattler, idxPartyNew)
+00182           switched.push(idxBattler)
+00183         elsif trainerBattle?   # Player switches in in a trainer battle
+00184           idxPlayerPartyNew = pbGetReplacementPokemonIndex(idxBattler)   # Owner chooses
+00185           pbRecallAndReplace(idxBattler, idxPlayerPartyNew)
+00186           switched.push(idxBattler)
+00187         else   # Player's Pokémon has fainted in a wild battle
+00188           switch = false
+00189           if pbDisplayConfirm(_INTL("Use next Pokémon?"))
+00190             switch = true
+00191           else
+00192             switch = (pbRun(idxBattler, true) <= 0)
+00193           end
+00194           if switch
+00195             idxPlayerPartyNew = pbGetReplacementPokemonIndex(idxBattler)   # Owner chooses
+00196             pbRecallAndReplace(idxBattler, idxPlayerPartyNew)
+00197             switched.push(idxBattler)
+00198           end
+00199         end
+00200       end
+00201       break if switched.length == 0
+00202       pbOnBattlerEnteringBattle(switched)
+00203     end
+00204   end
+00205 
+00206   def pbGetReplacementPokemonIndex(idxBattler, random = false)
+00207     if random
+00208       choices = []   # Find all Pokémon that can switch in
+00209       eachInTeamFromBattlerIndex(idxBattler) do |_pkmn, i|
+00210         choices.push(i) if pbCanSwitchIn?(idxBattler, i)
+00211       end
+00212       return -1 if choices.length == 0
+00213       return choices[pbRandom(choices.length)]
+00214     else
+00215       return pbSwitchInBetween(idxBattler, true)
+00216     end
+00217   end
+00218 
+00219   # Actually performs the recalling and sending out in all situations.
+00220   def pbRecallAndReplace(idxBattler, idxParty, randomReplacement = false, batonPass = false)
+00221     @scene.pbRecall(idxBattler) if !@battlers[idxBattler].fainted?
+00222     @battlers[idxBattler].pbAbilitiesOnSwitchOut   # Inc. primordial weather check
+00223     @scene.pbShowPartyLineup(idxBattler & 1) if pbSideSize(idxBattler) == 1
+00224     pbMessagesOnReplace(idxBattler, idxParty) if !randomReplacement
+00225     pbReplace(idxBattler, idxParty, batonPass)
+00226   end
+00227 
+00228   def pbMessageOnRecall(battler)
+00229     if battler.pbOwnedByPlayer?
+00230       if battler.hp <= battler.totalhp / 4
+00231         pbDisplayBrief(_INTL("Good job, {1}! Come back!", battler.name))
+00232       elsif battler.hp <= battler.totalhp / 2
+00233         pbDisplayBrief(_INTL("OK, {1}! Come back!", battler.name))
+00234       elsif battler.turnCount >= 5
+00235         pbDisplayBrief(_INTL("{1}, that's enough! Come back!", battler.name))

@@ -1,0 +1,145 @@
+00101: 
+00102:   #=============================================================================
+00103:   # Obedience check
+00104:   #=============================================================================
+00105:   # Return true if Pokémon continues attacking (although it may have chosen to
+00106:   # use a different move in disobedience), or false if attack stops.
+00107:   def pbObedienceCheck?(choice)
+00108:     return true if usingMultiTurnAttack?
+00109:     return true if choice[0] != :UseMove
+00110:     return true if !@battle.internalBattle
+00111:     return true if !@battle.pbOwnedByPlayer?(@index)
+00112:     disobedient = false
+00113:     # Pokémon may be disobedient; calculate if it is
+00114:     badge_level = 10 * (@battle.pbPlayer.badge_count + 1)
+00115:     badge_level = GameData::GrowthRate.max_level if @battle.pbPlayer.badge_count >= 8
+00116:     if Settings::ANY_HIGH_LEVEL_POKEMON_CAN_DISOBEY ||
+00117:        (Settings::FOREIGN_HIGH_LEVEL_POKEMON_CAN_DISOBEY && @pokemon.foreign?(@battle.pbPlayer))
+00118:       if @level > badge_level
+00119:         a = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor
+00120:         disobedient |= (a >= badge_level)
+00121:       end
+00122:     end
+00123:     disobedient |= !pbHyperModeObedience(choice[2])
+00124:     return true if !disobedient
+00125:     # Pokémon is disobedient; make it do something else
+00126:     return pbDisobey(choice, badge_level)
+00127:   end
+00128: 
+00129:   def pbDisobey(choice, badge_level)
+00130:     move = choice[2]
+00131:     PBDebug.log("[Disobedience] #{pbThis} disobeyed")
+00132:     @effects[PBEffects::Rage] = false
+00133:     # Do nothing if using Snore/Sleep Talk
+00134:     if @status == :SLEEP && move.usableWhenAsleep?
+00135:       @battle.pbDisplay(_INTL("{1} ignored orders and kept sleeping!", pbThis))
+00136:       return false
+00137:     end
+00138:     b = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor
+00139:     # Use another move
+00140:     if b < badge_level
+00141:       @battle.pbDisplay(_INTL("{1} ignored orders!", pbThis))
+00142:       return false if !@battle.pbCanShowFightMenu?(@index)
+00143:       otherMoves = []
+00144:       eachMoveWithIndex do |_m, i|
+00145:         next if i == choice[1]
+00146:         otherMoves.push(i) if @battle.pbCanChooseMove?(@index, i, false)
+00147:       end
+00148:       return false if otherMoves.length == 0   # No other move to use; do nothing
+00149:       newChoice = otherMoves[@battle.pbRandom(otherMoves.length)]
+00150:       choice[1] = newChoice
+00151:       choice[2] = @moves[newChoice]
+00152:       choice[3] = -1
+00153:       return true
+00154:     end
+00155:     c = @level - badge_level
+00156:     r = @battle.pbRandom(256)
+00157:     # Fall asleep
+00158:     if r < c && pbCanSleep?(self, false)
+00159:       pbSleepSelf(_INTL("{1} began to nap!", pbThis))
+00160:       return false
+00161:     end
+00162:     # Hurt self in confusion
+00163:     r -= c
+00164:     if r < c && @status != :SLEEP
+00165:       pbConfusionDamage(_INTL("{1} won't obey! It hurt itself in its confusion!", pbThis))
+00166:       return false
+00167:     end
+00168:     # Show refusal message and do nothing
+00169:     case @battle.pbRandom(4)
+00170:     when 0 then @battle.pbDisplay(_INTL("{1} won't obey!", pbThis))
+00171:     when 1 then @battle.pbDisplay(_INTL("{1} turned away!", pbThis))
+00172:     when 2 then @battle.pbDisplay(_INTL("{1} is loafing around!", pbThis))
+00173:     when 3 then @battle.pbDisplay(_INTL("{1} pretended not to notice!", pbThis))
+00174:     end
+00175:     return false
+00176:   end
+00177: 
+00178:   #=============================================================================
+00179:   # Check whether the user (self) is able to take action at all.
+00180:   # If this returns true, and if PP isn't a problem, the move will be considered
+00181:   # to have been used (even if it then fails for whatever reason).
+00182:   #=============================================================================
+00183:   def pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)
+00184:     # Check whether it's possible for self to use the given move
+00185:     # NOTE: Encore has already changed the move being used, no need to have a
+00186:     #       check for it here.
+00187:     if !pbCanChooseMove?(move, false, true, specialUsage)
+00188:       @lastMoveFailed = true
+00189:       return false
+00190:     end
+00191:     # Check whether it's possible for self to do anything at all
+00192:     if @effects[PBEffects::SkyDrop] >= 0   # Intentionally no message here
+00193:       PBDebug.log("[Move failed] #{pbThis} can't use #{move.name} because of being Sky Dropped")
+00194:       return false
+00195:     end
+00196:     if @effects[PBEffects::HyperBeam] > 0   # Intentionally before Truant
+00197:       PBDebug.log("[Move failed] #{pbThis} is recharging after using #{move.name}")
+00198:       @battle.pbDisplay(_INTL("{1} must recharge!", pbThis))
+00199:       @effects[PBEffects::Truant] = !@effects[PBEffects::Truant] if hasActiveAbility?(:TRUANT)
+00200:       return false
+00201:     end
+00202:     if choice[1] == -2   # Battle Palace
+00203:       PBDebug.log("[Move failed] #{pbThis} can't act in the Battle Palace somehow")
+00204:       @battle.pbDisplay(_INTL("{1} appears incapable of using its power!", pbThis))
+00205:       return false
+00206:     end
+00207:     # Skip checking all applied effects that could make self fail doing something
+00208:     return true if skipAccuracyCheck
+00209:     # Check status problems and continue their effects/cure them
+00210:     case @status
+00211:     when :SLEEP
+00212:       self.statusCount -= 1
+00213:       if @statusCount <= 0
+00214:         pbCureStatus
+00215:       else
+00216:         pbContinueStatus
+00217:         if !move.usableWhenAsleep?   # Snore/Sleep Talk
+00218:           PBDebug.log("[Move failed] #{pbThis} is asleep")
+00219:           @lastMoveFailed = true
+00220:           return false
+00221:         end
+00222:       end
+00223:     when :FROZEN
+00224:       if !move.thawsUser?
+00225:         if @battle.pbRandom(100) < 20
+00226:           pbCureStatus
+00227:         else
+00228:           pbContinueStatus
+00229:           PBDebug.log("[Move failed] #{pbThis} is frozen")
+00230:           @lastMoveFailed = true
+00231:           return false
+00232:         end
+00233:       end
+00234:     end
+00235:     # Obedience check
+00236:     return false if !pbObedienceCheck?(choice)
+00237:     # Truant
+00238:     if hasActiveAbility?(:TRUANT)
+00239:       @effects[PBEffects::Truant] = !@effects[PBEffects::Truant]
+00240:       if !@effects[PBEffects::Truant]   # True means loafing, but was just inverted
+00241:         @battle.pbShowAbilitySplash(self)
+00242:         @battle.pbDisplay(_INTL("{1} is loafing around!", pbThis))
+00243:         @lastMoveFailed = true
+00244:         @battle.pbHideAbilitySplash(self)
+00245:         PBDebug.log("[Move failed] #{pbThis} can't act because of #{abilityName}")

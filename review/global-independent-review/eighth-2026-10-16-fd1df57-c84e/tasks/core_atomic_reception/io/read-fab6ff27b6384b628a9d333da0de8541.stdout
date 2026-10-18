@@ -1,0 +1,100 @@
+00001: class Battle::Battler
+00002:   #=============================================================================
+00003:   # Effect per hit
+00004:   #=============================================================================
+00005:   def pbEffectsOnMakingHit(move, user, target)
+00006:     if target.damageState.calcDamage > 0 && !target.damageState.substitute
+00007:       # Target's ability
+00008:       if target.abilityActive?(true)
+00009:         oldHP = user.hp
+00010:         Battle::AbilityEffects.triggerOnBeingHit(target.ability, user, target, move, @battle)
+00011:         user.pbItemHPHealCheck if user.hp < oldHP
+00012:       end
+00013:       # Cramorant - Gulp Missile
+00014:       if target.isSpecies?(:CRAMORANT) && target.ability == :GULPMISSILE &&
+00015:          target.form > 0 && !target.effects[PBEffects::Transform]
+00016:         oldHP = user.hp
+00017:         # NOTE: Strictly speaking, an attack animation should be shown (the
+00018:         #       target Cramorant attacking the user) and the ability splash
+00019:         #       shouldn't be shown.
+00020:         @battle.pbShowAbilitySplash(target)
+00021:         target.pbChangeForm(0, nil)
+00022:         if user.takesIndirectDamage?(Battle::Scene::USE_ABILITY_SPLASH)
+00023:           @battle.scene.pbDamageAnimation(user)
+00024:           user.pbReduceHP(user.totalhp / 4, false)
+00025:         end
+00026:         case target.form
+00027:         when 1   # Gulping Form
+00028:           user.pbLowerStatStageByAbility(:DEFENSE, 1, target, false)
+00029:         when 2   # Gorging Form
+00030:           user.pbParalyze(target) if user.pbCanParalyze?(target, false)
+00031:         end
+00032:         @battle.pbHideAbilitySplash(target)
+00033:         user.pbItemHPHealCheck if user.hp < oldHP
+00034:       end
+00035:       # User's ability
+00036:       if user.abilityActive?(true)
+00037:         Battle::AbilityEffects.triggerOnDealingHit(user.ability, user, target, move, @battle)
+00038:         user.pbItemHPHealCheck
+00039:       end
+00040:       # Target's item
+00041:       if target.itemActive?(true)
+00042:         oldHP = user.hp
+00043:         Battle::ItemEffects.triggerOnBeingHit(target.item, user, target, move, @battle)
+00044:         user.pbItemHPHealCheck if user.hp < oldHP
+00045:       end
+00046:     end
+00047:     if target.opposes?(user)
+00048:       # Rage
+00049:       if target.effects[PBEffects::Rage] && !target.fainted? &&
+00050:          target.pbCanRaiseStatStage?(:ATTACK, target)
+00051:         @battle.pbDisplay(_INTL("{1}'s rage is building!", target.pbThis))
+00052:         target.pbRaiseStatStage(:ATTACK, 1, target)
+00053:       end
+00054:       # Beak Blast
+00055:       if target.effects[PBEffects::BeakBlast]
+00056:         PBDebug.log("[Lingering effect] #{target.pbThis}'s Beak Blast")
+00057:         if move.pbContactMove?(user) && user.affectedByContactEffect? &&
+00058:            user.pbCanBurn?(target, false, self)
+00059:           user.pbBurn(target)
+00060:         end
+00061:       end
+00062:       # Shell Trap (make the trapper move next if the trap was triggered)
+00063:       if target.effects[PBEffects::ShellTrap] && move.physicalMove? &&
+00064:          @battle.choices[target.index][0] == :UseMove && !target.movedThisRound? &&
+00065:          target.damageState.hpLost > 0 && !target.damageState.substitute
+00066:         target.tookPhysicalHit              = true
+00067:         target.effects[PBEffects::MoveNext] = true
+00068:         target.effects[PBEffects::Quash]    = 0
+00069:       end
+00070:       # Grudge
+00071:       if target.effects[PBEffects::Grudge] && target.fainted?
+00072:         user.pbSetPP(move, 0)
+00073:         @battle.pbDisplay(_INTL("{1}'s {2} lost all of its PP due to the grudge!",
+00074:                                 user.pbThis, move.name))
+00075:       end
+00076:       # Destiny Bond (recording that it should apply)
+00077:       if target.effects[PBEffects::DestinyBond] && target.fainted? &&
+00078:          user.effects[PBEffects::DestinyBondTarget] < 0
+00079:         user.effects[PBEffects::DestinyBondTarget] = target.index
+00080:       end
+00081:     end
+00082:   end
+00083: 
+00084:   #=============================================================================
+00085:   # Effects after all hits (i.e. at end of move usage)
+00086:   #=============================================================================
+00087:   def pbEffectsAfterMove(user, targets, move, numHits)
+00088:     # Defrost
+00089:     if move.damagingMove?
+00090:       targets.each do |b|
+00091:         next if b.damageState.unaffected || b.damageState.substitute
+00092:         next if b.status != :FROZEN
+00093:         # NOTE: Non-Fire-type moves that thaw the user will also thaw the
+00094:         #       target (in Gen 6+).
+00095:         if move.calcType == :FIRE || (Settings::MECHANICS_GENERATION >= 6 && move.thawsUser?)
+00096:           b.pbCureStatus
+00097:         end
+00098:       end
+00099:     end
+00100:     # Destiny Bond

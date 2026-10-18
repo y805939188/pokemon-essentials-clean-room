@@ -1,0 +1,160 @@
+00151:   end
+00152: 
+00153:   #=============================================================================
+00154:   # End Of Round healing from Grassy Terrain
+00155:   #=============================================================================
+00156:   def pbEORTerrainHealing(battler)
+00157:     return if battler.fainted?
+00158:     # Grassy Terrain (healing)
+00159:     if @field.terrain == :Grassy && battler.affectedByTerrain? && battler.canHeal?
+00160:       PBDebug.log("[Lingering effect] Grassy Terrain heals #{battler.pbThis(true)}")
+00161:       battler.pbRecoverHP(battler.totalhp / 16)
+00162:       pbDisplay(_INTL("{1}'s HP was restored.", battler.pbThis))
+00163:     end
+00164:   end
+00165: 
+00166:   #=============================================================================
+00167:   # End Of Round various healing effects
+00168:   #=============================================================================
+00169:   def pbEORHealingEffects(priority)
+00170:     # Aqua Ring
+00171:     priority.each do |battler|
+00172:       next if !battler.effects[PBEffects::AquaRing]
+00173:       next if !battler.canHeal?
+00174:       hpGain = battler.totalhp / 16
+00175:       hpGain = (hpGain * 1.3).floor if battler.hasActiveItem?(:BIGROOT)
+00176:       battler.pbRecoverHP(hpGain)
+00177:       pbDisplay(_INTL("Aqua Ring restored {1}'s HP!", battler.pbThis(true)))
+00178:     end
+00179:     # Ingrain
+00180:     priority.each do |battler|
+00181:       next if !battler.effects[PBEffects::Ingrain]
+00182:       next if !battler.canHeal?
+00183:       hpGain = battler.totalhp / 16
+00184:       hpGain = (hpGain * 1.3).floor if battler.hasActiveItem?(:BIGROOT)
+00185:       battler.pbRecoverHP(hpGain)
+00186:       pbDisplay(_INTL("{1} absorbed nutrients with its roots!", battler.pbThis))
+00187:     end
+00188:     # Leech Seed
+00189:     priority.each do |battler|
+00190:       next if battler.effects[PBEffects::LeechSeed] < 0
+00191:       next if !battler.takesIndirectDamage?
+00192:       recipient = @battlers[battler.effects[PBEffects::LeechSeed]]
+00193:       next if !recipient || recipient.fainted?
+00194:       pbCommonAnimation("LeechSeed", recipient, battler)
+00195:       battler.pbTakeEffectDamage(battler.totalhp / 8) do |hp_lost|
+00196:         recipient.pbRecoverHPFromDrain(hp_lost, battler,
+00197:                                        _INTL("{1}'s health is sapped by Leech Seed!", battler.pbThis))
+00198:         recipient.pbAbilitiesOnDamageTaken
+00199:       end
+00200:       recipient.pbFaint if recipient.fainted?
+00201:     end
+00202:   end
+00203: 
+00204:   #=============================================================================
+00205:   # End Of Round deal damage from status problems
+00206:   #=============================================================================
+00207:   def pbEORStatusProblemDamage(priority)
+00208:     # Damage from poisoning
+00209:     priority.each do |battler|
+00210:       next if battler.fainted?
+00211:       next if battler.status != :POISON
+00212:       if battler.statusCount > 0
+00213:         battler.effects[PBEffects::Toxic] += 1
+00214:         battler.effects[PBEffects::Toxic] = 16 if battler.effects[PBEffects::Toxic] > 16
+00215:       end
+00216:       if battler.hasActiveAbility?(:POISONHEAL)
+00217:         if battler.canHeal?
+00218:           anim_name = GameData::Status.get(:POISON).animation
+00219:           pbCommonAnimation(anim_name, battler) if anim_name
+00220:           pbShowAbilitySplash(battler)
+00221:           battler.pbRecoverHP(battler.totalhp / 8)
+00222:           if Scene::USE_ABILITY_SPLASH
+00223:             pbDisplay(_INTL("{1}'s HP was restored.", battler.pbThis))
+00224:           else
+00225:             pbDisplay(_INTL("{1}'s {2} restored its HP.", battler.pbThis, battler.abilityName))
+00226:           end
+00227:           pbHideAbilitySplash(battler)
+00228:         end
+00229:       elsif battler.takesIndirectDamage?
+00230:         battler.droppedBelowHalfHP = false
+00231:         dmg = battler.totalhp / 8
+00232:         dmg = battler.totalhp * battler.effects[PBEffects::Toxic] / 16 if battler.statusCount > 0
+00233:         battler.pbContinueStatus { battler.pbReduceHP(dmg, false) }
+00234:         battler.pbItemHPHealCheck
+00235:         battler.pbAbilitiesOnDamageTaken
+00236:         battler.pbFaint if battler.fainted?
+00237:         battler.droppedBelowHalfHP = false
+00238:       end
+00239:     end
+00240:     # Damage from burn
+00241:     priority.each do |battler|
+00242:       next if battler.status != :BURN || !battler.takesIndirectDamage?
+00243:       battler.droppedBelowHalfHP = false
+00244:       dmg = (Settings::MECHANICS_GENERATION >= 7) ? battler.totalhp / 16 : battler.totalhp / 8
+00245:       dmg = (dmg / 2.0).round if battler.hasActiveAbility?(:HEATPROOF)
+00246:       battler.pbContinueStatus { battler.pbReduceHP(dmg, false) }
+00247:       battler.pbItemHPHealCheck
+00248:       battler.pbAbilitiesOnDamageTaken
+00249:       battler.pbFaint if battler.fainted?
+00250:       battler.droppedBelowHalfHP = false
+00251:     end
+00252:   end
+00253: 
+00254:   #=============================================================================
+00255:   # End Of Round deal damage from effects (except by trapping)
+00256:   #=============================================================================
+00257:   def pbEOREffectDamage(priority)
+00258:     # Damage from sleep (Nightmare)
+00259:     priority.each do |battler|
+00260:       battler.effects[PBEffects::Nightmare] = false if !battler.asleep?
+00261:       next if !battler.effects[PBEffects::Nightmare] || !battler.takesIndirectDamage?
+00262:       battler.pbTakeEffectDamage(battler.totalhp / 4) do |hp_lost|
+00263:         pbDisplay(_INTL("{1} is locked in a nightmare!", battler.pbThis))
+00264:       end
+00265:     end
+00266:     # Curse
+00267:     priority.each do |battler|
+00268:       next if !battler.effects[PBEffects::Curse] || !battler.takesIndirectDamage?
+00269:       battler.pbTakeEffectDamage(battler.totalhp / 4) do |hp_lost|
+00270:         pbDisplay(_INTL("{1} is afflicted by the curse!", battler.pbThis))
+00271:       end
+00272:     end
+00273:   end
+00274: 
+00275:   #=============================================================================
+00276:   # End Of Round deal damage to trapped battlers
+00277:   #=============================================================================
+00278:   TRAPPING_MOVE_COMMON_ANIMATIONS = {
+00279:     :BIND        => "Bind",
+00280:     :CLAMP       => "Clamp",
+00281:     :FIRESPIN    => "FireSpin",
+00282:     :MAGMASTORM  => "MagmaStorm",
+00283:     :SANDTOMB    => "SandTomb",
+00284:     :WRAP        => "Wrap",
+00285:     :INFESTATION => "Infestation"
+00286:   }
+00287: 
+00288:   def pbEORTrappingDamage(battler)
+00289:     return if battler.fainted? || battler.effects[PBEffects::Trapping] == 0
+00290:     battler.effects[PBEffects::Trapping] -= 1
+00291:     move_name = GameData::Move.get(battler.effects[PBEffects::TrappingMove]).name
+00292:     if battler.effects[PBEffects::Trapping] == 0
+00293:       pbDisplay(_INTL("{1} was freed from {2}!", battler.pbThis, move_name))
+00294:       return
+00295:     end
+00296:     anim = TRAPPING_MOVE_COMMON_ANIMATIONS[battler.effects[PBEffects::TrappingMove]] || "Wrap"
+00297:     pbCommonAnimation(anim, battler)
+00298:     return if !battler.takesIndirectDamage?
+00299:     hpLoss = (Settings::MECHANICS_GENERATION >= 6) ? battler.totalhp / 8 : battler.totalhp / 16
+00300:     if @battlers[battler.effects[PBEffects::TrappingUser]].hasActiveItem?(:BINDINGBAND)
+00301:       hpLoss = (Settings::MECHANICS_GENERATION >= 6) ? battler.totalhp / 6 : battler.totalhp / 8
+00302:     end
+00303:     @scene.pbDamageAnimation(battler)
+00304:     battler.pbTakeEffectDamage(hpLoss, false) do |hp_lost|
+00305:       pbDisplay(_INTL("{1} is hurt by {2}!", battler.pbThis, move_name))
+00306:     end
+00307:   end
+00308: 
+00309:   #=============================================================================
+00310:   # End Of Round end effects that apply to a battler

@@ -1,0 +1,361 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/007_UI_Bag.rb", "range": [1, 360], "file_lines": 704, "bytes": 25703, "sha256": "2699b59e43db3bda38b565114b56bc55f9d5ecfc7f824f4f7c09cd3ef8012ce8", "began_utc": "2026-10-16T03:30:11.623091+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 #
+00003 #===============================================================================
+00004 class Window_PokemonBag < Window_DrawableCommand
+00005   attr_reader :pocket
+00006   attr_accessor :sorting
+00007 
+00008   def initialize(bag, filterlist, pocket, x, y, width, height)
+00009     @bag        = bag
+00010     @filterlist = filterlist
+00011     @pocket     = pocket
+00012     @sorting = false
+00013     @adapter = PokemonMartAdapter.new
+00014     super(x, y, width, height)
+00015     @selarrow  = AnimatedBitmap.new("Graphics/UI/Bag/cursor")
+00016     @swaparrow = AnimatedBitmap.new("Graphics/UI/Bag/cursor_swap")
+00017     self.windowskin = nil
+00018   end
+00019 
+00020   def dispose
+00021     @swaparrow.dispose
+00022     super
+00023   end
+00024 
+00025   def pocket=(value)
+00026     @pocket = value
+00027     @item_max = (@filterlist) ? @filterlist[@pocket].length + 1 : @bag.pockets[@pocket].length + 1
+00028     self.index = @bag.last_viewed_index(@pocket)
+00029   end
+00030 
+00031   def page_row_max; return PokemonBag_Scene::ITEMSVISIBLE; end
+00032   def page_item_max; return PokemonBag_Scene::ITEMSVISIBLE; end
+00033 
+00034   def item
+00035     return nil if @filterlist && !@filterlist[@pocket][self.index]
+00036     thispocket = @bag.pockets[@pocket]
+00037     item = (@filterlist) ? thispocket[@filterlist[@pocket][self.index]] : thispocket[self.index]
+00038     return (item) ? item[0] : nil
+00039   end
+00040 
+00041   def itemCount
+00042     return (@filterlist) ? @filterlist[@pocket].length + 1 : @bag.pockets[@pocket].length + 1
+00043   end
+00044 
+00045   def itemRect(item)
+00046     if item < 0 || item >= @item_max || item < self.top_item - 1 ||
+00047        item > self.top_item + self.page_item_max
+00048       return Rect.new(0, 0, 0, 0)
+00049     else
+00050       cursor_width = (self.width - self.borderX - ((@column_max - 1) * @column_spacing)) / @column_max
+00051       x = item % @column_max * (cursor_width + @column_spacing)
+00052       y = (item / @column_max * @row_height) - @virtualOy
+00053       return Rect.new(x, y, cursor_width, @row_height)
+00054     end
+00055   end
+00056 
+00057   def drawCursor(index, rect)
+00058     if self.index == index
+00059       bmp = (@sorting) ? @swaparrow.bitmap : @selarrow.bitmap
+00060       pbCopyBitmap(self.contents, bmp, rect.x, rect.y + 2)
+00061     end
+00062   end
+00063 
+00064   def drawItem(index, _count, rect)
+00065     textpos = []
+00066     rect = Rect.new(rect.x + 16, rect.y + 16, rect.width - 16, rect.height)
+00067     thispocket = @bag.pockets[@pocket]
+00068     if index == self.itemCount - 1
+00069       textpos.push([_INTL("CLOSE BAG"), rect.x, rect.y + 2, :left, self.baseColor, self.shadowColor])
+00070     else
+00071       item = (@filterlist) ? thispocket[@filterlist[@pocket][index]][0] : thispocket[index][0]
+00072       baseColor   = self.baseColor
+00073       shadowColor = self.shadowColor
+00074       if @sorting && index == self.index
+00075         baseColor   = Color.new(224, 0, 0)
+00076         shadowColor = Color.new(248, 144, 144)
+00077       end
+00078       textpos.push(
+00079         [@adapter.getDisplayName(item), rect.x, rect.y + 2, :left, baseColor, shadowColor]
+00080       )
+00081       item_data = GameData::Item.get(item)
+00082       showing_register_icon = false
+00083       if item_data.is_important?
+00084         if @bag.registered?(item)
+00085           pbDrawImagePositions(
+00086             self.contents,
+00087             [[_INTL("Graphics/UI/Bag/icon_register"), rect.x + rect.width - 72, rect.y + 8, 0, 0, -1, 24]]
+00088           )
+00089           showing_register_icon = true
+00090         elsif pbCanRegisterItem?(item)
+00091           pbDrawImagePositions(
+00092             self.contents,
+00093             [[_INTL("Graphics/UI/Bag/icon_register"), rect.x + rect.width - 72, rect.y + 8, 0, 24, -1, 24]]
+00094           )
+00095           showing_register_icon = true
+00096         end
+00097       end
+00098       if item_data.show_quantity? && !showing_register_icon
+00099         qty = (@filterlist) ? thispocket[@filterlist[@pocket][index]][1] : thispocket[index][1]
+00100         qtytext = _ISPRINTF("x{1: 3d}", qty)
+00101         xQty    = rect.x + rect.width - self.contents.text_size(qtytext).width - 16
+00102         textpos.push([qtytext, xQty, rect.y + 2, :left, baseColor, shadowColor])
+00103       end
+00104     end
+00105     pbDrawTextPositions(self.contents, textpos)
+00106   end
+00107 
+00108   def refresh
+00109     @item_max = itemCount
+00110     self.update_cursor_rect
+00111     dwidth  = self.width - self.borderX
+00112     dheight = self.height - self.borderY
+00113     self.contents = pbDoEnsureBitmap(self.contents, dwidth, dheight)
+00114     self.contents.clear
+00115     @item_max.times do |i|
+00116       next if i < self.top_item - 1 || i > self.top_item + self.page_item_max
+00117       drawItem(i, @item_max, itemRect(i))
+00118     end
+00119     drawCursor(self.index, itemRect(self.index))
+00120   end
+00121 
+00122   def update
+00123     super
+00124     @uparrow.visible   = false
+00125     @downarrow.visible = false
+00126   end
+00127 end
+00128 
+00129 #===============================================================================
+00130 # Bag visuals
+00131 #===============================================================================
+00132 class PokemonBag_Scene
+00133   ITEMLISTBASECOLOR     = Color.new(88, 88, 80)
+00134   ITEMLISTSHADOWCOLOR   = Color.new(168, 184, 184)
+00135   ITEMTEXTBASECOLOR     = Color.new(248, 248, 248)
+00136   ITEMTEXTSHADOWCOLOR   = Color.new(0, 0, 0)
+00137   POCKETNAMEBASECOLOR   = Color.new(88, 88, 80)
+00138   POCKETNAMESHADOWCOLOR = Color.new(168, 184, 184)
+00139   ITEMSVISIBLE          = 7
+00140 
+00141   def pbUpdate
+00142     pbUpdateSpriteHash(@sprites)
+00143   end
+00144 
+00145   def pbStartScene(bag, choosing = false, filterproc = nil, resetpocket = true)
+00146     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00147     @viewport.z = 99999
+00148     @bag        = bag
+00149     @choosing   = choosing
+00150     @filterproc = filterproc
+00151     pbRefreshFilter
+00152     lastpocket = @bag.last_viewed_pocket
+00153     numfilledpockets = @bag.pockets.length - 1
+00154     if @choosing
+00155       numfilledpockets = 0
+00156       if @filterlist.nil?
+00157         (1...@bag.pockets.length).each do |i|
+00158           numfilledpockets += 1 if @bag.pockets[i].length > 0
+00159         end
+00160       else
+00161         (1...@bag.pockets.length).each do |i|
+00162           numfilledpockets += 1 if @filterlist[i].length > 0
+00163         end
+00164       end
+00165       lastpocket = (resetpocket) ? 1 : @bag.last_viewed_pocket
+00166       if (@filterlist && @filterlist[lastpocket].length == 0) ||
+00167          (!@filterlist && @bag.pockets[lastpocket].length == 0)
+00168         (1...@bag.pockets.length).each do |i|
+00169           if @filterlist && @filterlist[i].length > 0
+00170             lastpocket = i
+00171             break
+00172           elsif !@filterlist && @bag.pockets[i].length > 0
+00173             lastpocket = i
+00174             break
+00175           end
+00176         end
+00177       end
+00178     end
+00179     @bag.last_viewed_pocket = lastpocket
+00180     @sliderbitmap = AnimatedBitmap.new("Graphics/UI/Bag/icon_slider")
+00181     @pocketbitmap = AnimatedBitmap.new("Graphics/UI/Bag/icon_pocket")
+00182     @sprites = {}
+00183     @sprites["background"] = IconSprite.new(0, 0, @viewport)
+00184     @sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, @viewport)
+00185     pbSetSystemFont(@sprites["overlay"].bitmap)
+00186     @sprites["bagsprite"] = IconSprite.new(30, 20, @viewport)
+00187     @sprites["pocketicon"] = BitmapSprite.new(186, 32, @viewport)
+00188     @sprites["pocketicon"].x = 0
+00189     @sprites["pocketicon"].y = 224
+00190     @sprites["leftarrow"] = AnimatedSprite.new("Graphics/UI/left_arrow", 8, 40, 28, 2, @viewport)
+00191     @sprites["leftarrow"].x       = -4
+00192     @sprites["leftarrow"].y       = 76
+00193     @sprites["leftarrow"].visible = (!@choosing || numfilledpockets > 1)
+00194     @sprites["leftarrow"].play
+00195     @sprites["rightarrow"] = AnimatedSprite.new("Graphics/UI/right_arrow", 8, 40, 28, 2, @viewport)
+00196     @sprites["rightarrow"].x       = 150
+00197     @sprites["rightarrow"].y       = 76
+00198     @sprites["rightarrow"].visible = (!@choosing || numfilledpockets > 1)
+00199     @sprites["rightarrow"].play
+00200     @sprites["itemlist"] = Window_PokemonBag.new(@bag, @filterlist, lastpocket, 168, -8, 314, 40 + 32 + (ITEMSVISIBLE * 32))
+00201     @sprites["itemlist"].viewport    = @viewport
+00202     @sprites["itemlist"].pocket      = lastpocket
+00203     @sprites["itemlist"].index       = @bag.last_viewed_index(lastpocket)
+00204     @sprites["itemlist"].baseColor   = ITEMLISTBASECOLOR
+00205     @sprites["itemlist"].shadowColor = ITEMLISTSHADOWCOLOR
+00206     @sprites["itemicon"] = ItemIconSprite.new(48, Graphics.height - 48, nil, @viewport)
+00207     @sprites["itemtext"] = Window_UnformattedTextPokemon.newWithSize(
+00208       "", 72, 272, Graphics.width - 72 - 24, 128, @viewport
+00209     )
+00210     @sprites["itemtext"].baseColor   = ITEMTEXTBASECOLOR
+00211     @sprites["itemtext"].shadowColor = ITEMTEXTSHADOWCOLOR
+00212     @sprites["itemtext"].visible     = true
+00213     @sprites["itemtext"].windowskin  = nil
+00214     @sprites["helpwindow"] = Window_UnformattedTextPokemon.new("")
+00215     @sprites["helpwindow"].visible  = false
+00216     @sprites["helpwindow"].viewport = @viewport
+00217     @sprites["msgwindow"] = Window_AdvancedTextPokemon.new("")
+00218     @sprites["msgwindow"].visible  = false
+00219     @sprites["msgwindow"].viewport = @viewport
+00220     pbBottomLeftLines(@sprites["helpwindow"], 1)
+00221     pbDeactivateWindows(@sprites)
+00222     pbRefresh
+00223     pbFadeInAndShow(@sprites)
+00224   end
+00225 
+00226   def pbFadeOutScene
+00227     @oldsprites = pbFadeOutAndHide(@sprites)
+00228   end
+00229 
+00230   def pbFadeInScene
+00231     pbFadeInAndShow(@sprites, @oldsprites)
+00232     @oldsprites = nil
+00233   end
+00234 
+00235   def pbEndScene
+00236     pbFadeOutAndHide(@sprites) if !@oldsprites
+00237     @oldsprites = nil
+00238     dispose
+00239   end
+00240 
+00241   def dispose
+00242     pbDisposeSpriteHash(@sprites)
+00243     @sliderbitmap.dispose
+00244     @pocketbitmap.dispose
+00245     @viewport.dispose
+00246   end
+00247 
+00248   def pbDisplay(msg, brief = false)
+00249     UIHelper.pbDisplay(@sprites["msgwindow"], msg, brief) { pbUpdate }
+00250   end
+00251 
+00252   def pbConfirm(msg)
+00253     UIHelper.pbConfirm(@sprites["msgwindow"], msg) { pbUpdate }
+00254   end
+00255 
+00256   def pbChooseNumber(helptext, maximum, initnum = 1)
+00257     return UIHelper.pbChooseNumber(@sprites["helpwindow"], helptext, maximum, initnum) { pbUpdate }
+00258   end
+00259 
+00260   def pbShowCommands(helptext, commands, index = 0)
+00261     return UIHelper.pbShowCommands(@sprites["helpwindow"], helptext, commands, index) { pbUpdate }
+00262   end
+00263 
+00264   def pbRefresh
+00265     # Set the background image
+00266     @sprites["background"].setBitmap(sprintf("Graphics/UI/Bag/bg_%d", @bag.last_viewed_pocket))
+00267     # Set the bag sprite
+00268     fbagexists = pbResolveBitmap(sprintf("Graphics/UI/Bag/bag_%d_f", @bag.last_viewed_pocket))
+00269     if $player.female? && fbagexists
+00270       @sprites["bagsprite"].setBitmap(sprintf("Graphics/UI/Bag/bag_%d_f", @bag.last_viewed_pocket))
+00271     else
+00272       @sprites["bagsprite"].setBitmap(sprintf("Graphics/UI/Bag/bag_%d", @bag.last_viewed_pocket))
+00273     end
+00274     # Draw the pocket icons
+00275     @sprites["pocketicon"].bitmap.clear
+00276     if @choosing && @filterlist
+00277       (1...@bag.pockets.length).each do |i|
+00278         next if @filterlist[i].length > 0
+00279         @sprites["pocketicon"].bitmap.blt(
+00280           6 + ((i - 1) * 22), 6, @pocketbitmap.bitmap, Rect.new((i - 1) * 20, 28, 20, 20)
+00281         )
+00282       end
+00283     end
+00284     @sprites["pocketicon"].bitmap.blt(
+00285       2 + ((@sprites["itemlist"].pocket - 1) * 22), 2, @pocketbitmap.bitmap,
+00286       Rect.new((@sprites["itemlist"].pocket - 1) * 28, 0, 28, 28)
+00287     )
+00288     # Refresh the item window
+00289     @sprites["itemlist"].refresh
+00290     # Refresh more things
+00291     pbRefreshIndexChanged
+00292   end
+00293 
+00294   def pbRefreshIndexChanged
+00295     itemlist = @sprites["itemlist"]
+00296     overlay = @sprites["overlay"].bitmap
+00297     overlay.clear
+00298     # Draw the pocket name
+00299     pbDrawTextPositions(
+00300       overlay,
+00301       [[PokemonBag.pocket_names[@bag.last_viewed_pocket - 1], 94, 186, :center, POCKETNAMEBASECOLOR, POCKETNAMESHADOWCOLOR]]
+00302     )
+00303     # Draw slider arrows
+00304     showslider = false
+00305     if itemlist.top_row > 0
+00306       overlay.blt(470, 16, @sliderbitmap.bitmap, Rect.new(0, 0, 36, 38))
+00307       showslider = true
+00308     end
+00309     if itemlist.top_item + itemlist.page_item_max < itemlist.itemCount
+00310       overlay.blt(470, 228, @sliderbitmap.bitmap, Rect.new(0, 38, 36, 38))
+00311       showslider = true
+00312     end
+00313     # Draw slider box
+00314     if showslider
+00315       sliderheight = 174
+00316       boxheight = (sliderheight * itemlist.page_row_max / itemlist.row_max).floor
+00317       boxheight += [(sliderheight - boxheight) / 2, sliderheight / 6].min
+00318       boxheight = [boxheight.floor, 38].max
+00319       y = 54
+00320       y += ((sliderheight - boxheight) * itemlist.top_row / (itemlist.row_max - itemlist.page_row_max)).floor
+00321       overlay.blt(470, y, @sliderbitmap.bitmap, Rect.new(36, 0, 36, 4))
+00322       i = 0
+00323       while i * 16 < boxheight - 4 - 18
+00324         height = [boxheight - 4 - 18 - (i * 16), 16].min
+00325         overlay.blt(470, y + 4 + (i * 16), @sliderbitmap.bitmap, Rect.new(36, 4, 36, height))
+00326         i += 1
+00327       end
+00328       overlay.blt(470, y + boxheight - 18, @sliderbitmap.bitmap, Rect.new(36, 20, 36, 18))
+00329     end
+00330     # Set the selected item's icon
+00331     @sprites["itemicon"].item = itemlist.item
+00332     # Set the selected item's description
+00333     @sprites["itemtext"].text =
+00334       (itemlist.item) ? GameData::Item.get(itemlist.item).description : _INTL("Close bag.")
+00335   end
+00336 
+00337   def pbRefreshFilter
+00338     @filterlist = nil
+00339     return if !@choosing
+00340     return if @filterproc.nil?
+00341     @filterlist = []
+00342     (1...@bag.pockets.length).each do |i|
+00343       @filterlist[i] = []
+00344       @bag.pockets[i].length.times do |j|
+00345         @filterlist[i].push(j) if @filterproc.call(@bag.pockets[i][j][0])
+00346       end
+00347     end
+00348   end
+00349 
+00350   # Called when the item screen wants an item to be chosen from the screen
+00351   def pbChooseItem
+00352     @sprites["helpwindow"].visible = false
+00353     itemwindow = @sprites["itemlist"]
+00354     thispocket = @bag.pockets[itemwindow.pocket]
+00355     swapinitialpos = -1
+00356     pbActivateWindow(@sprites, "itemlist") do
+00357       loop do
+00358         oldindex = itemwindow.index
+00359         Graphics.update
+00360         Input.update

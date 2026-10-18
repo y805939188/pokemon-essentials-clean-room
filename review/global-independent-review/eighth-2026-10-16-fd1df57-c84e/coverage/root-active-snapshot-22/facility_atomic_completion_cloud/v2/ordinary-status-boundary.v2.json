@@ -1,0 +1,178 @@
+{
+  "schema": "facility-original-status-method-boundary/v2",
+  "utc": "2026-10-16T09:44:47.898579+00:00",
+  "reader": "/root/facility_atomic_completion_cloud",
+  "identity": {
+    "repo": "/workspace/pokemon-essentials",
+    "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+    "path": "Data/Scripts/011_Battle/002_Battler/004_Battler_Statuses.rb",
+    "bytes": 21633,
+    "sha256": "28b1de07d9c938a52755de4901d09931874cf25f4c23ba32623eb53f8a80a4b3",
+    "blob": "5cba43ffc27a7fad9be2c9d63887df6d67744933"
+  },
+  "complete_source_units": [
+    {
+      "source": "C-STATUS",
+      "range": [
+        11,
+        23
+      ],
+      "content": "  def pbHasStatus?(checkStatus)\n    if Battle::AbilityEffects.triggerStatusCheckNonIgnorable(self.ability, self, checkStatus)\n      return true\n    end\n    return @status == checkStatus\n  end\n\n  def pbHasAnyStatus?\n    if Battle::AbilityEffects.triggerStatusCheckNonIgnorable(self.ability, self, nil)\n      return true\n    end\n    return @status != :NONE\n  end"
+    },
+    {
+      "source": "C-STATUS",
+      "range": [
+        25,
+        172
+      ],
+      "content": "  def pbCanInflictStatus?(newStatus, user, showMessages, move = nil, ignoreStatus = false)\n    return false if fainted?\n    self_inflicted = (user && user.index == @index)   # Rest and Flame Orb/Toxic Orb only\n    # Already have that status problem\n    if self.status == newStatus && !ignoreStatus\n      if showMessages\n        msg = \"\"\n        case self.status\n        when :SLEEP     then msg = _INTL(\"{1} is already asleep!\", pbThis)\n        when :POISON    then msg = _INTL(\"{1} is already poisoned!\", pbThis)\n        when :BURN      then msg = _INTL(\"{1} already has a burn!\", pbThis)\n        when :PARALYSIS then msg = _INTL(\"{1} is already paralyzed!\", pbThis)\n        when :FROZEN    then msg = _INTL(\"{1} is already frozen solid!\", pbThis)\n        end\n        @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Trying to replace a status problem with another one\n    if self.status != :NONE && !ignoreStatus && !(self_inflicted && move)   # Rest can replace a status problem\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true))) if showMessages\n      return false\n    end\n    # Trying to inflict a status problem on a Pokémon behind a substitute\n    if @effects[PBEffects::Substitute] > 0 && !(move && move.ignoresSubstitute?(user)) &&\n       !self_inflicted\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true))) if showMessages\n      return false\n    end\n    # Weather immunity\n    if newStatus == :FROZEN && [:Sun, :HarshSun].include?(effectiveWeather)\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true))) if showMessages\n      return false\n    end\n    # Terrains immunity\n    if affectedByTerrain?\n      case @battle.field.terrain\n      when :Electric\n        if newStatus == :SLEEP\n          if showMessages\n            @battle.pbDisplay(_INTL(\"{1} surrounds itself with electrified terrain!\", pbThis(true)))\n          end\n          return false\n        end\n      when :Misty\n        @battle.pbDisplay(_INTL(\"{1} surrounds itself with misty terrain!\", pbThis(true))) if showMessages\n        return false\n      end\n    end\n    # Uproar immunity\n    if newStatus == :SLEEP && !(hasActiveAbility?(:SOUNDPROOF) && !@battle.moldBreaker)\n      @battle.allBattlers.each do |b|\n        next if b.effects[PBEffects::Uproar] == 0\n        @battle.pbDisplay(_INTL(\"But the uproar kept {1} awake!\", pbThis(true))) if showMessages\n        return false\n      end\n    end\n    # Type immunities\n    hasImmuneType = false\n    case newStatus\n    when :SLEEP\n      # No type is immune to sleep\n    when :POISON\n      if !(user && user.hasActiveAbility?(:CORROSION))\n        hasImmuneType |= pbHasType?(:POISON)\n        hasImmuneType |= pbHasType?(:STEEL)\n      end\n    when :BURN\n      hasImmuneType |= pbHasType?(:FIRE)\n    when :PARALYSIS\n      hasImmuneType |= pbHasType?(:ELECTRIC) && Settings::MORE_TYPE_EFFECTS\n    when :FROZEN\n      hasImmuneType |= pbHasType?(:ICE)\n    end\n    if hasImmuneType\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true))) if showMessages\n      return false\n    end\n    # Ability immunity\n    immuneByAbility = false\n    immAlly = nil\n    if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, newStatus)\n      immuneByAbility = true\n    elsif self_inflicted || !@battle.moldBreaker\n      if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, newStatus)\n        immuneByAbility = true\n      else\n        allAllies.each do |b|\n          next if !b.abilityActive?\n          next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, newStatus)\n          immuneByAbility = true\n          immAlly = b\n          break\n        end\n      end\n    end\n    if immuneByAbility\n      if showMessages\n        @battle.pbShowAbilitySplash(immAlly || self)\n        msg = \"\"\n        if Battle::Scene::USE_ABILITY_SPLASH\n          case newStatus\n          when :SLEEP     then msg = _INTL(\"{1} stays awake!\", pbThis)\n          when :POISON    then msg = _INTL(\"{1} cannot be poisoned!\", pbThis)\n          when :BURN      then msg = _INTL(\"{1} cannot be burned!\", pbThis)\n          when :PARALYSIS then msg = _INTL(\"{1} cannot be paralyzed!\", pbThis)\n          when :FROZEN    then msg = _INTL(\"{1} cannot be frozen solid!\", pbThis)\n          end\n        elsif immAlly\n          case newStatus\n          when :SLEEP\n            msg = _INTL(\"{1} stays awake because of {2}'s {3}!\",\n                        pbThis, immAlly.pbThis(true), immAlly.abilityName)\n          when :POISON\n            msg = _INTL(\"{1} cannot be poisoned because of {2}'s {3}!\",\n                        pbThis, immAlly.pbThis(true), immAlly.abilityName)\n          when :BURN\n            msg = _INTL(\"{1} cannot be burned because of {2}'s {3}!\",\n                        pbThis, immAlly.pbThis(true), immAlly.abilityName)\n          when :PARALYSIS\n            msg = _INTL(\"{1} cannot be paralyzed because of {2}'s {3}!\",\n                        pbThis, immAlly.pbThis(true), immAlly.abilityName)\n          when :FROZEN\n            msg = _INTL(\"{1} cannot be frozen solid because of {2}'s {3}!\",\n                        pbThis, immAlly.pbThis(true), immAlly.abilityName)\n          end\n        else\n          case newStatus\n          when :SLEEP     then msg = _INTL(\"{1} stays awake because of its {2}!\", pbThis, abilityName)\n          when :POISON    then msg = _INTL(\"{1}'s {2} prevents poisoning!\", pbThis, abilityName)\n          when :BURN      then msg = _INTL(\"{1}'s {2} prevents burns!\", pbThis, abilityName)\n          when :PARALYSIS then msg = _INTL(\"{1}'s {2} prevents paralysis!\", pbThis, abilityName)\n          when :FROZEN    then msg = _INTL(\"{1}'s {2} prevents freezing!\", pbThis, abilityName)\n          end\n        end\n        @battle.pbDisplay(msg)\n        @battle.pbHideAbilitySplash(immAlly || self)\n      end\n      return false\n    end\n    # Safeguard immunity\n    if pbOwnSide.effects[PBEffects::Safeguard] > 0 && !self_inflicted && move &&\n       !(user && user.hasActiveAbility?(:INFILTRATOR))\n      @battle.pbDisplay(_INTL(\"{1}'s team is protected by Safeguard!\", pbThis)) if showMessages\n      return false\n    end\n    return true\n  end"
+    },
+    {
+      "source": "C-STATUS",
+      "range": [
+        276,
+        311
+      ],
+      "content": "  def asleep?\n    return pbHasStatus?(:SLEEP)\n  end\n\n  def pbCanSleep?(user, showMessages, move = nil, ignoreStatus = false)\n    return pbCanInflictStatus?(:SLEEP, user, showMessages, move, ignoreStatus)\n  end\n\n  def pbCanSleepYawn?\n    return false if self.status != :NONE\n    if affectedByTerrain? && [:Electric, :Misty].include?(@battle.field.terrain)\n      return false\n    end\n    if !hasActiveAbility?(:SOUNDPROOF) && @battle.allBattlers.any? { |b| b.effects[PBEffects::Uproar] > 0 }\n      return false\n    end\n    if Battle::AbilityEffects.triggerStatusImmunityNonIgnorable(self.ability, self, :SLEEP)\n      return false\n    end\n    # NOTE: Bulbapedia claims that Flower Veil shouldn't prevent sleep due to\n    #       drowsiness, but I disagree because that makes no sense. Also, the\n    #       comparable Sweet Veil does prevent sleep due to drowsiness.\n    if abilityActive? && Battle::AbilityEffects.triggerStatusImmunity(self.ability, self, :SLEEP)\n      return false\n    end\n    allAllies.each do |b|\n      next if !b.abilityActive?\n      next if !Battle::AbilityEffects.triggerStatusImmunityFromAlly(b.ability, self, :SLEEP)\n      return false\n    end\n    # NOTE: Bulbapedia claims that Safeguard shouldn't prevent sleep due to\n    #       drowsiness. I disagree with this too. Compare with the other sided\n    #       effects Misty/Electric Terrain, which do prevent it.\n    return false if pbOwnSide.effects[PBEffects::Safeguard] > 0\n    return true\n  end"
+    },
+    {
+      "source": "C-STATUS",
+      "range": [
+        387,
+        397
+      ],
+      "content": "  def frozen?\n    return pbHasStatus?(:FROZEN)\n  end\n\n  def pbCanFreeze?(user, showMessages, move = nil)\n    return pbCanInflictStatus?(:FROZEN, user, showMessages, move)\n  end\n\n  def pbFreeze(msg = nil)\n    pbInflictStatus(:FROZEN, 0, msg)\n  end"
+    }
+  ],
+  "explicit_source_assertions": [
+    {
+      "id": "FAC-A1083",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanSleep280–282",
+      "assertion": "The ordinary captured sleep method calls generic pbCanInflictStatus with SLEEP and all user/message/move/ignoreStatus arguments.",
+      "formal_receivers": [
+        "F01§6L121–122:ordinary-sleep-route"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1084",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanFreeze391–393",
+      "assertion": "The ordinary captured freeze method calls generic pbCanInflictStatus with FROZEN and its default ignoreStatus value.",
+      "formal_receivers": [
+        "F01§6L123:ordinary-freeze-route"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1085",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanInflictStatus25–172",
+      "assertion": "The complete generic status-eligibility method does not consult the facility sleep/modifiedsleep/freeze flags; the added clauses are on the dedicated methods rather than this generic query.",
+      "formal_receivers": [
+        "F01§6L121–123:dedicated-clause-scope"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1086",
+      "source": "C-STATUS",
+      "unit_locator": "pbHasStatus11–23",
+      "assertion": "The ordinary perceived-status query first invokes nonignorable ability status checking; facility same-party scans instead compare stored Pokemon status directly.",
+      "formal_receivers": [
+        "F01§6L121,123:perceived-versus-real-status"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1087",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanInflictStatus25–172",
+      "assertion": "Generic ordinary eligibility rejects a fainted recipient even though the facility existing-status party scan itself includes non-egg fainted members.",
+      "formal_receivers": [
+        "F01§6L121–123:recipient-versus-scan-population"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1088",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanInflictStatus54–102",
+      "assertion": "After a freeze clause permits fallback, ordinary freeze eligibility still rejects Sun/HarshSun or recipient Ice type under its own ordered gates.",
+      "formal_receivers": [
+        "F01§6L123:later-ordinary-freeze-immunity"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1089",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanSleepYawn284–311",
+      "assertion": "Yawn fallback has its own raw-status/terrain/Uproar/ability/Safeguard eligibility sequence; the facility existing-sleep rejection precedes that captured method.",
+      "formal_receivers": [
+        "F01§6L122:yawn-later-ordinary-qualification"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    },
+    {
+      "id": "FAC-A1090",
+      "source": "C-STATUS",
+      "unit_locator": "pbCanInflictStatus25–172/pbCanSleepYawn284–311",
+      "assertion": "The ordinary status methods retain their real callback returns and message/error prefixes; successful facility added-gate passage does not imply final status infliction.",
+      "formal_receivers": [
+        "F01§6L121–123:gate-not-infliction-guarantee"
+      ],
+      "premise": "FixedR/B8 original statuses loaded before facility clauses, no later overrides; valid ordinary instances and reached dependencies normal. Only exact dedicated/generic method boundary received; arbitrary status/ability handlers remain their own separate contracts. Static source, no execution.",
+      "pending_dependencies": [],
+      "status": "BOUNDED_SOURCE_FACT_AND_EXPLICIT_FORMAL_CHILD_ROUTING",
+      "evidence": "SOURCE_STATIC",
+      "execution": "NOT_EXECUTED",
+      "reader": "/root/facility_atomic_completion_cloud"
+    }
+  ],
+  "source_receipt": "0df83e complete selectedunits",
+  "formal_receipt": "73659f F01§6",
+  "qualification": "Complete named method boundaries only, no full status/ability/ordinarybattle sourceFULL.",
+  "new_required": 0,
+  "new_optional": 0,
+  "new_contexts": 0,
+  "new_votes": 0,
+  "business": "NOT_EXECUTED",
+  "UPDATE_NOT_STARTED": true
+}

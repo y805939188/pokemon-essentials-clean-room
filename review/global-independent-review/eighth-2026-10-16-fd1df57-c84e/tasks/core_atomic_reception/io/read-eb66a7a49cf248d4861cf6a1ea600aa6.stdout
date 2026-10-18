@@ -1,0 +1,135 @@
+00426: class Battle::Move::PursueSwitchingFoe < Battle::Move
+00427:   def pbAccuracyCheck(user, target)
+00428:     return true if @battle.switching
+00429:     return super
+00430:   end
+00431: 
+00432:   def pbBaseDamage(baseDmg, user, target)
+00433:     baseDmg *= 2 if @battle.switching
+00434:     return baseDmg
+00435:   end
+00436: end
+00437: 
+00438: #===============================================================================
+00439: # Fails if user has not been hit by an opponent's physical move this round.
+00440: # (Shell Trap)
+00441: #===============================================================================
+00442: class Battle::Move::UsedAfterUserTakesPhysicalDamage < Battle::Move
+00443:   def pbDisplayChargeMessage(user)
+00444:     user.effects[PBEffects::ShellTrap] = true
+00445:     @battle.pbCommonAnimation("ShellTrap", user)
+00446:     @battle.pbDisplay(_INTL("{1} set a shell trap!", user.pbThis))
+00447:   end
+00448: 
+00449:   def pbDisplayUseMessage(user)
+00450:     super if user.tookPhysicalHit
+00451:   end
+00452: 
+00453:   def pbMoveFailed?(user, targets)
+00454:     if !user.effects[PBEffects::ShellTrap]
+00455:       @battle.pbDisplay(_INTL("But it failed!"))
+00456:       return true
+00457:     end
+00458:     if !user.tookPhysicalHit
+00459:       @battle.pbDisplay(_INTL("{1}'s shell trap didn't work!", user.pbThis))
+00460:       return true
+00461:     end
+00462:     return false
+00463:   end
+00464: end
+00465: 
+00466: #===============================================================================
+00467: # Power is doubled if a user's ally has already used this move this round. (Round)
+00468: # If an ally is about to use the same move, make it go next, ignoring priority.
+00469: #===============================================================================
+00470: class Battle::Move::UsedAfterAllyRoundWithDoublePower < Battle::Move
+00471:   def pbBaseDamage(baseDmg, user, target)
+00472:     baseDmg *= 2 if user.pbOwnSide.effects[PBEffects::Round]
+00473:     return baseDmg
+00474:   end
+00475: 
+00476:   def pbEffectGeneral(user)
+00477:     user.pbOwnSide.effects[PBEffects::Round] = true
+00478:     user.allAllies.each do |b|
+00479:       next if @battle.choices[b.index][0] != :UseMove || b.movedThisRound?
+00480:       next if @battle.choices[b.index][2].function_code != @function_code
+00481:       b.effects[PBEffects::MoveNext] = true
+00482:       b.effects[PBEffects::Quash]    = 0
+00483:       break
+00484:     end
+00485:   end
+00486: end
+00487: 
+00488: #===============================================================================
+00489: # Target moves immediately after the user, ignoring priority/speed. (After You)
+00490: #===============================================================================
+00491: class Battle::Move::TargetActsNext < Battle::Move
+00492:   def ignoresSubstitute?(user); return true; end
+00493: 
+00494:   def pbFailsAgainstTarget?(user, target, show_message)
+00495:     # Target has already moved this round
+00496:     return true if pbMoveFailedTargetAlreadyMoved?(target, show_message)
+00497:     # Target was going to move next anyway (somehow)
+00498:     if target.effects[PBEffects::MoveNext]
+00499:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00500:       return true
+00501:     end
+00502:     # Target didn't choose to use a move this round
+00503:     oppMove = @battle.choices[target.index][2]
+00504:     if !oppMove
+00505:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00506:       return true
+00507:     end
+00508:     return false
+00509:   end
+00510: 
+00511:   def pbEffectAgainstTarget(user, target)
+00512:     target.effects[PBEffects::MoveNext] = true
+00513:     target.effects[PBEffects::Quash]    = 0
+00514:     @battle.pbDisplay(_INTL("{1} took the kind offer!", target.pbThis))
+00515:   end
+00516: end
+00517: 
+00518: #===============================================================================
+00519: # Target moves last this round, ignoring priority/speed. (Quash)
+00520: #===============================================================================
+00521: class Battle::Move::TargetActsLast < Battle::Move
+00522:   def pbFailsAgainstTarget?(user, target, show_message)
+00523:     return true if pbMoveFailedTargetAlreadyMoved?(target, show_message)
+00524:     # Target isn't going to use a move
+00525:     oppMove = @battle.choices[target.index][2]
+00526:     if !oppMove
+00527:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00528:       return true
+00529:     end
+00530:     # Target is already maximally Quashed and will move last anyway
+00531:     highestQuash = 0
+00532:     @battle.allBattlers.each do |b|
+00533:       next if b.effects[PBEffects::Quash] <= highestQuash
+00534:       highestQuash = b.effects[PBEffects::Quash]
+00535:     end
+00536:     if highestQuash > 0 && target.effects[PBEffects::Quash] == highestQuash
+00537:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00538:       return true
+00539:     end
+00540:     # Target was already going to move last
+00541:     if highestQuash == 0 && @battle.pbPriority.last.index == target.index
+00542:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00543:       return true
+00544:     end
+00545:     return false
+00546:   end
+00547: 
+00548:   def pbEffectAgainstTarget(user, target)
+00549:     highestQuash = 0
+00550:     @battle.allBattlers.each do |b|
+00551:       next if b.effects[PBEffects::Quash] <= highestQuash
+00552:       highestQuash = b.effects[PBEffects::Quash]
+00553:     end
+00554:     target.effects[PBEffects::Quash]    = highestQuash + 1
+00555:     target.effects[PBEffects::MoveNext] = false
+00556:     @battle.pbDisplay(_INTL("{1}'s move was postponed!", target.pbThis))
+00557:   end
+00558: end
+00559: 
+00560: #===============================================================================

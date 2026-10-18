@@ -1,0 +1,166 @@
+from pathlib import Path
+import json,datetime
+out=Path(__file__).resolve().parent
+d=json.loads((out/'semantic-units.json').read_text())
+d['status']='PRIMARY_FULL_TEXT_AND_MANUAL_SEMANTICS_COMPLETE; CROSS_DOMAIN_RECEPTION_SCOPED'
+d['notes']=[
+ 'All20 reference and9 formal primary files have been continuously read in full by the actual context /root/com_ai. No primary unread material remains.',
+ 'The units below are manual semantic assessments after complete reads, including copy sources, overwritten registrations, missing-family copies, ordinary consumers and alternate queries. A later structural index is only a completeness crosscheck, never reading credit.',
+ 'Shared catalog AB31 and R7-U06 prose was fully read; source reception outside AI remains separate. SOURCE_STATIC does not imply Ruby/game execution.'
+]
+def add(s,a,b,u,f,fo,consumer='AI failure/base/effect query through candidate scoring; no business execution',unreceived=None):
+ r={'source':s,'range':[a,b],'unit':u,'facts':f,'formal':fo,'consumer':consumer,'reviewer':'/root/com_ai','assessment':'MANUALLY_INTERPRETED_AFTER_FULL_CONTINUOUS_READ','evidence_level':'SOURCE_STATIC','business_execution':'NOT_EXECUTED'}
+ if unreceived:r['unreceived']=unreceived
+ d['units'].append(r)
+add(12,1,430,'All user raises, composite raises and their exceptions',[
+ 'Single-user status failures use the first statUp pair and central can-raise; all copied seven-stat1/2/3 bindings retain actual move parameters. Damage does not acquire status-only failure. KO-attack invokes user stat-raise helper only when rough_damage>=0.9×T.hp; otherwise retains input.',
+ 'Belly Drum half-HP qualification, max-stage request and HPAware<60% cost remain distinct. Curl gives10 for usable Rollout; Charge10 for electric damage. Autotomize checks weight>1, subtracts5 per self/enemy weight-sensitive family and10 for gen6 SkyDrop weight range2000..2999. Minimize counts known stompers with15 gen6/10 old.',
+ 'Focus Energy already>=2 fails; no damaging move gives60, otherwise15 plus crit-item10/Sniper10. Multi-raise whole failure requires no positive raise available; Growth clones stat parameters and changes attack/spatk to2 in sun.',
+ 'Shell Smash first tries raise helper and stops on60, then self-drop with whole-effect false; Clangorous Soul requires HP above third, penalizes only under75% with integer missing-HP45. No Retreat existing flag fails and trap costs preserve raw status/residual gates. Rage lowHP guard, attack10 and StoredPower7 are local only.'
+],['WP52-A §4.3','WP52-A coverage §2.2'])
+add(12,431,685,'Self drops, target raises, Swagger/Flatter and random stat raises',[
+ 'All copied self drops preserve statDown list and whole-effect false. Target raise families use central can-raise and helper target orientation. Swagger/Flatter accepts either raise or confusion; inability to confuse returns60 only when not Contrary, then raise and confusion scores compose without converting60 to additive delta.',
+ 'Acupressure fails only if no stat can rise; Contrary or lethal residual returns60, ally distance penalty−7, Simple10, HPAware≥70%10 else trunc50(h/H−0.6), StoredPower10/Punishment−8 per queried opponent. Decorate against an enemy returns60.'
+],['WP52-A §4.3','AE G08/G10'])
+add(12,686,1021,'All target lowers, poisoned composite, TarShot and Defog',[
+ 'Every single target stat-down status failure delegates the first actual statDown pair; damage returnsfalse. All copied amounts and multi-down first available scans retain own lists; Captivate also enforces gender. GravApple/DrumBeating base damage delegates actual method.',
+ 'Tar Shot can still work with an unmarked target even if speed cannot drop, then speed helper and fire effectiveness10 times; poisoned composite checks poisoned? and any central can-drop. Coaching uses targetAtkDef1 helper.',
+ 'Defog failure immediatelyfalse for removable screens/hazards, gen6 reverse-side hazards or gen8 terrain; only otherwise tries evasion drop. Enemy-only score60, helper then walls>1 add10, target-side hazards−15 with reserve, gen6 own hazards+15 with reserve, terrain utility subtracts. Duration1 can prevent failure without scoring wall removal.'
+],['WP52-A §4.3','WP52-B §5.2','BE B40'])
+add(12,1022,1314,'Side raises, grass raises and stage swaps/copy',[
+ 'Plus/Minus whole failure requires an active qualifying ally/user with any can-raise; target failure filters active ability. The UserSide overall score loops all same-side living members without the Plus/Minus filter and invokes raise with whole-effect false. Flower Shield grass/non-semi-invulnerable and Rototiller additionally grounded retain separate gates.',
+ 'Attack/spatk, defense/spdef and seven-stage swaps compute T−U. Positive quantities are raise requests; negative quantities are passed unchanged into drop helpers which ignore nonpositive values. No positive request gives60. They are not absolute-valued intended drops.',
+ 'Psych Up early60 if equal self or no positive raise request; later FocusEnergy/LaserFocus ±5 only occurs after that gate.'
+],['WP52-A §4.3','AE G09/G12'])
+add(12,1315,1519,'Stage theft, inversion, resets, Mist and base-stat manipulation',[
+ 'Spectral Thief reads positive T stages, user raises nonfixed and target drops fixed; it does not first change stats for rough damage. Topsy Turvy uses positive×2 drop and negative×2 raise unchanged, so helpers discard negative requests; Clear Smog and Haze retain the same signed discrepancy. Haze whole failure is all stages unchanged.',
+ 'Mist existing flag fails; each foe having any target-drop/multi-drop/VenomDrench/ToxicThread/StrengthSap family gives15, none60. Power Trick equal/already swapped60; attack worth decides preferred orientation,40 ratio and defense-raise/attack-drop worth gates preserved.',
+ 'Speed Swap prefers lower in room>1 else higher and40ratio. Power/Guard Split use rough stat comparisons, return60 if user both≥target, add/subtract each40ratio based worth, no averaging actual HP/stat state.'
+],['WP52-A §4.3','WP52-B §4/§5.2'])
+add(12,1520,1672,'PainSplit, Tailwind and WonderRoom',[
+ 'Pain Split U.hp≥T.hp returns60; otherwise mult=(U.hp+T.hp)/(2.0U.hp), only mult≥1.2 adds trunc10mult. It does not use actual capped post-HP values.',
+ 'Tailwind active fails, medium room>1 gives60. Living ally/foe speed ranges: already all faster60; strict ally<foe<2ally counts, score8+10n; empty min/max inputs not normalized.',
+ 'Wonder Room compares all living rough defense/spdef with20ratios and worth, reverses enemy sign; none changed or total≤100 gives60. Existing room does not automatically reverse the preference.'
+],['WP52-B §4/§5.2','BE B28/B41/B42/B63'])
+add(13,1,361,'Every sleep/poison/paralysis/burn/freeze handler, copies and combinations',[
+ 'Status-only failure uses central eligibility; damage does not gain it. Score preexcludes matching cure berry/Lum, faster Hydration rain; sleep also Yawn, poison PoisonHeal. Unavailable status gives60 for status or retains damage score. Additional-effect−999 retains input.',
+ 'Sleep15 plus ally sleep-benefit5/BAD DREAMS10, EarlyBird−10/Marvel−8/sleep moves−8 and cure abilities. Poison15+15h/H, Venoshock/Hex5/Merciless10, benefit abilities−8, PoisonHeal−25 behind preexclude, Synchronize−20, Facade/Refresh−5, transfer−15 and indirect immunity−20.',
+ 'Paralysis10 plus strict speed catch-up15 with gen7×2/older×4, confusion>1/Attract7, SmellingSalts/Hex5, benefit−8, Synchronize/Facade/transfer/cures. Burn15 plus physical-noGuts8/no-special8, Hex5, benefit−8/Heatproof−5 and same reflection/cures/indirect cost. Freeze15+Hex5, Marvel−8/known thaw−15 and cures.',
+ 'Darkrai raw/or transformed species gate, Relic Song only score copy, Yawn AI uses pbCanSleep?. Toxic Thread accepts poison or speed drop and composes from zero only non60 poison. TriAttack divides each component by3 without renormalization, global Lum/fasterHydration suppresses all. Combined flinch adds only non60 components, all60 gives60.'
+],['WP52-A §5','AE S01–S08'])
+add(13,362,685,'Transfer/cure statuses, party heal, safeguards, flinch, confusion and attract',[
+ 'Psycho Shift NONE fails and central target status gate; unwanted user status gives15 then status-specific score from input0 if non60. Refresh only three statuses, wanted60 else20. Party Heal failure requires able poisoned/etc member, while score resets100 then counts all nonempty status entries including fainted, skips sleepcount1,12 each.',
+ 'Scald first subtracts its add-effect utility when curing burn then wanted+15 else−10. Safeguard active fails, persistent Misty with all grounded60; foe reserves0 gives−20 and early return, otherwise own living15 each.',
+ 'Flinch skips target faster/Substitute/active unbroken InnerFocus, then additionalutility+15 plus paralysis/confusion>1/Attract8. FakeOut turn>0 fails; sky variant delegates base. Confusion preexcludes Persim only, then central qualification,10+20h/H, paralysis/Attract8,TangledFeet−15.',
+ 'Attract central qualification +15, para/confuse8, DestinyKnot reflection−15, status move vs CuteCharm user−15. These scores remain utility approximations.'
+],['WP52-A §5','AE S09–S11'])
+add(13,686,876,'All typing changes, target-only Conversion and BurnUp',[
+ 'Camouflage checks can-change and real terrain/environment type with normal fallback, no current duplicate; score14 per newly supported usable damage type minus14 for each lost used current type. Conversion2 checks recorded type/nonpseudo and alternative resisting type; own immunity60, current weak15/normal10/resist5.',
+ 'Reflect Type has target failure only, no specific score. Conversion whole failure examines first raw slot gen6+ else all, excludes pseudo and already-own types. Its G-family handler separately gathers the same candidate type set and adds14 once at the first candidate with usable matching damage type. Default User count0 never calls it; direct target-score query can.',
+ 'Target pure Psychic/Water delegates real target failure, scores each foe damage type using newly weak+10/immune−10. Add Ghost/Grass−5 resistance change. BurnUp fails if no Fire; no dedicated score.'
+],['WP52-A §6','WP52-A coverage §2.4'])
+add(13,877,1115,'All ability replacement, copy, exchange and suppression',[
+ 'Simple/Insomnia availability plus actual failure delegate; inactive target60, old−new ability rating signed5×max(absdiff,3), ally sign reverses. RolePlay extra user unstoppable failure, actual target failure; inactive user60, oldbetter adds and reverse subtracts.',
+ 'Entrainment rejects empty/same/ungainable and PowerOfAlchemy/Receiver/Trace user, then real target predicate; target active required and old−new orientation. SkillSwap user unstoppable/ungainable/WonderGuard fail and actual target, both inactive60; computes per-owner new−old or zero. The second conditional repeats an impossible comparison rather than implementing the expected negative branch.',
+ 'Gastro Acid actual target predicate and active gate, signed rating min3 and ally flip. Core Enforcer skips Substitute/unstoppable/inactive/userfaster before same suppression value logic.'
+],['WP52-A §6','AE T03–T06'])
+add(13,1116,1282,'Airborne controls, Gravity and Transform',[
+ 'MagnetRise fails ironball/ingrain/smack/alreadyrise; flying/levitate/balloon/tele60; each ground-capable foe with nonresisted damage10, medium terrain−8. Telekinesis target ironball+real gate; alreadyairborne60, each raw foe slot accuracy<90+5 and≤50+5 excluding0, ground−7, medium terrain8.',
+ 'SmackDown skips Substitute; notairborne skips unless target notfaster and in Fly/Bounce; then10 plus ground users8, medium terrain−8. Gravity active fails; each airborne member local10 minus medium terrain8, signed by side, each opposite ground user8, SkyDrop±8, usable accuracy<85 includes0 ±8, user-faster sky attacks±10.',
+ 'Transform whole failure only user transformed or target transformed/Illusion; no Substitute rejection here. Score−5; actual execution eligibility remains separate.'
+],['WP52-C §6','CE C47/C48/C51'])
+add(14,1,205,'Fixed damage and all OHKO handlers',[
+ 'Fixed/half/level/random/userlevel family base delegates real method with fixed argument1. OHKO target failure level and unbrokenSturdy, score low userHP with alternative damage penalties12/8, base targetHP.',
+ 'OHKOIce independently checks ICE first then queries ordinary OHKO failure; base and score copy ordinary. Underground variant only base modifier. Actual loaded target predicate can differ because later Clauses alias overrides the child gate; finite reception is tracked separately.'
+],['WP52-B §2.1','BE B01/B02/B02b'])
+add(14,206,436,'Record/HP/PP/status power branches and exact duplicate binding',[
+ 'All userHP/targetHP/happiness/speed/weight/status-dependent base delegates and copies were read with original literal keys. Trump Card PP0 asks missing total_pp before returning0; nonzero uses min(pp−1,4) into200/80/60/50/40, negative indices remain Ruby indexing.',
+ 'FuryCutter base shifts by its own counter. Its early+10 score is overwritten by the later same-family same-key handler reading EchoedVoice state; surviving score adds10 only EchoedVoiceUsed plus Metronome7. EchoedVoice base uses counter+1 but no dedicated score.',
+ 'Magnitude fixes input71 then real modify; Acrobatics doubles empty or active FlyingGem. Underwater/underground base delegates real modifier. Revenge overall score loops foes for8, Assurance target score loops T foes except user for8; they are different keys/families. Payback fastertarget10 and FishiousRend fasteruser10 do not add bespoke base handlers.'
+],['WP52-B §2.1/§2.2','WP52-B coverage §2.4','BE B04/B04b/B04c/B61'])
+add(14,437,701,'LaserFocus, LuckyChant, Endure, sports and side walls',[
+ 'LaserFocus existing60; calculates stage with ability/items/focus, no Merciless special, negative/overflow/alwayscrit returns60, else usable non-alwayscrit damage15. LuckyChant activefail, all own critimmune60, per-foe potential caps99 with8×stage and LaserFocus10.',
+ 'Endure positive residual60, each attack-capable foe5, none60; highHP−15/lowquarter8, protect rate−1×8. Mud/Water Sport gen6 field/old battler flag failure; lowHP integer20(.75−h/H); corresponding foe damage15+pure7, none resets60, own−10−pure5.',
+ 'Reflect/LightScreen activefail, Aurora existing60, HP cost only no own reserves, foe category10+pure8 and Clay5; Aurora requires hail, both ordinary walls60,15/Clay5/HP. RemoveScreens adds10 per relevant own category for foe duration>1.'
+],['WP52-B §2.2/§6','BE B12/B58/B59'])
+add(14,702,1115,'Every protection branch and removal binding',[
+ 'Common Protect positive rate≥4 gives60; attack-capable foe must have protectable qualifying move, UnseenFist contact skips entire foe. Adds7 each, two-turn canProtect15, enemy residual±8; none60, user lethal residual60/other±8; repeats15 gen6/10 old.',
+ 'Baneful poison from0 divided2 if non60 without adding a separate contact-permission guard. KingsShield attack drop1gen8else2 and Obstruct defense2 require contact permission+known contact, half helper delta. Spiky adds5 contact. Kings Aegislash STANCECHANGE identity/form1 gives10.',
+ 'MatBlock firstturn failure and25 after damaging protection common, no protect-rate guard. Crafty Shield counts hostile-capable status5, residual common, no rate. QuickGuard positive raw priority7 without actual last-action gate. WideGuard scans all others, old generation mistakenly checks current guard move damaging status; same residual and rate logic.',
+ 'RemoveProtections survives+7 if target knows listed protection/crafty/mat (not Endure). Later copy source RemoveProtectionsBypassSubstitute is missing in this family, no-op rather than deleting/aliasing binding. Hoopa form failure delegates real and composes removal then ownDefenseDrop.'
+],['WP52-B §6.1/§6.2','BE B43–B47','CE C59'])
+add(14,1116,1413,'Recoil, FlyingPress, critical copies and hit-control',[
+ 'Quarter/half recoil skips indirect immune/RockHead; lethal estimated recoil and ownreserves≤foereserves60, else25×min(d/div,h)/h penalty. Third/paralyze/burn handlers add status only non60 after recoil. FlyingPress uses base Flying effectiveness ratio; Photon Geyser poison score copies poison.',
+ 'LockOn active failure; NoGuard/Telekinesis60; raw own slots nonzero accuracy<90+5/≤50+8/OHKO8, minimize exceptions, evasion5 each and HP−10/−8. Foresight existing/Scrappy60; MiracleEye existing60; matching blocked raw damage10 each and evasion10. Known finitePP0 raw slots still count.'
+],['WP52-B §2.1/§6.2','BE B48/B60'])
+add(14,1414,1559,'HiddenPower, NaturalGift, form move, Electrify and IonDeluge',[
+ 'HiddenPower real base delegate. NaturalGift whole failure checks present/active berry with flag prefix. Base delegates real pbBaseDamage then maps exactly1 to0; nil current item may fail before any default. Morpeko original/transform species base eligibility and whole speed-raise copy; weather/terrain bases delegate real.',
+ 'Electrify user notfaster targetfailure; compares target raw damage oldtype vs electric STAB/effectiveness, absorption utility. No beneficial options or more harmful options60; otherwise10×count difference. IonDeluge per foe uses CURRENT move rough_priority for that foe, filters Normaldamage, computes changed Electric damage and absorption; no advantage or more bad gives60 only status, damage unchanged.'
+],['WP52-B §2.1/§6.2','BE B03/B05/B50/B77–B82'])
+add(15,1,191,'Every fixed, scaled, random multi-hit and BeatUp',[
+ 'TwoHit actual hit count multiplies base; substitute threshold d(n−1)/n gives10. Poison delta only non60 and flinch direct. DragonDarts2 only, TripleKick6 and substitute d/2; SurgingStrikes copies twohit but actual3; variable2to5 SkillLink5 else integer31/10, score estimates5/3 hits.',
+ 'AshGreninja original/form2 real20×3 else average; score copies approximate variable-hit. ScaleShot composes multi-hit then speedraise/defdrop wholefalse. BeatUp qualifies own-owner able rawNONE list including user; empty failure. Base sums5+speciesAtk/10. Score rough_damage first then roster length; only positive Substitute/nonbypass divides by n, so n0 raises after rough_damage. Normal default prediction blocks empty list; predictionoff candidate wrapper retains initial100 after diagnostic return.'
+],['WP52-B §3','BE B06–B09/B72–B76'])
+add(15,192,489,'Recharge, all two-turn branches and target-only Geomancy',[
+ 'Recharge HP≥half−10. Charge moves activePowerHerb unchanged, then Truant/positive lethal residual60, base−10 plus lowHP−10 and high knownProtect−20. Suncharge skips common score in sun and real power modifier otherwise. Status charges apply common then respective A helper only if not60.',
+ 'Geomancy whole failure copies multi-stat raise. Two-turn/stat boost score is TARGET family, so ordinary User count0 never consumes it; predictionon allcapped20, partialcapped100 absent other modifiers. No HP/stage/herb mutation during evaluation.',
+ 'Semi-invulnerable charge each foe known hit-exception−10 else8. SkyDrop rejects allied/substitute/flying/gen6weight≥2000/semi/skydrop then copies Fly score. PhantomForce composes charge+8 and removal utility; no second score call implied.'
+],['WP52-B §3','BE B10–B13/B62'])
+add(15,490,531,'Rollout and Bide',[
+ 'Rollout delegates real base then doubles. Bide fixed rough40, no awake/unfrozen damage-capable foe60; HPAware userquarter60/half−15/threequarter−8. It does not predict actual accumulated damage.'
+],['WP52-B §3','BE B14'])
+add(16,1,281,'Rest, direct healing, StrengthSap, drains and independent target healing gate',[
+ 'Rest requires healable/nonasleep/canSleep, HPAware≥half−10 else30missing; wantedstatus−10 else8, medium wantsSleep10 else−8. Ordinary heal canHeal failure, weatherSun5/otherordinaryweather−10 and Sand5; Roost no airborne score. Purify also targetstatus; recoverthenwantedT10else−8.',
+ 'StrengthSap stat bound/Contraryfailure, medium drophelper; LiquidOoze−20 else BIGROOT5 and estimatedroughAttack×1.3 clippedmissing, strict>.3H thenlowHP20missing+20heal/H. Drains d/2 or3d/4; Ooze only d<T.hp−20 else healable/root5/HPutility.',
+ 'LifeDew target failure and score body independently check target canHeal. With predictionoff fullHP/HealBlock body retains incoming100, never highHP−5. If permitted and HPAware≥75%−5 else15missing. Cure-copy calls WHOLE family so no inherited HP preference, then targetstatuswanted±10. HealPulse hostile60, highHP−10else20missing+20heal includingwave. FloralHealing terrain2/3 ignores grounding in AI.'
+],['WP52-B §4','BE B15–B27/B64–B71'])
+add(16,282,433,'Wish, rings, Nightmare and LeechSeed',[
+ 'Wish positionexistingfailure and currentHP missing20 only, no future estimate. AquaRing15/root5 and Ingrain8 plus early15/root5. Nightmare target sleep/existingfailure,count≤1 gives60 else8×count.',
+ 'LeechSeed existing/Grass/indirectimmune failure,15early10, medium noDamage10/noReserve8/Ooze−20, highownProtect10/RapidSpin−15. Ongoing real-healing source not unified with this local valuation.'
+],['WP52-B §4','BE B51–B54'])
+add(16,434,683,'All sacrifice, explosion, healing-wish, Perish and bond utilities',[
+ 'HalfHP overall−15, HPAware≥75%−15/≤25%15, highnoownreserve30elsefoe0+20. ExplosiveDamp failure separate. Explosion−20 plus HP−10/quarter20 and high reserve same; Misty base×3/2 without grounding prerequisite. FinalGambit ownHP base, explosion score copy but no Damp failure copy.',
+ 'Memento−20 then target Atk/SpAtk drophelper wholefalse;60early, HP utility, high only ownreservepositive/foe0+20. HealingWish noreserve failure,−20, medium ownteamincludesfainted/U checks HP<75 orstatus else60, then10/HP/high. LunarDance copy ignores PP need.',
+ 'Perish targetexisting/actualabilityimmunity failure, overall−15 and medium allaffected sidecounts, nofoe60/noown15/own−15foe20+HPAwarehighHP10 each;highfoe0+25elseown0−15. DestinyBond previousflag generation7failure, Grudge no copy;−25 with userfasterfoe7each and cumulative HP40/25/10 adds20/10/15.'
+],['WP52-B §4','BE B30/B32/B33'])
+add(17,1,376,'All23 item-effect registrations and real-operation boundary',[
+ 'Theft/swap relative item deltas use rating difference times4 and each current ability/item usability gate. KnockOff positive removal, Incinerate preserved reversed sign. CorrosiveGas uses target effective current value with negative delta, not KnockOff sign. Embargo target currently usable/valuepositive else60; MagicRoom flips total side differential and caps20, duration1 nil preserves.',
+ 'Recycle missingcurrent/recycleditem gates, utilitydelta4; BugBite force-consume utility with medium typedberries+5. Teatime side-signs E and allied preserve-negative flag. Fling requires active item and literal flags, poisonorb applies normal poison and flameburn local utility. Poltergeist activeitemfailure belongs this file. No score itself removes/swaps/consumes an item.'
+],['WP52-C §3','WP52-C coverage §2.4','CE C13–C20/C53/C54'])
+add(18,1,209,'Redirection, Present, mixed heal/damage, curse, SecretPower and ally power',[
+ 'FollowMe/RagePowder score counts allies and HP preference,60 if none. Spotlight target gates. Present base50/healutility−10. Floral mixed ally healing HP49/50 boundary, hostile unchanged. GhostCurse halfHP gate and local cost; nonGhost statraise then speeddown only if not60.',
+ 'SecretPower environmental numeric code maps sleep/paralysis/etc; stat cases pass Symbol as effect key with nil stat variable, preserving missing-dispatch unchanged score. ExpandingForce real base delegate. PowerUpAllyMove has target failure and TARGET score5 only; no whole extra. Fusion copies bonus10 per ally known opposite function.'
+],['WP52-B §2.1/§2.2/§4','WP52-C §4/§5.2','CE C25–C28/C56'])
+add(18,210,416,'All counter, stockpile, spit/swallow and pledge handlers',[
+ 'Counter/MirrorCoat fixed60 with category target preference from rough attack ratio, possible foe5 and recent type8, taunt5; MetalBurst lacks that ratio and uses sloweruser gate. No incoming damage accumulator simulation.',
+ 'Stockpile cap3failure, defenses helper then known Spit/Swallow literal bonuses10/10/8/5. SpitUp base100×stock and lowstock−5. Swallow healable/stockfailure, highHP≥half−10 early before lowstock−5, else missingHP utility. Pledges eachally knowing different pledge10, no current action synchronization.'
+],['WP52-B §2.1/§2.2/§4/§6.2','BE B16–B18/B29/B57'])
+add(18,417,628,'All call/copy/random moves, MagicCoat/Snatch, Mimic and Sketch',[
+ 'Copycat/MirrorMove/NaturePower assessment substitute earlier and otherwise respective failure. MeFirst raw target known damaging blacklist, speed required else60, mixed statusoptions−8. Assist scans fullsameowner party including fainted, excludesU/gen6egg/shadow; no blanketPPfilter. SleepTalk asks actual partial choosing permission for at least one nonblacklisted slot.',
+ 'MagicCoat and Snatch5 per eligible foe, none60, HPAware cost. Mimic whole transformed/no ownslotfailure, fastuser target lastrecord validation, slow skips lastrecord;−10 fast+5. Sketch copied targetfailure works, whole score copy fails because Mimic score is G-family, so no−5 at ordinary Sketch overall. HandlerHash copy has immediate same-family resolution.'
+],['WP52-C §4','CE C21–C24'])
+add(19,1,288,'Flee/self-switch, PartingShot, BatonPass and forced switching',[
+ 'Flee actual canRun/wildally failure and−20. Statusselfswitch wildcanRun else reserve; aceonlyreserve60, Perish20/confuse10/Attract10, anypositive2−15elseanystatnegative10, residual±15, noDamage10 and 3hazards−10 (no web). Damagingselfswitch noreserve unchanged/ace−20, no noDamage bonus.',
+ 'PartingShot own anyAtk/SpAtkdrop targetfailure and target drop score retained; later G-family copy source is S-family, immediate no-op. BatonPass uses exact listed negative/positive effect flags, stage≥4+25/≥2+15/negative−15 and reserve/noDamage/hazards gates. It does not preselect the later recipient.',
+ 'Roar realtarget gate,wild−10,Perish60,HP/stages/residual/hazards; damageDrag wildunchanged, suction/ingrain/noreserve/currentpositiveSubstituteunchanged even if this hit could break it.'
+],['WP52-C §5.1','CE C29–C32/C59'])
+add(19,289,421,'Binding and trapping families',[
+ 'Bind existing/Substitute unchanged, BINDINGBAND5,indirectdamage10,canbecometrapped8+residual±10/Perish15, mediumRapidSpin−10; WaterBind realbase. MeanLook/Anchor status already/ghostfails; noreserve/actualcannottrap/lethalresidual/mediumRapidSpin givesstatus60 or damageunchanged.',
+ 'Octolock first composes defense/spdefdrop wholefalse then trap guards (RapidSpin lacks medium restriction), status15. JawLock similar but owntrap/8 differences. FairyLock fieldflag failure and−10 only. Scoring does not establish a live trap pointer.'
+],['WP52-C §5.2','CE C33/C34'])
+add(19,422,613,'ShellTrap, Round, AfterYou, Quash, Instruct and TrickRoom',[
+ 'ShellTrap allfoesnophysical failure, ownSubstitute60, nospecialfoe10 then−10. Round living same-side query includes user and can give10 alone. AfterYou hostile60; speed-order T beforeU/adjacent60 else10. Quash requires foeT and attack-capable ally; TbeforeU/last/slowestallybeforeT60 else−10.',
+ 'Instruct multiturn failure; target faster/hostile/no last/no FIRST matching slot with positivePP/blacklist60else10. Actual last duplicate-slot gate is a distinct receiver. TrickRoom re-applies Tailwind×2/Swamp÷2 if>1 despite roughspeed already containing it, existingroom>1 inverts100000−speed; empty side60, allownalreadyfaster60, allfoefaster20 else meancomparison10/−10.'
+],['WP52-C §5.3','CE C36–C40/C52'])
+add(19,614,877,'All PP/Disable/Taunt/HealBlock/Torment/Encore/Imprison handlers',[
+ 'EerieSpell additional−999 retains input, fastuser lastknown positive totalPP≤3+20/≤5+10/>9−10. Spite knownlastusablefailure, fastPP≤4+20/≤6+10/>10−10 and then allother−10; predictionoff missinglast can raise rather than invent a score.',
+ 'Disable/Torment/Encore keep distinct AromaVeil/MentalHerb/choice/move category gates. Taunt activechoice with EMPTY choicelock returns60, locked continues rawusable status5 each/protection10. HealBlock knownheal or activeleftovers/poisonblacksludge10else60. ThroatChop oldcount>1 skip, soundknown andutility8.',
+ 'Imprison wholealready failure and TARGET score only. It counts first matching foe only thenbreaks, yielding8 even when multiple foes match. Ordinary User0 has no target consumption; direct target query retains definition. No registration should be promoted to an S-family handler.'
+],['WP52-C §5.3','CE C41–C46/C57'])
+for i,r in enumerate(d['units']):r['id']=f'AIU{i+1:03d}'
+for r in d['units']:
+ if r['source']==7 and r['range']==[823,898]:
+  r.pop('unreceived',None);r['facts'][0]='Complete item→type39 and gem18 mapping read. HandlerHash direct key wins; only absent direct key tests addIf registrations in order and first matching condition. Accepted actual receiver implementation97–350 in Event_Handlers.'
+d['updated_utc']=datetime.datetime.now(datetime.timezone.utc).isoformat()
+(out/'semantic-units.json').write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+print(json.dumps({'manual_units':len(d['units']),'sources_with_units':len(set(r['source'] for r in d['units']))}))

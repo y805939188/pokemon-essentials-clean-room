@@ -1,0 +1,17 @@
+# external_item_atomic_completion 全量原子意义补全审查合同
+
+完整全局合同inputs/eighth-global-review-prompt.md（36653B/SHA63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b）是范围/验收依据，必须完整实际读；AGENTS及inputs/review-SKILL.md亦完整读。固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe/tree751dfde81048c81390f89a65ca1d1a565ba8e1ca/formal f292698cdd4a8e725525a9be6dc34b75faaf151e；R8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。云端两个checkout实际映射核定，不假定Mac。
+
+本任务不是新的整系统分片，是原COM-ABILITY-ITEM在审计发现后对单一注册文件/完整相关正文作真实逐子断言补全。原readset/报告2R4F均实读不抹除，但463身份+80族+321覆盖对象不能替代所有具体行为意义。审计实际发现混乱果HPHeal只连WP50注册目录整行，不能由此证明代际回复分数/forced/满HP/性质/顺序等operativemeanings已逐条核。必须亲读固定完整源及正式正文，独立推导，不继承旧ALL_CONCRETE/PASS。持物：全部触发/回复/状态/后消费处理器、别名copy共享、forced/满HP/胃口/性质/代际分数、consumption顺序/失败前缀、未命中默认与真实caller差异。
+
+完整readset delegation/readsets/external_item_atomic_completion.complete.json，5713B/SHAcc8ac9ceada54fd83cc9f3e8f3fd54acb4c9382107ff800737837bf2ee015742；primary R1、相关F2、共享catalog2均具完整精确字节身份。共享catalog全文实际读以保共同前提/测试边界，非本域行为不因此验收；注册覆盖目录只作身份，必须匹配真正operative段/表单元。其它文件只补必需完整定义、callee/caller/原值与受控有限消费者，不把发现池全文件都加入新primary。primary实际全读、意义分母冻结、映射/必要接点接收分别登记。
+
+唯一新写集tasks/external_item_atomic_completion/；专属分支codex/r8-external-item-atomic-completion-20261016仅报告证据可普通commit/push（用户已明确授权每个外部专属审查报告分支；不改正式/source/main/tag）。原task目录及其它context输入只读，不能覆盖原作者事实。模型请求gpt-6.1-sol ultra default普通速度Fastoff；必须由主线程实际创建新上下文并取得真实ID才算启动，root本地7槽已满，合同READY不算实际启动。实际模型/effort/tier/speed/Fast无权威回显逐项UNVERIFIED。
+
+先冻结每个具体handler或共享copy可审意义的完整分母：输入/前提、查询返回与commit分开、缺省/0/nil/false、注册copy/条件、普通对照/最小分支、正常/取消/失败/异常已写前缀、各实际消费者。语句、分号、注册行、方法/路径/hash计数不自动是行为原子；手工拆复合规则，精确每条与当前正式共同前提/operative正文双向对照。所有primary可读必须审，可读未审保持OPEN不可叫limit。归于合法scope/policy/no-required亦需完整有据解释而非未调用免读。
+
+有限依赖优先读原实际provider完整对象并保原reader：CORE的中央stat/status/handlerdispatcher和阶段时序；CRE/PBS的精确Item/Ability原值、默认和backup激活；MOVE的实际override/伤害与后置；KERNEL的注册/编译/cache/reload；UI显示/实际值只到必要接点。若使用旧CRE-B Mail路径、钱/BP/动画朝向/音频等已具mandatory更正，实际接收正确后继，原件不删。不要因自己全部依赖发散要求每个provider重复全系统审查。
+
+交付完整10件：review.md、progress.json、identities.json、reading-ledger.json、forward-mapping.json、reverse-mapping.json、interfaces.json、proposals.json、validation.json、next-dispatch.json及SHAmanifest；真实UTC/I/O边界/截断失败/未导出字段如实。报告自己的审读/实际接收/全量完结分别列，不因精确handoff就停止可继续工作。新提案完整8节与可复查有限反例、读写/保留/验收/历史/接收链，交真正不同actualcontext反证，不能作者自验；没有新提案也不等于NO_REQUIRED_UPDATE。
+
+行为参考/Ruby/模型/native/游戏/真实存档未执行均NOT_EXECUTED；允许静态阅读/受控无执行解析/Git/hash/数学推导，不把工具exit0或原生不可运行代替可读定义审读。目标仅审查+后续完整手动整改handoff，UPDATE_NOT_STARTED，不自动整改/合并main。最终本专属report普通push后固定commit/tree逐文件完整远端回读，root最终验收仍需独立接收。

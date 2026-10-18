@@ -1,0 +1,13 @@
+# PBS-BATTLE由原COM-MOVE实际上下文续审的精确补充合同
+
+本补充由root在实际新context创建被工具拒绝后发布。原PBS-BATTLE完整合同 delegation/prompts/pbs_battle.md 与全部21R读集 delegation/readsets/pbs_battle.json 继续适用，唯一身份前提改为：实际审者仍是 `/root/com_move`，这是同一上下文的一个新turn，不是新独立审者、不是新context，不将角色或任务目录改名当独立性。原COM-MOVE报告保持原交付，不把原已结束主责伪称持续未交。
+
+先完整读原36653字节全局合同、AGENTS、3598字节review-SKILL、原PBS-BATTLE合同和本补充；不得只看摘要。固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe/tree751dfde81048c81390f89a65ca1d1a565ba8e1ca/formal treef292698cdd4a8e725525a9be6dc34b75faaf151e；R8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。请求仍gpt-6.1-sol/ultra/default普速/Fastoff，实际无回显逐字段UNVERIFIED。本次不声称新modeloverride或新模型身份。
+
+本turn独占写集仅 tasks/pbs_battle/，其它目录只读，不修改原COM-MOVE／其它任务／公共台账／formal／R／planning／audit／历史报告；不commit/push/install/spawn。输出真实reader始终/root/com_move，写明原context新turn，新增context/reviewer数0。给独立新写集是避免冲突，不是制造独立性。所有新提案仍需实际不同非提出者context反证；本审者不能因另换目录独立验收自己。
+
+主责21个固定PBS：default与Gen5–8的abilities/items/moves/types，加battle_facility_lists。五items路径已有CRE-B真实全记录贡献，见tasks/creature_b/pbs-record-reception.json及facility-item-interface.json、reading-ledger、dependency-semantic-facts.json；Gen8相同字节独立路径绑定不冒作第二次显示。原COM-MOVE本人确已读的同字节片段/记录可据原日志精确接续，未读的剩16文件须真实全文逐记录/字段/意义读，不以解析/搜索/样本/旧PASS代替。已有完整items贡献必须实际接收其所有相关意义及路径绑定，不能把别人的FULL_READ记为自己。完整默认与备选的字段差异、registered IDs、编译／加载／重载／消费者路径逐项接合。必要依赖直接追读并保留未接收，不以材料可得未读为limit。
+
+活跃COM-ABILITY-ITEM在tasks/com_ability_item做四formal主责，AI的tasks/com_ai/shared-ab-reception.json及interfaces已交有限实际接合，tasks/com_facility已交22R／8formal。tasks/pbs_creature_facility已完整读取Tower882与六表1600训练家；其逐全部453species／84items／330moves／44trainer types引用库存发现当前默认缺STICK与VICEGRIP（仅Tower两条），需要你独立接合其解析、注册及条款含义，不据名字存在性直接立Required。所用species限定trait子审不授全species主表。CRE-B的6items路径3154记录与额外完整消费者可读，但只按其实际scope。
+
+交原合同八件及逐记录／字段语义接收、实际范围／所有OPEN。完整双向formal/目录关系不能因无formal primary而省略；行为NOT_EXECUTED和工具静态执行严格分列。开始UTC、续审工具回显和配置资格照实保留，只有first-recorded时点时不得倒填真实启动。全量工作持续完成；限review，UPDATE_NOT_STARTED。

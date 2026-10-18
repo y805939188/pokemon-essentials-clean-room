@@ -1,0 +1,117 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/001_Editor screens/001_EditorScreens.rb RANGE 1099-1200
+def pbRegionalDexEditorMain
+  viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+  viewport.z = 99999
+  cmd_window = pbListWindow([])
+  cmd_window.viewport = viewport
+  cmd_window.z        = 2
+  title = Window_UnformattedTextPokemon.newWithSize(
+    _INTL("Regional Dexes Editor"), Graphics.width / 2, 0, Graphics.width / 2, 64, viewport
+  )
+  title.z = 2
+  info = Window_AdvancedTextPokemon.newWithSize(
+    _INTL("Z+Up/Down: Rearrange Dexes"), Graphics.width / 2, 64,
+    Graphics.width / 2, Graphics.height - 64, viewport
+  )
+  info.z = 2
+  dex_lists = []
+  pbLoadRegionalDexes.each_with_index { |d, index| dex_lists[index] = d.clone }
+  commands = []
+  refresh_list = true
+  oldsel = -1
+  cmd = [0, 0]   # [action, index in list]
+  loop do
+    # Populate commands
+    if refresh_list
+      commands = [_INTL("[ADD DEX]")]
+      dex_lists.each_with_index do |list, i|
+        commands.push(_INTL("Dex {1} (size {2})", i + 1, list.length))
+      end
+      refresh_list = false
+    end
+    # Choose to do something
+    oldsel = -1
+    cmd = pbCommands3(cmd_window, commands, -1, cmd[1], true)
+    case cmd[0]
+    when 1   # Swap Dex up
+      if cmd[1] > 0 && cmd[1] < commands.length - 1
+        dex_lists[cmd[1] - 1], dex_lists[cmd[1]] = dex_lists[cmd[1]], dex_lists[cmd[1] - 1]
+        refresh_list = true
+      end
+    when 2   # Swap Dex down
+      if cmd[1] > 1
+        dex_lists[cmd[1] - 2], dex_lists[cmd[1] - 1] = dex_lists[cmd[1] - 1], dex_lists[cmd[1] - 2]
+        refresh_list = true
+      end
+    when 0   # Clicked on a command/Dex
+      if cmd[1] == 0   # Add new Dex
+        case pbMessage(_INTL("Fill in this new Dex?"),
+                       [_INTL("Leave blank"), _INTL("National Dex"),
+                        _INTL("Nat. Dex grouped families"), _INTL("Cancel")], 4)
+        when 0   # Leave blank
+          dex_lists.push([])
+          refresh_list = true
+        when 1   # Fill with National Dex
+          new_dex = []
+          GameData::Species.each_species { |s| new_dex.push(s.species) }
+          dex_lists.push(new_dex)
+          refresh_list = true
+        when 2   # Fill with National Dex (grouped families)
+          new_dex = []
+          seen = []
+          GameData::Species.each_species do |s|
+            next if seen.include?(s.species)
+            family = s.get_family_species
+            new_dex.concat(family)
+            seen.concat(family)
+          end
+          dex_lists.push(new_dex)
+          refresh_list = true
+        end
+      elsif cmd[1] > 0   # Edit a Dex
+        case pbMessage("\\ts[]" + _INTL("Do what with this Dex?"),
+                       [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+        when 0   # Edit
+          dex_lists[cmd[1] - 1] = pbRegionalDexEditor(dex_lists[cmd[1] - 1])
+          refresh_list = true
+        when 1   # Copy
+          dex_lists[dex_lists.length] = dex_lists[cmd[1] - 1].clone
+          cmd[1] = dex_lists.length
+          refresh_list = true
+        when 2   # Delete
+          dex_lists.delete_at(cmd[1] - 1)
+          cmd[1] = [cmd[1], dex_lists.length].min
+          refresh_list = true
+        end
+      else   # Cancel
+        case pbMessage(_INTL("Save changes?"),
+                       [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+        when 0   # Save all changes to Dexes
+          save_data(dex_lists, "Data/regional_dexes.dat")
+          $game_temp.regional_dexes_data = nil
+          Compiler.write_regional_dexes
+          pbMessage(_INTL("Data saved."))
+          break
+        when 1   # Just quit
+          break
+        end
+      end
+    end
+  end
+  title.dispose
+  info.dispose
+  cmd_window.dispose
+
+PATH /workspace/pokemon-essentials/Data/Scripts/016_UI/004_UI_Pokedex_Entry.rb RANGE 301-312
+
+  def pbFindEncounter(enc_types, species)
+    return false if !enc_types
+    enc_types.each_value do |slots|
+      next if !slots
+      slots.each { |slot| return true if GameData::Species.get(slot[1]).species == species }
+    end
+    return false
+  end
+
+  # Returns a 1D array of values corresponding to points on the Town Map. Each
+  # value is true or false.

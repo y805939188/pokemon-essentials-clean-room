@@ -1,0 +1,2271 @@
+{
+  "schema": "gr8-pbs-shadow-shared-success-interface/v1",
+  "utc": "2026-10-16T12:28:43.399140+00:00",
+  "actual_reader": "/root/pbs_creature_current_cloud",
+  "common_premises": [
+    "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+    "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+    "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+    "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+  ],
+  "complete_source_units": [
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/002_Battler/009_Battler_UseMoveSuccessChecks.rb",
+        "bytes": 25922,
+        "lines": 595,
+        "sha256": "31577c449ab34bb7afdf1baadd9282930fec8fd647559265da214f5fb5964563",
+        "git_blob": "5151500ddcb329fef773eb30a32b16b8f7cbc196"
+      },
+      "range": [
+        1,
+        595
+      ],
+      "text": "class Battle::Battler\n  #=============================================================================\n  # Decide whether the trainer is allowed to tell the Pokémon to use the given\n  # move. Called when choosing a command for the round.\n  # Also called when processing the Pokémon's action, because these effects also\n  # prevent Pokémon action. Relevant because these effects can become active\n  # earlier in the same round (after choosing the command but before using the\n  # move) or an unusable move may be called by another move such as Metronome.\n  #=============================================================================\n  def pbCanChooseMove?(move, commandPhase, showMessages = true, specialUsage = false)\n    # Disable\n    if @effects[PBEffects::DisableMove] == move.id && !specialUsage\n      if showMessages\n        msg = _INTL(\"{1}'s {2} is disabled!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Heal Block\n    if @effects[PBEffects::HealBlock] > 0 && move.healingMove?\n      if showMessages\n        msg = _INTL(\"{1} can't use {2} because of Heal Block!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Gravity\n    if @battle.field.effects[PBEffects::Gravity] > 0 && move.unusableInGravity?\n      if showMessages\n        msg = _INTL(\"{1} can't use {2} because of gravity!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Throat Chop\n    if @effects[PBEffects::ThroatChop] > 0 && move.soundMove?\n      if showMessages\n        msg = _INTL(\"{1} can't use {2} because of Throat Chop!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Choice Band/Gorilla Tactics\n    @effects[PBEffects::ChoiceBand] = nil if !pbHasMove?(@effects[PBEffects::ChoiceBand])\n    if @effects[PBEffects::ChoiceBand] && move.id != @effects[PBEffects::ChoiceBand]\n      choiced_move = GameData::Move.try_get(@effects[PBEffects::ChoiceBand])\n      if choiced_move\n        if hasActiveItem?([:CHOICEBAND, :CHOICESPECS, :CHOICESCARF])\n          if showMessages\n            msg = _INTL(\"The {1} only allows the use of {2}!\", itemName, choiced_move.name)\n            (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n          end\n          return false\n        elsif hasActiveAbility?(:GORILLATACTICS)\n          if showMessages\n            msg = _INTL(\"{1} can only use {2}!\", pbThis, choiced_move.name)\n            (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n          end\n          return false\n        end\n      end\n    end\n    # Taunt\n    if @effects[PBEffects::Taunt] > 0 && move.statusMove? && !specialUsage\n      if showMessages\n        msg = _INTL(\"{1} can't use {2} after the taunt!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Torment\n    if @effects[PBEffects::Torment] && !@effects[PBEffects::Instructed] && !specialUsage &&\n       @lastMoveUsed && move.id == @lastMoveUsed && move.id != @battle.struggle.id\n      if showMessages\n        msg = _INTL(\"{1} can't use the same move twice in a row due to the torment!\", pbThis)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Imprison\n    if @battle.allOtherSideBattlers(@index).any? { |b| b.effects[PBEffects::Imprison] && b.pbHasMove?(move.id) }\n      if showMessages\n        msg = _INTL(\"{1} can't use its sealed {2}!\", pbThis, move.name)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Assault Vest (prevents choosing status moves but doesn't prevent\n    # executing them)\n    if hasActiveItem?(:ASSAULTVEST) && move.statusMove? && move.function_code != \"UseMoveTargetIsAboutToUse\" && commandPhase\n      if showMessages\n        msg = _INTL(\"The effects of the {1} prevent status moves from being used!\", itemName)\n        (commandPhase) ? @battle.pbDisplayPaused(msg) : @battle.pbDisplay(msg)\n      end\n      return false\n    end\n    # Belch\n    return false if !move.pbCanChooseMove?(self, commandPhase, showMessages)\n    return true\n  end\n\n  #=============================================================================\n  # Obedience check\n  #=============================================================================\n  # Return true if Pokémon continues attacking (although it may have chosen to\n  # use a different move in disobedience), or false if attack stops.\n  def pbObedienceCheck?(choice)\n    return true if usingMultiTurnAttack?\n    return true if choice[0] != :UseMove\n    return true if !@battle.internalBattle\n    return true if !@battle.pbOwnedByPlayer?(@index)\n    disobedient = false\n    # Pokémon may be disobedient; calculate if it is\n    badge_level = 10 * (@battle.pbPlayer.badge_count + 1)\n    badge_level = GameData::GrowthRate.max_level if @battle.pbPlayer.badge_count >= 8\n    if Settings::ANY_HIGH_LEVEL_POKEMON_CAN_DISOBEY ||\n       (Settings::FOREIGN_HIGH_LEVEL_POKEMON_CAN_DISOBEY && @pokemon.foreign?(@battle.pbPlayer))\n      if @level > badge_level\n        a = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor\n        disobedient |= (a >= badge_level)\n      end\n    end\n    disobedient |= !pbHyperModeObedience(choice[2])\n    return true if !disobedient\n    # Pokémon is disobedient; make it do something else\n    return pbDisobey(choice, badge_level)\n  end\n\n  def pbDisobey(choice, badge_level)\n    move = choice[2]\n    PBDebug.log(\"[Disobedience] #{pbThis} disobeyed\")\n    @effects[PBEffects::Rage] = false\n    # Do nothing if using Snore/Sleep Talk\n    if @status == :SLEEP && move.usableWhenAsleep?\n      @battle.pbDisplay(_INTL(\"{1} ignored orders and kept sleeping!\", pbThis))\n      return false\n    end\n    b = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor\n    # Use another move\n    if b < badge_level\n      @battle.pbDisplay(_INTL(\"{1} ignored orders!\", pbThis))\n      return false if !@battle.pbCanShowFightMenu?(@index)\n      otherMoves = []\n      eachMoveWithIndex do |_m, i|\n        next if i == choice[1]\n        otherMoves.push(i) if @battle.pbCanChooseMove?(@index, i, false)\n      end\n      return false if otherMoves.length == 0   # No other move to use; do nothing\n      newChoice = otherMoves[@battle.pbRandom(otherMoves.length)]\n      choice[1] = newChoice\n      choice[2] = @moves[newChoice]\n      choice[3] = -1\n      return true\n    end\n    c = @level - badge_level\n    r = @battle.pbRandom(256)\n    # Fall asleep\n    if r < c && pbCanSleep?(self, false)\n      pbSleepSelf(_INTL(\"{1} began to nap!\", pbThis))\n      return false\n    end\n    # Hurt self in confusion\n    r -= c\n    if r < c && @status != :SLEEP\n      pbConfusionDamage(_INTL(\"{1} won't obey! It hurt itself in its confusion!\", pbThis))\n      return false\n    end\n    # Show refusal message and do nothing\n    case @battle.pbRandom(4)\n    when 0 then @battle.pbDisplay(_INTL(\"{1} won't obey!\", pbThis))\n    when 1 then @battle.pbDisplay(_INTL(\"{1} turned away!\", pbThis))\n    when 2 then @battle.pbDisplay(_INTL(\"{1} is loafing around!\", pbThis))\n    when 3 then @battle.pbDisplay(_INTL(\"{1} pretended not to notice!\", pbThis))\n    end\n    return false\n  end\n\n  #=============================================================================\n  # Check whether the user (self) is able to take action at all.\n  # If this returns true, and if PP isn't a problem, the move will be considered\n  # to have been used (even if it then fails for whatever reason).\n  #=============================================================================\n  def pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)\n    # Check whether it's possible for self to use the given move\n    # NOTE: Encore has already changed the move being used, no need to have a\n    #       check for it here.\n    if !pbCanChooseMove?(move, false, true, specialUsage)\n      @lastMoveFailed = true\n      return false\n    end\n    # Check whether it's possible for self to do anything at all\n    if @effects[PBEffects::SkyDrop] >= 0   # Intentionally no message here\n      PBDebug.log(\"[Move failed] #{pbThis} can't use #{move.name} because of being Sky Dropped\")\n      return false\n    end\n    if @effects[PBEffects::HyperBeam] > 0   # Intentionally before Truant\n      PBDebug.log(\"[Move failed] #{pbThis} is recharging after using #{move.name}\")\n      @battle.pbDisplay(_INTL(\"{1} must recharge!\", pbThis))\n      @effects[PBEffects::Truant] = !@effects[PBEffects::Truant] if hasActiveAbility?(:TRUANT)\n      return false\n    end\n    if choice[1] == -2   # Battle Palace\n      PBDebug.log(\"[Move failed] #{pbThis} can't act in the Battle Palace somehow\")\n      @battle.pbDisplay(_INTL(\"{1} appears incapable of using its power!\", pbThis))\n      return false\n    end\n    # Skip checking all applied effects that could make self fail doing something\n    return true if skipAccuracyCheck\n    # Check status problems and continue their effects/cure them\n    case @status\n    when :SLEEP\n      self.statusCount -= 1\n      if @statusCount <= 0\n        pbCureStatus\n      else\n        pbContinueStatus\n        if !move.usableWhenAsleep?   # Snore/Sleep Talk\n          PBDebug.log(\"[Move failed] #{pbThis} is asleep\")\n          @lastMoveFailed = true\n          return false\n        end\n      end\n    when :FROZEN\n      if !move.thawsUser?\n        if @battle.pbRandom(100) < 20\n          pbCureStatus\n        else\n          pbContinueStatus\n          PBDebug.log(\"[Move failed] #{pbThis} is frozen\")\n          @lastMoveFailed = true\n          return false\n        end\n      end\n    end\n    # Obedience check\n    return false if !pbObedienceCheck?(choice)\n    # Truant\n    if hasActiveAbility?(:TRUANT)\n      @effects[PBEffects::Truant] = !@effects[PBEffects::Truant]\n      if !@effects[PBEffects::Truant]   # True means loafing, but was just inverted\n        @battle.pbShowAbilitySplash(self)\n        @battle.pbDisplay(_INTL(\"{1} is loafing around!\", pbThis))\n        @lastMoveFailed = true\n        @battle.pbHideAbilitySplash(self)\n        PBDebug.log(\"[Move failed] #{pbThis} can't act because of #{abilityName}\")\n        return false\n      end\n    end\n    # Flinching\n    if @effects[PBEffects::Flinch]\n      @battle.pbDisplay(_INTL(\"{1} flinched and couldn't move!\", pbThis))\n      PBDebug.log(\"[Move failed] #{pbThis} flinched\")\n      if abilityActive?\n        Battle::AbilityEffects.triggerOnFlinch(self.ability, self, @battle)\n      end\n      @lastMoveFailed = true\n      return false\n    end\n    # Confusion\n    if @effects[PBEffects::Confusion] > 0\n      @effects[PBEffects::Confusion] -= 1\n      if @effects[PBEffects::Confusion] <= 0\n        pbCureConfusion\n        @battle.pbDisplay(_INTL(\"{1} snapped out of its confusion.\", pbThis))\n      else\n        @battle.pbCommonAnimation(\"Confusion\", self)\n        @battle.pbDisplay(_INTL(\"{1} is confused!\", pbThis))\n        threshold = (Settings::MECHANICS_GENERATION >= 7) ? 33 : 50   # % chance\n        if @battle.pbRandom(100) < threshold\n          pbConfusionDamage(_INTL(\"It hurt itself in its confusion!\"))\n          PBDebug.log(\"[Move failed] #{pbThis} hurt itself in its confusion\")\n          @lastMoveFailed = true\n          return false\n        end\n      end\n    end\n    # Paralysis\n    if @status == :PARALYSIS && @battle.pbRandom(100) < 25\n      pbContinueStatus\n      PBDebug.log(\"[Move failed] #{pbThis} is paralyzed\")\n      @lastMoveFailed = true\n      return false\n    end\n    # Infatuation\n    if @effects[PBEffects::Attract] >= 0\n      @battle.pbCommonAnimation(\"Attract\", self)\n      @battle.pbDisplay(_INTL(\"{1} is in love with {2}!\", pbThis,\n                              @battle.battlers[@effects[PBEffects::Attract]].pbThis(true)))\n      if @battle.pbRandom(100) < 50\n        @battle.pbDisplay(_INTL(\"{1} is immobilized by love!\", pbThis))\n        PBDebug.log(\"[Move failed] #{pbThis} is immobilized by love\")\n        @lastMoveFailed = true\n        return false\n      end\n    end\n    return true\n  end\n\n  #=============================================================================\n  # Initial success check against the target. Done once before the first hit.\n  # Includes move-specific failure conditions, protections and type immunities.\n  #=============================================================================\n  def pbSuccessCheckAgainstTarget(move, user, target, targets)\n    show_message = move.pbShowFailMessages?(targets)\n    typeMod = move.pbCalcTypeMod(move.calcType, user, target)\n    target.damageState.typeMod = typeMod\n    # Two-turn attacks can't fail here in the charging turn\n    return true if user.effects[PBEffects::TwoTurnAttack]\n    # Move-specific failures\n    if move.pbFailsAgainstTarget?(user, target, show_message)\n      PBDebug.log(sprintf(\"[Move failed] In function code %s's def pbFailsAgainstTarget?\", move.function_code))\n      return false\n    end\n    # Immunity to priority moves because of Psychic Terrain\n    if @battle.field.terrain == :Psychic && target.affectedByTerrain? && target.opposes?(user) &&\n       @battle.choices[user.index][4] > 0   # Move priority saved from pbCalculatePriority\n      @battle.pbDisplay(_INTL(\"{1} surrounds itself with psychic terrain!\", target.pbThis)) if show_message\n      return false\n    end\n    # Crafty Shield\n    if target.pbOwnSide.effects[PBEffects::CraftyShield] && user.index != target.index &&\n       move.statusMove? && !move.pbTarget(user).targets_all\n      if show_message\n        @battle.pbCommonAnimation(\"CraftyShield\", target)\n        @battle.pbDisplay(_INTL(\"Crafty Shield protected {1}!\", target.pbThis(true)))\n      end\n      target.damageState.protected = true\n      @battle.successStates[user.index].protected = true\n      return false\n    end\n    if !(user.hasActiveAbility?(:UNSEENFIST) && move.contactMove?)\n      # Wide Guard\n      if target.pbOwnSide.effects[PBEffects::WideGuard] && user.index != target.index &&\n         move.pbTarget(user).num_targets > 1 &&\n         (Settings::MECHANICS_GENERATION >= 7 || move.damagingMove?)\n        if show_message\n          @battle.pbCommonAnimation(\"WideGuard\", target)\n          @battle.pbDisplay(_INTL(\"Wide Guard protected {1}!\", target.pbThis(true)))\n        end\n        target.damageState.protected = true\n        @battle.successStates[user.index].protected = true\n        return false\n      end\n      if move.canProtectAgainst?\n        # Quick Guard\n        if target.pbOwnSide.effects[PBEffects::QuickGuard] &&\n           @battle.choices[user.index][4] > 0   # Move priority saved from pbCalculatePriority\n          if show_message\n            @battle.pbCommonAnimation(\"QuickGuard\", target)\n            @battle.pbDisplay(_INTL(\"Quick Guard protected {1}!\", target.pbThis(true)))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          return false\n        end\n        # Protect\n        if target.effects[PBEffects::Protect]\n          if show_message\n            @battle.pbCommonAnimation(\"Protect\", target)\n            @battle.pbDisplay(_INTL(\"{1} protected itself!\", target.pbThis))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          return false\n        end\n        # King's Shield\n        if target.effects[PBEffects::KingsShield] && move.damagingMove?\n          if show_message\n            @battle.pbCommonAnimation(\"KingsShield\", target)\n            @battle.pbDisplay(_INTL(\"{1} protected itself!\", target.pbThis))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          if move.pbContactMove?(user) && user.affectedByContactEffect? &&\n             user.pbCanLowerStatStage?(:ATTACK, target)\n            user.pbLowerStatStage(:ATTACK, (Settings::MECHANICS_GENERATION >= 8) ? 1 : 2, target)\n          end\n          return false\n        end\n        # Spiky Shield\n        if target.effects[PBEffects::SpikyShield]\n          if show_message\n            @battle.pbCommonAnimation(\"SpikyShield\", target)\n            @battle.pbDisplay(_INTL(\"{1} protected itself!\", target.pbThis))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          if move.pbContactMove?(user) && user.affectedByContactEffect? && user.takesIndirectDamage?\n            @battle.scene.pbDamageAnimation(user)\n            user.pbReduceHP(user.totalhp / 8, false)\n            @battle.pbDisplay(_INTL(\"{1} was hurt!\", user.pbThis))\n            user.pbItemHPHealCheck\n          end\n          return false\n        end\n        # Baneful Bunker\n        if target.effects[PBEffects::BanefulBunker]\n          if show_message\n            @battle.pbCommonAnimation(\"BanefulBunker\", target)\n            @battle.pbDisplay(_INTL(\"{1} protected itself!\", target.pbThis))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          if move.pbContactMove?(user) && user.affectedByContactEffect? &&\n             user.pbCanPoison?(target, false)\n            user.pbPoison(target)\n          end\n          return false\n        end\n        # Obstruct\n        if target.effects[PBEffects::Obstruct] && move.damagingMove?\n          if show_message\n            @battle.pbCommonAnimation(\"Obstruct\", target)\n            @battle.pbDisplay(_INTL(\"{1} protected itself!\", target.pbThis))\n          end\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          if move.pbContactMove?(user) && user.affectedByContactEffect? &&\n             user.pbCanLowerStatStage?(:DEFENSE, target)\n            user.pbLowerStatStage(:DEFENSE, 2, target)\n          end\n          return false\n        end\n        # Mat Block\n        if target.pbOwnSide.effects[PBEffects::MatBlock] && move.damagingMove?\n          # NOTE: Confirmed no common animation for this effect.\n          @battle.pbDisplay(_INTL(\"{1} was blocked by the kicked-up mat!\", move.name)) if show_message\n          target.damageState.protected = true\n          @battle.successStates[user.index].protected = true\n          return false\n        end\n      end\n    end\n    # Magic Coat/Magic Bounce\n    if move.statusMove? && move.canMagicCoat? && !target.semiInvulnerable? && target.opposes?(user)\n      if target.effects[PBEffects::MagicCoat]\n        target.damageState.magicCoat = true\n        target.effects[PBEffects::MagicCoat] = false\n        return false\n      end\n      if target.hasActiveAbility?(:MAGICBOUNCE) && !@battle.moldBreaker &&\n         !target.effects[PBEffects::MagicBounce]\n        target.damageState.magicBounce = true\n        target.effects[PBEffects::MagicBounce] = true\n        return false\n      end\n    end\n    # Immunity because of ability (intentionally before type immunity check)\n    return false if move.pbImmunityByAbility(user, target, show_message)\n    # Type immunity\n    if move.pbDamagingMove? && Effectiveness.ineffective?(typeMod)\n      PBDebug.log(\"[Target immune] #{target.pbThis}'s type immunity\")\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true))) if show_message\n      return false\n    end\n    # Dark-type immunity to moves made faster by Prankster\n    if Settings::MECHANICS_GENERATION >= 7 && user.effects[PBEffects::Prankster] &&\n       target.pbHasType?(:DARK) && target.opposes?(user)\n      PBDebug.log(\"[Target immune] #{target.pbThis} is Dark-type and immune to Prankster-boosted moves\")\n      @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true))) if show_message\n      return false\n    end\n    # Airborne-based immunity to Ground moves\n    if move.damagingMove? && move.calcType == :GROUND &&\n       target.airborne? && !move.hitsFlyingTargets?\n      if target.hasActiveAbility?(:LEVITATE) && !@battle.moldBreaker\n        if show_message\n          @battle.pbShowAbilitySplash(target)\n          if Battle::Scene::USE_ABILITY_SPLASH\n            @battle.pbDisplay(_INTL(\"{1} avoided the attack!\", target.pbThis))\n          else\n            @battle.pbDisplay(_INTL(\"{1} avoided the attack with {2}!\", target.pbThis, target.abilityName))\n          end\n          @battle.pbHideAbilitySplash(target)\n        end\n        return false\n      end\n      if target.hasActiveItem?(:AIRBALLOON)\n        @battle.pbDisplay(_INTL(\"{1}'s {2} makes Ground moves miss!\", target.pbThis, target.itemName)) if show_message\n        return false\n      end\n      if target.effects[PBEffects::MagnetRise] > 0\n        @battle.pbDisplay(_INTL(\"{1} makes Ground moves miss with Magnet Rise!\", target.pbThis)) if show_message\n        return false\n      end\n      if target.effects[PBEffects::Telekinesis] > 0\n        @battle.pbDisplay(_INTL(\"{1} makes Ground moves miss with Telekinesis!\", target.pbThis)) if show_message\n        return false\n      end\n    end\n    # Immunity to powder-based moves\n    if move.powderMove?\n      if target.pbHasType?(:GRASS) && Settings::MORE_TYPE_EFFECTS\n        PBDebug.log(\"[Target immune] #{target.pbThis} is Grass-type and immune to powder-based moves\")\n        @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true))) if show_message\n        return false\n      end\n      if Settings::MECHANICS_GENERATION >= 6\n        if target.hasActiveAbility?(:OVERCOAT) && !@battle.moldBreaker\n          if show_message\n            @battle.pbShowAbilitySplash(target)\n            if Battle::Scene::USE_ABILITY_SPLASH\n              @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true)))\n            else\n              @battle.pbDisplay(_INTL(\"It doesn't affect {1} because of its {2}.\", target.pbThis(true), target.abilityName))\n            end\n            @battle.pbHideAbilitySplash(target)\n          end\n          return false\n        end\n        if target.hasActiveItem?(:SAFETYGOGGLES)\n          PBDebug.log(\"[Item triggered] #{target.pbThis} has Safety Goggles and is immune to powder-based moves\")\n          @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true))) if show_message\n          return false\n        end\n      end\n    end\n    # Substitute\n    if target.effects[PBEffects::Substitute] > 0 && move.statusMove? &&\n       !move.ignoresSubstitute?(user) && user.index != target.index\n      PBDebug.log(\"[Target immune] #{target.pbThis} is protected by its Substitute\")\n      @battle.pbDisplay(_INTL(\"{1} avoided the attack!\", target.pbThis(true))) if show_message\n      return false\n    end\n    return true\n  end\n\n  #=============================================================================\n  # Per-hit success check against the target.\n  # Includes semi-invulnerable move use and accuracy calculation.\n  #=============================================================================\n  def pbSuccessCheckPerHit(move, user, target, skipAccuracyCheck)\n    # Two-turn attacks can't fail here in the charging turn\n    return true if user.effects[PBEffects::TwoTurnAttack]\n    # Lock-On\n    return true if user.effects[PBEffects::LockOn] > 0 &&\n                   user.effects[PBEffects::LockOnPos] == target.index\n    # Toxic\n    return true if move.pbOverrideSuccessCheckPerHit(user, target)\n    miss = false\n    hitsInvul = false\n    # No Guard\n    hitsInvul = true if user.hasActiveAbility?(:NOGUARD) ||\n                        target.hasActiveAbility?(:NOGUARD)\n    # Future Sight\n    hitsInvul = true if @battle.futureSight\n    # Helping Hand\n    hitsInvul = true if move.function_code == \"PowerUpAllyMove\"\n    if !hitsInvul\n      # Semi-invulnerable moves\n      if target.effects[PBEffects::TwoTurnAttack]\n        if target.inTwoTurnAttack?(\"TwoTurnAttackInvulnerableInSky\",\n                                   \"TwoTurnAttackInvulnerableInSkyParalyzeTarget\",\n                                   \"TwoTurnAttackInvulnerableInSkyTargetCannotAct\")\n          miss = true if !move.hitsFlyingTargets?\n        elsif target.inTwoTurnAttack?(\"TwoTurnAttackInvulnerableUnderground\")\n          miss = true if !move.hitsDiggingTargets?\n        elsif target.inTwoTurnAttack?(\"TwoTurnAttackInvulnerableUnderwater\")\n          miss = true if !move.hitsDivingTargets?\n        elsif target.inTwoTurnAttack?(\"TwoTurnAttackInvulnerableRemoveProtections\")\n          miss = true\n        end\n      end\n      if target.effects[PBEffects::SkyDrop] >= 0 &&\n         target.effects[PBEffects::SkyDrop] != user.index && !move.hitsFlyingTargets?\n        miss = true\n      end\n    end\n    if miss\n      target.damageState.invulnerable = true\n      PBDebug.log(\"[Move failed] Target is semi-invulnerable\")\n    else\n      # Called by another move\n      return true if skipAccuracyCheck\n      # Accuracy check\n      return true if move.pbAccuracyCheck(user, target)   # Includes Counter/Mirror Coat\n      PBDebug.log(\"[Move failed] Failed pbAccuracyCheck\")\n    end\n    # Missed\n    return false\n  end\n\n  #=============================================================================\n  # Message shown when a move fails the per-hit success check above.\n  #=============================================================================\n  def pbMissMessage(move, user, target)\n    if target.damageState.affection_missed\n      @battle.pbDisplay(_INTL(\"{1} avoided the move in time with your shout!\", target.pbThis))\n    elsif move.pbTarget(user).num_targets > 1 || target.effects[PBEffects::TwoTurnAttack]\n      @battle.pbDisplay(_INTL(\"{1} avoided the attack!\", target.pbThis))\n    elsif !move.pbMissMessage(user, target)\n      @battle.pbDisplay(_INTL(\"{1}'s attack missed!\", user.pbThis))\n    end\n  end\nend\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "e862b5",
+        "400c70",
+        "0e9bf5",
+        "ce81e3"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/003_Move/002_Move_Usage.rb",
+        "bytes": 17129,
+        "lines": 405,
+        "sha256": "fdc7737d876079147f688b39c3ae633d10a09c7aa009180f7734390fa3dbaafb",
+        "git_blob": "10b06a44eabef9cd87291712141e938872acff1c"
+      },
+      "range": [
+        88,
+        96
+      ],
+      "text": "  def pbImmunityByAbility(user, target, show_message)\n    return false if @battle.moldBreaker\n    ret = false\n    if target.abilityActive?\n      ret = Battle::AbilityEffects.triggerMoveImmunity(target.ability, user, target,\n                                                       self, @calcType, @battle, show_message)\n    end\n    return ret\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "fc8c80"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        4,
+        72
+      ],
+      "text": "module Battle::AbilityEffects\n  SpeedCalc                        = AbilityHandlerHash.new\n  WeightCalc                       = AbilityHandlerHash.new\n  # Battler's HP/stat changed\n  OnHPDroppedBelowHalf             = AbilityHandlerHash.new\n  # Battler's status problem\n  StatusCheckNonIgnorable          = AbilityHandlerHash.new   # Comatose\n  StatusImmunity                   = AbilityHandlerHash.new\n  StatusImmunityNonIgnorable       = AbilityHandlerHash.new\n  StatusImmunityFromAlly           = AbilityHandlerHash.new\n  OnStatusInflicted                = AbilityHandlerHash.new   # Synchronize\n  StatusCure                       = AbilityHandlerHash.new\n  # Battler's stat stages\n  StatLossImmunity                 = AbilityHandlerHash.new\n  StatLossImmunityNonIgnorable     = AbilityHandlerHash.new   # Full Metal Body\n  StatLossImmunityFromAlly         = AbilityHandlerHash.new   # Flower Veil\n  OnStatGain                       = AbilityHandlerHash.new   # None!\n  OnStatLoss                       = AbilityHandlerHash.new\n  # Priority and turn order\n  PriorityChange                   = AbilityHandlerHash.new\n  PriorityBracketChange            = AbilityHandlerHash.new   # Stall\n  PriorityBracketUse               = AbilityHandlerHash.new   # None!\n  # Move usage failures\n  OnFlinch                         = AbilityHandlerHash.new   # Steadfast\n  MoveBlocking                     = AbilityHandlerHash.new\n  MoveImmunity                     = AbilityHandlerHash.new\n  # Move usage\n  ModifyMoveBaseType               = AbilityHandlerHash.new\n  # Accuracy calculation\n  AccuracyCalcFromUser             = AbilityHandlerHash.new\n  AccuracyCalcFromAlly             = AbilityHandlerHash.new   # Victory Star\n  AccuracyCalcFromTarget           = AbilityHandlerHash.new\n  # Damage calculation\n  DamageCalcFromUser               = AbilityHandlerHash.new\n  DamageCalcFromAlly               = AbilityHandlerHash.new\n  DamageCalcFromTarget             = AbilityHandlerHash.new\n  DamageCalcFromTargetNonIgnorable = AbilityHandlerHash.new\n  DamageCalcFromTargetAlly         = AbilityHandlerHash.new\n  CriticalCalcFromUser             = AbilityHandlerHash.new\n  CriticalCalcFromTarget           = AbilityHandlerHash.new\n  # Upon a move hitting a target\n  OnBeingHit                       = AbilityHandlerHash.new\n  OnDealingHit                     = AbilityHandlerHash.new   # Poison Touch\n  # Abilities that trigger at the end of using a move\n  OnEndOfUsingMove                 = AbilityHandlerHash.new\n  AfterMoveUseFromTarget           = AbilityHandlerHash.new\n  # End Of Round\n  EndOfRoundWeather                = AbilityHandlerHash.new\n  EndOfRoundHealing                = AbilityHandlerHash.new\n  EndOfRoundEffect                 = AbilityHandlerHash.new\n  EndOfRoundGainItem               = AbilityHandlerHash.new\n  # Switching and fainting\n  CertainSwitching                 = AbilityHandlerHash.new   # None!\n  TrappingByTarget                 = AbilityHandlerHash.new\n  OnSwitchIn                       = AbilityHandlerHash.new\n  OnSwitchOut                      = AbilityHandlerHash.new\n  ChangeOnBattlerFainting          = AbilityHandlerHash.new\n  OnBattlerFainting                = AbilityHandlerHash.new   # Soul-Heart\n  OnTerrainChange                  = AbilityHandlerHash.new   # Mimicry\n  OnIntimidated                    = AbilityHandlerHash.new   # Rattled (Gen 8)\n  # Running from battle\n  CertainEscapeFromBattle          = AbilityHandlerHash.new   # Run Away\n\n  #=============================================================================\n\n  def self.trigger(hash, *args, ret: false)\n    new_ret = hash.trigger(*args)\n    return (!new_ret.nil?) ? new_ret : ret\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "864638"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        92,
+        109
+      ],
+      "text": "  def self.triggerStatusCheckNonIgnorable(ability, battler, status)\n    return trigger(StatusCheckNonIgnorable, ability, battler, status)\n  end\n\n  def self.triggerStatusImmunity(ability, battler, status)\n    return trigger(StatusImmunity, ability, battler, status)\n  end\n\n  def self.triggerStatusImmunityNonIgnorable(ability, battler, status)\n    return trigger(StatusImmunityNonIgnorable, ability, battler, status)\n  end\n\n  def self.triggerStatusImmunityFromAlly(ability, battler, status)\n    return trigger(StatusImmunityFromAlly, ability, battler, status)\n  end\n\n  def self.triggerOnStatusInflicted(ability, battler, user, status)\n    OnStatusInflicted.trigger(ability, battler, user, status)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "864638"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        118,
+        136
+      ],
+      "text": "  def self.triggerStatLossImmunity(ability, battler, stat, battle, show_messages)\n    return trigger(StatLossImmunity, ability, battler, stat, battle, show_messages)\n  end\n\n  def self.triggerStatLossImmunityNonIgnorable(ability, battler, stat, battle, show_messages)\n    return trigger(StatLossImmunityNonIgnorable, ability, battler, stat, battle, show_messages)\n  end\n\n  def self.triggerStatLossImmunityFromAlly(ability, bearer, battler, stat, battle, show_messages)\n    return trigger(StatLossImmunityFromAlly, ability, bearer, battler, stat, battle, show_messages)\n  end\n\n  def self.triggerOnStatGain(ability, battler, stat, user)\n    OnStatGain.trigger(ability, battler, stat, user)\n  end\n\n  def self.triggerOnStatLoss(ability, battler, stat, user)\n    OnStatLoss.trigger(ability, battler, stat, user)\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "b06087"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        154,
+        164
+      ],
+      "text": "  def self.triggerOnFlinch(ability, battler, battle)\n    OnFlinch.trigger(ability, battler, battle)\n  end\n\n  def self.triggerMoveBlocking(ability, bearer, user, targets, move, battle)\n    return trigger(MoveBlocking, ability, bearer, user, targets, move, battle)\n  end\n\n  def self.triggerMoveImmunity(ability, user, target, move, type, battle, show_message)\n    return trigger(MoveImmunity, ability, user, target, move, type, battle, show_message)\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "5cbf27"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        414,
+        471
+      ],
+      "text": "Battle::AbilityEffects::StatusCheckNonIgnorable.add(:COMATOSE,\n  proc { |ability, battler, status|\n    next false if !battler.isSpecies?(:KOMALA)\n    next true if status.nil? || status == :SLEEP\n  }\n)\n\n#===============================================================================\n# StatusImmunity handlers\n#===============================================================================\n\nBattle::AbilityEffects::StatusImmunity.add(:FLOWERVEIL,\n  proc { |ability, battler, status|\n    next true if battler.pbHasType?(:GRASS)\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.add(:IMMUNITY,\n  proc { |ability, battler, status|\n    next true if status == :POISON\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.copy(:IMMUNITY, :PASTELVEIL)\n\nBattle::AbilityEffects::StatusImmunity.add(:INSOMNIA,\n  proc { |ability, battler, status|\n    next true if status == :SLEEP\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.copy(:INSOMNIA, :SWEETVEIL, :VITALSPIRIT)\n\nBattle::AbilityEffects::StatusImmunity.add(:LEAFGUARD,\n  proc { |ability, battler, status|\n    next true if [:Sun, :HarshSun].include?(battler.effectiveWeather)\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.add(:LIMBER,\n  proc { |ability, battler, status|\n    next true if status == :PARALYSIS\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.add(:MAGMAARMOR,\n  proc { |ability, battler, status|\n    next true if status == :FROZEN\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.add(:WATERVEIL,\n  proc { |ability, battler, status|\n    next true if status == :BURN\n  }\n)\n\nBattle::AbilityEffects::StatusImmunity.copy(:WATERVEIL, :WATERBUBBLE)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "fc8c80"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        477,
+        509
+      ],
+      "text": "Battle::AbilityEffects::StatusImmunityNonIgnorable.add(:COMATOSE,\n  proc { |ability, battler, status|\n    next true if battler.isSpecies?(:KOMALA)\n  }\n)\n\nBattle::AbilityEffects::StatusImmunityNonIgnorable.add(:SHIELDSDOWN,\n  proc { |ability, battler, status|\n    next true if battler.isSpecies?(:MINIOR) && battler.form < 7\n  }\n)\n\n#===============================================================================\n# StatusImmunityFromAlly handlers\n#===============================================================================\n\nBattle::AbilityEffects::StatusImmunityFromAlly.add(:FLOWERVEIL,\n  proc { |ability, battler, status|\n    next true if battler.pbHasType?(:GRASS)\n  }\n)\n\nBattle::AbilityEffects::StatusImmunityFromAlly.add(:PASTELVEIL,\n  proc { |ability, battler, status|\n    next true if status == :POISON\n  }\n)\n\nBattle::AbilityEffects::StatusImmunityFromAlly.add(:SWEETVEIL,\n  proc { |ability, battler, status|\n    next true if status == :SLEEP\n  }\n)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "7a8a15"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        670,
+        752
+      ],
+      "text": "Battle::AbilityEffects::StatLossImmunity.add(:BIGPECKS,\n  proc { |ability, battler, stat, battle, showMessages|\n    next false if stat != :DEFENSE\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s {2} cannot be lowered!\", battler.pbThis, GameData::Stat.get(stat).name))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents {3} loss!\", battler.pbThis,\n           battler.abilityName, GameData::Stat.get(stat).name))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::StatLossImmunity.add(:CLEARBODY,\n  proc { |ability, battler, stat, battle, showMessages|\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s stats cannot be lowered!\", battler.pbThis))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents stat loss!\", battler.pbThis, battler.abilityName))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::StatLossImmunity.copy(:CLEARBODY, :WHITESMOKE)\n\nBattle::AbilityEffects::StatLossImmunity.add(:FLOWERVEIL,\n  proc { |ability, battler, stat, battle, showMessages|\n    next false if !battler.pbHasType?(:GRASS)\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s stats cannot be lowered!\", battler.pbThis))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents stat loss!\", battler.pbThis, battler.abilityName))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::StatLossImmunity.add(:HYPERCUTTER,\n  proc { |ability, battler, stat, battle, showMessages|\n    next false if stat != :ATTACK\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s {2} cannot be lowered!\", battler.pbThis, GameData::Stat.get(stat).name))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents {3} loss!\", battler.pbThis,\n           battler.abilityName, GameData::Stat.get(stat).name))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::StatLossImmunity.add(:KEENEYE,\n  proc { |ability, battler, stat, battle, showMessages|\n    next false if stat != :ACCURACY\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s {2} cannot be lowered!\", battler.pbThis, GameData::Stat.get(stat).name))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents {3} loss!\", battler.pbThis,\n           battler.abilityName, GameData::Stat.get(stat).name))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "7a8a15"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        758,
+        792
+      ],
+      "text": "Battle::AbilityEffects::StatLossImmunityNonIgnorable.add(:FULLMETALBODY,\n  proc { |ability, battler, stat, battle, showMessages|\n    if showMessages\n      battle.pbShowAbilitySplash(battler)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s stats cannot be lowered!\", battler.pbThis))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents stat loss!\", battler.pbThis, battler.abilityName))\n      end\n      battle.pbHideAbilitySplash(battler)\n    end\n    next true\n  }\n)\n\n#===============================================================================\n# StatLossImmunityFromAlly handlers\n#===============================================================================\n\nBattle::AbilityEffects::StatLossImmunityFromAlly.add(:FLOWERVEIL,\n  proc { |ability, bearer, battler, stat, battle, showMessages|\n    next false if !battler.pbHasType?(:GRASS)\n    if showMessages\n      battle.pbShowAbilitySplash(bearer)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1}'s stats cannot be lowered!\", battler.pbThis))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} prevents {3}'s stat loss!\",\n           bearer.pbThis, bearer.abilityName, battler.pbThis(true)))\n      end\n      battle.pbHideAbilitySplash(bearer)\n    end\n    next true\n  }\n)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "864638"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        804,
+        816
+      ],
+      "text": "Battle::AbilityEffects::OnStatLoss.add(:COMPETITIVE,\n  proc { |ability, battler, stat, user|\n    next if user && !user.opposes?(battler)\n    battler.pbRaiseStatStageByAbility(:SPECIAL_ATTACK, 2, battler)\n  }\n)\n\nBattle::AbilityEffects::OnStatLoss.add(:DEFIANT,\n  proc { |ability, battler, stat, user|\n    next if user && !user.opposes?(battler)\n    battler.pbRaiseStatStageByAbility(:ATTACK, 2, battler)\n  }\n)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "b06087"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/007_Other battle code/008_Battle_AbilityEffects.rb",
+        "bytes": 116175,
+        "lines": 3208,
+        "sha256": "4f9a5b631aa353efd000f27d471dfdc50bf50911e71f689b231e262f02b82f1e",
+        "git_blob": "6deff3758f06a7fce8190b6a05c25a3ac69a4936"
+      },
+      "range": [
+        902,
+        1037
+      ],
+      "text": "Battle::AbilityEffects::MoveImmunity.add(:BULLETPROOF,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next false if !move.bombMove?\n    if show_message\n      battle.pbShowAbilitySplash(target)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true)))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} made {3} ineffective!\",\n           target.pbThis, target.abilityName, move.name))\n      end\n      battle.pbHideAbilitySplash(target)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:FLASHFIRE,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next false if user.index == target.index\n    next false if type != :FIRE\n    if show_message\n      battle.pbShowAbilitySplash(target)\n      if !target.effects[PBEffects::FlashFire]\n        target.effects[PBEffects::FlashFire] = true\n        if Battle::Scene::USE_ABILITY_SPLASH\n          battle.pbDisplay(_INTL(\"The power of {1}'s Fire-type moves rose!\", target.pbThis(true)))\n        else\n          battle.pbDisplay(_INTL(\"The power of {1}'s Fire-type moves rose because of its {2}!\",\n             target.pbThis(true), target.abilityName))\n        end\n      elsif Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true)))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} made {3} ineffective!\",\n                               target.pbThis, target.abilityName, move.name))\n      end\n      battle.pbHideAbilitySplash(target)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:LIGHTNINGROD,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityStatRaisingAbility(user, move, type,\n       :ELECTRIC, :SPECIAL_ATTACK, 1, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:MOTORDRIVE,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityStatRaisingAbility(user, move, type,\n       :ELECTRIC, :SPEED, 1, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:SAPSIPPER,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityStatRaisingAbility(user, move, type,\n       :GRASS, :ATTACK, 1, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:SOUNDPROOF,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next false if !move.soundMove?\n    next false if Settings::MECHANICS_GENERATION >= 8 && user.index == target.index\n    if show_message\n      battle.pbShowAbilitySplash(target)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true)))\n      else\n        battle.pbDisplay(_INTL(\"{1}'s {2} blocks {3}!\", target.pbThis, target.abilityName, move.name))\n      end\n      battle.pbHideAbilitySplash(target)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:STORMDRAIN,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityStatRaisingAbility(user, move, type,\n       :WATER, :SPECIAL_ATTACK, 1, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:TELEPATHY,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next false if move.statusMove?\n    next false if user.index == target.index || target.opposes?(user)\n    if show_message\n      battle.pbShowAbilitySplash(target)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"{1} avoids attacks by its ally Pokémon!\", target.pbThis(true)))\n      else\n        battle.pbDisplay(_INTL(\"{1} avoids attacks by its ally Pokémon with {2}!\",\n           target.pbThis, target.abilityName))\n      end\n      battle.pbHideAbilitySplash(target)\n    end\n    next true\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:VOLTABSORB,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityHealingAbility(user, move, type, :ELECTRIC, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.add(:WATERABSORB,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next target.pbMoveImmunityHealingAbility(user, move, type, :WATER, show_message)\n  }\n)\n\nBattle::AbilityEffects::MoveImmunity.copy(:WATERABSORB, :DRYSKIN)\n\nBattle::AbilityEffects::MoveImmunity.add(:WONDERGUARD,\n  proc { |ability, user, target, move, type, battle, show_message|\n    next false if move.statusMove?\n    next false if !type || Effectiveness.super_effective?(target.damageState.typeMod)\n    if show_message\n      battle.pbShowAbilitySplash(target)\n      if Battle::Scene::USE_ABILITY_SPLASH\n        battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", target.pbThis(true)))\n      else\n        battle.pbDisplay(_INTL(\"{1} avoided damage with {2}!\", target.pbThis, target.abilityName))\n      end\n      battle.pbHideAbilitySplash(target)\n    end\n    next true\n  }\n)\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "7a8a15"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/002_Battler/006_Battler_AbilityAndItem.rb",
+        "bytes": 19508,
+        "lines": 476,
+        "sha256": "23feca6a2409c3c21ccf558fb0c9511e613a09385f438181df1875bc61d01ac4",
+        "git_blob": "3e5005b540e7657e15e77133aaf4a551eac57835"
+      },
+      "range": [
+        116,
+        166
+      ],
+      "text": "  def pbMoveImmunityStatRaisingAbility(user, move, moveType, immuneType, stat, increment, show_message)\n    return false if user.index == @index\n    return false if moveType != immuneType\n    # NOTE: If show_message is false (Dragon Darts only), the stat will not be\n    #       raised. This is not how the official games work, but I'm considering\n    #       that a bug because Dragon Darts won't be fired at self in the first\n    #       place if it's immune, so why would this ability be triggered by them?\n    if show_message\n      @battle.pbShowAbilitySplash(self)\n      if pbCanRaiseStatStage?(stat, self)\n        if Battle::Scene::USE_ABILITY_SPLASH\n          pbRaiseStatStage(stat, increment, self)\n        else\n          pbRaiseStatStageByCause(stat, increment, self, abilityName)\n        end\n      elsif Battle::Scene::USE_ABILITY_SPLASH\n        @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true)))\n      else\n        @battle.pbDisplay(_INTL(\"{1}'s {2} made {3} ineffective!\", pbThis, abilityName, move.name))\n      end\n      @battle.pbHideAbilitySplash(self)\n    end\n    return true\n  end\n\n  # For abilities that grant immunity to moves of a particular type, and heals\n  # the ability's bearer by 1/4 of its total HP instead.\n  def pbMoveImmunityHealingAbility(user, move, moveType, immuneType, show_message)\n    return false if user.index == @index\n    return false if moveType != immuneType\n    # NOTE: If show_message is false (Dragon Darts only), HP will not be healed.\n    #       This is not how the official games work, but I'm considering that a\n    #       bug because Dragon Darts won't be fired at self in the first place\n    #       if it's immune, so why would this ability be triggered by them?\n    if show_message\n      @battle.pbShowAbilitySplash(self)\n      if canHeal? && pbRecoverHP(@totalhp / 4) > 0\n        if Battle::Scene::USE_ABILITY_SPLASH\n          @battle.pbDisplay(_INTL(\"{1}'s HP was restored.\", pbThis))\n        else\n          @battle.pbDisplay(_INTL(\"{1}'s {2} restored its HP.\", pbThis, abilityName))\n        end\n      elsif Battle::Scene::USE_ABILITY_SPLASH\n        @battle.pbDisplay(_INTL(\"It doesn't affect {1}...\", pbThis(true)))\n      else\n        @battle.pbDisplay(_INTL(\"{1}'s {2} made {3} ineffective!\", pbThis, abilityName, move.name))\n      end\n      @battle.pbHideAbilitySplash(self)\n    end\n    return true\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "5cbf27"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    },
+    {
+      "identity": {
+        "repo": "/workspace/pokemon-essentials",
+        "commit": "8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b",
+        "tree": "7589c800b61ba13a13040ed0d686979b80a84fd0",
+        "path": "Data/Scripts/011_Battle/002_Battler/004_Battler_Statuses.rb",
+        "bytes": 21633,
+        "lines": 575,
+        "sha256": "28b1de07d9c938a52755de4901d09931874cf25f4c23ba32623eb53f8a80a4b3",
+        "git_blob": "5cba43ffc27a7fad9be2c9d63887df6d67744933"
+      },
+      "range": [
+        443,
+        477
+      ],
+      "text": "  def pbCanConfuse?(user = nil, showMessages = true, move = nil, selfInflicted = false)\n    return false if fainted?\n    if @effects[PBEffects::Confusion] > 0\n      @battle.pbDisplay(_INTL(\"{1} is already confused.\", pbThis)) if showMessages\n      return false\n    end\n    if @effects[PBEffects::Substitute] > 0 && !(move && move.ignoresSubstitute?(user)) &&\n       !selfInflicted\n      @battle.pbDisplay(_INTL(\"But it failed!\")) if showMessages\n      return false\n    end\n    # Terrains immunity\n    if affectedByTerrain? && @battle.field.terrain == :Misty && Settings::MECHANICS_GENERATION >= 7\n      @battle.pbDisplay(_INTL(\"{1} surrounds itself with misty terrain!\", pbThis(true))) if showMessages\n      return false\n    end\n    if (selfInflicted || !@battle.moldBreaker) && hasActiveAbility?(:OWNTEMPO)\n      if showMessages\n        @battle.pbShowAbilitySplash(self)\n        if Battle::Scene::USE_ABILITY_SPLASH\n          @battle.pbDisplay(_INTL(\"{1} doesn't become confused!\", pbThis))\n        else\n          @battle.pbDisplay(_INTL(\"{1}'s {2} prevents confusion!\", pbThis, abilityName))\n        end\n        @battle.pbHideAbilitySplash(self)\n      end\n      return false\n    end\n    if pbOwnSide.effects[PBEffects::Safeguard] > 0 && !selfInflicted &&\n       !(user && user.hasActiveAbility?(:INFILTRATOR))\n      @battle.pbDisplay(_INTL(\"{1}'s team is protected by Safeguard!\", pbThis)) if showMessages\n      return false\n    end\n    return true\n  end\n",
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "actual_read_io": [
+        "7a8a15"
+      ],
+      "qualification": "Complete contained source unit; no whole enclosing-file credit except the independently complete595-line Success source."
+    }
+  ],
+  "complete_primary_Move_original_objects": [
+    {
+      "id": "SHADOWEND",
+      "ordinal": 1,
+      "source_range": [
+        3,
+        14
+      ],
+      "fields": [
+        {
+          "line": 4,
+          "key": "Name",
+          "original_value": "Shadow End",
+          "interpreted_value": "Shadow End",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 5,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 6,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 7,
+          "key": "Power",
+          "original_value": "120",
+          "interpreted_value": 120,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 8,
+          "key": "Accuracy",
+          "original_value": "60",
+          "interpreted_value": 60,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 9,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 10,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 11,
+          "key": "FunctionCode",
+          "original_value": "UserLosesHalfHP",
+          "interpreted_value": "UserLosesHalfHP",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 12,
+          "key": "Flags",
+          "original_value": "Contact,CanProtect",
+          "interpreted_value": [
+            "Contact",
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 13,
+          "key": "Description",
+          "original_value": "A shadowy aura ram attack that also rebounds on the user.",
+          "interpreted_value": "A shadowy aura ram attack that also rebounds on the user.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWSTORM",
+      "ordinal": 2,
+      "source_range": [
+        15,
+        26
+      ],
+      "fields": [
+        {
+          "line": 16,
+          "key": "Name",
+          "original_value": "Shadow Storm",
+          "interpreted_value": "Shadow Storm",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 17,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 18,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 19,
+          "key": "Power",
+          "original_value": "95",
+          "interpreted_value": 95,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 20,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 21,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 22,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 23,
+          "key": "FunctionCode",
+          "original_value": "DoublePowerIfTargetUnderwater",
+          "interpreted_value": "DoublePowerIfTargetUnderwater",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 24,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 25,
+          "key": "Description",
+          "original_value": "A shadowy aura is used to whip up a vicious tornado.",
+          "interpreted_value": "A shadowy aura is used to whip up a vicious tornado.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWBLAST",
+      "ordinal": 3,
+      "source_range": [
+        27,
+        38
+      ],
+      "fields": [
+        {
+          "line": 28,
+          "key": "Name",
+          "original_value": "Shadow Blast",
+          "interpreted_value": "Shadow Blast",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 29,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 30,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 31,
+          "key": "Power",
+          "original_value": "80",
+          "interpreted_value": 80,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 32,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 33,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 34,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 35,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 36,
+          "key": "Flags",
+          "original_value": "CanProtect,HighCriticalHitRate",
+          "interpreted_value": [
+            "CanProtect",
+            "HighCriticalHitRate"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 37,
+          "key": "Description",
+          "original_value": "A wicked blade of air is formed using a shadowy aura.",
+          "interpreted_value": "A wicked blade of air is formed using a shadowy aura.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWBOLT",
+      "ordinal": 4,
+      "source_range": [
+        39,
+        51
+      ],
+      "fields": [
+        {
+          "line": 40,
+          "key": "Name",
+          "original_value": "Shadow Bolt",
+          "interpreted_value": "Shadow Bolt",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 41,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 42,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 43,
+          "key": "Power",
+          "original_value": "75",
+          "interpreted_value": 75,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 44,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 45,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 46,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 47,
+          "key": "FunctionCode",
+          "original_value": "ParalyzeTarget",
+          "interpreted_value": "ParalyzeTarget",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 48,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 49,
+          "key": "EffectChance",
+          "original_value": "10",
+          "interpreted_value": 10,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 50,
+          "key": "Description",
+          "original_value": "A shadowy thunder attack that may paralyze.",
+          "interpreted_value": "A shadowy thunder attack that may paralyze.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0
+      }
+    },
+    {
+      "id": "SHADOWBREAK",
+      "ordinal": 5,
+      "source_range": [
+        52,
+        63
+      ],
+      "fields": [
+        {
+          "line": 53,
+          "key": "Name",
+          "original_value": "Shadow Break",
+          "interpreted_value": "Shadow Break",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 54,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 55,
+          "key": "Category",
+          "original_value": "Physical",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 56,
+          "key": "Power",
+          "original_value": "75",
+          "interpreted_value": 75,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 57,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 58,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 59,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 60,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 61,
+          "key": "Flags",
+          "original_value": "Contact,CanProtect",
+          "interpreted_value": [
+            "Contact",
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 62,
+          "key": "Description",
+          "original_value": "A shattering ram attack with a shadowy aura.",
+          "interpreted_value": "A shattering ram attack with a shadowy aura.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWCHILL",
+      "ordinal": 6,
+      "source_range": [
+        64,
+        76
+      ],
+      "fields": [
+        {
+          "line": 65,
+          "key": "Name",
+          "original_value": "Shadow Chill",
+          "interpreted_value": "Shadow Chill",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 66,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 67,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 68,
+          "key": "Power",
+          "original_value": "75",
+          "interpreted_value": 75,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 69,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 70,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 71,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 72,
+          "key": "FunctionCode",
+          "original_value": "FreezeTarget",
+          "interpreted_value": "FreezeTarget",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 73,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 74,
+          "key": "EffectChance",
+          "original_value": "10",
+          "interpreted_value": 10,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 75,
+          "key": "Description",
+          "original_value": "A shadowy ice attack that may freeze.",
+          "interpreted_value": "A shadowy ice attack that may freeze.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0
+      }
+    },
+    {
+      "id": "SHADOWFIRE",
+      "ordinal": 7,
+      "source_range": [
+        77,
+        89
+      ],
+      "fields": [
+        {
+          "line": 78,
+          "key": "Name",
+          "original_value": "Shadow Fire",
+          "interpreted_value": "Shadow Fire",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 79,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 80,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 81,
+          "key": "Power",
+          "original_value": "75",
+          "interpreted_value": 75,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 82,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 83,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 84,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 85,
+          "key": "FunctionCode",
+          "original_value": "BurnTarget",
+          "interpreted_value": "BurnTarget",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 86,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 87,
+          "key": "EffectChance",
+          "original_value": "10",
+          "interpreted_value": 10,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 88,
+          "key": "Description",
+          "original_value": "A shadowy fireball attack that may inflict a burn.",
+          "interpreted_value": "A shadowy fireball attack that may inflict a burn.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0
+      }
+    },
+    {
+      "id": "SHADOWRAVE",
+      "ordinal": 8,
+      "source_range": [
+        90,
+        101
+      ],
+      "fields": [
+        {
+          "line": 91,
+          "key": "Name",
+          "original_value": "Shadow Rave",
+          "interpreted_value": "Shadow Rave",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 92,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 93,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 94,
+          "key": "Power",
+          "original_value": "70",
+          "interpreted_value": 70,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 95,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 96,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 97,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 98,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 99,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 100,
+          "key": "Description",
+          "original_value": "A shadowy aura in the ground is used to launch spikes.",
+          "interpreted_value": "A shadowy aura in the ground is used to launch spikes.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWRUSH",
+      "ordinal": 9,
+      "source_range": [
+        102,
+        113
+      ],
+      "fields": [
+        {
+          "line": 103,
+          "key": "Name",
+          "original_value": "Shadow Rush",
+          "interpreted_value": "Shadow Rush",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 104,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 105,
+          "key": "Category",
+          "original_value": "Physical",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 106,
+          "key": "Power",
+          "original_value": "55",
+          "interpreted_value": 55,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 107,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 108,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 109,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 110,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 111,
+          "key": "Flags",
+          "original_value": "Contact,CanProtect",
+          "interpreted_value": [
+            "Contact",
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 112,
+          "key": "Description",
+          "original_value": "A reckless move that also hurts the user.",
+          "interpreted_value": "A reckless move that also hurts the user.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWWAVE",
+      "ordinal": 10,
+      "source_range": [
+        114,
+        125
+      ],
+      "fields": [
+        {
+          "line": 115,
+          "key": "Name",
+          "original_value": "Shadow Wave",
+          "interpreted_value": "Shadow Wave",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 116,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 117,
+          "key": "Category",
+          "original_value": "Special",
+          "interpreted_value": 1,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 118,
+          "key": "Power",
+          "original_value": "50",
+          "interpreted_value": 50,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 119,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 120,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 121,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 122,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 123,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 124,
+          "key": "Description",
+          "original_value": "Shadowy aura waves are loosed to inflict damage.",
+          "interpreted_value": "Shadowy aura waves are loosed to inflict damage.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWBLITZ",
+      "ordinal": 11,
+      "source_range": [
+        126,
+        137
+      ],
+      "fields": [
+        {
+          "line": 127,
+          "key": "Name",
+          "original_value": "Shadow Blitz",
+          "interpreted_value": "Shadow Blitz",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 128,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 129,
+          "key": "Category",
+          "original_value": "Physical",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 130,
+          "key": "Power",
+          "original_value": "40",
+          "interpreted_value": 40,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 131,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 132,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 133,
+          "key": "Target",
+          "original_value": "NearOther",
+          "interpreted_value": "NearOther",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 134,
+          "key": "FunctionCode",
+          "original_value": "None",
+          "interpreted_value": "None",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 135,
+          "key": "Flags",
+          "original_value": "Contact,CanProtect",
+          "interpreted_value": [
+            "Contact",
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 136,
+          "key": "Description",
+          "original_value": "A Pokémon throws this tackle while casting a shadowy aura.",
+          "interpreted_value": "A Pokémon throws this tackle while casting a shadowy aura.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWDOWN",
+      "ordinal": 12,
+      "source_range": [
+        138,
+        148
+      ],
+      "fields": [
+        {
+          "line": 139,
+          "key": "Name",
+          "original_value": "Shadow Down",
+          "interpreted_value": "Shadow Down",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 140,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 141,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 142,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 143,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 144,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 145,
+          "key": "FunctionCode",
+          "original_value": "LowerTargetDefense2",
+          "interpreted_value": "LowerTargetDefense2",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 146,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 147,
+          "key": "Description",
+          "original_value": "A shadowy aura sharply cuts the foe's Defense.",
+          "interpreted_value": "A shadowy aura sharply cuts the foe's Defense.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWHALF",
+      "ordinal": 13,
+      "source_range": [
+        149,
+        159
+      ],
+      "fields": [
+        {
+          "line": 150,
+          "key": "Name",
+          "original_value": "Shadow Half",
+          "interpreted_value": "Shadow Half",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 151,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 152,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 153,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 154,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 155,
+          "key": "Target",
+          "original_value": "AllBattlers",
+          "interpreted_value": "AllBattlers",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 156,
+          "key": "FunctionCode",
+          "original_value": "AllBattlersLoseHalfHPUserSkipsNextTurn",
+          "interpreted_value": "AllBattlersLoseHalfHPUserSkipsNextTurn",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 157,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 158,
+          "key": "Description",
+          "original_value": "A shadowy aura's energy cuts everyone's HP by half.",
+          "interpreted_value": "A shadowy aura's energy cuts everyone's HP by half.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWHOLD",
+      "ordinal": 14,
+      "source_range": [
+        160,
+        170
+      ],
+      "fields": [
+        {
+          "line": 161,
+          "key": "Name",
+          "original_value": "Shadow Hold",
+          "interpreted_value": "Shadow Hold",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 162,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 163,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 164,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 165,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 166,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 167,
+          "key": "FunctionCode",
+          "original_value": "TrapTargetInBattle",
+          "interpreted_value": "TrapTargetInBattle",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 168,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 169,
+          "key": "Description",
+          "original_value": "The opponent Pokémon cannot escape.",
+          "interpreted_value": "The opponent Pokémon cannot escape.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWMIST",
+      "ordinal": 15,
+      "source_range": [
+        171,
+        181
+      ],
+      "fields": [
+        {
+          "line": 172,
+          "key": "Name",
+          "original_value": "Shadow Mist",
+          "interpreted_value": "Shadow Mist",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 173,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 174,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 175,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 176,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 177,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 178,
+          "key": "FunctionCode",
+          "original_value": "LowerTargetEvasion2",
+          "interpreted_value": "LowerTargetEvasion2",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 179,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 180,
+          "key": "Description",
+          "original_value": "A shadowy aura sharply cuts the foe's evasiveness.",
+          "interpreted_value": "A shadowy aura sharply cuts the foe's evasiveness.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWPANIC",
+      "ordinal": 16,
+      "source_range": [
+        182,
+        192
+      ],
+      "fields": [
+        {
+          "line": 183,
+          "key": "Name",
+          "original_value": "Shadow Panic",
+          "interpreted_value": "Shadow Panic",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 184,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 185,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 186,
+          "key": "Accuracy",
+          "original_value": "90",
+          "interpreted_value": 90,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 187,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 188,
+          "key": "Target",
+          "original_value": "AllFoes",
+          "interpreted_value": "AllFoes",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 189,
+          "key": "FunctionCode",
+          "original_value": "ConfuseTarget",
+          "interpreted_value": "ConfuseTarget",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 190,
+          "key": "Flags",
+          "original_value": "CanProtect,Sound",
+          "interpreted_value": [
+            "CanProtect",
+            "Sound"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 191,
+          "key": "Description",
+          "original_value": "A shadowy aura emanates to confuse the foe.",
+          "interpreted_value": "A shadowy aura emanates to confuse the foe.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWSHED",
+      "ordinal": 17,
+      "source_range": [
+        193,
+        203
+      ],
+      "fields": [
+        {
+          "line": 194,
+          "key": "Name",
+          "original_value": "Shadow Shed",
+          "interpreted_value": "Shadow Shed",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 195,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 196,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 197,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 198,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 199,
+          "key": "Target",
+          "original_value": "BothSides",
+          "interpreted_value": "BothSides",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 200,
+          "key": "FunctionCode",
+          "original_value": "RemoveAllScreens",
+          "interpreted_value": "RemoveAllScreens",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 201,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 202,
+          "key": "Description",
+          "original_value": "A shadowy aura eliminates Reflect and similar moves.",
+          "interpreted_value": "A shadowy aura eliminates Reflect and similar moves.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    },
+    {
+      "id": "SHADOWSKY",
+      "ordinal": 18,
+      "source_range": [
+        204,
+        213
+      ],
+      "fields": [
+        {
+          "line": 205,
+          "key": "Name",
+          "original_value": "Shadow Sky",
+          "interpreted_value": "Shadow Sky",
+          "manual_field_meaning": "preprocessed text; consumers may localize; not executable game behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 206,
+          "key": "Type",
+          "original_value": "SHADOW",
+          "interpreted_value": "SHADOW",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 207,
+          "key": "Category",
+          "original_value": "Status",
+          "interpreted_value": 2,
+          "manual_field_meaning": "exact inline enum Physical0/Special1/Status2; damage/category crossvalidation independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 208,
+          "key": "Accuracy",
+          "original_value": "100",
+          "interpreted_value": 100,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 209,
+          "key": "TotalPP",
+          "original_value": "0",
+          "interpreted_value": 0,
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 210,
+          "key": "Target",
+          "original_value": "BothSides",
+          "interpreted_value": "BothSides",
+          "manual_field_meaning": "exact schema typed field; further consumer premise explicitly retained",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 211,
+          "key": "FunctionCode",
+          "original_value": "StartShadowSkyWeather",
+          "interpreted_value": "StartShadowSkyWeather",
+          "manual_field_meaning": "string dispatch identity; a declared name doesnot certify a matching concrete battle implementation",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 212,
+          "key": "Flags",
+          "original_value": "CanProtect",
+          "interpreted_value": [
+            "CanProtect"
+          ],
+          "manual_field_meaning": "ordered strings; has_flag? case-insensitive compare, default[]; descriptor is a consumer key and not itself unconditional behavior",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        },
+        {
+          "line": 213,
+          "key": "Description",
+          "original_value": "Darkness hurts all but Shadow Pokémon for 5 turns.",
+          "interpreted_value": "Darkness hurts all but Shadow Pokémon for 5 turns.",
+          "manual_field_meaning": "q raw preprocessed text; displaylocalization and behaviorhandler independent",
+          "reference_resolution": "OPEN where dependent record body/definition/consumer not read or received"
+        }
+      ],
+      "raw_reader": "/root/pbs_creature_current_cloud",
+      "semantic_qualification": "Every original field rawvalue actually read; typed interpretation follows actualfullread schema/compiler. Exact unresolved enumrecord/consumer/formal assertions remain OPEN.",
+      "omitted_fields": {
+        "Power": 0,
+        "Priority": 0,
+        "EffectChance": 0
+      }
+    }
+  ],
+  "facts": [
+    {
+      "id": "SSI01",
+      "meaning": "CanChoose10–100 rechecks Disable(except specialUsage), HealBlock/healing, Gravity/flag, ThroatChop/sound, rememberedChoiceBand/GorillaTactics, Taunt(status/non-special), Torment/non-Instructed/non-special, opposingImprison and command-onlyAssaultVest. It clears an invalid remembered ChoiceBand move before later checks. Move-specific pbCanChooseMove is last; this method alone is not the entire outer PP/menu contract.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI02",
+      "meaning": "Obedience107–127 bypasses multi-turn, nonUseMove, externalbattle and non-player-owned cases; ordinary configured high-level refusal and actual Hyper obedience combine before pbDisobey. Full Disobey129–176 may mutateRage and choice/index/move/target, sleep or confusionHP, or returnfalse. No unconditional originalmove execution follows a failed order.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI03",
+      "meaning": "TryUse183–297 first calls CanChoose, then rejects SkyDrop/recharge/Palace-2; skipAccuracyCheck returns before sleep/freeze/obedience/Truant/flinch/confusion/paralysis/attract checks. Normal paths preserve each stated order and mutation: sleepCount/confusionCount, curedstatus, Truant toggle and lastMoveFailed can precede later rejection. A prior mutation is not rolled back.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI04",
+      "meaning": "AgainstTarget303–526 writes computed typeMod before the charging-turn earlyreturn and before move-specific failure. It then checks PsychicTerrain using savedpositivepriority, CraftyShield, the remaining protection family, reflection, abilityimmunity, damaging typeimmunity, PranksterDark, Groundairborne, powder and statusSubstitute. This source order is not interchangeable with checking only Accuracy100.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI05",
+      "meaning": "All18originalShadow records have CanProtect. The flag is read case-insensitively by the ordinary Move getter. Except the actual UnseenFist+contact bypass, WideGuard checks multiple-targetcount outside the CanProtect block; QuickGuard checks savedpositivepriority; Protect, damagingKingsShield, SpikyShield, BanefulBunker, damagingObstruct and damagingMatBlock retain their separate conditions and reached writes. No side protection is inferred solely from English move descriptions.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI06",
+      "meaning": "MagicCoat/Bounce applies only status+canMagicCoat, non-semi-invulnerable opposing target. The source records damageState reflection, consumes MagicCoat or sets the MagicBounce flag before returningfalse; the later outer reflection action is the separately read UseMove consumer, not this return itself.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI07",
+      "meaning": "Move pbImmunityByAbility88–96 returnsfalse for moldBreaker, otherwise invokes the active target ability group. All12registered IDs in the complete defaultMoveImmunity group were read (11add bodies plus DRYSKIN copy). Bulletproof tests Bomb; Soundproof tests Sound and generation/self; Telepathy rejects damaging ally attacks; WonderGuard rejects damaging non-super-effective actual calculatedtype. Type-specific statraise/heal helpers first reject self and nonmatching type.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI08",
+      "meaning": "The actual Shadow flags include Sound only on SHADOWPANIC, so active non-bypassed Soundproof can reject that status move through the shared immunity receiver. No primary record has Bomb. With unchanged calculatedSHADOW type, the four elemental absorber types do not match; Telepathy still applies to qualifying damaging ally targets and WonderGuard depends on the actual Shadow typeMod/nonShadow-vs-Shadow individual predicate. Type-changing consumers retain their own actual contracts, not a frozen alwaysSHADOW promise.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI09",
+      "meaning": "PerHit532–581 accepts charging, matchingLockOn or moveoverride first. Otherwise NoGuard/futureSight/HelpingHand can bypass semi-invulnerability; sky/underground/underwater/removal and SkyDrop each use their own gate. Only after no invulnerabilitymiss does skipAccuracyCheck bypass actualaccuracy. Accuracy100 is not an unconditional hit promise. Miss586–594 selects actual affiliation/multi/two-turn/move-specific feedback.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI10",
+      "meaning": "Complete StatusCheck/StatusImmunity/NonIgnorable/FromAlly registrations414–509 preserve ComatoseKomala, FlowerVeilGrass, explicit status-specific Immunity/Insomnia/Limber/MagmaArmor/WaterVeil and aliases, LeafGuardSunpair, ShieldsDownMinior<form7 and ally group predicates. The previously whole-read575-line status helper determines active/mold/substitute/terrain/order eligibility. Confusion uses directOwnTempo and generationMisty/Safeguard gates, not the major-status enum callback.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI11",
+      "meaning": "Complete stat-loss immunity groups670–792 preserve BigPecksDEFENSE, ClearBody/WhiteSmokeallstats, FlowerVeilGrass, HyperCutterATTACK, KeenEyeACCURACY, nonignorableFullMetalBody and allyFlowerVeilGrass. Thus actual ShadowDownDEFENSE and ShadowMistEVASION are not universally guaranteed-2. Competitive/Defiant804–816 react to an opposing or absent source by raising SpAttack/Attack2 via their real helper; the original stat write can already be committed.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    },
+    {
+      "id": "SSI12",
+      "meaning": "The AbilityHandlerHash registry and defaultfalse trigger/wrappers are preserved separately from callback bodies; missing/nil return becomesfalse for these immunity APIs. Message/animation or nested ability failures can interrupt before return, retaining reached metadata/flag/HP/stage writes. Native output, complete allAbility callbacks and all740Move bodies are not inferred from this finite interface.",
+      "premises": [
+        "Fixed R/B8, no extra registrations/redefinition/concurrent mutation, valid battle/scene/registry inputs and normal earlier calls unless a failure prefix is expressly stated.",
+        "The optional Shadow files require explicit effective activation; their nested existence supplies no default activation.",
+        "Only the18primaryMove metadata and their shared named success interfaces are bound. Referenced ability/item groups are limited to the actual complete bodies below; callback/native outcomes outside these propositions remain their original-domain contracts or OPEN.",
+        "All deductions are SOURCE_STATIC; no Ruby/game/native/PP/accuracy/random experiment or business model is executed."
+      ],
+      "actual_reader": "/root/pbs_creature_current_cloud",
+      "status": "FINITE_PRIMARY_SHADOW_SHARED_INTERFACE_BOUND",
+      "business": "NOT_EXECUTED"
+    }
+  ],
+  "precise_complete_method_ranges": {
+    "CanChoose": [
+      10,
+      100
+    ],
+    "Obedience": [
+      107,
+      127
+    ],
+    "Disobey": [
+      129,
+      176
+    ],
+    "TryUse": [
+      183,
+      297
+    ],
+    "AgainstTarget": [
+      303,
+      526
+    ],
+    "PerHit": [
+      532,
+      581
+    ],
+    "Miss": [
+      586,
+      594
+    ]
+  },
+  "formal_bindings": "Existing ownFULL WP40 ordinaryuse/protection/obedience clauses, WP43 type/accuracy contracts and WP23 optionalShadow definitions; current source reading supplies these shared gates, not a full re-review of their foreign domains.",
+  "existing_necessary_finite_packets": [
+    "shadow18-four-target-consumer-finite.v1.json + mandatory-weight-target-source-premise.v1.json",
+    "shadow-sky-weather-consumer.complete.v1.json + mandatory-shadow-sky-source-premises.v1.json",
+    "bounded-pbs-facts.v16.json PC-F060–PC-F066; mandatory-locator-clarification.v3.json"
+  ],
+  "remaining_open": [
+    "All unreceived arbitrary external registered handlers, native calls and completeCORE domain stay their original scopes. This does not create a requirement to receive all740Move callback bodies merely because Species learnsets reference their metadata.",
+    "Complete formal/history/global classification for existing bounded queries is not inferred."
+  ],
+  "behavior": "NOT_EXECUTED",
+  "update": "UPDATE_NOT_STARTED",
+  "new_findings": 0,
+  "new_contexts": 0,
+  "new_votes": 0
+}

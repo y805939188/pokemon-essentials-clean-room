@@ -1,0 +1,94 @@
+FILE R Data/Scripts/021_Compiler/001_Compiler.rb L993-1085/1117
+993   def compile_pbs_files
+994     text_files = get_all_pbs_files_to_compile
+995     modify_pbs_file_contents_before_compiling
+996     compile_town_map(*text_files[:TownMap][1])
+997     compile_connections(*text_files[:Connection][1])
+998     compile_types(*text_files[:Type][1])
+999     compile_abilities(*text_files[:Ability][1])
+1000     compile_moves(*text_files[:Move][1])                       # Depends on Type
+1001     compile_items(*text_files[:Item][1])                       # Depends on Move
+1002     compile_berry_plants(*text_files[:BerryPlant][1])          # Depends on Item
+1003     compile_pokemon(*text_files[:Species][1])                  # Depends on Move, Item, Type, Ability
+1004     compile_pokemon_forms(*text_files[:Species1][1])           # Depends on Species, Move, Item, Type, Ability
+1005     compile_pokemon_metrics(*text_files[:SpeciesMetrics][1])   # Depends on Species
+1006     compile_shadow_pokemon(*text_files[:ShadowPokemon][1])     # Depends on Species
+1007     compile_regional_dexes(*text_files[:RegionalDex][1])       # Depends on Species
+1008     compile_ribbons(*text_files[:Ribbon][1])
+1009     compile_encounters(*text_files[:Encounter][1])             # Depends on Species
+1010     compile_trainer_types(*text_files[:TrainerType][1])
+1011     compile_trainers(*text_files[:Trainer][1])                 # Depends on Species, Item, Move
+1012     compile_trainer_lists                                      # Depends on TrainerType
+1013     compile_metadata(*text_files[:Metadata][1])                # Depends on TrainerType
+1014     compile_map_metadata(*text_files[:MapMetadata][1])
+1015     compile_dungeon_tilesets(*text_files[:DungeonTileset][1])
+1016     compile_dungeon_parameters(*text_files[:DungeonParameters][1])
+1017     compile_phone(*text_files[:PhoneMessage][1])               # Depends on TrainerType
+1018   end
+1019 
+1020   def compile_all(mustCompile)
+1021     Console.echo_h1(_INTL("Checking game data"))
+1022     if !mustCompile
+1023       Console.echoln_li(_INTL("Game data was not compiled"))
+1024       echoln ""
+1025       return
+1026     end
+1027     FileLineData.clear
+1028     compile_pbs_files
+1029     compile_animations
+1030     compile_trainer_events(mustCompile)
+1031     Console.echo_li(_INTL("Saving messages..."))
+1032     Translator.gather_script_and_event_texts
+1033     MessageTypes.save_default_messages
+1034     MessageTypes.load_default_messages if FileTest.exist?("Data/messages_core.dat")
+1035     Console.echo_done(true)
+1036     Console.echoln_li_done(_INTL("Successfully compiled all game data"))
+1037   end
+1038 
+1039   def main
+1040     return if !$DEBUG
+1041     begin
+1042       mustCompile = false
+1043       # If no PBS file, create one and fill it, then recompile
+1044       if !FileTest.directory?("PBS")
+1045         Dir.mkdir("PBS") rescue nil
+1046         GameData.load_all
+1047         write_all
+1048         mustCompile = true
+1049       end
+1050       # Get all data files and PBS files to be checked for their last modified times
+1051       data_files = GameData.get_all_data_filenames
+1052       data_files += [   # Extra .dat files for data that isn't a GameData class
+1053         ["map_connections.dat", true],
+1054         ["regional_dexes.dat", true],
+1055         ["trainer_lists.dat", true]
+1056       ]
+1057       text_files = get_all_pbs_files_to_compile
+1058       latestDataTime = 0
+1059       latestTextTime = 0
+1060       # Should recompile if new maps were imported
+1061       mustCompile |= import_new_maps
+1062       # Check data files for their latest modify time
+1063       data_files.each do |filename|   # filename = [string, boolean (whether mandatory)]
+1064         if FileTest.exist?("Data/" + filename[0])
+1065           begin
+1066             File.open("Data/#{filename[0]}") do |file|
+1067               latestDataTime = [latestDataTime, file.mtime.to_i].max
+1068             end
+1069           rescue SystemCallError
+1070             mustCompile = true
+1071           end
+1072         elsif filename[1]
+1073           mustCompile = true
+1074           break
+1075         end
+1076       end
+1077       # Check PBS files for their latest modify time
+1078       text_files.each do |key, value|
+1079         next if !value || !value[1].is_a?(Array)
+1080         value[1].each do |filepath|
+1081           begin
+1082             File.open(filepath) { |file| latestTextTime = [latestTextTime, file.mtime.to_i].max }
+1083           rescue SystemCallError
+1084           end
+1085         end

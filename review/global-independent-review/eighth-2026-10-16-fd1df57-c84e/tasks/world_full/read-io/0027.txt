@@ -1,0 +1,240 @@
+  511       route.list.push(RPG::MoveCommand.new(commands[i],
+  512                                            [commands[i + 1], commands[i + 2],
+  513                                             commands[i + 3], commands[i + 4]]))
+  514       i += 4
+  515     else
+  516       route.list.push(RPG::MoveCommand.new(commands[i]))
+  517     end
+  518     i += 1
+  519   end
+  520   route.list.push(RPG::MoveCommand.new(PBMoveRoute::THROUGH_OFF))
+  521   route.list.push(RPG::MoveCommand.new(0))
+  522   event&.force_move_route(route)
+  523   return route
+  524 end
+  525 
+  526 # duration is in seconds
+  527 def pbWait(duration)
+  528   timer_start = System.uptime
+  529   until System.uptime - timer_start >= duration
+  530     yield System.uptime - timer_start if block_given?
+  531     Graphics.update
+  532     Input.update
+  533     pbUpdateSceneMap
+  534   end
+  535 end
+  536 
+  537 #===============================================================================
+  538 # Player/event movement in the field
+  539 #===============================================================================
+  540 def pbSlideOnIce
+  541   if !$DEBUG || !Input.press?(Input::CTRL)
+  542     if $game_player.pbTerrainTag.ice && $game_player.can_move_in_direction?($game_player.direction)
+  543       $PokemonGlobal.ice_sliding = true
+  544       $game_player.straighten
+  545       $game_player.walk_anime = false
+  546       return
+  547     end
+  548   end
+  549   $PokemonGlobal.ice_sliding = false
+  550   $game_player.walk_anime = true
+  551 end
+  552 
+  553 def pbTurnTowardEvent(event, otherEvent)
+  554   sx = 0
+  555   sy = 0
+  556   if $map_factory
+  557     relativePos = $map_factory.getThisAndOtherEventRelativePos(otherEvent, event)
+  558     sx = relativePos[0]
+  559     sy = relativePos[1]
+  560   else
+  561     sx = event.x - otherEvent.x
+  562     sy = event.y - otherEvent.y
+  563   end
+  564   sx += (event.width - otherEvent.width) / 2.0
+  565   sy -= (event.height - otherEvent.height) / 2.0
+  566   return if sx == 0 && sy == 0
+  567   if sx.abs > sy.abs
+  568     (sx > 0) ? event.turn_left : event.turn_right
+  569   else
+  570     (sy > 0) ? event.turn_up : event.turn_down
+  571   end
+  572 end
+  573 
+  574 def pbMoveTowardPlayer(event)
+  575   maxsize = [$game_map.width, $game_map.height].max
+  576   return if !pbEventCanReachPlayer?(event, $game_player, maxsize)
+  577   loop do
+  578     x = event.x
+  579     y = event.y
+  580     event.move_toward_player
+  581     break if event.x == x && event.y == y
+  582     while event.moving?
+  583       Graphics.update
+  584       Input.update
+  585       pbUpdateSceneMap
+  586     end
+  587   end
+  588   $PokemonMap&.addMovedEvent(event.id)
+  589 end
+  590 
+  591 #===============================================================================
+  592 # Bridges, cave escape points, and setting the heal point
+  593 #===============================================================================
+  594 def pbBridgeOn(height = 2)
+  595   $PokemonGlobal.bridge = height
+  596 end
+  597 
+  598 def pbBridgeOff
+  599   $PokemonGlobal.bridge = 0
+  600 end
+  601 
+  602 def pbSetEscapePoint
+  603   $PokemonGlobal.escapePoint = [] if !$PokemonGlobal.escapePoint
+  604   xco = $game_player.x
+  605   yco = $game_player.y
+  606   case $game_player.direction
+  607   when 2   # Down
+  608     yco -= 1
+  609     dir = 8
+  610   when 4   # Left
+  611     xco += 1
+  612     dir = 6
+  613   when 6   # Right
+  614     xco -= 1
+  615     dir = 4
+  616   when 8   # Up
+  617     yco += 1
+  618     dir = 2
+  619   end
+  620   $PokemonGlobal.escapePoint = [$game_map.map_id, xco, yco, dir]
+  621 end
+  622 
+  623 def pbEraseEscapePoint
+  624   $PokemonGlobal.escapePoint = []
+  625 end
+  626 
+  627 def pbSetPokemonCenter
+  628   $PokemonGlobal.pokecenterMapId     = $game_map.map_id
+  629   $PokemonGlobal.pokecenterX         = $game_player.x
+  630   $PokemonGlobal.pokecenterY         = $game_player.y
+  631   $PokemonGlobal.pokecenterDirection = $game_player.direction
+  632 end
+  633 
+  634 #===============================================================================
+  635 # Partner trainer
+  636 #===============================================================================
+  637 def pbRegisterPartner(tr_type, tr_name, tr_id = 0)
+  638   tr_type = GameData::TrainerType.get(tr_type).id
+  639   pbCancelVehicles
+  640   trainer = pbLoadTrainer(tr_type, tr_name, tr_id)
+  641   EventHandlers.trigger(:on_trainer_load, trainer)
+  642   trainer.party.each do |i|
+  643     i.owner = Pokemon::Owner.new_from_trainer(trainer)
+  644     i.calc_stats
+  645   end
+  646   $PokemonGlobal.partner = [tr_type, tr_name, trainer.id, trainer.party]
+  647 end
+  648 
+  649 def pbDeregisterPartner
+  650   $PokemonGlobal.partner = nil
+  651 end
+  652 
+  653 #===============================================================================
+  654 # Picking up an item found on the ground
+  655 #===============================================================================
+  656 def pbItemBall(item, quantity = 1)
+  657   item = GameData::Item.get(item)
+  658   return false if !item || quantity < 1
+  659   itemname = (quantity > 1) ? item.portion_name_plural : item.portion_name
+  660   pocket = item.pocket
+  661   move = item.move
+  662   if $bag.add(item, quantity)   # If item can be picked up
+  663     meName = (item.is_key_item?) ? "Key item get" : "Item get"
+  664     if item == :DNASPLICERS
+  665       pbMessage("\\me[#{meName}]" + _INTL("You found \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  666     elsif item.is_machine?   # TM or HM
+  667       if quantity > 1
+  668         pbMessage("\\me[Machine get]" + _INTL("You found {1} \\c[1]{2} {3}\\c[0]!",
+  669                                               quantity, itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+  670       else
+  671         pbMessage("\\me[Machine get]" + _INTL("You found \\c[1]{1} {2}\\c[0]!",
+  672                                               itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+  673       end
+  674     elsif quantity > 1
+  675       pbMessage("\\me[#{meName}]" + _INTL("You found {1} \\c[1]{2}\\c[0]!", quantity, itemname) + "\\wtnp[40]")
+  676     elsif itemname.starts_with_vowel?
+  677       pbMessage("\\me[#{meName}]" + _INTL("You found an \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  678     else
+  679       pbMessage("\\me[#{meName}]" + _INTL("You found a \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  680     end
+  681     pbMessage(_INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+  682                     itemname, pocket, PokemonBag.pocket_names[pocket - 1]))
+  683     return true
+  684   end
+  685   # Can't add the item
+  686   if item.is_machine?   # TM or HM
+  687     if quantity > 1
+  688       pbMessage(_INTL("You found {1} \\c[1]{2} {3}\\c[0]!", quantity, itemname, GameData::Move.get(move).name))
+  689     else
+  690       pbMessage(_INTL("You found \\c[1]{1} {2}\\c[0]!", itemname, GameData::Move.get(move).name))
+  691     end
+  692   elsif quantity > 1
+  693     pbMessage(_INTL("You found {1} \\c[1]{2}\\c[0]!", quantity, itemname))
+  694   elsif itemname.starts_with_vowel?
+  695     pbMessage(_INTL("You found an \\c[1]{1}\\c[0]!", itemname))
+  696   else
+  697     pbMessage(_INTL("You found a \\c[1]{1}\\c[0]!", itemname))
+  698   end
+  699   pbMessage(_INTL("But your Bag is full..."))
+  700   return false
+  701 end
+  702 
+  703 #===============================================================================
+  704 # Being given an item
+  705 #===============================================================================
+  706 def pbReceiveItem(item, quantity = 1)
+  707   item = GameData::Item.get(item)
+  708   return false if !item || quantity < 1
+  709   itemname = (quantity > 1) ? item.portion_name_plural : item.portion_name
+  710   pocket = item.pocket
+  711   move = item.move
+  712   meName = (item.is_key_item?) ? "Key item get" : "Item get"
+  713   if item == :DNASPLICERS
+  714     pbMessage("\\me[#{meName}]" + _INTL("You obtained \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  715   elsif item.is_machine?   # TM or HM
+  716     if quantity > 1
+  717       pbMessage("\\me[Machine get]" + _INTL("You obtained {1} \\c[1]{2} {3}\\c[0]!",
+  718                                             quantity, itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+  719     else
+  720       pbMessage("\\me[Machine get]" + _INTL("You obtained \\c[1]{1} {2}\\c[0]!",
+  721                                             itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+  722     end
+  723   elsif quantity > 1
+  724     pbMessage("\\me[#{meName}]" + _INTL("You obtained {1} \\c[1]{2}\\c[0]!", quantity, itemname) + "\\wtnp[40]")
+  725   elsif itemname.starts_with_vowel?
+  726     pbMessage("\\me[#{meName}]" + _INTL("You obtained an \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  727   else
+  728     pbMessage("\\me[#{meName}]" + _INTL("You obtained a \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+  729   end
+  730   if $bag.add(item, quantity)   # If item can be added
+  731     pbMessage(_INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+  732                     itemname, pocket, PokemonBag.pocket_names[pocket - 1]))
+  733     return true
+  734   end
+  735   return false   # Can't add the item
+  736 end
+  737 
+  738 #===============================================================================
+  739 # Buying a prize item from the Game Corner
+  740 #===============================================================================
+  741 def pbBuyPrize(item, quantity = 1)
+  742   item = GameData::Item.get(item)
+  743   return false if !item || quantity < 1
+  744   item_name = (quantity > 1) ? item.portion_name_plural : item.portion_name
+  745   pocket = item.pocket
+  746   return false if !$bag.add(item, quantity)
+  747   pbMessage("\\CN" + _INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+  748                            item_name, pocket, PokemonBag.pocket_names[pocket - 1]))
+  749   return true
+  750 end

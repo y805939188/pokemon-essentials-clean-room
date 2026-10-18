@@ -1,0 +1,87 @@
+00005:   def pbGainExp
+00006:     # Play wild victory music if it's the end of the battle (has to be here)
+00007:     @scene.pbWildBattleSuccess if wildBattle? && pbAllFainted?(1) && !pbAllFainted?(0)
+00008:     return if !@internalBattle || !@expGain
+00009:     # Go through each battler in turn to find the Pokémon that participated in
+00010:     # battle against it, and award those Pokémon Exp/EVs
+00011:     expAll = $player.has_exp_all || $bag.has?(:EXPALL)
+00012:     p1 = pbParty(0)
+00013:     @battlers.each do |b|
+00014:       next unless b&.opposes?   # Can only gain Exp from fainted foes
+00015:       next if b.participants.length == 0
+00016:       next unless b.fainted? || b.captured
+00017:       # Count the number of participants
+00018:       numPartic = 0
+00019:       b.participants.each do |partic|
+00020:         next unless p1[partic]&.able? && pbIsOwner?(0, partic)
+00021:         numPartic += 1
+00022:       end
+00023:       # Find which Pokémon have an Exp Share
+00024:       expShare = []
+00025:       if !expAll
+00026:         eachInTeam(0, 0) do |pkmn, i|
+00027:           next if !pkmn.able?
+00028:           next if !pkmn.hasItem?(:EXPSHARE) && GameData::Item.try_get(@initialItems[0][i]) != :EXPSHARE
+00029:           expShare.push(i)
+00030:         end
+00031:       end
+00032:       # Calculate EV and Exp gains for the participants
+00033:       if numPartic > 0 || expShare.length > 0 || expAll
+00034:         # Gain EVs and Exp for participants
+00035:         eachInTeam(0, 0) do |pkmn, i|
+00036:           next if !pkmn.able?
+00037:           next unless b.participants.include?(i) || expShare.include?(i)
+00038:           pbGainEVsOne(i, b)
+00039:           pbGainExpOne(i, b, numPartic, expShare, expAll, !pkmn.shadowPokemon?)
+00040:         end
+00041:         # Gain EVs and Exp for all other Pokémon because of Exp All
+00042:         if expAll
+00043:           showMessage = true
+00044:           eachInTeam(0, 0) do |pkmn, i|
+00045:             next if !pkmn.able?
+00046:             next if b.participants.include?(i) || expShare.include?(i)
+00047:             pbDisplayPaused(_INTL("Your other Pokémon also gained Exp. Points!")) if showMessage
+00048:             showMessage = false
+00049:             pbGainEVsOne(i, b)
+00050:             pbGainExpOne(i, b, numPartic, expShare, expAll, false)
+00051:           end
+00052:         end
+00053:       end
+00054:       # Clear the participants array
+00055:       b.participants = []
+00056:     end
+00057:   end
+00058: 
+00059:   def pbGainEVsOne(idxParty, defeatedBattler)
+00060:     pkmn = pbParty(0)[idxParty]   # The Pokémon gaining EVs from defeatedBattler
+00061:     evYield = defeatedBattler.pokemon.evYield
+00062:     # Num of effort points pkmn already has
+00063:     evTotal = 0
+00064:     GameData::Stat.each_main { |s| evTotal += pkmn.ev[s.id] }
+00065:     # Modify EV yield based on pkmn's held item
+00066:     if !Battle::ItemEffects.triggerEVGainModifier(pkmn.item, pkmn, evYield)
+00067:       Battle::ItemEffects.triggerEVGainModifier(@initialItems[0][idxParty], pkmn, evYield)
+00068:     end
+00069:     # Double EV gain because of Pokérus
+00070:     if pkmn.pokerusStage >= 1   # Infected or cured
+00071:       evYield.each_key { |stat| evYield[stat] *= 2 }
+00072:     end
+00073:     # Gain EVs for each stat in turn
+00074:     if pkmn.shadowPokemon? && pkmn.heartStage <= 3 && pkmn.saved_ev
+00075:       pkmn.saved_ev.each_value { |e| evTotal += e }
+00076:       GameData::Stat.each_main do |s|
+00077:         evGain = evYield[s.id].clamp(0, Pokemon::EV_STAT_LIMIT - pkmn.ev[s.id] - pkmn.saved_ev[s.id])
+00078:         evGain = evGain.clamp(0, Pokemon::EV_LIMIT - evTotal)
+00079:         pkmn.saved_ev[s.id] += evGain
+00080:         evTotal += evGain
+00081:       end
+00082:     else
+00083:       GameData::Stat.each_main do |s|
+00084:         evGain = evYield[s.id].clamp(0, Pokemon::EV_STAT_LIMIT - pkmn.ev[s.id])
+00085:         evGain = evGain.clamp(0, Pokemon::EV_LIMIT - evTotal)
+00086:         pkmn.ev[s.id] += evGain
+00087:         evTotal += evGain
+00088:       end
+00089:     end
+00090:   end
+00091: 

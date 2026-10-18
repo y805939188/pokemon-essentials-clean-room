@@ -1,0 +1,181 @@
+    @scene.pbBeginEndOfRoundPhase
+    pbCalculatePriority           # recalculate speeds
+    priority = pbPriority(true)   # in order of fastest -> slowest speeds only
+    # Weather
+    pbEOREndWeather(priority)
+    # Future Sight/Doom Desire
+    @positions.each_with_index { |pos, idxPos| pbEORUseFutureSight(pos, idxPos) }
+    # Wish
+    pbEORWishHealing
+    # Sea of Fire damage (Fire Pledge + Grass Pledge combination)
+    pbEORSeaOfFireDamage(priority)
+    # Status-curing effects/abilities and HP-healing items
+    priority.each do |battler|
+      pbEORTerrainHealing(battler)
+      # Healer, Hydration, Shed Skin
+      if battler.abilityActive?
+        Battle::AbilityEffects.triggerEndOfRoundHealing(battler.ability, battler, self)
+      end
+      # Black Sludge, Leftovers
+      if battler.itemActive?
+        Battle::ItemEffects.triggerEndOfRoundHealing(battler.item, battler, self)
+      end
+    end
+    # Self-curing of status due to affection
+    if Settings::AFFECTION_EFFECTS && @internalBattle
+      priority.each do |battler|
+        next if battler.fainted? || battler.status == :NONE
+        next if !battler.pbOwnedByPlayer? || battler.affection_level < 4 || battler.mega?
+        next if pbRandom(100) < 80
+        old_status = battler.status
+        battler.pbCureStatus(false)
+        case old_status
+        when :SLEEP
+          pbDisplay(_INTL("{1} shook itself awake so you wouldn't worry!", battler.pbThis))
+        when :POISON
+          pbDisplay(_INTL("{1} managed to expel the poison so you wouldn't worry!", battler.pbThis))
+        when :BURN
+          pbDisplay(_INTL("{1} healed its burn with its sheer determination so you wouldn't worry!", battler.pbThis))
+        when :PARALYSIS
+          pbDisplay(_INTL("{1} gathered all its energy to break through its paralysis so you wouldn't worry!", battler.pbThis))
+        when :FROZEN
+          pbDisplay(_INTL("{1} melted the ice with its fiery determination so you wouldn't worry!", battler.pbThis))
+        end
+      end
+    end
+    # Healing from Aqua Ring, Ingrain, Leech Seed
+    pbEORHealingEffects(priority)
+    # Damage from Hyper Mode (Shadow Pokémon)
+    priority.each do |battler|
+      next if !battler.inHyperMode? || @choices[battler.index][0] != :UseMove
+      hpLoss = battler.totalhp / 24
+      @scene.pbDamageAnimation(battler)
+      battler.pbReduceHP(hpLoss, false)
+      pbDisplay(_INTL("The Hyper Mode attack hurts {1}!", battler.pbThis(true)))
+      battler.pbFaint if battler.fainted?
+    end
+    # Damage from poison/burn
+    pbEORStatusProblemDamage(priority)
+    # Damage from Nightmare and Curse
+    pbEOREffectDamage(priority)
+    # Trapping attacks (Bind/Clamp/Fire Spin/Magma Storm/Sand Tomb/Whirlpool/Wrap)
+    priority.each { |battler| pbEORTrappingDamage(battler) }
+    # Octolock
+    priority.each do |battler|
+      next if battler.fainted? || battler.effects[PBEffects::Octolock] < 0
+      pbCommonAnimation("Octolock", battler)
+      battler.pbLowerStatStage(:DEFENSE, 1, nil) if battler.pbCanLowerStatStage?(:DEFENSE)
+      battler.pbLowerStatStage(:SPECIAL_DEFENSE, 1, nil) if battler.pbCanLowerStatStage?(:SPECIAL_DEFENSE)
+      battler.pbItemOnStatDropped
+    end
+    # Effects that apply to a battler that wear off after a number of rounds
+    pbEOREndBattlerEffects(priority)
+    # Check for end of battle (i.e. because of Perish Song)
+    if @decision > 0
+      pbGainExp
+      return
+    end
+    # Effects that apply to a side that wear off after a number of rounds
+    2.times { |side| pbEOREndSideEffects(side, priority) }
+    # Effects that apply to the whole field that wear off after a number of rounds
+    pbEOREndFieldEffects(priority)
+    # End of terrains
+    pbEOREndTerrain
+    priority.each do |battler|
+      # Self-inflicted effects that wear off after a number of rounds
+      pbEOREndBattlerSelfEffects(battler)
+      # Bad Dreams, Moody, Speed Boost
+      if battler.abilityActive?
+        Battle::AbilityEffects.triggerEndOfRoundEffect(battler.ability, battler, self)
+      end
+      # Flame Orb, Sticky Barb, Toxic Orb
+      if battler.itemActive?
+        Battle::ItemEffects.triggerEndOfRoundEffect(battler.item, battler, self)
+      end
+      # Harvest, Pickup, Ball Fetch
+      if battler.abilityActive?
+        Battle::AbilityEffects.triggerEndOfRoundGainItem(battler.ability, battler, self)
+      end
+    end
+    pbGainExp
+    return if @decision > 0
+    # Form checks
+    priority.each { |battler| battler.pbCheckForm(true) }
+    # Switch Pokémon in if possible
+    pbEORSwitch
+    return if @decision > 0
+    # In battles with at least one side of size 3+, move battlers around if none
+    # are near to any foes
+    pbEORShiftDistantBattlers
+    # Try to make Trace work, check for end of primordial weather
+    priority.each { |battler| battler.pbContinualAbilityChecks }
+    # Reset/count down battler-specific effects (no messages)
+    allBattlers.each do |battler|
+      battler.effects[PBEffects::BanefulBunker]    = false
+      battler.effects[PBEffects::Charge]           -= 1 if battler.effects[PBEffects::Charge] > 0
+      battler.effects[PBEffects::Counter]          = -1
+      battler.effects[PBEffects::CounterTarget]    = -1
+      battler.effects[PBEffects::Electrify]        = false
+      battler.effects[PBEffects::Endure]           = false
+      battler.effects[PBEffects::FirstPledge]      = nil
+      battler.effects[PBEffects::Flinch]           = false
+      battler.effects[PBEffects::FocusPunch]       = false
+      battler.effects[PBEffects::FollowMe]         = 0
+      battler.effects[PBEffects::HelpingHand]      = false
+      battler.effects[PBEffects::HyperBeam]        -= 1 if battler.effects[PBEffects::HyperBeam] > 0
+      battler.effects[PBEffects::KingsShield]      = false
+      battler.effects[PBEffects::LaserFocus]       -= 1 if battler.effects[PBEffects::LaserFocus] > 0
+      if battler.effects[PBEffects::LockOn] > 0   # Also Mind Reader
+        battler.effects[PBEffects::LockOn]         -= 1
+        battler.effects[PBEffects::LockOnPos]      = -1 if battler.effects[PBEffects::LockOn] == 0
+      end
+      battler.effects[PBEffects::MagicBounce]      = false
+      battler.effects[PBEffects::MagicCoat]        = false
+      battler.effects[PBEffects::MirrorCoat]       = -1
+      battler.effects[PBEffects::MirrorCoatTarget] = -1
+      battler.effects[PBEffects::Obstruct]         = false
+      battler.effects[PBEffects::Powder]           = false
+      battler.effects[PBEffects::Prankster]        = false
+      battler.effects[PBEffects::PriorityAbility]  = false
+      battler.effects[PBEffects::PriorityItem]     = false
+      battler.effects[PBEffects::Protect]          = false
+      battler.effects[PBEffects::RagePowder]       = false
+      battler.effects[PBEffects::Roost]            = false
+      battler.effects[PBEffects::Snatch]           = 0
+      battler.effects[PBEffects::SpikyShield]      = false
+      battler.effects[PBEffects::Spotlight]        = 0
+      battler.effects[PBEffects::ThroatChop]       -= 1 if battler.effects[PBEffects::ThroatChop] > 0
+      battler.lastHPLost                           = 0
+      battler.lastHPLostFromFoe                    = 0
+      battler.droppedBelowHalfHP                   = false
+      battler.statsDropped                         = false
+      battler.tookMoveDamageThisRound              = false
+      battler.tookDamageThisRound                  = false
+      battler.tookPhysicalHit                      = false
+      battler.statsRaisedThisRound                 = false
+      battler.statsLoweredThisRound                = false
+      battler.canRestoreIceFace                    = false
+      battler.lastRoundMoveFailed                  = battler.lastMoveFailed
+      battler.lastAttacker.clear
+      battler.lastFoeAttacker.clear
+    end
+    # Reset/count down side-specific effects (no messages)
+    2.times do |side|
+      @sides[side].effects[PBEffects::CraftyShield]         = false
+      if !@sides[side].effects[PBEffects::EchoedVoiceUsed]
+        @sides[side].effects[PBEffects::EchoedVoiceCounter] = 0
+      end
+      @sides[side].effects[PBEffects::EchoedVoiceUsed]      = false
+      @sides[side].effects[PBEffects::MatBlock]             = false
+      @sides[side].effects[PBEffects::QuickGuard]           = false
+      @sides[side].effects[PBEffects::Round]                = false
+      @sides[side].effects[PBEffects::WideGuard]            = false
+    end
+    # Reset/count down field-specific effects (no messages)
+    @field.effects[PBEffects::IonDeluge]   = false
+    @field.effects[PBEffects::FairyLock]   -= 1 if @field.effects[PBEffects::FairyLock] > 0
+    @field.effects[PBEffects::FusionBolt]  = false
+    @field.effects[PBEffects::FusionFlare] = false
+    @endOfRound = false
+  end
+end

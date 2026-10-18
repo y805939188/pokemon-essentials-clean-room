@@ -1,0 +1,352 @@
+#===============================================================================
+# Pokémon class.
+#===============================================================================
+class Pokemon
+  attr_accessor :shadow
+  attr_writer   :heart_gauge
+  attr_writer   :hyper_mode
+  attr_accessor :saved_exp
+  attr_accessor :saved_ev
+  attr_accessor :shadow_moves
+  attr_accessor :heart_gauge_step_counter
+
+  alias __shadow_expeq exp= unless method_defined?(:__shadow_expeq)
+  def exp=(value)
+    if shadowPokemon?
+      @saved_exp += value - @exp
+    else
+      __shadow_expeq(value)
+    end
+  end
+
+  alias __shadow_hpeq hp= unless method_defined?(:__shadow_hpeq)
+  def hp=(value)
+    __shadow_hpeq(value)
+    @hyper_mode = false if @hp <= 0
+  end
+
+  def heart_gauge
+    return @heart_gauge || 0
+  end
+
+  def shadow_data
+    return GameData::ShadowPokemon.get_species_form(@species, form_simple)
+  end
+
+  def max_gauge_size
+    data = shadow_data
+    return (data) ? data.gauge_size : GameData::ShadowPokemon::HEART_GAUGE_SIZE
+  end
+
+  def adjustHeart(value)
+    return if !shadowPokemon?
+    @heart_gauge = (self.heart_gauge + value).clamp(0, max_gauge_size)
+  end
+
+  def change_heart_gauge(method, multiplier = 1)
+    return if !shadowPokemon?
+    heart_amounts = {
+      # [sending into battle, call to, walking 256 steps, using scent]
+      :HARDY   => [110, 300, 100,  90],
+      :LONELY  => [ 70, 330, 100, 130],
+      :BRAVE   => [130, 270,  90,  80],
+      :ADAMANT => [110, 270, 110,  80],
+      :NAUGHTY => [120, 270, 110,  70],
+      :BOLD    => [110, 270,  90, 100],
+      :DOCILE  => [100, 360,  80, 120],
+      :RELAXED => [ 90, 270, 110, 100],
+      :IMPISH  => [120, 300, 100,  80],
+      :LAX     => [100, 270,  90, 110],
+      :TIMID   => [ 70, 330, 110, 120],
+      :HASTY   => [130, 300,  70, 100],
+      :SERIOUS => [100, 330, 110,  90],
+      :JOLLY   => [120, 300,  90,  90],
+      :NAIVE   => [100, 300, 120,  80],
+      :MODEST  => [ 70, 300, 120, 110],
+      :MILD    => [ 80, 270, 100, 120],
+      :QUIET   => [100, 300, 100, 100],
+      :BASHFUL => [ 80, 300,  90, 130],
+      :RASH    => [ 90, 300,  90, 120],
+      :CALM    => [ 80, 300, 110, 110],
+      :GENTLE  => [ 70, 300, 130, 100],
+      :SASSY   => [130, 240, 100,  70],
+      :CAREFUL => [ 90, 300, 100, 110],
+      :QUIRKY  => [130, 270,  80,  90]
+    }
+    amt = 100
+    case method
+    when "battle"
+      amt = (heart_amounts[@nature]) ? heart_amounts[@nature][0] : 100
+    when "call"
+      amt = (heart_amounts[@nature]) ? heart_amounts[@nature][1] : 300
+    when "walking"
+      amt = (heart_amounts[@nature]) ? heart_amounts[@nature][2] : 100
+    when "scent"
+      amt = (heart_amounts[@nature]) ? heart_amounts[@nature][3] : 100
+      amt *= multiplier
+    else
+      raise _INTL("Unknown heart gauge-changing method: {1}", method.to_s)
+    end
+    adjustHeart(-amt)
+  end
+
+  def heartStage
+    return 0 if !shadowPokemon?
+    max_size = max_gauge_size
+    stage_size = max_size / 5.0
+    return ([self.heart_gauge, max_size].min / stage_size).ceil
+  end
+
+  def shadowPokemon?
+    return @shadow && @heart_gauge && @heart_gauge >= 0
+  end
+
+  def hyper_mode
+    return (self.heart_gauge == 0 || @hp == 0) ? false : @hyper_mode
+  end
+
+  alias __shadow__changeHappiness changeHappiness unless method_defined?(:__shadow__changeHappiness)
+  def changeHappiness(method)
+    return if shadowPokemon? && heartStage >= 4
+    __shadow__changeHappiness(method)
+  end
+
+end
+
+#===============================================================================
+#
+#===============================================================================
+class Battle::Battler
+  alias __shadow__pbInitPokemon pbInitPokemon unless method_defined?(:__shadow__pbInitPokemon)
+
+  def pbInitPokemon(*arg)
+    self.pokemon.hyper_mode = false if self.pokemonIndex > 0 && inHyperMode?
+    __shadow__pbInitPokemon(*arg)
+    # Called into battle
+    if shadowPokemon?
+      self.types = [:SHADOW] if GameData::Type.exists?(:SHADOW)
+      self.pokemon.change_heart_gauge("battle") if pbOwnedByPlayer?
+    end
+  end
+
+  def shadowPokemon?
+    p = self.pokemon
+    return p&.shadowPokemon?
+  end
+
+  def inHyperMode?
+    return false if fainted?
+    p = self.pokemon
+    return p&.hyper_mode
+  end
+
+  def pbHyperMode
+    return if fainted? || !shadowPokemon? || inHyperMode? || !pbOwnedByPlayer?
+    p = self.pokemon
+    if @battle.pbRandom(p.heart_gauge) <= p.max_gauge_size / 4
+      p.hyper_mode = true
+      @battle.pbDisplay(_INTL("{1}'s emotions rose to a fever pitch!\nIt entered Hyper Mode!", self.pbThis))
+    end
+  end
+
+  def pbHyperModeObedience(move)
+    return true if !inHyperMode?
+    return true if !move || move.type == :SHADOW
+    return rand(100) < 20
+  end
+end
+
+#===============================================================================
+# Shadow item effects.
+#===============================================================================
+def pbRaiseHappinessAndReduceHeart(pkmn, scene, multiplier, show_fail_message = true)
+  if !pkmn.shadowPokemon? || (pkmn.happiness == 255 && pkmn.heart_gauge == 0)
+    scene.pbDisplay(_INTL("It won't have any effect.")) if show_fail_message
+    return false
+  end
+  old_gauge = pkmn.heart_gauge
+  old_happiness = pkmn.happiness
+    target.pbOwnSide.effects[PBEffects::QuickGuard]   = false
+    target.pbOwnSide.effects[PBEffects::WideGuard]    = false
+  end
+end
+
+#===============================================================================
+# User must use this move for 2 more rounds. No battlers can sleep. (Uproar)
+# NOTE: Bulbapedia claims that an uproar will wake up Pokémon even if they have
+#       Soundproof, and will not allow Pokémon to fall asleep even if they have
+#       Soundproof. I think this is an oversight, so I've let Soundproof Pokémon
+#       be unaffected by Uproar waking/non-sleeping effects.
+#===============================================================================
+class Battle::Move::MultiTurnAttackPreventSleeping < Battle::Move
+  def pbEffectGeneral(user)
+    return if user.effects[PBEffects::Uproar] > 0
+    user.effects[PBEffects::Uproar] = 3
+    user.currentMove = @id
+    @battle.pbDisplay(_INTL("{1} caused an uproar!", user.pbThis))
+    @battle.pbPriority(true).each do |b|
+      next if b.fainted? || b.status != :SLEEP
+      next if b.hasActiveAbility?(:SOUNDPROOF)
+      b.pbCureStatus
+    end
+  end
+end
+
+#===============================================================================
+# User must use this move for 1 or 2 more rounds. At end, user becomes confused.
+# (Outrage, Petal Dange, Thrash)
+#===============================================================================
+class Battle::Move::MultiTurnAttackConfuseUserAtEnd < Battle::Move
+  def pbEffectAfterAllHits(user, target)
+    if !target.damageState.unaffected && user.effects[PBEffects::Outrage] == 0
+      user.effects[PBEffects::Outrage] = 2 + @battle.pbRandom(2)
+      user.currentMove = @id
+  proc { |ability, battler, w|
+    next w * 2
+  }
+)
+
+Battle::AbilityEffects::WeightCalc.add(:LIGHTMETAL,
+  proc { |ability, battler, w|
+    next [w / 2, 1].max
+  }
+)
+
+#===============================================================================
+# OnHPDroppedBelowHalf handlers
+#===============================================================================
+
+Battle::AbilityEffects::OnHPDroppedBelowHalf.add(:EMERGENCYEXIT,
+  proc { |ability, battler, move_user, battle|
+    next false if battler.effects[PBEffects::SkyDrop] >= 0 ||
+                  battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableInSkyTargetCannotAct")   # Sky Drop
+    # In wild battles
+    if battle.wildBattle?
+      next false if battler.opposes? && battle.pbSideBattlerCount(battler.index) > 1
+      next false if !battle.pbCanRun?(battler.index)
+      battle.pbShowAbilitySplash(battler, true)
+      battle.pbHideAbilitySplash(battler)
+      pbSEPlay("Battle flee")
+      battle.pbDisplay(_INTL("{1} fled from battle!", battler.pbThis))
+      battle.decision = 3   # Escaped
+      next true
+    end
+    # In trainer battles
+    next false if battle.pbAllFainted?(battler.idxOpposingSide)
+    next false if !battle.pbCanSwitchOut?(battler.index)   # Battler can't switch out
+    next false if !battle.pbCanChooseNonActive?(battler.index)   # No Pokémon can switch in
+    battle.pbShowAbilitySplash(battler, true)
+    battle.pbHideAbilitySplash(battler)
+    if !Battle::Scene::USE_ABILITY_SPLASH
+      battle.pbDisplay(_INTL("{1}'s {2} activated!", battler.pbThis, battler.abilityName))
+    end
+    battle.pbDisplay(_INTL("{1} went back to {2}!",
+       battler.pbThis, battle.pbGetOwnerName(battler.index)))
+    if battle.endOfRound   # Just switch out
+      battle.scene.pbRecall(battler.index) if !battler.fainted?
+      battler.pbAbilitiesOnSwitchOut   # Inc. primordial weather check
+      next true
+    end
+    newPkmn = battle.pbGetReplacementPokemonIndex(battler.index)   # Owner chooses
+    next false if newPkmn < 0   # Shouldn't ever do this
+    battle.pbRecallAndReplace(battler.index, newPkmn)
+    battle.pbClearChoice(battler.index)   # Replacement Pokémon does nothing this round
+    battle.moldBreaker = false if move_user && battler.index == move_user.index
+    battle.pbOnBattlerEnteringBattle(battler.index)
+    next true
+  }
+)
+
+Battle::AbilityEffects::OnHPDroppedBelowHalf.copy(:EMERGENCYEXIT, :WIMPOUT)
+
+#===============================================================================
+# StatusCheckNonIgnorable handlers
+#===============================================================================
+      battler.pbOwnSide.effects[PBEffects::Reflect] = 0
+      battle.pbDisplay(_INTL("{1}'s Reflect wore off!", battler.pbTeam))
+    end
+    battle.pbHideAbilitySplash(battler)
+  }
+)
+
+Battle::AbilityEffects::OnSwitchIn.add(:SLOWSTART,
+  proc { |ability, battler, battle, switch_in|
+    battle.pbShowAbilitySplash(battler)
+    battler.effects[PBEffects::SlowStart] = 5
+    if Battle::Scene::USE_ABILITY_SPLASH
+      battle.pbDisplay(_INTL("{1} can't get it going!", battler.pbThis))
+    else
+      battle.pbDisplay(_INTL("{1} can't get it going because of its {2}!",
+         battler.pbThis, battler.abilityName))
+    end
+    battle.pbHideAbilitySplash(battler)
+  }
+)
+
+  def trappedInBattle?
+    return true if @effects[PBEffects::Trapping] > 0
+    return true if @effects[PBEffects::MeanLook] >= 0
+    return true if @effects[PBEffects::JawLock] >= 0
+    return true if @battle.allBattlers.any? { |b| b.effects[PBEffects::JawLock] == @index }
+    return true if @effects[PBEffects::Octolock] >= 0
+    return true if @effects[PBEffects::Ingrain]
+    return true if @effects[PBEffects::NoRetreat]
+    return true if @battle.field.effects[PBEffects::FairyLock] > 0
+    return false
+  end
+
+  def movedThisRound?
+    return @lastRoundMoved && @lastRoundMoved == @battle.turnCount
+  end
+
+  def usingMultiTurnAttack?
+    return true if @effects[PBEffects::TwoTurnAttack]
+    return true if @effects[PBEffects::HyperBeam] > 0
+    return true if @effects[PBEffects::Rollout] > 0
+    return true if @effects[PBEffects::Outrage] > 0
+    return true if @effects[PBEffects::Uproar] > 0
+    return true if @effects[PBEffects::Bide] > 0
+    return false
+  end
+
+  def inTwoTurnAttack?(*arg)
+    return false if !@effects[PBEffects::TwoTurnAttack]
+    ttaFunction = GameData::Move.get(@effects[PBEffects::TwoTurnAttack]).function_code
+    arg.each { |a| return true if a == ttaFunction }
+    return false
+  end
+
+  def semiInvulnerable?
+    return inTwoTurnAttack?("TwoTurnAttackInvulnerableInSky",
+                            "TwoTurnAttackInvulnerableUnderground",
+                            "TwoTurnAttackInvulnerableUnderwater",
+                            "TwoTurnAttackInvulnerableInSkyParalyzeTarget",
+                            "TwoTurnAttackInvulnerableRemoveProtections",
+                            "TwoTurnAttackInvulnerableInSkyTargetCannotAct")
+  end
+
+  def pbEncoredMoveIndex
+      next if advance
+      # All Pokémon have moved; end the loop
+      break
+    end
+  end
+
+  #=============================================================================
+  # Attack phase
+  #=============================================================================
+  def pbAttackPhase
+    @scene.pbBeginAttackPhase
+    # Reset certain effects
+    @battlers.each_with_index do |b, i|
+      next if !b
+      b.turnCount += 1 if !b.fainted?
+      @successStates[i].clear
+      if @choices[i][0] != :UseMove && @choices[i][0] != :Shift && @choices[i][0] != :SwitchOut
+        b.effects[PBEffects::DestinyBond] = false
+        b.effects[PBEffects::Grudge]      = false
+      end
+      b.effects[PBEffects::Rage] = false if !pbChoseMoveFunctionCode?(i, "StartRaiseUserAtk1WhenDamaged")
+    end
+    # Calculate move order for this round
+    pbCalculatePriority(true)

@@ -1,0 +1,271 @@
+  def allBattlers
+    return @battlers.select { |b| b && !b.fainted? }
+  end
+
+  # Unused
+  def eachSameSideBattler(idxBattler = 0)
+    idxBattler = idxBattler.index if idxBattler.respond_to?("index")
+    @battlers.each { |b| yield b if b && !b.fainted? && !b.opposes?(idxBattler) }
+  end
+
+  def allSameSideBattlers(idxBattler = 0)
+    idxBattler = idxBattler.index if idxBattler.respond_to?("index")
+    return @battlers.select { |b| b && !b.fainted? && !b.opposes?(idxBattler) }
+  end
+
+  # Unused
+  def eachOtherSideBattler(idxBattler = 0)
+    idxBattler = idxBattler.index if idxBattler.respond_to?("index")
+    @battlers.each { |b| yield b if b && !b.fainted? && b.opposes?(idxBattler) }
+  end
+
+  def allOtherSideBattlers(idxBattler = 0)
+    idxBattler = idxBattler.index if idxBattler.respond_to?("index")
+    return @battlers.select { |b| b && !b.fainted? && b.opposes?(idxBattler) }
+  end
+
+  def pbSideBattlerCount(idxBattler = 0)
+    return allSameSideBattlers(idxBattler).length
+  end
+
+  def pbOpposingBattlerCount(idxBattler = 0)
+    return allOtherSideBattlers(idxBattler).length
+  end
+
+  # This method only counts the player's Pokémon, not a partner trainer's.
+  def pbPlayerBattlerCount
+    return allSameSideBattlers.select { |b| b.pbOwnedByPlayer? }.length
+  end
+
+  def pbCheckGlobalAbility(abil)
+    allBattlers.each { |b| return b if b.hasActiveAbility?(abil) }
+    return nil
+  end
+      pbPlayer.pokedex.register_defeated(battler.displaySpecies)
+    else
+      pbPlayer.pokedex.register_defeated(battler.species)
+    end
+  end
+
+  def nextPickupUse
+    @nextPickupUse += 1
+    return @nextPickupUse
+  end
+
+  #=============================================================================
+  # Weather
+  #=============================================================================
+  def defaultWeather=(value)
+    @field.defaultWeather  = value
+    @field.weather         = value
+    @field.weatherDuration = -1
+  end
+
+  # Returns the effective weather (note that weather effects can be negated)
+  def pbWeather
+    return :None if allBattlers.any? { |b| b.hasActiveAbility?([:CLOUDNINE, :AIRLOCK]) }
+    return @field.weather
+  end
+
+  # Used for causing weather by a move or by an ability.
+  def pbStartWeather(user, newWeather, fixedDuration = false, showAnim = true)
+    return if @field.weather == newWeather
+    @field.weather = newWeather
+    duration = (fixedDuration) ? 5 : -1
+    if duration > 0 && user && user.itemActive?
+      duration = Battle::ItemEffects.triggerWeatherExtender(user.item, @field.weather,
+                                                            duration, user, self)
+    end
+    @field.weatherDuration = duration
+  def defaultTerrain=(value)
+    @field.defaultTerrain  = value
+    @field.terrain         = value
+    @field.terrainDuration = -1
+  end
+
+  def pbStartTerrain(user, newTerrain, fixedDuration = true)
+    return if @field.terrain == newTerrain
+    @field.terrain = newTerrain
+    duration = (fixedDuration) ? 5 : -1
+    if duration > 0 && user && user.itemActive?
+      duration = Battle::ItemEffects.triggerTerrainExtender(user.item, newTerrain,
+                                                            duration, user, self)
+    end
+    @field.terrainDuration = duration
+    terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+    pbCommonAnimation(terrain_data.animation) if terrain_data
+    pbHideAbilitySplash(user) if user
+    case @field.terrain
+    when :Electric
+      pbDisplay(_INTL("An electric current runs across the battlefield!"))
+    when :Grassy
+      pbDisplay(_INTL("Grass grew to cover the battlefield!"))
+    when :Misty
+      pbDisplay(_INTL("Mist swirled about the battlefield!"))
+    when :Psychic
+      pbDisplay(_INTL("The battlefield got weird!"))
+    end
+    # Check for abilities/items that trigger upon the terrain changing
+    allBattlers.each { |b| b.pbAbilityOnTerrainChange }
+    allBattlers.each { |b| b.pbItemTerrainStatBoostCheck }
+  end
+
+  #=============================================================================
+
+  def self.triggerEndOfRoundWeather(ability, weather, battler, battle)
+    EndOfRoundWeather.trigger(ability, weather, battler, battle)
+  end
+
+  def self.triggerEndOfRoundHealing(ability, battler, battle)
+    EndOfRoundHealing.trigger(ability, battler, battle)
+  end
+
+  def self.triggerEndOfRoundEffect(ability, battler, battle)
+    EndOfRoundEffect.trigger(ability, battler, battle)
+  end
+
+  def self.triggerEndOfRoundGainItem(ability, battler, battle)
+    EndOfRoundGainItem.trigger(ability, battler, battle)
+  end
+
+  #=============================================================================
+
+  def self.triggerCertainSwitching(ability, switcher, battle)
+    return trigger(CertainSwitching, ability, switcher, battle)
+  end
+
+  def self.triggerTrappingByTarget(ability, switcher, bearer, battle)
+    return trigger(TrappingByTarget, ability, switcher, bearer, battle)
+  end
+
+  def self.triggerOnSwitchIn(ability, battler, battle, switch_in = false)
+    OnSwitchIn.trigger(ability, battler, battle, switch_in)
+  end
+
+  def self.triggerOnSwitchOut(ability, battler, end_of_battle)
+    OnSwitchOut.trigger(ability, battler, end_of_battle)
+  end
+
+  def self.triggerChangeOnBattlerFainting(ability, battler, fainted, battle)
+    ChangeOnBattlerFainting.trigger(ability, battler, fainted, battle)
+  end
+
+  def self.triggerOnBattlerFainting(ability, battler, fainted, battle)
+    OnBattlerFainting.trigger(ability, battler, fainted, battle)
+  end
+
+  def self.triggerOnTerrainChange(ability, battler, battle, ability_changed)
+    OnTerrainChange.trigger(ability, battler, battle, ability_changed)
+  end
+
+  def self.triggerOnIntimidated(ability, battler, battle)
+    OnIntimidated.trigger(ability, battler, battle)
+)
+
+#===============================================================================
+# OnTerrainChange handlers
+#===============================================================================
+
+Battle::AbilityEffects::OnTerrainChange.add(:MIMICRY,
+  proc { |ability, battler, battle, ability_changed|
+    if battle.field.terrain == :None
+      # Revert to original typing
+      battle.pbShowAbilitySplash(battler)
+      battler.pbResetTypes
+      battle.pbDisplay(_INTL("{1} changed back to its regular type!", battler.pbThis))
+      battle.pbHideAbilitySplash(battler)
+    else
+      # Change to new typing
+      terrain_hash = {
+        :Electric => :ELECTRIC,
+        :Grassy   => :GRASS,
+        :Misty    => :FAIRY,
+        :Psychic  => :PSYCHIC
+      }
+      new_type = terrain_hash[battle.field.terrain]
+      new_type_name = nil
+      if new_type
+        type_data = GameData::Type.try_get(new_type)
+        new_type = nil if !type_data
+        new_type_name = type_data.name if type_data
+      end
+      if new_type
+        battle.pbShowAbilitySplash(battler)
+        battler.pbChangeTypes(new_type)
+        battle.pbDisplay(_INTL("{1}'s type changed to {2}!", battler.pbThis, new_type_name))
+        battle.pbHideAbilitySplash(battler)
+      end
+    end
+  }
+)
+
+#===============================================================================
+# OnIntimidated handlers
+#===============================================================================
+
+Battle::AbilityEffects::OnIntimidated.add(:RATTLED,
+  proc { |ability, battler, battle|
+    next if Settings::MECHANICS_GENERATION < 8
+    battler.pbRaiseStatStageByAbility(:SPEED, 1, battler)
+  }
+)
+
+#===============================================================================
+    return trigger(TerrainExtender, item, terrain, duration, battler, battle, ret: duration)
+  end
+
+  def self.triggerTerrainStatBoost(item, battler, battle)
+    return trigger(TerrainStatBoost, item, battler, battle)
+  end
+
+  #=============================================================================
+
+)
+
+#===============================================================================
+# TerrainStatBoost handlers
+#===============================================================================
+
+Battle::ItemEffects::TerrainStatBoost.add(:ELECTRICSEED,
+  proc { |item, battler, battle|
+    next false if battle.field.terrain != :Electric
+    next false if !battler.pbCanRaiseStatStage?(:DEFENSE, battler)
+    itemName = GameData::Item.get(item).name
+    battle.pbCommonAnimation("UseItem", battler)
+    next battler.pbRaiseStatStageByCause(:DEFENSE, 1, battler, itemName)
+  }
+)
+
+Battle::ItemEffects::TerrainStatBoost.add(:GRASSYSEED,
+  proc { |item, battler, battle|
+    next false if battle.field.terrain != :Grassy
+    next false if !battler.pbCanRaiseStatStage?(:DEFENSE, battler)
+    itemName = GameData::Item.get(item).name
+    battle.pbCommonAnimation("UseItem", battler)
+    next battler.pbRaiseStatStageByCause(:DEFENSE, 1, battler, itemName)
+  }
+)
+
+Battle::ItemEffects::TerrainStatBoost.add(:MISTYSEED,
+  proc { |item, battler, battle|
+    next false if battle.field.terrain != :Misty
+    next false if !battler.pbCanRaiseStatStage?(:SPECIAL_DEFENSE, battler)
+    itemName = GameData::Item.get(item).name
+    battle.pbCommonAnimation("UseItem", battler)
+    next battler.pbRaiseStatStageByCause(:SPECIAL_DEFENSE, 1, battler, itemName)
+  }
+)
+
+Battle::ItemEffects::TerrainStatBoost.add(:PSYCHICSEED,
+  proc { |item, battler, battle|
+    next false if battle.field.terrain != :Psychic
+    next false if !battler.pbCanRaiseStatStage?(:SPECIAL_DEFENSE, battler)
+    itemName = GameData::Item.get(item).name
+    battle.pbCommonAnimation("UseItem", battler)
+    next battler.pbRaiseStatStageByCause(:SPECIAL_DEFENSE, 1, battler, itemName)
+  }
+)
+
+#===============================================================================
+# EndOfRoundHealing handlers
+#===============================================================================

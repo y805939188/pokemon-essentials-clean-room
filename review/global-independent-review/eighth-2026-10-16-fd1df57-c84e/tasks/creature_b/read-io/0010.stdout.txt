@@ -1,0 +1,347 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb", "range": [361, 706], "file_lines": 706, "bytes": 25386, "sha256": "81519d2fb0b6926ac2ca08f693e2f08e3800878628ba90f5a7d2a314ff1c60f4", "began_utc": "2026-10-16T03:28:29.268766+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00361         caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+00362         next if !caller_map_metadata || !caller_map_metadata.town_map_position
+00363         next if caller_map_metadata.town_map_position[0] != player_region
+00364         valid_contacts.push(contact)
+00365       end
+00366       return valid_contacts.sample
+00367     end
+00368 
+00369     #===========================================================================
+00370 
+00371     def make_incoming
+00372       return if !can_make?
+00373       contact = get_random_trainer_for_incoming_call
+00374       return if !contact
+00375       if contact.common_event_call?
+00376         if !pbCommonEvent(contact.common_event_id)
+00377           pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+00378                           contact.display_name, contact.common_event_id))
+00379         end
+00380       else
+00381         call = generate_trainer_dialogue(contact)
+00382         play(call, contact)
+00383       end
+00384     end
+00385 
+00386     # Phone::Contact
+00387     # Trainer type, name[, start_version]
+00388     # Name (for non-trainers)
+00389     def make_outgoing(*args)
+00390       if args[0].is_a?(Phone::Contact)
+00391         contact = args[0]
+00392       elsif args.length > 1
+00393         contact = Phone.get(true, args[0], args[1], args[2] || 0)   # Trainer
+00394       else
+00395         contact = Phone.get(false, args[0])   # Non-trainer
+00396       end
+00397       raise _INTL("Couldn't find phone contact given: {1}.", args.inspect) if !contact
+00398       return if !can_call_contact?(contact)
+00399       if contact.common_event_call?
+00400         if !pbCommonEvent(contact.common_event_id)
+00401           pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+00402                           contact.display_name, contact.common_event_id))
+00403         end
+00404       else
+00405         call = generate_trainer_dialogue(contact)
+00406         play(call, contact)
+00407       end
+00408     end
+00409 
+00410     def start_message(contact = nil)
+00411       pbMessage("......\\wt[5] ......\1")
+00412     end
+00413 
+00414     def play(dialogue, contact)
+00415       start_message(contact)
+00416       contact_pokemon_species  = get_random_contact_pokemon_species(contact)
+00417       random_encounter_species = get_random_encounter_species(contact)
+00418       contact_map_name         = get_map_name(contact)
+00419       gender_colour_text       = ""
+00420       if Settings::COLOR_PHONE_CALL_MESSAGES_BY_CONTACT_GENDER && contact.trainer?
+00421         data = GameData::TrainerType.try_get(contact.trainer_type)
+00422         if data
+00423           case data.gender
+00424           when 0 then gender_colour_text = "\\b"
+00425           when 1 then gender_colour_text = "\\r"
+00426           end
+00427         end
+00428       end
+00429       messages = dialogue.split("\\m")
+00430       messages.each_with_index do |message, i|
+00431         message.gsub!(/\\TN/, _INTL(contact.name))
+00432         message.gsub!(/\\TP/, contact_pokemon_species)
+00433         message.gsub!(/\\TE/, random_encounter_species)
+00434         message.gsub!(/\\TM/, contact_map_name)
+00435         message += "\1" if i < messages.length - 1
+00436         pbMessage(gender_colour_text + message)
+00437       end
+00438       end_message(contact)
+00439     end
+00440 
+00441     def end_message(contact = nil)
+00442       pbMessage(_INTL("Click!") + "\\wt[10]\n......\\wt[5] ......\1")
+00443     end
+00444 
+00445     #===========================================================================
+00446 
+00447     def generate_trainer_dialogue(contact)
+00448       validate contact => Phone::Contact
+00449       # Get the set of messages to be used by the contact
+00450       messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.version)
+00451       messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.start_version) if !messages
+00452       messages = GameData::PhoneMessage::DATA["default"] if !messages
+00453       # Create lambda for choosing a random message and translating it
+00454       get_random_message = lambda do |msgs|
+00455         return "" if !msgs
+00456         msg = msgs.sample
+00457         return "" if !msg
+00458         return pbGetMessageFromHash(MessageTypes::PHONE_MESSAGES, msg)
+00459       end
+00460       # Choose random greeting depending on time of day
+00461       ret = get_random_message.call(messages.intro)
+00462       time = pbGetTimeNow
+00463       if PBDayNight.isMorning?(time)
+00464         mod_call = get_random_message.call(messages.intro_morning)
+00465         ret = mod_call if !nil_or_empty?(mod_call)
+00466       elsif PBDayNight.isAfternoon?(time)
+00467         mod_call = get_random_message.call(messages.intro_afternoon)
+00468         ret = mod_call if !nil_or_empty?(mod_call)
+00469       elsif PBDayNight.isEvening?(time)
+00470         mod_call = get_random_message.call(messages.intro_evening)
+00471         ret = mod_call if !nil_or_empty?(mod_call)
+00472       end
+00473       ret += "\\m"
+00474       # Choose main message set
+00475       if Phone.rematches_enabled && contact.rematch_flag > 0
+00476         # Trainer is ready for a rematch, so tell/remind the player
+00477         case contact.rematch_flag
+00478         when 1   # Tell the player
+00479           ret += get_random_message.call(messages.battle_request)
+00480           contact.rematch_flag = 2   # Ready for rematch and told player
+00481         when 2   # Remind the player
+00482           if messages.battle_remind
+00483             ret += get_random_message.call(messages.battle_remind)
+00484           else
+00485             ret += get_random_message.call(messages.battle_request)
+00486           end
+00487         end
+00488       else
+00489         # Standard messages
+00490         if messages.body1 && messages.body2 && (!messages.body || rand(100) < 75)
+00491           # Choose random pair of body messages
+00492           ret += get_random_message.call(messages.body1)
+00493           ret += "\\m"
+00494           ret += get_random_message.call(messages.body2)
+00495         else
+00496           # Choose random full body message
+00497           ret += get_random_message.call(messages.body)
+00498         end
+00499         # Choose end message
+00500         mod_call = get_random_message.call(messages.end)
+00501         ret += "\\m" + mod_call if !nil_or_empty?(mod_call)
+00502       end
+00503       return ret
+00504     end
+00505 
+00506     def get_random_contact_pokemon_species(contact)
+00507       return "" if !contact.trainer?
+00508       version = [contact.version, contact.start_version].max
+00509       trainer_data = GameData::Trainer.try_get(contact.trainer_type, contact.name, version)
+00510       return "" if !trainer_data
+00511       pkmn = trainer_data.pokemon.sample[:species]
+00512       return GameData::Species.get(pkmn).name
+00513     end
+00514 
+00515     def get_random_encounter_species(contact)
+00516       return "" if !contact.trainer?
+00517       encounter_data = GameData::Encounter.get(contact.map_id, $PokemonGlobal.encounter_version)
+00518       return "" if !encounter_data
+00519       get_species_from_table = lambda do |encounter_table|
+00520         return nil if !encounter_table || encounter_table.length == 0
+00521         len = [encounter_table.length, 4].min   # From first 4 slots only
+00522         return encounter_table[rand(len)][1]
+00523       end
+00524       enc_tables = encounter_data.types
+00525       species = get_species_from_table.call(enc_tables[:Land])
+00526       if !species
+00527         species = get_species_from_table.call(enc_tables[:Cave])
+00528         species = get_species_from_table.call(enc_tables[:Water]) if !species
+00529       end
+00530       return "" if !species
+00531       return GameData::Species.get(species).name
+00532     end
+00533 
+00534     def get_map_name(contact)
+00535       return pbGetMapNameFromId(contact.map_id)
+00536     end
+00537   end
+00538 end
+00539 
+00540 #===============================================================================
+00541 #
+00542 #===============================================================================
+00543 EventHandlers.add(:on_frame_update, :phone_call_counter,
+00544   proc {
+00545     next if !$player&.has_pokegear
+00546     # Don't count down various phone times if other things are happening
+00547     next if $game_temp.in_menu || $game_temp.in_battle || $game_temp.message_window_showing
+00548     next if $game_player.move_route_forcing || pbMapInterpreterRunning?
+00549     # Count down time to next can-battle for each trainer contact
+00550     $PokemonGlobal.phone.refresh_ready_trainers
+00551     # Count down time to next phone call
+00552     if $PokemonGlobal.phone.time_to_next_call <= 0
+00553       $PokemonGlobal.phone.time_to_next_call = rand(20...40) * 60.0   # 20-40 minutes
+00554     end
+00555     $PokemonGlobal.phone.time_to_next_call -= Graphics.delta
+00556     next if $PokemonGlobal.phone.time_to_next_call > 0
+00557     # Time for a random phone call; generate one
+00558     Phone::Call.make_incoming
+00559   }
+00560 )
+00561 
+00562 #===============================================================================
+00563 # Deprecated.
+00564 #===============================================================================
+00565 # Called by events. Make your event look like this instead:
+00566 #
+00567 # @>Conditional Branch: Phone.can_add?(trainer_type, name, start_version)
+00568 #   @>Text: Let me register you.
+00569 #   @>Show Choices: Yes, No
+00570 #    : When [Yes]
+00571 #     @>Conditional Branch: Phone.add(get_self, trainer_type, name, start_version, versions_count)
+00572 #       @>Text: Thanks! (optional)
+00573 #       @>
+00574 #     : Branch End
+00575 #    : When [No]
+00576 #       @>Text: Oh, okay then. (optional)
+00577 #       @>
+00578 #    : Branch End
+00579 #  : Branch End
+00580 # @>
+00581 #
+00582 # @deprecated This method is slated to be removed in v22.
+00583 def pbPhoneRegisterBattle(message, event, trainer_type, name, versions_count)
+00584   Deprecation.warn_method("pbPhoneRegisterBattle", "v22", "several scripts and event commands; see def pbPhoneRegisterBattle")
+00585   return false if !Phone.can_add?(trainer_type, name, 0)
+00586   message = _INTL("Let me register you.") if !message
+00587   return false if !pbConfirmMessage(message)
+00588   return Phone.add(event, trainer_type, name, 0, versions_count)
+00589 end
+00590 
+00591 # @deprecated This method is slated to be removed in v22.
+00592 def pbPhoneRegister(event, trainer_type, name)
+00593   Deprecation.warn_method("pbPhoneRegister", "v22", "Phone.add_silent(event, trainer_type, name)")
+00594   Phone.add_silent(event, trainer_type, name)
+00595 end
+00596 
+00597 # Called by events.
+00598 # @deprecated This method is slated to be removed in v22.
+00599 def pbPhoneRegisterNPC(common_event_id, name, map_id, show_message = true)
+00600   Deprecation.warn_method("pbPhoneRegisterNPC", "v22", "Phone.add(map_id, name, common_event_id) or Phone.add_silent(map_id, name, common_event_id)")
+00601   if show_message
+00602     Phone.add(map_id, name, common_event_id)
+00603   else
+00604     Phone.add_silent(map_id, name, common_event_id)
+00605   end
+00606 end
+00607 
+00608 # @deprecated This method is slated to be removed in v22.
+00609 def pbPhoneDeleteContact(index)
+00610   Deprecation.warn_method("pbPhoneDeleteContact", "v22", "$PokemonGlobal.phone.contacts[index].visible = false")
+00611   $PokemonGlobal.phone.contacts[index].visible = false
+00612 end
+00613 
+00614 # @deprecated This method is slated to be removed in v22.
+00615 def pbFindPhoneTrainer(trainer_type, name)
+00616   Deprecation.warn_method("pbFindPhoneTrainer", "v22", "Phone.get(trainer_type, name)")
+00617   return Phone.get(trainer_type, name)
+00618 end
+00619 
+00620 # @deprecated This method is slated to be removed in v22.
+00621 def pbHasPhoneTrainer?(trainer_type, name)
+00622   Deprecation.warn_method("pbHasPhoneTrainer", "v22", "Phone.get(trainer_type, name) != nil")
+00623   return Phone.get(trainer_type, name) != nil
+00624 end
+00625 
+00626 # @deprecated This method is slated to be removed in v22.
+00627 def pbPhoneReadyToBattle?(trainer_type, name)
+00628   Deprecation.warn_method("pbPhoneReadyToBattle", "v22", "Phone.get(trainer_type, name).can_rematch?")
+00629   contact = Phone.get(trainer_type, name)
+00630   return contact && contact.can_rematch?
+00631 end
+00632 
+00633 # @deprecated This method is slated to be removed in v22.
+00634 def pbPhoneReset(tr_type, tr_name)
+00635   Deprecation.warn_method("pbPhoneReadyToBattle", "v22", "Phone.get(trainer_type, name) and other things")
+00636   contact = Phone.get(trainer_type, name)
+00637   return false if !contact
+00638   contact.time_to_ready = 0
+00639   contact.rematch_flag = 0
+00640   $game_self_switches[[contact.map_id, contact.event_id, "A"]] = true
+00641   $game_map.need_refresh = true
+00642   return true
+00643 end
+00644 
+00645 # Called by events.
+00646 # @deprecated This method is slated to be removed in v22.
+00647 def pbPhoneBattleCount(trainer_type, name)
+00648   Deprecation.warn_method("pbPhoneBattleCount", "v22", "Phone.variant(trainer_type, name)")
+00649   return Phone.variant(trainer_type, name)
+00650 end
+00651 
+00652 # Called by events.
+00653 # @deprecated This method is slated to be removed in v22.
+00654 def pbPhoneIncrement(trainer_type, name, versions_count)
+00655   Deprecation.warn_method("pbPhoneIncrement", "v22", "Phone.increment_version(trainer_type, name, start_version)")
+00656   Phone.increment_version(trainer_type, name, 0)
+00657 end
+00658 
+00659 # Used in phone calls that say they're ready for a rematch, used in Debug function.
+00660 # @deprecated This method is slated to be removed in v22.
+00661 def pbSetReadyToBattle(contact)
+00662   Deprecation.warn_method("pbSetReadyToBattle", "v22", "contact.set_trainer_event_ready_for_rematch")
+00663   contact.set_trainer_event_ready_for_rematch
+00664 end
+00665 
+00666 # @deprecated This method is slated to be removed in v22.
+00667 def pbRandomPhoneTrainer
+00668   Deprecation.warn_method("pbRandomPhoneTrainer", "v22", "Phone::Call.get_random_trainer_for_incoming_call")
+00669   return Phone::Call.get_random_trainer_for_incoming_call
+00670 end
+00671 
+00672 # @deprecated This method is slated to be removed in v22.
+00673 def pbCallTrainer(trainer_type, name)
+00674   Deprecation.warn_method("pbCallTrainer", "v22", "Phone::Call.make_outgoing(trainer_type, name)")
+00675   Phone::Call.make_outgoing(trainer_type, name)
+00676 end
+00677 
+00678 # @deprecated This method is slated to be removed in v22.
+00679 def pbPhoneGenerateCall(contact)
+00680   Deprecation.warn_method("pbPhoneGenerateCall", "v22", "Phone::Call.generate_trainer_dialogue(contact)")
+00681   return Phone::Call.generate_trainer_dialogue(contact)
+00682 end
+00683 
+00684 # @deprecated This method is slated to be removed in v22.
+00685 def pbPhoneCall(dialogue, contact)
+00686   Deprecation.warn_method("pbPhoneCall", "v22", "Phone::Call.play(dialogue, contact)")
+00687   Phone::Call.play(dialogue, contact)
+00688 end
+00689 
+00690 # @deprecated This method is slated to be removed in v22.
+00691 def pbEncounterSpecies(contact)
+00692   Deprecation.warn_method("pbEncounterSpecies", "v22", "Phone::Call.get_random_encounter_species(contact)")
+00693   return Phone::Call.get_random_encounter_species(contact)
+00694 end
+00695 
+00696 # @deprecated This method is slated to be removed in v22.
+00697 def pbTrainerSpecies(contact)
+00698   Deprecation.warn_method("pbTrainerSpecies", "v22", "Phone::Call.get_random_contact_pokemon_species(contact)")
+00699   return Phone::Call.get_random_contact_pokemon_species(contact)
+00700 end
+00701 
+00702 # @deprecated This method is slated to be removed in v22.
+00703 def pbTrainerMapName(contact)
+00704   Deprecation.warn_method("pbTrainerMapName", "v22", "Phone::Call.get_map_name(contact)")
+00705   return Phone::Call.get_map_name(contact)
+00706 end

@@ -1,0 +1,63 @@
+00345: )
+00346: 
+00347: #===============================================================================
+00348: #
+00349: #===============================================================================
+00350: EventHandlers.add(:on_calling_wild_battle, :bug_contest_battle,
+00351:   proc { |pkmn, handled|
+00352:     # handled is an array: [nil]. If [true] or [false], the battle has already
+00353:     # been overridden (the boolean is its outcome), so don't do anything that
+00354:     # would override it again
+00355:     next if !handled[0].nil?
+00356:     next if !pbInBugContest?
+00357:     handled[0] = pbBugContestBattle(pkmn)
+00358:   }
+00359: )
+00360: 
+00361: def pbBugContestBattle(pkmn, level = 1)
+00362:   # Record information about party Pokémon to be used at the end of battle (e.g.
+00363:   # comparing levels for an evolution check)
+00364:   EventHandlers.trigger(:on_start_battle)
+00365:   # Generate a wild Pokémon based on the species and level
+00366:   pkmn = pbGenerateWildPokemon(pkmn, level) if !pkmn.is_a?(Pokemon)
+00367:   foeParty = [pkmn]
+00368:   # Calculate who the trainers and their party are
+00369:   playerTrainer     = [$player]
+00370:   playerParty       = $player.party
+00371:   playerPartyStarts = [0]
+00372:   # Create the battle scene (the visual side of it)
+00373:   scene = BattleCreationHelperMethods.create_battle_scene
+00374:   # Create the battle class (the mechanics side of it)
+00375:   battle = BugContestBattle.new(scene, playerParty, foeParty, playerTrainer, nil)
+00376:   battle.party1starts = playerPartyStarts
+00377:   battle.ballCount    = pbBugContestState.ballcount
+00378:   setBattleRule("single")
+00379:   BattleCreationHelperMethods.prepare_battle(battle)
+00380:   # Perform the battle itself
+00381:   decision = 0
+00382:   pbBattleAnimation(pbGetWildBattleBGM(foeParty), 0, foeParty) do
+00383:     decision = battle.pbStartBattle
+00384:     BattleCreationHelperMethods.after_battle(decision, true)
+00385:     if [2, 5].include?(decision)   # Lost or drew
+00386:       $game_system.bgm_unpause
+00387:       $game_system.bgs_unpause
+00388:       pbBugContestStartOver
+00389:     end
+00390:   end
+00391:   Input.update
+00392:   # Update Bug Contest game data based on result of battle
+00393:   pbBugContestState.ballcount = battle.ballCount
+00394:   if pbBugContestState.ballcount == 0
+00395:     pbMessage(_INTL("ANNOUNCER:  The Bug-Catching Contest is over!"))
+00396:     pbBugContestState.pbStartJudging
+00397:   end
+00398:   # Save the result of the battle in Game Variable 1
+00399:   BattleCreationHelperMethods.set_outcome(decision, 1)
+00400:   # Used by the Poké Radar to update/break the chain
+00401:   EventHandlers.trigger(:on_wild_battle_end, pkmn.species_data.id, pkmn.level, decision)
+00402:   # Return false if the player lost or drew the battle, and true if any other result
+00403:   return (decision != 2 && decision != 5)
+00404: end
+00405: 
+00406: #===============================================================================
+00407: #

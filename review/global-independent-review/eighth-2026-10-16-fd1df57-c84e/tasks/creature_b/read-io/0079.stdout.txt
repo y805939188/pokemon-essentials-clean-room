@@ -1,0 +1,322 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/003_Compiler_WritePBS.rb", "range": [501, 821], "file_lines": 821, "bytes": 31117, "sha256": "37f2e79f29ce82d9f51305069fd08f10a976a6e4d855716767856687fbaa3d14", "began_utc": "2026-10-16T03:35:31.645245+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00501           end
+00502         end
+00503       end
+00504       process_pbs_file_message_end
+00505     end
+00506   end
+00507 
+00508   #=============================================================================
+00509   # Save trainer list data to PBS file
+00510   #=============================================================================
+00511   def write_trainer_lists(path = "PBS/battle_facility_lists.txt")
+00512     trainerlists = load_data("Data/trainer_lists.dat") rescue nil
+00513     return if !trainerlists
+00514     write_pbs_file_message_start(path)
+00515     File.open(path, "wb") do |f|
+00516       add_PBS_header_to_file(f)
+00517       trainerlists.each do |tr|
+00518         echo "."
+00519         f.write("\#-------------------------------\r\n")
+00520         f.write(((tr[5]) ? "[DefaultTrainerList]" : "[TrainerList]") + "\r\n")
+00521         f.write("Trainers = " + tr[3] + "\r\n")
+00522         f.write("Pokemon = " + tr[4] + "\r\n")
+00523         f.write("Challenges = " + tr[2].join(",") + "\r\n") if !tr[5]
+00524         write_battle_tower_trainers(tr[0], "PBS/" + tr[3])
+00525         write_battle_tower_pokemon(tr[1], "PBS/" + tr[4])
+00526       end
+00527     end
+00528     process_pbs_file_message_end
+00529   end
+00530 
+00531   #=============================================================================
+00532   # Save Battle Tower trainer data to PBS file
+00533   #=============================================================================
+00534   def write_battle_tower_trainers(bttrainers, filename)
+00535     return if !bttrainers || !filename
+00536     btTrainersRequiredTypes = {
+00537       "Type"          => [0, "e", nil],   # Specifies a trainer
+00538       "Name"          => [1, "s"],
+00539       "BeginSpeech"   => [2, "s"],
+00540       "EndSpeechWin"  => [3, "s"],
+00541       "EndSpeechLose" => [4, "s"],
+00542       "PokemonNos"    => [5, "*u"]
+00543     }
+00544     File.open(filename, "wb") do |f|
+00545       add_PBS_header_to_file(f)
+00546       bttrainers.length.times do |i|
+00547         next if !bttrainers[i]
+00548         f.write("\#-------------------------------\r\n")
+00549         f.write(sprintf("[%03d]\r\n", i))
+00550         btTrainersRequiredTypes.each_key do |key|
+00551           schema = btTrainersRequiredTypes[key]
+00552           record = bttrainers[i][schema[0]]
+00553           next if record.nil?
+00554           f.write(sprintf("%s = ", key))
+00555           case key
+00556           when "Type"
+00557             f.write(record.to_s)
+00558           when "PokemonNos"
+00559             f.write(record.join(","))   # pbWriteCsvRecord somehow won't work here
+00560           else
+00561             pbWriteCsvRecord(record, f, schema)
+00562           end
+00563           f.write("\r\n")
+00564         end
+00565       end
+00566     end
+00567     Graphics.update
+00568   end
+00569 
+00570   #=============================================================================
+00571   # Save Battle Tower Pokémon data to PBS file
+00572   #=============================================================================
+00573   def write_battle_tower_pokemon(btpokemon, filename)
+00574     return if !btpokemon || !filename
+00575     species = {}
+00576     moves   = {}
+00577     items   = {}
+00578     natures = {}
+00579     evs = {
+00580       :HP              => "HP",
+00581       :ATTACK          => "ATK",
+00582       :DEFENSE         => "DEF",
+00583       :SPECIAL_ATTACK  => "SA",
+00584       :SPECIAL_DEFENSE => "SD",
+00585       :SPEED           => "SPD"
+00586     }
+00587     File.open(filename, "wb") do |f|
+00588       add_PBS_header_to_file(f)
+00589       f.write("\#-------------------------------\r\n")
+00590       btpokemon.length.times do |i|
+00591         Graphics.update if i % 500 == 0
+00592         pkmn = btpokemon[i]
+00593         c1 = (species[pkmn.species]) ? species[pkmn.species] : (species[pkmn.species] = GameData::Species.get(pkmn.species).species.to_s)
+00594         c2 = nil
+00595         if pkmn.item && GameData::Item.exists?(pkmn.item)
+00596           c2 = (items[pkmn.item]) ? items[pkmn.item] : (items[pkmn.item] = GameData::Item.get(pkmn.item).id.to_s)
+00597         end
+00598         c3 = (natures[pkmn.nature]) ? natures[pkmn.nature] : (natures[pkmn.nature] = GameData::Nature.get(pkmn.nature).id.to_s)
+00599         evlist = ""
+00600         pkmn.ev.each_with_index do |stat, j|
+00601           evlist += "," if j > 0
+00602           evlist += evs[stat]
+00603         end
+00604         c4 = c5 = c6 = c7 = ""
+00605         [pkmn.move1, pkmn.move2, pkmn.move3, pkmn.move4].each_with_index do |move, j|
+00606           next if !move
+00607           text = (moves[move]) ? moves[move] : (moves[move] = GameData::Move.get(move).id.to_s)
+00608           case j
+00609           when 0 then c4 = text
+00610           when 1 then c5 = text
+00611           when 2 then c6 = text
+00612           when 3 then c7 = text
+00613           end
+00614         end
+00615         f.write("#{c1};#{c2};#{c3};#{evlist};#{c4},#{c5},#{c6},#{c7}\r\n")
+00616       end
+00617     end
+00618     Graphics.update
+00619   end
+00620 
+00621   #=============================================================================
+00622   # Save metadata data to PBS file
+00623   # NOTE: Doesn't use write_PBS_file_generic because it contains data for two
+00624   #       different GameData classes.
+00625   #=============================================================================
+00626   def write_metadata
+00627     paths = []
+00628     GameData::Metadata.each do |element|
+00629       paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix)
+00630     end
+00631     GameData::PlayerMetadata.each do |element|
+00632       paths.push(element.pbs_file_suffix) if !paths.include?(element.pbs_file_suffix)
+00633     end
+00634     paths.each_with_index do |element, i|
+00635       paths[i] = [sprintf("PBS/%s.txt", GameData::Metadata::PBS_BASE_FILENAME), element]
+00636       if !nil_or_empty?(element)
+00637         paths[i][0] = sprintf("PBS/%s_%s.txt", GameData::Metadata::PBS_BASE_FILENAME, element)
+00638       end
+00639     end
+00640     global_schema = GameData::Metadata.schema
+00641     player_schema = GameData::PlayerMetadata.schema
+00642     paths.each do |path|
+00643       write_pbs_file_message_start(path[0])
+00644       File.open(path[0], "wb") do |f|
+00645         add_PBS_header_to_file(f)
+00646         # Write each element in turn
+00647         [GameData::Metadata, GameData::PlayerMetadata].each do |game_data|
+00648           schema = global_schema if game_data == GameData::Metadata
+00649           schema = player_schema if game_data == GameData::PlayerMetadata
+00650           game_data.each do |element|
+00651             next if element.pbs_file_suffix != path[1]
+00652             f.write("\#-------------------------------\r\n")
+00653             if schema["SectionName"]
+00654               f.write("[")
+00655               pbWriteCsvRecord(element.get_property_for_PBS("SectionName"), f, schema["SectionName"])
+00656               f.write("]\r\n")
+00657             else
+00658               f.write("[#{element.id}]\r\n")
+00659             end
+00660             schema.each_key do |key|
+00661               next if key == "SectionName"
+00662               val = element.get_property_for_PBS(key)
+00663               next if val.nil?
+00664               if schema[key][1][0] == "^" && val.is_a?(Array)
+00665                 val.each do |sub_val|
+00666                   f.write(sprintf("%s = ", key))
+00667                   pbWriteCsvRecord(sub_val, f, schema[key])
+00668                   f.write("\r\n")
+00669                 end
+00670               else
+00671                 f.write(sprintf("%s = ", key))
+00672                 pbWriteCsvRecord(val, f, schema[key])
+00673                 f.write("\r\n")
+00674               end
+00675             end
+00676           end
+00677         end
+00678       end
+00679       process_pbs_file_message_end
+00680     end
+00681   end
+00682 
+00683   #=============================================================================
+00684   # Save map metadata data to PBS file
+00685   # NOTE: Doesn't use write_PBS_file_generic because it writes the RMXP map name
+00686   #       next to the section header for each map.
+00687   #=============================================================================
+00688   def write_map_metadata
+00689     paths = get_all_PBS_file_paths(GameData::MapMetadata)
+00690     map_infos = pbLoadMapInfos
+00691     schema = GameData::MapMetadata.schema
+00692     idx = 0
+00693     paths.each do |path|
+00694       write_pbs_file_message_start(path[0])
+00695       File.open(path[0], "wb") do |f|
+00696         add_PBS_header_to_file(f)
+00697         GameData::MapMetadata.each do |element|
+00698           next if element.pbs_file_suffix != path[1]
+00699           echo "." if idx % 100 == 0
+00700           Graphics.update if idx % 500 == 0
+00701           idx += 1
+00702           f.write("\#-------------------------------\r\n")
+00703           map_name = (map_infos && map_infos[element.id]) ? map_infos[element.id].name : nil
+00704           f.write(sprintf("[%03d]", element.id))
+00705           f.write(sprintf("   # %s", map_name)) if map_name
+00706           f.write("\r\n")
+00707           schema.each_key do |key|
+00708             next if key == "SectionName"
+00709             val = element.get_property_for_PBS(key)
+00710             next if val.nil?
+00711             if schema[key][1][0] == "^" && val.is_a?(Array)
+00712               val.each do |sub_val|
+00713                 f.write(sprintf("%s = ", key))
+00714                 pbWriteCsvRecord(sub_val, f, schema[key])
+00715                 f.write("\r\n")
+00716               end
+00717             else
+00718               f.write(sprintf("%s = ", key))
+00719               pbWriteCsvRecord(val, f, schema[key])
+00720               f.write("\r\n")
+00721             end
+00722           end
+00723         end
+00724       end
+00725       process_pbs_file_message_end
+00726     end
+00727   end
+00728 
+00729   #=============================================================================
+00730   # Save dungeon tileset contents data to PBS file
+00731   # NOTE: Doesn't use write_PBS_file_generic because it writes the tileset name
+00732   #       next to the section header for each tileset.
+00733   #=============================================================================
+00734   def write_dungeon_tilesets
+00735     paths = get_all_PBS_file_paths(GameData::DungeonTileset)
+00736     schema = GameData::DungeonTileset.schema
+00737     tilesets = load_data("Data/Tilesets.rxdata")
+00738     paths.each do |path|
+00739       write_pbs_file_message_start(path[0])
+00740       File.open(path[0], "wb") do |f|
+00741         add_PBS_header_to_file(f)
+00742         # Write each element in turn
+00743         GameData::DungeonTileset.each do |element|
+00744           next if element.pbs_file_suffix != path[1]
+00745           f.write("\#-------------------------------\r\n")
+00746           if schema["SectionName"]
+00747             f.write("[")
+00748             pbWriteCsvRecord(element.get_property_for_PBS("SectionName"), f, schema["SectionName"])
+00749             f.write("]")
+00750             f.write("   # #{tilesets[element.id].name}") if tilesets && tilesets[element.id]
+00751             f.write("\r\n")
+00752           else
+00753             f.write("[#{element.id}]\r\n")
+00754           end
+00755           schema.each_key do |key|
+00756             next if key == "SectionName"
+00757             val = element.get_property_for_PBS(key)
+00758             next if val.nil?
+00759             if schema[key][1][0] == "^" && val.is_a?(Array)
+00760               val.each do |sub_val|
+00761                 f.write(sprintf("%s = ", key))
+00762                 pbWriteCsvRecord(sub_val, f, schema[key])
+00763                 f.write("\r\n")
+00764               end
+00765             else
+00766               f.write(sprintf("%s = ", key))
+00767               pbWriteCsvRecord(val, f, schema[key])
+00768               f.write("\r\n")
+00769             end
+00770           end
+00771         end
+00772       end
+00773       process_pbs_file_message_end
+00774     end
+00775   end
+00776 
+00777   #=============================================================================
+00778   # Save dungeon parameters to PBS file
+00779   #=============================================================================
+00780   def write_dungeon_parameters
+00781     write_PBS_file_generic(GameData::DungeonParameters)
+00782   end
+00783 
+00784   #=============================================================================
+00785   # Save phone messages to PBS file
+00786   #=============================================================================
+00787   def write_phone
+00788     write_PBS_file_generic(GameData::PhoneMessage)
+00789   end
+00790 
+00791   #=============================================================================
+00792   # Save all data to PBS files
+00793   #=============================================================================
+00794   def write_all
+00795     Console.echo_h1(_INTL("Writing all PBS files"))
+00796     write_town_map
+00797     write_connections
+00798     write_types
+00799     write_abilities
+00800     write_moves
+00801     write_items
+00802     write_berry_plants
+00803     write_pokemon
+00804     write_pokemon_forms
+00805     write_pokemon_metrics
+00806     write_shadow_pokemon
+00807     write_regional_dexes
+00808     write_ribbons
+00809     write_encounters
+00810     write_trainer_types
+00811     write_trainers
+00812     write_trainer_lists
+00813     write_metadata
+00814     write_map_metadata
+00815     write_dungeon_tilesets
+00816     write_dungeon_parameters
+00817     write_phone
+00818     echoln ""
+00819     Console.echo_h2(_INTL("Successfully rewrote all PBS files"), text: :green)
+00820   end
+00821 end

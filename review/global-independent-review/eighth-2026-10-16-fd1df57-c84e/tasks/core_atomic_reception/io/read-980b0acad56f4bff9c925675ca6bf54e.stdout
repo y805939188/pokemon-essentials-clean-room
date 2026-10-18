@@ -1,0 +1,97 @@
+00530: class Battle::Move::PledgeMove < Battle::Move
+00531:   def pbOnStartUse(user, targets)
+00532:     @pledgeSetup = false
+00533:     @pledgeCombo = false
+00534:     @pledgeOtherUser = nil
+00535:     @comboEffect = nil
+00536:     @overrideAnim = nil
+00537:     # Check whether this is the use of a combo move
+00538:     @combos.each do |i|
+00539:       next if i[0] != user.effects[PBEffects::FirstPledge]
+00540:       @battle.pbDisplay(_INTL("The two moves have become one! It's a combined move!"))
+00541:       @pledgeCombo = true
+00542:       @comboEffect = i[1]
+00543:       @overrideAnim = i[3]
+00544:       break
+00545:     end
+00546:     return if @pledgeCombo
+00547:     # Check whether this is the setup of a combo move
+00548:     user.allAllies.each do |b|
+00549:       next if @battle.choices[b.index][0] != :UseMove || b.movedThisRound?
+00550:       move = @battle.choices[b.index][2]
+00551:       next if !move
+00552:       @combos.each do |i|
+00553:         next if i[0] != move.function_code
+00554:         @pledgeSetup = true
+00555:         @pledgeOtherUser = b
+00556:         break
+00557:       end
+00558:       break if @pledgeSetup
+00559:     end
+00560:   end
+00561: 
+00562:   def pbDamagingMove?
+00563:     return false if @pledgeSetup
+00564:     return super
+00565:   end
+00566: 
+00567:   def pbBaseType(user)
+00568:     # This method is called before pbOnStartUse, so it has to calculate the type
+00569:     # separately
+00570:     @combos.each do |i|
+00571:       next if i[0] != user.effects[PBEffects::FirstPledge]
+00572:       next if !GameData::Type.exists?(i[2])
+00573:       return i[2]
+00574:     end
+00575:     return super
+00576:   end
+00577: 
+00578:   def pbBaseDamage(baseDmg, user, target)
+00579:     baseDmg *= 2 if @pledgeCombo
+00580:     return baseDmg
+00581:   end
+00582: 
+00583:   def pbEffectGeneral(user)
+00584:     user.effects[PBEffects::FirstPledge] = nil
+00585:     return if !@pledgeSetup
+00586:     @battle.pbDisplay(_INTL("{1} is waiting for {2}'s move...",
+00587:                             user.pbThis, @pledgeOtherUser.pbThis(true)))
+00588:     @pledgeOtherUser.effects[PBEffects::FirstPledge] = @function_code
+00589:     @pledgeOtherUser.effects[PBEffects::MoveNext]    = true
+00590:     user.lastMoveFailed = true   # Treated as a failure for Stomping Tantrum
+00591:   end
+00592: 
+00593:   def pbEffectAfterAllHits(user, target)
+00594:     return if !@pledgeCombo
+00595:     msg = nil
+00596:     animName = nil
+00597:     case @comboEffect
+00598:     when :SeaOfFire   # Grass + Fire
+00599:       if user.pbOpposingSide.effects[PBEffects::SeaOfFire] == 0
+00600:         user.pbOpposingSide.effects[PBEffects::SeaOfFire] = 4
+00601:         msg = _INTL("A sea of fire enveloped {1}!", user.pbOpposingTeam(true))
+00602:         animName = (user.opposes?) ? "SeaOfFire" : "SeaOfFireOpp"
+00603:       end
+00604:     when :Rainbow   # Fire + Water
+00605:       if user.pbOwnSide.effects[PBEffects::Rainbow] == 0
+00606:         user.pbOwnSide.effects[PBEffects::Rainbow] = 4
+00607:         msg = _INTL("A rainbow appeared in the sky on {1}'s side!", user.pbTeam(true))
+00608:         animName = (user.opposes?) ? "RainbowOpp" : "Rainbow"
+00609:       end
+00610:     when :Swamp   # Water + Grass
+00611:       if user.pbOpposingSide.effects[PBEffects::Swamp] == 0
+00612:         user.pbOpposingSide.effects[PBEffects::Swamp] = 4
+00613:         msg = _INTL("A swamp enveloped {1}!", user.pbOpposingTeam(true))
+00614:         animName = (user.opposes?) ? "Swamp" : "SwampOpp"
+00615:       end
+00616:     end
+00617:     @battle.pbDisplay(msg) if msg
+00618:     @battle.pbCommonAnimation(animName) if animName
+00619:   end
+00620: 
+00621:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00622:     return if @pledgeSetup   # No animation for setting up
+00623:     id = @overrideAnim if @overrideAnim
+00624:     return super
+00625:   end
+00626: end

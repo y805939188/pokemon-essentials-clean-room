@@ -1,0 +1,5304 @@
+{
+  "schema": "gr8-clause-full-text-context/v1",
+  "B8": "fd1df570cad987dc3852a3b958f03916e317f7fe",
+  "method": "Exact owned formal text from manually read ranges; this formatting export itself grants no new semantic credit. Compact reverse assertion keys must be read with this complete original clause and premises.",
+  "clauses": [
+    {
+      "clause_id": "WIF-META",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          1,
+          22
+        ]
+      },
+      "frozen_B8_text": "# 地图事件、NPC 与跟随（净化正文；批次 3）\n\n分类：Engine/Overworld Integration。本文件描述地图事件（事件页选择、条件、触发方式、启动/等待/结束、公共事件、并行/自动运行）和 NPC/跟随（NPC 移动/互动、训练家感知、跟随者生命周期与转移限制）的行为规则，以及解释器命令的兼容范围。全部内容为静态证据；**无运行确认**（Demo 事件材料缺失，U01/U08——见 `../scope-statement.md`）。\n\n## 1. 目的与范围\n\n**目的**：回答「某事件何时启动、命令会产生什么效果、跟随者如何行动」，供后续实现构建事件系统，而不追踪任何特定解释器结构。\n\n**范围**：① 事件页与触发（页选择、条件、触发方式、启动/结束）；② 解释器运行（更新循环、等待/恢复、公共事件、并行/自动运行、深度限制）；③ 解释器命令兼容矩阵与移动路线命令矩阵（见同批附表正文《解释器命令兼容矩阵》《移动路线命令矩阵》）；④ NPC、训练家感知与跟随。\n\n**非目标**：不复制具体 Demo 事件的收费、奖励、剧情结果（U01/U08）；不把方法存在当实现、把返回值当业务成功、把搜索未中当不存在；不承诺标准 RMXP 命令全兼容（以矩阵的实际分派/实现为准）；不提取战斗内事件/命令的行为。\n\n## 2. 概念与术语\n\n- **事件页（page）**：事件的一组条件与内容；按从后向前顺序选择第一个条件全部满足的页。\n- **触发方式（trigger）**：事件启动条件（0＝动作键、1＝玩家接触、2＝事件接触、3＝自动运行、4＝并行处理）。\n- **启动（starting）**：事件被标记为待运行；由触发检查或自动运行触发。\n- **公共事件（common event）**：全局事件，trigger 1＝自动运行（主解释器执行）、trigger 2＝并行处理（自有解释器）。\n- **解释器（interpreter）**：逐条执行事件命令的循环；支持等待（消息/移动/计时）、子解释器（公共事件调用）与深度限制（100）。\n- **命令兼容**：命令在分派中的状态（有实现/空操作/标记/未分派回退）。\n- **可越格触发判定**：**不是 through 的别名**——具名图形且非 through → 假；名称含 hiddenitem → 假；否则按占格是否可通行判定（无图形、非 through 的事件也可能为真）。\n- **跟随者（follower）**：由跟随数据描述、以跟随实例随行的事件角色；部分场地/道具入口禁止带跟随者（§6.2）。",
+      "manual_atom_ids": [
+        "WIF-META.1",
+        "WIF-META.2",
+        "WIF-META.3",
+        "WIF-META.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-PAGE",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          24,
+          39
+        ]
+      },
+      "frozen_B8_text": "## 3. 事件页与触发\n\n### 3.1 事件页选择\n\n- 页按**从后向前**遍历：第一个条件全部满足的页成为当前页——开关 1/2 为 ON、变量 ≥ 指定值、自开关为 ON（开关名为 `s:` 前缀的脚本条件也支持）。\n- 无满足页：事件不可见、可穿透、无触发与命令列表。\n- 页内容决定图形/移动类型/速度/频率/路线/方向/穿透/触发/命令列表；触发为 4（并行处理）时创建自有解释器。\n- 自开关与临时自开关影响页与冷却判定（过期且临时自开关 A 为 OFF 时通过，否则标记刷新）。临时自开关随事件实例重建丢失；页条件自开关在全局表（地图拓扑规格引用）。\n\n**页重选与图形状态写入**：选中仍为同一页时立即返回，不重新套用内容。换到另一有效页时，方向和图案分别比较其保存的原始值与新页参数：相同则保留当前值；不同才把当前值与原始值一同更新。方向改变时还清预锁方向；这项直接写入不受普通转向的方向固定守卫阻止。路线41也采用这两个独立比较门。图形和色相的设置不因方向/图案相同而取消。\n\n另一有效页会重新安装该页路线、索引归零、清强制路线标记并替换并行解释器（trigger4才新建）；同页早退保留这些状态。无满足页走清图形/列表/解释器、设穿透的分支，没有上述清强制标记写入，不能把“任意页变化”都当作路线结束。\n\n**事件私有墙钟冷却**：时间记录按事件所属图和事件编号保存，区别于WP06游戏变量计时。取记录整数t、当前整数墙钟n。秒式过期默认期限86400秒，记录存在且n>t+s才成立；等号不成立，空记录不成立。日式过期默认1日，空记录按t=0计算：Δ=n−t，q=⌊Δ/86400⌋，r=Δ−86400q（0≤r<86400），h为当前本地小时×3600＋分钟×60＋秒；日数=q＋（r>h时的1，否则0），日数≥请求天数才成立。余数比较严格大于；时钟倒退照式计算，不补归零策略，也不承诺任意时区/DST的自然日数。\n\n秒/日冷却包装分别要求显式期限、相应过期成立且临时自开关A关闭才返回真；其它情况返回假并请求该事件刷新，不清私有记录。持久A与临时A是两种状态。登记事件时间只采样一次整数墙钟，先本事件再按输入顺序处理各给定编号：先置解释器绑定图的持久A为真，再写同键私有时间。A值变化且该图已加载才请求图刷新；A已真仍写时间，不新增该值变化刷新请求。已提交的前缀不因后续失败自动撤回。",
+      "manual_atom_ids": [
+        "WIF-PAGE.1",
+        "WIF-PAGE.2",
+        "WIF-PAGE.3",
+        "WIF-PAGE.4",
+        "WIF-PAGE.5",
+        "WIF-PAGE.6",
+        "WIF-PAGE.7",
+        "WIF-PAGE.8",
+        "WIF-PAGE.9",
+        "WIF-PAGE.10",
+        "WIF-PAGE.11"
+      ]
+    },
+    {
+      "clause_id": "WIF-TRIGGER",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          41,
+          54
+        ]
+      },
+      "frozen_B8_text": "### 3.2 触发与启动（按调用者分入口）\n\n| 入口 | 调用者与守卫 | 行为 |\n| --- | --- | --- |\n| 动作键（trigger 0） | 玩家按互动键；主解释器未运行 | 同位检查（事件在同位、非跳跃、**可越格触发为真**才启动）与面前检查（事件在面前格、非跳跃、**可越格触发为假**才启动；面前格为柜台时再延伸一格） |\n| 玩家接触（trigger 1） | 两条玩家路径：(a) **玩家移动失败**时玩家侧接触检查：候选 trigger [1,2]、事件在移动目标格、非跳跃、可越格触发为假；感知类事件另做可达检查、柜台类另做面向范围检查；(b) **玩家步完成**时同位检查（移动/跳跃/强制移动中不检查）：事件须同位、非跳跃、**可越格触发为真** | 满足则启动 |\n| 事件接触（trigger 2） | 两条路径：(a) **NPC 自身移动失败**时事件侧接触检查：**trigger ＝＝ 2**、主解释器未运行、按方向的坐标对齐、非跳跃、可越格触发为假；(b) 事件自身更新时自动检查：与玩家同位、非跳跃、**可越格触发为真** | 满足则启动 |\n| 感知（名称模式，trigger 2 前提） | NPC **转向后**与**移动完成后**两入口 | 共同守卫：主解释器未运行、非启动中、**trigger ＝＝ 2**、非跳跃、可越格触发为假。名含 ASCII `sight(N)`/`trainer(N)`（N 为十进制数字、大小写不敏感、括号内不含空格）→ **可达检查**（面向范围内且沿途每格可移动，两入口都有）；ASCII `counter(N)` → **面向范围检查**（只看朝向与距离），**仅存在于移动完成后的入口**。全角括号不是兼容字面 |\n| 自动运行（trigger 3） | 自动检查 | 每更新机会即启动 |\n| 并行处理（trigger 4） | 页选择时创建自有解释器，更新驱动 | 每更新机会由自有解释器执行 |\n\n**更新机会前提（持续许可）**：「每帧执行」以实际更新调用为前提——更新资格的重算查询**最先检查「上一次成功更新」标记**：该标记在每次实际更新获准执行时置真；每次更新调用先重算资格（此时上一次标记仍可读，为真即直接许可、不再落到屏幕范围门），随后清除该标记，获准更新时再重新置真。因此**同一事件实例持续获得更新调用时，一旦成功更新过便持续放行**；标记之后才对**自动/并行、强制路线、落位发生、名称含 update** 的事件提前许可，以上均不成立才按屏幕范围（约 2 格缓冲）判定。菜单打开时地图更新**不更新地图事件但仍更新公共事件**——菜单是从地图调用层抑制调用本身，不改写标记；显示侧只读保存的资格结果，不重新进行屏幕判定。持续许可的边界：**事件实例重建**（地图重建重新创建实例，标记随实例生命周期重置）与**外部状态改写**不在本规则覆盖内。因此「屏幕外事件不更新」不成立（持续许可与并行/自动等例外），「菜单中一切暂停」也不成立（公共事件仍更新）。\n\n启动后：非自动/非并行事件被锁定并清除启动标记；自动运行公共事件（trigger 1＋开关 ON）由主解释器启动。",
+      "manual_atom_ids": [
+        "WIF-TRIGGER.1",
+        "WIF-TRIGGER.2",
+        "WIF-TRIGGER.3",
+        "WIF-TRIGGER.4",
+        "WIF-TRIGGER.5",
+        "WIF-TRIGGER.6",
+        "WIF-TRIGGER.7",
+        "WIF-TRIGGER.8",
+        "WIF-TRIGGER.9",
+        "WIF-TRIGGER.10",
+        "WIF-TRIGGER.11"
+      ]
+    },
+    {
+      "clause_id": "WIF-ERASE",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          56,
+          72
+        ]
+      },
+      "frozen_B8_text": "### 3.3 实例消去与局部记录（GR3-M03-004）\n\n消去当前事件实例与持久单元中的局部消去记录是两种状态。三个入口按各自的门分列（GR4-M03-003；辅助与恢复的既有 GR3-M03-004 范围保持）：\n\n| 入口 | 实例状态 | 局部消去记录及门 |\n| --- | --- | --- |\n| 普通实例消去 | 消去并刷新指定的已有实例 | 不登记 |\n| 记录式脚本辅助（兼容字面 `pbEraseThisEvent`） | 先检查当前事件存在，存在才消去/刷新 | 同一存在门内，记录对象存在才登记(当前图ID,事件ID)→真；缺事件既不消去也不登记 |\n| 主事件命令116 | 事件ID > 0 时对当前图同ID实例安全消去/刷新；缺实例跳过 | 正ID且记录对象存在即登记(当前图ID,事件ID)→真，**不要求实例存在**；ID0不消去/登记；记录对象缺失安全跳过登记 |\n\n以上以相关动作正常返回为前提，登记键取当前图而非另猜的事件地图。116无论ID是否正、实例/记录对象是否存在，正常返回前均把索引推进一项并给出 false 控制结果，外层依§4.1停止本次解释器更新，不再加一次索引；下一次解释器更新机会才尝试后条，仍须通过等待门。该 false 表示让出，不表示消去失败，也不保证下一渲染帧已执行后条。记录式消去辅助与碎除辅助（兼容字面 `pbEraseThisEvent` / `pbSmashThisEvent`）各在正常返回前额外推进命令位置一项并返回true，缺当前事件也推进。独立355中仅调用一次辅助、其后紧邻非脚本命令时，辅助推进加上355的外层正常推进使这条后命令被跳过。相邻355/655先合并，须按合并结束的位置及实际辅助次数判断；不把任意脚本都说成跳过物理下一行，也不把116的false让出套给这些辅助。移动记录保存同身份事件的(x,y,方向,through)快照，后写同键替换；有效整数ID且事件存在才记录。\n\n普通读档两地图恢复分支先发进入通知，清这两种局部记录，再地图更新和调用条件恢复辅助（WP11 §6.1–6.2）。复用实例可仍保留已消去/移动状态；重建实例按页数据初始化；不能凭记录持久化声称旧条目会在读档时再放回。辅助异图同IDthrough真写入、假值不清与缺事件失败均沿WP11，不是统一按图过滤全部字段。\n\n源追溯：固定R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，`Data/Scripts/003_Game processing/003_Interpreter.rb` 292–300（blob `21666002e7f4038dd3763b632538becaae5f8d7d`）；`012_Overworld/002_Overworld_Metadata.rb` 144–182（`148211a6c6f94ed0219134f52dcfff817e6bd0fd`）。案例 GR3-MR01–GR3-MR13，全为 `NOT_EXECUTED`。\n\n116补充追溯：同一固定R `003_Game processing/004_Interpreter_Commands.rb` 11–35、502–509（blob `58167231199f1cb8bdc499a61f5ada544d3f7616`）；`003_Interpreter.rb` 84–135（`21666002e7f4038dd3763b632538becaae5f8d7d`）；`004_Game classes/007_Game_Event.rb` 46–49（`aca6d0992927e1d6ce37f08c2cb75e73ebcb7374`）。GR4-ER01–GR4-ER07 限定主解释器地图与当前图相同、无等待门、116后有可观察开关及正常终止项，均为 `NOT_EXECUTED`；真实Demo安排、并行解释器销毁后继续与宿主更新时机未证。",
+      "manual_atom_ids": [
+        "WIF-ERASE.1",
+        "WIF-ERASE.2",
+        "WIF-ERASE.3",
+        "WIF-ERASE.4",
+        "WIF-ERASE.5",
+        "WIF-ERASE.6",
+        "WIF-ERASE.7",
+        "WIF-ERASE.8",
+        "WIF-ERASE.9",
+        "WIF-ERASE.10"
+      ]
+    },
+    {
+      "clause_id": "WIF-UPDATE",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          74,
+          100
+        ]
+      },
+      "frozen_B8_text": "## 4. 解释器运行\n\n### 4.1 更新循环与等待/恢复\n\n| 阶段 | 行为 |\n| --- | --- |\n| 冻结防护 | 每次解释器更新从 0 计数，每轮先加 1；超过 100（第 101 轮）时，先请求一次图形更新，正常返回后清计数并继续本轮，再检查地图、等待与命令分派。更新提前返回后的下次调用重新从 0 计数 |\n| 地图失联 | 当前图与解释器地图不同且无连接 → **仅把事件 ID 置 0**（不清命令列表、索引或子解释器；执行循环按等待/执行继续推进）。失联只失去「本事件」上下文，不等于结束执行 |\n| 子解释器 | 先更新子解释器（公共事件调用），结束才回到父解释器 |\n| 消息等待 | 消息显示中不执行命令 |\n| 移动等待 | **仅当该解释器已置路线等待标记（由等待移动完成命令设置）时**，才检查玩家、当前地图事件及跟随者的强制路线：任一处于强制移动路线则不执行命令；全部结束后清除等待。设定移动路线命令只设强制路线、**不设置该等待标记**——未执行等待命令时，进行中的路线不阻塞本解释器 |\n| 上岸等待 | 玩家上岸流程中不执行命令 |\n| 计时等待 | 106 输入每单位 1/20 秒，按单调时钟未到则不执行；路线 15 同单位但独立帧边界见路线表 |\n| 菜单调用 | 暂停菜单将打开时不执行命令 |\n| 无命令时 | 主解释器尝试启动下一个待启动事件（公共事件 → 地图事件 → 自动运行公共事件） |\n| 深度限制 | 公共事件调用深度 > 100 时提示并退出 |\n| 指令推进 | 命令返回 false → 本轮停止；返回 true → 索引＋1。注意按钮输入命令在命令体内已索引＋1 且返回 true（一次推进两条）；命令的启动效果与等待不能混谈（矩阵控制结果列） |\n\n正常命令结束清除列表后仍返回 true，索引推进后还会进入下一轮；该轮的空列表检查也计入冻结防护。无其它阻塞的非主解释器，98 条合法注释后接终止项时无该额外图形请求；99 条时在终止后、空列表早退前请求一次；100 条时在终止分派前请求一次。防护只记录源侧图形更新请求，不保证画面已渲染，也不执行输入轮询；请求失败时尚未清本轮计数或进入后续检查/分派。深度 > 100 的提示退出门独立保持。\n\n**解释器绑定身份与当前图目标**：命令列表启动时保留绑定图和事件编号。当前图不同但仍相连时保留编号；失联时只清编号0，列表继续。通常角色选择−1指玩家，0指当前图同该编号事件，指定编号也查当前图；并不查询绑定图的角色实例。私有变量与缺省脚本自开关使用绑定图键；111自开关子型、123及有效主解释器结束解锁使用当前图键。具体命令的编号有效门与缺对象门仍各自生效。\n\n跟随互动锁定跟随实例，以其列表、编号与图身份启动主解释器，但普通“本事件”角色查询不自动改指跟随实例。207/209在有显式跟随覆盖时可选择具名跟随实例，属于特定命令例外。正常结束解锁只向当前图同编号的有效事件请求，不自动解锁原跟随实例；不能由此推永久软锁或所有跟随移动失效。\n\n**脚本开关的消费判据**：地图页条件与公共并行启停在refresh时把`s:`表达式按真值使用（仅false/nil为非真）；111开关子型将表达式结果与目标布尔值作严格相等比较，保存的是比较后的true/false。故`s:1`对ON/OFF都不满足，`s:nil`对ON/OFF也都不满足且走Else。111脚本子型保存表达式原值：1进Then、false进Else、nil两支都跳。公共自动运行启动直接读普通开关槽，不对名称脚本求值；普通槽OFF时`s:1`也不会启动它。true/false的正常二值比较保持。公共并行没有“每次update无条件重求表达式”的承诺。\n\n**脚本直接公共事件与钓鱼**：非战斗解释器内直接调用的公共事件助手在事件存在并正常执行完后为空返回；缺记录也为空返回，没有全局助手的负ID拒绝门，负数依实际数组索引取记录。正常鱼竿物品回调使用全局助手，非负存在事件完成返回true。这个返回差异使解释器脚本直接钓鱼可先完成开始/结束公共事件，再执行对应内置段；开始先置fishing，结束正常表现及随附消息后仍共同清理。入口表见[钓鱼§6](wp60-fishing.md)，不把所有“由事件触发物品”都归为脚本直接调用。",
+      "manual_atom_ids": [
+        "WIF-UPDATE.1",
+        "WIF-UPDATE.2",
+        "WIF-UPDATE.3",
+        "WIF-UPDATE.4",
+        "WIF-UPDATE.5",
+        "WIF-UPDATE.6",
+        "WIF-UPDATE.7",
+        "WIF-UPDATE.8",
+        "WIF-UPDATE.9",
+        "WIF-UPDATE.10",
+        "WIF-UPDATE.11",
+        "WIF-UPDATE.12",
+        "WIF-UPDATE.13",
+        "WIF-UPDATE.14",
+        "WIF-UPDATE.15",
+        "WIF-UPDATE.16"
+      ]
+    },
+    {
+      "clause_id": "WIF-END",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          102,
+          108
+        ]
+      },
+      "frozen_B8_text": "### 4.2 结束与恢复（三种终止状态分列）\n\n- **命令结束**：命令列表执行完（索引到末尾）→ 清除列表、结束跟随覆盖；主解释器且编号>0、当前图同编号事件存在时，解锁该当前图事件（绑定身份与跟随例外见§4.1）。\n- **显式退出**：退出事件处理命令 → 同样进入结束处理。\n- **地图失联**：仅事件 ID 归 0（§4.1），**已有命令列表继续有效**——失联后合法的全局命令（如开关赋值）仍可执行；事件的解锁/锁定上下文已失去。\n- 脚本命令异常：按类别处理（SystemExit/Reset 原样抛出，其他进入事件错误处理路径）。\n- 公共事件并行处理按开关状态刷新。",
+      "manual_atom_ids": [
+        "WIF-END.1",
+        "WIF-END.2",
+        "WIF-END.3",
+        "WIF-END.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-CUTSCENE",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          110,
+          128
+        ]
+      },
+      "frozen_B8_text": "### 4.3 具名过场跳过、结束与重新启动（GR3-M03-003）\n\n`SPECIAL` 本次触发在**系统更新**中独立检查，正常地图更新与迷你更新都会到达；正常系统更新早于地图末端快捷登记，迷你更新没有该末端分发。跳过门要求主地图解释器正在运行、可按解释器事件ID从当前地图取得事件，以及该事件当前命令列表含代码108或408的注释项，其完整文本**严格等于 `Cut Scene`**。大小写不同、尾空格、前后附文、拼接多个注释才得到该词或把同文本放入非注释命令均不匹配。\n\n注释入口返回“匹配后的最多一项参数”的数组；跳过消费者只检测结果存在，**空数组也通过**，与未匹配/无列表/列表不是数组/解释器未运行/事件不存在返回的空值分开。不要求下一项是特定代码或含非空参数；合法注释在列表末端时仍可能匹配。主解释器运行判定是命令列表非空值，不以数组内容多寡替代；启动动作另有列表长度门。\n\n在事件仍有效、正文列表至少两项、各动作正常返回且无额外写入前提下，顺序为：\n\n1. 以**解释器所绑定的地图ID与当前取得事件ID**将持久自开关A置真。原值假→真且该解释器地图已加载时请求该地图刷新；原值已真不发新的值变化刷新请求。自开关真不是临时自开关A。\n2. 结束当前解释器命令列表、结束跟随覆盖；主解释器有效事件按§4.2解锁。不是从旧索引继续，也不是把全部解释器字段初始化。\n3. 再向刚才取得的同一事件请求启动；当前列表长度>1才标记待启动。只含一项匹配注释的列表可通过空数组门并写A/结束，但不设新的启动标记。刷新并不在写A调用时同步选择新页。\n\n以后获得地图/解释器更新机会时，刷新按页条件选择（§3.1），解释器无命令时才按§4.1挑选待启动项。页变化会清启动标记并可能触发新页自己的自动运行；因此这里交付“请求重新启动”的顺序，**不保证任何配置都马上执行A页**或原列表重新开跑。需结合A页是否存在/满足、页触发与后续更新判断。自开关原已真也仍执行结束与启动请求，不能把不新请求刷新误读为不跳过。\n\n失联事件ID归0或当前事件缺失时，注释上下文门不成立，无该跳过链的写A/结束/重启；原解释器列表继续性仍沿§4.1，不能把上下文不匹配改成通用终止。若在上述写A之后、结束/启动之前出现异常，则只保留实际已提交前缀，不保证回滚/完成后续步骤。\n\n本门**要求解释器运行**，不能套地图末端新快捷登记的“解释器未运行”门，也不受那个末端消息窗口门替代。系统更新不清除本次SPECIAL触发事实；跳过结束解释器后，本轮后面若消息不显示、无冰滑/上下瀑、玩家静止且USE/ACTION较早检测未命中，则末端仍可登记快捷并按消费优先级处理；已有菜单/调试调用优先、消息显示/移动等门则可阻止。不得宣称SPECIAL独占、必开快捷或一律不开快捷（WP12 §4.3）。\n\n缺真实事件页/地图，实际启用、可达性及页执行结果 `MISSING_MATERIAL`；所有案例 `NOT_EXECUTED`。源追溯：固定R `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`，`Data/Scripts/004_Game classes/002_Game_System.rb` 279–287（blob `95c749329ff95b417f38e96c42ea0a1feb29dbe5`），`007_Objects and windows/011_Messages.rb` 26–50（`91c985bd0fda9a2368c894dee0ebbc9a476e9886`），`003_Game processing/003_Interpreter.rb` 54–70、80–82、183–202、323–330（`21666002e7f4038dd3763b632538becaae5f8d7d`），`002_Scene_Map.rb` 121–133、165–178、190–214（`8be1640f36b293f44329a3bbe6ccf3e13fb0d825`）；另定点核 `004_Interpreter_Commands.rb` 128–136与 `004_Game classes/007_Game_Event.rb` 42–44、197–258的结束/启动/刷新门。案例 GR3-CS01–GR3-CS13。",
+      "manual_atom_ids": [
+        "WIF-CUTSCENE.1",
+        "WIF-CUTSCENE.2",
+        "WIF-CUTSCENE.3",
+        "WIF-CUTSCENE.4",
+        "WIF-CUTSCENE.5",
+        "WIF-CUTSCENE.6",
+        "WIF-CUTSCENE.7",
+        "WIF-CUTSCENE.8",
+        "WIF-CUTSCENE.9",
+        "WIF-CUTSCENE.10",
+        "WIF-CUTSCENE.11"
+      ]
+    },
+    {
+      "clause_id": "WIF-MATRIX-SUMMARY",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          130,
+          142
+        ]
+      },
+      "frozen_B8_text": "## 5. 解释器命令兼容矩阵（要点）\n\n命令支持矩阵见同批《解释器命令兼容矩阵》（正文）；移动路线命令为独立分派，见同批《移动路线命令矩阵》。要点：\n\n- **直接结构分类（本快照）**：96 个主分派命令代码＝**28 空操作＋2 标记＋66 其他实现入口**。该数字不代表所有参数分支均有效，也不作为未来版本硬编码真值。\n- **空操作 28 个**：126（增减物品）、127、128、129、133（战斗结束 ME）、301（战斗处理）、302（商店）、311、312、313、315、316、317、318、319、320、321、322、331–340。事件作者调用这些命令**无可见效果**（含 126 不改变背包、301 不启动战斗、311 不改变 HP）。\n- **标记 2 个**：112（循环开始）、118（标签）。\n- **续行不是无效数据**：401 由 101 消费、655 及相邻 355 由 355 合并；「未单独分派」仅限直接到达默认分支的代码。\n- **启动效果 ≠ 等待完成**：设定移动路线后立即继续（等待移动完成才等待）；卷动地图仅已有滚动时等待；多数画面/音频效果启动后立即继续；旋转图片设旋转速度；按钮输入一次推进两条；脚本命令总是返回 true。\n- **文本/分支组合边界**：101 先预读再显示，循环末端四项布局可在置消息等待前发生名称解析失败（命令矩阵 §3.1）；脚本条件 nil 跳过 Then 与 Else，严格 false 才 Else（111/411）；选项同缩进合并与一次性隐藏/改名保留原分支身份；确认及取消的原始返回值都先查可见→原映射，无条目才保留原值。首组 A/取消0 加后组 B/C/D/取消1，隐藏 A 后 BACK 进入 C；无隐藏或隐藏后确认首个可见 B 则进入 B，101 合入亦同（矩阵 §3.2；IM36–41）。\n- **未分派回退**：不在分派表中的任意命令代码 → 返回 true（跳过并继续，无效果）；不承诺标准 RMXP 命令全兼容（以矩阵为准）。\n\n202是落位请求，非碰撞移动：非战斗且主目标存在时，支持直接坐标、变量值坐标、两角色交换。交换先保存主坐标、主落到副原坐标，再副落到主原坐标；缺副仅跳过交换，随后仍可向主请求2/4/6/8转向，方向固定照常阻止。缺主或战斗中整体跳过并继续。普通事件、玩家及跟随目标各按自己的落位入口产生副作用，身份沿§4.1，完整分支见命令矩阵202。",
+      "manual_atom_ids": [
+        "WIF-MATRIX-SUMMARY.1",
+        "WIF-MATRIX-SUMMARY.2",
+        "WIF-MATRIX-SUMMARY.3",
+        "WIF-MATRIX-SUMMARY.4",
+        "WIF-MATRIX-SUMMARY.5",
+        "WIF-MATRIX-SUMMARY.6"
+      ]
+    },
+    {
+      "clause_id": "WIF-NPC",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          144,
+          151
+        ]
+      },
+      "frozen_B8_text": "## 6. NPC、训练家感知与跟随\n\n### 6.1 NPC 移动与互动\n\n- NPC（事件角色）按页的移动类型/速度/频率/路线移动；更新机会按§3.2。普通自主路线还要求未启动、未锁定、非移动/跳跃，并在本次调度前停止秒数达到频率1…6对应的4.75/3.6/2.55/1.6/0.75/0才尝试；角色更新在菜单中或时间增量>0.25秒时提前返回。强制路线不受这项自主频率门，安装时同步尝试、覆盖及结束恢复见[路线矩阵§1](wp13-move-route-matrix.md)，不保证固定帧。\n- 对角固定两段、多格底行左锚点、中心主轴/备用轴和自主随机/接近概率见 WP12 §4.3；这些是移动选择，不是寻路保证。\n- 训练家感知：按 §3.2 感知入口（trigger 2 前提、可达/面向两种检查、跳跃与可越格触发守卫）；不是「进入视野即启动」。\n- 训练家事件由战斗入口调用（战斗上下文规格交界）；战斗后 NPC 的状态（再启动/再战）归电话/训练家规格。",
+      "manual_atom_ids": [
+        "WIF-NPC.1",
+        "WIF-NPC.2",
+        "WIF-NPC.3",
+        "WIF-NPC.4",
+        "WIF-NPC.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-FOLLOW",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          153,
+          168
+        ]
+      },
+      "frozen_B8_text": "### 6.2 跟随者生命周期与转移限制\n\n- **加入**：跟随工厂加入——**去重守卫**：同一原始图＋事件 ID 已存在则直接返回；否则登记跟随数据（原始地图/事件/名称、当前地图/坐标/朝向、外观克隆；名称与可选公共事件覆盖）。\n- **移除**：按事件移除（当前图匹配＋原始图/事件匹配）、按名称移除、全部移除。\n- **实例化**：跟随实例按跟随数据创建；可穿透跟随（临时穿透）。\n- **移动/更新**：玩家移动后跟随者依次移动：**领队链为玩家 → 前一跟随者**；每个跟随者跟随领队——**强制路线中跳过跟随**；相连地图时目标为领队身后格（岩架时取跳上来的一格）；不相连地图时目标为领队位置；跨图时按相对坐标向量换图定位；即时或不相连时即时落位，否则按**条件位移**：\n  - **同轴相差一格** → 走一步（目标为玩家位置、或目标按进入方向许可、或当前位置不可通行时穿透走）。\n  - **同轴相差两格** → 按中间/落点/起点许可决策：中间格许可 → 走两步（不启动跳跃）；中间格不许、落点许可、起点许可 → 尝试两格跳跃；中间格不许、落点许可、起点不许 → 穿透走两步；中间与落点均不许 → 不前进。中间格许可而第二步受阻时，不能保证两次行走尝试到达目标。\n  - **其他非重合目标** → 直接定位：未命中同轴一格/两格分支时，只要目标与当前位置不同即直接定位——**既包括非同轴目标（即使只相差 (1,1)），也包括同轴相距三格及以上**；同轴超过两格不是逐格追赶或停留。\n  - 位置判定按地形运动规格层 5 的跟随者实际入口（方向位/地形/具名图形事件；引用，不另写第二套通行规则）。\n  移动后把坐标/地图/朝向写回跟随数据持久层。转向、逐帧更新（同步领队速度、按可见性设透明、冰滑时整姿停动画；玩家移动中且跟随者未动时设置/清除启动标记驱动其更新）。\n- **显式传送**：跟随者放到玩家位置、朝向一致、不透明 255、写回持久层并设转移后隐藏标记；玩家开始移动时清该标记并转向玩家；可见性＝可见标记且非转移后隐藏。\n- **互动**：USE 键且非菜单/战斗/强制路线/消息/解释器时，面前格上的跟随者（非跳跃）触发互动（需事件有命令列表且登记了公共事件 ID → 刷新、锁定并以该事件列表启动主解释器）。\n- **转移限制**：带跟随者转移/骑乘许可仅在跟随者数为 0 时为真——**但守卫只在调用它们的场地/道具入口生效**；普通显式传送**没有此守卫**，反而会携带跟随者转移。不能由函数名推出「有跟随者就无法地图传送」。\n- **持久化**：跟随者数据在玩家全局持久值中保存（存档目录）；旧格式为弃用转换（迁移规格）。\n- 跟随机制是事件级跟随（事件角色随行），**不自动等同于完整「跟随宝可梦」系统**（其完整规则归后续适用规格；不得无证扩张，但本节机制是当前可读源码的直接提取）。",
+      "manual_atom_ids": [
+        "WIF-FOLLOW.1",
+        "WIF-FOLLOW.2",
+        "WIF-FOLLOW.3",
+        "WIF-FOLLOW.4",
+        "WIF-FOLLOW.5",
+        "WIF-FOLLOW.6",
+        "WIF-FOLLOW.7",
+        "WIF-FOLLOW.8",
+        "WIF-FOLLOW.9",
+        "WIF-FOLLOW.10",
+        "WIF-FOLLOW.11",
+        "WIF-FOLLOW.12",
+        "WIF-FOLLOW.13",
+        "WIF-FOLLOW.14",
+        "WIF-FOLLOW.15"
+      ]
+    },
+    {
+      "clause_id": "WIF-DOOR",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          170,
+          177
+        ]
+      },
+      "frozen_B8_text": "### 6.3 门入口的跟随操作族\n\n这组入口的实际消费者包括门事件编译路径，不能仅凭没有 Demo 链而忽略；这里只记录静态调用，不宣称运行可达。\n\n- 入门跟随：设置任何路线前先快照玩家与全部跟随者位置。按快照中玩家→前一跟随者计算相对向量，每次只取一个轴的一步（横轴非零优先），向路线前端累计；各跟随者收到累计路线后再置不透明度 0。例如玩家 (5,3)、F1 (5,4)、F2 (5,5)，F1 收到向上一步后隐藏，F2 收到向上两步后隐藏，不能使用已开始移动的 F1 实时坐标代替快照。\n- 隐藏：仅将各实例不透明度置 0，不改坐标或持久可见标记。\n- 出门放到玩家：各实例落到玩家位置、不透明度 255，写回持久 x/y，并置转移后隐藏标记；玩家开始移动后按 §6.2 清该标记。255 不等于该帧最终可见。\n- 这些门路线使用非重复、可跳过的系统路线包装：穿透 ON → 请求命令 → 穿透 OFF → 终止；未保存/恢复此前 through 值，完成后 OFF。异步脚本后插入时长 0 的等待项，仍结束该次路线分派。包装的 `waitComplete` 参数未被消费，调用本身不等待；门编译另加事件 210 才形成等待链。",
+      "manual_atom_ids": [
+        "WIF-DOOR.1",
+        "WIF-DOOR.2",
+        "WIF-DOOR.3",
+        "WIF-DOOR.4",
+        "WIF-DOOR.5",
+        "WIF-DOOR.6",
+        "WIF-DOOR.7"
+      ]
+    },
+    {
+      "clause_id": "WIF-TAIL",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-map-events-npc-followers.md",
+        "lines": [
+          179,
+          210
+        ]
+      },
+      "frozen_B8_text": "## 7. 默认行为与配置变体\n\n- **基线默认**：事件页按从后向前选择；触发按 §3.2 分入口启动；解释器按 §4.1 更新循环执行；命令按 §5 兼容矩阵；跟随者按 §6.2 生命周期与限制。\n- **支持但未默认启用**：开关名为 `s:` 前缀的脚本条件开关；调试穿透；`SKIP_CONTINUE_SCREEN`（配置词典）。\n- **配置/数据关联**：野外动画 ID 配置（配置词典）；异色/命运开关（配置词典）；公共事件与开关/变量的配置（作者内容）。\n- **未验证组合**：具体 Demo 事件的收费、奖励、剧情结果（U01/U08）；缺失地图/事件材料下的完整事件流程；并行/自动事件在地图切换中的全部边界。\n\n## 8. 边界、失败与未知\n\n- 无满足页：事件不可见/可穿透/无触发（§3.1）。\n- 解释器失联：地图不同且无连接 → 事件 ID 归 0，**命令列表继续**（§4.1/§4.2）。\n- 深度超限：公共事件调用 > 100 层 → 提示并退出（§4.1）。\n- 脚本异常：SystemExit/Reset 原样抛出；其他异常按事件错误处理（§4.2）。\n- 空操作命令：28 个空操作命令被跳过且无效果（§5）；调用方（事件作者）若依赖这些命令将无可见效果——兼容性限制如实登记。\n- 缺失地图/事件材料：具体 NPC 对话、事件页、任务流程、商店库存、奖励和可达性无法确认（U01/U08）。\n\n## 9. 示例场景与测试目录\n\n静态推导场景（未运行）见测试目录 [`../test-catalog/engine-overworld-wp11-15-59-60.md`](../test-catalog/engine-overworld-wp11-15-59-60.md) 的 EV01–EV39、FW01–FW07；命令/路线另见 IM01–IM41、MR01–MR17。另有 GR3-CS01–GR3-CS13、GR3-MR01–GR3-MR13 与冻结防护 R6-EV01–R6-EV06；全为静态向量，`NOT_EXECUTED`。\n\n## 10. 依赖\n\n- 地图拓扑（地图更新、进入/离开通知）；地形运动（跟随者位置判定、移动入口）；通知机制；资源（图形/动画）；存档（跟随数据持久值）；战斗入口（训练家事件调用）；调试面。\n\n## 11. 未决与未验证\n\n1. 具体 Demo 事件的收费、奖励、剧情结果与可达性（U01/U08）。\n2. 并行/自动事件在地图切换中的全部边界（未验证）。\n3. 完整「跟随宝可梦」系统规则（归后续适用规格；当前事件跟随机制已按 §6.2 提取）。\n4. 训练家再战与 NPC 状态推进（电话/训练家规格交界）。\n5. 战斗内事件/命令的行为（归战斗规格）。\n6. 跳转标签在标签不存在时的行为、恢复 BGM/BGS 在未记忆时的行为（矩阵登记，未逐分支验证）。",
+      "manual_atom_ids": [
+        "WIF-TAIL.1",
+        "WIF-TAIL.2",
+        "WIF-TAIL.3",
+        "WIF-TAIL.4",
+        "WIF-TAIL.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-C101",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          25,
+          25
+        ]
+      },
+      "frozen_B8_text": "| 101 | 显示文本 | 文本参数；消息窗口未显示 | **先预读后显示**（§3.1）；消费后续 401、可合并 102/103；相邻 101 只改本次结束方式，不消费其文本/索引，随后独立执行 | 预读成功后先置消息等待再显示；显示结束清等待并继续 | 消息已显示时返回 false；预读重复上方的特定布局可在显示/置等待前失败（§3.1） | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C101.1",
+        "WIF-C101.2",
+        "WIF-C101.3",
+        "WIF-C101.4",
+        "WIF-C101.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-C102",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          26,
+          26
+        ]
+      },
+      "frozen_B8_text": "| 102 | 显示选项 | 选项数组 | 可合并同缩进的连续选项组；一次性改名/隐藏及原分支身份映射见 §3.2 | 分支执行 | 取消类型随合并更新；可禁止取消或转入指定选项/取消分支（§3.2） | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C102.1",
+        "WIF-C102.2",
+        "WIF-C102.3",
+        "WIF-C102.4",
+        "WIF-C102.5",
+        "WIF-C102.6"
+      ]
+    },
+    {
+      "clause_id": "WIF-C402",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          27,
+          27
+        ]
+      },
+      "frozen_B8_text": "| 402 | 当 [**] | 选项分支体 | 进入对应选项分支 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C402.1",
+        "WIF-C402.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C403",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          28,
+          28
+        ]
+      },
+      "frozen_B8_text": "| 403 | 当取消 | 取消分支体 | 进入取消分支 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C403.1",
+        "WIF-C403.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C103",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          29,
+          29
+        ]
+      },
+      "frozen_B8_text": "| 103 | 输入数字 | 数字范围 | 数字输入对话框；结果入变量 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C103.1",
+        "WIF-C103.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C104",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          30,
+          30
+        ]
+      },
+      "frozen_B8_text": "| 104 | 变更文本选项 | 位置/显示参数 | 文本窗口位置与显示状态变更 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C104.1",
+        "WIF-C104.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C105",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          31,
+          31
+        ]
+      },
+      "frozen_B8_text": "| 105 | 按钮输入处理 | 按钮等待 | 等待按钮输入 | 输入后继续；**命令体内索引＋1 且返回 true，外层再＋1（一次推进两条）** | 已在按钮输入中 → 返回 false | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C105.1",
+        "WIF-C105.2",
+        "WIF-C105.3",
+        "WIF-C105.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-C106",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          32,
+          32
+        ]
+      },
+      "frozen_B8_text": "| 106 | 等待 | 编辑器时长 n（1/20 秒单位） | 单调时钟等待 n/20 秒；0 无额外正时长，1＝0.05 秒，20＝1 秒 | 到时且再次获得解释器更新机会才继续；不承诺固定帧数 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C106.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C111",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          33,
+          33
+        ]
+      },
+      "frozen_B8_text": "| 111 | 条件分支 | 条件输入 | 开关子型（含s:）严格比较读值与目标布尔值，结果true/false；自开关子型查当前图键；脚本子型保留原值（WP13§4.1） | 真值进Then；严格false才Else，脚本nil两支都跳；支持开关/变量/自开关/计时器/角色方向/金钱/按钮/脚本 | s:1及s:nil的ON/OFF比较均false、可Else；actor/enemy/item/weapon/armor未处理种类默认false | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C111.1",
+        "WIF-C111.2",
+        "WIF-C111.3",
+        "WIF-C111.4",
+        "WIF-C111.5",
+        "WIF-C111.6",
+        "WIF-C111.7",
+        "WIF-C111.8"
+      ]
+    },
+    {
+      "clause_id": "WIF-C411",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          34,
+          34
+        ]
+      },
+      "frozen_B8_text": "| 411 | 否则 | 分支体 | 保存条件结果**等于 false**时进入；nil 不进入 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C411.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C112",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          35,
+          35
+        ]
+      },
+      "frozen_B8_text": "| 112 | 循环开始 | 无 | 循环体起点 | 循环执行 | 不适用 | 标记 |",
+      "manual_atom_ids": [
+        "WIF-C112.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C413",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          36,
+          36
+        ]
+      },
+      "frozen_B8_text": "| 413 | 重复上方 | 无 | 主分派到达时回到循环起点 | 循环执行 | 101 预读遇它使用另一辅助路径，特定布局失败，见 §3.1 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C413.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C113",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          37,
+          37
+        ]
+      },
+      "frozen_B8_text": "| 113 | 跳出循环 | 无 | 退出当前循环 | 继续循环后命令 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C113.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C115",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          38,
+          38
+        ]
+      },
+      "frozen_B8_text": "| 115 | 退出事件处理 | 无 | 事件处理结束 | 结束（结束处理） | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C115.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C116",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          39,
+          39
+        ]
+      },
+      "frozen_B8_text": "| 116 | 消去事件并登记局部记录 | 正事件ID才进入消去/登记；三入口区别见 WP13 §3.3（GR4-M03-003） | 有实例先消去/刷新；正ID即使缺实例，记录对象存在仍登记(当前图ID,事件ID)→真 | 命令体索引＋1、返回 false，停止本次解释器更新；下一次更新机会才尝试后条（§2），不是业务失败 | ID0不消去/登记仍推进/让出；缺实例安全跳过消去，记录对象缺失安全跳过登记 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C116.1",
+        "WIF-C116.2",
+        "WIF-C116.3",
+        "WIF-C116.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-C117",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          40,
+          40
+        ]
+      },
+      "frozen_B8_text": "| 117 | 调用公共事件 | 公共事件 ID | 创建子解释器执行公共事件 | 子解释器结束后回父解释器 | 深度超限退出 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C117.1",
+        "WIF-C117.2",
+        "WIF-C117.3",
+        "WIF-C117.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-C118",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          41,
+          41
+        ]
+      },
+      "frozen_B8_text": "| 118 | 标签 | 标签名 | 流程标记点 | 无效果（标记） | 不适用 | 标记 |",
+      "manual_atom_ids": [
+        "WIF-C118.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C119",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          42,
+          42
+        ]
+      },
+      "frozen_B8_text": "| 119 | 跳转标签 | 标签名 | 跳转到指定标签处 | 从标签处继续 | 标签不存在时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C119.1",
+        "WIF-C119.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C121",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          43,
+          43
+        ]
+      },
+      "frozen_B8_text": "| 121 | 控制开关 | 开关与状态 | 开关置 ON/OFF | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C121.1",
+        "WIF-C121.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C122",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          44,
+          44
+        ]
+      },
+      "frozen_B8_text": "| 122 | 控制变量 | 变量与操作 | 变量赋值/加/减/乘/除/取余（**无「比较」操作**）；操作数来源：定值/变量/随机/角色（坐标/朝向/屏坐标/地形）/其他（图 ID/队伍数/金钱/距离/游戏时间/计时/存档次数）；item/actor/enemy 来源被注释 | 继续；**除数或取余数为 0/1 时跳过；乘数为 1 时跳过；结果截断到 ±99,999,999（加/减先判边界再累加）** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C122.1",
+        "WIF-C122.2",
+        "WIF-C122.3",
+        "WIF-C122.4",
+        "WIF-C122.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-C123",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          45,
+          45
+        ]
+      },
+      "frozen_B8_text": "| 123 | 控制自开关 | 编号>0、自开关与状态 | 写当前图/该编号/字母的持久开关；与缺省脚本自开关的绑定图键区分（WP13§4.1） | 正常继续；值变化才请求当前图刷新 | ID0不写 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C123.1",
+        "WIF-C123.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C124",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          46,
+          46
+        ]
+      },
+      "frozen_B8_text": "| 124 | 控制计时器 | 启停、起始**秒数** | 启动重置游戏时间起点与初始秒数；停止清起点。查询＝初始秒数−游戏时间＋起点（可负）；无起点或统计对象时为 0；起点 0 仍有效 | 继续；显示取整/格式归 WP16 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C124.1",
+        "WIF-C124.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C125",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          47,
+          47
+        ]
+      },
+      "frozen_B8_text": "| 125 | 增减金钱 | 金额 | 金钱增减 | 继续 | 上限/下限截断（按金钱上限） | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C125.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C126",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          48,
+          48
+        ]
+      },
+      "frozen_B8_text": "| 126 | 增减物品 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C126.1",
+        "WIF-C126.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C127",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          49,
+          49
+        ]
+      },
+      "frozen_B8_text": "| 127 | 变更武器 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C127.1",
+        "WIF-C127.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C128",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          50,
+          50
+        ]
+      },
+      "frozen_B8_text": "| 128 | 变更防具 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C128.1",
+        "WIF-C128.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C129",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          51,
+          51
+        ]
+      },
+      "frozen_B8_text": "| 129 | 变更队伍成员 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C129.1",
+        "WIF-C129.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C131",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          52,
+          52
+        ]
+      },
+      "frozen_B8_text": "| 131 | 变更文本皮肤 | 皮肤名 | 文本框皮肤切换（在册皮肤内） | 继续 | 未匹配时无变化 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C131.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C132",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          53,
+          53
+        ]
+      },
+      "frozen_B8_text": "| 132 | 变更战斗 BGM | BGM 名 | 下次战斗 BGM 设定 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C132.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C133",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          54,
+          54
+        ]
+      },
+      "frozen_B8_text": "| 133 | 变更战斗结束 ME | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C133.1",
+        "WIF-C133.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C134",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          55,
+          55
+        ]
+      },
+      "frozen_B8_text": "| 134 | 变更保存访问 | 开关 | 保存功能启用/禁用 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C134.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C135",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          56,
+          56
+        ]
+      },
+      "frozen_B8_text": "| 135 | 变更菜单访问 | 开关 | 暂停菜单启用/禁用 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C135.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C136",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          57,
+          57
+        ]
+      },
+      "frozen_B8_text": "| 136 | 变更遭遇 | 开关 | 野外遭遇启用/禁用 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C136.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C201",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          58,
+          58
+        ]
+      },
+      "frozen_B8_text": "| 201 | 传送玩家 | 地图/坐标/方向（定值或变量）、过渡选项 | **排队**目标与方向并置传送标记；可冻结画面/排队转场；此命令本身不重建地图 | 成功排队时体内索引＋1、返回 false；场景消费后从下一条继续。两个正常消费者都传「取消游泳＝假」 | 战斗中直接 true 跳过；已有传送/消息/转场时 false、尚不排新请求；执行阶段缺图见 WP11 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C201.1",
+        "WIF-C201.2",
+        "WIF-C201.3",
+        "WIF-C201.4",
+        "WIF-C201.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-C202",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          59,
+          59
+        ]
+      },
+      "frozen_B8_text": "| 202 | 设定事件位置 | 非战斗、主角色存在；身份沿WP13§4.1 | 直接/变量坐标落位，或保存主坐标→主落副原位置→副落主原位置；随后仅主请求2/4/6/8方向，方向固定照常阻止；各对象落位副作用沿其入口 | 正常继续，不作碰撞移动 | 缺副仅略交换仍可转主；缺主/战斗中整体略过；未指定/无效方向不转身 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C202.1",
+        "WIF-C202.2",
+        "WIF-C202.3",
+        "WIF-C202.4",
+        "WIF-C202.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-C203",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          60,
+          60
+        ]
+      },
+      "frozen_B8_text": "| 203 | 卷动地图 | 合法方向/格数/镜头速度，数学与SnapEdges见 WP16 §3.1.1 | 每格128子像素，速度4一格名义.2秒；双轴独立完成；本命令不采用脚本包装的速度0即时特判 | **已有滚动时返回 false（等待）；启动新滚动后返回 true（立即继续，不等滚动完成）** | 战斗中 → 返回 true（不启动）；无效方向不发起新卷动 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C203.1",
+        "WIF-C203.2",
+        "WIF-C203.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-C204",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          61,
+          61
+        ]
+      },
+      "frozen_B8_text": "| 204 | 变更地图设置 | 设置项 | **仅全景/雾/战斗背景三项**（图块集变更未实现） | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C204.1",
+        "WIF-C204.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C205",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          62,
+          62
+        ]
+      },
+      "frozen_B8_text": "| 205 | 变更雾色调 | 色调/时长（1/20 秒） | 游戏时间过渡；0 立即改当前值但保留旧过渡（§3.3） | **启动后立即继续（不等过渡完成）** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C205.1",
+        "WIF-C205.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C206",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          63,
+          63
+        ]
+      },
+      "frozen_B8_text": "| 206 | 变更雾不透明度 | 不透明度/时长（1/20 秒） | 同上，0 不取消旧任务（§3.3） | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C206.1",
+        "WIF-C206.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C207",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          64,
+          64
+        ]
+      },
+      "frozen_B8_text": "| 207 | 显示动画 | 动画/角色 | 在指定角色上播放动画（含跟随者动画标记处理） | **启动动画后继续（不等播放完成）** | 角色不存在 → 直接继续；资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C207.1",
+        "WIF-C207.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C208",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          65,
+          65
+        ]
+      },
+      "frozen_B8_text": "| 208 | 变更透明标志 | 开关 | 角色透明状态切换 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C208.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C209",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          66,
+          66
+        ]
+      },
+      "frozen_B8_text": "| 209 | 设定移动路线 | 通常当前图角色；显式跟随覆盖例外见WP13§4.1 | 安装強制路线、清旧等待并同步尝试首项；运动/跳跃中尝试早退；非空已保存原路线不被后续强制覆盖替换（路线表§1） | 正常返回true继续，首项可能已提交，不等待整条路线 | 缺角色略过；空路线悬置门保留 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C209.1",
+        "WIF-C209.2",
+        "WIF-C209.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-C210",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          67,
+          67
+        ]
+      },
+      "frozen_B8_text": "| 210 | 等待移动完成 | 无 | 设置解释器的路线等待状态 | **等待全部强制路线（玩家/事件/跟随者）结束后继续**；战斗中不设置等待 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C210.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C221",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          68,
+          68
+        ]
+      },
+      "frozen_B8_text": "| 221 | 准备过渡 | 过渡名 | 准备过渡效果 | 继续；消息窗口显示中 → 返回 false | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C221.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C222",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          69,
+          69
+        ]
+      },
+      "frozen_B8_text": "| 222 | 执行过渡 | 无 | 执行过渡效果 | 过渡后继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C222.1",
+        "WIF-C222.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C223",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          70,
+          70
+        ]
+      },
+      "frozen_B8_text": "| 223 | 变更画面色调 | 色调/时长（1/20 秒） | 游戏时间过渡；0 立即改当前值但保留旧过渡（§3.3） | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C223.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C224",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          71,
+          71
+        ]
+      },
+      "frozen_B8_text": "| 224 | 画面闪烁 | 颜色/时长 | 画面闪烁效果启动 | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C224.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C225",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          72,
+          72
+        ]
+      },
+      "frozen_B8_text": "| 225 | 画面震动 | 强度/速度/时长 | 画面震动效果启动 | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C225.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C231",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          73,
+          73
+        ]
+      },
+      "frozen_B8_text": "| 231 | 显示图片 | 图片/原点/位置（定值或变量）/百分比缩放/不透明度/混合 | 设当前与移动目标、时长 0；重置色调及其时钟、角度 0、旋转速度 0；**不清旧移动时钟**；战斗编号＋50 | 继续；原点 0 为左上，其余为中心（显示交界） | 资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C231.1",
+        "WIF-C231.2",
+        "WIF-C231.3",
+        "WIF-C231.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-C232",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          74,
+          74
+        ]
+      },
+      "frozen_B8_text": "| 232 | 移动图片 | 同上及 1/20 秒时长 | 原点/混合立即变；位置、百分比缩放、不透明度按游戏时间 n/20 秒插值，0 在更新机会生效 | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C232.1",
+        "WIF-C232.2",
+        "WIF-C232.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-C233",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          75,
+          75
+        ]
+      },
+      "frozen_B8_text": "| 233 | 旋转图片 | 图片/速度 s | 单调时间以 **20s 度/秒**累积旋转并归入 [0,360)；0 停旋，不重置当前角度 | 启动后立即继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C233.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C234",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          76,
+          76
+        ]
+      },
+      "frozen_B8_text": "| 234 | 变更图片色调 | 图片/色调/1/20 秒时长 | 游戏时间过渡；0 只改当前值、保留旧过渡（§3.3） | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C234.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C235",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          77,
+          77
+        ]
+      },
+      "frozen_B8_text": "| 235 | 删除图片 | 图片编号 | 仅清图片名；其余状态保留；无名图片更新立即返回 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C235.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C236",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          78,
+          78
+        ]
+      },
+      "frozen_B8_text": "| 236 | 设定天气效果 | 类型/强度/时长 | 天气效果设定 | **启动后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C236.1",
+        "WIF-C236.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C241",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          79,
+          79
+        ]
+      },
+      "frozen_B8_text": "| 241 | 播放 BGM | BGM 名 | 播放背景音乐 | 继续 | 资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C241.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C242",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          80,
+          80
+        ]
+      },
+      "frozen_B8_text": "| 242 | 淡出 BGM | 时长 | 背景音乐淡出启动 | **淡出调用后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C242.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C245",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          81,
+          81
+        ]
+      },
+      "frozen_B8_text": "| 245 | 播放 BGS | BGS 名 | 播放背景音效 | 继续 | 资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C245.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C246",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          82,
+          82
+        ]
+      },
+      "frozen_B8_text": "| 246 | 淡出 BGS | 时长 | 背景音效淡出启动 | **淡出调用后立即继续** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C246.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C247",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          83,
+          83
+        ]
+      },
+      "frozen_B8_text": "| 247 | 记忆 BGM/BGS | 无 | 记忆当前 BGM/BGS | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C247.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C248",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          84,
+          84
+        ]
+      },
+      "frozen_B8_text": "| 248 | 恢复 BGM/BGS | 无 | 恢复记忆的 BGM/BGS | 继续 | 未记忆时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C248.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C249",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          85,
+          85
+        ]
+      },
+      "frozen_B8_text": "| 249 | 播放 ME | ME 名 | 播放音乐效果 | 继续 | 资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C249.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C250",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          86,
+          86
+        ]
+      },
+      "frozen_B8_text": "| 250 | 播放 SE | SE 名 | 播放音效 | 继续 | 资源缺失时行为未验证 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C250.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C251",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          87,
+          87
+        ]
+      },
+      "frozen_B8_text": "| 251 | 停止 SE | 无音效名输入；已有参数中的空名/A/B 均不消费 | 请求**无名停止 SE**，不按参数选择音效 | 继续 | 宿主多通道最终停止结果未运行确认（具名未知） | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C251.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C301",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          88,
+          88
+        ]
+      },
+      "frozen_B8_text": "| 301 | 战斗处理 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C301.1",
+        "WIF-C301.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C601",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          89,
+          89
+        ]
+      },
+      "frozen_B8_text": "| 601 | 若胜利 | 分支体 | 战斗胜利时进入 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C601.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C602",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          90,
+          90
+        ]
+      },
+      "frozen_B8_text": "| 602 | 若逃跑 | 分支体 | 战斗逃跑时进入 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C602.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C603",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          91,
+          91
+        ]
+      },
+      "frozen_B8_text": "| 603 | 若失败 | 分支体 | 战斗失败时进入 | 分支执行 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C603.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C302",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          92,
+          92
+        ]
+      },
+      "frozen_B8_text": "| 302 | 商店处理 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C302.1",
+        "WIF-C302.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C303",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          93,
+          93
+        ]
+      },
+      "frozen_B8_text": "| 303 | 名称输入处理 | 长度限制 | 名称输入界面（玩家或 RMXP 角色分支） | 输入后继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C303.1",
+        "WIF-C303.2",
+        "WIF-C303.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-C311",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          94,
+          94
+        ]
+      },
+      "frozen_B8_text": "| 311 | 变更 HP | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C311.1",
+        "WIF-C311.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C312",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          95,
+          95
+        ]
+      },
+      "frozen_B8_text": "| 312 | 变更 SP | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C312.1",
+        "WIF-C312.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C313",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          96,
+          96
+        ]
+      },
+      "frozen_B8_text": "| 313 | 变更状态 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C313.1",
+        "WIF-C313.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C314",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          97,
+          97
+        ]
+      },
+      "frozen_B8_text": "| 314 | 全部恢复 | 参数 0 | **参数为 0 时：存入储存自动治疗配置为真 → 治疗队伍；为假 → 治疗队伍及储存个体**；非任意指定 RMXP 角色全恢复 | 继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C314.1",
+        "WIF-C314.2",
+        "WIF-C314.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-C315",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          98,
+          98
+        ]
+      },
+      "frozen_B8_text": "| 315 | 变更经验 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C315.1",
+        "WIF-C315.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C316",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          99,
+          99
+        ]
+      },
+      "frozen_B8_text": "| 316 | 变更等级 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C316.1",
+        "WIF-C316.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C317",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          100,
+          100
+        ]
+      },
+      "frozen_B8_text": "| 317 | 变更能力值 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C317.1",
+        "WIF-C317.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C318",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          101,
+          101
+        ]
+      },
+      "frozen_B8_text": "| 318 | 变更技能 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C318.1",
+        "WIF-C318.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C319",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          102,
+          102
+        ]
+      },
+      "frozen_B8_text": "| 319 | 变更装备 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C319.1",
+        "WIF-C319.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C320",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          103,
+          103
+        ]
+      },
+      "frozen_B8_text": "| 320 | 变更角色名 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C320.1",
+        "WIF-C320.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C321",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          104,
+          104
+        ]
+      },
+      "frozen_B8_text": "| 321 | 变更角色职业 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C321.1",
+        "WIF-C321.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C322",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          105,
+          105
+        ]
+      },
+      "frozen_B8_text": "| 322 | 变更角色图形 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C322.1",
+        "WIF-C322.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C331",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          106,
+          106
+        ]
+      },
+      "frozen_B8_text": "| 331 | 变更敌方 HP | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C331.1",
+        "WIF-C331.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C332",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          107,
+          107
+        ]
+      },
+      "frozen_B8_text": "| 332 | 变更敌方 SP | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C332.1",
+        "WIF-C332.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C333",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          108,
+          108
+        ]
+      },
+      "frozen_B8_text": "| 333 | 变更敌方状态 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C333.1",
+        "WIF-C333.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C334",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          109,
+          109
+        ]
+      },
+      "frozen_B8_text": "| 334 | 敌方全部恢复 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C334.1",
+        "WIF-C334.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C335",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          110,
+          110
+        ]
+      },
+      "frozen_B8_text": "| 335 | 敌方出现 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C335.1",
+        "WIF-C335.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C336",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          111,
+          111
+        ]
+      },
+      "frozen_B8_text": "| 336 | 敌方变身 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C336.1",
+        "WIF-C336.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C337",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          112,
+          112
+        ]
+      },
+      "frozen_B8_text": "| 337 | 显示战斗动画 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C337.1",
+        "WIF-C337.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C338",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          113,
+          113
+        ]
+      },
+      "frozen_B8_text": "| 338 | 造成伤害 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C338.1",
+        "WIF-C338.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C339",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          114,
+          114
+        ]
+      },
+      "frozen_B8_text": "| 339 | 强制行动 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C339.1",
+        "WIF-C339.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C340",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          115,
+          115
+        ]
+      },
+      "frozen_B8_text": "| 340 | 中止战斗 | — | 无效果（跳过） | 跳过并继续 | 不适用 | **空操作** |",
+      "manual_atom_ids": [
+        "WIF-C340.1",
+        "WIF-C340.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-C351",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          116,
+          116
+        ]
+      },
+      "frozen_B8_text": "| 351 | 调用菜单画面 | 无 | 置菜单调用标记 | **索引＋1 并返回 false（等菜单打开/关闭后继续）** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C351.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C352",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          117,
+          117
+        ]
+      },
+      "frozen_B8_text": "| 352 | 调用保存画面 | 无 | 打开保存画面 | 保存/取消后继续 | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C352.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C353",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          118,
+          118
+        ]
+      },
+      "frozen_B8_text": "| 353 | 游戏结束 | 无 | BGM/BGS 淡出后调用重开流程 | **按实际重开流程，不保证进入标准 Game Over 画面** | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C353.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C354",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          119,
+          119
+        ]
+      },
+      "frozen_B8_text": "| 354 | 返回标题画面 | 无 | 置回标题标记并返回 false | 回标题流程（等待标记被消费） | 不适用 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C354.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-C355",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          120,
+          120
+        ]
+      },
+      "frozen_B8_text": "| 355 | 脚本 | 脚本串 | 先合并相邻355/655再执行；一次记录式消去/碎除辅助正常额外推进一项，缺事件也如此（WP13§3.3） | 正常返回true，普通表达式false不造成等待；独立单调用辅助后紧邻非脚本命令被跳过 | SystemExit/Reset原样抛出；其它异常按事件错误处理，不承诺完成后续推进或回滚 | 有实现 |",
+      "manual_atom_ids": [
+        "WIF-C355.1",
+        "WIF-C355.2",
+        "WIF-C355.3",
+        "WIF-C355.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-CMETA",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          1,
+          19
+        ]
+      },
+      "frozen_B8_text": "# 解释器命令兼容矩阵（净化正文；批次 3 附）\n\n分类：Engine/Overworld Integration（事件命令兼容）。本附表为《地图事件、NPC 与跟随》的命令兼容正文，覆盖主解释器命令分派与全部命令定义。移动路线命令有独立分派，见同批《移动路线命令矩阵》，不在本表。全部内容为静态证据；无运行确认。\n\n## 1. 分类与口径\n\n- **有实现**（有实际行为逻辑）／**空操作**（跳过且无效果）／**标记**（按设计无操作的流程标记）／**未分派回退**（不在分派表中的任意代码 → 返回 true 跳过并继续）。命令名称只作行为定位，不是未来框架的命令 API。完整业务语义（如战斗/商店/菜单流程）归相应领域规格。\n- **控制结果列口径**：区分「启动效果后继续」（调用生效、立即执行下一条，不等效果完成）、「等待 X 后继续」（解释器进入对应等待状态）、「分支执行」（按条件跳转）、「索引推进」（命令体自身改变索引的特殊情况）。返回 true 只表示继续执行下一条，不代表业务成功。\n\n## 2. 分派与回退规则\n\n- 到达命令列表末尾 → 结束处理（清除列表与跟随者覆盖；主解释器且事件 ID 有效时解锁事件）。\n- 命令代码在分派表中 → 调用对应命令实现。\n- 命令代码不在分派表中 → 返回 true，跳过并继续下一条（索引＋1）。\n- **续行消费**：401（文本续行）由 101 在命令体内消费；655（脚本续行）及相邻 355 由 355 合并执行。「未单独分派」不等于无作用——这两类代码是上游命令的数据延续，正常流程中不会直接到达默认分派分支。\n- 脚本命令（355）的异常：SystemExit/Reset 原样抛出，其他异常按事件错误处理。\n- 命令返回 false 时解释器本轮停止；返回 true 时外层索引＋1。\n\n通常角色0/指定编号查当前图，私有变量与缺省脚本自开关查绑定图；111自开关、123、主解释器结束解锁查当前图。207/209的显式跟随覆盖例外见[WP13§4.1](wp13-map-events-npc-followers.md)。",
+      "manual_atom_ids": [
+        "WIF-CMETA.1",
+        "WIF-CMETA.2",
+        "WIF-CMETA.3",
+        "WIF-CMETA.4",
+        "WIF-CMETA.5",
+        "WIF-CMETA.6"
+      ]
+    },
+    {
+      "clause_id": "WIF-CPRELOOK",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          122,
+          126
+        ]
+      },
+      "frozen_B8_text": "### 3.1 消息预读与失败观察点\n\n101 在真正显示文本与置消息等待前，沿后续逻辑索引寻找可消费内容：跳过标签 118、注释 108/408；处理循环重复 413、跳出 113、标签跳转 119 的预读路径，标签跳转仅向前推进（向后目标不反复预读）。后续 401 合并，102/103 可接入；相邻 101 仍独立。不能把预读统一描述为物理下一项。\n\n固定四项静态列表：112 缩进 0 → 101 缩进 1 → 413 缩进 0 → 0 终止，无插件给解释器补充 `indent`。101 的重复上方预读辅助路径读取未定义 `indent`，在**本条文本尚未显示、消息等待尚未置位**前失败。主分派直接执行 413 使用另一正常回溯路径，不能因其存在掩盖此故障，也不能将这个布局推广为所有消息/循环都失败。未运行，异常呈现由调用层/宿主决定。",
+      "manual_atom_ids": [
+        "WIF-CPRELOOK.1",
+        "WIF-CPRELOOK.2",
+        "WIF-CPRELOOK.3",
+        "WIF-CPRELOOK.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-CCHOICE",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          128,
+          136
+        ]
+      },
+      "frozen_B8_text": "### 3.2 连续选项、取消与一次性改写\n\n扫描同缩进组的 402/403/404 边界后，若紧接另一 102，则把其选项追加到当前逻辑组，合并后组的开始项、调整后组分支编号。后组分支号增加此前选项数，身份仍对应合并前原选项。合并可继续到下一同缩进组，不能跨其他命令或缩进随意合并。\n\n取消类型 0 不覆盖已有设置；后组取消类型 1–4 加此前选项数，类型 5 转换为合并后总选项数＋1。这一步只形成显示调用的取消参数，**尚未确定最终原分支**。显示侧接受取消时将正的一基取消参数减 1，得到零基原始返回值；普通确认则返回所选可见位置。两种返回都随后查本次「可见位置 → 原分支」映射：有条目就用其原分支号，没有条目才保留原始返回值。因此隐藏选项后，取消也可能转入另一原选项，不能按合并的取消参数直接宣布进入指定后组选项。后组类型 5 合并所得的 403 对应「总选项数」结果，该值超出可见映射时保留；独立组的默认取消分支索引仍为 4，不能按其实际选项数推定。禁止取消、指定参数取消与独立取消分支应分列，不保证每次取消都到 403。\n\n改名/隐藏输入按**合并后的原选项序号、一基**指定，应用于本次选项后清空。被隐藏项不改变 402 原分支身份：例如 A/B/C 合并后隐藏 A，首个可见 B 的显示索引 0 映射到原分支 1。改名后按显示文本作翻译；下一独立组选项不继承本次改名/隐藏。消息合入选项同样使用这条管线。选项窗口的键输入与绘制归 [WP17 消息、窗口与输入](../user-interface/wp17-messages-windows-input.md)，不以本节宣称该领域已完成整改。\n\n组合反例：首组 A、取消 0，紧接同缩进后组 B/C/D、取消 1，各 402/404 及分支体合法；合并原分支为 A=0、B=1、C=2、D=3，取消参数为 2。按原一基 1 隐藏 A 后，可见映射为 [1,2,3]；BACK 返回原始值 1，再经映射得到原分支 2，**进入 C 而非 B**。无隐藏的同输入以身份映射进入 B；有隐藏但正常确认首个可见 B，原始值 0 映射 1，也进入 B。101 合入同组选项后，取消返回同样先作映射；下一独立组不继承本次隐藏。组合、无隐藏、正常确认、101 合入及取消分支回退见 IM36–IM41，均为未运行静态向量。",
+      "manual_atom_ids": [
+        "WIF-CCHOICE.1",
+        "WIF-CCHOICE.2",
+        "WIF-CCHOICE.3",
+        "WIF-CCHOICE.4",
+        "WIF-CCHOICE.5",
+        "WIF-CCHOICE.6"
+      ]
+    },
+    {
+      "clause_id": "WIF-CCLOCK",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          138,
+          142
+        ]
+      },
+      "frozen_B8_text": "### 3.3 时钟与零时长的旧任务\n\n106 及路线 15 使用单调时钟、输入每单位 1/20 秒；124 起始值直接为秒、用游戏累计时间；205/206/223/232/234 按游戏时间 n/20 秒；233 按单调时间累计角度。两种时钟不能互换。这里的启动命令均不等待效果结束。\n\n205/206/223/234 的时长 0 只写当前色调/不透明度并立即返回，**不清旧起点/初值/目标/时长**。若原任务在游戏时间 0 由 0→100、时长 40（2 秒），游戏时间 0.5 插入时长 0 的值 200，调用返回即为 200；下一更新在时间 1 又为原任务的 50，时间 2 为 100。无旧任务时不会自行回落。图片向量还须图片名非空、对象持续获得更新。显示主文及显示目录的四入口全覆盖由 WP16 接续；本批仅更正命令输入和控制结果。",
+      "manual_atom_ids": [
+        "WIF-CCLOCK.1",
+        "WIF-CCLOCK.2",
+        "WIF-CCLOCK.3",
+        "WIF-CCLOCK.4",
+        "WIF-CCLOCK.5"
+      ]
+    },
+    {
+      "clause_id": "WIF-CSTATS",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-interpreter-command-matrix.md",
+        "lines": [
+          144,
+          161
+        ]
+      },
+      "frozen_B8_text": "## 4. 统计与口径\n\n| 分类 | 数量 | 说明 |\n| --- | --- | --- |\n| 空操作 | 28 | 126、127、128、129、133、301、302、311、312、313、315、316、317、318、319、320、321、322、331、332、333、334、335、336、337、338、339、340 |\n| 标记 | 2 | 112（循环开始）、118（标签） |\n| 其他实现入口 | 66 | 分派表中其余命令代码（含 601/602/603 等分支入口） |\n| 合计分派命令 | 96 | 分派表中的命令代码数（28＋2＋66） |\n| 未分派回退 | 任意未列代码 | 默认分支返回 true，跳过并继续；401/655 为上游命令消费的续行，不适用此口径 |\n\n- 本表按固定源码逐项核对；命令检索与空操作用法核对完成，非 AST 分析，也不是全部参数语义验证。\n- 「其他实现入口」仅指命令有行为逻辑，**不代表其所有参数分支均有效**；战斗/商店/菜单的完整流程归相应领域规格。\n- 28/2/66 是本快照的直接结构分类，不作为未来版本的硬编码真值。\n- 标准 RMXP 命令的兼容以本表为准；不承诺未列代码有定义或有效果。\n\n## 5. 示例场景与测试目录\n\n静态推导场景（未运行）见测试目录 [`../test-catalog/engine-overworld-wp11-15-59-60.md`](../test-catalog/engine-overworld-wp11-15-59-60.md) 的 IM01–IM41（含空操作排除 314、预读故障、nil/false、选项合并、隐藏后取消/确认映射、等待单位及效果旧任务）。",
+      "manual_atom_ids": [
+        "WIF-CSTATS.1",
+        "WIF-CSTATS.2",
+        "WIF-CSTATS.3",
+        "WIF-CSTATS.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE0",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          33,
+          33
+        ]
+      },
+      "frozen_B8_text": "| 0 | 路线结束 | 重复路线回到起点；强制路线恢复原路线并清除强制标记 | 见 §1 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE0.1"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE1",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          34,
+          34
+        ]
+      },
+      "frozen_B8_text": "| 1 | 向下移动 | 尝试向下移动一格 | 可跳过必推进；非可跳过按运动状态推进（§1）；本帧结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE1.1",
+        "WIF-ROUTE1.2",
+        "WIF-ROUTE1.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE2",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          35,
+          35
+        ]
+      },
+      "frozen_B8_text": "| 2 | 向左移动 | 同上（左） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE2.1",
+        "WIF-ROUTE2.2",
+        "WIF-ROUTE2.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE3",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          36,
+          36
+        ]
+      },
+      "frozen_B8_text": "| 3 | 向右移动 | 同上（右） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE3.1",
+        "WIF-ROUTE3.2",
+        "WIF-ROUTE3.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE4",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          37,
+          37
+        ]
+      },
+      "frozen_B8_text": "| 4 | 向上移动 | 同上（上） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE4.1",
+        "WIF-ROUTE4.2",
+        "WIF-ROUTE4.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE5",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          38,
+          38
+        ]
+      },
+      "frozen_B8_text": "| 5 | 向左下移动 | 固定两段许可后一次提交两轴；玩家距离不累加、通行失败也可能已改方向，副作用见WP12§4.3 | 同1–14运动状态推进门；本次处理结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE5.1",
+        "WIF-ROUTE5.2",
+        "WIF-ROUTE5.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE6",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          39,
+          39
+        ]
+      },
+      "frozen_B8_text": "| 6 | 向右下移动 | 固定两段许可后一次提交两轴；玩家距离不累加、通行失败也可能已改方向，副作用见WP12§4.3 | 同1–14运动状态推进门；本次处理结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE6.1",
+        "WIF-ROUTE6.2",
+        "WIF-ROUTE6.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE7",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          40,
+          40
+        ]
+      },
+      "frozen_B8_text": "| 7 | 向左上移动 | 固定两段许可后一次提交两轴；玩家距离不累加、通行失败也可能已改方向，副作用见WP12§4.3 | 同1–14运动状态推进门；本次处理结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE7.1",
+        "WIF-ROUTE7.2",
+        "WIF-ROUTE7.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE8",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          41,
+          41
+        ]
+      },
+      "frozen_B8_text": "| 8 | 向右上移动 | 固定两段许可后一次提交两轴；玩家距离不累加、通行失败也可能已改方向，副作用见WP12§4.3 | 同1–14运动状态推进门；本次处理结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE8.1",
+        "WIF-ROUTE8.2",
+        "WIF-ROUTE8.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE9",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          42,
+          42
+        ]
+      },
+      "frozen_B8_text": "| 9 | 随机移动 | 四个正方向等概率，移动前不转向、成功后转向（WP12 §4.3） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE9.1",
+        "WIF-ROUTE9.2",
+        "WIF-ROUTE9.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE10",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          43,
+          43
+        ]
+      },
+      "frozen_B8_text": "| 10 | 接近玩家 | 占格中心差主轴优先、同差各半、受阻再试另一非零轴（WP12 §4.3） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE10.1",
+        "WIF-ROUTE10.2",
+        "WIF-ROUTE10.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE11",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          44,
+          44
+        ]
+      },
+      "frozen_B8_text": "| 11 | 远离玩家 | 同一轴选择规则，反向移动（WP12 §4.3） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE11.1",
+        "WIF-ROUTE11.2",
+        "WIF-ROUTE11.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE12",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          45,
+          45
+        ]
+      },
+      "frozen_B8_text": "| 12 | 前进 | 按当前朝向前进 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE12.1",
+        "WIF-ROUTE12.2",
+        "WIF-ROUTE12.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE13",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          46,
+          46
+        ]
+      },
+      "frozen_B8_text": "| 13 | 后退 | 按当前朝向后退 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE13.1",
+        "WIF-ROUTE13.2",
+        "WIF-ROUTE13.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE14",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          47,
+          47
+        ]
+      },
+      "frozen_B8_text": "| 14 | 跳跃 | 非零偏移须占格许可；直接(0,0)跳过转向/许可仍原地跳，前/后跳包装距离0则false（WP12§4.1） | 同1–14运动状态推进门，原地jumping为真也推进；本次处理结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE14.1",
+        "WIF-ROUTE14.2",
+        "WIF-ROUTE14.3"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE15",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          48,
+          48
+        ]
+      },
+      "frozen_B8_text": "| 15 | 等待 | 按参数 n/20 秒等待（单调时钟） | 索引＋1；本帧结束，0 也不连跑后条 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE15.1",
+        "WIF-ROUTE15.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE16",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          49,
+          49
+        ]
+      },
+      "frozen_B8_text": "| 16 | 向下转 | 朝向下 | 索引＋1；本帧结束 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE16.1",
+        "WIF-ROUTE16.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE17",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          50,
+          50
+        ]
+      },
+      "frozen_B8_text": "| 17 | 向左转 | 朝向左 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE17.1",
+        "WIF-ROUTE17.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE18",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          51,
+          51
+        ]
+      },
+      "frozen_B8_text": "| 18 | 向右转 | 朝向右 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE18.1",
+        "WIF-ROUTE18.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE19",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          52,
+          52
+        ]
+      },
+      "frozen_B8_text": "| 19 | 向上转 | 朝向上 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE19.1",
+        "WIF-ROUTE19.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE20",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          53,
+          53
+        ]
+      },
+      "frozen_B8_text": "| 20 | 右转 90° | 顺时针转 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE20.1",
+        "WIF-ROUTE20.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE21",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          54,
+          54
+        ]
+      },
+      "frozen_B8_text": "| 21 | 左转 90° | 逆时针转 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE21.1",
+        "WIF-ROUTE21.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE22",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          55,
+          55
+        ]
+      },
+      "frozen_B8_text": "| 22 | 转 180° | 反向 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE22.1",
+        "WIF-ROUTE22.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE23",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          56,
+          56
+        ]
+      },
+      "frozen_B8_text": "| 23 | 左或右转 90° | 随机左右转 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE23.1",
+        "WIF-ROUTE23.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE24",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          57,
+          57
+        ]
+      },
+      "frozen_B8_text": "| 24 | 随机转向 | 随机朝向 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE24.1",
+        "WIF-ROUTE24.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE25",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          58,
+          58
+        ]
+      },
+      "frozen_B8_text": "| 25 | 朝向玩家 | 面向玩家 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE25.1",
+        "WIF-ROUTE25.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE26",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          59,
+          59
+        ]
+      },
+      "frozen_B8_text": "| 26 | 背向玩家 | 背对玩家 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE26.1",
+        "WIF-ROUTE26.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE27",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          60,
+          60
+        ]
+      },
+      "frozen_B8_text": "| 27 | 开关 ON | 指定开关置 ON 并请求地图刷新 | 索引＋1；**不结束本帧** |",
+      "manual_atom_ids": [
+        "WIF-ROUTE27.1",
+        "WIF-ROUTE27.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE28",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          61,
+          61
+        ]
+      },
+      "frozen_B8_text": "| 28 | 开关 OFF | 指定开关置 OFF 并请求地图刷新 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE28.1",
+        "WIF-ROUTE28.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE29",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          62,
+          62
+        ]
+      },
+      "frozen_B8_text": "| 29 | 变更速度 | 速度等级设为参数值 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE29.1",
+        "WIF-ROUTE29.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE30",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          63,
+          63
+        ]
+      },
+      "frozen_B8_text": "| 30 | 变更频率 | 设置自主移动停止延迟，频率1…6的秒数见§1；不成为强制路线等待门 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE30.1",
+        "WIF-ROUTE30.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE31",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          64,
+          64
+        ]
+      },
+      "frozen_B8_text": "| 31 | 步行动画 ON | 步行动画＝真 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE31.1",
+        "WIF-ROUTE31.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE32",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          65,
+          65
+        ]
+      },
+      "frozen_B8_text": "| 32 | 步行动画 OFF | 步行动画＝假 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE32.1",
+        "WIF-ROUTE32.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE33",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          66,
+          66
+        ]
+      },
+      "frozen_B8_text": "| 33 | 踏步动画 ON | 踏步动画＝真 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE33.1",
+        "WIF-ROUTE33.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE34",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          67,
+          67
+        ]
+      },
+      "frozen_B8_text": "| 34 | 踏步动画 OFF | 踏步动画＝假 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE34.1",
+        "WIF-ROUTE34.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE35",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          68,
+          68
+        ]
+      },
+      "frozen_B8_text": "| 35 | 朝向固定 ON | 朝向固定＝真 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE35.1",
+        "WIF-ROUTE35.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE36",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          69,
+          69
+        ]
+      },
+      "frozen_B8_text": "| 36 | 朝向固定 OFF | 朝向固定＝假 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE36.1",
+        "WIF-ROUTE36.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE37",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          70,
+          70
+        ]
+      },
+      "frozen_B8_text": "| 37 | 穿透 ON | 穿透＝真 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE37.1",
+        "WIF-ROUTE37.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE38",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          71,
+          71
+        ]
+      },
+      "frozen_B8_text": "| 38 | 穿透 OFF | 穿透＝假 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE38.1",
+        "WIF-ROUTE38.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE39",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          72,
+          72
+        ]
+      },
+      "frozen_B8_text": "| 39 | 总在最上 ON | 总在最上＝真（重算灌木深度） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE39.1",
+        "WIF-ROUTE39.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE40",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          73,
+          73
+        ]
+      },
+      "frozen_B8_text": "| 40 | 总在最上 OFF | 总在最上＝假（重算灌木深度） | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE40.1",
+        "WIF-ROUTE40.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE41",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          74,
+          74
+        ]
+      },
+      "frozen_B8_text": "| 41 | 变更图形 | 清图块ID、设图形/色相；方向/图案各按原始值变化门更新，见§1 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE41.1",
+        "WIF-ROUTE41.2",
+        "WIF-ROUTE41.3",
+        "WIF-ROUTE41.4"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE42",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          75,
+          75
+        ]
+      },
+      "frozen_B8_text": "| 42 | 变更不透明度 | 不透明度设为参数值 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE42.1",
+        "WIF-ROUTE42.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE43",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          76,
+          76
+        ]
+      },
+      "frozen_B8_text": "| 43 | 变更混合模式 | 混合模式设为参数值 | 同上 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE43.1",
+        "WIF-ROUTE43.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE44",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          77,
+          77
+        ]
+      },
+      "frozen_B8_text": "| 44 | 播放 SE | 播放参数指定音效 | 同上（资源缺失时行为未验证） |",
+      "manual_atom_ids": [
+        "WIF-ROUTE44.1",
+        "WIF-ROUTE44.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-ROUTE45",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          78,
+          78
+        ]
+      },
+      "frozen_B8_text": "| 45 | 脚本 | 先求值；正常返回后按 §1 的三种大小写准确行首前缀检查；实际范围/单轴移动行为见 WP12 §4.3 | 匹配：索引＋1、本帧结束；不匹配：索引＋1、同帧继续；求值异常不推进 |",
+      "manual_atom_ids": [
+        "WIF-ROUTE45.1",
+        "WIF-ROUTE45.2"
+      ]
+    },
+    {
+      "clause_id": "WIF-RMETA",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          1,
+          27
+        ]
+      },
+      "frozen_B8_text": "# 移动路线命令矩阵（净化正文；批次 3 附）\n\n分类：Engine/Overworld Integration（移动路线命令兼容）。本附表为《地图事件、NPC 与跟随》的移动路线命令正文，覆盖移动路线的独立分派。**移动路线命令与主事件命令是两套分派**，主事件命令矩阵（同批《解释器命令兼容矩阵》）不代表本表，本表也不代表主事件命令全集。全部内容为静态证据；无运行确认。\n\n## 1. 分派与推进规则\n\n路线来源：事件页的固定路线、设定移动路线命令对角色设置的强制路线、跟随者/系统内部的路线。命令代码为路线列表项的代码，参数随代码不同。\n\n- 每次路线处理调用在非跳跃/移动中、列表长度>1时，从当前索引开始最多迭代列表总长减1次；运动、等待/转向、非重复终止等可提前退出。重复路线可越过末尾回绕，不能把上限写成“剩余命令”。更新/同步调用机会均按各自门取得，不保证固定帧。\n- **0（路线结束）**：路线设为重复 → 索引归 0 继续；否则——若是强制路线 → 恢复被接管前的原路线与索引并清除强制标记；停止计时归零，本帧结束。**强制路线的恢复在此发生**。\n- **1–14（移动/跳跃）**：执行一次移动尝试后**本帧结束**。推进规则：可跳过 || 移动中 || 跳跃中 时索引＋1——**按运动/跳跃状态判断，不按坐标是否变化**：\n  - 可跳过路线：被阻挡也推进到下一条。\n  - 不可跳过路线：**移动/跳跃已进入运动状态（移动中/跳跃中为真）才推进**。注意玩家受阻碰撞会设置移动计时，移动中取决于该计时存在——**不可跳过的玩家路线撞墙且无事件触碰成功时，即使坐标不变也会推进索引**；普通非玩家事件受阻且未进入运动时，索引停留、下帧重试同一命令。\n- **15–26（等待/转向）**：执行后索引＋1，**本帧结束**。\n- **27 及以上（状态/脚本，45 命中下述三前缀时例外）**：正常执行后索引＋1 且**不结束本帧**（同帧可连续执行多条，直到遇到 0–26 或遍历完）。\n- **空路线边界**：仅含终止项的路线列表（size ≤ 1）在分派开头直接返回，**不会执行到代码 0 的恢复分支**——被设为强制路线的空路线不会因此恢复原路线或清除强制标记；无外部状态改变时，解释器的路线等待仍可被其阻塞。\n- 15（等待）参数 n 的单位为 **1/20 秒**，按单调时间等待 n/20 秒；0 无额外正时长，但本条仍推进并结束本帧，1＝0.05 秒，20＝1 秒。到时须再获路线更新机会，不等于固定帧数。45（脚本）先求值、成功返回后才检查下述字面前缀，异常时不到索引推进/前缀判定，调用层呈现未运行确认。\n- **45 的兼容字面与边界**：某行行首以 `move_random_range`、`move_random_UD`、`move_random_LR` 之一开头，大小写准确且前面无空白/接收者，则正常求值后索引＋1 并结束本帧。检查的是**原串行首前缀**，不是语义等价调用或完整方法名：合法、正常返回的更长后缀也可匹配；同样移动但前加空格、`self.` 或包进其他表达式不匹配时仍同帧继续。不得靠改写字面扩大/缩小兼容域。\n- **范围能力与调度分开（GR4-M03-001）**：实际调用范围随机/纵向单轴/横向单轴时，原始锚点、横纵负/零/正范围、严格方向过滤、一次等概率抽取及受阻不重抽按 [WP12 §4.3 的范围随机合同](wp12-terrain-movement-vehicles.md)。仅有前缀不等于调用该能力；正常求值但空候选或移动受阻仍按上一条推进/让出，不套 1–14 的运动状态推进门。路线 9 仍是普通四向随机。\n\n**WAIT 与地图末端按键的交界**：路线 15 的等待尚未到期时，角色路线处理返回、强制路线标记保留，角色普通方向更新受接管。地图场景的新按键登记另读消息、主解释器与冰滑/上下瀑布状态，不读该强制路线标记；静止、菜单启用且这些登记门均放行时，即使强制路线 WAIT 中，ACTION 也可登记菜单并在该末端消费。冰滑/下瀑/上瀑任一状态为真时，反而可在强制路线标记为假时阻止新登记。已有调用的消费门另列，不以此改写路线等待时钟或解释器 210 等待：见 [地形与移动 §4.3](wp12-terrain-movement-vehicles.md)、MV72–76。以上仅静态调用合同，未执行。\n\n**强制安装与覆盖**：首次接管保存原路线及索引；已保存原路线非空时，再安装一条强制路线不替换该保存值。安装把新索引置0、强制标记置真、清预锁方向与旧等待，然后立刻尝试处理路线；静止且列表非空时可在209返回之前提交首项，运动/跳跃中则本次尝试早退。例：非重复[开关S ON,终止]安装返回时S已真，但终止可留待下次机会，不能承诺安装即完成。仅终止项空路线仍按§1悬置。不同有效页、同页早退与无页分支按WP13§3.1分列。\n\n普通NPC自主频率1/2/3/4/5/6的停止延迟为4.75/3.6/2.55/1.6/0.75/0秒；强制路线不读该延迟门。实际更新还受菜单、单次时间增量≤0.25秒等入口门限制；频率5的调度前停止秒数0.74不通过、0.75通过，不等于固定帧计数。\n\n**路线41方向/图案**：两字段分别比较保存原始值与参数，相同保留当前值，不同才同时更新当前与原始对应值；方向改变还清预锁方向，直接赋值不受方向固定阻止。有效页切换同规则，观察点为调用返回、无后续动画写入（WP13§3.1）。",
+      "manual_atom_ids": [
+        "WIF-RMETA.1",
+        "WIF-RMETA.2",
+        "WIF-RMETA.3",
+        "WIF-RMETA.4",
+        "WIF-RMETA.5",
+        "WIF-RMETA.6",
+        "WIF-RMETA.7",
+        "WIF-RMETA.8",
+        "WIF-RMETA.9",
+        "WIF-RMETA.10",
+        "WIF-RMETA.11",
+        "WIF-RMETA.12",
+        "WIF-RMETA.13"
+      ]
+    },
+    {
+      "clause_id": "WIF-RTAIL",
+      "spec": {
+        "path": "deliverables/final-specification-set/engine-overworld/wp13-move-route-matrix.md",
+        "lines": [
+          80,
+          87
+        ]
+      },
+      "frozen_B8_text": "## 3. 口径\n\n- 本表按固定源码逐项核对移动路线分派，非 AST 分析；对角固定分解、多格前缘、接近/远离的中心主轴与备用轴见 WP12 §4.3，不附加路径求解保证。\n- 「被阻挡时是否推进」只描述路线索引行为；通行判定本身归地形运动规格（引用）。\n\n## 4. 示例场景与测试目录\n\n静态推导场景（未运行）见测试目录 [`../test-catalog/engine-overworld-wp11-15-59-60.md`](../test-catalog/engine-overworld-wp11-15-59-60.md) 的 MR01–MR17（含等待单位、三种准确前缀及非匹配/异常对照）。",
+      "manual_atom_ids": [
+        "WIF-RTAIL.1",
+        "WIF-RTAIL.2",
+        "WIF-RTAIL.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          140,
+          140
+        ]
+      },
+      "frozen_B8_text": "| EV01 | 页条件改变：开关 1 变 ON | 下一更新机会事件切换到满足条件的页（图形/触发/列表更新） |",
+      "manual_atom_ids": [
+        "WIV-EV01.1"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          141,
+          141
+        ]
+      },
+      "frozen_B8_text": "| EV02 | 无可用页：所有页条件均不满足 | 事件不可见、可穿透、无触发 |",
+      "manual_atom_ids": [
+        "WIV-EV02.1",
+        "WIV-EV02.2",
+        "WIV-EV02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          142,
+          142
+        ]
+      },
+      "frozen_B8_text": "| EV03 | 等待与恢复：消息显示中再关闭 | 解释器从下一命令继续执行 |",
+      "manual_atom_ids": [
+        "WIV-EV03.1",
+        "WIV-EV03.2",
+        "WIV-EV03.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          143,
+          143
+        ]
+      },
+      "frozen_B8_text": "| EV04 | 并行触发：事件触发为 4（并行处理） | 自有解释器按更新机会执行该事件命令列表 |",
+      "manual_atom_ids": [
+        "WIV-EV04.1",
+        "WIV-EV04.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          144,
+          144
+        ]
+      },
+      "frozen_B8_text": "| EV05 | 屏幕外并行事件：并行事件在屏幕外（非菜单） | 提前许可 → 仍更新 |",
+      "manual_atom_ids": [
+        "WIV-EV05.1",
+        "WIV-EV05.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          145,
+          145
+        ]
+      },
+      "frozen_B8_text": "| EV06 | 已更新后屏外仍更新：同一已加载地图中的普通事件（trigger＝0、名称不含 update、无强制路线、无插件或外部状态改写）；该实例此前已在屏内正常进入并完成一次更新，落位标记已清；此后完全超出屏幕边界及 2 格缓冲；地图仍加载、非菜单且持续调用该事件更新，实例未重建 | 重算查询最先读到上次成功更新标记 → 提前许可，不再落到屏幕范围门；本次获准后标记重新置真，只要同实例持续获得调用便持续更新（移动/计时/随机动作等不因屏外停止） |",
+      "manual_atom_ids": [
+        "WIV-EV06.1",
+        "WIV-EV06.2",
+        "WIV-EV06.3",
+        "WIV-EV06.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          146,
+          146
+        ]
+      },
+      "frozen_B8_text": "| EV07 | 尚无许可的屏外不更新：普通事件实例**从未成功更新过**（无上次更新标记），且无自动/并行/强制路线/落位/名称 update 任一提前许可，当前在屏幕范围及 2 格缓冲外 | 提前许可逐项不成立 → 屏幕范围判定拒绝本次更新，保存的资格为不更新（显示侧只读该保存结果）。此为条件状态向量，不假称默认地图构造必然产生该状态 |",
+      "manual_atom_ids": [
+        "WIV-EV07.1",
+        "WIV-EV07.2",
+        "WIV-EV07.3",
+        "WIV-EV07.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV08",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          147,
+          147
+        ]
+      },
+      "frozen_B8_text": "| EV08 | 菜单阻止地图层调用：已成功更新的普通事件，暂停菜单打开 | 菜单从地图更新调用层抑制——本帧不调用地图事件更新（上次更新标记本身不被改写）；公共事件更新规则不变（仍更新） |",
+      "manual_atom_ids": [
+        "WIV-EV08.1",
+        "WIV-EV08.2",
+        "WIV-EV08.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV09",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          148,
+          148
+        ]
+      },
+      "frozen_B8_text": "| EV09 | 菜单中并行：菜单打开，地图并行事件与公共并行事件并存 | 地图事件不更新；公共事件仍更新 |",
+      "manual_atom_ids": [
+        "WIV-EV09.1",
+        "WIV-EV09.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV10",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          149,
+          149
+        ]
+      },
+      "frozen_B8_text": "| EV10 | 深度超限：公共事件嵌套调用 > 100 层 | 提示并退出 |",
+      "manual_atom_ids": [
+        "WIV-EV10.1",
+        "WIV-EV10.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV11",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          150,
+          150
+        ]
+      },
+      "frozen_B8_text": "| EV11 | 空操作命令：事件含 126（增减物品）/301（战斗处理）/311（变更 HP） | 被跳过且无效果：背包不变、战斗不启动、HP 不变；事件后续命令照常继续 |",
+      "manual_atom_ids": [
+        "WIV-EV11.1",
+        "WIV-EV11.2",
+        "WIV-EV11.3",
+        "WIV-EV11.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV12",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          151,
+          151
+        ]
+      },
+      "frozen_B8_text": "| EV12 | 相邻文本命令：101(A)→101(B)→结束；对照 101(A)→401(B) | 前者：101(A) 遇相邻 101 只改变本次消息结束方式，**不消费 B 的文本或索引**——B 随后仍作为独立命令执行；后者：401(B) 是 A 的文本续行，被 A 消费合并 |",
+      "manual_atom_ids": [
+        "WIV-EV12.1",
+        "WIV-EV12.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV13",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          152,
+          152
+        ]
+      },
+      "frozen_B8_text": "| EV13 | 209 与 210：初始无等待标记、无其他阻塞：209 设强制路线后接开关命令；另一序列 209→210→开关命令 | 前者开关命令**不等路线完成**即执行（209 不置等待标记）；后者由 210 置标记，等玩家/当前图事件/跟随者的强制路线全部结束后才执行 |",
+      "manual_atom_ids": [
+        "WIV-EV13.1",
+        "WIV-EV13.2",
+        "WIV-EV13.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV14",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          153,
+          153
+        ]
+      },
+      "frozen_B8_text": "| EV14 | 新滚动与已有滚动：203 启动新滚动；203 在滚动中再次调用 | 前者立即继续；后者返回 false（本轮等待） |",
+      "manual_atom_ids": [
+        "WIV-EV14.1",
+        "WIV-EV14.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV15",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          154,
+          154
+        ]
+      },
+      "frozen_B8_text": "| EV15 | 效果后下一命令：223/224/232/242 等启动效果后接开关命令 | 效果启动后开关命令立即执行（不等过渡/淡出完成） |",
+      "manual_atom_ids": [
+        "WIV-EV15.1",
+        "WIV-EV15.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV16",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          155,
+          155
+        ]
+      },
+      "frozen_B8_text": "| EV16 | 355 普通 false：355 脚本表达式求值为 false | 命令仍返回 true，解释器继续下一条（不等待） |",
+      "manual_atom_ids": [
+        "WIV-EV16.1",
+        "WIV-EV16.2",
+        "WIV-EV16.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV17",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          156,
+          156
+        ]
+      },
+      "frozen_B8_text": "| EV17 | 105 后两条命令：105 后接两条命令 A、B | 105 输入完成后一次推进两条（A 被跳过，从 B 继续） |",
+      "manual_atom_ids": [
+        "WIV-EV17.1",
+        "WIV-EV17.2",
+        "WIV-EV17.3",
+        "WIV-EV17.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV18",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          157,
+          157
+        ]
+      },
+      "frozen_B8_text": "| EV18 | 未支持条件类型：111 条件类型为 actor/item 等被注释种类 | 结果沿默认 false（走 Else） |",
+      "manual_atom_ids": [
+        "WIV-EV18.1",
+        "WIV-EV18.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV19",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          158,
+          158
+        ]
+      },
+      "frozen_B8_text": "| EV19 | 变量除零/取余 1：122 除以 0 或对 1 取余 | 跳过该操作（变量不变） |",
+      "manual_atom_ids": [
+        "WIV-EV19.1",
+        "WIV-EV19.2",
+        "WIV-EV19.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV20",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          159,
+          159
+        ]
+      },
+      "frozen_B8_text": "| EV20 | 314 参数差异：314 参数 0，存入储存自动治疗开/关 | 开：治疗队伍；关：治疗队伍及储存个体 |",
+      "manual_atom_ids": [
+        "WIV-EV20.1",
+        "WIV-EV20.2",
+        "WIV-EV20.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV21",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          160,
+          160
+        ]
+      },
+      "frozen_B8_text": "| EV21 | 失联后续行：解释器地图与当前图失联，下一条为合法开关赋值 | 事件 ID 归 0，但该命令仍执行（列表未清） |",
+      "manual_atom_ids": [
+        "WIV-EV21.1",
+        "WIV-EV21.2",
+        "WIV-EV21.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV22",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          161,
+          161
+        ]
+      },
+      "frozen_B8_text": "| EV22 | 无图形非 through 同位事件：玩家与同位无图形、非 through 事件 | 可越格触发可能为真 → 事件接触入口可启动 |",
+      "manual_atom_ids": [
+        "WIV-EV22.1",
+        "WIV-EV22.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV23",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          162,
+          162
+        ]
+      },
+      "frozen_B8_text": "| EV23 | hiddenitem 事件：名称含 hiddenitem 的事件 | 可越格触发为 false（同位不触发，按动作键/面前入口处理） |",
+      "manual_atom_ids": [
+        "WIV-EV23.1",
+        "WIV-EV23.2",
+        "WIV-EV23.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV24",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          163,
+          163
+        ]
+      },
+      "frozen_B8_text": "| EV24 | 玩家受阻触碰 trigger＝1：玩家向 trigger＝1 具名事件方向移动失败 | 玩家侧接触检查（候选含 1/2、可越格触发为假等守卫满足）→ 该事件可启动 |",
+      "manual_atom_ids": [
+        "WIV-EV24.1",
+        "WIV-EV24.2",
+        "WIV-EV24.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV25",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          164,
+          164
+        ]
+      },
+      "frozen_B8_text": "| EV25 | NPC 受阻触碰玩家：trigger＝2 事件向玩家方向移动失败、坐标对齐 | 事件侧接触检查（trigger＝＝2、主解释器未运行、非跳跃、可越格触发为假）→ 启动 |",
+      "manual_atom_ids": [
+        "WIV-EV25.1",
+        "WIV-EV25.2",
+        "WIV-EV25.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV26",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          165,
+          165
+        ]
+      },
+      "frozen_B8_text": "| EV26 | 玩家完成移动进入同位事件：玩家步完成，同位有无图形、可越格触发为真的 trigger＝1/2 事件 | 同位检查要求可越格触发为真 → 可启动 |",
+      "manual_atom_ids": [
+        "WIV-EV26.1",
+        "WIV-EV26.2",
+        "WIV-EV26.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV27",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          166,
+          166
+        ]
+      },
+      "frozen_B8_text": "| EV27 | counter 仅转向：`counter(2)` 事件仅执行转向、玩家在其面向范围内 | 仅转向入口不处理 counter → 不启动 |",
+      "manual_atom_ids": [
+        "WIV-EV27.1",
+        "WIV-EV27.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV28",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          167,
+          167
+        ]
+      },
+      "frozen_B8_text": "| EV28 | counter 移动完成：同一 `counter(2)` 事件完成移动、玩家在其面向范围内 | 移动完成入口的面向范围检查 → 可启动（其余守卫满足时） |",
+      "manual_atom_ids": [
+        "WIV-EV28.1",
+        "WIV-EV28.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV29",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          168,
+          168
+        ]
+      },
+      "frozen_B8_text": "| EV29 | 视线命中但不可达：`sight(3)` 事件面向玩家、距离内，但中间格不可移动 | 可达检查失败 → 不启动 |",
+      "manual_atom_ids": [
+        "WIV-EV29.1",
+        "WIV-EV29.2",
+        "WIV-EV29.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV30",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          169,
+          169
+        ]
+      },
+      "frozen_B8_text": "| EV30 | 跟随者加入/移除：加入（重复/新事件）/全部移除 | 重复加入被守卫拒绝；新事件登记跟随数据并出现实例；全部移除清空 |",
+      "manual_atom_ids": [
+        "WIV-EV30.1",
+        "WIV-EV30.2",
+        "WIV-EV30.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV31",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          170,
+          170
+        ]
+      },
+      "frozen_B8_text": "| EV31 | 显式传送携带跟随者：有跟随者时显式传送 | 无守卫阻止；跟随者放到玩家位置并设转移后隐藏，玩家移动时恢复 |",
+      "manual_atom_ids": [
+        "WIV-EV31.1",
+        "WIV-EV31.2",
+        "WIV-EV31.3",
+        "WIV-EV31.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV32",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          171,
+          171
+        ]
+      },
+      "frozen_B8_text": "| EV32 | trigger2、非跳跃/启动、不可越格触发、主解释器空闲，名称prefix `SiGhT(3)` suffix 或 `trainer(3)`，玩家面向距内且全沿途可过 | ASCII子串匹配、大小写不敏感，两感知入口均可启动；不是要求全名称相同 |",
+      "manual_atom_ids": [
+        "WIV-EV32.1",
+        "WIV-EV32.2",
+        "WIV-EV32.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV33",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          172,
+          172
+        ]
+      },
+      "frozen_B8_text": "| EV33 | 同EV32只改名称为 `sight（3）` 或 `trainer（3）`，无其他匹配子串 | 全角括号不命中，不因文档排版把兼容域扩大 |",
+      "manual_atom_ids": [
+        "WIV-EV33.1",
+        "WIV-EV33.2",
+        "WIV-EV33.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV34",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          173,
+          173
+        ]
+      },
+      "frozen_B8_text": "| EV34 | 名称含 `size(2,1)`，对照 `SiZe(2,1)`/`size（2,1）`；其他声明/改写无 | 前两者2×1，全角不匹配归默认1×1，DG12使用ASCII声明 |",
+      "manual_atom_ids": [
+        "WIV-EV34.1",
+        "WIV-EV34.2",
+        "WIV-EV34.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV35",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          174,
+          174
+        ]
+      },
+      "frozen_B8_text": "| EV35 | 名称 `counter(2)` 与 `counter( 2)`；前者触发守卫同EV27/28满足 | 前者仅移动完成入口可触发，转向入口不处理；内空格不匹配 |",
+      "manual_atom_ids": [
+        "WIV-EV35.1",
+        "WIV-EV35.2",
+        "WIV-EV35.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV36",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          175,
+          175
+        ]
+      },
+      "frozen_B8_text": "| EV36 | 玩家(5,3)、F1(5,4)、F2(5,5)，同图，两跟随者有效；请求入门，无插件 | 先全体快照；F1向上一格后opacity0，F2累计向上两格后opacity0。路线请求不等于已完成移动 |",
+      "manual_atom_ids": [
+        "WIV-EV36.1",
+        "WIV-EV36.2",
+        "WIV-EV36.3",
+        "WIV-EV36.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV37",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          176,
+          176
+        ]
+      },
+      "frozen_B8_text": "| EV37 | 跟随者原坐标(5,4)、opacity255、持久visible=true；调用门隐藏 | 仅opacity0；坐标/持久visible保持，不是移除跟随者 |",
+      "manual_atom_ids": [
+        "WIV-EV37.1",
+        "WIV-EV37.2",
+        "WIV-EV37.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV38",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          177,
+          177
+        ]
+      },
+      "frozen_B8_text": "| EV38 | 门出入口玩家(5,5)、跟随者有效，调用放到玩家；其后玩家开始移动 | 落到玩家、opacity255、持久x/y写回、转移隐藏真；后续玩家移动清隐藏，不能以255推定当帧可见 |",
+      "manual_atom_ids": [
+        "WIV-EV38.1",
+        "WIV-EV38.2",
+        "WIV-EV38.3",
+        "WIV-EV38.4",
+        "WIV-EV38.5",
+        "WIV-EV38.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-EV39",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          178,
+          178
+        ]
+      },
+      "frozen_B8_text": "| EV39 | 门路线包装此前through=true、waitComplete=true，命令非重复/可跳过；另给异步脚本正常返回 | 包装含through ON→请求→OFF→结束，完成后false而非恢复true；waitComplete未消费不等待；异步后WAIT0仍结束该次分派。编译另加210才能等 |",
+      "manual_atom_ids": [
+        "WIV-EV39.1",
+        "WIV-EV39.2",
+        "WIV-EV39.3",
+        "WIV-EV39.4",
+        "WIV-EV39.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          184,
+          184
+        ]
+      },
+      "frozen_B8_text": "| FW01 | 跨图跟随：玩家边缘跨图到相连地图 | 跟随者目标为领队身后格，按相对向量换图定位 |",
+      "manual_atom_ids": [
+        "WIV-FW01.1",
+        "WIV-FW01.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          185,
+          185
+        ]
+      },
+      "frozen_B8_text": "| FW02 | 同轴两格（中/落点许可）：非 through、无事件阻挡，同轴两格目标，中间格与落点均许可 | 走两步到达，不启动跳跃 |",
+      "manual_atom_ids": [
+        "WIV-FW02.1",
+        "WIV-FW02.2",
+        "WIV-FW02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          186,
+          186
+        ]
+      },
+      "frozen_B8_text": "| FW03 | 同轴两格（中不许/落点起点许可）：中间格不许可、落点与起点许可 | 尝试两格跳跃 |",
+      "manual_atom_ids": [
+        "WIV-FW03.1",
+        "WIV-FW03.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          187,
+          187
+        ]
+      },
+      "frozen_B8_text": "| FW04 | 同轴两格（中不许/起点不许）：中间格不许可、落点许可、起点不许可 | 穿透走两步 |",
+      "manual_atom_ids": [
+        "WIV-FW04.1",
+        "WIV-FW04.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          188,
+          188
+        ]
+      },
+      "frozen_B8_text": "| FW05 | 同轴两格（中/落点均不许）：中间格与落点均不许可 | 不前进 |",
+      "manual_atom_ids": [
+        "WIV-FW05.1",
+        "WIV-FW05.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          189,
+          189
+        ]
+      },
+      "frozen_B8_text": "| FW06 | 非同轴目标：目标偏移 (1,1)、非即时、地图相连 | 直接定位，不走同轴分支 |",
+      "manual_atom_ids": [
+        "WIV-FW06.1",
+        "WIV-FW06.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-FW07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          190,
+          190
+        ]
+      },
+      "frozen_B8_text": "| FW07 | 同轴三格：人工 20×20 有效地图、同图、非强制路线、非即时、无其他干扰：跟随者 (5,5)、向右领队 (9,5)、身后目标 (8,5) | 同轴相差三格不命中一格/两格分支 → 直接定位到 (8,5)（不走一格、不跳两格） |",
+      "manual_atom_ids": [
+        "WIV-FW07.1",
+        "WIV-FW07.2",
+        "WIV-FW07.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          196,
+          196
+        ]
+      },
+      "frozen_B8_text": "| IM01 | 28 空操作完整集合：126/127/128/129/133/301/302/311–313/**315–322**/331–340；对照参数 0 的 314（IM09） | 28 个均跳过无效果；**314 排除**且执行治疗，不能把 311–322 当闭区间空操作 |",
+      "manual_atom_ids": [
+        "WIV-IM01.1",
+        "WIV-IM01.2",
+        "WIV-IM01.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          197,
+          197
+        ]
+      },
+      "frozen_B8_text": "| IM02 | 未分派回退：任意不在分派表的命令代码 | 返回 true 跳过并继续（无效果） |",
+      "manual_atom_ids": [
+        "WIV-IM02.1",
+        "WIV-IM02.2",
+        "WIV-IM02.3",
+        "WIV-IM02.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          198,
+          198
+        ]
+      },
+      "frozen_B8_text": "| IM03 | 101 遇相邻 101 vs 401（对照 EV12） | 相邻 101 只改结束方式不消费文本/索引；401 为续行被消费合并 |",
+      "manual_atom_ids": [
+        "WIV-IM03.1",
+        "WIV-IM03.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          199,
+          199
+        ]
+      },
+      "frozen_B8_text": "| IM04 | 209 与 210（对照 EV13） | 209 立即继续；210 置等待标记等全部强制路线结束 |",
+      "manual_atom_ids": [
+        "WIV-IM04.1",
+        "WIV-IM04.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          200,
+          200
+        ]
+      },
+      "frozen_B8_text": "| IM05 | 203 新滚动 vs 滚动中 | 新滚动立即继续；滚动中返回 false 等待 |",
+      "manual_atom_ids": [
+        "WIV-IM05.1",
+        "WIV-IM05.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          201,
+          201
+        ]
+      },
+      "frozen_B8_text": "| IM06 | 205/206/207/223–225/232/234/236/242/246 启动效果 | 启动后立即继续（不等效果完成） |",
+      "manual_atom_ids": [
+        "WIV-IM06.1",
+        "WIV-IM06.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          202,
+          202
+        ]
+      },
+      "frozen_B8_text": "| IM07 | 105 一次推进两条（对照 EV17） | A 被跳过，从 B 继续 |",
+      "manual_atom_ids": [
+        "WIV-IM07.1",
+        "WIV-IM07.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM08",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          203,
+          203
+        ]
+      },
+      "frozen_B8_text": "| IM08 | 122 边界：除数/取余 0 或 1、乘数 1、结果超界 | 跳过对应操作；加/减先判边界再累加，结果截断 ±99,999,999 |",
+      "manual_atom_ids": [
+        "WIV-IM08.1",
+        "WIV-IM08.2",
+        "WIV-IM08.3",
+        "WIV-IM08.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM09",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          204,
+          204
+        ]
+      },
+      "frozen_B8_text": "| IM09 | 314 参数 0（对照 EV20） | 配置真 → 治疗队伍；假 → 治疗队伍及储存个体 |",
+      "manual_atom_ids": [
+        "WIV-IM09.1",
+        "WIV-IM09.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM10",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          205,
+          205
+        ]
+      },
+      "frozen_B8_text": "| IM10 | 351 调用菜单画面 | 索引＋1 并返回 false（等菜单打开/关闭后继续） |",
+      "manual_atom_ids": [
+        "WIV-IM10.1",
+        "WIV-IM10.2",
+        "WIV-IM10.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM11",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          206,
+          206
+        ]
+      },
+      "frozen_B8_text": "| IM11 | 355 合并续行与异常：355→355→655 与 SystemExit/其他异常 | 合并执行；SystemExit/Reset 原样抛出；其他按事件错误处理；普通 false 不等待 |",
+      "manual_atom_ids": [
+        "WIV-IM11.1",
+        "WIV-IM11.2",
+        "WIV-IM11.3",
+        "WIV-IM11.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM12",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          207,
+          207
+        ]
+      },
+      "frozen_B8_text": "| IM12 | 标记两族：112/118 | 循环开始/标签仅作流程标记，无运行效果 |",
+      "manual_atom_ids": [
+        "WIV-IM12.1",
+        "WIV-IM12.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM13",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          208,
+          208
+        ]
+      },
+      "frozen_B8_text": "| IM13 | 无插件/indent提供者，四命令112缩进0→101缩进1→413缩进0→0，当前来到101且无消息 | 预读413的辅助名称解析失败；本次文本未显示、消息等待未置位。未运行，不宣称宿主崩溃 |",
+      "manual_atom_ids": [
+        "WIV-IM13.1",
+        "WIV-IM13.2",
+        "WIV-IM13.3",
+        "WIV-IM13.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM14",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          209,
+          209
+        ]
+      },
+      "frozen_B8_text": "| IM14 | 合法循环结构，当前直接分派413；对照IM13预读入口 | 主分派使用正常回溯路径；该正常路径不证明101预读安全 |",
+      "manual_atom_ids": [
+        "WIV-IM14.1",
+        "WIV-IM14.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM15",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          210,
+          210
+        ]
+      },
+      "frozen_B8_text": "| IM15 | 101(A)→118标签→108/408注释→401(B)→0，无413预读故障 | 预读跨标签/注释，401文本合入A；对照EV12的相邻101仍独立 |",
+      "manual_atom_ids": [
+        "WIV-IM15.1",
+        "WIV-IM15.2",
+        "WIV-IM15.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM16",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          211,
+          211
+        ]
+      },
+      "frozen_B8_text": "| IM16 | 111脚本条件原值nil，Then设置开关A，Else设置B，初始都OFF，无其他写入/异常 | Then和Else都跳过，A/B都OFF；不把nil归成false |",
+      "manual_atom_ids": [
+        "WIV-IM16.1",
+        "WIV-IM16.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM17",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          212,
+          212
+        ]
+      },
+      "frozen_B8_text": "| IM17 | 同IM16仅条件原值false | Then跳过、Else执行，A OFF/B ON |",
+      "manual_atom_ids": [
+        "WIV-IM17.1",
+        "WIV-IM17.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM18",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          213,
+          213
+        ]
+      },
+      "frozen_B8_text": "| IM18 | 同IM16仅原值为真值（true或整数0），求值正常 | Then执行、Else跳过，A ON/B OFF；0在该条件域为真值 |",
+      "manual_atom_ids": [
+        "WIV-IM18.1",
+        "WIV-IM18.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM19",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          214,
+          214
+        ]
+      },
+      "frozen_B8_text": "| IM19 | 事件106参数20，单调起点T；后接开关，统计游戏时间可停 | T+0.999机会仍等待；T+1或之后获更新继续，单位1/20秒，游戏时间停不延长此等待 |",
+      "manual_atom_ids": [
+        "WIV-IM19.1",
+        "WIV-IM19.2",
+        "WIV-IM19.3",
+        "WIV-IM19.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM20",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          215,
+          215
+        ]
+      },
+      "frozen_B8_text": "| IM20 | 同IM19参数0/1 | 0不引入正等待时长；1阈值0.05秒。均不承诺按固定帧数到达；路线15的0另仍结束本帧 |",
+      "manual_atom_ids": [
+        "WIV-IM20.1",
+        "WIV-IM20.2",
+        "WIV-IM20.3",
+        "WIV-IM20.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM21",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          216,
+          216
+        ]
+      },
+      "frozen_B8_text": "| IM21 | 同缩进选项组A/B结束后紧接选项C，三个组边界有效；各取消0，无改名隐藏 | 合并为A/B/C；C原分支0偏移为2，取消0不覆盖原设置。插其他命令或改缩进则不合并 |",
+      "manual_atom_ids": [
+        "WIV-IM21.1",
+        "WIV-IM21.2",
+        "WIV-IM21.3",
+        "WIV-IM21.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM22",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          217,
+          217
+        ]
+      },
+      "frozen_B8_text": "| IM22 | 前组A/B，后组C、取消类型5，满足IM21合并边界 | 合并总数3，取消参数转4；返回取消零基3走403，不指向C(2) |",
+      "manual_atom_ids": [
+        "WIV-IM22.1",
+        "WIV-IM22.2",
+        "WIV-IM22.3",
+        "WIV-IM22.4",
+        "WIV-IM22.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM23",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          218,
+          218
+        ]
+      },
+      "frozen_B8_text": "| IM23 | 同IM22但后组取消类型1，前组长度2 | 取消类型转3，零基目标2为C的402；不是403。后组取消0时不覆盖前组取消设置 |",
+      "manual_atom_ids": [
+        "WIV-IM23.1",
+        "WIV-IM23.2",
+        "WIV-IM23.3",
+        "WIV-IM23.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM24",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          219,
+          219
+        ]
+      },
+      "frozen_B8_text": "| IM24 | 合并原A/B/C，对原一基1隐藏，对原一基2改名D，正常选择首个可见项 | 显示D/C；可见索引0映射原分支1(B)，不跑A。改名后文本作翻译；本次配置消费清空 |",
+      "manual_atom_ids": [
+        "WIV-IM24.1",
+        "WIV-IM24.2",
+        "WIV-IM24.3",
+        "WIV-IM24.4",
+        "WIV-IM24.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM25",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          220,
+          220
+        ]
+      },
+      "frozen_B8_text": "| IM25 | IM24后另一次独立组选项A/B/C，无新改名隐藏输入 | 仍显示A/B/C，不继承隐藏/改名；同样适用101合入选项 |",
+      "manual_atom_ids": [
+        "WIV-IM25.1",
+        "WIV-IM25.2",
+        "WIV-IM25.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM26",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          221,
+          221
+        ]
+      },
+      "frozen_B8_text": "| IM26 | 事件251分别携带旧参数空名/A/B；已有音效状态相同 | 三者都同一无名停止请求，参数不消费。宿主多通道结果未知，不能静态宣称指定A停而B保留 |",
+      "manual_atom_ids": [
+        "WIV-IM26.1",
+        "WIV-IM26.2",
+        "WIV-IM26.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM27",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          222,
+          222
+        ]
+      },
+      "frozen_B8_text": "| IM27 | 205/206/223/234各单独有效对象并持续更新，原游戏时间0开始0→100、时长40；时间0.5插零时长200，图片名非空 | 调用即200；旧初值/目标/起点保持，时间1更新回50、时间2回100。四入口分别成立，不擅自取消旧任务 |",
+      "manual_atom_ids": [
+        "WIV-IM27.1",
+        "WIV-IM27.2",
+        "WIV-IM27.3",
+        "WIV-IM27.4",
+        "WIV-IM27.5",
+        "WIV-IM27.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM28",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          223,
+          223
+        ]
+      },
+      "frozen_B8_text": "| IM28 | 同IM27但无任何旧过渡任务 | 零时长后200保持，不自发回旧目标；这是旧任务前提的反向对照 |",
+      "manual_atom_ids": [
+        "WIV-IM28.1",
+        "WIV-IM28.2",
+        "WIV-IM28.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM29",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          224,
+          224
+        ]
+      },
+      "frozen_B8_text": "| IM29 | 图片移动/色调或画面/雾色调正过渡已启动，游戏累计时间停、单调时间前进；旋转速度非零 | 游戏时间过渡不按单调时间推进，旋转仍按单调时间；不与106计时混用 |",
+      "manual_atom_ids": [
+        "WIV-IM29.1",
+        "WIV-IM29.2",
+        "WIV-IM29.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM30",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          225,
+          225
+        ]
+      },
+      "frozen_B8_text": "| IM30 | 图片232参数20、原点改中心、缩放100→200、opacity100→200，游戏时间已过0.5秒后获更新 | 原点/混合在调用时立即改；时长1秒中点缩放150/opacity150；另给位置0→100、时长1，在游戏时间0.025为50、0.05或以后为100。显示百分比150为1.5倍；不等待再执行下一命令 |",
+      "manual_atom_ids": [
+        "WIV-IM30.1",
+        "WIV-IM30.2",
+        "WIV-IM30.3",
+        "WIV-IM30.4",
+        "WIV-IM30.5",
+        "WIV-IM30.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM31",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          226,
+          226
+        ]
+      },
+      "frozen_B8_text": "| IM31 | 已显示图片角度0，233速度1，单调时间1秒，无其他写入、更新获准；再速度0 | 角度20度；同初值速度−1过1秒为340度；速度0停止且保留当前角度，非直接设角1。跨360归[0,360) |",
+      "manual_atom_ids": [
+        "WIV-IM31.1",
+        "WIV-IM31.2",
+        "WIV-IM31.3",
+        "WIV-IM31.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM32",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          227,
+          227
+        ]
+      },
+      "frozen_B8_text": "| IM32 | 已显示图有运动/色调/旋转状态，235删除后持续对象更新，无新显示 | 只清名，其余状态未清；无名更新返回，不能推成全部任务被取消或新建默认对象 |",
+      "manual_atom_ids": [
+        "WIV-IM32.1",
+        "WIV-IM32.2",
+        "WIV-IM32.3",
+        "WIV-IM32.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM33",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          228,
+          228
+        ]
+      },
+      "frozen_B8_text": "| IM33 | 124启动65秒、游戏时间起点0；时间0和1查询，再在时间1重新启动10秒 | 起点0有效，先为65/64；重新启动后为10，起点重置。格式01:05等显示合同交WP16，不作为本批显示验证 |",
+      "manual_atom_ids": [
+        "WIV-IM33.1",
+        "WIV-IM33.2",
+        "WIV-IM33.3",
+        "WIV-IM33.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM34",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          229,
+          229
+        ]
+      },
+      "frozen_B8_text": "| IM34 | 124启动1秒、游戏时间经过2秒，再停止；对照无统计对象 | 业务剩余−1不钳0；停止清起点查询0、保留此前初始秒数；无统计对象查询0 |",
+      "manual_atom_ids": [
+        "WIV-IM34.1",
+        "WIV-IM34.2",
+        "WIV-IM34.3",
+        "WIV-IM34.4",
+        "WIV-IM34.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM35",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          230,
+          230
+        ]
+      },
+      "frozen_B8_text": "| IM35 | 图片已有移动时钟/色调/旋转，调用231正常显示新参数，战斗态另取同原编号 | 当前/目标设新值、移动duration0但旧移动起点未清，色调及其时钟清、角度与速度0；战斗用编号+50独立槽，不把显示初始化说成全字段清空 |",
+      "manual_atom_ids": [
+        "WIV-IM35.1",
+        "WIV-IM35.2",
+        "WIV-IM35.3",
+        "WIV-IM35.4",
+        "WIV-IM35.5",
+        "WIV-IM35.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM36",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          231,
+          231
+        ]
+      },
+      "frozen_B8_text": "| IM36 | 无插件/异常/其他写入、进入102前无消息等待；缩进0首102含[A]取消0，合法402(A)及404后紧接同缩进102含[B,C,D]取消1、合法402(B/C/D)及404，再代码0结束；各分支体缩进1的121只将本分支开关设ON，四开关初始OFF；一次性隐藏原一基1(A)，无改名，显示后仅BACK取消 | 合并原分支A0/B1/C2/D3，取消参数2；可见B/C/D映射[1,2,3]，BACK原始返回1再映射原2；只C开关ON，A/B/D仍OFF，不进入B或取消分支；配置已清空，静态未执行 |",
+      "manual_atom_ids": [
+        "WIV-IM36.1",
+        "WIV-IM36.2",
+        "WIV-IM36.3",
+        "WIV-IM36.4",
+        "WIV-IM36.5",
+        "WIV-IM36.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM37",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          232,
+          232
+        ]
+      },
+      "frozen_B8_text": "| IM37 | 同IM36完整合法列表及输入，仅不设置隐藏/改名 | 可见A/B/C/D为身份映射[0,1,2,3]，BACK原始返回1映射原1；只B开关ON。未隐藏的指定参数取消结果保留 |",
+      "manual_atom_ids": [
+        "WIV-IM37.1",
+        "WIV-IM37.2",
+        "WIV-IM37.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM38",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          233,
+          233
+        ]
+      },
+      "frozen_B8_text": "| IM38 | 同IM36，隐藏A保留，仅改为正常确认首个可见B，不按BACK | 可见原始返回0映射原1，只B开关ON；普通确认隐藏映射保留，与取消原始返回1→C分别列出 |",
+      "manual_atom_ids": [
+        "WIV-IM38.1",
+        "WIV-IM38.2",
+        "WIV-IM38.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM39",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          234,
+          234
+        ]
+      },
+      "frozen_B8_text": "| IM39 | IM36的合法两组选项紧接合法101文本、可被其预读合入，无循环/名称解析故障，配置/开关/显示后的BACK输入同IM36 | 101消息合入走同一返回映射：取消参数2、原始返回1、可见映射[1,2,3]得到原2，只C开关ON；不因入口换为消息而回B |",
+      "manual_atom_ids": [
+        "WIV-IM39.1",
+        "WIV-IM39.2",
+        "WIV-IM39.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM40",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          235,
+          235
+        ]
+      },
+      "frozen_B8_text": "| IM40 | 同IM36，但后组取消类型5，增合法缩进0的403取消分支，其缩进1的121只将取消开关设ON，该开关也初始OFF；隐藏A与BACK保留 | 合并总选项数4、取消参数5，BACK原始返回4；可见映射[1,2,3]无位置4条目，保留原4进入403；只取消开关ON，A/B/C/D仍OFF；缺条目回退不强行钳到可见项 |",
+      "manual_atom_ids": [
+        "WIV-IM40.1",
+        "WIV-IM40.2",
+        "WIV-IM40.3",
+        "WIV-IM40.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-IM41",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          236,
+          236
+        ]
+      },
+      "frozen_B8_text": "| IM41 | IM36选择已返回且该组选项结束，另一次独立调用合法102含[A,B,C,D]，正常上下文、各402/404与分支体合法，取消0；四开关重置OFF，无新的隐藏/改名/其他写入，不与前组邻接合并，正常确认首个可见项 | 本次可见A/B/C/D、映射[0,1,2,3]，原始返回0进入A，只A开关ON；前组经BACK返回也不遗留一次性隐藏，正常独立组不回归 |",
+      "manual_atom_ids": [
+        "WIV-IM41.1",
+        "WIV-IM41.2",
+        "WIV-IM41.3",
+        "WIV-IM41.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          242,
+          242
+        ]
+      },
+      "frozen_B8_text": "| MR01 | 不可跳过路线：普通事件受阻：非可跳过路线、普通非玩家事件、下一命令为移动、目标不可通行（未进入运动状态） | 路线索引停留，下帧重试同一移动命令 |",
+      "manual_atom_ids": [
+        "WIV-MR01.1",
+        "WIV-MR01.2",
+        "WIV-MR01.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          243,
+          243
+        ]
+      },
+      "frozen_B8_text": "| MR02 | 不可跳过路线：玩家撞墙：非可跳过玩家路线、移动失败且无事件触碰成功（碰撞置移动计时） | 移动中为真 → 即使坐标不变，路线索引仍推进到下一条 |",
+      "manual_atom_ids": [
+        "WIV-MR02.1",
+        "WIV-MR02.2",
+        "WIV-MR02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          244,
+          244
+        ]
+      },
+      "frozen_B8_text": "| MR03 | 可跳过路线被阻挡：可跳过路线，目标不可通行 | 路线索引推进到下一条（跳过被阻挡的移动） |",
+      "manual_atom_ids": [
+        "WIV-MR03.1",
+        "WIV-MR03.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          245,
+          245
+        ]
+      },
+      "frozen_B8_text": "| MR04 | 空强制路线：设置仅含终止项（size ≤ 1）的强制路线，随后等待移动完成 | 路线分派在代码 0 之前返回：强制标记不清除、原路线不恢复；无外部改变时等待可持续阻塞 |",
+      "manual_atom_ids": [
+        "WIV-MR04.1",
+        "WIV-MR04.2",
+        "WIV-MR04.3",
+        "WIV-MR04.4",
+        "WIV-MR04.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          246,
+          246
+        ]
+      },
+      "frozen_B8_text": "| MR05 | 强制路线结束：强制路线执行到代码 0 且非重复 | 恢复被接管前的原路线与索引，清除强制标记 |",
+      "manual_atom_ids": [
+        "WIV-MR05.1",
+        "WIV-MR05.2",
+        "WIV-MR05.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          247,
+          247
+        ]
+      },
+      "frozen_B8_text": "| MR06 | 重复路线：路线 repeat＝true，执行到代码 0 | 索引归 0，从头继续 |",
+      "manual_atom_ids": [
+        "WIV-MR06.1",
+        "WIV-MR06.2",
+        "WIV-MR06.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          248,
+          248
+        ]
+      },
+      "frozen_B8_text": "| MR07 | 同帧多条状态命令：路线为 27（开关 ON）→ 29（速度）→ 1（移动） | 同一帧依次执行开关与速度，遇移动命令后本帧结束 |",
+      "manual_atom_ids": [
+        "WIV-MR07.1",
+        "WIV-MR07.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR08",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          249,
+          249
+        ]
+      },
+      "frozen_B8_text": "| MR08 | 45 正常求值，原串某行行首分别为 `move_random_range`、`move_random_UD`、`move_random_LR`；另接路线 27 | 三种大小写准确前缀都索引＋1、本帧结束，27 下次机会执行；前加空白/接收者等非匹配对照见 MR13–MR15 |",
+      "manual_atom_ids": [
+        "WIV-MR08.1",
+        "WIV-MR08.2",
+        "WIV-MR08.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR09",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          250,
+          250
+        ]
+      },
+      "frozen_B8_text": "| MR09 | 209 与 210 配合：事件命令 209 设强制路线 → 210 | 209 立即继续；210 使解释器等待全部强制路线结束（含本路线执行到 0 恢复） |",
+      "manual_atom_ids": [
+        "WIV-MR09.1",
+        "WIV-MR09.2",
+        "WIV-MR09.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR10",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          251,
+          251
+        ]
+      },
+      "frozen_B8_text": "| MR10 | 45原串 `move_random_range(2)` 在有效上下文正常返回，后接27 | 匹配准确行首前缀，索引推进、本帧结束；不要求移动成功 |",
+      "manual_atom_ids": [
+        "WIV-MR10.1",
+        "WIV-MR10.2",
+        "WIV-MR10.3",
+        "WIV-MR10.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR11",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          252,
+          252
+        ]
+      },
+      "frozen_B8_text": "| MR11 | 45原串 `move_random_UD`，方法与上下文有效、正常返回，后接27 | 匹配UD准确大小写，推进并结束本帧，27下次机会才到 |",
+      "manual_atom_ids": [
+        "WIV-MR11.1",
+        "WIV-MR11.2",
+        "WIV-MR11.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR12",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          253,
+          253
+        ]
+      },
+      "frozen_B8_text": "| MR12 | 45原串 `move_random_LR`，其他同MR11 | 匹配LR准确大小写，推进并结束本帧 |",
+      "manual_atom_ids": [
+        "WIV-MR12.1",
+        "WIV-MR12.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR13",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          254,
+          254
+        ]
+      },
+      "frozen_B8_text": "| MR13 | 同MR10但原串前加一个ASCII空格、无其他行首匹配、仍正常求值 | 不匹配行首前缀，推进后同帧执行27；语义等价不足以决定帧边界 |",
+      "manual_atom_ids": [
+        "WIV-MR13.1",
+        "WIV-MR13.2",
+        "WIV-MR13.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR14",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          255,
+          255
+        ]
+      },
+      "frozen_B8_text": "| MR14 | 原串 `self.move_random_range(2)`，上下文允许此调用并正常返回，无其他行首匹配 | 不匹配无接收者行首前缀，同帧继续；只判求值正常的限定，不保证全部接收者调用有效 |",
+      "manual_atom_ids": [
+        "WIV-MR14.1",
+        "WIV-MR14.2",
+        "WIV-MR14.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR15",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          256,
+          256
+        ]
+      },
+      "frozen_B8_text": "| MR15 | 45原串 `move_random_range_extra = 1`，局部赋值合法正常返回、后接27 | 字面前缀仍匹配，推进且结束本帧；它不执行随机移动，证明不是方法名/语义识别 |",
+      "manual_atom_ids": [
+        "WIV-MR15.1",
+        "WIV-MR15.2",
+        "WIV-MR15.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR16",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          257,
+          257
+        ]
+      },
+      "frozen_B8_text": "| MR16 | 45求值阶段必遇未定义名称，无外部提供者；即使原串有三前缀之一 | 失败先于字面检查与索引推进，不把匹配写成总能前进。调用层最终表现未运行 |",
+      "manual_atom_ids": [
+        "WIV-MR16.1",
+        "WIV-MR16.2",
+        "WIV-MR16.3",
+        "WIV-MR16.4",
+        "WIV-MR16.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR17",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          258,
+          258
+        ]
+      },
+      "frozen_B8_text": "| MR17 | 路线15参数分别0/1/20，单调起点T，下一项27；角色持续正常更新 | 15都推进并结束当前帧；0无正等待但不当次跑27，1/20分别阈值0.05/1秒后更新机会继续 |",
+      "manual_atom_ids": [
+        "WIV-MR17.1",
+        "WIV-MR17.2",
+        "WIV-MR17.3",
+        "WIV-MR17.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR18",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          260,
+          260
+        ]
+      },
+      "frozen_B8_text": "| MR18 | 45原串为两行：第一行局部赋值 x = 1；第二行局部赋值 move_random_range_extra = 1；文本合法且整个求值正常返回，后接27 | 第二行行首匹配；本条索引＋1并结束当前帧，27下次机会执行。第一行不匹配不排除后续行；只是静态文本前提设计，未执行 |",
+      "manual_atom_ids": [
+        "WIV-MR18.1",
+        "WIV-MR18.2",
+        "WIV-MR18.3",
+        "WIV-MR18.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR19",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          261,
+          261
+        ]
+      },
+      "frozen_B8_text": "| MR19 | 同MR18但第二行前加一个ASCII空格；原串没有其它行首匹配，整个求值仍正常返回 | 该行不匹配；本条推进后同帧执行27。空白不影响正常求值这一给定前提，却改变字面结束帧门；未执行 |",
+      "manual_atom_ids": [
+        "WIV-MR19.1",
+        "WIV-MR19.2",
+        "WIV-MR19.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR20",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          262,
+          262
+        ]
+      },
+      "frozen_B8_text": "| MR20 | 两行原串第一行普通赋值，第二行 self.move_random_range(2)；给定上下文使整个求值正常返回，无其它行首匹配，后接27 | 第二行有接收者前缀，不匹配；本条推进后同帧执行27。不保证任意上下文都能求值；未执行 |",
+      "manual_atom_ids": [
+        "WIV-MR20.1",
+        "WIV-MR20.2",
+        "WIV-MR20.3",
+        "WIV-MR20.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR21",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          263,
+          263
+        ]
+      },
+      "frozen_B8_text": "| MR21 | 多行正常返回原串，前面各行含空白或接收者但不匹配，最后一行从 move_random_UD_extra = 1 或 move_random_LR_extra = 1 字面开始，后接27 | 后一行的准确前缀仍匹配，索引＋1并结束当前帧；长后缀赋值不是随机移动，三前缀身份与任一行门独立于语义；未执行 |",
+      "manual_atom_ids": [
+        "WIV-MR21.1",
+        "WIV-MR21.2",
+        "WIV-MR21.3",
+        "WIV-MR21.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-MR22",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          264,
+          264
+        ]
+      },
+      "frozen_B8_text": "| MR22 | 多行原串一行会因未定义名称失败，另一行行首带三个准确前缀之一；无外部提供者，后接27 | 整体求值失败发生在前缀判定和索引推进之前，不执行27；不能把存在匹配文本当成功求值。调用层呈现未验证；未执行 |",
+      "manual_atom_ids": [
+        "WIV-MR22.1",
+        "WIV-MR22.2",
+        "WIV-MR22.3",
+        "WIV-MR22.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          483,
+          483
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS01 | 正常系统更新；事件7原锁定且解释器有跟随覆盖 | 按B/7写持久A真并请求刷新→清解释器列表/结束跟随覆盖/有效主事件解锁→请求事件7待启动；不从原索引续跑，不同步宣布A页已执行 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS01.1",
+        "WIV-GR3-CS01.2",
+        "WIV-GR3-CS01.3",
+        "WIV-GR3-CS01.4",
+        "WIV-GR3-CS01.5",
+        "WIV-GR3-CS01.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          484,
+          484
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS02 | 同公共夹具，但持久A原已真且刷新标记初假 | 仍结束并请求启动，A保持真；不因值变化请求新刷新，不能说“不跳过” | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS02.1",
+        "WIV-GR3-CS02.2",
+        "WIV-GR3-CS02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          485,
+          485
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS03 | 代码408注释独立文本Cut Scene，后续参数给空串；其他同公共夹具 | 408与108都可命中，数组存在即可通过，不要求下一参数非空或代码为某一类 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS03.1",
+        "WIV-GR3-CS03.2",
+        "WIV-GR3-CS03.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          486,
+          486
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS04 | 独立给注释cut scene、Cut Scene尾空格、前后附文、两注释分别Cut和Scene、非108/408正文同文本 | 均不形成严格匹配，无本跳过链写A/结束/重启；不 trim、不忽略大小写、不拼接注释 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS04.1",
+        "WIV-GR3-CS04.2",
+        "WIV-GR3-CS04.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          487,
+          487
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS05 | 无SPECIAL触发；另独立主解释器未运行（列表空值），事件注释仍合法 | 各门不成立，无本跳过链；末端快捷是否可登记按WP12实际门另判 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS05.1",
+        "WIV-GR3-CS05.2",
+        "WIV-GR3-CS05.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          488,
+          488
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS06 | 当前事件7缺失；另给地图失联后解释器事件ID归0且当前无该事件，旧命令列表仍有效 | 注释上下文返回空值，不写A/结束/重启；失联本身不清旧列表，合法全局命令仍可继续 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS06.1",
+        "WIV-GR3-CS06.2",
+        "WIV-GR3-CS06.3",
+        "WIV-GR3-CS06.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          489,
+          489
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS07 | 事件命令列表空值/不是数组；对照合法数组中注释末端且之前还有正文（长度至少2），无后续项 | 前者无匹配；后者返回空数组仍通过：写A→结束→待启动。空数组不等于空值 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS07.1",
+        "WIV-GR3-CS07.2",
+        "WIV-GR3-CS07.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS08",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          490,
+          490
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS08 | 主解释器列表非空值；当前事件列表仅一项108 Cut Scene，匹配后无项 | 返回空数组，仍写A并结束；启动长度门>1不成立，不新设待启动。不能要求匹配后数组非空，也不能保证所有匹配列表重启 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS08.1",
+        "WIV-GR3-CS08.2",
+        "WIV-GR3-CS08.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS09",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          491,
+          491
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS09 | CS01之后下次刷新；另给满足A的新页且非自动运行、页变化清启动；对照页未变且待启动保留 | 先请求刷新/启动事实保留；页变清启动，不保证立即执行新A页。页未变且启动保留时按公共事件优先等启动选择门才可再次执行，未证Demo页结果 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS09.1",
+        "WIV-GR3-CS09.2",
+        "WIV-GR3-CS09.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS10",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          492,
+          492
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS10 | 系统更新写A/刷新后，条件性结束动作发生异常；另给结束已完成后启动动作异常 | 前者A与刷新前缀保留、不保证列表已清；后者A及已完成结束前缀保留、不保证启动标记；均不保证回滚或宿主恢复 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS10.1",
+        "WIV-GR3-CS10.2",
+        "WIV-GR3-CS10.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS11",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          493,
+          493
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS11 | 正常主循环到系统更新时解释器运行；跳过结束后消息未显示、无冰滑/上下瀑、玩家静止、无USE/ACTION与已有较高优先调用，本次SPECIAL仍可检测 | 系统先跳过；末端此时解释器未运行，仍可登记并消费快捷，不能宣称输入独占或解释器运行门禁止跳过 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS11.1",
+        "WIV-GR3-CS11.2",
+        "WIV-GR3-CS11.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS12",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          494,
+          494
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS12 | 同CS11但消息仍显示；另玩家移动/冰滑；再独立给USE先触发或已有菜单/调试待消费 | 消息阻止末端两阶段，移动/冰滑各按实际门；USE先匹配挡本次SPECIAL新登记，已排队菜单/调试消费优先。系统跳过事实仍按其门成立，不宣布快捷必打开 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS12.1",
+        "WIV-GR3-CS12.2",
+        "WIV-GR3-CS12.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR3-CS13",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          495,
+          495
+        ]
+      },
+      "frozen_B8_text": "| GR3-CS13 | 迷你更新获得系统更新且公共夹具门成立 | 同样写A→结束→请求启动；迷你没有地图末端快捷登记/消费，不将正常末端动作移入迷你 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR3-CS13.1",
+        "WIV-GR3-CS13.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          523,
+          523
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM01 | 公共夹具，横2/纵0 | 候选仅左，抽取一次、尝试至(6,5)，成功后向左；不选右至(8,5)或纵移 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM01.1",
+        "WIV-GR4-RM01.2",
+        "WIV-GR4-RM01.3",
+        "WIV-GR4-RM01.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          524,
+          524
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM02 | 同RM01，横0/纵0 | 空候选：不抽随机数、不尝试移动，(7,5)/朝向下保持 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM02.1",
+        "WIV-GR4-RM02.2",
+        "WIV-GR4-RM02.3",
+        "WIV-GR4-RM02.4",
+        "WIV-GR4-RM02.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          525,
+          525
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM03 | 同RM01，仅(6,5)有非through阻挡事件 | 仍候选仅左且抽一次；尝试被拒，不重抽/改试，坐标(7,5)、朝向下保持；不预转向沿WP12 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM03.1",
+        "WIV-GR4-RM03.2",
+        "WIV-GR4-RM03.3",
+        "WIV-GR4-RM03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          526,
+          526
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM04 | 同一实例先由事件落位至有效(10,5)，再横2/纵0 | 原始仍(5,5)，候选仅左；一步成功到(9,5)，不钳回(7,5)，不以(10,5)重设中心 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM04.1",
+        "WIV-GR4-RM04.2",
+        "WIV-GR4-RM04.3",
+        "WIV-GR4-RM04.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          527,
+          527
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM05 | 当前改(5,5)，横2/纵0 | 保留[左,右]，各1/2；固定索引0/1分别到(4,5)/(6,5) | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM05.1",
+        "WIV-GR4-RM05.2",
+        "WIV-GR4-RM05.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          528,
+          528
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM06 | 当前(10,5)，横−1/纵0；对照横−2 | 负横均保留[左,右]，各1/2，无原始横界；不因当前位置越原横2边界去掉右 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM06.1",
+        "WIV-GR4-RM06.2",
+        "WIV-GR4-RM06.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          529,
+          529
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM07 | 当前(5,10)，横0/纵−1；纵向单轴省略范围对照 | 两者均保留[下,上]，各1/2，横轴禁用；不是普通四向 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM07.1",
+        "WIV-GR4-RM07.2",
+        "WIV-GR4-RM07.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM08",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          530,
+          530
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM08 | 当前(5,7)/横0纵2，再当前(5,3)/横0纵2 | 下界y₀+2处仅上至(5,6)；上界y₀−2处仅下至(5,4)；严格比较排除朝外方向 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM08.1",
+        "WIV-GR4-RM08.2",
+        "WIV-GR4-RM08.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM09",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          531,
+          531
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM09 | 当前(3,5)，横2/纵0；再同位置横向单轴范围2 | 两者均仅右至(4,5)，左界严格比较排除左；纵轴禁用 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM09.1",
+        "WIV-GR4-RM09.2",
+        "WIV-GR4-RM09.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM10",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          532,
+          532
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM10 | 当前(5,5)，横2/纵2，固定抽样索引分别0/1/2/3；再方向固定真且初始向下 | 保留[左,右,下,上]，各1/4，分别到(4,5)/(6,5)/(5,6)/(5,4)；方向固定对照中位移同规则、朝向仍下。省略两范围亦四候选，但依固定R该序解释索引，不套普通随机的索引顺序 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM10.1",
+        "WIV-GR4-RM10.2",
+        "WIV-GR4-RM10.3",
+        "WIV-GR4-RM10.4",
+        "WIV-GR4-RM10.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM11",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          533,
+          533
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM11 | 静止且获得路线更新，不可跳过路线45：无前缀空白的范围调用横0纵0或RM03受阻状态，正常求值，后接27开关ON及终止项；对照同RM03的路线9固定抽中左 | 空候选/受阻仍索引＋1并结束本次路线处理，27留待下次机会；路线9普通随机抽中左受阻且未运动时不可跳过索引停留（MR01），不是同推进门 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM11.1",
+        "WIV-GR4-RM11.2",
+        "WIV-GR4-RM11.3",
+        "WIV-GR4-RM11.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-RM12",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          534,
+          534
+        ]
+      },
+      "frozen_B8_text": "| GR4-RM12 | 同RM11空候选状态，仅把原串调用前加ASCII空格或有效接收者前缀，无其它匹配行且整个求值正常返回 | 范围行为仍无随机/移动，但字面不匹配，45推进后同次可到27；长后缀赋值虽匹配但无移动仍沿MR15/21，语义与调度分列 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-RM12.1",
+        "WIV-GR4-RM12.2",
+        "WIV-GR4-RM12.3",
+        "WIV-GR4-RM12.4",
+        "WIV-GR4-RM12.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          556,
+          556
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER01 | 公共夹具，B中实例7存在，执行一次主解释器更新 | 先消去/刷新实例7，再登记(B,7)真；索引i+1、本轮停止、开关仍OFF。该false是让出；下一更新机会且门仍放行才尝试开关，非同次连跑 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER01.1",
+        "WIV-GR4-ER01.2",
+        "WIV-GR4-ER01.3",
+        "WIV-GR4-ER01.4",
+        "WIV-GR4-ER01.5",
+        "WIV-GR4-ER01.6"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          557,
+          557
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER02 | 同ER01，仅B中缺实例7，解释器仍正ID7 | 安全跳过实例消去，但登记(B,7)真；索引i+1、本轮停止、开关OFF，后条下一更新机会才尝试；不套脚本辅助缺实例不登记门 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER02.1",
+        "WIV-GR4-ER02.2",
+        "WIV-GR4-ER02.3",
+        "WIV-GR4-ER02.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          558,
+          558
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER03 | 同公共夹具仅解释器事件ID0，列表及开关仍有效 | 不消去任何实例、不登记；仍索引i+1、本轮停止、开关OFF，后条下一更新机会可尝试 | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER03.1",
+        "WIV-GR4-ER03.2",
+        "WIV-GR4-ER03.3",
+        "WIV-GR4-ER03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          559,
+          559
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER04 | 正ID7、实例分别存在/缺失，局部记录对象改为空值 | 存在时仍消去/刷新，缺失时安全跳过；两者跳过登记，无记录访问失败；均推进一项并停止本轮、开关OFF | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER04.1",
+        "WIV-GR4-ER04.2",
+        "WIV-GR4-ER04.3",
+        "WIV-GR4-ER04.4",
+        "WIV-GR4-ER04.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          560,
+          560
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER05 | B中实例7存在，消去表空，直接普通实例消去（不执行116） | 只消去/刷新实例，表仍空；不由实例消去推得116的登记/索引结果（GR3-MR12正常对照） | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER05.1",
+        "WIV-GR4-ER05.2",
+        "WIV-GR4-ER05.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          561,
+          561
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER06 | B中实例7存在/缺失，记录对象存在表空，分别调用记录式脚本辅助（不执行116）；另实例存在但记录对象空 | 存在且记录对象存在才消去/刷新并登记(B,7)；缺实例两者都跳过；存在但无记录对象只消去/刷新。其调用推进沿既有入口合同，不套116 false让出（GR3-MR12） | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER06.1",
+        "WIV-GR4-ER06.2",
+        "WIV-GR4-ER06.3",
+        "WIV-GR4-ER06.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-GR4-ER07",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          562,
+          562
+        ]
+      },
+      "frozen_B8_text": "| GR4-ER07 | ER02本轮结束后，到下一主解释器更新前明确置消息等待；再清等待并更新，无其它改变 | 等待中开关仍OFF、索引i+1保持；清等待后的更新机会才执行开关ON。116不提供“下一渲染帧必执行”保证，也不撤销已登记(B,7) | NOT_EXECUTED |",
+      "manual_atom_ids": [
+        "WIV-GR4-ER07.1",
+        "WIV-GR4-ER07.2",
+        "WIV-GR4-ER07.3",
+        "WIV-GR4-ER07.4",
+        "WIV-GR4-ER07.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-EV01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          615,
+          615
+        ]
+      },
+      "frozen_B8_text": "| R5-EV01 | 有效普通事件、无插件/异常/其它写入，观察调用返回且无后续动画；原方向下、当前右。 另有效页或路线41方向参数下 | 相同原始方向：当前仍右，原始仍下、预锁保持。 |",
+      "manual_atom_ids": [
+        "WIV-R5-EV01.1",
+        "WIV-R5-EV01.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-EV02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          616,
+          616
+        ]
+      },
+      "frozen_B8_text": "| R5-EV02 | 有效普通事件、无插件/异常/其它写入，观察调用返回且无后续动画；原方向下、当前右。方向固定真也作独立对照。 另有效页/41参数上 | 当前与原始均上、预锁清0；直接写入不受方向固定阻止。 |",
+      "manual_atom_ids": [
+        "WIV-R5-EV02.1",
+        "WIV-R5-EV02.2",
+        "WIV-R5-EV02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-EV03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          617,
+          617
+        ]
+      },
+      "frozen_B8_text": "| R5-EV03 | 原始图案0、当前2；分别新参数0/1，无后续动画。 有效换页/41返回 | 参数0保留当前2；参数1当前/原始均1，方向门独立。 |",
+      "manual_atom_ids": [
+        "WIV-R5-EV03.1",
+        "WIV-R5-EV03.2",
+        "WIV-R5-EV03.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-EV04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          618,
+          618
+        ]
+      },
+      "frozen_B8_text": "| R5-EV04 | 当前页P，分别重选P、选另一有效页、无满足页。 刷新 | 同页早退；另一有效页按各原始门；无页不套有效页赋值，清图/列表分支保持。 |",
+      "manual_atom_ids": [
+        "WIV-R5-EV04.1",
+        "WIV-R5-EV04.2",
+        "WIV-R5-EV04.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ID01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          619,
+          619
+        ]
+      },
+      "frozen_B8_text": "| R5-ID01 | A/B均驻留且相连判定真，B稳定当前图宽高>8，A/7并行绑定A并有更新机会；无等待/转移/额外改写，B有不同事件7。 A/7执行202本事件落(8,8)，再写私有值 | 202改B/7，A/7位置不变；私有值写A/7。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ID01.1",
+        "WIV-R5-ID01.2",
+        "WIV-R5-ID01.3",
+        "WIV-R5-ID01.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ID02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          620,
+          620
+        ]
+      },
+      "frozen_B8_text": "| R5-ID02 | A/B均驻留且相连判定真，B稳定当前图宽高>8，A/7并行绑定A并有更新机会；无等待/转移/额外改写，B有不同事件7。 分别111自开关/123、缺省脚本自开关 | 111/123当前B/7；缺省脚本自开关A/7。同图对照这些键一致。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ID02.1",
+        "WIV-R5-ID02.2",
+        "WIV-R5-ID02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ID03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          621,
+          621
+        ]
+      },
+      "frozen_B8_text": "| R5-ID03 | A/B均驻留且相连判定真，B稳定当前图宽高>8，A/7并行绑定A并有更新机会；无等待/转移/额外改写，B有不同事件7。独立改为B缺7或两图失联。 202本事件 | B缺7则略位置；失联先清编号0、列表继续，不能改为取A/7。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ID03.1",
+        "WIV-R5-ID03.2",
+        "WIV-R5-ID03.3",
+        "WIV-R5-ID03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ID04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          622,
+          622
+        ]
+      },
+      "frozen_B8_text": "| R5-ID04 | 同编号跟随实例F有有效列表并登记公共事件ID；当前图事件7独立存在；主解释器有效正常完成。 跟随互动→普通本事件查询→显式207/209覆盖→结束 | 锁F；通常本事件仍当前图7；覆盖可选F；结束解锁当前图7，不自动解F。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ID04.1",
+        "WIV-R5-ID04.2",
+        "WIV-R5-ID04.3",
+        "WIV-R5-ID04.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-RT01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          627,
+          627
+        ]
+      },
+      "frozen_B8_text": "| R5-RT01 | 静止有效角色，原等待存在；209新非重复[27 S ON,0]，S OFF，各动作正常。 安装返回→紧后111读S | 等待清，新首项同步S ON；111真；终止可待后次，不保证路线已结束。 |",
+      "manual_atom_ids": [
+        "WIV-R5-RT01.1",
+        "WIV-R5-RT01.2",
+        "WIV-R5-RT01.3",
+        "WIV-R5-RT01.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-RT02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          628,
+          628
+        ]
+      },
+      "frozen_B8_text": "| R5-RT02 | 角色运动中/跳跃中，原非空R0与索引保存；R1后又装R2。 安装→后续静止正常处理R2终止 | 安装只接管/清等待，本次动作早退；R2正常终止恢复首次R0索引。 |",
+      "manual_atom_ids": [
+        "WIV-R5-RT02.1",
+        "WIV-R5-RT02.2",
+        "WIV-R5-RT02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-RT03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          629,
+          629
+        ]
+      },
+      "frozen_B8_text": "| R5-RT03 | 分别另一有效页、同页、无页；正强制路线；空列表仅终止项独立。 刷新/处理 | 有效新页重设路线索引/forcing与并行解释器；同页早退；无页没有清forcing写入；空强制路线不处理终止恢复。 |",
+      "manual_atom_ids": [
+        "WIV-R5-RT03.1",
+        "WIV-R5-RT03.2",
+        "WIV-R5-RT03.3",
+        "WIV-R5-RT03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-RT04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          630,
+          630
+        ]
+      },
+      "frozen_B8_text": "| R5-RT04 | 普通自主频率5，非菜单、更新增量≤0.25、未锁/未启动/静止，本次调度前stop=.74/.75；强制独立对照。 自主/强制调度 | 自主.74不许/.75许可；强制不读该门；频率1…6秒阈值4.75/3.6/2.55/1.6/.75/0；无固定帧保证。 |",
+      "manual_atom_ids": [
+        "WIV-R5-RT04.1",
+        "WIV-R5-RT04.2",
+        "WIV-R5-RT04.3",
+        "WIV-R5-RT04.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-RT05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          631,
+          631
+        ]
+      },
+      "frozen_B8_text": "| R5-RT05 | 重复路线由近末索引开始，列表总长L>1，含正常状态项。 一次路线处理 | 可回绕，最多迭代L−1次且各提前出口仍限制；不是仅剩余项数。 |",
+      "manual_atom_ids": [
+        "WIV-R5-RT05.1",
+        "WIV-R5-RT05.2",
+        "WIV-R5-RT05.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-LOC01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          646,
+          646
+        ]
+      },
+      "frozen_B8_text": "| R5-LOC01 | 同图宽高充分，两个不同普通有效事件7=(5,5)、8=(9,9)，方向固定假、无离格处理器额外改写。 202主7/交换8/结束朝左 | 7=(9,9,左)，8=(5,5,原方向)，先主后副落位。 |",
+      "manual_atom_ids": [
+        "WIV-R5-LOC01.1",
+        "WIV-R5-LOC01.2",
+        "WIV-R5-LOC01.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-LOC02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          647,
+          647
+        ]
+      },
+      "frozen_B8_text": "| R5-LOC02 | 同图宽高充分，两个不同普通有效事件7=(5,5)、8=(9,9)，方向固定假、无离格处理器额外改写。变量X=9,Y=9。 直接(9,9)与变量位置、方向左成对 | 主均落(9,9)后向左；普通事件取模与条件性离格保持，不作碰撞移动。 |",
+      "manual_atom_ids": [
+        "WIV-R5-LOC02.1",
+        "WIV-R5-LOC02.2",
+        "WIV-R5-LOC02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-LOC03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          648,
+          648
+        ]
+      },
+      "frozen_B8_text": "| R5-LOC03 | 同图宽高充分，两个不同普通有效事件7=(5,5)、8=(9,9)，方向固定假、无离格处理器额外改写。分别缺副8、缺主7、战斗态、方向固定真、非法/未指定方向。 202 | 缺副无位置变化但主可向左；缺主/战斗整体略过；固定真挡转向但不挡落位；非法方向不请求。玩家/跟随目标沿各入口。 |",
+      "manual_atom_ids": [
+        "WIV-R5-LOC03.1",
+        "WIV-R5-LOC03.2",
+        "WIV-R5-LOC03.3",
+        "WIV-R5-LOC03.4",
+        "WIV-R5-LOC03.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-SW01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          649,
+          649
+        ]
+      },
+      "frozen_B8_text": "| R5-SW01 | 名称s:1、原槽OFF，无插件/异常；页刷新、公共并行refresh、111 ON/OFF、公共自动启动机会独立。 消费同开关 | 页/并行启用；111 ON/OFF各false且Else；111脚本1进Then；公共自动不启动。 |",
+      "manual_atom_ids": [
+        "WIV-R5-SW01.1",
+        "WIV-R5-SW01.2",
+        "WIV-R5-SW01.3",
+        "WIV-R5-SW01.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-SW02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          650,
+          650
+        ]
+      },
+      "frozen_B8_text": "| R5-SW02 | 名称s:nil；Then写A、Else写B，均OFF；独立111开关ON/OFF、脚本nil。 条件消费 | 开关两目标均false、B ON；脚本nil两支都跳、A/B OFF；IM16–18保持。 |",
+      "manual_atom_ids": [
+        "WIV-R5-SW02.1",
+        "WIV-R5-SW02.2",
+        "WIV-R5-SW02.3"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-SW03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          651,
+          651
+        ]
+      },
+      "frozen_B8_text": "| R5-SW03 | 名称s:true/false及相应原槽ON/OFF各独立。 四消费端及111目标ON/OFF | true页/并行启用、ON真/OFF假；false不启用、ON假/OFF真；公共自动仍原槽，不每次并行update求值。 |",
+      "manual_atom_ids": [
+        "WIV-R5-SW03.1",
+        "WIV-R5-SW03.2",
+        "WIV-R5-SW03.3",
+        "WIV-R5-SW03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ER01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          652,
+          652
+        ]
+      },
+      "frozen_B8_text": "| R5-ER01 | 同图有效正ID，主解释器，无等待/其它启动/跳过输入/额外写入；独立355仅调用一次记录消去→121 S ON→0，S OFF，全部正常返回，无相邻355/655。 更新 | 消去/条件记录；辅助推进+355外层推进，略121到终止，S OFF。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ER01.1",
+        "WIV-R5-ER01.2",
+        "WIV-R5-ER01.3",
+        "WIV-R5-ER01.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ER02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          653,
+          653
+        ]
+      },
+      "frozen_B8_text": "| R5-ER02 | 同ER01但缺事件；或单次碎除辅助，等待期间无改变本解释器输入/状态，各动作正常。 355返回 | 缺实例无消去/记录仍跳121；碎除正常返回也跳121；均不把true当116让出。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ER02.1",
+        "WIV-R5-ER02.2",
+        "WIV-R5-ER02.3",
+        "WIV-R5-ER02.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R5-ER03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          654,
+          654
+        ]
+      },
+      "frozen_B8_text": "| R5-ER03 | 同ER01改116→121→0；相邻355/655合并另作对照。 更新及后续机会 | 116自身+1/false让出，下次合格机会才执行121；相邻脚本先整体合并，再按实际辅助次数/合并后位置判断，不一定跳物理下一行。 |",
+      "manual_atom_ids": [
+        "WIV-R5-ER03.1",
+        "WIV-R5-ER03.2",
+        "WIV-R5-ER03.3",
+        "WIV-R5-ER03.4"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV01",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          720,
+          720
+        ]
+      },
+      "frozen_B8_text": "| R6-EV01 | 98条注释＋终止项，一次更新正常完成 | 第1–98轮注释，第99轮清列表/返回true，第100轮空列表早退；额外图形请求0 |",
+      "manual_atom_ids": [
+        "WIV-R6-EV01.1",
+        "WIV-R6-EV01.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV02",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          721,
+          721
+        ]
+      },
+      "frozen_B8_text": "| R6-EV02 | 99条注释＋终止项，其余同 R6-EV01 | 第100轮终止后仍推进；第101轮先图形请求/清计数，再空列表早退；请求1次，在终止后 |",
+      "manual_atom_ids": [
+        "WIV-R6-EV02.1",
+        "WIV-R6-EV02.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV03",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          722,
+          722
+        ]
+      },
+      "frozen_B8_text": "| R6-EV03 | 100条注释＋终止项，其余同 R6-EV01 | 第101轮先图形请求/清计数，再终止；第102轮空列表早退；请求1次，在终止前 |",
+      "manual_atom_ids": [
+        "WIV-R6-EV03.1",
+        "WIV-R6-EV03.2"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV04",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          723,
+          723
+        ]
+      },
+      "frozen_B8_text": "| R6-EV04 | 99条注释后接116、合法121开关赋值及终止项，事件ID0、开关初OFF；第100轮116正常让出。下一更新前置消息等待，随后解除等待再更新 | 首次116自行推进一项并返回false，第100轮让出、开关仍OFF、无防护请求；后次从0计数，第1轮消息等待早退，不跨调用累计到101；解除等待后才执行开关及终止，无该额外请求。116控制结果及消息守卫保持 |",
+      "manual_atom_ids": [
+        "WIV-R6-EV04.1",
+        "WIV-R6-EV04.2",
+        "WIV-R6-EV04.3",
+        "WIV-R6-EV04.4",
+        "WIV-R6-EV04.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV05",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          724,
+          724
+        ]
+      },
+      "frozen_B8_text": "| R6-EV05 | R6-EV03的第101轮图形请求改为首次抛错，之前100条注释正常 | 请求已到达，计数清零、终止分派和空列表早退尚未到；无渲染成功或宿主恢复保证，无本防护输入轮询 |",
+      "manual_atom_ids": [
+        "WIV-R6-EV05.1",
+        "WIV-R6-EV05.2",
+        "WIV-R6-EV05.3",
+        "WIV-R6-EV05.4",
+        "WIV-R6-EV05.5"
+      ]
+    },
+    {
+      "clause_id": "WIV-R6-EV06",
+      "spec": {
+        "path": "deliverables/final-specification-set/test-catalog/engine-overworld-wp11-15-59-60.md",
+        "lines": [
+          725,
+          725
+        ]
+      },
+      "frozen_B8_text": "| R6-EV06 | 初始化深度100/101，所有初始化依赖正常；与更新循环计数独立 | 100不因深度门退出，101提示并退出；不把第101轮刷新门扩大为101层可用（EV10） |",
+      "manual_atom_ids": [
+        "WIV-R6-EV06.1",
+        "WIV-R6-EV06.2",
+        "WIV-R6-EV06.3"
+      ]
+    }
+  ]
+}

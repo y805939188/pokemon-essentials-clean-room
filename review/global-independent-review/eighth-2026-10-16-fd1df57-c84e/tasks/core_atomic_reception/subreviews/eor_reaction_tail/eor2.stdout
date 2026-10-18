@@ -1,0 +1,300 @@
+      hpLoss = (Settings::MECHANICS_GENERATION >= 6) ? battler.totalhp / 6 : battler.totalhp / 8
+    end
+    @scene.pbDamageAnimation(battler)
+    battler.pbTakeEffectDamage(hpLoss, false) do |hp_lost|
+      pbDisplay(_INTL("{1} is hurt by {2}!", battler.pbThis, move_name))
+    end
+  end
+
+  #=============================================================================
+  # End Of Round end effects that apply to a battler
+  #=============================================================================
+  def pbEORCountDownBattlerEffect(priority, effect)
+    priority.each do |battler|
+      next if battler.fainted? || battler.effects[effect] == 0
+      battler.effects[effect] -= 1
+      yield battler if block_given? && battler.effects[effect] == 0
+    end
+  end
+
+  def pbEOREndBattlerEffects(priority)
+    # Taunt
+    pbEORCountDownBattlerEffect(priority, PBEffects::Taunt) do |battler|
+      pbDisplay(_INTL("{1}'s taunt wore off!", battler.pbThis))
+    end
+    # Encore
+    priority.each do |battler|
+      next if battler.fainted? || battler.effects[PBEffects::Encore] == 0
+      idxEncoreMove = battler.pbEncoredMoveIndex
+      if idxEncoreMove >= 0
+        battler.effects[PBEffects::Encore] -= 1
+        if battler.effects[PBEffects::Encore] == 0 || battler.moves[idxEncoreMove].pp == 0
+          battler.effects[PBEffects::Encore] = 0
+          pbDisplay(_INTL("{1}'s encore ended!", battler.pbThis))
+        end
+      else
+        PBDebug.log("[End of effect] #{battler.pbThis}'s encore ended (encored move no longer known)")
+        battler.effects[PBEffects::Encore]     = 0
+        battler.effects[PBEffects::EncoreMove] = nil
+      end
+    end
+    # Disable/Cursed Body
+    pbEORCountDownBattlerEffect(priority, PBEffects::Disable) do |battler|
+      battler.effects[PBEffects::DisableMove] = nil
+      pbDisplay(_INTL("{1} is no longer disabled!", battler.pbThis))
+    end
+    # Magnet Rise
+    pbEORCountDownBattlerEffect(priority, PBEffects::MagnetRise) do |battler|
+      pbDisplay(_INTL("{1}'s electromagnetism wore off!", battler.pbThis))
+    end
+    # Telekinesis
+    pbEORCountDownBattlerEffect(priority, PBEffects::Telekinesis) do |battler|
+      pbDisplay(_INTL("{1} was freed from the telekinesis!", battler.pbThis))
+    end
+    # Heal Block
+    pbEORCountDownBattlerEffect(priority, PBEffects::HealBlock) do |battler|
+      pbDisplay(_INTL("{1}'s Heal Block wore off!", battler.pbThis))
+    end
+    # Embargo
+    pbEORCountDownBattlerEffect(priority, PBEffects::Embargo) do |battler|
+      pbDisplay(_INTL("{1} can use items again!", battler.pbThis))
+      battler.pbItemTerrainStatBoostCheck
+    end
+    # Yawn
+    pbEORCountDownBattlerEffect(priority, PBEffects::Yawn) do |battler|
+      if battler.pbCanSleepYawn?
+        PBDebug.log("[Lingering effect] #{battler.pbThis} fell asleep because of Yawn")
+        battler.pbSleep
+      end
+    end
+    # Perish Song
+    perishSongUsers = []
+    priority.each do |battler|
+      next if battler.fainted? || battler.effects[PBEffects::PerishSong] == 0
+      battler.effects[PBEffects::PerishSong] -= 1
+      pbDisplay(_INTL("{1}'s perish count fell to {2}!", battler.pbThis, battler.effects[PBEffects::PerishSong]))
+      if battler.effects[PBEffects::PerishSong] == 0
+        perishSongUsers.push(battler.effects[PBEffects::PerishSongUser])
+        battler.pbReduceHP(battler.hp)
+      end
+      battler.pbItemHPHealCheck
+      battler.pbFaint if battler.fainted?
+    end
+    # Judge if all remaining Pokemon fainted by a Perish Song triggered by a single side
+    if perishSongUsers.length > 0 &&
+       ((perishSongUsers.find_all { |idxBattler| opposes?(idxBattler) }.length == perishSongUsers.length) ||
+       (perishSongUsers.find_all { |idxBattler| !opposes?(idxBattler) }.length == perishSongUsers.length))
+      pbJudgeCheckpoint(@battlers[perishSongUsers[0]])
+    end
+    return if @decision > 0
+  end
+
+  #=============================================================================
+  # End Of Round end effects that apply to one side of the field
+  #=============================================================================
+  def pbEORCountDownSideEffect(side, effect, msg)
+    return if @sides[side].effects[effect] <= 0
+    @sides[side].effects[effect] -= 1
+    pbDisplay(msg) if @sides[side].effects[effect] == 0
+  end
+
+  def pbEOREndSideEffects(side, priority)
+    # Reflect
+    pbEORCountDownSideEffect(side, PBEffects::Reflect,
+                             _INTL("{1}'s Reflect wore off!", @battlers[side].pbTeam))
+    # Light Screen
+    pbEORCountDownSideEffect(side, PBEffects::LightScreen,
+                             _INTL("{1}'s Light Screen wore off!", @battlers[side].pbTeam))
+    # Safeguard
+    pbEORCountDownSideEffect(side, PBEffects::Safeguard,
+                             _INTL("{1} is no longer protected by Safeguard!", @battlers[side].pbTeam))
+    # Mist
+    pbEORCountDownSideEffect(side, PBEffects::Mist,
+                             _INTL("{1} is no longer protected by mist!", @battlers[side].pbTeam))
+    # Tailwind
+    pbEORCountDownSideEffect(side, PBEffects::Tailwind,
+                             _INTL("{1}'s Tailwind petered out!", @battlers[side].pbTeam))
+    # Lucky Chant
+    pbEORCountDownSideEffect(side, PBEffects::LuckyChant,
+                             _INTL("{1}'s Lucky Chant wore off!", @battlers[side].pbTeam))
+    # Pledge Rainbow
+    pbEORCountDownSideEffect(side, PBEffects::Rainbow,
+                             _INTL("The rainbow on {1}'s side disappeared!", @battlers[side].pbTeam(true)))
+    # Pledge Sea of Fire
+    pbEORCountDownSideEffect(side, PBEffects::SeaOfFire,
+                             _INTL("The sea of fire around {1} disappeared!", @battlers[side].pbTeam(true)))
+    # Pledge Swamp
+    pbEORCountDownSideEffect(side, PBEffects::Swamp,
+                             _INTL("The swamp around {1} disappeared!", @battlers[side].pbTeam(true)))
+    # Aurora Veil
+    pbEORCountDownSideEffect(side, PBEffects::AuroraVeil,
+                             _INTL("{1}'s Aurora Veil wore off!", @battlers[side].pbTeam))
+  end
+
+  #=============================================================================
+  # End Of Round end effects that apply to the whole field
+  #=============================================================================
+  def pbEORCountDownFieldEffect(effect, msg)
+    return if @field.effects[effect] <= 0
+    @field.effects[effect] -= 1
+    return if @field.effects[effect] > 0
+    pbDisplay(msg)
+    if effect == PBEffects::MagicRoom
+      pbPriority(true).each { |battler| battler.pbItemTerrainStatBoostCheck }
+    end
+  end
+
+  def pbEOREndFieldEffects(priority)
+    # Trick Room
+    pbEORCountDownFieldEffect(PBEffects::TrickRoom,
+                              _INTL("The twisted dimensions returned to normal!"))
+    # Gravity
+    pbEORCountDownFieldEffect(PBEffects::Gravity,
+                              _INTL("Gravity returned to normal!"))
+    # Water Sport
+    pbEORCountDownFieldEffect(PBEffects::WaterSportField,
+                              _INTL("The effects of Water Sport have faded."))
+    # Mud Sport
+    pbEORCountDownFieldEffect(PBEffects::MudSportField,
+                              _INTL("The effects of Mud Sport have faded."))
+    # Wonder Room
+    pbEORCountDownFieldEffect(PBEffects::WonderRoom,
+                              _INTL("Wonder Room wore off, and Defense and Sp. Def stats returned to normal!"))
+    # Magic Room
+    pbEORCountDownFieldEffect(PBEffects::MagicRoom,
+                              _INTL("Magic Room wore off, and held items' effects returned to normal!"))
+  end
+
+  #=============================================================================
+  # End Of Round end terrain check
+  #=============================================================================
+  def pbEOREndTerrain
+    # Count down terrain duration
+    @field.terrainDuration -= 1 if @field.terrainDuration > 0
+    # Terrain wears off
+    if @field.terrain != :None && @field.terrainDuration == 0
+      case @field.terrain
+      when :Electric
+        pbDisplay(_INTL("The electric current disappeared from the battlefield!"))
+      when :Grassy
+        pbDisplay(_INTL("The grass disappeared from the battlefield!"))
+      when :Misty
+        pbDisplay(_INTL("The mist disappeared from the battlefield!"))
+      when :Psychic
+        pbDisplay(_INTL("The weirdness disappeared from the battlefield!"))
+      end
+      @field.terrain = :None
+      allBattlers.each { |battler| battler.pbAbilityOnTerrainChange }
+      # Start up the default terrain
+      if @field.defaultTerrain != :None
+        pbStartTerrain(nil, @field.defaultTerrain, false)
+        allBattlers.each { |battler| battler.pbAbilityOnTerrainChange }
+        allBattlers.each { |battler| battler.pbItemTerrainStatBoostCheck }
+      end
+      return if @field.terrain == :None
+    end
+    # Terrain continues
+    terrain_data = GameData::BattleTerrain.try_get(@field.terrain)
+    pbCommonAnimation(terrain_data.animation) if terrain_data
+    case @field.terrain
+    when :Electric then pbDisplay(_INTL("An electric current is running across the battlefield."))
+    when :Grassy   then pbDisplay(_INTL("Grass is covering the battlefield."))
+    when :Misty    then pbDisplay(_INTL("Mist is swirling about the battlefield."))
+    when :Psychic  then pbDisplay(_INTL("The battlefield is weird."))
+    end
+  end
+
+  #=============================================================================
+  # End Of Round end self-inflicted effects on battler
+  #=============================================================================
+  def pbEOREndBattlerSelfEffects(battler)
+    return if battler.fainted?
+    # Hyper Mode (Shadow Pokémon)
+    if battler.inHyperMode?
+      if pbRandom(100) < 10
+        battler.pokemon.hyper_mode = false
+        pbDisplay(_INTL("{1} came to its senses!", battler.pbThis))
+      else
+        pbDisplay(_INTL("{1} is in Hyper Mode!", battler.pbThis))
+      end
+    end
+    # Uproar
+    if battler.effects[PBEffects::Uproar] > 0
+      battler.effects[PBEffects::Uproar] -= 1
+      if battler.effects[PBEffects::Uproar] == 0
+        pbDisplay(_INTL("{1} calmed down.", battler.pbThis))
+      else
+        pbDisplay(_INTL("{1} is making an uproar!", battler.pbThis))
+      end
+    end
+    # Slow Start's end message
+    if battler.effects[PBEffects::SlowStart] > 0
+      battler.effects[PBEffects::SlowStart] -= 1
+      if battler.effects[PBEffects::SlowStart] == 0
+        pbDisplay(_INTL("{1} finally got its act together!", battler.pbThis))
+      end
+    end
+  end
+
+  #=============================================================================
+  # End Of Round shift distant battlers to middle positions
+  #=============================================================================
+  def pbEORShiftDistantBattlers
+    # Move battlers around if none are near to each other
+    # NOTE: This code assumes each side has a maximum of 3 battlers on it, and
+    #       is not generalised to larger side sizes.
+    if !singleBattle?
+      swaps = []   # Each element is an array of two battler indices to swap
+      2.times do |side|
+        next if pbSideSize(side) == 1   # Only battlers on sides of size 2+ need to move
+        # Check if any battler on this side is near any battler on the other side
+        anyNear = false
+        allSameSideBattlers(side).each do |battler|
+          anyNear = allOtherSideBattlers(battler).any? { |other| nearBattlers?(other.index, battler.index) }
+          break if anyNear
+        end
+        break if anyNear
+        # No battlers on this side are near any battlers on the other side; try
+        # to move them
+        # NOTE: If we get to here (assuming both sides are of size 3 or less),
+        #       there is definitely only 1 able battler on this side, so we
+        #       don't need to worry about multiple battlers trying to move into
+        #       the same position. If you add support for a side of size 4+,
+        #       this code will need revising to account for that, as well as to
+        #       add more complex code to ensure battlers will end up near each
+        #       other.
+        allSameSideBattlers(side).each do |battler|
+          # Get the position to move to
+          pos = -1
+          case pbSideSize(side)
+          when 2 then pos = [2, 3, 0, 1][battler.index]   # The unoccupied position
+          when 3 then pos = (side == 0) ? 2 : 3    # The centre position
+          end
+          next if pos < 0
+          # Can't move if the same trainer doesn't control both positions
+          idxOwner = pbGetOwnerIndexFromBattlerIndex(battler.index)
+          next if pbGetOwnerIndexFromBattlerIndex(pos) != idxOwner
+          swaps.push([battler.index, pos])
+        end
+      end
+      # Move battlers around
+      swaps.each do |pair|
+        next if pbSideSize(pair[0]) == 2 && swaps.length > 1
+        next if !pbSwapBattlers(pair[0], pair[1])
+        case pbSideSize(pair[1])
+        when 2
+          pbDisplay(_INTL("{1} moved across!", @battlers[pair[1]].pbThis))
+        when 3
+          pbDisplay(_INTL("{1} moved to the center!", @battlers[pair[1]].pbThis))
+        end
+      end
+    end
+  end
+
+  #=============================================================================
+  # Main End Of Round phase method
+  #=============================================================================
+  def pbEndOfRoundPhase
+    PBDebug.log("")
+    PBDebug.log("[End of round #{@turnCount + 1}]")
+    @endOfRound = true

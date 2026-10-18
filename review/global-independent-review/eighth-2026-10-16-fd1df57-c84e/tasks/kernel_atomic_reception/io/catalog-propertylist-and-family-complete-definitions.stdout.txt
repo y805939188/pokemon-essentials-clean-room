@@ -1,0 +1,185 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/002_Editor_DataTypes.rb RANGE 1624-1706
+def pbPropertyList(title, data, properties, saveprompt = false)
+  viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+  viewport.z = 99999
+  list = pbListWindow([], Graphics.width / 2)
+  list.viewport = viewport
+  list.z        = 2
+  title = Window_UnformattedTextPokemon.newWithSize(
+    title, list.width, 0, Graphics.width / 2, 64, viewport
+  )
+  title.z = 2
+  desc = Window_UnformattedTextPokemon.newWithSize(
+    "", list.width, title.height, Graphics.width / 2, Graphics.height - title.height, viewport
+  )
+  desc.z = 2
+  selectedmap = -1
+  retval = nil
+  commands = []
+  properties.length.times do |i|
+    propobj = properties[i][1]
+    commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+  end
+  list.commands = commands
+  list.index    = 0
+  loop do
+    loop do
+      Graphics.update
+      Input.update
+      list.update
+      desc.update
+      if list.index != selectedmap
+        desc.text = properties[list.index][2]
+        selectedmap = list.index
+      end
+      if Input.trigger?(Input::ACTION)
+        propobj = properties[selectedmap][1]
+        if propobj != ReadOnlyProperty && !propobj.is_a?(ReadOnlyProperty) &&
+           pbConfirmMessage(_INTL("Reset the setting {1}?", properties[selectedmap][0]))
+          if propobj.respond_to?("defaultValue")
+            data[selectedmap] = propobj.defaultValue
+          else
+            data[selectedmap] = nil
+          end
+        end
+        commands.clear
+        properties.length.times do |i|
+          propobj = properties[i][1]
+          commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+        end
+        list.commands = commands
+      elsif Input.trigger?(Input::BACK)
+        selectedmap = -1
+        break
+      elsif Input.trigger?(Input::USE)
+        propobj = properties[selectedmap][1]
+        oldsetting = data[selectedmap]
+        newsetting = propobj.set(properties[selectedmap][0], oldsetting)
+        data[selectedmap] = newsetting
+        commands.clear
+        properties.length.times do |i|
+          propobj = properties[i][1]
+          commands.push(sprintf("%s=%s", properties[i][0], propobj.format(data[i])))
+        end
+        list.commands = commands
+        break
+      end
+    end
+    if selectedmap == -1 && saveprompt
+      cmd = pbMessage(_INTL("Save changes?"),
+                      [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+      if cmd == 2
+        selectedmap = list.index
+      else
+        retval = (cmd == 0)
+      end
+    end
+    break unless selectedmap != -1
+  end
+  title.dispose
+  list.dispose
+  desc.dispose
+  Input.update
+  return retval
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/008_Species.rb RANGE 277-375
+    def get_evolutions(exclude_invalid = false)
+      ret = []
+      @evolutions.each do |evo|
+        next if evo[3]   # Is the prevolution
+        next if evo[1] == :None && exclude_invalid
+        ret.push([evo[0], evo[1], evo[2]])   # [Species, method, parameter]
+      end
+      return ret
+    end
+
+    def get_family_evolutions(exclude_invalid = true)
+      evos = get_evolutions(exclude_invalid)
+      evos = evos.sort { |a, b| GameData::Species.keys.index(a[0]) <=> GameData::Species.keys.index(b[0]) }
+      ret = []
+      evos.each do |evo|
+        ret.push([@species].concat(evo))   # [Prevo species, evo species, method, parameter]
+        evo_array = GameData::Species.get(evo[0]).get_family_evolutions(exclude_invalid)
+        ret.concat(evo_array) if evo_array && evo_array.length > 0
+      end
+      return ret
+    end
+
+    def get_previous_species
+      return @species if @evolutions.length == 0
+      @evolutions.each { |evo| return evo[0] if evo[3] }   # Is the prevolution
+      return @species
+    end
+
+    def get_baby_species(check_items = false, item1 = nil, item2 = nil)
+      ret = @species
+      return ret if @evolutions.length == 0
+      @evolutions.each do |evo|
+        next if !evo[3]   # Check only the prevolution
+        if check_items
+          incense = GameData::Species.get(evo[0]).incense
+          ret = evo[0] if !incense || item1 == incense || item2 == incense
+        else
+          ret = evo[0]   # Species of prevolution
+        end
+        break
+      end
+      ret = GameData::Species.get(ret).get_baby_species(check_items, item1, item2) if ret != @species
+      return ret
+    end
+
+    # Returns an array of all the species in this species' evolution family.
+    def get_family_species
+      sp = get_baby_species
+      evos = GameData::Species.get(sp).get_family_evolutions(false)
+      return [sp] if evos.length == 0
+      return [sp].concat(evos.map { |e| e[1] }).uniq
+    end
+
+    # This takes into account whether other_species is evolved.
+    def breeding_can_produce?(other_species)
+      other_family = GameData::Species.get(other_species).get_family_species
+      if @offspring.length > 0
+        return (other_family & @offspring).length > 0
+      end
+      return other_family.include?(@species)
+    end
+
+    # If this species doesn't have egg moves, looks at prevolutions one at a
+    # time and returns theirs instead.
+    def get_egg_moves
+      return @egg_moves if !@egg_moves.empty?
+      prevo = get_previous_species
+      return GameData::Species.get_species_form(prevo, @form).get_egg_moves if prevo != @species
+      return @egg_moves
+    end
+
+    def family_evolutions_have_method?(check_method, check_param = nil)
+      sp = get_baby_species
+      evos = GameData::Species.get(sp).get_family_evolutions
+      return false if evos.length == 0
+      evos.each do |evo|
+        if check_method.is_a?(Array)
+          next if !check_method.include?(evo[2])
+        elsif evo[2] != check_method
+          next
+        end
+        return true if check_param.nil? || evo[3] == check_param
+      end
+      return false
+    end
+
+    # Used by the Moon Ball when checking if a Pokémon's evolution family
+    # includes an evolution that uses the Moon Stone.
+    def family_item_evolutions_use_item?(check_item = nil)
+      sp = get_baby_species
+      evos = GameData::Species.get(sp).get_family_evolutions
+      return false if !evos || evos.length == 0
+      evos.each do |evo|
+        next if GameData::Evolution.get(evo[2]).use_item_proc.nil?
+        return true if check_item.nil? || evo[3] == check_item
+      end
+      return false
+    end
+

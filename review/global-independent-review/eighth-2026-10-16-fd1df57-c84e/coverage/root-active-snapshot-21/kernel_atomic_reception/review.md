@@ -1,0 +1,15 @@
+KERNEL第八轮独立审查仍在进行，尚无全域、章节或全部旧定位的语义通过结论。当前状态为 RUNNING_INCOMPLETE_NO_GLOBAL_PASS；UPDATE_NOT_STARTED；目标业务、游戏宿主及Demo均NOT_EXECUTED。实际记录时点：2026-10-16T09:24:34.547864+00:00。
+
+固定B8为fd1df570cad987dc3852a3b958f03916e317f7fe，R为8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b。请求gpt-6.1-sol/ultra/default普速/Fast off，实际四字段均UNVERIFIED。工作仅写本任务目录。原完整合同、全局提示、AGENTS、review-SKILL及135原事实全字段已实际读；2.9MB readset的2000旧定位元数据仍非本人逐字段视觉全文读，结构解析不冒充全文语义接收。
+
+本人13个primary正式全文均已读；原77起点源及后续22个非PBS源共99路径实际全文（含同一实际上下文两有限反证中6个真正完整源，不增独立票）。另9个精确PBS路径全文，64个仍可得而待接，不列材料缺失。新必要partial单位分别记实际范围，完整贡献保原reader，不变成本人源FULL或独立第二票。
+
+人工工作子记录现3567：初始44、WP02配置169、WP03 347、WP04 208、WP05 117、WP06统计296/时间131、WP07 132、WP08 214、WP09 232、WP10 240、首目录625（181case596子义＋29共享）、次目录812（206case782子义＋30共享）。它们含仍需细分的更新类别、scope/history与精确OPEN，未冻结最终原子分母。2219旧定位中1373仅有具名部分子义接合；其余精确ID和每处状态见old-locator-disposition.json。版式用途不批准相邻复合意义。
+
+714原词法候选现90local/176具名有限接受/439未接/9注释或声明用途。额外8个方法配置位置已1local+7有限接收；仍不证明动态或传递消费者穷尽。完整具名包及实际前提见sourcefact-consumer-receptions.json、interfaces.json及received/；完整payload从CRE、CORE、UI、媒体、Developer和root有限事实取得，原reader/源身份/失败前缀与OPEN全部保留。
+
+当前重点接合包括：17值保存机制和整对象边界；GamePlayer四向/跳跃/对角、step通知与早写统计；电话墙钟逐次减1与帧delta；tone缓存；变量墙钟销毁式查询；AntiRandom条件概率；录像索引缺项；文件catch集合/内存流状态/整数byte协议；HTTP构造与host/落盘的捕获边界；诊断0标记被Main忽略以及弃用警告每调用发出。旧KER-F101的callsite录制部分不受支持，保明确拒收，不转成新formal缺陷。
+
+既有GR8-KER001/002/003完整canonical与原counter契约已实际全文接收，只保各自狭窄范围。MapSave仍TRIAGE_ONLY，emergency仍NO_NEW_REQUIRED；不挂到KER003。新完整Hash提案1原件保留，root真实非提出者完整反证已实际全文接收并接受NO_REQUIRED_BOUNDED_SCOPE，新增required/optional均0；条件source事实保留。本人追加既有不同context的after-all-hits有限反证另目录交root，结论NO_REQUIRED_BOUNDED_SCOPE；Slot七角色8节反证43448B＋915Bextent澄清已交root并获消息指引有限requiredP3（正式root回执尚未本人全文接收），均0新增context/票。Bag注册图像另50187B完整必要sourcehint只保9facts/18units与外部inventory对象17有限接收，不新finding或扩大Slot范围。HTTP/Timer原完整第四审查合同、反证和实际criteria已读；rawprobe未读，固定对象获取超时45s的真实失败已保留0信用，不推出永久缺失，不升级当前执行证明。
+
+两目录全部387case已逐行手工复合子义，467旧定位有具名语义或精确版式用途；下一步为11正文剩余旧定位意义、全部工作子记录唯一分母人工归并细分、135原事实完整适用支持、64PBS和439候选及实际必要动态后继。可得未读/未审是待完成工作。四个分片仍PROPOSED_NOT_APPLIED_0START，未真实移交，全部13F/2219责任仍在本人。本checkpoint齐全不代表任务完成。

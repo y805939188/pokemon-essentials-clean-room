@@ -1,0 +1,301 @@
+00001: #===============================================================================
+00002: # The Bag object, which actually contains all the items.
+00003: #===============================================================================
+00004: class PokemonBag
+00005:   attr_reader   :pockets
+00006:   attr_accessor :last_viewed_pocket
+00007:   attr_accessor :last_pocket_selections
+00008:   attr_reader   :registered_items
+00009:   attr_reader   :ready_menu_selection
+00010: 
+00011:   def self.pocket_names
+00012:     return Settings.bag_pocket_names
+00013:   end
+00014: 
+00015:   def self.pocket_count
+00016:     return self.pocket_names.length
+00017:   end
+00018: 
+00019:   def initialize
+00020:     @pockets = []
+00021:     (0..PokemonBag.pocket_count).each { |i| @pockets[i] = [] }
+00022:     reset_last_selections
+00023:     @registered_items = []
+00024:     @ready_menu_selection = [0, 0, 1]   # Used by the Ready Menu to remember cursor positions
+00025:   end
+00026: 
+00027:   def reset_last_selections
+00028:     @last_viewed_pocket = 1
+00029:     @last_pocket_selections ||= []
+00030:     (0..PokemonBag.pocket_count).each { |i| @last_pocket_selections[i] = 0 }
+00031:   end
+00032: 
+00033:   def clear
+00034:     @pockets.each { |pocket| pocket.clear }
+00035:     (PokemonBag.pocket_count + 1).times { |i| @last_pocket_selections[i] = 0 }
+00036:   end
+00037: 
+00038:   #-----------------------------------------------------------------------------
+00039: 
+00040:   # Gets the index of the current selected item in the pocket
+00041:   def last_viewed_index(pocket)
+00042:     if pocket <= 0 || pocket > PokemonBag.pocket_count
+00043:       raise ArgumentError.new(_INTL("Invalid pocket: {1}", pocket.inspect))
+00044:     end
+00045:     return [@last_pocket_selections[pocket], @pockets[pocket].length].min || 0
+00046:   end
+00047: 
+00048:   # Sets the index of the current selected item in the pocket
+00049:   def set_last_viewed_index(pocket, value)
+00050:     if pocket <= 0 || pocket > PokemonBag.pocket_count
+00051:       raise ArgumentError.new(_INTL("Invalid pocket: {1}", pocket.inspect))
+00052:     end
+00053:     @last_pocket_selections[pocket] = value if value <= @pockets[pocket].length
+00054:   end
+00055: 
+00056:   #-----------------------------------------------------------------------------
+00057: 
+00058:   def quantity(item)
+00059:     item_data = GameData::Item.try_get(item)
+00060:     return 0 if !item_data
+00061:     pocket = item_data.pocket
+00062:     return ItemStorageHelper.quantity(@pockets[pocket], item_data.id)
+00063:   end
+00064: 
+00065:   def has?(item, qty = 1)
+00066:     return quantity(item) >= qty
+00067:   end
+00068:   alias can_remove? has?
+00069: 
+00070:   def can_add?(item, qty = 1)
+00071:     item_data = GameData::Item.try_get(item)
+00072:     return false if !item_data
+00073:     pocket = item_data.pocket
+00074:     max_size = max_pocket_size(pocket)
+00075:     max_size = @pockets[pocket].length + 1 if max_size < 0   # Infinite size
+00076:     return ItemStorageHelper.can_add?(
+00077:       @pockets[pocket], max_size, Settings::BAG_MAX_PER_SLOT, item_data.id, qty
+00078:     )
+00079:   end
+00080: 
+00081:   def add(item, qty = 1)
+00082:     item_data = GameData::Item.try_get(item)
+00083:     return false if !item_data
+00084:     pocket = item_data.pocket
+00085:     max_size = max_pocket_size(pocket)
+00086:     max_size = @pockets[pocket].length + 1 if max_size < 0   # Infinite size
+00087:     ret = ItemStorageHelper.add(@pockets[pocket],
+00088:                                 max_size, Settings::BAG_MAX_PER_SLOT, item_data.id, qty)
+00089:     if ret && Settings::BAG_POCKET_AUTO_SORT[pocket - 1]
+00090:       @pockets[pocket].sort! { |a, b| GameData::Item.keys.index(a[0]) <=> GameData::Item.keys.index(b[0]) }
+00091:     end
+00092:     return ret
+00093:   end
+00094: 
+00095:   # Adds qty number of item. Doesn't add anything if it can't add all of them.
+00096:   def add_all(item, qty = 1)
+00097:     return false if !can_add?(item, qty)
+00098:     return add(item, qty)
+00099:   end
+00100: 
+00101:   # Deletes as many of item as possible (up to qty), and returns whether it
+00102:   # managed to delete qty of them.
+00103:   def remove(item, qty = 1)
+00104:     item_data = GameData::Item.try_get(item)
+00105:     return false if !item_data
+00106:     pocket = item_data.pocket
+00107:     return ItemStorageHelper.remove(@pockets[pocket], item_data.id, qty)
+00108:   end
+00109: 
+00110:   # Deletes qty number of item. Doesn't delete anything if there are less than
+00111:   # qty of the item in the Bag.
+00112:   def remove_all(item, qty = 1)
+00113:     return false if !can_remove?(item, qty)
+00114:     return remove(item, qty)
+00115:   end
+00116: 
+00117:   # This only works if the old and new items are in the same pocket. Used for
+00118:   # switching on/off certain Key Items. Replaces all old_item in its pocket with
+00119:   # new_item.
+00120:   def replace_item(old_item, new_item)
+00121:     old_item_data = GameData::Item.try_get(old_item)
+00122:     new_item_data = GameData::Item.try_get(new_item)
+00123:     return false if !old_item_data || !new_item_data
+00124:     pocket = old_item_data.pocket
+00125:     old_id = old_item_data.id
+00126:     new_id = new_item_data.id
+00127:     ret = false
+00128:     @pockets[pocket].each do |item|
+00129:       next if !item || item[0] != old_id
+00130:       item[0] = new_id
+00131:       ret = true
+00132:     end
+00133:     return ret
+00134:   end
+00135: 
+00136:   #-----------------------------------------------------------------------------
+00137: 
+00138:   # Returns whether item has been registered for quick access in the Ready Menu.
+00139:   def registered?(item)
+00140:     item_data = GameData::Item.try_get(item)
+00141:     return false if !item_data
+00142:     return @registered_items.include?(item_data.id)
+00143:   end
+00144: 
+00145:   # Registers the item in the Ready Menu.
+00146:   def register(item)
+00147:     item_data = GameData::Item.try_get(item)
+00148:     return if !item_data
+00149:     @registered_items.push(item_data.id) if !@registered_items.include?(item_data.id)
+00150:   end
+00151: 
+00152:   # Unregisters the item from the Ready Menu.
+00153:   def unregister(item)
+00154:     item_data = GameData::Item.try_get(item)
+00155:     @registered_items.delete(item_data.id) if item_data
+00156:   end
+00157: 
+00158:   #-----------------------------------------------------------------------------
+00159: 
+00160:   private
+00161: 
+00162:   def max_pocket_size(pocket)
+00163:     return Settings::BAG_MAX_POCKET_SIZE[pocket - 1] || -1
+00164:   end
+00165: end
+00166: 
+00167: #===============================================================================
+00168: # The PC item storage object, which actually contains all the items
+00169: #===============================================================================
+00170: class PCItemStorage
+00171:   attr_reader :items
+00172: 
+00173:   MAX_SIZE     = 999   # Number of different slots in storage
+00174:   MAX_PER_SLOT = 999   # Max. number of items per slot
+00175: 
+00176:   def initialize
+00177:     @items = []
+00178:     # Start storage with initial items (e.g. a Potion)
+00179:     GameData::Metadata.get.start_item_storage.each do |item|
+00180:       add(item) if GameData::Item.exists?(item)
+00181:     end
+00182:   end
+00183: 
+00184:   def [](i)
+00185:     return @items[i]
+00186:   end
+00187: 
+00188:   def length
+00189:     return @items.length
+00190:   end
+00191: 
+00192:   def empty?
+00193:     return @items.length == 0
+00194:   end
+00195: 
+00196:   def clear
+00197:     @items.clear
+00198:   end
+00199: 
+00200:   # Unused
+00201:   def get_item(index)
+00202:     return (index < 0 || index >= @items.length) ? nil : @items[index][0]
+00203:   end
+00204: 
+00205:   # Number of the item in the given index
+00206:   # Unused
+00207:   def get_item_count(index)
+00208:     return (index < 0 || index >= @items.length) ? 0 : @items[index][1]
+00209:   end
+00210: 
+00211:   def quantity(item)
+00212:     item = GameData::Item.get(item).id
+00213:     return ItemStorageHelper.quantity(@items, item)
+00214:   end
+00215: 
+00216:   def can_add?(item, qty = 1)
+00217:     item = GameData::Item.get(item).id
+00218:     return ItemStorageHelper.can_add?(@items, MAX_SIZE, MAX_PER_SLOT, item, qty)
+00219:   end
+00220: 
+00221:   def add(item, qty = 1)
+00222:     item = GameData::Item.get(item).id
+00223:     return ItemStorageHelper.add(@items, MAX_SIZE, MAX_PER_SLOT, item, qty)
+00224:   end
+00225: 
+00226:   def remove(item, qty = 1)
+00227:     item = GameData::Item.get(item).id
+00228:     return ItemStorageHelper.remove(@items, item, qty)
+00229:   end
+00230: end
+00231: 
+00232: #===============================================================================
+00233: # Implements methods that act on arrays of items.  Each element in an item
+00234: # array is itself an array of [itemID, itemCount].
+00235: # Used by the Bag, PC item storage, and Triple Triad.
+00236: #===============================================================================
+00237: module ItemStorageHelper
+00238:   # Returns the quantity of item in items
+00239:   def self.quantity(items, item)
+00240:     ret = 0
+00241:     items.each { |i| ret += i[1] if i && i[0] == item }
+00242:     return ret
+00243:   end
+00244: 
+00245:   def self.can_add?(items, max_slots, max_per_slot, item, qty)
+00246:     raise "Invalid value for qty: #{qty}" if qty < 0
+00247:     return true if qty == 0
+00248:     max_slots.times do |i|
+00249:       item_slot = items[i]
+00250:       if !item_slot
+00251:         qty -= [qty, max_per_slot].min
+00252:         return true if qty == 0
+00253:       elsif item_slot[0] == item && item_slot[1] < max_per_slot
+00254:         new_amt = item_slot[1]
+00255:         new_amt = [new_amt + qty, max_per_slot].min
+00256:         qty -= (new_amt - item_slot[1])
+00257:         return true if qty == 0
+00258:       end
+00259:     end
+00260:     return false
+00261:   end
+00262: 
+00263:   def self.add(items, max_slots, max_per_slot, item, qty)
+00264:     raise "Invalid value for qty: #{qty}" if qty < 0
+00265:     return true if qty == 0
+00266:     max_slots.times do |i|
+00267:       item_slot = items[i]
+00268:       if !item_slot
+00269:         items[i] = [item, [qty, max_per_slot].min]
+00270:         qty -= items[i][1]
+00271:         return true if qty == 0
+00272:       elsif item_slot[0] == item && item_slot[1] < max_per_slot
+00273:         new_amt = item_slot[1]
+00274:         new_amt = [new_amt + qty, max_per_slot].min
+00275:         qty -= (new_amt - item_slot[1])
+00276:         item_slot[1] = new_amt
+00277:         return true if qty == 0
+00278:       end
+00279:     end
+00280:     return false
+00281:   end
+00282: 
+00283:   # Deletes an item (items array, max. size per slot, item, no. of items to delete)
+00284:   def self.remove(items, item, qty)
+00285:     raise "Invalid value for qty: #{qty}" if qty < 0
+00286:     return true if qty == 0
+00287:     ret = false
+00288:     items.each_with_index do |item_slot, i|
+00289:       next if !item_slot || item_slot[0] != item
+00290:       amount = [qty, item_slot[1]].min
+00291:       item_slot[1] -= amount
+00292:       qty -= amount
+00293:       items[i] = nil if item_slot[1] == 0
+00294:       next if qty > 0
+00295:       ret = true
+00296:       break
+00297:     end
+00298:     items.compact!
+00299:     return ret
+00300:   end
+00301: end

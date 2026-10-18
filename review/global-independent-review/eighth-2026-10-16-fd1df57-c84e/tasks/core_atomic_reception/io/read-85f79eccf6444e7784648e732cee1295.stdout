@@ -1,0 +1,178 @@
+00083:   def pbEndOfMoveUsageEffect(user, targets, numHits, switchedBattlers); end
+00084: 
+00085:   #=============================================================================
+00086:   # Check if target is immune to the move because of its ability
+00087:   #=============================================================================
+00088:   def pbImmunityByAbility(user, target, show_message)
+00089:     return false if @battle.moldBreaker
+00090:     ret = false
+00091:     if target.abilityActive?
+00092:       ret = Battle::AbilityEffects.triggerMoveImmunity(target.ability, user, target,
+00093:                                                        self, @calcType, @battle, show_message)
+00094:     end
+00095:     return ret
+00096:   end
+00097: 
+00098:   #=============================================================================
+00099:   # Move failure checks
+00100:   #=============================================================================
+00101:   # Check whether the move fails completely due to move-specific requirements.
+00102:   def pbMoveFailed?(user, targets); return false; end
+00103:   # Checks whether the move will be ineffective against the target.
+00104:   def pbFailsAgainstTarget?(user, target, show_message); return false; end
+00105: 
+00106:   def pbMoveFailedLastInRound?(user, showMessage = true)
+00107:     unmoved = @battle.allBattlers.any? do |b|
+00108:       next b.index != user.index &&
+00109:            [:UseMove, :Shift].include?(@battle.choices[b.index][0]) &&
+00110:            !b.movedThisRound?
+00111:     end
+00112:     if !unmoved
+00113:       @battle.pbDisplay(_INTL("But it failed!")) if showMessage
+00114:       return true
+00115:     end
+00116:     return false
+00117:   end
+00118: 
+00119:   def pbMoveFailedTargetAlreadyMoved?(target, showMessage = true)
+00120:     if (@battle.choices[target.index][0] != :UseMove &&
+00121:        @battle.choices[target.index][0] != :Shift) || target.movedThisRound?
+00122:       @battle.pbDisplay(_INTL("But it failed!")) if showMessage
+00123:       return true
+00124:     end
+00125:     return false
+00126:   end
+00127: 
+00128:   def pbMoveFailedAromaVeil?(user, target, showMessage = true)
+00129:     return false if @battle.moldBreaker
+00130:     if target.hasActiveAbility?(:AROMAVEIL)
+00131:       if showMessage
+00132:         @battle.pbShowAbilitySplash(target)
+00133:         if Battle::Scene::USE_ABILITY_SPLASH
+00134:           @battle.pbDisplay(_INTL("{1} is unaffected!", target.pbThis))
+00135:         else
+00136:           @battle.pbDisplay(_INTL("{1} is unaffected because of its {2}!",
+00137:                                   target.pbThis, target.abilityName))
+00138:         end
+00139:         @battle.pbHideAbilitySplash(target)
+00140:       end
+00141:       return true
+00142:     end
+00143:     target.allAllies.each do |b|
+00144:       next if !b.hasActiveAbility?(:AROMAVEIL)
+00145:       if showMessage
+00146:         @battle.pbShowAbilitySplash(b)
+00147:         if Battle::Scene::USE_ABILITY_SPLASH
+00148:           @battle.pbDisplay(_INTL("{1} is unaffected!", target.pbThis))
+00149:         else
+00150:           @battle.pbDisplay(_INTL("{1} is unaffected because of {2}'s {3}!",
+00151:                                   target.pbThis, b.pbThis(true), b.abilityName))
+00152:         end
+00153:         @battle.pbHideAbilitySplash(b)
+00154:       end
+00155:       return true
+00156:     end
+00157:     return false
+00158:   end
+00159: 
+00160:   #=============================================================================
+00161:   # Weaken the damage dealt (doesn't actually change a battler's HP)
+00162:   #=============================================================================
+00163:   def pbCheckDamageAbsorption(user, target)
+00164:     # Substitute will take the damage
+00165:     if target.effects[PBEffects::Substitute] > 0 && !ignoresSubstitute?(user) &&
+00166:        (!user || user.index != target.index)
+00167:       target.damageState.substitute = true
+00168:       return
+00169:     end
+00170:     # Ice Face will take the damage
+00171:     if !@battle.moldBreaker && target.isSpecies?(:EISCUE) &&
+00172:        target.form == 0 && target.ability == :ICEFACE && physicalMove?
+00173:       target.damageState.iceFace = true
+00174:       return
+00175:     end
+00176:     # Disguise will take the damage
+00177:     if !@battle.moldBreaker && target.isSpecies?(:MIMIKYU) &&
+00178:        target.form == 0 && target.ability == :DISGUISE
+00179:       target.damageState.disguise = true
+00180:       return
+00181:     end
+00182:   end
+00183: 
+00184:   def pbReduceDamage(user, target)
+00185:     damage = target.damageState.calcDamage
+00186:     # Substitute takes the damage
+00187:     if target.damageState.substitute
+00188:       damage = target.effects[PBEffects::Substitute] if damage > target.effects[PBEffects::Substitute]
+00189:       target.damageState.hpLost       = damage
+00190:       target.damageState.totalHPLost += damage
+00191:       return
+00192:     end
+00193:     # Disguise/Ice Face takes the damage
+00194:     return if target.damageState.disguise || target.damageState.iceFace
+00195:     # Target takes the damage
+00196:     if damage >= target.hp
+00197:       damage = target.hp
+00198:       # Survive a lethal hit with 1 HP effects
+00199:       if nonLethal?(user, target)
+00200:         damage -= 1
+00201:       elsif target.effects[PBEffects::Endure]
+00202:         target.damageState.endured = true
+00203:         damage -= 1
+00204:       elsif damage == target.totalhp
+00205:         if target.hasActiveAbility?(:STURDY) && !@battle.moldBreaker
+00206:           target.damageState.sturdy = true
+00207:           damage -= 1
+00208:         elsif target.hasActiveItem?(:FOCUSSASH) && target.hp == target.totalhp
+00209:           target.damageState.focusSash = true
+00210:           damage -= 1
+00211:         elsif target.hasActiveItem?(:FOCUSBAND) && @battle.pbRandom(100) < 10
+00212:           target.damageState.focusBand = true
+00213:           damage -= 1
+00214:         elsif Settings::AFFECTION_EFFECTS && @battle.internalBattle &&
+00215:               target.pbOwnedByPlayer? && !target.mega?
+00216:           chance = [0, 0, 0, 10, 15, 25][target.affection_level]
+00217:           if chance > 0 && @battle.pbRandom(100) < chance
+00218:             target.damageState.affection_endured = true
+00219:             damage -= 1
+00220:           end
+00221:         end
+00222:       end
+00223:     end
+00224:     damage = 0 if damage < 0
+00225:     target.damageState.hpLost       = damage
+00226:     target.damageState.totalHPLost += damage
+00227:   end
+00228: 
+00229:   #=============================================================================
+00230:   # Change the target's HP by the amount calculated above
+00231:   #=============================================================================
+00232:   def pbInflictHPDamage(target)
+00233:     if target.damageState.substitute
+00234:       target.effects[PBEffects::Substitute] -= target.damageState.hpLost
+00235:     elsif target.damageState.hpLost > 0
+00236:       target.pbReduceHP(target.damageState.hpLost, false, true, false)
+00237:     end
+00238:   end
+00239: 
+00240:   #=============================================================================
+00241:   # Animate the damage dealt, including lowering the HP
+00242:   #=============================================================================
+00243:   # Animate being damaged and losing HP (by a move)
+00244:   def pbAnimateHitAndHPLost(user, targets)
+00245:     # Animate allies first, then foes
+00246:     animArray = []
+00247:     2.times do |side|   # side here means "allies first, then foes"
+00248:       targets.each do |b|
+00249:         next if b.damageState.unaffected || b.damageState.hpLost == 0
+00250:         next if (side == 0 && b.opposes?(user)) || (side == 1 && !b.opposes?(user))
+00251:         oldHP = b.hp
+00252:         if b.damageState.substitute
+00253:           old_sub_hp = b.effects[PBEffects::Substitute] + b.damageState.hpLost
+00254:           PBDebug.log("[Substitute HP change] #{b.pbThis}'s substitute lost #{b.damageState.hpLost} HP (#{old_sub_hp} -> #{b.effects[PBEffects::Substitute]})")
+00255:         else
+00256:           oldHP += b.damageState.hpLost
+00257:         end
+00258:         effectiveness = 0
+00259:         if Effectiveness.resistant?(b.damageState.typeMod)
+00260:           effectiveness = 1

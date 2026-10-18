@@ -1,0 +1,135 @@
+00001: class Battle
+00002:   #=============================================================================
+00003:   # Choosing a move/target
+00004:   #=============================================================================
+00005:   def pbCanChooseMove?(idxBattler, idxMove, showMessages, sleepTalk = false)
+00006:     battler = @battlers[idxBattler]
+00007:     move = battler.moves[idxMove]
+00008:     return false unless move
+00009:     if move.pp == 0 && move.total_pp > 0 && !sleepTalk
+00010:       pbDisplayPaused(_INTL("There's no PP left for this move!")) if showMessages
+00011:       return false
+00012:     end
+00013:     if battler.effects[PBEffects::Encore] > 0
+00014:       idxEncoredMove = battler.pbEncoredMoveIndex
+00015:       return false if idxEncoredMove >= 0 && idxMove != idxEncoredMove
+00016:     end
+00017:     return battler.pbCanChooseMove?(move, true, showMessages, sleepTalk)
+00018:   end
+00019: 
+00020:   def pbCanChooseAnyMove?(idxBattler, sleepTalk = false)
+00021:     battler = @battlers[idxBattler]
+00022:     battler.eachMoveWithIndex do |m, i|
+00023:       next if m.pp == 0 && m.total_pp > 0 && !sleepTalk
+00024:       if battler.effects[PBEffects::Encore] > 0
+00025:         idxEncoredMove = battler.pbEncoredMoveIndex
+00026:         next if idxEncoredMove >= 0 && i != idxEncoredMove
+00027:       end
+00028:       next if !battler.pbCanChooseMove?(m, true, false, sleepTalk)
+00029:       return true
+00030:     end
+00031:     return false
+00032:   end
+00033: 
+00034:   # Called when the Pokémon is Encored, or if it can't use any of its moves.
+00035:   # Makes the Pokémon use the Encored move (if Encored), or Struggle.
+00036:   def pbAutoChooseMove(idxBattler, showMessages = true)
+00037:     battler = @battlers[idxBattler]
+00038:     if battler.fainted?
+00039:       pbClearChoice(idxBattler)
+00040:       return true
+00041:     end
+00042:     # Encore
+00043:     idxEncoredMove = battler.pbEncoredMoveIndex
+00044:     if idxEncoredMove >= 0 && pbCanChooseMove?(idxBattler, idxEncoredMove, false)
+00045:       encoreMove = battler.moves[idxEncoredMove]
+00046:       @choices[idxBattler][0] = :UseMove         # "Use move"
+00047:       @choices[idxBattler][1] = idxEncoredMove   # Index of move to be used
+00048:       @choices[idxBattler][2] = encoreMove       # Battle::Move object
+00049:       @choices[idxBattler][3] = -1               # No target chosen yet
+00050:       return true if singleBattle?
+00051:       if pbOwnedByPlayer?(idxBattler)
+00052:         if showMessages
+00053:           pbDisplayPaused(_INTL("{1} has to use {2}!", battler.name, encoreMove.name))
+00054:         end
+00055:         return pbChooseTarget(battler, encoreMove)
+00056:       end
+00057:       return true
+00058:     end
+00059:     # Struggle
+00060:     if pbOwnedByPlayer?(idxBattler) && showMessages
+00061:       pbDisplayPaused(_INTL("{1} has no moves left!", battler.name))
+00062:     end
+00063:     @choices[idxBattler][0] = :UseMove    # "Use move"
+00064:     @choices[idxBattler][1] = -1          # Index of move to be used
+00065:     @choices[idxBattler][2] = @struggle   # Struggle Battle::Move object
+00066:     @choices[idxBattler][3] = -1          # No target chosen yet
+00067:     return true
+00068:   end
+00069: 
+00070:   def pbRegisterMove(idxBattler, idxMove, showMessages = true)
+00071:     battler = @battlers[idxBattler]
+00072:     move = battler.moves[idxMove]
+00073:     return false if !pbCanChooseMove?(idxBattler, idxMove, showMessages)
+00074:     @choices[idxBattler][0] = :UseMove   # "Use move"
+00075:     @choices[idxBattler][1] = idxMove    # Index of move to be used
+00076:     @choices[idxBattler][2] = move       # Battle::Move object
+00077:     @choices[idxBattler][3] = -1         # No target chosen yet
+00078:     return true
+00079:   end
+00080: 
+00081:   def pbChoseMove?(idxBattler, moveID)
+00082:     return false if !@battlers[idxBattler] || @battlers[idxBattler].fainted?
+00083:     if @choices[idxBattler][0] == :UseMove && @choices[idxBattler][1]
+00084:       return @choices[idxBattler][2].id == moveID
+00085:     end
+00086:     return false
+00087:   end
+00088: 
+00089:   def pbChoseMoveFunctionCode?(idxBattler, code)
+00090:     return false if @battlers[idxBattler].fainted?
+00091:     if @choices[idxBattler][0] == :UseMove && @choices[idxBattler][1]
+00092:       return @choices[idxBattler][2].function_code == code
+00093:     end
+00094:     return false
+00095:   end
+00096: 
+00097:   def pbRegisterTarget(idxBattler, idxTarget)
+00098:     @choices[idxBattler][3] = idxTarget   # Set target of move
+00099:   end
+00100: 
+00101:   # Returns whether the idxTarget will be targeted by a move with target_data
+00102:   # used by a battler in idxUser.
+00103:   def pbMoveCanTarget?(idxUser, idxTarget, target_data)
+00104:     return false if target_data.num_targets == 0
+00105:     case target_data.id
+00106:     when :NearAlly
+00107:       return false if opposes?(idxUser, idxTarget)
+00108:       return false if !nearBattlers?(idxUser, idxTarget)
+00109:     when :UserOrNearAlly
+00110:       return true if idxUser == idxTarget
+00111:       return false if opposes?(idxUser, idxTarget)
+00112:       return false if !nearBattlers?(idxUser, idxTarget)
+00113:     when :AllAllies
+00114:       return false if idxUser == idxTarget
+00115:       return false if opposes?(idxUser, idxTarget)
+00116:     when :UserAndAllies
+00117:       return false if opposes?(idxUser, idxTarget)
+00118:     when :NearFoe, :RandomNearFoe, :AllNearFoes
+00119:       return false if !opposes?(idxUser, idxTarget)
+00120:       return false if !nearBattlers?(idxUser, idxTarget)
+00121:     when :Foe
+00122:       return false if !opposes?(idxUser, idxTarget)
+00123:     when :AllFoes
+00124:       return false if !opposes?(idxUser, idxTarget)
+00125:     when :NearOther, :AllNearOthers
+00126:       return false if !nearBattlers?(idxUser, idxTarget)
+00127:     when :Other
+00128:       return false if idxUser == idxTarget
+00129:     end
+00130:     return true
+00131:   end
+00132: 
+00133:   #=============================================================================
+00134:   # Turn order calculation (priority)
+00135:   #=============================================================================

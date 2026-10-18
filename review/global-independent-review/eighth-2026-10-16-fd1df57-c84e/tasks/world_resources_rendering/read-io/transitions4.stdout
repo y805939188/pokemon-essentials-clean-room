@@ -1,0 +1,189 @@
+  1741	          sprite.x = (ROCKET_X[i] + ((0.5 - ROCKET_X[i]) * sqrt_single_proportion)) * Graphics.width
+  1742	          sprite.y = (ROCKET_Y[i] + ((0.5 - ROCKET_Y[i]) * sqrt_single_proportion)) * Graphics.height
+  1743	          sprite.zoom_x = 2.5 * (1 - single_proportion)
+  1744	          sprite.zoom_y = sprite.zoom_x
+  1745	          sprite.angle = sprite.zoom_x * ROCKET_ANGLE[i] * 360
+  1746	          sprite.visible = false if sprite.zoom_x <= 0
+  1747	        end
+  1748	      else
+  1749	        @rocket_sprites.last.visible = false
+  1750	        # Black wedges expand to fill screen
+  1751	        proportion = (timer - @rocket_appear_end) / (@duration - @rocket_appear_end)
+  1752	        @sprites.each_with_index do |sprite, i|
+  1753	          sprite.visible = true
+  1754	          sprite.zoom_x = proportion if i.even?
+  1755	          sprite.zoom_y = proportion if i.odd?
+  1756	        end
+  1757	      end
+  1758	    end
+  1759	  end
+  1760	
+  1761	  #=============================================================================
+  1762	  # HGSS VS Team Rocket Admin animation
+  1763	  # Uses $game_temp.transition_animation_data, and expects it to be an array
+  1764	  # like so: [:TRAINERTYPE, "display name"]
+  1765	  # Bar graphics are named hgss_vsBar_TRAINERTYPE.png.
+  1766	  # Trainer sprites are named hgss_vs_TRAINERTYPE.png.
+  1767	  #=============================================================================
+  1768	  class VSRocketAdmin < Transition_Base
+  1769	    DURATION            = 3.1
+  1770	    STROBE_SCROLL_SPEED = 1440
+  1771	    FOE_SPRITE_Y        = 318
+  1772	
+  1773	    def initialize_bitmaps
+  1774	      @strobes_bitmap = RPG::Cache.transition("rocket_strobes")
+  1775	      @bg_1_bitmap    = RPG::Cache.transition("rocket_bg_1")
+  1776	      @bg_2_bitmap    = RPG::Cache.transition("rocket_bg_2")
+  1777	      @foe_bitmap     = RPG::Cache.transition("rocket_#{$game_temp.transition_animation_data[0]}")
+  1778	      @black_bitmap   = RPG::Cache.transition("black_half")
+  1779	      dispose if !@strobes_bitmap || !@bg_1_bitmap || !@bg_2_bitmap || !@foe_bitmap || !@black_bitmap
+  1780	    end
+  1781	
+  1782	    def initialize_sprites
+  1783	      @flash_viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+  1784	      @flash_viewport.z     = 99999
+  1785	      @flash_viewport.color = Color.new(255, 255, 255, 0)
+  1786	      # Strobe sprites (need 2 of them to make them loop around)
+  1787	      ((Graphics.width.to_f / @strobes_bitmap.width).ceil + 1).times do |i|
+  1788	        spr = new_sprite(@strobes_bitmap.width * i, 0, @strobes_bitmap)
+  1789	        spr.z       = 1
+  1790	        spr.opacity = 0
+  1791	        @sprites.push(spr)
+  1792	      end
+  1793	      # First bg sprite
+  1794	      @bg_1_sprite = new_sprite(0, Graphics.height / 2, @bg_1_bitmap)
+  1795	      @bg_1_sprite.z = 3
+  1796	      @bg_1_sprite.src_rect.height = 0
+  1797	      # Second bg sprite
+  1798	      @bg_2_sprite = new_sprite(0, 0, @bg_2_bitmap)
+  1799	      @bg_2_sprite.z       = 5
+  1800	      @bg_2_sprite.opacity = 0
+  1801	      # Foe sprite
+  1802	      @foe_sprite = new_sprite(Graphics.width + @foe_bitmap.width, FOE_SPRITE_Y,
+  1803	                               @foe_bitmap, @foe_bitmap.width / 2, @foe_bitmap.height)
+  1804	      @foe_sprite.z = 7
+  1805	      # Sprite with foe's name written in it
+  1806	      @text_sprite = BitmapSprite.new(Graphics.width, Graphics.height - FOE_SPRITE_Y, @viewport)
+  1807	      @text_sprite.y       = FOE_SPRITE_Y
+  1808	      @text_sprite.z       = 8
+  1809	      @text_sprite.visible = false
+  1810	      pbSetSystemFont(@text_sprite.bitmap)
+  1811	      pbDrawTextPositions(@text_sprite.bitmap,
+  1812	                          [[$game_temp.transition_animation_data[1], 272, 8, :left,
+  1813	                            Color.new(248, 248, 248), Color.new(72, 80, 80)]])
+  1814	      # Foreground black
+  1815	      @black_sprite = new_sprite(0, 0, @black_bitmap)
+  1816	      @black_sprite.z       = 10
+  1817	      @black_sprite.zoom_y  = 2.0
+  1818	      @black_sprite.visible = false
+  1819	    end
+  1820	
+  1821	    def set_up_timings
+  1822	      @strobes_x = 0
+  1823	      @strobe_appear_end   = 0.15   # Starts appearing at 0.0
+  1824	      # White flash between these two times
+  1825	      @bg_1_appear_start   = 0.5
+  1826	      @bg_1_appear_end     = 0.65
+  1827	      @bg_2_appear_start   = 1.0   # Also when foe sprite/name start appearing
+  1828	      @bg_2_appear_end     = 1.1   # Also when foe sprite/name end appearing
+  1829	      @flash_end           = 1.35   # Starts at @bg_2_appear_end
+  1830	      @foe_disappear_start = 2.1
+  1831	      @foe_disappear_end   = 2.3   # Also when screen starts turning white
+  1832	      @fade_to_white_end   = 2.5
+  1833	      @fade_to_black_start = 2.9
+  1834	    end
+  1835	
+  1836	    def dispose_all
+  1837	      # Dispose sprites
+  1838	      @bg_1_sprite&.dispose
+  1839	      @bg_2_sprite&.dispose
+  1840	      @foe_sprite&.dispose
+  1841	      @text_sprite&.dispose
+  1842	      @black_sprite&.dispose
+  1843	      # Dispose bitmaps
+  1844	      @strobes_bitmap&.dispose
+  1845	      @bg_1_bitmap&.dispose
+  1846	      @bg_2_bitmap&.dispose
+  1847	      @foe_bitmap&.dispose
+  1848	      @black_bitmap&.dispose
+  1849	      # Dispose viewport
+  1850	      @flash_viewport&.dispose
+  1851	    end
+  1852	
+  1853	    def update_anim
+  1854	      # Strobes scrolling
+  1855	      if @sprites[0].visible
+  1856	        @strobes_x = -timer * STROBE_SCROLL_SPEED
+  1857	        while @strobes_x <= -@strobes_bitmap.width
+  1858	          @strobes_x += @strobes_bitmap.width
+  1859	        end
+  1860	        @sprites.each_with_index { |spr, i| spr.x = @strobes_x + (i * @strobes_bitmap.width) }
+  1861	      end
+  1862	      if timer >= @fade_to_black_start
+  1863	        # Fade to black
+  1864	        proportion = (timer - @fade_to_black_start) / (@duration - @fade_to_black_start)
+  1865	        @flash_viewport.color.alpha = 255 * (1 - proportion)
+  1866	      elsif timer >= @fade_to_white_end
+  1867	        @flash_viewport.color.alpha = 255   # Ensure screen is white
+  1868	        @black_sprite.visible = true   # Make black overlay visible
+  1869	      elsif timer >= @foe_disappear_end
+  1870	        @foe_sprite.visible = false   # Ensure foe sprite has vanished
+  1871	        @text_sprite.visible = false   # Ensure name sprite has vanished
+  1872	        # Slowly fade to white
+  1873	        proportion = (timer - @foe_disappear_end) / (@fade_to_white_end - @foe_disappear_end)
+  1874	        @flash_viewport.color.alpha = 255 * proportion
+  1875	      elsif timer >= @foe_disappear_start
+  1876	        # Slide foe sprite/name off-screen
+  1877	        proportion = (timer - @foe_disappear_start) / (@foe_disappear_end - @foe_disappear_start)
+  1878	        start_x = Graphics.width / 2
+  1879	        @foe_sprite.x = start_x - ((@foe_bitmap.width + start_x) * proportion * proportion)
+  1880	        @text_sprite.x = @foe_sprite.x - (Graphics.width / 2)
+  1881	      elsif timer >= @flash_end
+  1882	        @flash_viewport.color.alpha = 0   # Ensure flash has ended
+  1883	      elsif timer >= @bg_2_appear_end
+  1884	        @bg_2_sprite.opacity = 255   # Ensure BG 2 sprite is fully opaque
+  1885	        @foe_sprite.x = Graphics.width / 2   # Ensure foe sprite is in the right place
+  1886	        @text_sprite.x = 0   # Ensure name sprite is in the right place
+  1887	        # Flash screen
+  1888	        proportion = (timer - @bg_2_appear_end) / (@flash_end - @bg_2_appear_end)
+  1889	        @flash_viewport.color.alpha = 320 * (1 - proportion)
+  1890	      elsif timer >= @bg_2_appear_start
+  1891	        # BG 2 sprite appears
+  1892	        proportion = (timer - @bg_2_appear_start) / (@bg_2_appear_end - @bg_2_appear_start)
+  1893	        @bg_2_sprite.opacity = 255 * proportion
+  1894	        # Foe sprite/name appear
+  1895	        start_x = Graphics.width + (@foe_bitmap.width / 2)
+  1896	        @foe_sprite.x = start_x + (((Graphics.width / 2) - start_x) * Math.sqrt(proportion))
+  1897	        @text_sprite.x = @foe_sprite.x - (Graphics.width / 2)
+  1898	        @text_sprite.visible = true
+  1899	      elsif timer >= @bg_1_appear_end
+  1900	        @bg_1_sprite.oy = Graphics.height / 2
+  1901	        @bg_1_sprite.src_rect.y = 0
+  1902	        @bg_1_sprite.src_rect.height = @bg_1_bitmap.height
+  1903	        @sprites.each { |sprite| sprite.visible = false }   # Hide strobes
+  1904	      elsif timer >= @bg_1_appear_start
+  1905	        @flash_viewport.color.alpha = 0   # Ensure flash has ended
+  1906	        # BG 1 sprite appears
+  1907	        proportion = (timer - @bg_1_appear_start) / (@bg_1_appear_end - @bg_1_appear_start)
+  1908	        half_height = ((proportion * @bg_1_bitmap.height) / 2).to_i
+  1909	        @bg_1_sprite.src_rect.height = half_height * 2
+  1910	        @bg_1_sprite.src_rect.y = (@bg_1_bitmap.height / 2) - half_height
+  1911	        @bg_1_sprite.oy = half_height
+  1912	      elsif timer >= @strobe_appear_end
+  1913	        @sprites.each { |sprite| sprite.opacity = 255 }   # Ensure strobes are fully opaque
+  1914	        # Flash the screen white
+  1915	        proportion = (timer - @strobe_appear_end) / (@bg_1_appear_start - @strobe_appear_end)
+  1916	        if proportion >= 0.5
+  1917	          @flash_viewport.color.alpha = 320 * 2 * (1 - proportion)
+  1918	        else
+  1919	          @flash_viewport.color.alpha = 320 * proportion
+  1920	        end
+  1921	      else
+  1922	        # Strobes fade in
+  1923	        @sprites.each do |sprite|
+  1924	          sprite.opacity = 255 * (timer / @strobe_appear_end)
+  1925	        end
+  1926	      end
+  1927	    end
+  1928	  end
+  1929	end

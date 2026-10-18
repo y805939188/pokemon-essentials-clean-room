@@ -1,0 +1,224 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/002_Save data/003_SaveData_Conversion.rb", "range": [1, 223], "file_lines": 223, "bytes": 7964, "sha256": "52cd055e408386f1764051eb6e86b1245ed6bd7a294f5acbae00973453606bfb", "began_utc": "2026-10-16T03:33:04.184139+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 module SaveData
+00002   # Contains Conversion objects for each defined conversion:
+00003   # {
+00004   #   :essentials => {
+00005   #     '19'    => [<Conversion>, ...],
+00006   #     '19.1'  => [<Conversion>, ...],
+00007   #     ...
+00008   #   },
+00009   #   :game => {
+00010   #     '1.1.0' => [<Conversion>, ...],
+00011   #     '1.2.0' => [<Conversion>, ...],
+00012   #     ...
+00013   #   }
+00014   # }
+00015   # Populated during runtime by SaveData.register_conversion calls.
+00016   @conversions = {
+00017     essentials: {},
+00018     game:       {}
+00019   }
+00020 
+00021   #=============================================================================
+00022   # Represents a conversion made to save data.
+00023   # New conversions are added using {SaveData.register_conversion}.
+00024   class Conversion
+00025     # @return [Symbol] conversion ID
+00026     attr_reader :id
+00027     # @return [String] conversion title
+00028     attr_reader :title
+00029     # @return [Symbol] trigger type of the conversion (+:essentials+ or +:game+)
+00030     attr_reader :trigger_type
+00031     # @return [String] trigger version of the conversion
+00032     attr_reader :version
+00033 
+00034     # @param id [String] conversion ID
+00035     def initialize(id, &block)
+00036       @id = id
+00037       @value_procs = {}
+00038       @all_proc = nil
+00039       @title = "Running conversion #{@id}"
+00040       @trigger_type = nil
+00041       @version = nil
+00042       instance_eval(&block)
+00043       if @trigger_type.nil? || @version.nil?
+00044         raise "Conversion #{@id} is missing a condition"
+00045       end
+00046     end
+00047 
+00048     # Returns whether the conversion should be run with the given version.
+00049     # @param version [String] version to check
+00050     # @return [Boolean] whether the conversion should be run
+00051     def should_run?(version)
+00052       return PluginManager.compare_versions(version, @version) < 0
+00053     end
+00054 
+00055     # Runs the conversion on the given save data.
+00056     # @param save_data [Hash]
+00057     def run(save_data)
+00058       @value_procs.each do |value_id, proc|
+00059         unless save_data.has_key?(value_id)
+00060           raise "Save data does not have value #{value_id.inspect}"
+00061         end
+00062         proc.call(save_data[value_id])
+00063       end
+00064       @all_proc.call(save_data) if @all_proc.is_a?(Proc)
+00065     end
+00066 
+00067     # Runs the conversion on the given object.
+00068     # @param object
+00069     # @param key [Symbol]
+00070     def run_single(object, key)
+00071       @value_procs[key].call(object) if @value_procs[key].is_a?(Proc)
+00072     end
+00073 
+00074     #---------------------------------------------------------------------------
+00075 
+00076     private
+00077 
+00078     # @!group Configuration
+00079 
+00080     # Sets the conversion's title.
+00081     # @param new_title [String] conversion title
+00082     # @note Since conversions are run before loading the player's chosen language,
+00083     #   conversion titles can not be localized.
+00084     # @see SaveData.register_conversion
+00085     def display_title(new_title)
+00086       validate new_title => String
+00087       @title = new_title
+00088     end
+00089 
+00090     # Sets the conversion to trigger for save files created below
+00091     # the given Essentials version.
+00092     # @param version [Numeric, String]
+00093     # @see SaveData.register_conversion
+00094     def essentials_version(version)
+00095       validate version => [Numeric, String]
+00096       raise "Multiple conditions in conversion #{@id}" unless @version.nil?
+00097       @trigger_type = :essentials
+00098       @version = version.to_s
+00099     end
+00100 
+00101     # Sets the conversion to trigger for save files created below
+00102     # the given game version.
+00103     # @param version [Numeric, String]
+00104     # @see SaveData.register_conversion
+00105     def game_version(version)
+00106       validate version => [Numeric, String]
+00107       raise "Multiple conditions in conversion #{@id}" unless @version.nil?
+00108       @trigger_type = :game
+00109       @version = version.to_s
+00110     end
+00111 
+00112     # Defines a conversion to the given save value.
+00113     # @param value_id [Symbol] save value ID
+00114     # @see SaveData.register_conversion
+00115     def to_value(value_id, &block)
+00116       validate value_id => Symbol
+00117       raise ArgumentError, "No block given to to_value" unless block_given?
+00118       if @value_procs[value_id].is_a?(Proc)
+00119         raise "Multiple to_value definitions in conversion #{@id} for #{value_id}"
+00120       end
+00121       @value_procs[value_id] = block
+00122     end
+00123 
+00124     # Defines a conversion to the entire save data.
+00125     # @see SaveData.register_conversion
+00126     def to_all(&block)
+00127       raise ArgumentError, "No block given to to_all" unless block_given?
+00128       if @all_proc.is_a?(Proc)
+00129         raise "Multiple to_all definitions in conversion #{@id}"
+00130       end
+00131       @all_proc = block
+00132     end
+00133 
+00134     # @!endgroup
+00135   end
+00136 
+00137   #=============================================================================
+00138   # Registers a {Conversion} to occur for save data that meets the given criteria.
+00139   # Two types of criteria can be defined: {Conversion#essentials_version} and
+00140   # {Conversion#game_version}. The conversion is automatically run on save data
+00141   # that contains an older version number.
+00142   #
+00143   # A single value can be modified with {Conversion#to_value}. The entire save data
+00144   # is accessed with {Conversion#to_all}, and a conversion title can be specified
+00145   # with {Conversion#display_title}.
+00146   # @example Registering a new conversion
+00147   #   SaveData.register_conversion(:my_conversion) do
+00148   #     game_version '1.1.0'
+00149   #     display_title 'Converting some stuff'
+00150   #     to_value :player do |player|
+00151   #       # code that modifies the :player value
+00152   #     end
+00153   #     to_all do |save_data|
+00154   #       save_data[:new_value] = Foo.new
+00155   #     end
+00156   #   end
+00157   # @yield the block of code to be saved as a Conversion
+00158   def self.register_conversion(id, &block)
+00159     validate id => Symbol
+00160     unless block_given?
+00161       raise ArgumentError, "No block given to SaveData.register_conversion"
+00162     end
+00163     conversion = Conversion.new(id, &block)
+00164     @conversions[conversion.trigger_type][conversion.version] ||= []
+00165     @conversions[conversion.trigger_type][conversion.version] << conversion
+00166   end
+00167 
+00168   # @param save_data [Hash] save data to get conversions for
+00169   # @return [Array<Conversion>] all conversions that should be run on the data
+00170   def self.get_conversions(save_data)
+00171     conversions_to_run = []
+00172     versions = {
+00173       essentials: save_data[:essentials_version] || "18.1",
+00174       game:       save_data[:game_version] || "0.0.0"
+00175     }
+00176     [:essentials, :game].each do |trigger_type|
+00177       # Ensure the versions are sorted from lowest to highest
+00178       sorted_versions = @conversions[trigger_type].keys.sort do |v1, v2|
+00179         PluginManager.compare_versions(v1, v2)
+00180       end
+00181       sorted_versions.each do |version|
+00182         @conversions[trigger_type][version].each do |conversion|
+00183           next unless conversion.should_run?(versions[trigger_type])
+00184           conversions_to_run << conversion
+00185         end
+00186       end
+00187     end
+00188     return conversions_to_run
+00189   end
+00190 
+00191   # Runs all possible conversions on the given save data.
+00192   # Saves a backup before running conversions.
+00193   # @param save_data [Hash] save data to run conversions on
+00194   # @return [Boolean] whether conversions were run
+00195   def self.run_conversions(save_data)
+00196     validate save_data => Hash
+00197     conversions_to_run = self.get_conversions(save_data)
+00198     return false if conversions_to_run.none?
+00199     File.open(SaveData::FILE_PATH + ".bak", "wb") { |f| Marshal.dump(save_data, f) }
+00200     Console.echo_h1(_INTL("Converting save file"))
+00201     conversions_to_run.each do |conversion|
+00202       Console.echo_li("#{conversion.title}...")
+00203       conversion.run(save_data)
+00204       Console.echo_done(true)
+00205     end
+00206     Console.echoln_li_done(_INTL("Successfully applied {1} save file conversion(s)", conversions_to_run.length))
+00207     save_data[:essentials_version] = Essentials::VERSION
+00208     save_data[:game_version] = Settings::GAME_VERSION
+00209     return true
+00210   end
+00211 
+00212   # Runs all possible conversions on the given object.
+00213   # @param object [Hash] object to run conversions on
+00214   # @param key [Hash] object's key in save data
+00215   # @param save_data [Hash] save data to run conversions on
+00216   def self.run_single_conversions(object, key, save_data)
+00217     validate key => Symbol
+00218     conversions_to_run = self.get_conversions(save_data)
+00219     conversions_to_run.each do |conversion|
+00220       conversion.run_single(object, key)
+00221     end
+00222   end
+00223 end

@@ -1,0 +1,389 @@
+     1	#===============================================================================
+     2	# Additions to class Sprite that allows class AnimationContainerSprite to attach
+     3	# overworld animations to itself.
+     4	#===============================================================================
+     5	module RPG
+     6	  class Sprite < ::Sprite
+     7	    def initialize(viewport = nil)
+     8	      super(viewport)
+     9	      @_animation_duration = 0
+    10	      @_animation_frame = 0
+    11	      @animations = []
+    12	      @loopAnimations = []
+    13	    end
+    14	
+    15	    def dispose
+    16	      dispose_animation
+    17	      dispose_loop_animation
+    18	      super
+    19	    end
+    20	
+    21	    def dispose_animation
+    22	      @animations.each { |a| a&.dispose_animation }
+    23	      @animations.clear
+    24	    end
+    25	
+    26	    def dispose_loop_animation
+    27	      @loopAnimations.each { |a| a&.dispose_loop_animation }
+    28	      @loopAnimations.clear
+    29	    end
+    30	
+    31	    def x=(x)
+    32	      @animations.each { |a| a.x = x if a }
+    33	      @loopAnimations.each { |a| a.x = x if a }
+    34	      super
+    35	    end
+    36	
+    37	    def y=(y)
+    38	      @animations.each { |a| a.y = y if a }
+    39	      @loopAnimations.each { |a| a.y = y if a }
+    40	      super
+    41	    end
+    42	
+    43	    def pushAnimation(array, anim)
+    44	      array.length.times do |i|
+    45	        next if array[i]&.active?
+    46	        array[i] = anim
+    47	        return
+    48	      end
+    49	      array.push(anim)
+    50	    end
+    51	
+    52	    def animation(animation, hit, height = 3)
+    53	      anim = SpriteAnimation.new(self)
+    54	      anim.animation(animation, hit, height)
+    55	      pushAnimation(@animations, anim)
+    56	    end
+    57	
+    58	    def loop_animation(animation)
+    59	      anim = SpriteAnimation.new(self)
+    60	      anim.loop_animation(animation)
+    61	      pushAnimation(@loopAnimations, anim)
+    62	    end
+    63	
+    64	    def effect?
+    65	      @animations.each { |a| return true if a.effect? }
+    66	      return false
+    67	    end
+    68	
+    69	    def update_animation
+    70	      @animations.each { |a| a.update_animation if a&.active? }
+    71	    end
+    72	
+    73	    def update_loop_animation
+    74	      @loopAnimations.each { |a| a.update_loop_animation if a&.active? }
+    75	    end
+    76	
+    77	    def update
+    78	      super
+    79	      @animations.each { |a| a.update }
+    80	      @loopAnimations.each { |a| a.update }
+    81	      SpriteAnimation.clear
+    82	    end
+    83	  end
+    84	end
+    85	
+    86	#===============================================================================
+    87	# A version of class Sprite that allows its coordinates to be floats rather than
+    88	# integers.
+    89	#===============================================================================
+    90	class FloatSprite < Sprite
+    91	  def x; return @float_x; end
+    92	  def y; return @float_y; end
+    93	
+    94	  def x=(value)
+    95	    @float_x = value
+    96	    super
+    97	  end
+    98	
+    99	  def y=(value)
+   100	    @float_y = value
+   101	    super
+   102	  end
+   103	end
+     1	class Battle::Scene
+     2	  #=============================================================================
+     3	  # Create the battle scene and its elements
+     4	  #=============================================================================
+     5	  def initialize
+     6	    @battle     = nil
+     7	    @abortable  = false
+     8	    @aborted    = false
+     9	    @battleEnd  = false
+    10	    @animations = []
+    11	  end
+    12	
+    13	  # Called whenever the battle begins.
+    14	  def pbStartBattle(battle)
+    15	    @battle   = battle
+    16	    @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+    17	    @viewport.z = 99999
+    18	    @lastCmd  = Array.new(@battle.battlers.length, 0)
+    19	    @lastMove = Array.new(@battle.battlers.length, 0)
+    20	    pbInitSprites
+    21	    pbBattleIntroAnimation
+    22	  end
+    23	
+    24	  def pbInitSprites
+    25	    @sprites = {}
+    26	    # The background image and each side's base graphic
+    27	    pbCreateBackdropSprites
+    28	    # Create message box graphic
+    29	    messageBox = pbAddSprite("messageBox", 0, Graphics.height - 96,
+    30	                             "Graphics/UI/Battle/overlay_message", @viewport)
+    31	    messageBox.z = 195
+    32	    # Create message window (displays the message)
+    33	    msgWindow = Window_AdvancedTextPokemon.newWithSize(
+    34	      "", 16, Graphics.height - 96 + 2, Graphics.width - 32, 96, @viewport
+    35	    )
+    36	    msgWindow.z              = 200
+    37	    msgWindow.opacity        = 0
+    38	    msgWindow.baseColor      = MESSAGE_BASE_COLOR
+    39	    msgWindow.shadowColor    = MESSAGE_SHADOW_COLOR
+    40	    msgWindow.letterbyletter = true
+    41	    @sprites["messageWindow"] = msgWindow
+    42	    # Create command window
+    43	    @sprites["commandWindow"] = CommandMenu.new(@viewport, 200)
+    44	    # Create fight window
+    45	    @sprites["fightWindow"] = FightMenu.new(@viewport, 200)
+    46	    # Create targeting window
+    47	    @sprites["targetWindow"] = TargetMenu.new(@viewport, 200, @battle.sideSizes)
+    48	    pbShowWindow(MESSAGE_BOX)
+    49	    # The party lineup graphics (bar and balls) for both sides
+    50	    2.times do |side|
+    51	      partyBar = pbAddSprite("partyBar_#{side}", 0, 0,
+    52	                             "Graphics/UI/Battle/overlay_lineup", @viewport)
+    53	      partyBar.z       = 120
+    54	      partyBar.mirror  = true if side == 0   # Player's lineup bar only
+    55	      partyBar.visible = false
+    56	      NUM_BALLS.times do |i|
+    57	        ball = pbAddSprite("partyBall_#{side}_#{i}", 0, 0, nil, @viewport)
+    58	        ball.z       = 121
+    59	        ball.visible = false
+    60	      end
+    61	      # Ability splash bars
+    62	      if USE_ABILITY_SPLASH
+    63	        @sprites["abilityBar_#{side}"] = AbilitySplashBar.new(side, @viewport)
+    64	      end
+    65	    end
+    66	    # Player's and partner trainer's back sprite
+    67	    @battle.player.each_with_index do |p, i|
+    68	      pbCreateTrainerBackSprite(i, p.trainer_type, @battle.player.length)
+    69	    end
+    70	    # Opposing trainer(s) sprites
+    71	    if @battle.trainerBattle?
+    72	      @battle.opponent.each_with_index do |p, i|
+    73	        pbCreateTrainerFrontSprite(i, p.trainer_type, @battle.opponent.length)
+    74	      end
+    75	    end
+    76	    # Data boxes and Pokémon sprites
+    77	    @battle.battlers.each_with_index do |b, i|
+    78	      next if !b
+    79	      @sprites["dataBox_#{i}"] = PokemonDataBox.new(b, @battle.pbSideSize(i), @viewport)
+    80	      pbCreatePokemonSprite(i)
+    81	    end
+    82	    # Wild battle, so set up the Pokémon sprite(s) accordingly
+    83	    if @battle.wildBattle?
+    84	      @battle.pbParty(1).each_with_index do |pkmn, i|
+    85	        index = (i * 2) + 1
+    86	        pbChangePokemon(index, pkmn)
+    87	        pkmnSprite = @sprites["pokemon_#{index}"]
+    88	        pkmnSprite.tone    = Tone.new(-80, -80, -80)
+    89	        pkmnSprite.visible = true
+    90	      end
+    91	    end
+    92	  end
+    93	
+    94	  def pbCreateBackdropSprites
+    95	    case @battle.time
+    96	    when 1 then time = "eve"
+    97	    when 2 then time = "night"
+    98	    end
+    99	    # Put everything together into backdrop, bases and message bar filenames
+   100	    backdropFilename = @battle.backdrop
+   101	    baseFilename = @battle.backdrop
+   102	    baseFilename = sprintf("%s_%s", baseFilename, @battle.backdropBase) if @battle.backdropBase
+   103	    messageFilename = @battle.backdrop
+   104	    if time
+   105	      trialName = sprintf("%s_%s", backdropFilename, time)
+   106	      if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_bg", trialName))
+   107	        backdropFilename = trialName
+   108	      end
+   109	      trialName = sprintf("%s_%s", baseFilename, time)
+   110	      if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", trialName))
+   111	        baseFilename = trialName
+   112	      end
+   113	      trialName = sprintf("%s_%s", messageFilename, time)
+   114	      if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_message", trialName))
+   115	        messageFilename = trialName
+   116	      end
+   117	    end
+   118	    if !pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", baseFilename)) &&
+   119	       @battle.backdropBase
+   120	      baseFilename = @battle.backdropBase
+   121	      if time
+   122	        trialName = sprintf("%s_%s", baseFilename, time)
+   123	        if pbResolveBitmap(sprintf("Graphics/Battlebacks/%s_base0", trialName))
+   124	          baseFilename = trialName
+   125	        end
+   126	      end
+   127	    end
+   128	    # Finalise filenames
+   129	    battleBG   = "Graphics/Battlebacks/" + backdropFilename + "_bg"
+   130	    playerBase = "Graphics/Battlebacks/" + baseFilename + "_base0"
+   131	    enemyBase  = "Graphics/Battlebacks/" + baseFilename + "_base1"
+   132	    messageBG  = "Graphics/Battlebacks/" + messageFilename + "_message"
+   133	    # Apply graphics
+   134	    bg = pbAddSprite("battle_bg", 0, 0, battleBG, @viewport)
+   135	    bg.z = 0
+   136	    bg = pbAddSprite("battle_bg2", -Graphics.width, 0, battleBG, @viewport)
+   137	    bg.z      = 0
+   138	    bg.mirror = true
+   139	    2.times do |side|
+   140	      baseX, baseY = Battle::Scene.pbBattlerPosition(side)
+   141	      base = pbAddSprite("base_#{side}", baseX, baseY,
+   142	                         (side == 0) ? playerBase : enemyBase, @viewport)
+   143	      base.z = 1
+   144	      if base.bitmap
+   145	        base.ox = base.bitmap.width / 2
+   146	        base.oy = (side == 0) ? base.bitmap.height : base.bitmap.height / 2
+   147	      end
+   148	    end
+   149	    cmdBarBG = pbAddSprite("cmdBar_bg", 0, Graphics.height - 96, messageBG, @viewport)
+   150	    cmdBarBG.z = 180
+   151	  end
+   152	
+   153	  def pbCreateTrainerBackSprite(idxTrainer, trainerType, numTrainers = 1)
+   154	    if idxTrainer == 0   # Player's sprite
+   155	      trainerFile = GameData::TrainerType.player_back_sprite_filename(trainerType)
+   156	    else   # Partner trainer's sprite
+   157	      trainerFile = GameData::TrainerType.back_sprite_filename(trainerType)
+   158	    end
+   159	    spriteX, spriteY = Battle::Scene.pbTrainerPosition(0, idxTrainer, numTrainers)
+   160	    trainer = pbAddSprite("player_#{idxTrainer + 1}", spriteX, spriteY, trainerFile, @viewport)
+   161	    return if !trainer.bitmap
+   162	    # Alter position of sprite
+   163	    trainer.z = 80 + idxTrainer
+   164	    if trainer.bitmap.width > trainer.bitmap.height * 2
+   165	      trainer.src_rect.x     = 0
+   166	      trainer.src_rect.width = trainer.bitmap.width / 5
+   167	    end
+   168	    trainer.ox = trainer.src_rect.width / 2
+   169	    trainer.oy = trainer.bitmap.height
+   170	  end
+   171	
+   172	  def pbCreateTrainerFrontSprite(idxTrainer, trainerType, numTrainers = 1)
+   173	    trainerFile = GameData::TrainerType.front_sprite_filename(trainerType)
+   174	    spriteX, spriteY = Battle::Scene.pbTrainerPosition(1, idxTrainer, numTrainers)
+   175	    trainer = pbAddSprite("trainer_#{idxTrainer + 1}", spriteX, spriteY, trainerFile, @viewport)
+   176	    return if !trainer.bitmap
+   177	    # Alter position of sprite
+   178	    trainer.z  = 7 + idxTrainer
+   179	    trainer.ox = trainer.src_rect.width / 2
+   180	    trainer.oy = trainer.bitmap.height
+   181	  end
+   182	
+   183	  def pbCreatePokemonSprite(idxBattler)
+   184	    sideSize = @battle.pbSideSize(idxBattler)
+   185	    batSprite = BattlerSprite.new(@viewport, sideSize, idxBattler, @animations)
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class PokemonSystem
+     5	  attr_accessor :textspeed
+     6	  attr_accessor :battlescene
+     7	  attr_accessor :battlestyle
+     8	  attr_accessor :sendtoboxes
+     9	  attr_accessor :givenicknames
+    10	  attr_accessor :frame
+    11	  attr_accessor :textskin
+    12	  attr_accessor :screensize
+    13	  attr_accessor :language
+    14	  attr_accessor :runstyle
+    15	  attr_accessor :bgmvolume
+    16	  attr_accessor :sevolume
+    17	  attr_accessor :textinput
+    18	
+    19	  def initialize
+    20	    @textspeed     = 1     # Text speed (0=slow, 1=medium, 2=fast, 3=instant)
+    21	    @battlescene   = 0     # Battle effects (animations) (0=on, 1=off)
+    22	    @battlestyle   = 0     # Battle style (0=switch, 1=set)
+    23	    @sendtoboxes   = 0     # Send to Boxes (0=manual, 1=automatic)
+    24	    @givenicknames = 0     # Give nicknames (0=give, 1=don't give)
+    25	    @frame         = 0     # Default window frame (see also Settings::MENU_WINDOWSKINS)
+    26	    @textskin      = 0     # Speech frame
+    27	    @screensize    = (Settings::SCREEN_SCALE * 2).floor - 1   # 0=half size, 1=full size, 2=full-and-a-half size, 3=double size
+    28	    @language      = 0     # Language (see also Settings::LANGUAGES in script PokemonSystem)
+    29	    @runstyle      = 0     # Default movement speed (0=walk, 1=run)
+    30	    @bgmvolume     = 80    # Volume of background music and ME
+    31	    @sevolume      = 100   # Volume of sound effects
+    32	    @textinput     = 0     # Text input mode (0=cursor, 1=keyboard)
+    33	  end
+    34	end
+    35	
+    36	#===============================================================================
+    37	#
+    38	#===============================================================================
+    39	module PropertyMixin
+    40	  attr_reader :name
+    41	
+    42	  def get
+    43	    return @get_proc&.call
+    44	  end
+    45	
+    46	  def set(*args)
+    47	    @set_proc&.call(*args)
+    48	  end
+   380	
+   381	#===============================================================================
+   382	# Options Menu commands
+   383	#===============================================================================
+   384	MenuHandlers.add(:options_menu, :bgm_volume, {
+   385	  "name"        => _INTL("Music Volume"),
+   386	  "order"       => 10,
+   387	  "type"        => SliderOption,
+   388	  "parameters"  => [0, 100, 5],   # [minimum_value, maximum_value, interval]
+   389	  "description" => _INTL("Adjust the volume of the background music."),
+   390	  "get_proc"    => proc { next $PokemonSystem.bgmvolume },
+   391	  "set_proc"    => proc { |value, scene|
+   392	    next if $PokemonSystem.bgmvolume == value
+   393	    $PokemonSystem.bgmvolume = value
+   394	    next if scene.in_load_screen || $game_system.playing_bgm.nil?
+   395	    playingBGM = $game_system.getPlayingBGM
+   396	    $game_system.bgm_pause
+   397	    $game_system.bgm_resume(playingBGM)
+   398	  }
+   399	})
+   400	
+   401	MenuHandlers.add(:options_menu, :se_volume, {
+   402	  "name"        => _INTL("SE Volume"),
+   403	  "order"       => 20,
+   404	  "type"        => SliderOption,
+   405	  "parameters"  => [0, 100, 5],   # [minimum_value, maximum_value, interval]
+   406	  "description" => _INTL("Adjust the volume of sound effects."),
+   407	  "get_proc"    => proc { next $PokemonSystem.sevolume },
+   408	  "set_proc"    => proc { |value, _scene|
+   409	    next if $PokemonSystem.sevolume == value
+   410	    $PokemonSystem.sevolume = value
+   411	    if $game_system.playing_bgs
+   412	      $game_system.playing_bgs.volume = value
+   413	      playingBGS = $game_system.getPlayingBGS
+   414	      $game_system.bgs_pause
+   415	      $game_system.bgs_resume(playingBGS)
+   416	    end
+   417	    pbPlayCursorSE
+   418	  }
+   419	})
+   420	
+   421	MenuHandlers.add(:options_menu, :text_speed, {
+   422	  "name"        => _INTL("Text Speed"),
+   423	  "order"       => 30,
+   424	  "type"        => EnumOption,
+   425	  "parameters"  => [_INTL("Slow"), _INTL("Mid"), _INTL("Fast"), _INTL("Inst")],
+   426	  "description" => _INTL("Choose the speed at which text appears."),
+   427	  "on_select"   => proc { |scene| scene.sprites["textbox"].letterbyletter = true },
+   428	  "get_proc"    => proc { next $PokemonSystem.textspeed },
+   429	  "set_proc"    => proc { |value, scene|
+   430	    next if value == $PokemonSystem.textspeed
+   431	    $PokemonSystem.textspeed = value
+   432	    MessageConfig.pbSetTextSpeed(MessageConfig.pbSettingToTextSpeed(value))

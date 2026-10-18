@@ -1,0 +1,310 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/004_Overworld_FieldMoves.rb", "range": [661, 969], "file_lines": 969, "bytes": 33478, "sha256": "bab3c361575172b17f84184c9dbd15b3a3ba4ca42d1ac64edf4180a6f0534c69", "began_utc": "2026-10-16T03:57:17.934680+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00661   }
+00662 )
+00663 
+00664 HiddenMoveHandlers::CanUseMove.add(:STRENGTH, proc { |move, pkmn, showmsg|
+00665   next false if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_STRENGTH, showmsg)
+00666   if $PokemonMap.strengthUsed
+00667     pbMessage(_INTL("Strength is already being used.")) if showmsg
+00668     next false
+00669   end
+00670   next true
+00671 })
+00672 
+00673 HiddenMoveHandlers::UseMove.add(:STRENGTH, proc { |move, pokemon|
+00674   if !pbHiddenMoveAnimation(pokemon)
+00675     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name) + "\1")
+00676   end
+00677   pbMessage(_INTL("Strength made it possible to move boulders around!"))
+00678   $PokemonMap.strengthUsed = true
+00679   next true
+00680 })
+00681 
+00682 #===============================================================================
+00683 # Surf
+00684 #===============================================================================
+00685 def pbSurf
+00686   return false if !$game_player.can_ride_vehicle_with_follower?
+00687   move = :SURF
+00688   movefinder = $player.get_pokemon_with_move(move)
+00689   if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_SURF, false) || (!$DEBUG && !movefinder)
+00690     return false
+00691   end
+00692   if pbConfirmMessage(_INTL("The water is a deep blue color... Would you like to use Surf on it?"))
+00693     speciesname = (movefinder) ? movefinder.name : $player.name
+00694     pbMessage(_INTL("{1} used {2}!", speciesname, GameData::Move.get(move).name))
+00695     pbCancelVehicles
+00696     pbHiddenMoveAnimation(movefinder)
+00697     surfbgm = GameData::Metadata.get.surf_BGM
+00698     pbCueBGM(surfbgm, 0.5) if surfbgm
+00699     pbStartSurfing
+00700     return true
+00701   end
+00702   return false
+00703 end
+00704 
+00705 def pbStartSurfing
+00706   pbCancelVehicles
+00707   $PokemonEncounters.reset_step_count
+00708   $PokemonGlobal.surfing = true
+00709   $stats.surf_count += 1
+00710   pbUpdateVehicle
+00711   $game_temp.surf_base_coords = $map_factory.getFacingCoords($game_player.x, $game_player.y, $game_player.direction)
+00712   $game_player.jumpForward
+00713 end
+00714 
+00715 def pbEndSurf(_xOffset, _yOffset)
+00716   return false if !$PokemonGlobal.surfing
+00717   return false if $game_player.pbFacingTerrainTag.can_surf
+00718   base_coords = [$game_player.x, $game_player.y]
+00719   if $game_player.jumpForward
+00720     $game_temp.surf_base_coords = base_coords
+00721     $game_temp.ending_surf = true
+00722     return true
+00723   end
+00724   return false
+00725 end
+00726 
+00727 EventHandlers.add(:on_player_interact, :start_surfing,
+00728   proc {
+00729     next if $PokemonGlobal.surfing
+00730     next if $game_map.metadata&.always_bicycle
+00731     next if !$game_player.pbFacingTerrainTag.can_surf_freely
+00732     next if !$game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+00733     pbSurf
+00734   }
+00735 )
+00736 
+00737 # Do things after a jump to start/end surfing.
+00738 EventHandlers.add(:on_step_taken, :surf_jump,
+00739   proc { |event|
+00740     next if !$scene.is_a?(Scene_Map) || !event.is_a?(Game_Player)
+00741     next if !$game_temp.surf_base_coords
+00742     # Hide the temporary surf base graphic after jumping onto/off it
+00743     $game_temp.surf_base_coords = nil
+00744     # Finish up dismounting from surfing
+00745     if $game_temp.ending_surf
+00746       pbCancelVehicles
+00747       $PokemonEncounters.reset_step_count
+00748       $game_map.autoplayAsCue   # Play regular map BGM
+00749       $game_temp.ending_surf = false
+00750     end
+00751   }
+00752 )
+00753 
+00754 HiddenMoveHandlers::CanUseMove.add(:SURF, proc { |move, pkmn, showmsg|
+00755   next false if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_SURF, showmsg)
+00756   if $PokemonGlobal.surfing
+00757     pbMessage(_INTL("You're already surfing.")) if showmsg
+00758     next false
+00759   end
+00760   if !$game_player.can_ride_vehicle_with_follower?
+00761     pbMessage(_INTL("It can't be used when you have someone with you.")) if showmsg
+00762     next false
+00763   end
+00764   if $game_map.metadata&.always_bicycle
+00765     pbMessage(_INTL("Let's enjoy cycling!")) if showmsg
+00766     next false
+00767   end
+00768   if !$game_player.pbFacingTerrainTag.can_surf_freely ||
+00769      !$game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+00770     pbMessage(_INTL("No surfing here!")) if showmsg
+00771     next false
+00772   end
+00773   next true
+00774 })
+00775 
+00776 HiddenMoveHandlers::UseMove.add(:SURF, proc { |move, pokemon|
+00777   $game_temp.in_menu = false
+00778   pbCancelVehicles
+00779   if !pbHiddenMoveAnimation(pokemon)
+00780     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+00781   end
+00782   surfbgm = GameData::Metadata.get.surf_BGM
+00783   pbCueBGM(surfbgm, 0.5) if surfbgm
+00784   pbStartSurfing
+00785   next true
+00786 })
+00787 
+00788 #===============================================================================
+00789 # Sweet Scent
+00790 #===============================================================================
+00791 def pbSweetScent
+00792   if $game_screen.weather_type != :None
+00793     pbMessage(_INTL("The sweet scent faded for some reason..."))
+00794     return
+00795   end
+00796   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00797   viewport.z = 99999
+00798   viewport.color.red   = 255
+00799   viewport.color.green = 32
+00800   viewport.color.blue  = 32
+00801   viewport.color.alpha -= 10
+00802   pbSEPlay("Sweet Scent")
+00803   start_alpha = viewport.color.alpha
+00804   duration = 2.0
+00805   fade_time = 0.4
+00806   pbWait(duration) do |delta_t|
+00807     if delta_t < duration / 2
+00808       viewport.color.alpha = lerp(start_alpha, start_alpha + 128, fade_time, delta_t)
+00809     else
+00810       viewport.color.alpha = lerp(start_alpha + 128, start_alpha, fade_time, delta_t - duration + fade_time)
+00811     end
+00812   end
+00813   viewport.dispose
+00814   pbSEStop(0.5)
+00815   enctype = $PokemonEncounters.encounter_type
+00816   if !enctype || !$PokemonEncounters.encounter_possible_here? ||
+00817      !pbEncounter(enctype, false)
+00818     pbMessage(_INTL("There appears to be nothing here..."))
+00819   end
+00820 end
+00821 
+00822 HiddenMoveHandlers::CanUseMove.add(:SWEETSCENT, proc { |move, pkmn, showmsg|
+00823   next true
+00824 })
+00825 
+00826 HiddenMoveHandlers::UseMove.add(:SWEETSCENT, proc { |move, pokemon|
+00827   if !pbHiddenMoveAnimation(pokemon)
+00828     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+00829   end
+00830   pbSweetScent
+00831   next true
+00832 })
+00833 
+00834 #===============================================================================
+00835 # Teleport
+00836 #===============================================================================
+00837 HiddenMoveHandlers::CanUseMove.add(:TELEPORT, proc { |move, pkmn, showmsg|
+00838   if !$game_map.metadata&.outdoor_map
+00839     pbMessage(_INTL("You can't use that here.")) if showmsg
+00840     next false
+00841   end
+00842   healing = $PokemonGlobal.healingSpot
+00843   healing = GameData::PlayerMetadata.get($player.character_ID)&.home if !healing
+00844   healing = GameData::Metadata.get.home if !healing   # Home
+00845   if !healing
+00846     pbMessage(_INTL("You can't use that here.")) if showmsg
+00847     next false
+00848   end
+00849   if !$game_player.can_map_transfer_with_follower?
+00850     pbMessage(_INTL("It can't be used when you have someone with you.")) if showmsg
+00851     next false
+00852   end
+00853   next true
+00854 })
+00855 
+00856 HiddenMoveHandlers::ConfirmUseMove.add(:TELEPORT, proc { |move, pkmn|
+00857   healing = $PokemonGlobal.healingSpot
+00858   healing = GameData::PlayerMetadata.get($player.character_ID)&.home if !healing
+00859   healing = GameData::Metadata.get.home if !healing   # Home
+00860   next false if !healing
+00861   mapname = pbGetMapNameFromId(healing[0])
+00862   next pbConfirmMessage(_INTL("Want to return to the healing spot used last in {1}?", mapname))
+00863 })
+00864 
+00865 HiddenMoveHandlers::UseMove.add(:TELEPORT, proc { |move, pokemon|
+00866   healing = $PokemonGlobal.healingSpot
+00867   healing = GameData::PlayerMetadata.get($player.character_ID)&.home if !healing
+00868   healing = GameData::Metadata.get.home if !healing   # Home
+00869   next false if !healing
+00870   if !pbHiddenMoveAnimation(pokemon)
+00871     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+00872   end
+00873   pbFadeOutIn do
+00874     $game_temp.player_new_map_id    = healing[0]
+00875     $game_temp.player_new_x         = healing[1]
+00876     $game_temp.player_new_y         = healing[2]
+00877     $game_temp.player_new_direction = 2
+00878     pbDismountBike
+00879     $scene.transfer_player
+00880     $game_map.autoplay
+00881     $game_map.refresh
+00882   end
+00883   pbEraseEscapePoint
+00884   next true
+00885 })
+00886 
+00887 #===============================================================================
+00888 # Waterfall
+00889 #===============================================================================
+00890 # Starts the ascending of a waterfall.
+00891 def pbAscendWaterfall
+00892   return if $game_player.direction != 8   # Can't ascend if not facing up
+00893   terrain = $game_player.pbFacingTerrainTag
+00894   return if !terrain.waterfall && !terrain.waterfall_crest
+00895   $stats.waterfall_count += 1
+00896   $PokemonGlobal.ascending_waterfall = true
+00897   $game_player.through = true
+00898 end
+00899 
+00900 # Triggers after finishing each step while ascending/descending a waterfall.
+00901 def pbTraverseWaterfall
+00902   if $game_player.direction == 2   # Facing down; descending
+00903     terrain = $game_player.pbTerrainTag
+00904     if ($DEBUG && Input.press?(Input::CTRL)) ||
+00905        (!terrain.waterfall && !terrain.waterfall_crest)
+00906       $PokemonGlobal.descending_waterfall = false
+00907       $game_player.through = false
+00908       return
+00909     end
+00910     $stats.waterfalls_descended += 1 if !$PokemonGlobal.descending_waterfall
+00911     $PokemonGlobal.descending_waterfall = true
+00912     $game_player.through = true
+00913   elsif $PokemonGlobal.ascending_waterfall
+00914     terrain = $game_player.pbTerrainTag
+00915     if ($DEBUG && Input.press?(Input::CTRL)) ||
+00916        (!terrain.waterfall && !terrain.waterfall_crest)
+00917       $PokemonGlobal.ascending_waterfall = false
+00918       $game_player.through = false
+00919       return
+00920     end
+00921     $PokemonGlobal.ascending_waterfall = true
+00922     $game_player.through = true
+00923   end
+00924 end
+00925 
+00926 def pbWaterfall
+00927   move = :WATERFALL
+00928   movefinder = $player.get_pokemon_with_move(move)
+00929   if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_WATERFALL, false) || (!$DEBUG && !movefinder)
+00930     pbMessage(_INTL("A wall of water is crashing down with a mighty roar."))
+00931     return false
+00932   end
+00933   if pbConfirmMessage(_INTL("It's a large waterfall. Would you like to use Waterfall?"))
+00934     speciesname = (movefinder) ? movefinder.name : $player.name
+00935     pbMessage(_INTL("{1} used {2}!", speciesname, GameData::Move.get(move).name))
+00936     pbHiddenMoveAnimation(movefinder)
+00937     pbAscendWaterfall
+00938     return true
+00939   end
+00940   return false
+00941 end
+00942 
+00943 EventHandlers.add(:on_player_interact, :waterfall,
+00944   proc {
+00945     terrain = $game_player.pbFacingTerrainTag
+00946     if terrain.waterfall
+00947       pbWaterfall
+00948     elsif terrain.waterfall_crest
+00949       pbMessage(_INTL("A wall of water is crashing down with a mighty roar."))
+00950     end
+00951   }
+00952 )
+00953 
+00954 HiddenMoveHandlers::CanUseMove.add(:WATERFALL, proc { |move, pkmn, showmsg|
+00955   next false if !pbCheckHiddenMoveBadge(Settings::BADGE_FOR_WATERFALL, showmsg)
+00956   if !$game_player.pbFacingTerrainTag.waterfall
+00957     pbMessage(_INTL("You can't use that here.")) if showmsg
+00958     next false
+00959   end
+00960   next true
+00961 })
+00962 
+00963 HiddenMoveHandlers::UseMove.add(:WATERFALL, proc { |move, pokemon|
+00964   if !pbHiddenMoveAnimation(pokemon)
+00965     pbMessage(_INTL("{1} used {2}!", pokemon.name, GameData::Move.get(move).name))
+00966   end
+00967   pbAscendWaterfall
+00968   next true
+00969 })

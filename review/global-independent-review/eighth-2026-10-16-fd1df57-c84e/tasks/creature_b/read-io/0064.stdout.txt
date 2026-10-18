@@ -1,0 +1,317 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon-related/003_Pokemon_Sprites.rb", "range": [1, 316], "file_lines": 316, "bytes": 9281, "sha256": "7102386037c2d2038d174d66b38ebfdcc48588df4d8588d7bf3515be908059d0", "began_utc": "2026-10-16T03:34:22.451625+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Pokémon sprite (used out of battle).
+00003 #===============================================================================
+00004 class PokemonSprite < Sprite
+00005   def initialize(viewport = nil)
+00006     super(viewport)
+00007     @_iconbitmap = nil
+00008   end
+00009 
+00010   def dispose
+00011     @_iconbitmap&.dispose
+00012     @_iconbitmap = nil
+00013     self.bitmap = nil if !self.disposed?
+00014     super
+00015   end
+00016 
+00017   def clearBitmap
+00018     @_iconbitmap&.dispose
+00019     @_iconbitmap = nil
+00020     self.bitmap = nil
+00021   end
+00022 
+00023   def setOffset(offset = PictureOrigin::CENTER)
+00024     @offset = offset
+00025     changeOrigin
+00026   end
+00027 
+00028   def changeOrigin
+00029     return if !self.bitmap
+00030     @offset = PictureOrigin::CENTER if !@offset
+00031     case @offset
+00032     when PictureOrigin::TOP_LEFT, PictureOrigin::LEFT, PictureOrigin::BOTTOM_LEFT
+00033       self.ox = 0
+00034     when PictureOrigin::TOP, PictureOrigin::CENTER, PictureOrigin::BOTTOM
+00035       self.ox = self.bitmap.width / 2
+00036     when PictureOrigin::TOP_RIGHT, PictureOrigin::RIGHT, PictureOrigin::BOTTOM_RIGHT
+00037       self.ox = self.bitmap.width
+00038     end
+00039     case @offset
+00040     when PictureOrigin::TOP_LEFT, PictureOrigin::TOP, PictureOrigin::TOP_RIGHT
+00041       self.oy = 0
+00042     when PictureOrigin::LEFT, PictureOrigin::CENTER, PictureOrigin::RIGHT
+00043       self.oy = self.bitmap.height / 2
+00044     when PictureOrigin::BOTTOM_LEFT, PictureOrigin::BOTTOM, PictureOrigin::BOTTOM_RIGHT
+00045       self.oy = self.bitmap.height
+00046     end
+00047   end
+00048 
+00049   def setPokemonBitmap(pokemon, back = false)
+00050     @_iconbitmap&.dispose
+00051     @_iconbitmap = (pokemon) ? GameData::Species.sprite_bitmap_from_pokemon(pokemon, back) : nil
+00052     self.bitmap = (@_iconbitmap) ? @_iconbitmap.bitmap : nil
+00053     self.color = Color.new(0, 0, 0, 0)
+00054     changeOrigin
+00055   end
+00056 
+00057   def setPokemonBitmapSpecies(pokemon, species, back = false)
+00058     @_iconbitmap&.dispose
+00059     @_iconbitmap = (pokemon) ? GameData::Species.sprite_bitmap_from_pokemon(pokemon, back, species) : nil
+00060     self.bitmap = (@_iconbitmap) ? @_iconbitmap.bitmap : nil
+00061     changeOrigin
+00062   end
+00063 
+00064   def setSpeciesBitmap(species, gender = 0, form = 0, shiny = false, shadow = false, back = false, egg = false)
+00065     @_iconbitmap&.dispose
+00066     @_iconbitmap = GameData::Species.sprite_bitmap(species, form, gender, shiny, shadow, back, egg)
+00067     self.bitmap = (@_iconbitmap) ? @_iconbitmap.bitmap : nil
+00068     changeOrigin
+00069   end
+00070 
+00071   def update
+00072     super
+00073     if @_iconbitmap
+00074       @_iconbitmap.update
+00075       self.bitmap = @_iconbitmap.bitmap
+00076     end
+00077   end
+00078 end
+00079 
+00080 #===============================================================================
+00081 # Pokémon icon (for defined Pokémon).
+00082 #===============================================================================
+00083 class PokemonIconSprite < Sprite
+00084   attr_accessor :selected
+00085   attr_accessor :active
+00086   attr_reader   :pokemon
+00087 
+00088   # Time in seconds for one animation cycle of this Pokémon icon. It is doubled
+00089   # if the Pokémon is at 50% HP or lower, and doubled again if it is at 25% HP
+00090   # or lower. The icon doesn't animate at all if the Pokémon is fainted.
+00091   ANIMATION_DURATION = 0.25
+00092 
+00093   def initialize(pokemon, viewport = nil)
+00094     super(viewport)
+00095     @selected      = false
+00096     @active        = false
+00097     @frames_count  = 0
+00098     @current_frame = 0
+00099     self.pokemon   = pokemon
+00100     @logical_x     = 0   # Actual x coordinate
+00101     @logical_y     = 0   # Actual y coordinate
+00102     @adjusted_x    = 0   # Offset due to "jumping" animation in party screen
+00103     @adjusted_y    = 0   # Offset due to "jumping" animation in party screen
+00104   end
+00105 
+00106   def dispose
+00107     @animBitmap&.dispose
+00108     super
+00109   end
+00110 
+00111   def x; return @logical_x; end
+00112   def y; return @logical_y; end
+00113 
+00114   def x=(value)
+00115     @logical_x = value
+00116     super(@logical_x + @adjusted_x)
+00117   end
+00118 
+00119   def y=(value)
+00120     @logical_y = value
+00121     super(@logical_y + @adjusted_y)
+00122   end
+00123 
+00124   def pokemon=(value)
+00125     @pokemon = value
+00126     @animBitmap&.dispose
+00127     @animBitmap = nil
+00128     if !@pokemon
+00129       self.bitmap = nil
+00130       @current_frame = 0
+00131       return
+00132     end
+00133     @animBitmap = AnimatedBitmap.new(GameData::Species.icon_filename_from_pokemon(value))
+00134     self.bitmap = @animBitmap.bitmap
+00135     self.src_rect.width  = @animBitmap.height
+00136     self.src_rect.height = @animBitmap.height
+00137     @frames_count = @animBitmap.width / @animBitmap.height
+00138     @current_frame = 0 if @current_frame >= @frames_count
+00139     changeOrigin
+00140   end
+00141 
+00142   def setOffset(offset = PictureOrigin::CENTER)
+00143     @offset = offset
+00144     changeOrigin
+00145   end
+00146 
+00147   def changeOrigin
+00148     return if !self.bitmap
+00149     @offset = PictureOrigin::TOP_LEFT if !@offset
+00150     case @offset
+00151     when PictureOrigin::TOP_LEFT, PictureOrigin::LEFT, PictureOrigin::BOTTOM_LEFT
+00152       self.ox = 0
+00153     when PictureOrigin::TOP, PictureOrigin::CENTER, PictureOrigin::BOTTOM
+00154       self.ox = self.src_rect.width / 2
+00155     when PictureOrigin::TOP_RIGHT, PictureOrigin::RIGHT, PictureOrigin::BOTTOM_RIGHT
+00156       self.ox = self.src_rect.width
+00157     end
+00158     case @offset
+00159     when PictureOrigin::TOP_LEFT, PictureOrigin::TOP, PictureOrigin::TOP_RIGHT
+00160       self.oy = 0
+00161     when PictureOrigin::LEFT, PictureOrigin::CENTER, PictureOrigin::RIGHT
+00162       # NOTE: This assumes the top quarter of the icon is blank, so oy is placed
+00163       #       in the middle of the lower three quarters of the image.
+00164       self.oy = self.src_rect.height * 5 / 8
+00165     when PictureOrigin::BOTTOM_LEFT, PictureOrigin::BOTTOM, PictureOrigin::BOTTOM_RIGHT
+00166       self.oy = self.src_rect.height
+00167     end
+00168   end
+00169 
+00170   def update_frame
+00171     if @pokemon.fainted?
+00172       @current_frame = 0
+00173       return
+00174     end
+00175     duration = ANIMATION_DURATION
+00176     if @pokemon.hp <= @pokemon.totalhp / 4      # Red HP - 1 second
+00177       duration *= 4
+00178     elsif @pokemon.hp <= @pokemon.totalhp / 2   # Yellow HP - 0.5 seconds
+00179       duration *= 2
+00180     end
+00181     @current_frame = (@frames_count * (System.uptime % duration) / duration).floor
+00182   end
+00183 
+00184   def update
+00185     return if !@animBitmap
+00186     super
+00187     @animBitmap.update
+00188     self.bitmap = @animBitmap.bitmap
+00189     # Update animation
+00190     update_frame
+00191     self.src_rect.x = self.src_rect.width * @current_frame
+00192     # Update "jumping" animation (used in party screen)
+00193     if @selected
+00194       @adjusted_x = 4
+00195       @adjusted_y = (@current_frame >= @frames_count / 2) ? -2 : 6
+00196     else
+00197       @adjusted_x = 0
+00198       @adjusted_y = 0
+00199     end
+00200     self.x = self.x
+00201     self.y = self.y
+00202   end
+00203 end
+00204 
+00205 #===============================================================================
+00206 # Pokémon icon (for species).
+00207 #===============================================================================
+00208 class PokemonSpeciesIconSprite < Sprite
+00209   attr_reader :species
+00210   attr_reader :gender
+00211   attr_reader :form
+00212   attr_reader :shiny
+00213 
+00214   # Time in seconds for one animation cycle of this Pokémon icon.
+00215   ANIMATION_DURATION = 0.25
+00216 
+00217   def initialize(species, viewport = nil)
+00218     super(viewport)
+00219     @species       = species
+00220     @gender        = 0
+00221     @form          = 0
+00222     @shiny         = 0
+00223     @frames_count  = 0
+00224     @current_frame = 0
+00225     refresh
+00226   end
+00227 
+00228   def dispose
+00229     @animBitmap&.dispose
+00230     super
+00231   end
+00232 
+00233   def species=(value)
+00234     @species = value
+00235     refresh
+00236   end
+00237 
+00238   def gender=(value)
+00239     @gender = value
+00240     refresh
+00241   end
+00242 
+00243   def form=(value)
+00244     @form = value
+00245     refresh
+00246   end
+00247 
+00248   def shiny=(value)
+00249     @shiny = value
+00250     refresh
+00251   end
+00252 
+00253   def pbSetParams(species, gender, form, shiny = false)
+00254     @species = species
+00255     @gender  = gender
+00256     @form    = form
+00257     @shiny   = shiny
+00258     refresh
+00259   end
+00260 
+00261   def setOffset(offset = PictureOrigin::CENTER)
+00262     @offset = offset
+00263     changeOrigin
+00264   end
+00265 
+00266   def changeOrigin
+00267     return if !self.bitmap
+00268     @offset = PictureOrigin::TOP_LEFT if !@offset
+00269     case @offset
+00270     when PictureOrigin::TOP_LEFT, PictureOrigin::LEFT, PictureOrigin::BOTTOM_LEFT
+00271       self.ox = 0
+00272     when PictureOrigin::TOP, PictureOrigin::CENTER, PictureOrigin::BOTTOM
+00273       self.ox = self.src_rect.width / 2
+00274     when PictureOrigin::TOP_RIGHT, PictureOrigin::RIGHT, PictureOrigin::BOTTOM_RIGHT
+00275       self.ox = self.src_rect.width
+00276     end
+00277     case @offset
+00278     when PictureOrigin::TOP_LEFT, PictureOrigin::TOP, PictureOrigin::TOP_RIGHT
+00279       self.oy = 0
+00280     when PictureOrigin::LEFT, PictureOrigin::CENTER, PictureOrigin::RIGHT
+00281       # NOTE: This assumes the top quarter of the icon is blank, so oy is placed
+00282       #       in the middle of the lower three quarters of the image.
+00283       self.oy = self.src_rect.height * 5 / 8
+00284     when PictureOrigin::BOTTOM_LEFT, PictureOrigin::BOTTOM, PictureOrigin::BOTTOM_RIGHT
+00285       self.oy = self.src_rect.height
+00286     end
+00287   end
+00288 
+00289   def refresh
+00290     @animBitmap&.dispose
+00291     @animBitmap = nil
+00292     bitmapFileName = GameData::Species.icon_filename(@species, @form, @gender, @shiny)
+00293     return if !bitmapFileName
+00294     @animBitmap = AnimatedBitmap.new(bitmapFileName)
+00295     self.bitmap = @animBitmap.bitmap
+00296     self.src_rect.width  = @animBitmap.height
+00297     self.src_rect.height = @animBitmap.height
+00298     @frames_count = @animBitmap.width / @animBitmap.height
+00299     @current_frame = 0 if @current_frame >= @frames_count
+00300     changeOrigin
+00301   end
+00302 
+00303   def update_frame
+00304     @current_frame = (@frames_count * (System.uptime % ANIMATION_DURATION) / ANIMATION_DURATION).floor
+00305   end
+00306 
+00307   def update
+00308     return if !@animBitmap
+00309     super
+00310     @animBitmap.update
+00311     self.bitmap = @animBitmap.bitmap
+00312     # Update animation
+00313     update_frame
+00314     self.src_rect.x = self.src_rect.width * @current_frame
+00315   end
+00316 end

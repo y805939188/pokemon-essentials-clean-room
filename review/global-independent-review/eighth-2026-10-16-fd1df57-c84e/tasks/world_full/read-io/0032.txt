@@ -1,0 +1,302 @@
+    1 class Game_Event < Game_Character
+    2   attr_reader   :map_id
+    3   attr_reader   :trigger
+    4   attr_reader   :list
+    5   attr_reader   :starting
+    6   attr_reader   :tempSwitches   # Temporary self-switches
+    7   attr_accessor :need_refresh
+    8 
+    9   def initialize(map_id, event, map = nil)
+   10     super(map)
+   11     @map_id       = map_id
+   12     @event        = event
+   13     @id           = @event.id
+   14     @original_x   = @event.x
+   15     @original_y   = @event.y
+   16     if @event.name[/size\((\d+),(\d+)\)/i]
+   17       @width = $~[1].to_i
+   18       @height = $~[2].to_i
+   19     end
+   20     @erased       = false
+   21     @starting     = false
+   22     @need_refresh = false
+   23     @route_erased = false
+   24     @through      = true
+   25     @to_update    = true
+   26     @tempSwitches = {}
+   27     moveto(@event.x, @event.y) if map
+   28     refresh
+   29   end
+   30 
+   31   def id;   return @event.id;   end
+   32   def name; return @event.name; end
+   33 
+   34   def set_starting
+   35     @starting = true
+   36   end
+   37 
+   38   def clear_starting
+   39     @starting = false
+   40   end
+   41 
+   42   def start
+   43     @starting = true if @list.size > 1
+   44   end
+   45 
+   46   def erase
+   47     @erased = true
+   48     refresh
+   49   end
+   50 
+   51   def erase_route
+   52     @route_erased = true
+   53     refresh
+   54   end
+   55 
+   56   def tsOn?(c)
+   57     return @tempSwitches && @tempSwitches[c] == true
+   58   end
+   59 
+   60   def tsOff?(c)
+   61     return !@tempSwitches || !@tempSwitches[c]
+   62   end
+   63 
+   64   def setTempSwitchOn(c)
+   65     @tempSwitches[c] = true
+   66     refresh
+   67   end
+   68 
+   69   def setTempSwitchOff(c)
+   70     @tempSwitches[c] = false
+   71     refresh
+   72   end
+   73 
+   74   def isOff?(c)
+   75     return !$game_self_switches[[@map_id, @event.id, c]]
+   76   end
+   77 
+   78   def switchIsOn?(id)
+   79     switchname = $data_system.switches[id]
+   80     return false if !switchname
+   81     if switchname[/^s\:/]
+   82       return eval($~.post_match)
+   83     else
+   84       return $game_switches[id]
+   85     end
+   86   end
+   87 
+   88   def variable
+   89     return nil if !$PokemonGlobal.eventvars
+   90     return $PokemonGlobal.eventvars[[@map_id, @event.id]]
+   91   end
+   92 
+   93   def setVariable(variable)
+   94     $PokemonGlobal.eventvars[[@map_id, @event.id]] = variable
+   95   end
+   96 
+   97   def varAsInt
+   98     return 0 if !$PokemonGlobal.eventvars
+   99     return $PokemonGlobal.eventvars[[@map_id, @event.id]].to_i
+  100   end
+  101 
+  102   def expired?(secs = 86_400)
+  103     ontime = self.variable
+  104     time = pbGetTimeNow
+  105     return ontime && (time.to_i > ontime + secs)
+  106   end
+  107 
+  108   def expiredDays?(days = 1)
+  109     ontime = self.variable.to_i
+  110     return false if !ontime
+  111     now = pbGetTimeNow
+  112     elapsed = (now.to_i - ontime) / 86_400
+  113     elapsed += 1 if (now.to_i - ontime) % 86_400 > ((now.hour * 3600) + (now.min * 60) + now.sec)
+  114     return elapsed >= days
+  115   end
+  116 
+  117   def cooledDown?(seconds)
+  118     return true if expired?(seconds) && tsOff?("A")
+  119     self.need_refresh = true
+  120     return false
+  121   end
+  122 
+  123   def cooledDownDays?(days)
+  124     return true if expiredDays?(days) && tsOff?("A")
+  125     self.need_refresh = true
+  126     return false
+  127   end
+  128 
+  129   def onEvent?
+  130     return @map_id == $game_map.map_id && at_coordinate?($game_player.x, $game_player.y)
+  131   end
+  132 
+  133   def over_trigger?
+  134     return false if @character_name != "" && !@through
+  135     return false if @event.name[/hiddenitem/i]
+  136     each_occupied_tile do |i, j|
+  137       return true if self.map.passable?(i, j, 0, $game_player)
+  138     end
+  139     return false
+  140   end
+  141 
+  142   def check_event_trigger_touch(dir)
+  143     return if $game_system.map_interpreter.running?
+  144     return if @trigger != 2   # Event touch
+  145     case dir
+  146     when 2
+  147       return if $game_player.y != @y + 1
+  148     when 4
+  149       return if $game_player.x != @x - 1
+  150     when 6
+  151       return if $game_player.x != @x + @width
+  152     when 8
+  153       return if $game_player.y != @y - @height
+  154     end
+  155     return if !in_line_with_coordinate?($game_player.x, $game_player.y)
+  156     return if jumping? || over_trigger?
+  157     start
+  158   end
+  159 
+  160   def check_event_trigger_after_turning
+  161     return if $game_system.map_interpreter.running? || @starting
+  162     return if @trigger != 2   # Not Event Touch
+  163     return if !self.name[/(?:sight|trainer)\((\d+)\)/i]
+  164     distance = $~[1].to_i
+  165     return if !pbEventCanReachPlayer?(self, $game_player, distance)
+  166     return if jumping? || over_trigger?
+  167     start
+  168   end
+  169 
+  170   def check_event_trigger_after_moving
+  171     return if $game_system.map_interpreter.running? || @starting
+  172     return if @trigger != 2   # Not Event Touch
+  173     if self.name[/(?:sight|trainer)\((\d+)\)/i]
+  174       distance = $~[1].to_i
+  175       return if !pbEventCanReachPlayer?(self, $game_player, distance)
+  176     elsif self.name[/counter\((\d+)\)/i]
+  177       distance = $~[1].to_i
+  178       return if !pbEventFacesPlayer?(self, $game_player, distance)
+  179     else
+  180       return
+  181     end
+  182     return if jumping? || over_trigger?
+  183     start
+  184   end
+  185 
+  186   def check_event_trigger_auto
+  187     case @trigger
+  188     when 2   # Event touch
+  189       if at_coordinate?($game_player.x, $game_player.y) && !jumping? && over_trigger?
+  190         start
+  191       end
+  192     when 3   # Autorun
+  193       start
+  194     end
+  195   end
+  196 
+  197   def refresh
+  198     new_page = nil
+  199     unless @erased
+  200       @event.pages.reverse.each do |page|
+  201         c = page.condition
+  202         next if c.switch1_valid && !switchIsOn?(c.switch1_id)
+  203         next if c.switch2_valid && !switchIsOn?(c.switch2_id)
+  204         next if c.variable_valid && $game_variables[c.variable_id] < c.variable_value
+  205         if c.self_switch_valid
+  206           key = [@map_id, @event.id, c.self_switch_ch]
+  207           next if $game_self_switches[key] != true
+  208         end
+  209         new_page = page
+  210         break
+  211       end
+  212     end
+  213     return if new_page == @page
+  214     @page = new_page
+  215     clear_starting
+  216     if @page.nil?
+  217       @tile_id        = 0
+  218       @character_name = ""
+  219       @character_hue  = 0
+  220       @move_type      = 0
+  221       @through        = true
+  222       @trigger        = nil
+  223       @list           = nil
+  224       @interpreter    = nil
+  225       return
+  226     end
+  227     @tile_id              = @page.graphic.tile_id
+  228     @character_name       = @page.graphic.character_name
+  229     @character_hue        = @page.graphic.character_hue
+  230     if @original_direction != @page.graphic.direction
+  231       @direction          = @page.graphic.direction
+  232       @original_direction = @direction
+  233       @prelock_direction  = 0
+  234     end
+  235     if @original_pattern != @page.graphic.pattern
+  236       @pattern            = @page.graphic.pattern
+  237       @original_pattern   = @pattern
+  238     end
+  239     @opacity              = @page.graphic.opacity
+  240     @blend_type           = @page.graphic.blend_type
+  241     @move_type            = @page.move_type
+  242     self.move_speed       = @page.move_speed
+  243     self.move_frequency   = @page.move_frequency
+  244     @move_route           = (@route_erased) ? RPG::MoveRoute.new : @page.move_route
+  245     @move_route_index     = 0
+  246     @move_route_forcing   = false
+  247     @walk_anime           = @page.walk_anime
+  248     @step_anime           = @page.step_anime
+  249     @direction_fix        = @page.direction_fix
+  250     @through              = @page.through
+  251     @always_on_top        = @page.always_on_top
+  252     calculate_bush_depth
+  253     @trigger              = @page.trigger
+  254     @list                 = @page.list
+  255     @interpreter          = nil
+  256     @interpreter          = Interpreter.new if @trigger == 4   # Parallel Process
+  257     check_event_trigger_auto
+  258   end
+  259 
+  260   def should_update?(recalc = false)
+  261     return @to_update if !recalc
+  262     return true if @updated_last_frame
+  263     return true if @trigger && (@trigger == 3 || @trigger == 4)
+  264     return true if @move_route_forcing || @moveto_happened
+  265     return true if @event.name[/update/i]
+  266     range = 2   # Number of tiles
+  267     return false if self.screen_x - (@sprite_size[0] / 2) > Graphics.width + (range * Game_Map::TILE_WIDTH)
+  268     return false if self.screen_x + (@sprite_size[0] / 2) < -range * Game_Map::TILE_WIDTH
+  269     return false if self.screen_y_ground - @sprite_size[1] > Graphics.height + (range * Game_Map::TILE_HEIGHT)
+  270     return false if self.screen_y_ground < -range * Game_Map::TILE_HEIGHT
+  271     return true
+  272   end
+  273 
+  274   def update
+  275     @to_update = should_update?(true)
+  276     @updated_last_frame = false
+  277     return if !@to_update
+  278     @updated_last_frame = true
+  279     @moveto_happened = false
+  280     last_moving = moving?
+  281     super
+  282     check_event_trigger_after_moving if !moving? && last_moving
+  283     if @need_refresh
+  284       @need_refresh = false
+  285       refresh
+  286     end
+  287     check_event_trigger_auto
+  288     if @interpreter
+  289       @interpreter.setup(@list, @event.id, @map_id) if !@interpreter.running?
+  290       @interpreter.update
+  291     end
+  292   end
+  293 
+  294   def update_move
+  295     was_jumping = jumping?
+  296     super
+  297     if was_jumping && !jumping? && !@transparent && (@tile_id > 0 || @character_name != "")
+  298       spriteset = $scene.spriteset(map_id)
+  299       spriteset&.addUserAnimation(Settings::DUST_ANIMATION_ID, self.x, self.y, true, 1)
+  300     end
+  301   end
+  302 end

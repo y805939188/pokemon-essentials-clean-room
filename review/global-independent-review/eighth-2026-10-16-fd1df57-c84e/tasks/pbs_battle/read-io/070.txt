@@ -1,0 +1,98 @@
+00388   def compile_pokemon_forms(*paths)
+00389     schema = GameData::Species.schema(true)
+00390     # Read from PBS file(s)
+00391     paths.each do |path|
+00392       compile_pbs_file_message_start(path)
+00393       file_suffix = File.basename(path, ".txt")[GameData::Species::PBS_BASE_FILENAME[1].length + 1, path.length] || ""
+00394       File.open(path, "rb") do |f|
+00395         FileLineData.file = path   # For error reporting
+00396         # Read a whole section's lines at once, then run through this code.
+00397         # contents is a hash containing all the XXX=YYY lines in that section, where
+00398         # the keys are the XXX and the values are the YYY (as unprocessed strings).
+00399         idx = 0
+00400         pbEachFileSection(f, schema) do |contents, section_name|
+00401           echo "." if idx % 100 == 0
+00402           Graphics.update if idx % 500 == 0
+00403           idx += 1
+00404           data_hash = {
+00405             :id              => section_name.to_sym,
+00406             :pbs_file_suffix => file_suffix
+00407           }
+00408           # Go through schema hash of compilable data and compile this section
+00409           schema.each_key do |key|
+00410             FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+00411             if key == "SectionName"
+00412               data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+00413               next
+00414             end
+00415             # Skip empty properties
+00416             next if contents[key].nil?
+00417             # Compile value for key
+00418             if schema[key][1][0] == "^"
+00419               contents[key].each do |val|
+00420                 value = get_csv_record(val, schema[key])
+00421                 value = nil if value.is_a?(Array) && value.empty?
+00422                 data_hash[schema[key][0]] ||= []
+00423                 data_hash[schema[key][0]].push(value)
+00424               end
+00425               data_hash[schema[key][0]].compact!
+00426             else
+00427               value = get_csv_record(contents[key], schema[key])
+00428               value = nil if value.is_a?(Array) && value.empty?
+00429               data_hash[schema[key][0]] = value
+00430             end
+00431           end
+00432           # Validate and modify the compiled data
+00433           validate_compiled_pokemon_form(data_hash)
+00434           if GameData::Species.exists?(data_hash[:id])
+00435             raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+00436           end
+00437           # Add section's data to records
+00438           GameData::Species.register(data_hash)
+00439         end
+00440       end
+00441       process_pbs_file_message_end
+00442     end
+00443     validate_all_compiled_pokemon_forms
+00444     # Save all data
+00445     GameData::Species.save
+00446   end
+00447 
+00448   def validate_compiled_pokemon_form(hash)
+00449     # Split species and form into their own values, generate compound ID from them
+00450     hash[:species] = hash[:id][0]
+00451     hash[:form] = hash[:id][1]
+00452     hash[:id] = sprintf("%s_%d", hash[:species].to_s, hash[:form]).to_sym
+00453     if !GameData::Species.exists?(hash[:species])
+00454       raise _INTL("Undefined species ID '{1}'.", hash[:species]) + "\n" + FileLineData.linereport
+00455     elsif GameData::Species.exists?(hash[:id])
+00456       raise _INTL("Form {1} for species ID '{2}' is defined twice.", hash[:form], hash[:species]) + "\n" + FileLineData.linereport
+00457     end
+00458     # Perform the same validations on this form as for a regular species
+00459     validate_compiled_pokemon(hash)
+00460     # Inherit undefined properties from base species
+00461     base_data = GameData::Species.get(hash[:species])
+00462     [:real_name, :real_category, :real_pokedex_entry, :base_exp, :growth_rate,
+00463      :gender_ratio, :catch_rate, :happiness, :hatch_steps, :incense, :height,
+00464      :weight, :color, :shape, :habitat, :generation].each do |property|
+00465       hash[property] = base_data.send(property) if hash[property].nil?
+00466     end
+00467     [:types, :base_stats, :evs, :tutor_moves, :egg_moves, :abilities,
+00468      :hidden_abilities, :egg_groups, :offspring, :flags].each do |property|
+00469       hash[property] = base_data.send(property).clone if hash[property].nil?
+00470     end
+00471     if !hash[:moves].is_a?(Array) || hash[:moves].length == 0
+00472       hash[:moves] ||= []
+00473       base_data.moves.each { |m| hash[:moves].push(m.clone) }
+00474     end
+00475     if !hash[:evolutions].is_a?(Array) || hash[:evolutions].length == 0
+00476       hash[:evolutions] ||= []
+00477       base_data.evolutions.each { |e| hash[:evolutions].push(e.clone) }
+00478     end
+00479     if hash[:wild_item_common].nil? && hash[:wild_item_uncommon].nil? &&
+00480        hash[:wild_item_rare].nil?
+00481       hash[:wild_item_common] = base_data.wild_item_common.clone
+00482       hash[:wild_item_uncommon] = base_data.wild_item_uncommon.clone
+00483       hash[:wild_item_rare] = base_data.wild_item_rare.clone
+00484     end
+00485   end

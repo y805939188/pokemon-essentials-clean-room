@@ -1,0 +1,306 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/013_MoveEffects_SwitchingActing.rb RANGE 261-405
+class Battle::Move::BindTarget < Battle::Move
+  def pbEffectAgainstTarget(user, target)
+    return if target.fainted? || target.damageState.substitute
+    return if target.effects[PBEffects::Trapping] > 0
+    # Set trapping effect duration and info
+    if user.hasActiveItem?(:GRIPCLAW)
+      target.effects[PBEffects::Trapping] = (Settings::MECHANICS_GENERATION >= 5) ? 8 : 6
+    else
+      target.effects[PBEffects::Trapping] = 5 + @battle.pbRandom(2)
+    end
+    target.effects[PBEffects::TrappingMove] = @id
+    target.effects[PBEffects::TrappingUser] = user.index
+    # Message
+    msg = _INTL("{1} was trapped in the vortex!", target.pbThis)
+    case @id
+    when :BIND
+      msg = _INTL("{1} was squeezed by {2}!", target.pbThis, user.pbThis(true))
+    when :CLAMP
+      msg = _INTL("{1} clamped {2}!", user.pbThis, target.pbThis(true))
+    when :FIRESPIN
+      msg = _INTL("{1} was trapped in the fiery vortex!", target.pbThis)
+    when :INFESTATION
+      msg = _INTL("{1} has been afflicted with an infestation by {2}!", target.pbThis, user.pbThis(true))
+    when :MAGMASTORM
+      msg = _INTL("{1} became trapped by Magma Storm!", target.pbThis)
+    when :SANDTOMB
+      msg = _INTL("{1} became trapped by Sand Tomb!", target.pbThis)
+    when :WHIRLPOOL
+      msg = _INTL("{1} became trapped in the vortex!", target.pbThis)
+    when :WRAP
+      msg = _INTL("{1} was wrapped by {2}!", target.pbThis, user.pbThis(true))
+    end
+    @battle.pbDisplay(msg)
+  end
+end
+
+#===============================================================================
+# Trapping move. Traps for 5 or 6 rounds. Trapped Pokémon lose 1/16 of max HP
+# at end of each round. (Whirlpool)
+# Power is doubled if target is using Dive. Hits some semi-invulnerable targets.
+#===============================================================================
+class Battle::Move::BindTargetDoublePowerIfTargetUnderwater < Battle::Move::BindTarget
+  def hitsDivingTargets?; return true; end
+
+  def pbModifyDamage(damageMult, user, target)
+    damageMult *= 2 if target.inTwoTurnAttack?("TwoTurnAttackInvulnerableUnderwater")
+    return damageMult
+  end
+end
+
+#===============================================================================
+# Target can no longer switch out or flee, as long as the user remains active.
+# Trapping is considered an additional effect for damaging moves.
+# (Anchor Shot, Block, Mean Look, Spider Web, Spirit Shackle)
+#===============================================================================
+class Battle::Move::TrapTargetInBattle < Battle::Move
+  def canMagicCoat?; return true; end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    return false if damagingMove?
+    if target.effects[PBEffects::MeanLook] >= 0
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+      @battle.pbDisplay(_INTL("It doesn't affect {1}...", target.pbThis(true))) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    return if damagingMove?
+    target.effects[PBEffects::MeanLook] = user.index
+    @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+  end
+
+  def pbAdditionalEffect(user, target)
+    return if target.fainted? || target.damageState.substitute
+    return if target.effects[PBEffects::MeanLook] >= 0
+    return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+    target.effects[PBEffects::MeanLook] = user.index
+    @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+  end
+end
+
+#===============================================================================
+# Target can no longer switch out or flee, as long as the user remains active.
+# Trapping is not considered an additional effect. (Thousand Waves)
+#===============================================================================
+class Battle::Move::TrapTargetInBattleMainEffect < Battle::Move
+  def canMagicCoat?; return true; end
+
+  def pbEffectAgainstTarget(user, target)
+    return if target.fainted? || target.damageState.substitute
+    return if target.effects[PBEffects::MeanLook] >= 0
+    return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+    target.effects[PBEffects::MeanLook] = user.index
+    @battle.pbDisplay(_INTL("{1} can no longer escape!", target.pbThis))
+  end
+end
+
+#===============================================================================
+# The target can no longer switch out or flee, while the user remains in battle.
+# At the end of each round, the target's Defense and Special Defense are lowered
+# by 1 stage each. (Octolock)
+#===============================================================================
+class Battle::Move::TrapTargetInBattleLowerTargetDefSpDef1EachTurn < Battle::Move
+  def pbFailsAgainstTarget?(user, target, show_message)
+    return false if damagingMove?
+    if target.effects[PBEffects::Octolock] >= 0
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+      @battle.pbDisplay(_INTL("It doesn't affect {1}...", target.pbThis(true))) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    target.effects[PBEffects::Octolock] = user.index
+    @battle.pbDisplay(_INTL("{1} can no longer escape because of {2}!", target.pbThis, @name))
+  end
+end
+
+#===============================================================================
+# Prevents the user and the target from switching out or fleeing. This effect
+# isn't applied if either Pokémon is already prevented from switching out or
+# fleeing. (Jaw Lock)
+#===============================================================================
+class Battle::Move::TrapUserAndTargetInBattle < Battle::Move
+  def pbEffectAgainstTarget(user, target)
+    return if user.fainted? || target.fainted? || target.damageState.substitute
+    return if Settings::MORE_TYPE_EFFECTS && target.pbHasType?(:GHOST)
+    return if user.trappedInBattle? || target.trappedInBattle?
+    target.effects[PBEffects::JawLock] = user.index
+    @battle.pbDisplay(_INTL("Neither Pokémon can run away!"))
+  end
+end
+
+#===============================================================================
+# No Pokémon can switch out or flee until the end of the next round. (Fairy Lock)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/013_MoveEffects_SwitchingActing.rb RANGE 786-896
+class Battle::Move::DisableTargetUsingDifferentMove < Battle::Move
+  attr_reader :moveBlacklist
+
+  def ignoresSubstitute?(user); return true; end
+  def canMagicCoat?;            return true; end
+
+  def initialize(battle, move)
+    super
+    @moveBlacklist = [
+      "DisableTargetUsingDifferentMove",               # Encore
+      # Struggle
+      "Struggle",                                      # Struggle
+      # Moves that affect the moveset
+      "ReplaceMoveThisBattleWithTargetLastMoveUsed",   # Mimic
+      "ReplaceMoveWithTargetLastMoveUsed",             # Sketch
+      "TransformUserIntoTarget",                       # Transform
+      # Moves that call other moves (see also below)
+      "UseLastMoveUsedByTarget"                        # Mirror Move
+    ]
+    if Settings::MECHANICS_GENERATION >= 7
+      @moveBlacklist += [
+        # Moves that call other moves
+#        "UseLastMoveUsedByTarget",                    # Mirror Move   # See above
+        "UseLastMoveUsed",                             # Copycat
+        "UseMoveTargetIsAboutToUse",                   # Me First
+        "UseMoveDependingOnEnvironment",               # Nature Power
+        "UseRandomUserMoveIfAsleep",                   # Sleep Talk
+        "UseRandomMoveFromUserParty",                  # Assist
+        "UseRandomMove"                                # Metronome
+      ]
+    end
+  end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if target.effects[PBEffects::Encore] > 0
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if !target.lastRegularMoveUsed ||
+       !GameData::Move.exists?(target.lastRegularMoveUsed) ||
+       @moveBlacklist.include?(GameData::Move.get(target.lastRegularMoveUsed).function_code)
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    if target.effects[PBEffects::ShellTrap]
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return true if pbMoveFailedAromaVeil?(user, target, show_message)
+    canEncore = false
+    target.eachMove do |m|
+      next if m.id != target.lastRegularMoveUsed
+      next if m.pp == 0 && m.total_pp > 0
+      canEncore = true
+      break
+    end
+    if !canEncore
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    target.effects[PBEffects::Encore]     = 4
+    target.effects[PBEffects::EncoreMove] = target.lastRegularMoveUsed
+    @battle.pbDisplay(_INTL("{1} received an encore!", target.pbThis))
+    target.pbItemStatusCureCheck
+  end
+end
+
+#===============================================================================
+# For 4 rounds, disables the target's non-damaging moves. (Taunt)
+#===============================================================================
+class Battle::Move::DisableTargetStatusMoves < Battle::Move
+  def ignoresSubstitute?(user); return true; end
+  def canMagicCoat?;            return true; end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if target.effects[PBEffects::Taunt] > 0
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return true if pbMoveFailedAromaVeil?(user, target, show_message)
+    if Settings::MECHANICS_GENERATION >= 6 && target.hasActiveAbility?(:OBLIVIOUS) &&
+       !@battle.moldBreaker
+      if show_message
+        @battle.pbShowAbilitySplash(target)
+        if Battle::Scene::USE_ABILITY_SPLASH
+          @battle.pbDisplay(_INTL("But it failed!"))
+        else
+          @battle.pbDisplay(_INTL("But it failed because of {1}'s {2}!",
+                                  target.pbThis(true), target.abilityName))
+        end
+        @battle.pbHideAbilitySplash(target)
+      end
+      return true
+    end
+    return false
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    target.effects[PBEffects::Taunt] = 4
+    @battle.pbDisplay(_INTL("{1} fell for the taunt!", target.pbThis))
+    target.pbItemStatusCureCheck
+  end
+end
+
+#===============================================================================
+# For 5 rounds, disables the target's healing moves. (Heal Block)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb RANGE 1016-1038
+Battle::ItemEffects::DamageCalcFromUser.add(:SOFTSAND,
+  proc { |item, user, target, move, mults, power, type|
+    mults[:power_multiplier] *= 1.2 if type == :GROUND
+  }
+)
+
+Battle::ItemEffects::DamageCalcFromUser.copy(:SOFTSAND, :EARTHPLATE)
+
+Battle::ItemEffects::DamageCalcFromUser.add(:SOULDEW,
+  proc { |item, user, target, move, mults, power, type|
+    next if !user.isSpecies?(:LATIAS) && !user.isSpecies?(:LATIOS)
+    if Settings::SOUL_DEW_POWERS_UP_TYPES
+      mults[:final_damage_multiplier] *= 1.2 if [:DRAGON, :PSYCHIC].include?(type)
+    elsif move.specialMove? && !user.battle.rules["souldewclause"]
+      mults[:attack_multiplier] *= 1.5
+    end
+  }
+)
+
+Battle::ItemEffects::DamageCalcFromUser.add(:SPELLTAG,
+  proc { |item, user, target, move, mults, power, type|
+    mults[:power_multiplier] *= 1.2 if type == :GHOST
+  }
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/009_Battle_ItemEffects.rb RANGE 1201-1220
+
+Battle::ItemEffects::DamageCalcFromTarget.add(:SHUCABERRY,
+  proc { |item, user, target, move, mults, power, type|
+    target.pbMoveTypeWeakeningBerry(:GROUND, type, mults)
+  }
+)
+
+Battle::ItemEffects::DamageCalcFromTarget.add(:SOULDEW,
+  proc { |item, user, target, move, mults, power, type|
+    next if Settings::SOUL_DEW_POWERS_UP_TYPES
+    next if !target.isSpecies?(:LATIAS) && !target.isSpecies?(:LATIOS)
+    if move.specialMove? && !user.battle.rules["souldewclause"]
+      mults[:defense_multiplier] *= 1.5
+    end
+  }
+)
+
+Battle::ItemEffects::DamageCalcFromTarget.add(:TANGABERRY,
+  proc { |item, user, target, move, mults, power, type|
+    target.pbMoveTypeWeakeningBerry(:BUG, type, mults)

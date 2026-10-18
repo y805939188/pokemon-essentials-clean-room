@@ -1,0 +1,64 @@
+00001: class Battle::Battler
+00002:   #=============================================================================
+00003:   # Change HP
+00004:   #=============================================================================
+00005:   def pbReduceHP(amt, anim = true, registerDamage = true, anyAnim = true)
+00006:     amt = amt.round
+00007:     amt = @hp if amt > @hp
+00008:     amt = 1 if amt < 1 && !fainted?
+00009:     oldHP = @hp
+00010:     self.hp -= amt
+00011:     PBDebug.log("[HP change] #{pbThis} lost #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+00012:     raise _INTL("HP less than 0") if @hp < 0
+00013:     raise _INTL("HP greater than total HP") if @hp > @totalhp
+00014:     @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+00015:     if amt > 0 && registerDamage
+00016:       @droppedBelowHalfHP = true if @hp < @totalhp / 2 && @hp + amt >= @totalhp / 2
+00017:       @tookDamageThisRound = true
+00018:       @tookMoveDamageThisRound = true
+00019:     end
+00020:     return amt
+00021:   end
+00022: 
+00023:   def pbRecoverHP(amt, anim = true, anyAnim = true)
+00024:     amt = amt.round
+00025:     amt = @totalhp - @hp if amt > @totalhp - @hp
+00026:     amt = 1 if amt < 1 && @hp < @totalhp
+00027:     oldHP = @hp
+00028:     self.hp += amt
+00029:     PBDebug.log("[HP change] #{pbThis} gained #{amt} HP (#{oldHP} -> #{@hp})") if amt > 0
+00030:     raise _INTL("HP less than 0") if @hp < 0
+00031:     raise _INTL("HP greater than total HP") if @hp > @totalhp
+00032:     @battle.scene.pbHPChanged(self, oldHP, anim) if anyAnim && amt > 0
+00033:     @droppedBelowHalfHP = false if @hp >= @totalhp / 2
+00034:     return amt
+00035:   end
+00036: 
+00037:   def pbRecoverHPFromDrain(amt, target, msg = nil)
+00038:     if target.hasActiveAbility?(:LIQUIDOOZE, true)
+00039:       @battle.pbShowAbilitySplash(target)
+00040:       pbReduceHP(amt)
+00041:       @battle.pbDisplay(_INTL("{1} sucked up the liquid ooze!", pbThis))
+00042:       @battle.pbHideAbilitySplash(target)
+00043:       pbItemHPHealCheck
+00044:     else
+00045:       msg = _INTL("{1} had its energy drained!", target.pbThis) if nil_or_empty?(msg)
+00046:       @battle.pbDisplay(msg)
+00047:       if canHeal?
+00048:         amt = (amt * 1.3).floor if hasActiveItem?(:BIGROOT)
+00049:         pbRecoverHP(amt)
+00050:       end
+00051:     end
+00052:   end
+00053: 
+00054:   def pbTakeEffectDamage(amt, show_anim = true)
+00055:     @droppedBelowHalfHP = false
+00056:     hp_lost = pbReduceHP(amt, show_anim)
+00057:     yield hp_lost if block_given?   # Show message
+00058:     pbItemHPHealCheck
+00059:     pbAbilitiesOnDamageTaken
+00060:     pbFaint if fainted?
+00061:     @droppedBelowHalfHP = false
+00062:   end
+00063: 
+00064:   def pbFaint(showMessage = true)

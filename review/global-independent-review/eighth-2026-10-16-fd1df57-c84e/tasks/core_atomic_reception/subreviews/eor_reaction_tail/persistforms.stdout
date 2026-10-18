@@ -1,0 +1,340 @@
+
+  #=============================================================================
+  # Stat calculations
+  #=============================================================================
+
+  # @return [Hash<Integer>] this Pokémon's base stats, a hash with six key/value pairs
+  def baseStats
+    this_base_stats = species_data.base_stats
+    ret = {}
+    GameData::Stat.each_main { |s| ret[s.id] = this_base_stats[s.id] }
+    return ret
+  end
+
+  # Returns this Pokémon's effective IVs, taking into account Hyper Training.
+  # Only used for calculating stats.
+  # @return [Hash<Integer>] hash containing this Pokémon's effective IVs
+  def calcIV
+    this_ivs = self.iv
+    ret = {}
+    GameData::Stat.each_main do |s|
+      ret[s.id] = (@ivMaxed[s.id]) ? IV_STAT_LIMIT : this_ivs[s.id]
+    end
+    return ret
+  end
+
+  # @return [Integer] the maximum HP of this Pokémon
+  def calcHP(base, level, iv, ev)
+    return 1 if base == 1   # For Shedinja
+    iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+    return (((base * 2) + iv + (ev / 4)) * level / 100).floor + level + 10
+  end
+
+  # @return [Integer] the specified stat of this Pokémon (not used for total HP)
+  def calcStat(base, level, iv, ev, nat)
+    iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+    return (((((base * 2) + iv + (ev / 4)) * level / 100).floor + 5) * nat / 100).floor
+  end
+
+  # Recalculates this Pokémon's stats.
+  def calc_stats
+    base_stats = self.baseStats
+    this_level = self.level
+    this_IV    = self.calcIV
+    # Format stat multipliers due to nature
+    nature_mod = {}
+    GameData::Stat.each_main { |s| nature_mod[s.id] = 100 }
+    this_nature = self.nature_for_stats
+    if this_nature
+      this_nature.stat_changes.each { |change| nature_mod[change[0]] += change[1] }
+    end
+    # Calculate stats
+    stats = {}
+    GameData::Stat.each_main do |s|
+      if s.id == :HP
+        stats[s.id] = calcHP(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id])
+      else
+        stats[s.id] = calcStat(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id], nature_mod[s.id])
+      end
+    end
+    hp_difference = stats[:HP] - @totalhp
+    @totalhp = stats[:HP]
+    self.hp = [@hp + hp_difference, 1].max if @hp > 0 || hp_difference > 0
+    @attack  = stats[:ATTACK]
+    @defense = stats[:DEFENSE]
+    @spatk   = stats[:SPECIAL_ATTACK]
+    @spdef   = stats[:SPECIAL_DEFENSE]
+    @speed   = stats[:SPEED]
+  end
+
+  #=============================================================================
+  # Pokémon creation
+  #=============================================================================
+
+  # Creates a copy of this Pokémon and returns it.
+  # @return [Pokemon] a copy of this Pokémon
+  def clone
+    ret = super
+    ret.iv          = {}
+    ret.ivMaxed     = {}
+    ret.ev          = {}
+    GameData::Stat.each_main do |s|
+      ret.iv[s.id]      = @iv[s.id]
+      ret.ivMaxed[s.id] = @ivMaxed[s.id]
+      ret.ev[s.id]      = @ev[s.id]
+    end
+    ret.moves       = []
+    @moves.each_with_index { |m, i| ret.moves[i] = m.clone }
+    ret.first_moves = @first_moves.clone
+    ret.owner       = @owner.clone
+    ret.ribbons     = @ribbons.clone
+    return ret
+  end
+
+  # Creates a new Pokémon object.
+  # @param species [Symbol, String, GameData::Species] Pokémon species
+  # @param level [Integer] Pokémon level
+  # @param owner [Owner, Player, NPCTrainer] Pokémon owner (the player by default)
+  # @param withMoves [Boolean] whether the Pokémon should have moves
+  # @param recheck_form [Boolean] whether to auto-check the form
+  def initialize(species, level, owner = $player, withMoves = true, recheck_form = true)
+    species_data = GameData::Species.get(species)
+    @species          = species_data.species
+    @form             = species_data.base_form
+    @forced_form      = nil
+    @time_form_set    = nil
+    self.level        = level
+    @steps_to_hatch   = 0
+    heal_status
+    @gender           = nil
+    @shiny            = nil
+    @ability_index    = nil
+        ["WildItemUncommon",  GameDataPoolProperty.new(:Item),    _INTL("Item(s) uncommonly held by wild Pokémon of this species.")],
+        ["WildItemRare",      GameDataPoolProperty.new(:Item),    _INTL("Item(s) rarely held by wild Pokémon of this species.")],
+        ["Evolutions",        EvolutionsProperty.new,             _INTL("Evolution paths of this species.")]
+      ]
+    end
+
+    # @param species [Symbol, self, String]
+    # @param form [Integer]
+    # @return [self, nil]
+    def self.get_species_form(species, form)
+      return nil if !species || !form
+      validate species => [Symbol, self, String]
+      validate form => Integer
+      species = species.species if species.is_a?(self)
+      species = species.to_sym if species.is_a?(String)
+      trial = sprintf("%s_%d", species, form).to_sym
+      species_form = (DATA[trial].nil?) ? species : trial
+      return (DATA.has_key?(species_form)) ? DATA[species_form] : nil
+    end
+
+    def self.each_species
+      DATA.each_value { |species| yield species if species.form == 0 }
+    end
+
+    def self.species_count
+      ret = 0
+      self.each_species { |species| ret += 1 }
+      return ret
+    end
+
+    def initialize(hash)
+      @id                 = hash[:id]
+      @species            = hash[:species]            || @id
+      @form               = hash[:form]               || 0
+      @real_name          = hash[:real_name]          || "Unnamed"
+      @real_form_name     = hash[:real_form_name]
+      @real_category      = hash[:real_category]      || "???"
+      @real_pokedex_entry = hash[:real_pokedex_entry] || "???"
+      @pokedex_form       = hash[:pokedex_form]       || @form
+      @types              = hash[:types]              || [:NORMAL]
+      @base_stats         = hash[:base_stats]         || {}
+      @evs                = hash[:evs]                || {}
+      GameData::Stat.each_main do |s|
+        @base_stats[s.id] = 1 if !@base_stats[s.id] || @base_stats[s.id] <= 0
+        @evs[s.id]        = 0 if !@evs[s.id] || @evs[s.id] < 0
+      end
+      @base_exp           = hash[:base_exp]           || 100
+      @growth_rate        = hash[:growth_rate]        || :Medium
+      @gender_ratio       = hash[:gender_ratio]       || :Female50Percent
+      @catch_rate         = hash[:catch_rate]         || 255
+      @happiness          = hash[:happiness]          || 70
+      @moves              = hash[:moves]              || []
+      @tutor_moves        = hash[:tutor_moves]        || []
+      @egg_moves          = hash[:egg_moves]          || []
+      @abilities          = hash[:abilities]          || []
+      @hidden_abilities   = hash[:hidden_abilities]   || []
+      @wild_item_common   = hash[:wild_item_common]   || []
+      @wild_item_uncommon = hash[:wild_item_uncommon] || []
+      @wild_item_rare     = hash[:wild_item_rare]     || []
+      @egg_groups         = hash[:egg_groups]         || [:Undiscovered]
+      @hatch_steps        = hash[:hatch_steps]        || 1
+      @incense            = hash[:incense]
+      @offspring          = hash[:offspring]          || []
+      @evolutions         = hash[:evolutions]         || []
+      @height             = hash[:height]             || 1
+      @weight             = hash[:weight]             || 1
+      @color              = hash[:color]              || :Red
+      @shape              = hash[:shape]              || :Head
+      @habitat            = hash[:habitat]            || :None
+      @generation         = hash[:generation]         || 0
+      @flags              = hash[:flags]              || []
+      @mega_stone         = hash[:mega_stone]
+      @mega_move          = hash[:mega_move]
+      @unmega_form        = hash[:unmega_form]        || 0
+      @mega_message       = hash[:mega_message]       || 0
+      @pbs_file_suffix    = hash[:pbs_file_suffix]    || ""
+    end
+
+    # @return [String] the translated name of this species
+    def name
+      return pbGetMessageFromHash(MessageTypes::SPECIES_NAMES, @real_name)
+    end
+
+    # @return [String] the translated name of this form of this species
+    def form_name
+      return pbGetMessageFromHash(MessageTypes::SPECIES_FORM_NAMES, @real_form_name)
+module GameData
+  class Item
+    attr_reader :id
+    attr_reader :real_name
+    attr_reader :real_name_plural
+    attr_reader :real_portion_name
+    attr_reader :real_portion_name_plural
+    attr_reader :pocket
+    attr_reader :price
+    attr_reader :sell_price
+    attr_reader :bp_price
+    attr_reader :field_use
+    attr_reader :battle_use
+    attr_reader :flags
+    attr_reader :consumable
+    attr_reader :show_quantity
+    attr_reader :move
+    attr_reader :real_description
+    attr_reader :pbs_file_suffix
+
+    DATA = {}
+    DATA_FILENAME = "items.dat"
+    PBS_BASE_FILENAME = "items"
+
+    SCHEMA = {
+      "SectionName"       => [:id,                       "m"],
+      "Name"              => [:real_name,                "s"],
+      "NamePlural"        => [:real_name_plural,         "s"],
+      "PortionName"       => [:real_portion_name,        "s"],
+      "PortionNamePlural" => [:real_portion_name_plural, "s"],
+      "Pocket"            => [:pocket,                   "v"],
+      "Price"             => [:price,                    "u"],
+      "SellPrice"         => [:sell_price,               "u"],
+      "BPPrice"           => [:bp_price,                 "u"],
+      "FieldUse"          => [:field_use,                "e", {"OnPokemon" => 1, "Direct" => 2,
+                                                               "TM" => 3, "HM" => 4, "TR" => 5}],
+      "BattleUse"         => [:battle_use,               "e", {"OnPokemon" => 1, "OnMove" => 2,
+                                                               "OnBattler" => 3, "OnFoe" => 4, "Direct" => 5}],
+      item_data = self.try_get(item)
+      return nil if !item_data
+      # Check for files
+      ret = sprintf("Graphics/UI/Mail/mail_%s", item_data.id)
+      return pbResolveBitmap(ret) ? ret : nil
+    end
+
+    def initialize(hash)
+      @id                       = hash[:id]
+      @real_name                = hash[:real_name]        || "Unnamed"
+      @real_name_plural         = hash[:real_name_plural] || "Unnamed"
+      @real_portion_name        = hash[:real_portion_name]
+      @real_portion_name_plural = hash[:real_portion_name_plural]
+      @pocket                   = hash[:pocket]           || 1
+      @price                    = hash[:price]            || 0
+      @sell_price               = hash[:sell_price]       || (@price / 2)
+      @bp_price                 = hash[:bp_price]         || 1
+      @field_use                = hash[:field_use]        || 0
+      @battle_use               = hash[:battle_use]       || 0
+      @flags                    = hash[:flags]            || []
+      @consumable               = hash[:consumable]
+      @consumable               = !is_important? if @consumable.nil?
+      @show_quantity            = hash[:show_quantity]
+      @move                     = hash[:move]
+      @real_description         = hash[:real_description] || "???"
+      @pbs_file_suffix          = hash[:pbs_file_suffix]  || ""
+    end
+
+    # @return [String] the translated name of this item
+    def name
+      return pbGetMessageFromHash(MessageTypes::ITEM_NAMES, @real_name)
+    end
+
+    # @return [String] the translated plural version of the name of this item
+    def name_plural
+      return pbGetMessageFromHash(MessageTypes::ITEM_NAME_PLURALS, @real_name_plural)
+    end
+
+    # @return [String] the translated portion name of this item
+    def portion_name
+      return pbGetMessageFromHash(MessageTypes::ITEM_PORTION_NAMES, @real_portion_name) if @real_portion_name
+      return name
+    end
+
+    # @return [String] the translated plural version of the portion name of this item
+    def portion_name_plural
+      return pbGetMessageFromHash(MessageTypes::ITEM_PORTION_NAME_PLURALS, @real_portion_name_plural) if @real_portion_name_plural
+      return name_plural
+    end
+
+    # @return [String] the translated description of this item
+    def description
+      return pbGetMessageFromHash(MessageTypes::ITEM_DESCRIPTIONS, @real_description)
+    end
+
+    def has_flag?(flag)
+      return @flags.any? { |f| f.downcase == flag.downcase }
+    end
+
+    def is_TM?;              return @field_use == 3; end
+    def is_HM?;              return @field_use == 4; end
+    def is_TR?;              return @field_use == 5; end
+    def is_machine?;         return is_TM? || is_HM? || is_TR?; end
+    def is_mail?;            return has_flag?("Mail") || has_flag?("IconMail"); end
+    def is_icon_mail?;       return has_flag?("IconMail"); end
+    def is_poke_ball?;       return has_flag?("PokeBall") || has_flag?("SnagBall"); end
+    def is_snag_ball?;       return has_flag?("SnagBall") || (is_poke_ball? && $player.has_snag_machine); end
+    def is_berry?;           return has_flag?("Berry"); end
+    def is_key_item?;        return has_flag?("KeyItem"); end
+    def is_evolution_stone?; return has_flag?("EvolutionStone"); end
+    def is_fossil?;          return has_flag?("Fossil"); end
+    def is_apricorn?;        return has_flag?("Apricorn"); end
+    def is_gem?;             return has_flag?("TypeGem"); end
+    def is_mulch?;           return has_flag?("Mulch"); end
+    def is_mega_stone?;      return has_flag?("MegaStone"); end   # Does NOT include Red Orb/Blue Orb
+    def is_scent?;           return has_flag?("Scent"); end
+
+    def is_important?
+      return true if is_key_item? || is_HM? || is_TM?
+    if opposes?(idxBattler)
+      return _INTL("The opposing {1}", party[idxParty].name) if trainerBattle?
+      return _INTL("The wild {1}", party[idxParty].name)
+    end
+    return _INTL("The ally {1}", party[idxParty].name) if !pbOwnedByPlayer?(idxBattler)
+    return party[idxParty].name
+  end
+
+  def pbSetSeen(battler)
+    return if !battler || !@internalBattle
+    if battler.is_a?(Battler)
+      pbPlayer.pokedex.register(battler.displaySpecies, battler.displayGender,
+                                battler.displayForm, battler.shiny?)
+    else
+      pbPlayer.pokedex.register(battler)
+    end
+  end
+
+  def pbSetCaught(battler)
+    return if !battler || !@internalBattle
+    if battler.is_a?(Battler)
+      pbPlayer.pokedex.register_caught(battler.displaySpecies)
+    else
+      pbPlayer.pokedex.register_caught(battler.species)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb:112:  def pbThrowPokeBall(idxBattler, ball, catch_rate = nil, showPlayer = false)
+/workspace/pokemon-essentials/Data/Scripts/011_Battle/007_Other battle code/005_Battle_CatchAndStoreMixin.rb:198:      @first_poke_ball = ball if !@poke_ball_failed

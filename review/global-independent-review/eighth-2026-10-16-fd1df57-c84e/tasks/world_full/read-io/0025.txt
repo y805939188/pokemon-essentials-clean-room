@@ -1,0 +1,260 @@
+    1 #===============================================================================
+    2 # Constant checks
+    3 #===============================================================================
+    4 # Pokérus check
+    5 EventHandlers.add(:on_frame_update, :pokerus_counter,
+    6   proc {
+    7     next if !$player || $player.party.none? { |pkmn| pkmn.pokerusStage == 1 }
+    8     last = $PokemonGlobal.pokerusTime
+    9     next if !last
+   10     now = pbGetTimeNow
+   11     if last.year != now.year || last.month != now.month || last.day != now.day
+   12       $player.pokemon_party.each { |pkmn| pkmn.lowerPokerusCount }
+   13       $PokemonGlobal.pokerusTime = now
+   14     end
+   15   }
+   16 )
+   17 
+   18 # Returns whether the Poké Center should explain Pokérus to the player, if a
+   19 # healed Pokémon has it.
+   20 def pbPokerus?
+   21   return false if $game_switches[Settings::SEEN_POKERUS_SWITCH]
+   22   $player.party.each do |i|
+   23     return true if i.pokerusStage == 1
+   24   end
+   25   return false
+   26 end
+   27 
+   28 class Game_Temp
+   29   attr_accessor :warned_low_battery
+   30   attr_accessor :cue_bgm
+   31   attr_accessor :cue_bgm_timer_start
+   32   attr_accessor :cue_bgm_delay
+   33 end
+   34 
+   35 def pbBatteryLow?
+   36   pstate = System.power_state
+   37   # If it's not discharging, it doesn't matter if it's low
+   38   return false if !pstate[:discharging]
+   39   # Check for less than 10m, priority over the percentage
+   40   # Some laptops (Chromebooks, Macbooks) have very long lifetimes
+   41   return true if pstate[:seconds] && pstate[:seconds] <= 600
+   42   # Check for <=15%
+   43   return true if pstate[:percent] && pstate[:percent] <= 15
+   44   return false
+   45 end
+   46 
+   47 EventHandlers.add(:on_frame_update, :low_battery_warning,
+   48   proc {
+   49     next if $game_temp.warned_low_battery || !pbBatteryLow?
+   50     next if $game_temp.in_menu || $game_temp.in_battle || $game_player.move_route_forcing ||
+   51             $game_temp.message_window_showing || pbMapInterpreterRunning?
+   52     $game_temp.warned_low_battery = true
+   53     pbMessage(_INTL("The game has detected that the battery is low. You should save soon to avoid losing your progress."))
+   54   }
+   55 )
+   56 
+   57 EventHandlers.add(:on_frame_update, :cue_bgm_after_delay,
+   58   proc {
+   59     next if $game_temp.cue_bgm_delay.nil?
+   60     next if System.uptime - $game_temp.cue_bgm_timer_start < $game_temp.cue_bgm_delay
+   61     $game_temp.cue_bgm_delay = nil
+   62     pbBGMPlay($game_temp.cue_bgm) if $game_system.getPlayingBGM.nil?
+   63   }
+   64 )
+   65 
+   66 #===============================================================================
+   67 # Checks per step
+   68 #===============================================================================
+   69 # Party Pokémon gain happiness from walking
+   70 EventHandlers.add(:on_player_step_taken, :gain_happiness,
+   71   proc {
+   72     $PokemonGlobal.happinessSteps = 0 if !$PokemonGlobal.happinessSteps
+   73     $PokemonGlobal.happinessSteps += 1
+   74     next if $PokemonGlobal.happinessSteps < 128
+   75     $player.able_party.each do |pkmn|
+   76       pkmn.changeHappiness("walking") if rand(2) == 0
+   77     end
+   78     $PokemonGlobal.happinessSteps = 0
+   79   }
+   80 )
+   81 
+   82 # Poison party Pokémon
+   83 EventHandlers.add(:on_player_step_taken_can_transfer, :poison_party,
+   84   proc { |handled|
+   85     # handled is an array: [nil]. If [true], a transfer has happened because of
+   86     # this event, so don't do anything that might cause another one
+   87     next if handled[0]
+   88     next if !Settings::POISON_IN_FIELD || $PokemonGlobal.stepcount % 4 != 0
+   89     flashed = false
+   90     $player.able_party.each do |pkmn|
+   91       next if pkmn.status != :POISON || pkmn.hasAbility?(:IMMUNITY)
+   92       if !flashed
+   93         pbSEPlay("Poison step")
+   94         pbFlash(Color.new(255, 0, 0, 128), 8)
+   95         flashed = true
+   96       end
+   97       pkmn.hp -= 1 if pkmn.hp > 1 || Settings::POISON_FAINT_IN_FIELD
+   98       if pkmn.hp == 1 && !Settings::POISON_FAINT_IN_FIELD
+   99         pkmn.status = :NONE
+  100         pbMessage(_INTL("{1} survived the poisoning.\\nThe poison faded away!", pkmn.name))
+  101         next
+  102       elsif pkmn.hp == 0
+  103         pkmn.changeHappiness("faint")
+  104         pkmn.status = :NONE
+  105         pbMessage(_INTL("{1} fainted...", pkmn.name))
+  106       end
+  107       if $player.able_pokemon_count == 0
+  108         handled[0] = true
+  109         pbCheckAllFainted
+  110       end
+  111     end
+  112   }
+  113 )
+  114 
+  115 def pbCheckAllFainted
+  116   if $player.able_pokemon_count == 0
+  117     pbMessage(_INTL("You have no more Pokémon that can fight!") + "\1")
+  118     pbMessage(_INTL("You blacked out!"))
+  119     pbBGMFade(1.0)
+  120     pbBGSFade(1.0)
+  121     pbFadeOutIn { pbStartOver }
+  122   end
+  123 end
+  124 
+  125 # Gather soot from soot grass
+  126 EventHandlers.add(:on_step_taken, :pick_up_soot,
+  127   proc { |event|
+  128     thistile = $map_factory.getRealTilePos(event.map.map_id, event.x, event.y)
+  129     map = $map_factory.getMap(thistile[0])
+  130     [2, 1, 0].each do |i|
+  131       tile_id = map.data[thistile[1], thistile[2], i]
+  132       next if tile_id.nil?
+  133       next if GameData::TerrainTag.try_get(map.terrain_tags[tile_id]).id != :SootGrass
+  134       if event == $game_player && $bag.has?(:SOOTSACK)
+  135         old_soot = $player.soot
+  136         $player.soot += 1
+  137         $stats.soot_collected += $player.soot - old_soot if $player.soot > old_soot
+  138       end
+  139       map.erase_tile(thistile[1], thistile[2], i)
+  140       break
+  141     end
+  142   }
+  143 )
+  144 
+  145 # Show grass rustle animation
+  146 EventHandlers.add(:on_step_taken, :grass_rustling,
+  147   proc { |event|
+  148     next if !$scene.is_a?(Scene_Map)
+  149     event.each_occupied_tile do |x, y|
+  150       next if !$map_factory.getTerrainTagFromCoords(event.map.map_id, x, y, true).shows_grass_rustle
+  151       spriteset = $scene.spriteset(event.map_id)
+  152       spriteset&.addUserAnimation(Settings::GRASS_ANIMATION_ID, x, y, true, 1)
+  153     end
+  154   }
+  155 )
+  156 
+  157 # Auto-move the player over waterfalls and ice
+  158 EventHandlers.add(:on_step_taken, :auto_move_player,
+  159   proc { |event|
+  160     next if !$scene.is_a?(Scene_Map)
+  161     next if event != $game_player
+  162     currentTag = $game_player.pbTerrainTag
+  163     if currentTag.waterfall_crest || currentTag.waterfall ||
+  164        $PokemonGlobal.descending_waterfall || $PokemonGlobal.ascending_waterfall
+  165       pbTraverseWaterfall
+  166     elsif currentTag.ice || $PokemonGlobal.ice_sliding
+  167       pbSlideOnIce
+  168     end
+  169   }
+  170 )
+  171 
+  172 def pbOnStepTaken(eventTriggered)
+  173   if $game_player.move_route_forcing || pbMapInterpreterRunning?
+  174     EventHandlers.trigger(:on_step_taken, $game_player)
+  175     return
+  176   end
+  177   $PokemonGlobal.stepcount = 0 if !$PokemonGlobal.stepcount
+  178   $PokemonGlobal.stepcount += 1
+  179   $PokemonGlobal.stepcount &= 0x7FFFFFFF
+  180   repel_active = ($PokemonGlobal.repel > 0)
+  181   EventHandlers.trigger(:on_player_step_taken)
+  182   handled = [nil]
+  183   EventHandlers.trigger(:on_player_step_taken_can_transfer, handled)
+  184   return if handled[0]
+  185   pbBattleOnStepTaken(repel_active) if !eventTriggered && !$game_temp.in_menu
+  186   $game_temp.encounter_triggered = false   # This info isn't needed here
+  187 end
+  188 
+  189 # Start wild encounters while turning on the spot
+  190 EventHandlers.add(:on_player_change_direction, :trigger_encounter,
+  191   proc {
+  192     repel_active = ($PokemonGlobal.repel > 0)
+  193     pbBattleOnStepTaken(repel_active) if !$game_temp.in_menu
+  194   }
+  195 )
+  196 
+  197 def pbBattleOnStepTaken(repel_active)
+  198   return if $player.able_pokemon_count == 0
+  199   return if !$PokemonEncounters.encounter_possible_here?
+  200   encounter_type = $PokemonEncounters.encounter_type
+  201   return if !encounter_type
+  202   return if !$PokemonEncounters.encounter_triggered?(encounter_type, repel_active)
+  203   $game_temp.encounter_type = encounter_type
+  204   encounter = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+  205   EventHandlers.trigger(:on_wild_species_chosen, encounter)
+  206   if $PokemonEncounters.allow_encounter?(encounter, repel_active)
+  207     if $PokemonEncounters.have_double_wild_battle?
+  208       encounter2 = $PokemonEncounters.choose_wild_pokemon(encounter_type)
+  209       EventHandlers.trigger(:on_wild_species_chosen, encounter2)
+  210       WildBattle.start(encounter, encounter2, can_override: true)
+  211     else
+  212       WildBattle.start(encounter, can_override: true)
+  213     end
+  214     $game_temp.encounter_type = nil
+  215     $game_temp.encounter_triggered = true
+  216   end
+  217   $game_temp.force_single_battle = false
+  218 end
+  219 
+  220 #===============================================================================
+  221 # Checks when moving between maps
+  222 #===============================================================================
+  223 # Set up various data related to the new map.
+  224 EventHandlers.add(:on_enter_map, :setup_new_map,
+  225   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+  226     # Record new Teleport destination
+  227     new_map_metadata = $game_map.metadata
+  228     if new_map_metadata&.teleport_destination
+  229       $PokemonGlobal.healingSpot = new_map_metadata.teleport_destination
+  230     end
+  231     # End effects that apply only while on the map they were used
+  232     $PokemonMap&.clear
+  233     # Setup new wild encounter tables
+  234     $PokemonEncounters&.setup($game_map.map_id)
+  235     # Record the new map as having been visited
+  236     $PokemonGlobal.visitedMaps[$game_map.map_id] = true
+  237   }
+  238 )
+  239 
+  240 # Changes the overworld weather.
+  241 EventHandlers.add(:on_enter_map, :set_weather,
+  242   proc { |old_map_id|   # previous map ID, is 0 if no map ID
+  243     next if old_map_id == 0 || old_map_id == $game_map.map_id
+  244     old_weather = $game_screen.weather_type
+  245     new_weather = :None
+  246     new_map_metadata = $game_map.metadata
+  247     if new_map_metadata&.weather
+  248       new_weather = new_map_metadata.weather[0] if rand(100) < new_map_metadata.weather[1]
+  249     end
+  250     next if old_weather == new_weather
+  251     $game_screen.weather(new_weather, 9, 0)
+  252   }
+  253 )
+  254 
+  255 # Update trail of which maps the player has most recently visited.
+  256 EventHandlers.add(:on_enter_map, :add_to_trail,
+  257   proc { |_old_map_id|
+  258     next if !$game_map
+  259     $PokemonGlobal.mapTrail = [] if !$PokemonGlobal.mapTrail
+  260     if $PokemonGlobal.mapTrail[0] != $game_map.map_id && $PokemonGlobal.mapTrail.length >= 4

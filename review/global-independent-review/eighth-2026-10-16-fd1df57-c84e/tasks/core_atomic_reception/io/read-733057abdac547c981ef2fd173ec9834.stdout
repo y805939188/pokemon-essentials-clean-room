@@ -1,0 +1,145 @@
+00261:         elsif Effectiveness.super_effective?(b.damageState.typeMod)
+00262:           effectiveness = 2
+00263:         end
+00264:         animArray.push([b, oldHP, effectiveness])
+00265:       end
+00266:       if animArray.length > 0
+00267:         @battle.scene.pbHitAndHPLossAnimation(animArray)
+00268:         animArray.clear
+00269:       end
+00270:     end
+00271:   end
+00272: 
+00273:   #=============================================================================
+00274:   # Messages upon being hit
+00275:   #=============================================================================
+00276:   def pbEffectivenessMessage(user, target, numTargets = 1)
+00277:     return if self.is_a?(Battle::Move::FixedDamageMove)
+00278:     return if target.damageState.disguise || target.damageState.iceFace
+00279:     if Effectiveness.super_effective?(target.damageState.typeMod)
+00280:       if numTargets > 1
+00281:         @battle.pbDisplay(_INTL("It's super effective on {1}!", target.pbThis(true)))
+00282:       else
+00283:         @battle.pbDisplay(_INTL("It's super effective!"))
+00284:       end
+00285:     elsif Effectiveness.not_very_effective?(target.damageState.typeMod)
+00286:       if numTargets > 1
+00287:         @battle.pbDisplay(_INTL("It's not very effective on {1}...", target.pbThis(true)))
+00288:       else
+00289:         @battle.pbDisplay(_INTL("It's not very effective..."))
+00290:       end
+00291:     end
+00292:   end
+00293: 
+00294:   def pbHitEffectivenessMessages(user, target, numTargets = 1)
+00295:     return if target.damageState.disguise || target.damageState.iceFace
+00296:     if target.damageState.substitute
+00297:       @battle.pbDisplay(_INTL("The substitute took damage for {1}!", target.pbThis(true)))
+00298:     end
+00299:     if target.damageState.critical
+00300:       if $game_temp.party_critical_hits_dealt &&
+00301:          $game_temp.party_critical_hits_dealt[user.pokemonIndex] &&
+00302:          user.pbOwnedByPlayer?
+00303:         $game_temp.party_critical_hits_dealt[user.pokemonIndex] += 1
+00304:       end
+00305:       if target.damageState.affection_critical
+00306:         if numTargets > 1
+00307:           @battle.pbDisplay(_INTL("{1} landed a critical hit on {2}, wishing to be praised!",
+00308:                                   user.pbThis, target.pbThis(true)))
+00309:         else
+00310:           @battle.pbDisplay(_INTL("{1} landed a critical hit, wishing to be praised!", user.pbThis))
+00311:         end
+00312:       elsif numTargets > 1
+00313:         @battle.pbDisplay(_INTL("A critical hit on {1}!", target.pbThis(true)))
+00314:       else
+00315:         @battle.pbDisplay(_INTL("A critical hit!"))
+00316:       end
+00317:     end
+00318:     # Effectiveness message, for moves with 1 hit
+00319:     if !multiHitMove? && user.effects[PBEffects::ParentalBond] == 0
+00320:       pbEffectivenessMessage(user, target, numTargets)
+00321:     end
+00322:     if target.damageState.substitute && target.effects[PBEffects::Substitute] == 0
+00323:       target.effects[PBEffects::Substitute] = 0
+00324:       @battle.pbDisplay(_INTL("{1}'s substitute faded!", target.pbThis))
+00325:     end
+00326:   end
+00327: 
+00328:   def pbEndureKOMessage(target)
+00329:     if target.damageState.disguise
+00330:       @battle.pbShowAbilitySplash(target)
+00331:       if Battle::Scene::USE_ABILITY_SPLASH
+00332:         @battle.pbDisplay(_INTL("Its disguise served it as a decoy!"))
+00333:       else
+00334:         @battle.pbDisplay(_INTL("{1}'s disguise served it as a decoy!", target.pbThis))
+00335:       end
+00336:       @battle.pbHideAbilitySplash(target)
+00337:       target.pbChangeForm(1, _INTL("{1}'s disguise was busted!", target.pbThis))
+00338:       target.pbReduceHP(target.totalhp / 8, false) if Settings::MECHANICS_GENERATION >= 8
+00339:     elsif target.damageState.iceFace
+00340:       @battle.pbShowAbilitySplash(target)
+00341:       if !Battle::Scene::USE_ABILITY_SPLASH
+00342:         @battle.pbDisplay(_INTL("{1}'s {2} activated!", target.pbThis, target.abilityName))
+00343:       end
+00344:       target.pbChangeForm(1, _INTL("{1} transformed!", target.pbThis))
+00345:       @battle.pbHideAbilitySplash(target)
+00346:     elsif target.damageState.endured
+00347:       @battle.pbDisplay(_INTL("{1} endured the hit!", target.pbThis))
+00348:     elsif target.damageState.sturdy
+00349:       @battle.pbShowAbilitySplash(target)
+00350:       if Battle::Scene::USE_ABILITY_SPLASH
+00351:         @battle.pbDisplay(_INTL("{1} endured the hit!", target.pbThis))
+00352:       else
+00353:         @battle.pbDisplay(_INTL("{1} hung on with Sturdy!", target.pbThis))
+00354:       end
+00355:       @battle.pbHideAbilitySplash(target)
+00356:     elsif target.damageState.focusSash
+00357:       @battle.pbCommonAnimation("UseItem", target)
+00358:       @battle.pbDisplay(_INTL("{1} hung on using its Focus Sash!", target.pbThis))
+00359:       target.pbConsumeItem
+00360:     elsif target.damageState.focusBand
+00361:       @battle.pbCommonAnimation("UseItem", target)
+00362:       @battle.pbDisplay(_INTL("{1} hung on using its Focus Band!", target.pbThis))
+00363:     elsif target.damageState.affection_endured
+00364:       @battle.pbDisplay(_INTL("{1} toughed it out so you wouldn't feel sad!", target.pbThis))
+00365:     end
+00366:   end
+00367: 
+00368:   # Used by Counter/Mirror Coat/Metal Burst/Revenge/Focus Punch/Bide/Assurance.
+00369:   def pbRecordDamageLost(user, target)
+00370:     damage = target.damageState.hpLost
+00371:     # NOTE: In Gen 3 where a move's category depends on its type, Hidden Power
+00372:     #       is for some reason countered by Counter rather than Mirror Coat,
+00373:     #       regardless of its calculated type. Hence the following two lines of
+00374:     #       code.
+00375:     moveType = nil
+00376:     moveType = :NORMAL if @function_code == "TypeDependsOnUserIVs"   # Hidden Power
+00377:     if !target.damageState.substitute
+00378:       if physicalMove?(moveType)
+00379:         target.effects[PBEffects::Counter]       = damage
+00380:         target.effects[PBEffects::CounterTarget] = user.index
+00381:       elsif specialMove?(moveType)
+00382:         target.effects[PBEffects::MirrorCoat]       = damage
+00383:         target.effects[PBEffects::MirrorCoatTarget] = user.index
+00384:       end
+00385:     end
+00386:     if target.effects[PBEffects::Bide] > 0
+00387:       target.effects[PBEffects::BideDamage] += damage
+00388:       target.effects[PBEffects::BideTarget] = user.index
+00389:     end
+00390:     target.damageState.fainted = true if target.fainted?
+00391:     target.lastHPLost = damage
+00392:     target.tookMoveDamageThisRound = true if damage > 0 && !target.damageState.substitute   # For Focus Punch
+00393:     target.tookDamageThisRound = true if damage > 0   # For Assurance
+00394:     target.lastAttacker.push(user.index)              # For Revenge
+00395:     if target.opposes?(user)
+00396:       target.lastHPLostFromFoe = damage               # For Metal Burst
+00397:       target.lastFoeAttacker.push(user.index)         # For Metal Burst
+00398:     end
+00399:     if $game_temp.party_direct_damage_taken &&
+00400:        $game_temp.party_direct_damage_taken[target.pokemonIndex] &&
+00401:        target.pbOwnedByPlayer?
+00402:       $game_temp.party_direct_damage_taken[target.pokemonIndex] += damage
+00403:     end
+00404:   end
+00405: end

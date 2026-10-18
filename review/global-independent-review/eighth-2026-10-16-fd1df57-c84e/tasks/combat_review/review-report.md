@@ -1,0 +1,46 @@
+# R8 COMBAT/AI 分域审查：COM-CORE 阅读交付
+
+状态：`CORE_FULL_TEXT_READ_COMPLETE_JOINS_PENDING`；逻辑任务 `WAIT_DEPENDENCY`。本报告不授整个 COMBAT/AI 完成或 formal PASS。`UPDATE_NOT_STARTED`。
+
+审者为 `/root/combat_review`。请求配置 `gpt-6.1-sol / ultra / default / Fast off`；真实 model、effort、tier、speed 均无可核回显，逐项 `UNVERIFIED`。本轮行为执行为0，所有向量 `NOT_EXECUTED`。身份/JSON/库存工具检查不计作战斗行为执行。
+
+固定 B8 为 `fd1df570cad987dc3852a3b958f03916e317f7fe`，workspace tree `751dfde81048c81390f89a65ca1d1a565ba8e1ca`，formal tree `f292698cdd4a8e725525a9be6dc34b75faaf151e`；R commit `8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b`、tree `7589c800b61ba13a13040ed0d686979b80a84fd0`。本上下文实核HEAD/tree匹配。Git远端/保护/全局历史准备由root预检主责，不在此重复授信。
+
+Library完整合同241行经四个连续窗口实际读完，恢复 `contract.read.md` 为36,653 bytes，SHA256 `63944b6f264a8e4ed1415db710443a0673f250b8a248af2274a425a314ea068b` 匹配。根AGENTS全文已读。初始截断输出没有授予信用，完整重读证据在 `read-operations.json`。
+
+## 范围和真实分母
+
+Root明确本域38份formal主责，完整互斥后继片见 `subshards.json`，旧58份全pokemon分片不采用。当前本上下文完成其中COM-CORE六份formal：WP39/40/41/42/45五篇共1462行，加整篇对应test-catalog297行，共1759行；全部章节、表格、脚注和追加向量实际读取。其余32份仍由root后继独立子片审，不由库存或已读core推定已读。
+
+当前源主读集为15份、5266行：Battle001–011共4212行；创建入口749行；BattleSettings140行；ActiveField88行；Peers77行。另完整读Clauses306行供当前结果/状态合同交叉核对。合计16份R源5572行FULL_READ。附加Ability/Type/Pokemon/AI/Battler/UI证据仅记录实际窗口，均为PARTIAL_READ，不上调整文件信用。外部PBS/default/backup全记录、010_Data全目录、UI、捕获、存储、进化等主责由root分别接收。
+
+逐载荷path/commit/tree/bytes/SHA256/blob、完整与部分范围在 `reading-ledger.json`。连续阅读窗口及实际输出chunk定位在 `read-operations.json`。未读路径在 `subshards.json`/ledger保持具名；平台私有输出未声称公开发布或远端读回。
+
+## 双向核验交付
+
+`source-to-spec.json` 给63项自然语言事实、生产/消费关系及相应formal主合同。251个源方法结构身份逐项映射到事实；声明、状态目录、设置和有序默认表按完整事实区间另列，不以251冒充全部语义单元最终分母。不同定义即使无默认caller也给具名处置。
+
+`clause-to-source.json` 索引994条实际读过的材料行与2328个分号片段。它们是paragraph/bullet/table-row与复合断言候选定位，**不是已独立接收的最终原子clause分母**。每条保留支持事实及外域前提，未知未改成PASS。主要待接合：WP39的Battler初始化/写回；WP40使用招式/服从/目标；WP41招式换人及UI；WP42数值/状态/特性/道具/捕获/进化消费者；WP45效果生产者和有效性。当前历史/导航资格由root与history owner接收。
+
+已交付给CREATURE的接合事实包括普通终局顺序及持物还原、成长分配与分段提交/学招、伙伴合并/治疗/还原、普通Peer形态/存储入口；其未审CatchStore/Battler部分仍明确待决。KERNEL确认其已全文读Settings001/Type/Ability定义和编译链；该独立源阅读不替代本域消费者接合。
+
+## 疑似发现与处置
+
+完整逐项合同、精确双向身份、前提/普通对照/最小反例、失败与部分提交、负证据、最小修正规则、保留scope、同步/验收/回归、依赖及待独立审者均在 `findings.json`。目前为2条提案，accepted required为0。
+
+- `GR8-COM-001`：拟P3。WP40 §6.1将档内能力例写为“懒惰类”，而真实档处理器为STALL/QUICKDRAW，TRUANT是执行偷懒门；WP48表已正确。同优先级无道具时，可动TRUANT速度100对普通50先行，STALL100则落后。建议只校准能力身份及回归，保留全部现有正确排序规则。
+- `GR8-COM-002`：拟P2，两个独立输入facet保留。已有非蛋野生对象全无可战成员时，非空构造通过，稀疏可战计数缺项先污染布局，随后编组枚举一般异常，早于NPCinvalid-owner或正常建席。混合顺序[P濒死,Q可战]会由2v2同步1v1，却仍按全部输入建立P席1/Q席3；Q在场存活而不进0..1动作排序。反序[Q可战,P濒死]为独立正常排序对照。命令、AI与入场处理的集合差异具名；UI/宿主及完整对局没有运行结论。是否与历史NPC稀疏计数根因合并或拆facet待root反证/去重。
+
+`optional-definitions.json`另保留2个尚待独立分类的定义：替代按时HP百分比判定（未默认调用），以及NullPeer的空通知/仅入队行为。两者均检索全部固定Scripts只定位定义；不据此跳过语义，也不将定义存在当作正常Battle可替换接线。它们未自动列必修。
+
+## 限制与后继接收
+
+ROOT需以实际非提案者核两条finding，恢复历史根因及接受范围，裁决required/optional/no-required/policy/limit。当前没有实际独立反证，因此不得关闭提案。
+
+COM-BATTLER/MOVE/ABILITY-ITEM/AI/FACILITY子片、formal复合断言完整拆分与外域消费者接合尚未完成。宿主或素材限制不能代替这些可读材料缺读。所有静态可判定结论只以冻结源为证；没有真实战斗、菜单、概率、模型、存档/回放或目标宿主观察。
+
+本上下文只写本task目录，没有修改R/formal/planning/audit/旧材料，也没有git commit/push或启动整改。root可在这些产物之上继续接合；全域最终验收前保持未接收范围开放。
+
+## 追加：实际独立反证 CRE001
+
+Root追加委派的 `GR8-CRE-001.v2` 非提出者反证已完成，详 `adjudications-creature.json`。本上下文独立核模板构造、持久EV不规范化、主能力HP先枚举、战斗EV分配、默认设施非内部门及当前主clause/反证。建议有限required P3：模板255存量显式交普通EV辅助时负上界先失败，默认设施被internalBattle=false阻断。WP28“从受限状态增加”的正确限定保留，物品外层/Shadow/净化未被自动接收。该建议尚待root最终canonical裁决，不能用于自验COM001/002。所有向量仍NOT_EXECUTED，行为执行0。

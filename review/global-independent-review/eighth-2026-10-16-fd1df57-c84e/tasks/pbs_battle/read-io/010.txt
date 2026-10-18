@@ -1,0 +1,254 @@
+00001 #===============================================================================
+00002 # Records which file, section and line are currently being read
+00003 #===============================================================================
+00004 module FileLineData
+00005   @file     = ""
+00006   @linedata = ""
+00007   @lineno   = 0
+00008   @section  = nil
+00009   @key      = nil
+00010   @value    = nil
+00011 
+00012   def self.file; return @file; end
+00013   def self.file=(value); @file = value; end
+00014 
+00015   def self.clear
+00016     @file     = ""
+00017     @linedata = ""
+00018     @lineno   = ""
+00019     @section  = nil
+00020     @key      = nil
+00021     @value    = nil
+00022   end
+00023 
+00024   def self.setSection(section, key, value)
+00025     @section = section
+00026     @key     = key
+00027     if value && value.length > 200
+00028       @value = value[0, 200].to_s + "..."
+00029     else
+00030       @value = (value) ? value.clone : ""
+00031     end
+00032   end
+00033 
+00034   def self.setLine(line, lineno)
+00035     @section  = nil
+00036     @linedata = (line && line.length > 200) ? sprintf("%s...", line[0, 200]) : line.clone
+00037     @lineno   = lineno
+00038   end
+00039 
+00040   def self.linereport
+00041     if @section
+00042       if @key.nil?
+00043         return _INTL("File {1}, section {2}\n{3}", @file, @section, @value) + "\n\n"
+00044       else
+00045         return _INTL("File {1}, section {2}, key {3}\n{4}", @file, @section, @key, @value) + "\n\n"
+00046       end
+00047     else
+00048       return _INTL("File {1}, line {2}\n{3}", @file, @lineno, @linedata) + "\n\n"
+00049     end
+00050   end
+00051 end
+00052 
+00053 #===============================================================================
+00054 # Compiler
+00055 #===============================================================================
+00056 module Compiler
+00057   module_function
+00058 
+00059   def findIndex(a)
+00060     index = -1
+00061     count = 0
+00062     a.each do |i|
+00063       if yield i
+00064         index = count
+00065         break
+00066       end
+00067       count += 1
+00068     end
+00069     return index
+00070   end
+00071 
+00072   def prepline(line)
+00073     line.sub!(/\s*\#.*$/, "")
+00074     line.sub!(/^\s+/, "")
+00075     line.sub!(/\s+$/, "")
+00076     return line
+00077   end
+00078 
+00079   def csvQuote(str, always = false)
+00080     return "" if nil_or_empty?(str)
+00081     if always || str[/[,\"]/]   # || str[/^\s/] || str[/\s$/] || str[/^#/]
+00082       str = str.gsub(/\"/, "\\\"")
+00083       str = "\"#{str}\""
+00084     end
+00085     return str
+00086   end
+00087 
+00088   def csvQuoteAlways(str)
+00089     return csvQuote(str, true)
+00090   end
+00091 
+00092   #=============================================================================
+00093   # PBS file readers
+00094   #=============================================================================
+00095   def pbEachFileSectionEx(f, schema = nil)
+00096     lineno      = 1
+00097     havesection = false
+00098     sectionname = nil
+00099     lastsection = {}
+00100     f.each_line do |line|
+00101       if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00102         line = line[3, line.length - 3]
+00103       end
+00104       line.force_encoding(Encoding::UTF_8)
+00105       if !line[/^\#/] && !line[/^\s*$/]
+00106         line = prepline(line)
+00107         if line[/^\s*\[\s*(.*)\s*\]\s*$/]   # Of the format: [something]
+00108           yield lastsection, sectionname if havesection
+00109           sectionname = $~[1]
+00110           havesection = true
+00111           lastsection = {}
+00112         else
+00113           if sectionname.nil?
+00114             FileLineData.setLine(line, lineno)
+00115             raise _INTL("Expected a section at the beginning of the file.\nThis error may also occur if the file was not saved in UTF-8.") + "\n" + FileLineData.linereport
+00116           end
+00117           if !line[/^\s*(\w+)\s*=\s*(.*)$/]
+00118             FileLineData.setSection(sectionname, nil, line)
+00119             raise _INTL("Bad line syntax (expected syntax like XXX=YYY).") + "\n" + FileLineData.linereport
+00120           end
+00121           r1 = $~[1]
+00122           r2 = $~[2]
+00123           if schema && schema[r1] && schema[r1][1][0] == "^"
+00124             lastsection[r1] ||= []
+00125             lastsection[r1].push(r2.gsub(/\s+$/, ""))
+00126           else
+00127             lastsection[r1] = r2.gsub(/\s+$/, "")
+00128           end
+00129         end
+00130       end
+00131       lineno += 1
+00132       Graphics.update if lineno % 1000 == 0
+00133     end
+00134     yield lastsection, sectionname if havesection
+00135   end
+00136 
+00137   # Used for types.txt, abilities.txt, moves.txt, items.txt, berry_plants.txt,
+00138   # pokemon.txt, pokemon_forms.txt, pokemon_metrics.txt, shadow_pokemon.txt,
+00139   # ribbons.txt, trainer_types.txt, battle_facility_lists.txt, Battle Tower
+00140   # trainers PBS files and dungeon_parameters.txt
+00141   def pbEachFileSection(f, schema = nil)
+00142     pbEachFileSectionEx(f, schema) do |section, name|
+00143       yield section, name if block_given? && name[/^.+$/]
+00144     end
+00145   end
+00146 
+00147   # Used for metadata.txt and map_metadata.txt
+00148   def pbEachFileSectionNumbered(f, schema = nil)
+00149     pbEachFileSectionEx(f, schema) do |section, name|
+00150       yield section, name.to_i if block_given? && name[/^\d+$/]
+00151     end
+00152   end
+00153 
+00154   # Used by translated text compiler
+00155   def pbEachSection(f)
+00156     lineno      = 1
+00157     havesection = false
+00158     sectionname = nil
+00159     lastsection = []
+00160     f.each_line do |line|
+00161       if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00162         line = line[3, line.length - 3]
+00163       end
+00164       line.force_encoding(Encoding::UTF_8)
+00165       if !line[/^\#/] && !line[/^\s*$/]
+00166         if line[/^\s*\[\s*(.+?)\s*\]\s*$/]
+00167           yield lastsection, sectionname if havesection
+00168           lastsection.clear
+00169           sectionname = $~[1]
+00170           havesection = true
+00171         else
+00172           if sectionname.nil?
+00173             raise _INTL("Expected a section at the beginning of the file (line {1}). Sections begin with '[name of section]'.", lineno)
+00174           end
+00175           lastsection.push(line.strip)
+00176         end
+00177       end
+00178       lineno += 1
+00179       Graphics.update if lineno % 500 == 0
+00180     end
+00181     yield lastsection, sectionname if havesection
+00182   end
+00183 
+00184   # Unused
+00185   def pbEachCommentedLine(f)
+00186     lineno = 1
+00187     f.each_line do |line|
+00188       if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00189         line = line[3, line.length - 3]
+00190       end
+00191       line.force_encoding(Encoding::UTF_8)
+00192       yield line, lineno if !line[/^\#/] && !line[/^\s*$/]
+00193       lineno += 1
+00194     end
+00195   end
+00196 
+00197   # Used for town_map.txt and Battle Tower Pokémon PBS files
+00198   def pbCompilerEachCommentedLine(filename)
+00199     File.open(filename, "rb") do |f|
+00200       FileLineData.file = filename
+00201       lineno = 1
+00202       f.each_line do |line|
+00203         if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00204           line = line[3, line.length - 3]
+00205         end
+00206         line.force_encoding(Encoding::UTF_8)
+00207         if !line[/^\#/] && !line[/^\s*$/]
+00208           FileLineData.setLine(line, lineno)
+00209           yield line, lineno
+00210         end
+00211         lineno += 1
+00212       end
+00213     end
+00214   end
+00215 
+00216   # Unused
+00217   def pbEachPreppedLine(f)
+00218     lineno = 1
+00219     f.each_line do |line|
+00220       if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00221         line = line[3, line.length - 3]
+00222       end
+00223       line.force_encoding(Encoding::UTF_8)
+00224       line = prepline(line)
+00225       yield line, lineno if !line[/^\#/] && !line[/^\s*$/]
+00226       lineno += 1
+00227     end
+00228   end
+00229 
+00230   # Used for map_connections.txt, phone.txt, regional_dexes.txt, encounters.txt,
+00231   # trainers.txt and dungeon_tilesets.txt
+00232   def pbCompilerEachPreppedLine(filename)
+00233     File.open(filename, "rb") do |f|
+00234       FileLineData.file = filename
+00235       lineno = 1
+00236       f.each_line do |line|
+00237         if lineno == 1 && line[0].ord == 0xEF && line[1].ord == 0xBB && line[2].ord == 0xBF
+00238           line = line[3, line.length - 3]
+00239         end
+00240         line.force_encoding(Encoding::UTF_8)
+00241         line = prepline(line)
+00242         if !line[/^\#/] && !line[/^\s*$/]
+00243           FileLineData.setLine(line, lineno)
+00244           yield line, lineno
+00245         end
+00246         lineno += 1
+00247       end
+00248     end
+00249   end
+00250 
+00251   #=============================================================================
+00252   # Splits a string containing comma-separated values into an array of those
+00253   # values.
+00254   #=============================================================================

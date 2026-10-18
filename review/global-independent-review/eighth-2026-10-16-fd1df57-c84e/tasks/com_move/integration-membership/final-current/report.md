@@ -1,0 +1,9 @@
+563路径机械后继薄表已绑定当前root29份exact收据；原冻结23索引及原50payload全部保持，未重建15MB索引、未再读全源或原记录语义。
+
+paths-563.json引用原index/hash/row，overrides-33.json给31R/2F真实原reader/原账指针及whole/alias/完整字段视图资格，catalog-readers-17.json给17catalog的原实际全文读者。metrics归PBSbackups的既有完整literal alias组，不归PBSWORLD；6trainer为FAC完整无损字段视图，不冒raw PBS逐行全文；TowerPokemon为FAC原884行完整raw。F04/F05/F06程序来源读者与这些raw/view读者分开。Gen8moves只精确同byte关联default原whole reader。18Text由原receiver433对与A/B/C/D具名10264对集体承接，不造某人个人18全文。ItemSprites实际157行，旧164资格不扩。CREB WP27/WP29保原连续I/O及嵌套身份状态。
+
+shared formal451行原root全文/18有限组保留；旧3OPEN/NOT_SIGNED为原时点，新root29的formal_shared收据单独接合，不回退UNREAD。ABI原2R4F与Battler10R原source个人资格保留，当前root相应task-final分别绑定；root-item不替代ABI整域。
+
+engine-wp16实际world_resources_rendering见resources-final-reading-ledger/files/31；kernel05–10见kernel reading-ledger/records/18。固定B8 identity和额外identity表是不同层，不造缺读或父个人FULL。18binary仍保原resource可读范围与AVAILABLE_OPAQUE_NATIVE边界。
+
+全部仅机械metadata/成员/身份/指针核对；0新增context/票/sourceFULL/语义信用，NOT_EXECUTED，UPDATE_NOT_STARTED，实际配置与UUID UNVERIFIED，不签全局或冻结全局语义分母。

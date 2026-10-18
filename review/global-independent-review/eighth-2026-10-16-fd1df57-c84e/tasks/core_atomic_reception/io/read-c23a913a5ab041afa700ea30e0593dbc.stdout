@@ -1,0 +1,102 @@
+00051: def pbSceneStandby
+00052:   $scene.disposeSpritesets if $scene.is_a?(Scene_Map)
+00053:   RPG::Cache.clear
+00054:   Graphics.frame_reset
+00055:   yield
+00056:   $scene.createSpritesets if $scene.is_a?(Scene_Map)
+00057: end
+00058: 
+00059: def pbBattleAnimation(bgm = nil, battletype = 0, foe = nil)
+00060:   $game_temp.in_battle = true
+00061:   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00062:   viewport.z = 99999
+00063:   # Set up audio
+00064:   playingBGS = nil
+00065:   playingBGM = nil
+00066:   if $game_system.is_a?(Game_System)
+00067:     playingBGS = $game_system.getPlayingBGS
+00068:     playingBGM = $game_system.getPlayingBGM
+00069:     $game_system.bgm_pause
+00070:     $game_system.bgs_pause
+00071:     if $game_temp.memorized_bgm
+00072:       playingBGM = $game_temp.memorized_bgm
+00073:       $game_system.bgm_position = $game_temp.memorized_bgm_position
+00074:     end
+00075:   end
+00076:   # Play battle music
+00077:   bgm = pbGetWildBattleBGM([]) if !bgm
+00078:   pbBGMPlay(bgm)
+00079:   # Determine location of battle
+00080:   location = 0   # 0=outside, 1=inside, 2=cave, 3=water
+00081:   if $PokemonGlobal.surfing || $PokemonGlobal.diving
+00082:     location = 3
+00083:   elsif $game_temp.encounter_type &&
+00084:         GameData::EncounterType.get($game_temp.encounter_type).type == :fishing
+00085:     location = 3
+00086:   elsif $PokemonEncounters.has_cave_encounters?
+00087:     location = 2
+00088:   elsif !$game_map.metadata&.outdoor_map
+00089:     location = 1
+00090:   end
+00091:   # Check for custom battle intro animations
+00092:   handled = false
+00093:   SpecialBattleIntroAnimations.each do |name, priority, condition, animation|
+00094:     next if !condition.call(battletype, foe, location)
+00095:     animation.call(viewport, battletype, foe, location)
+00096:     handled = true
+00097:     break
+00098:   end
+00099:   # Default battle intro animation
+00100:   if !handled
+00101:     # Determine which animation is played
+00102:     anim = ""
+00103:     if PBDayNight.isDay?
+00104:       case battletype
+00105:       when 0, 2   # Wild, double wild
+00106:         anim = ["SnakeSquares", "DiagonalBubbleTL", "DiagonalBubbleBR", "RisingSplash"][location]
+00107:       when 1      # Trainer
+00108:         anim = ["TwoBallPass", "ThreeBallDown", "BallDown", "WavyThreeBallUp"][location]
+00109:       when 3      # Double trainer
+00110:         anim = "FourBallBurst"
+00111:       end
+00112:     else
+00113:       case battletype
+00114:       when 0, 2   # Wild, double wild
+00115:         anim = ["SnakeSquares", "DiagonalBubbleBR", "DiagonalBubbleBR", "RisingSplash"][location]
+00116:       when 1      # Trainer
+00117:         anim = ["SpinBallSplit", "BallDown", "BallDown", "WavySpinBall"][location]
+00118:       when 3      # Double trainer
+00119:         anim = "FourBallBurst"
+00120:       end
+00121:     end
+00122:     pbBattleAnimationCore(anim, viewport, location)
+00123:   end
+00124:   pbPushFade
+00125:   # Yield to the battle scene
+00126:   yield if block_given?
+00127:   # After the battle
+00128:   pbPopFade
+00129:   if $game_system.is_a?(Game_System)
+00130:     $game_system.bgm_resume(playingBGM)
+00131:     $game_system.bgs_resume(playingBGS)
+00132:   end
+00133:   $game_temp.memorized_bgm            = nil
+00134:   $game_temp.memorized_bgm_position   = 0
+00135:   $PokemonGlobal.nextBattleBGM        = nil
+00136:   $PokemonGlobal.nextBattleVictoryBGM = nil
+00137:   $PokemonGlobal.nextBattleCaptureME  = nil
+00138:   $PokemonGlobal.nextBattleBack       = nil
+00139:   $PokemonEncounters.reset_step_count
+00140:   # Fade back to the overworld in 0.4 seconds
+00141:   viewport.color = Color.black
+00142:   timer_start = System.uptime
+00143:   loop do
+00144:     Graphics.update
+00145:     Input.update
+00146:     pbUpdateSceneMap
+00147:     viewport.color.alpha = 255 * (1 - ((System.uptime - timer_start) / 0.4))
+00148:     break if viewport.color.alpha <= 0
+00149:   end
+00150:   viewport.dispose
+00151:   $game_temp.in_battle = false
+00152: end

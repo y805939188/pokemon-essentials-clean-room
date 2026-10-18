@@ -1,0 +1,165 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb", "range": [71, 234], "file_lines": 1321, "bytes": 54958, "sha256": "d24fe0388c78e4ab321dbfb6248c454fb3fe99933305c26bf2639068113dfbae", "began_utc": "2026-10-16T03:35:14.881336+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00071   # Compile Town Map data
+00072   #=============================================================================
+00073   def compile_town_map(*paths)
+00074     compile_PBS_file_generic(GameData::TownMap, *paths) do |final_validate, hash|
+00075       (final_validate) ? validate_all_compiled_town_maps : validate_compiled_town_map(hash)
+00076     end
+00077   end
+00078 
+00079   def validate_compiled_town_map(hash)
+00080   end
+00081 
+00082   def validate_all_compiled_town_maps
+00083     # Get town map names and descriptions for translating
+00084     region_names = []
+00085     point_names = []
+00086     interest_names = []
+00087     GameData::TownMap.each do |town_map|
+00088       region_names[town_map.id] = town_map.real_name
+00089       town_map.point.each do |point|
+00090         point_names.push(point[2])
+00091         interest_names.push(point[3])
+00092       end
+00093     end
+00094     point_names.uniq!
+00095     interest_names.uniq!
+00096     MessageTypes.setMessagesAsHash(MessageTypes::REGION_NAMES, region_names)
+00097     MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_NAMES, point_names)
+00098     MessageTypes.setMessagesAsHash(MessageTypes::REGION_LOCATION_DESCRIPTIONS, interest_names)
+00099   end
+00100 
+00101   #=============================================================================
+00102   # Compile map connections
+00103   #=============================================================================
+00104   def compile_connections(*paths)
+00105     hashenum = {
+00106       "N" => "N", "North" => "N",
+00107       "E" => "E", "East"  => "E",
+00108       "S" => "S", "South" => "S",
+00109       "W" => "W", "West"  => "W"
+00110     }
+00111     schema = [nil, "iyiiyi", nil, hashenum, nil, nil, hashenum]
+00112     records = []
+00113     paths.each do |path|
+00114       compile_pbs_file_message_start(path)
+00115       pbCompilerEachPreppedLine(path) do |line, lineno|
+00116         FileLineData.setLine(line, lineno)
+00117         record = get_csv_record(line, schema)
+00118         if !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[0]))
+00119           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[0]) + "\n" + FileLineData.linereport
+00120         elsif !pbRgssExists?(sprintf("Data/Map%03d.rxdata", record[3]))
+00121           print _INTL("Warning: Map {1}, as mentioned in the map connection data, was not found.", record[3]) + "\n" + FileLineData.linereport
+00122         end
+00123         case record[1]
+00124         when "N"
+00125           raise _INTL("North side of first map must connect with south side of second map.") + "\n" + FileLineData.linereport if record[4] != "S"
+00126         when "S"
+00127           raise _INTL("South side of first map must connect with north side of second map.") + "\n" + FileLineData.linereport if record[4] != "N"
+00128         when "E"
+00129           raise _INTL("East side of first map must connect with west side of second map.") + "\n" + FileLineData.linereport if record[4] != "W"
+00130         when "W"
+00131           raise _INTL("West side of first map must connect with east side of second map.") + "\n" + FileLineData.linereport if record[4] != "E"
+00132         end
+00133         records.push(record)
+00134       end
+00135       process_pbs_file_message_end
+00136     end
+00137     save_data(records, "Data/map_connections.dat")
+00138   end
+00139 
+00140   #=============================================================================
+00141   # Compile type data
+00142   #=============================================================================
+00143   def compile_types(*paths)
+00144     compile_PBS_file_generic(GameData::Type, *paths) do |final_validate, hash|
+00145       (final_validate) ? validate_all_compiled_types : validate_compiled_type(hash)
+00146     end
+00147   end
+00148 
+00149   def validate_compiled_type(hash)
+00150     # Remove duplicate weaknesses/resistances/immunities
+00151     hash[:weaknesses].uniq! if hash[:weaknesses].is_a?(Array)
+00152     hash[:resistances].uniq! if hash[:resistances].is_a?(Array)
+00153     hash[:immunities].uniq! if hash[:immunities].is_a?(Array)
+00154   end
+00155 
+00156   def validate_all_compiled_types
+00157     type_names = []
+00158     GameData::Type.each do |type|
+00159       # Ensure all weaknesses/resistances/immunities are valid types
+00160       type.weaknesses.each do |other_type|
+00161         next if GameData::Type.exists?(other_type)
+00162         raise _INTL("'{1}' is not a defined type (type {2}, Weaknesses).", other_type.to_s, type.id)
+00163       end
+00164       type.resistances.each do |other_type|
+00165         next if GameData::Type.exists?(other_type)
+00166         raise _INTL("'{1}' is not a defined type (type {2}, Resistances).", other_type.to_s, type.id)
+00167       end
+00168       type.immunities.each do |other_type|
+00169         next if GameData::Type.exists?(other_type)
+00170         raise _INTL("'{1}' is not a defined type (type {2}, Immunities).", other_type.to_s, type.id)
+00171       end
+00172       # Get type names for translating
+00173       type_names.push(type.real_name)
+00174     end
+00175     MessageTypes.setMessagesAsHash(MessageTypes::TYPE_NAMES, type_names)
+00176   end
+00177 
+00178   #=============================================================================
+00179   # Compile ability data
+00180   #=============================================================================
+00181   def compile_abilities(*paths)
+00182     compile_PBS_file_generic(GameData::Ability, *paths) do |final_validate, hash|
+00183       (final_validate) ? validate_all_compiled_abilities : validate_compiled_ability(hash)
+00184     end
+00185   end
+00186 
+00187   def validate_compiled_ability(hash)
+00188   end
+00189 
+00190   def validate_all_compiled_abilities
+00191     # Get abilty names/descriptions for translating
+00192     ability_names = []
+00193     ability_descriptions = []
+00194     GameData::Ability.each do |ability|
+00195       ability_names.push(ability.real_name)
+00196       ability_descriptions.push(ability.real_description)
+00197     end
+00198     MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_NAMES, ability_names)
+00199     MessageTypes.setMessagesAsHash(MessageTypes::ABILITY_DESCRIPTIONS, ability_descriptions)
+00200   end
+00201 
+00202   #=============================================================================
+00203   # Compile move data
+00204   #=============================================================================
+00205   def compile_moves(*paths)
+00206     compile_PBS_file_generic(GameData::Move, *paths) do |final_validate, hash|
+00207       (final_validate) ? validate_all_compiled_moves : validate_compiled_move(hash)
+00208     end
+00209   end
+00210 
+00211   def validate_compiled_move(hash)
+00212     if (hash[:category] || 2) == 2 && (hash[:power] || 0) != 0
+00213       raise _INTL("Move {1} is defined as a Status move with a non-zero base damage.", hash[:real_name]) + "\n" + FileLineData.linereport
+00214     elsif (hash[:category] || 2) != 2 && (hash[:power] || 0) == 0
+00215       print _INTL("Warning: Move {1} is defined as Physical or Special but has a base damage of 0. Changing it to a Status move.", hash[:real_name]) + "\n" + FileLineData.linereport
+00216       hash[:category] = 2
+00217     end
+00218   end
+00219 
+00220   def validate_all_compiled_moves
+00221     # Get move names/descriptions for translating
+00222     move_names = []
+00223     move_descriptions = []
+00224     GameData::Move.each do |move|
+00225       move_names.push(move.real_name)
+00226       move_descriptions.push(move.real_description)
+00227     end
+00228     MessageTypes.setMessagesAsHash(MessageTypes::MOVE_NAMES, move_names)
+00229     MessageTypes.setMessagesAsHash(MessageTypes::MOVE_DESCRIPTIONS, move_descriptions)
+00230   end
+00231 
+00232   #=============================================================================
+00233   # Compile item data
+00234   #=============================================================================

@@ -1,0 +1,300 @@
+    1 #===============================================================================
+    2 # ** Game_Map
+    3 #------------------------------------------------------------------------------
+    4 #  This class handles the map. It includes scrolling and passable determining
+    5 #  functions. Refer to "$game_map" for the instance of this class.
+    6 #===============================================================================
+    7 class Game_Map
+    8   attr_accessor :map_id
+    9   attr_accessor :tileset_name             # tileset file name
+   10   attr_accessor :autotile_names           # autotile file name
+   11   attr_reader   :passages                 # passage table
+   12   attr_reader   :priorities               # priority table
+   13   attr_reader   :terrain_tags             # terrain tag table
+   14   attr_reader   :events                   # events
+   15   attr_accessor :panorama_name            # panorama file name
+   16   attr_accessor :panorama_hue             # panorama hue
+   17   attr_accessor :fog_name                 # fog file name
+   18   attr_accessor :fog_hue                  # fog hue
+   19   attr_accessor :fog_opacity              # fog opacity level
+   20   attr_accessor :fog_blend_type           # fog blending method
+   21   attr_accessor :fog_zoom                 # fog zoom rate
+   22   attr_accessor :fog_sx                   # fog sx
+   23   attr_accessor :fog_sy                   # fog sy
+   24   attr_reader   :fog_ox                   # fog x-coordinate starting point
+   25   attr_reader   :fog_oy                   # fog y-coordinate starting point
+   26   attr_reader   :fog_tone                 # fog color tone
+   27   attr_accessor :battleback_name          # battleback file name
+   28   attr_reader   :display_x                # display x-coordinate * 128
+   29   attr_reader   :display_y                # display y-coordinate * 128
+   30   attr_accessor :need_refresh             # refresh request flag
+   31 
+   32   TILE_WIDTH  = 32
+   33   TILE_HEIGHT = 32
+   34   X_SUBPIXELS = 4
+   35   Y_SUBPIXELS = 4
+   36   REAL_RES_X  = TILE_WIDTH * X_SUBPIXELS
+   37   REAL_RES_Y  = TILE_HEIGHT * Y_SUBPIXELS
+   38 
+   39   def initialize
+   40     @map_id = 0
+   41     @display_x = 0
+   42     @display_y = 0
+   43   end
+   44 
+   45   def setup(map_id)
+   46     @map_id = map_id
+   47     @map = load_data(sprintf("Data/Map%03d.rxdata", map_id))
+   48     tileset = $data_tilesets[@map.tileset_id]
+   49     updateTileset
+   50     @fog_ox                  = 0
+   51     @fog_oy                  = 0
+   52     @fog_tone                = Tone.new(0, 0, 0, 0)
+   53     @fog_tone_target         = Tone.new(0, 0, 0, 0)
+   54     @fog_tone_duration       = 0
+   55     @fog_tone_timer_start    = nil
+   56     @fog_opacity_duration    = 0
+   57     @fog_opacity_target      = 0
+   58     @fog_opacity_timer_start = nil
+   59     self.display_x           = 0
+   60     self.display_y           = 0
+   61     @need_refresh            = false
+   62     EventHandlers.trigger(:on_game_map_setup, map_id, @map, tileset)
+   63     @events                  = {}
+   64     @map.events.each_key do |i|
+   65       @events[i]             = Game_Event.new(@map_id, @map.events[i], self)
+   66     end
+   67     @common_events           = {}
+   68     (1...$data_common_events.size).each do |i|
+   69       @common_events[i]      = Game_CommonEvent.new(i)
+   70     end
+   71     @scroll_distance_x       = 0
+   72     @scroll_distance_y       = 0
+   73     @scroll_speed            = 4
+   74   end
+   75 
+   76   def updateTileset
+   77     tileset = $data_tilesets[@map.tileset_id]
+   78     @tileset_name    = tileset.tileset_name
+   79     @autotile_names  = tileset.autotile_names
+   80     @panorama_name   = tileset.panorama_name
+   81     @panorama_hue    = tileset.panorama_hue
+   82     @fog_name        = tileset.fog_name
+   83     @fog_hue         = tileset.fog_hue
+   84     @fog_opacity     = tileset.fog_opacity
+   85     @fog_blend_type  = tileset.fog_blend_type
+   86     @fog_zoom        = tileset.fog_zoom
+   87     @fog_sx          = tileset.fog_sx
+   88     @fog_sy          = tileset.fog_sy
+   89     @battleback_name = tileset.battleback_name
+   90     @passages        = tileset.passages
+   91     @priorities      = tileset.priorities
+   92     @terrain_tags    = tileset.terrain_tags
+   93   end
+   94 
+   95   def width;          return @map.width;          end
+   96   def height;         return @map.height;         end
+   97   def encounter_list; return @map.encounter_list; end
+   98   def encounter_step; return @map.encounter_step; end
+   99   def data;           return @map.data;           end
+  100   def tileset_id;     return @map.tileset_id;     end
+  101   def bgm;            return @map.bgm;            end
+  102 
+  103   def name
+  104     return pbGetMapNameFromId(@map_id)
+  105   end
+  106 
+  107   def metadata
+  108     return GameData::MapMetadata.try_get(@map_id)
+  109   end
+  110 
+  111   # Returns the name of this map's BGM. If it's night time, returns the night
+  112   # version of the BGM (if it exists).
+  113   def bgm_name
+  114     if PBDayNight.isNight? && FileTest.audio_exist?("Audio/BGM/" + @map.bgm.name + "_n")
+  115       return @map.bgm.name + "_n"
+  116     end
+  117     return @map.bgm.name
+  118   end
+  119 
+  120   # Autoplays background music
+  121   # Plays music called "[normal BGM]_n" if it's night time and it exists
+  122   def autoplayAsCue
+  123     pbCueBGM(bgm_name, 1.0, @map.bgm.volume, @map.bgm.pitch) if @map.autoplay_bgm
+  124     pbBGSPlay(@map.bgs) if @map.autoplay_bgs
+  125   end
+  126 
+  127   # Plays background music
+  128   # Plays music called "[normal BGM]_n" if it's night time and it exists
+  129   def autoplay
+  130     pbBGMPlay(bgm_name, @map.bgm.volume, @map.bgm.pitch) if @map.autoplay_bgm
+  131     pbBGSPlay(@map.bgs) if @map.autoplay_bgs
+  132   end
+  133 
+  134   def valid?(x, y)
+  135     return x >= 0 && x < width && y >= 0 && y < height
+  136   end
+  137 
+  138   def validLax?(x, y)
+  139     return x >= -10 && x <= width + 10 && y >= -10 && y <= height + 10
+  140   end
+  141 
+  142   def passable?(x, y, d, self_event = nil)
+  143     return false if !valid?(x, y)
+  144     bit = (1 << ((d / 2) - 1)) & 0x0f
+  145     events.each_value do |event|
+  146       next if event.tile_id <= 0
+  147       next if event == self_event
+  148       next if !event.at_coordinate?(x, y)
+  149       next if event.through
+  150       next if GameData::TerrainTag.try_get(@terrain_tags[event.tile_id]).ignore_passability
+  151       passage = @passages[event.tile_id]
+  152       return false if passage & bit != 0
+  153       return false if passage & 0x0f == 0x0f
+  154       return true if @priorities[event.tile_id] == 0
+  155     end
+  156     return playerPassable?(x, y, d, self_event) if self_event == $game_player
+  157     # All other events
+  158     newx = x
+  159     newy = y
+  160     case d
+  161     when 1
+  162       newx -= 1
+  163       newy += 1
+  164     when 2
+  165       newy += 1
+  166     when 3
+  167       newx += 1
+  168       newy += 1
+  169     when 4
+  170       newx -= 1
+  171     when 6
+  172       newx += 1
+  173     when 7
+  174       newx -= 1
+  175       newy -= 1
+  176     when 8
+  177       newy -= 1
+  178     when 9
+  179       newx += 1
+  180       newy -= 1
+  181     end
+  182     return false if !valid?(newx, newy)
+  183     [2, 1, 0].each do |i|
+  184       tile_id = data[x, y, i]
+  185       terrain = GameData::TerrainTag.try_get(@terrain_tags[tile_id])
+  186       # If already on water, only allow movement to another water tile
+  187       if self_event && terrain.can_surf_freely
+  188         [2, 1, 0].each do |j|
+  189           facing_tile_id = data[newx, newy, j]
+  190           next if facing_tile_id == 0
+  191           return false if facing_tile_id.nil?
+  192           facing_terrain = GameData::TerrainTag.try_get(@terrain_tags[facing_tile_id])
+  193           if facing_terrain.id != :None && !facing_terrain.ignore_passability
+  194             return facing_terrain.can_surf_freely
+  195           end
+  196         end
+  197         return false
+  198       # Can't walk onto ice
+  199       elsif terrain.ice
+  200         return false
+  201       elsif self_event && self_event.x == x && self_event.y == y
+  202         # Can't walk onto ledges
+  203         [2, 1, 0].each do |j|
+  204           facing_tile_id = data[newx, newy, j]
+  205           next if facing_tile_id == 0
+  206           return false if facing_tile_id.nil?
+  207           facing_terrain = GameData::TerrainTag.try_get(@terrain_tags[facing_tile_id])
+  208           return false if facing_terrain.ledge
+  209           break if facing_terrain.id != :None && !facing_terrain.ignore_passability
+  210         end
+  211       end
+  212       next if terrain&.ignore_passability
+  213       next if tile_id == 0
+  214       # Regular passability checks
+  215       passage = @passages[tile_id]
+  216       return false if passage & bit != 0 || passage & 0x0f == 0x0f
+  217       return true if @priorities[tile_id] == 0
+  218     end
+  219     return true
+  220   end
+  221 
+  222   def playerPassable?(x, y, d, self_event = nil)
+  223     bit = (1 << ((d / 2) - 1)) & 0x0f
+  224     [2, 1, 0].each do |i|
+  225       tile_id = data[x, y, i]
+  226       next if tile_id == 0
+  227       terrain = GameData::TerrainTag.try_get(@terrain_tags[tile_id])
+  228       passage = @passages[tile_id]
+  229       if terrain
+  230         # Ignore bridge tiles if not on a bridge
+  231         next if terrain.bridge && $PokemonGlobal.bridge == 0
+  232         # Make water tiles passable if player is surfing
+  233         return true if $PokemonGlobal.surfing && terrain.can_surf && !terrain.waterfall
+  234         # Prevent cycling in really tall grass/on ice
+  235         return false if $PokemonGlobal.bicycle && (terrain.must_walk || terrain.must_walk_or_run)
+  236         # Depend on passability of bridge tile if on bridge
+  237         if terrain.bridge && $PokemonGlobal.bridge > 0
+  238           return (passage & bit == 0 && passage & 0x0f != 0x0f)
+  239         end
+  240       end
+  241       next if terrain&.ignore_passability
+  242       # Regular passability checks
+  243       return false if passage & bit != 0 || passage & 0x0f == 0x0f
+  244       return true if @priorities[tile_id] == 0
+  245     end
+  246     return true
+  247   end
+  248 
+  249   # Returns whether the position x,y is fully passable (there is no blocking
+  250   # event there, and the tile is fully passable in all directions).
+  251   def passableStrict?(x, y, d, self_event = nil)
+  252     return false if !valid?(x, y)
+  253     events.each_value do |event|
+  254       next if event == self_event || event.tile_id < 0 || event.through
+  255       next if !event.at_coordinate?(x, y)
+  256       next if GameData::TerrainTag.try_get(@terrain_tags[event.tile_id]).ignore_passability
+  257       return false if @passages[event.tile_id] & 0x0f != 0
+  258       return true if @priorities[event.tile_id] == 0
+  259     end
+  260     [2, 1, 0].each do |i|
+  261       tile_id = data[x, y, i]
+  262       next if tile_id == 0
+  263       next if GameData::TerrainTag.try_get(@terrain_tags[tile_id]).ignore_passability
+  264       return false if @passages[tile_id] & 0x0f != 0
+  265       return true if @priorities[tile_id] == 0
+  266     end
+  267     return true
+  268   end
+  269 
+  270   def bush?(x, y)
+  271     [2, 1, 0].each do |i|
+  272       tile_id = data[x, y, i]
+  273       next if tile_id == 0
+  274       return false if GameData::TerrainTag.try_get(@terrain_tags[tile_id]).bridge &&
+  275                       $PokemonGlobal.bridge > 0
+  276       return true if @passages[tile_id] & 0x40 == 0x40
+  277     end
+  278     return false
+  279   end
+  280 
+  281   def deepBush?(x, y)
+  282     [2, 1, 0].each do |i|
+  283       tile_id = data[x, y, i]
+  284       next if tile_id == 0
+  285       terrain = GameData::TerrainTag.try_get(@terrain_tags[tile_id])
+  286       return false if terrain.bridge && $PokemonGlobal.bridge > 0
+  287       return true if terrain.deep_bush && @passages[tile_id] & 0x40 == 0x40
+  288     end
+  289     return false
+  290   end
+  291 
+  292   def counter?(x, y)
+  293     [2, 1, 0].each do |i|
+  294       tile_id = data[x, y, i]
+  295       next if tile_id == 0
+  296       passage = @passages[tile_id]
+  297       return true if passage & 0x80 == 0x80
+  298     end
+  299     return false
+  300   end

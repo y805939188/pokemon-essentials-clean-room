@@ -1,0 +1,100 @@
+00001: #===============================================================================
+00002: # AI skill levels:
+00003: #     0:     Wild Pokémon
+00004: #     1-31:  Basic trainer (young/inexperienced)
+00005: #     32-47: Medium skill
+00006: #     48-99: High skill
+00007: #     100+:  Best skill (Gym Leaders, Elite Four, Champion)
+00008: # NOTE: A trainer's skill value can range from 0-255, but by default only four
+00009: #       distinct skill levels exist. The skill value is typically the same as
+00010: #       the trainer's base money value.
+00011: #
+00012: # Skill flags:
+00013: #   PredictMoveFailure
+00014: #   ScoreMoves
+00015: #   PreferMultiTargetMoves
+00016: #   HPAware (considers HP values of user/target for "worth it?" score changes)
+00017: #   ConsiderSwitching (can choose to switch out Pokémon)
+00018: #   ReserveLastPokemon (don't switch it in if possible)
+00019: #   UsePokemonInOrder (uses earliest-listed Pokémon possible)
+00020: #
+00021: # Anti-skill flags are skill flags with "Anti" at the beginning. An "AntiXYZ"
+00022: # flag will negate the corresponding "XYZ" flag.
+00023: #===============================================================================
+00024: class Battle::AI::AITrainer
+00025:   attr_reader :side, :trainer_index
+00026:   attr_reader :skill
+00027: 
+00028:   def initialize(ai, side, index, trainer)
+00029:     @ai            = ai
+00030:     @side          = side
+00031:     @trainer_index = index
+00032:     @trainer       = trainer
+00033:     @skill         = 0
+00034:     @skill_flags   = []
+00035:     set_up_skill
+00036:     set_up_skill_flags
+00037:     sanitize_skill_flags
+00038:   end
+00039: 
+00040:   def set_up_skill
+00041:     if @trainer
+00042:       @skill = @trainer.skill_level
+00043:     elsif Settings::SMARTER_WILD_LEGENDARY_POKEMON
+00044:       # Give wild legendary/mythical Pokémon a higher skill
+00045:       wild_battler = @ai.battle.battlers[@side]
+00046:       sp_data = wild_battler.pokemon.species_data
+00047:       if sp_data.has_flag?("Legendary") ||
+00048:          sp_data.has_flag?("Mythical") ||
+00049:          sp_data.has_flag?("UltraBeast")
+00050:         @skill = 32   # Medium skill
+00051:       end
+00052:     end
+00053:   end
+00054: 
+00055:   def set_up_skill_flags
+00056:     if @trainer
+00057:       @trainer.flags.each { |flag| @skill_flags.push(flag) }
+00058:     end
+00059:     if @skill > 0
+00060:       @skill_flags.push("PredictMoveFailure")
+00061:       @skill_flags.push("ScoreMoves")
+00062:       @skill_flags.push("PreferMultiTargetMoves")
+00063:     end
+00064:     if medium_skill?
+00065:       @skill_flags.push("ConsiderSwitching")
+00066:       @skill_flags.push("HPAware")
+00067:     end
+00068:     if !medium_skill?
+00069:       @skill_flags.push("UsePokemonInOrder")
+00070:     elsif best_skill?
+00071:       @skill_flags.push("ReserveLastPokemon")
+00072:     end
+00073:   end
+00074: 
+00075:   def sanitize_skill_flags
+00076:     # NOTE: Any skill flag which is shorthand for multiple other skill flags
+00077:     #       should be "unpacked" here.
+00078:     # Remove any skill flag "XYZ" if there is also an "AntiXYZ" skill flag
+00079:     @skill_flags.each_with_index do |flag, i|
+00080:       @skill_flags[i] = nil if @skill_flags.include?("Anti" + flag)
+00081:     end
+00082:     @skill_flags.compact!
+00083:   end
+00084: 
+00085:   def has_skill_flag?(flag)
+00086:     return @skill_flags.include?(flag)
+00087:   end
+00088: 
+00089:   def medium_skill?
+00090:     return @skill >= 32
+00091:   end
+00092: 
+00093:   def high_skill?
+00094:     return @skill >= 48
+00095:   end
+00096: 
+00097:   def best_skill?
+00098:     return @skill >= 100
+00099:   end
+00100: end

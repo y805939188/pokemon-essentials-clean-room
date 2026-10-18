@@ -1,0 +1,76 @@
+00316:   def pbOnBattlerEnteringBattle(battler_index, skip_event_reset = false)
+00317:     battler_index = [battler_index] if !battler_index.is_a?(Array)
+00318:     battler_index.flatten!
+00319:     # NOTE: This isn't done for switch commands, because they previously call
+00320:     #       pbRecallAndReplace, which could cause Neutralizing Gas to end, which
+00321:     #       in turn could cause Intimidate to trigger another Pokémon's Eject
+00322:     #       Pack. That Eject Pack should trigger at the end of this method, but
+00323:     #       this resetting would prevent that from happening, so it is skipped
+00324:     #       and instead done earlier in def pbAttackPhaseSwitch.
+00325:     if !skip_event_reset
+00326:       allBattlers.each do |b|
+00327:         b.droppedBelowHalfHP = false
+00328:         b.statsDropped = false
+00329:       end
+00330:     end
+00331:     # For each battler that entered battle, in speed order
+00332:     pbPriority(true).each do |b|
+00333:       next if !battler_index.include?(b.index) || b.fainted?
+00334:       pbRecordBattlerAsParticipated(b)
+00335:       pbMessagesOnBattlerEnteringBattle(b)
+00336:       # Position/field effects triggered by the battler appearing
+00337:       pbEffectsOnBattlerEnteringPosition(b)   # Healing Wish/Lunar Dance
+00338:       pbEntryHazards(b)
+00339:       # Battler faints if it is knocked out because of an entry hazard above
+00340:       if b.fainted?
+00341:         b.pbFaint
+00342:         pbGainExp
+00343:         pbJudge
+00344:         next
+00345:       end
+00346:       b.pbCheckForm
+00347:       # Primal Revert upon entering battle
+00348:       pbPrimalReversion(b.index)
+00349:       # Ending primordial weather, checking Trace
+00350:       b.pbContinualAbilityChecks(true)
+00351:       # Abilities that trigger upon switching in
+00352:       if (!b.fainted? && b.unstoppableAbility?) || b.abilityActive?
+00353:         Battle::AbilityEffects.triggerOnSwitchIn(b.ability, b, self, true)
+00354:       end
+00355:       pbEndPrimordialWeather   # Checking this again just in case
+00356:       # Items that trigger upon switching in (Air Balloon message)
+00357:       if b.itemActive?
+00358:         Battle::ItemEffects.triggerOnSwitchIn(b.item, b, self)
+00359:       end
+00360:       # Berry check, status-curing ability check
+00361:       b.pbHeldItemTriggerCheck
+00362:       b.pbAbilityStatusCureCheck
+00363:     end
+00364:     # Check for triggering of Emergency Exit/Wimp Out/Eject Pack (only one will
+00365:     # be triggered)
+00366:     pbPriority(true).each do |b|
+00367:       break if b.pbItemOnStatDropped
+00368:       break if b.pbAbilitiesOnDamageTaken
+00369:     end
+00370:     allBattlers.each do |b|
+00371:       b.droppedBelowHalfHP = false
+00372:       b.statsDropped = false
+00373:     end
+00374:   end
+00375: 
+00376:   def pbRecordBattlerAsParticipated(battler)
+00377:     # Record money-doubling effect of Amulet Coin/Luck Incense
+00378:     if !battler.opposes? && [:AMULETCOIN, :LUCKINCENSE].include?(battler.item_id)
+00379:       @field.effects[PBEffects::AmuletCoin] = true
+00380:     end
+00381:     # Update battlers' participants (who will gain Exp/EVs when a battler faints)
+00382:     allBattlers.each { |b| b.pbUpdateParticipants }
+00383:   end
+00384: 
+00385:   def pbMessagesOnBattlerEnteringBattle(battler)
+00386:     # Introduce Shadow Pokémon
+00387:     if battler.shadowPokemon?
+00388:       pbCommonAnimation("Shadow", battler)
+00389:       pbDisplay(_INTL("Oh!\nA Shadow Pokémon!")) if battler.opposes?
+00390:     end
+00391:   end

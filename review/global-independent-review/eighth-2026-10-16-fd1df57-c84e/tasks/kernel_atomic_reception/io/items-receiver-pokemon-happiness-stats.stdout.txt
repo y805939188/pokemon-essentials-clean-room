@@ -1,0 +1,159 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb RANGE 96-104
+  # Maximum number of moves a Pokémon can know at once
+  MAX_MOVES     = 4
+
+  def self.play_cry(species, form = 0, volume = 90, pitch = 100)
+    GameData::Species.play_cry_from_species(species, form, volume, pitch)
+  end
+
+  def play_cry(volume = 90, pitch = nil)
+    GameData::Species.play_cry_from_pokemon(self, volume, pitch)
+
+PATH /workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb RANGE 923-981
+    end
+    return 5   # 255
+  end
+
+  # Changes the happiness of this Pokémon depending on what happened to change it.
+  # @param method [String] the happiness changing method (e.g. 'walking')
+  def changeHappiness(method)
+    gain = 0
+    happiness_range = @happiness / 100
+    case method
+    when "walking"
+      gain = [2, 2, 1][happiness_range]
+    when "levelup"
+      gain = [5, 4, 3][happiness_range]
+    when "groom"
+      gain = [10, 10, 4][happiness_range]
+    when "evberry"
+      gain = [10, 5, 2][happiness_range]
+    when "vitamin"
+      gain = [5, 3, 2][happiness_range]
+    when "wing"
+      gain = [3, 2, 1][happiness_range]
+    when "machine", "battleitem"
+      gain = [1, 1, 0][happiness_range]
+    when "faint"
+      gain = -1
+    when "faintbad"   # Fainted against an opponent that is 30+ levels higher
+      gain = [-5, -5, -10][happiness_range]
+    when "powder"
+      gain = [-5, -5, -10][happiness_range]
+    when "energyroot"
+      gain = [-10, -10, -15][happiness_range]
+    when "revivalherb"
+      gain = [-15, -15, -20][happiness_range]
+    else
+      raise _INTL("Unknown happiness-changing method: {1}", method.to_s)
+    end
+    if gain > 0
+      gain += 1 if @obtain_map == $game_map.map_id
+      gain += 1 if @poke_ball == :LUXURYBALL
+      gain = (gain * 1.5).floor if hasItem?(:SOOTHEBELL)
+      if Settings::APPLY_HAPPINESS_SOFT_CAP && method != "evberry"
+        gain = (@happiness >= 179) ? 0 : gain.clamp(0, 179 - @happiness)
+      end
+    end
+    @happiness = (@happiness + gain).clamp(0, 255)
+  end
+
+  #=============================================================================
+  # Evolution checks
+  #=============================================================================
+  # Checks whether this Pokemon can evolve because of levelling up.
+  # @return [Symbol, nil] the ID of the species to evolve into
+  def check_evolution_on_level_up
+    return check_evolution_internal do |pkmn, new_species, method, parameter|
+      success = GameData::Evolution.get(method).call_level_up(pkmn, parameter)
+      next (success) ? new_species : nil
+    end
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb RANGE 1062-1147
+  # Stat calculations
+  #=============================================================================
+
+  # @return [Hash<Integer>] this Pokémon's base stats, a hash with six key/value pairs
+  def baseStats
+    this_base_stats = species_data.base_stats
+    ret = {}
+    GameData::Stat.each_main { |s| ret[s.id] = this_base_stats[s.id] }
+    return ret
+  end
+
+  # Returns this Pokémon's effective IVs, taking into account Hyper Training.
+  # Only used for calculating stats.
+  # @return [Hash<Integer>] hash containing this Pokémon's effective IVs
+  def calcIV
+    this_ivs = self.iv
+    ret = {}
+    GameData::Stat.each_main do |s|
+      ret[s.id] = (@ivMaxed[s.id]) ? IV_STAT_LIMIT : this_ivs[s.id]
+    end
+    return ret
+  end
+
+  # @return [Integer] the maximum HP of this Pokémon
+  def calcHP(base, level, iv, ev)
+    return 1 if base == 1   # For Shedinja
+    iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+    return (((base * 2) + iv + (ev / 4)) * level / 100).floor + level + 10
+  end
+
+  # @return [Integer] the specified stat of this Pokémon (not used for total HP)
+  def calcStat(base, level, iv, ev, nat)
+    iv = ev = 0 if Settings::DISABLE_IVS_AND_EVS
+    return (((((base * 2) + iv + (ev / 4)) * level / 100).floor + 5) * nat / 100).floor
+  end
+
+  # Recalculates this Pokémon's stats.
+  def calc_stats
+    base_stats = self.baseStats
+    this_level = self.level
+    this_IV    = self.calcIV
+    # Format stat multipliers due to nature
+    nature_mod = {}
+    GameData::Stat.each_main { |s| nature_mod[s.id] = 100 }
+    this_nature = self.nature_for_stats
+    if this_nature
+      this_nature.stat_changes.each { |change| nature_mod[change[0]] += change[1] }
+    end
+    # Calculate stats
+    stats = {}
+    GameData::Stat.each_main do |s|
+      if s.id == :HP
+        stats[s.id] = calcHP(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id])
+      else
+        stats[s.id] = calcStat(base_stats[s.id], this_level, this_IV[s.id], @ev[s.id], nature_mod[s.id])
+      end
+    end
+    hp_difference = stats[:HP] - @totalhp
+    @totalhp = stats[:HP]
+    self.hp = [@hp + hp_difference, 1].max if @hp > 0 || hp_difference > 0
+    @attack  = stats[:ATTACK]
+    @defense = stats[:DEFENSE]
+    @spatk   = stats[:SPECIAL_ATTACK]
+    @spdef   = stats[:SPECIAL_DEFENSE]
+    @speed   = stats[:SPEED]
+  end
+
+  #=============================================================================
+  # Pokémon creation
+  #=============================================================================
+
+  # Creates a copy of this Pokémon and returns it.
+  # @return [Pokemon] a copy of this Pokémon
+  def clone
+    ret = super
+    ret.iv          = {}
+    ret.ivMaxed     = {}
+    ret.ev          = {}
+    GameData::Stat.each_main do |s|
+      ret.iv[s.id]      = @iv[s.id]
+      ret.ivMaxed[s.id] = @ivMaxed[s.id]
+      ret.ev[s.id]      = @ev[s.id]
+    end
+    ret.moves       = []
+    @moves.each_with_index { |m, i| ret.moves[i] = m.clone }
+    ret.first_moves = @first_moves.clone

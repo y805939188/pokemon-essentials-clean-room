@@ -1,0 +1,225 @@
+00001: #===============================================================================
+00002: # This round, user becomes the target of attacks that have single targets.
+00003: # (Follow Me, Rage Powder)
+00004: #===============================================================================
+00005: class Battle::Move::RedirectAllMovesToUser < Battle::Move
+00006:   def pbEffectGeneral(user)
+00007:     user.effects[PBEffects::FollowMe] = 1
+00008:     user.allAllies.each do |b|
+00009:       next if b.effects[PBEffects::FollowMe] < user.effects[PBEffects::FollowMe]
+00010:       user.effects[PBEffects::FollowMe] = b.effects[PBEffects::FollowMe] + 1
+00011:     end
+00012:     user.effects[PBEffects::RagePowder] = true if powderMove?
+00013:     @battle.pbDisplay(_INTL("{1} became the center of attention!", user.pbThis))
+00014:   end
+00015: end
+00016: 
+00017: #===============================================================================
+00018: # This round, target becomes the target of attacks that have single targets.
+00019: # (Spotlight)
+00020: #===============================================================================
+00021: class Battle::Move::RedirectAllMovesToTarget < Battle::Move
+00022:   def canMagicCoat?; return true; end
+00023: 
+00024:   def pbEffectAgainstTarget(user, target)
+00025:     target.effects[PBEffects::Spotlight] = 1
+00026:     target.allAllies.each do |b|
+00027:       next if b.effects[PBEffects::Spotlight] < target.effects[PBEffects::Spotlight]
+00028:       target.effects[PBEffects::Spotlight] = b.effects[PBEffects::Spotlight] + 1
+00029:     end
+00030:     @battle.pbDisplay(_INTL("{1} became the center of attention!", target.pbThis))
+00031:   end
+00032: end
+00033: 
+00034: #===============================================================================
+00035: # Unaffected by moves and abilities that would redirect this move. (Snipe Shot)
+00036: #===============================================================================
+00037: class Battle::Move::CannotBeRedirected < Battle::Move
+00038:   def cannotRedirect?; return true; end
+00039: end
+00040: 
+00041: #===============================================================================
+00042: # Randomly damages or heals the target. (Present)
+00043: # NOTE: Apparently a Normal Gem should be consumed even if this move will heal,
+00044: #       but I think that's silly so I've omitted that effect.
+00045: #===============================================================================
+00046: class Battle::Move::RandomlyDamageOrHealTarget < Battle::Move
+00047:   def pbOnStartUse(user, targets)
+00048:     @presentDmg = 0   # 0 = heal, >0 = damage
+00049:     r = @battle.pbRandom(100)
+00050:     if r < 40
+00051:       @presentDmg = 40
+00052:     elsif r < 70
+00053:       @presentDmg = 80
+00054:     elsif r < 80
+00055:       @presentDmg = 120
+00056:     end
+00057:   end
+00058: 
+00059:   def pbFailsAgainstTarget?(user, target, show_message)
+00060:     return false if @presentDmg > 0
+00061:     if !target.canHeal?
+00062:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00063:       return true
+00064:     end
+00065:     return false
+00066:   end
+00067: 
+00068:   def pbDamagingMove?
+00069:     return false if @presentDmg == 0
+00070:     return super
+00071:   end
+00072: 
+00073:   def pbBaseDamage(baseDmg, user, target)
+00074:     return @presentDmg
+00075:   end
+00076: 
+00077:   def pbEffectAgainstTarget(user, target)
+00078:     return if @presentDmg > 0
+00079:     target.pbRecoverHP(target.totalhp / 4)
+00080:     @battle.pbDisplay(_INTL("{1}'s HP was restored.", target.pbThis))
+00081:   end
+00082: 
+00083:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00084:     hitNum = 1 if @presentDmg == 0   # Healing anim
+00085:     super
+00086:   end
+00087: end
+00088: 
+00089: #===============================================================================
+00090: # Damages target if target is a foe, or heals target by 1/2 of its max HP if
+00091: # target is an ally. (Pollen Puff)
+00092: #===============================================================================
+00093: class Battle::Move::HealAllyOrDamageFoe < Battle::Move
+00094:   def pbTarget(user)
+00095:     return GameData::Target.get(:NearFoe) if user.effects[PBEffects::HealBlock] > 0
+00096:     return super
+00097:   end
+00098: 
+00099:   def pbOnStartUse(user, targets)
+00100:     @healing = false
+00101:     @healing = !user.opposes?(targets[0]) if targets.length > 0
+00102:   end
+00103: 
+00104:   def pbFailsAgainstTarget?(user, target, show_message)
+00105:     return false if !@healing
+00106:     if target.effects[PBEffects::Substitute] > 0 && !ignoresSubstitute?(user)
+00107:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00108:       return true
+00109:     end
+00110:     if !target.canHeal?
+00111:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00112:       return true
+00113:     end
+00114:     return false
+00115:   end
+00116: 
+00117:   def pbDamagingMove?
+00118:     return false if @healing
+00119:     return super
+00120:   end
+00121: 
+00122:   def pbEffectAgainstTarget(user, target)
+00123:     return if !@healing
+00124:     target.pbRecoverHP(target.totalhp / 2)
+00125:     @battle.pbDisplay(_INTL("{1}'s HP was restored.", target.pbThis))
+00126:   end
+00127: 
+00128:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00129:     hitNum = 1 if @healing   # Healing anim
+00130:     super
+00131:   end
+00132: end
+00133: 
+00134: #===============================================================================
+00135: # User is Ghost: User loses 1/2 of max HP, and curses the target.
+00136: # Cursed Pokémon lose 1/4 of their max HP at the end of each round.
+00137: # User is not Ghost: Decreases the user's Speed by 1 stage, and increases the
+00138: # user's Attack and Defense by 1 stage each. (Curse)
+00139: #===============================================================================
+00140: class Battle::Move::CurseTargetOrLowerUserSpd1RaiseUserAtkDef1 < Battle::Move
+00141:   attr_reader :statUp, :statDown
+00142: 
+00143:   def ignoresSubstitute?(user); return true; end
+00144: 
+00145:   def initialize(battle, move)
+00146:     super
+00147:     @statUp   = [:ATTACK, 1, :DEFENSE, 1]
+00148:     @statDown = [:SPEED, 1]
+00149:   end
+00150: 
+00151:   def pbTarget(user)
+00152:     if user.pbHasType?(:GHOST)
+00153:       ghost_target = (Settings::MECHANICS_GENERATION >= 8) ? :RandomNearFoe : :NearFoe
+00154:       return GameData::Target.get(ghost_target)
+00155:     end
+00156:     return super
+00157:   end
+00158: 
+00159:   def pbMoveFailed?(user, targets)
+00160:     return false if user.pbHasType?(:GHOST)
+00161:     failed = true
+00162:     (@statUp.length / 2).times do |i|
+00163:       next if !user.pbCanRaiseStatStage?(@statUp[i * 2], user, self)
+00164:       failed = false
+00165:       break
+00166:     end
+00167:     (@statDown.length / 2).times do |i|
+00168:       next if !user.pbCanLowerStatStage?(@statDown[i * 2], user, self)
+00169:       failed = false
+00170:       break
+00171:     end
+00172:     if failed
+00173:       @battle.pbDisplay(_INTL("But it failed!"))
+00174:       return true
+00175:     end
+00176:     return false
+00177:   end
+00178: 
+00179:   def pbFailsAgainstTarget?(user, target, show_message)
+00180:     if user.pbHasType?(:GHOST) && target.effects[PBEffects::Curse]
+00181:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00182:       return true
+00183:     end
+00184:     return false
+00185:   end
+00186: 
+00187:   def pbEffectGeneral(user)
+00188:     return if user.pbHasType?(:GHOST)
+00189:     # Non-Ghost effect
+00190:     showAnim = true
+00191:     (@statDown.length / 2).times do |i|
+00192:       next if !user.pbCanLowerStatStage?(@statDown[i * 2], user, self)
+00193:       if user.pbLowerStatStage(@statDown[i * 2], @statDown[(i * 2) + 1], user, showAnim)
+00194:         showAnim = false
+00195:       end
+00196:     end
+00197:     showAnim = true
+00198:     (@statUp.length / 2).times do |i|
+00199:       next if !user.pbCanRaiseStatStage?(@statUp[i * 2], user, self)
+00200:       if user.pbRaiseStatStage(@statUp[i * 2], @statUp[(i * 2) + 1], user, showAnim)
+00201:         showAnim = false
+00202:       end
+00203:     end
+00204:   end
+00205: 
+00206:   def pbEffectAgainstTarget(user, target)
+00207:     return if !user.pbHasType?(:GHOST)
+00208:     # Ghost effect
+00209:     @battle.pbDisplay(_INTL("{1} cut its own HP and laid a curse on {2}!", user.pbThis, target.pbThis(true)))
+00210:     target.effects[PBEffects::Curse] = true
+00211:     user.pbReduceHP(user.totalhp / 2, false, false)
+00212:     user.pbItemHPHealCheck
+00213:   end
+00214: 
+00215:   def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+00216:     hitNum = 1 if !user.pbHasType?(:GHOST)   # Non-Ghost anim
+00217:     super
+00218:   end
+00219: end
+00220: 
+00221: #===============================================================================
+00222: # Effect depends on the environment. (Secret Power)
+00223: #===============================================================================
+00224: class Battle::Move::EffectDependsOnEnvironment < Battle::Move
+00225:   attr_reader :secretPower

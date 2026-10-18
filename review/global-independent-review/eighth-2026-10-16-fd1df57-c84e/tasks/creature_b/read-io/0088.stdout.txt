@@ -1,0 +1,126 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/013_Items/006_Item_Mail.rb", "range": [1, 125], "file_lines": 125, "bytes": 4997, "sha256": "cfbecae348f4644cde518f77b41daae00ad721527914ebc5634cd2e9395098bd", "began_utc": "2026-10-16T03:42:22.347455+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Data structure representing mail that the Pokémon can hold
+00003 #===============================================================================
+00004 class Mail
+00005   attr_accessor :item, :message, :sender, :poke1, :poke2, :poke3
+00006 
+00007   def initialize(item, message, sender, poke1 = nil, poke2 = nil, poke3 = nil)
+00008     @item    = GameData::Item.get(item).id   # Item represented by this mail
+00009     @message = message   # Message text
+00010     @sender  = sender    # Name of the message's sender
+00011     @poke1   = poke1     # [species,gender,shininess,form,shadowness,is egg]
+00012     @poke2   = poke2
+00013     @poke3   = poke3
+00014   end
+00015 end
+00016 
+00017 #===============================================================================
+00018 #
+00019 #===============================================================================
+00020 def pbMoveToMailbox(pokemon)
+00021   $PokemonGlobal.mailbox = [] if !$PokemonGlobal.mailbox
+00022   return false if $PokemonGlobal.mailbox.length >= 10
+00023   return false if !pokemon.mail
+00024   $PokemonGlobal.mailbox.push(pokemon.mail)
+00025   pokemon.mail = nil
+00026   return true
+00027 end
+00028 
+00029 def pbStoreMail(pkmn, item, message, poke1 = nil, poke2 = nil, poke3 = nil)
+00030   raise _INTL("Pokémon already has mail") if pkmn.mail
+00031   pkmn.mail = Mail.new(item, message, $player.name, poke1, poke2, poke3)
+00032 end
+00033 
+00034 def pbDisplayMail(mail, _bearer = nil)
+00035   sprites = {}
+00036   viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00037   viewport.z = 99999
+00038   addBackgroundPlane(sprites, "background", "Mail/bg", viewport)
+00039   sprites["card"] = IconSprite.new(0, 0, viewport)
+00040   sprites["card"].setBitmap(GameData::Item.mail_filename(mail.item))
+00041   sprites["overlay"] = BitmapSprite.new(Graphics.width, Graphics.height, viewport)
+00042   overlay = sprites["overlay"].bitmap
+00043   pbSetSystemFont(overlay)
+00044   if GameData::Item.get(mail.item).is_icon_mail?
+00045     if mail.poke1
+00046       sprites["bearer"] = IconSprite.new(64, 288, viewport)
+00047       bitmapFileName = GameData::Species.icon_filename(
+00048         mail.poke1[0], mail.poke1[3], mail.poke1[1], mail.poke1[2], mail.poke1[4], mail.poke1[5]
+00049       )
+00050       sprites["bearer"].setBitmap(bitmapFileName)
+00051       sprites["bearer"].src_rect.set(0, 0, 64, 64)
+00052     end
+00053     if mail.poke2
+00054       sprites["bearer2"] = IconSprite.new(144, 288, viewport)
+00055       bitmapFileName = GameData::Species.icon_filename(
+00056         mail.poke2[0], mail.poke2[3], mail.poke2[1], mail.poke2[2], mail.poke2[4], mail.poke2[5]
+00057       )
+00058       sprites["bearer2"].setBitmap(bitmapFileName)
+00059       sprites["bearer2"].src_rect.set(0, 0, 64, 64)
+00060     end
+00061     if mail.poke3
+00062       sprites["bearer3"] = IconSprite.new(224, 288, viewport)
+00063       bitmapFileName = GameData::Species.icon_filename(
+00064         mail.poke3[0], mail.poke3[3], mail.poke3[1], mail.poke3[2], mail.poke3[4], mail.poke3[5]
+00065       )
+00066       sprites["bearer3"].setBitmap(bitmapFileName)
+00067       sprites["bearer3"].src_rect.set(0, 0, 64, 64)
+00068     end
+00069   end
+00070   baseForDarkBG    = Color.new(248, 248, 248)
+00071   shadowForDarkBG  = Color.new(72, 80, 88)
+00072   baseForLightBG   = Color.new(80, 80, 88)
+00073   shadowForLightBG = Color.new(168, 168, 176)
+00074   if mail.message && mail.message != ""
+00075     isDark = isDarkBackground(sprites["card"].bitmap, Rect.new(48, 48, Graphics.width - 96, 224))
+00076     drawTextEx(overlay, 48, 52, Graphics.width - 94, 7, mail.message,
+00077                (isDark) ? baseForDarkBG : baseForLightBG,
+00078                (isDark) ? shadowForDarkBG : shadowForLightBG)
+00079   end
+00080   if mail.sender && mail.sender != ""
+00081     isDark = isDarkBackground(sprites["card"].bitmap, Rect.new(336, 322, 144, 32))
+00082     drawTextEx(overlay, 336, 328, 144, 1, mail.sender,
+00083                (isDark) ? baseForDarkBG : baseForLightBG,
+00084                (isDark) ? shadowForDarkBG : shadowForLightBG)
+00085   end
+00086   pbFadeInAndShow(sprites)
+00087   loop do
+00088     Graphics.update
+00089     Input.update
+00090     pbUpdateSpriteHash(sprites)
+00091     if Input.trigger?(Input::BACK) || Input.trigger?(Input::USE)
+00092       break
+00093     end
+00094   end
+00095   pbFadeOutAndHide(sprites)
+00096   pbDisposeSpriteHash(sprites)
+00097   viewport.dispose
+00098 end
+00099 
+00100 def pbWriteMail(item, pkmn, pkmnid, scene)
+00101   message = ""
+00102   loop do
+00103     message = pbMessageFreeText(_INTL("Please enter a message (max. 250 characters)."),
+00104                                 "", false, 250, Graphics.width) { scene.pbUpdate }
+00105     if message != ""
+00106       # Store mail if a message was written
+00107       poke1 = poke2 = nil
+00108       if $player.party[pkmnid + 2]
+00109         p = $player.party[pkmnid + 2]
+00110         poke1 = [p.species, p.gender, p.shiny?, p.form, p.shadowPokemon?]
+00111         poke1.push(true) if p.egg?
+00112       end
+00113       if $player.party[pkmnid + 1]
+00114         p = $player.party[pkmnid + 1]
+00115         poke2 = [p.species, p.gender, p.shiny?, p.form, p.shadowPokemon?]
+00116         poke2.push(true) if p.egg?
+00117       end
+00118       poke3 = [pkmn.species, pkmn.gender, pkmn.shiny?, pkmn.form, pkmn.shadowPokemon?]
+00119       poke3.push(true) if pkmn.egg?
+00120       pbStoreMail(pkmn, item, message, poke1, poke2, poke3)
+00121       return true
+00122     end
+00123     return false if scene.pbConfirm(_INTL("Stop giving the Pokémon Mail?"))
+00124   end
+00125 end

@@ -1,0 +1,331 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/002_Item_Effects.rb RANGE 1-330
+#===============================================================================
+# UseText handlers
+#===============================================================================
+ItemHandlers::UseText.add(:BICYCLE, proc { |item|
+  next ($PokemonGlobal.bicycle) ? _INTL("Walk") : _INTL("Use")
+})
+
+ItemHandlers::UseText.copy(:BICYCLE, :MACHBIKE, :ACROBIKE)
+
+ItemHandlers::UseText.add(:EXPALLOFF, proc { |item|
+  next _INTL("Turn on")
+})
+
+ItemHandlers::UseText.add(:EXPALL, proc { |item|
+  next _INTL("Turn off")
+})
+
+#===============================================================================
+# UseFromBag handlers
+# Return values: 0 = not used
+#                1 = used
+#                2 = close the Bag to use
+# If there is no UseFromBag handler for an item being used from the Bag (not on
+# a Pokémon), calls the UseInField handler for it instead.
+#===============================================================================
+
+ItemHandlers::UseFromBag.add(:HONEY, proc { |item|
+  next 2
+})
+
+ItemHandlers::UseFromBag.add(:ESCAPEROPE, proc { |item|
+  if !$game_player.can_map_transfer_with_follower?
+    pbMessage(_INTL("It can't be used when you have someone with you."))
+    next 0
+  end
+  if ($PokemonGlobal.escapePoint rescue false) && $PokemonGlobal.escapePoint.length > 0
+    next 2   # End screen and use item
+  end
+  pbMessage(_INTL("Can't use that here."))
+  next 0
+})
+
+ItemHandlers::UseFromBag.add(:BICYCLE, proc { |item|
+  next (pbBikeCheck) ? 2 : 0
+})
+
+ItemHandlers::UseFromBag.copy(:BICYCLE, :MACHBIKE, :ACROBIKE)
+
+ItemHandlers::UseFromBag.add(:OLDROD, proc { |item|
+  notCliff = $game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+  next 2 if $game_player.pbFacingTerrainTag.can_fish && ($PokemonGlobal.surfing || notCliff)
+  pbMessage(_INTL("Can't use that here."))
+  next 0
+})
+
+ItemHandlers::UseFromBag.copy(:OLDROD, :GOODROD, :SUPERROD)
+
+ItemHandlers::UseFromBag.add(:ITEMFINDER, proc { |item|
+  next 2
+})
+
+ItemHandlers::UseFromBag.copy(:ITEMFINDER, :DOWSINGMCHN, :DOWSINGMACHINE)
+
+ItemHandlers::UseFromBag.add(:TOWNMAP, proc { |item|
+  pbFadeOutIn do
+    scene = PokemonRegionMap_Scene.new(-1, false)
+    screen = PokemonRegionMapScreen.new(scene)
+    ret = screen.pbStartScreen
+    $game_temp.fly_destination = ret if ret
+    next 99999 if ret   # Ugly hack to make Bag scene not reappear if flying
+  end
+  next ($game_temp.fly_destination) ? 2 : 0
+})
+
+ItemHandlers::UseFromBag.addIf(:move_machines,
+  proc { |item| GameData::Item.get(item).is_machine? },
+  proc { |item|
+    if $player.pokemon_count == 0
+      pbMessage(_INTL("There is no Pokémon."))
+      next 0
+    end
+    item_data = GameData::Item.get(item)
+    move = item_data.move
+    next 0 if !move
+    pbMessage("\\se[PC access]" + _INTL("You booted up the {1}.", item_data.name) + "\1")
+    next 0 if !pbConfirmMessage(_INTL("Do you want to teach {1} to a Pokémon?",
+                                      GameData::Move.get(move).name))
+    next 1 if pbMoveTutorChoose(move, nil, true, item_data.is_TR?)
+    next 0
+  }
+)
+
+#===============================================================================
+# ConfirmUseInField handlers
+# Return values: true/false
+# Called when an item is used from the Ready Menu.
+# If an item does not have this handler, it is treated as returning true.
+#===============================================================================
+
+ItemHandlers::ConfirmUseInField.add(:ESCAPEROPE, proc { |item|
+  escape = ($PokemonGlobal.escapePoint rescue nil)
+  if !escape || escape == []
+    pbMessage(_INTL("Can't use that here."))
+    next false
+  end
+  if !$game_player.can_map_transfer_with_follower?
+    pbMessage(_INTL("It can't be used when you have someone with you."))
+    next false
+  end
+  mapname = pbGetMapNameFromId(escape[0])
+  next pbConfirmMessage(_INTL("Want to escape from here and return to {1}?", mapname))
+})
+
+#===============================================================================
+# UseInField handlers
+# Return values: false = not used
+#                true = used
+# Called if an item is used from the Bag (not on a Pokémon and not a TM/HM) and
+# there is no UseFromBag handler above.
+# If an item has this handler, it can be registered to the Ready Menu.
+#===============================================================================
+
+def pbRepel(item, steps)
+  if $PokemonGlobal.repel > 0
+    pbMessage(_INTL("But a repellent's effect still lingers from earlier."))
+    return false
+  end
+  pbSEPlay("Repel")
+  $stats.repel_count += 1
+  pbUseItemMessage(item)
+  $PokemonGlobal.repel = steps
+  return true
+end
+
+ItemHandlers::UseInField.add(:REPEL, proc { |item|
+  next pbRepel(item, 100)
+})
+
+ItemHandlers::UseInField.add(:SUPERREPEL, proc { |item|
+  next pbRepel(item, 200)
+})
+
+ItemHandlers::UseInField.add(:MAXREPEL, proc { |item|
+  next pbRepel(item, 250)
+})
+
+EventHandlers.add(:on_player_step_taken, :repel_counter,
+  proc {
+    next if $PokemonGlobal.repel <= 0 || $game_player.terrain_tag.ice   # Shouldn't count down if on ice
+    $PokemonGlobal.repel -= 1
+    next if $PokemonGlobal.repel > 0
+    repels = []
+    GameData::Item.each { |itm| repels.push(itm.id) if itm.has_flag?("Repel") }
+    if repels.none? { |item| $bag.has?(item) }
+      pbMessage(_INTL("The repellent's effect wore off!"))
+      next
+    end
+    next if !pbConfirmMessage(_INTL("The repellent's effect wore off! Would you like to use another one?"))
+    ret = nil
+    pbFadeOutIn do
+      scene = PokemonBag_Scene.new
+      screen = PokemonBagScreen.new(scene, $bag)
+      ret = screen.pbChooseItemScreen(proc { |item| repels.include?(item) })
+    end
+    pbUseItem($bag, ret) if ret
+  }
+)
+
+ItemHandlers::UseInField.add(:BLACKFLUTE, proc { |item|
+  pbUseItemMessage(item)
+  if Settings::FLUTES_CHANGE_WILD_ENCOUNTER_LEVELS
+    pbMessage(_INTL("Now you're more likely to encounter high-level Pokémon!"))
+    $PokemonMap.higher_level_wild_pokemon = true
+    $PokemonMap.lower_level_wild_pokemon = false
+  else
+    pbMessage(_INTL("The likelihood of encountering Pokémon decreased!"))
+    $PokemonMap.lower_encounter_rate = true
+    $PokemonMap.higher_encounter_rate = false
+  end
+  next true
+})
+
+ItemHandlers::UseInField.add(:WHITEFLUTE, proc { |item|
+  pbUseItemMessage(item)
+  if Settings::FLUTES_CHANGE_WILD_ENCOUNTER_LEVELS
+    pbMessage(_INTL("Now you're more likely to encounter low-level Pokémon!"))
+    $PokemonMap.lower_level_wild_pokemon = true
+    $PokemonMap.higher_level_wild_pokemon = false
+  else
+    pbMessage(_INTL("The likelihood of encountering Pokémon increased!"))
+    $PokemonMap.higher_encounter_rate = true
+    $PokemonMap.lower_encounter_rate = false
+  end
+  next true
+})
+
+ItemHandlers::UseInField.add(:HONEY, proc { |item|
+  pbUseItemMessage(item)
+  pbSweetScent
+  next true
+})
+
+ItemHandlers::UseInField.add(:ESCAPEROPE, proc { |item|
+  escape = ($PokemonGlobal.escapePoint rescue nil)
+  if !escape || escape == []
+    pbMessage(_INTL("Can't use that here."))
+    next false
+  end
+  if !$game_player.can_map_transfer_with_follower?
+    pbMessage(_INTL("It can't be used when you have someone with you."))
+    next false
+  end
+  pbUseItemMessage(item)
+  pbFadeOutIn do
+    $game_temp.player_new_map_id    = escape[0]
+    $game_temp.player_new_x         = escape[1]
+    $game_temp.player_new_y         = escape[2]
+    $game_temp.player_new_direction = escape[3]
+    pbCancelVehicles
+    $scene.transfer_player
+    $game_map.autoplay
+    $game_map.refresh
+  end
+  pbEraseEscapePoint
+  next true
+})
+
+ItemHandlers::UseInField.add(:SACREDASH, proc { |item|
+  if $player.pokemon_count == 0
+    pbMessage(_INTL("There is no Pokémon."))
+    next false
+  end
+  canrevive = false
+  $player.pokemon_party.each do |i|
+    next if !i.fainted?
+    canrevive = true
+    break
+  end
+  if !canrevive
+    pbMessage(_INTL("It won't have any effect."))
+    next false
+  end
+  revived = 0
+  pbFadeOutIn do
+    scene = PokemonParty_Scene.new
+    screen = PokemonPartyScreen.new(scene, $player.party)
+    screen.pbStartScene(_INTL("Using item..."), false)
+    pbSEPlay("Use item in party")
+    $player.party.each_with_index do |pkmn, i|
+      next if !pkmn.fainted?
+      revived += 1
+      pkmn.heal
+      screen.pbRefreshSingle(i)
+      screen.pbDisplay(_INTL("{1}'s HP was restored.", pkmn.name))
+    end
+    screen.pbDisplay(_INTL("It won't have any effect.")) if revived == 0
+    screen.pbEndScene
+  end
+  next (revived > 0)
+})
+
+ItemHandlers::UseInField.add(:BICYCLE, proc { |item|
+  if pbBikeCheck
+    if $PokemonGlobal.bicycle
+      pbDismountBike
+    else
+      pbMountBike
+    end
+    next true
+  end
+  next false
+})
+
+ItemHandlers::UseInField.copy(:BICYCLE, :MACHBIKE, :ACROBIKE)
+
+ItemHandlers::UseInField.add(:OLDROD, proc { |item|
+  notCliff = $game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+  if !$game_player.pbFacingTerrainTag.can_fish || (!$PokemonGlobal.surfing && !notCliff)
+    pbMessage(_INTL("Can't use that here."))
+    next false
+  end
+  encounter = $PokemonEncounters.has_encounter_type?(:OldRod)
+  if pbFishing(encounter, 1)
+    $stats.fishing_battles += 1
+    pbEncounter(:OldRod)
+  end
+  next true
+})
+
+ItemHandlers::UseInField.add(:GOODROD, proc { |item|
+  notCliff = $game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+  if !$game_player.pbFacingTerrainTag.can_fish || (!$PokemonGlobal.surfing && !notCliff)
+    pbMessage(_INTL("Can't use that here."))
+    next false
+  end
+  encounter = $PokemonEncounters.has_encounter_type?(:GoodRod)
+  if pbFishing(encounter, 2)
+    $stats.fishing_battles += 1
+    pbEncounter(:GoodRod)
+  end
+  next true
+})
+
+ItemHandlers::UseInField.add(:SUPERROD, proc { |item|
+  notCliff = $game_map.passable?($game_player.x, $game_player.y, $game_player.direction, $game_player)
+  if !$game_player.pbFacingTerrainTag.can_fish || (!$PokemonGlobal.surfing && !notCliff)
+    pbMessage(_INTL("Can't use that here."))
+    next false
+  end
+  encounter = $PokemonEncounters.has_encounter_type?(:SuperRod)
+  if pbFishing(encounter, 3)
+    $stats.fishing_battles += 1
+    pbEncounter(:SuperRod)
+  end
+  next true
+})
+
+ItemHandlers::UseInField.add(:ITEMFINDER, proc { |item|
+  $stats.itemfinder_count += 1
+  pbSEPlay("Itemfinder")
+  event = pbClosestHiddenItem
+  if !event
+    pbMessage(_INTL("... \\wt[10]... \\wt[10]... \\wt[10]... \\wt[10]Nope! There's no response."))
+    next true
+  end
+  offsetX = event.x - $game_player.x
+  offsetY = event.y - $game_player.y
+  if offsetX == 0 && offsetY == 0   # Standing on the item, spin around
+    4.times do
+      pbWait(0.2)

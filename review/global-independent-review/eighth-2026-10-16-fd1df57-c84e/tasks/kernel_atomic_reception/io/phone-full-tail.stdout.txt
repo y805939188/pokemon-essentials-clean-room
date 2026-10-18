@@ -1,0 +1,261 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 447-999
+    def generate_trainer_dialogue(contact)
+      validate contact => Phone::Contact
+      # Get the set of messages to be used by the contact
+      messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.version)
+      messages = GameData::PhoneMessage.try_get(contact.trainer_type, contact.name, contact.start_version) if !messages
+      messages = GameData::PhoneMessage::DATA["default"] if !messages
+      # Create lambda for choosing a random message and translating it
+      get_random_message = lambda do |msgs|
+        return "" if !msgs
+        msg = msgs.sample
+        return "" if !msg
+        return pbGetMessageFromHash(MessageTypes::PHONE_MESSAGES, msg)
+      end
+      # Choose random greeting depending on time of day
+      ret = get_random_message.call(messages.intro)
+      time = pbGetTimeNow
+      if PBDayNight.isMorning?(time)
+        mod_call = get_random_message.call(messages.intro_morning)
+        ret = mod_call if !nil_or_empty?(mod_call)
+      elsif PBDayNight.isAfternoon?(time)
+        mod_call = get_random_message.call(messages.intro_afternoon)
+        ret = mod_call if !nil_or_empty?(mod_call)
+      elsif PBDayNight.isEvening?(time)
+        mod_call = get_random_message.call(messages.intro_evening)
+        ret = mod_call if !nil_or_empty?(mod_call)
+      end
+      ret += "\\m"
+      # Choose main message set
+      if Phone.rematches_enabled && contact.rematch_flag > 0
+        # Trainer is ready for a rematch, so tell/remind the player
+        case contact.rematch_flag
+        when 1   # Tell the player
+          ret += get_random_message.call(messages.battle_request)
+          contact.rematch_flag = 2   # Ready for rematch and told player
+        when 2   # Remind the player
+          if messages.battle_remind
+            ret += get_random_message.call(messages.battle_remind)
+          else
+            ret += get_random_message.call(messages.battle_request)
+          end
+        end
+      else
+        # Standard messages
+        if messages.body1 && messages.body2 && (!messages.body || rand(100) < 75)
+          # Choose random pair of body messages
+          ret += get_random_message.call(messages.body1)
+          ret += "\\m"
+          ret += get_random_message.call(messages.body2)
+        else
+          # Choose random full body message
+          ret += get_random_message.call(messages.body)
+        end
+        # Choose end message
+        mod_call = get_random_message.call(messages.end)
+        ret += "\\m" + mod_call if !nil_or_empty?(mod_call)
+      end
+      return ret
+    end
+
+    def get_random_contact_pokemon_species(contact)
+      return "" if !contact.trainer?
+      version = [contact.version, contact.start_version].max
+      trainer_data = GameData::Trainer.try_get(contact.trainer_type, contact.name, version)
+      return "" if !trainer_data
+      pkmn = trainer_data.pokemon.sample[:species]
+      return GameData::Species.get(pkmn).name
+    end
+
+    def get_random_encounter_species(contact)
+      return "" if !contact.trainer?
+      encounter_data = GameData::Encounter.get(contact.map_id, $PokemonGlobal.encounter_version)
+      return "" if !encounter_data
+      get_species_from_table = lambda do |encounter_table|
+        return nil if !encounter_table || encounter_table.length == 0
+        len = [encounter_table.length, 4].min   # From first 4 slots only
+        return encounter_table[rand(len)][1]
+      end
+      enc_tables = encounter_data.types
+      species = get_species_from_table.call(enc_tables[:Land])
+      if !species
+        species = get_species_from_table.call(enc_tables[:Cave])
+        species = get_species_from_table.call(enc_tables[:Water]) if !species
+      end
+      return "" if !species
+      return GameData::Species.get(species).name
+    end
+
+    def get_map_name(contact)
+      return pbGetMapNameFromId(contact.map_id)
+    end
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+EventHandlers.add(:on_frame_update, :phone_call_counter,
+  proc {
+    next if !$player&.has_pokegear
+    # Don't count down various phone times if other things are happening
+    next if $game_temp.in_menu || $game_temp.in_battle || $game_temp.message_window_showing
+    next if $game_player.move_route_forcing || pbMapInterpreterRunning?
+    # Count down time to next can-battle for each trainer contact
+    $PokemonGlobal.phone.refresh_ready_trainers
+    # Count down time to next phone call
+    if $PokemonGlobal.phone.time_to_next_call <= 0
+      $PokemonGlobal.phone.time_to_next_call = rand(20...40) * 60.0   # 20-40 minutes
+    end
+    $PokemonGlobal.phone.time_to_next_call -= Graphics.delta
+    next if $PokemonGlobal.phone.time_to_next_call > 0
+    # Time for a random phone call; generate one
+    Phone::Call.make_incoming
+  }
+)
+
+#===============================================================================
+# Deprecated.
+#===============================================================================
+# Called by events. Make your event look like this instead:
+#
+# @>Conditional Branch: Phone.can_add?(trainer_type, name, start_version)
+#   @>Text: Let me register you.
+#   @>Show Choices: Yes, No
+#    : When [Yes]
+#     @>Conditional Branch: Phone.add(get_self, trainer_type, name, start_version, versions_count)
+#       @>Text: Thanks! (optional)
+#       @>
+#     : Branch End
+#    : When [No]
+#       @>Text: Oh, okay then. (optional)
+#       @>
+#    : Branch End
+#  : Branch End
+# @>
+#
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegisterBattle(message, event, trainer_type, name, versions_count)
+  Deprecation.warn_method("pbPhoneRegisterBattle", "v22", "several scripts and event commands; see def pbPhoneRegisterBattle")
+  return false if !Phone.can_add?(trainer_type, name, 0)
+  message = _INTL("Let me register you.") if !message
+  return false if !pbConfirmMessage(message)
+  return Phone.add(event, trainer_type, name, 0, versions_count)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegister(event, trainer_type, name)
+  Deprecation.warn_method("pbPhoneRegister", "v22", "Phone.add_silent(event, trainer_type, name)")
+  Phone.add_silent(event, trainer_type, name)
+end
+
+# Called by events.
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneRegisterNPC(common_event_id, name, map_id, show_message = true)
+  Deprecation.warn_method("pbPhoneRegisterNPC", "v22", "Phone.add(map_id, name, common_event_id) or Phone.add_silent(map_id, name, common_event_id)")
+  if show_message
+    Phone.add(map_id, name, common_event_id)
+  else
+    Phone.add_silent(map_id, name, common_event_id)
+  end
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneDeleteContact(index)
+  Deprecation.warn_method("pbPhoneDeleteContact", "v22", "$PokemonGlobal.phone.contacts[index].visible = false")
+  $PokemonGlobal.phone.contacts[index].visible = false
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbFindPhoneTrainer(trainer_type, name)
+  Deprecation.warn_method("pbFindPhoneTrainer", "v22", "Phone.get(trainer_type, name)")
+  return Phone.get(trainer_type, name)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbHasPhoneTrainer?(trainer_type, name)
+  Deprecation.warn_method("pbHasPhoneTrainer", "v22", "Phone.get(trainer_type, name) != nil")
+  return Phone.get(trainer_type, name) != nil
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneReadyToBattle?(trainer_type, name)
+  Deprecation.warn_method("pbPhoneReadyToBattle", "v22", "Phone.get(trainer_type, name).can_rematch?")
+  contact = Phone.get(trainer_type, name)
+  return contact && contact.can_rematch?
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneReset(tr_type, tr_name)
+  Deprecation.warn_method("pbPhoneReadyToBattle", "v22", "Phone.get(trainer_type, name) and other things")
+  contact = Phone.get(trainer_type, name)
+  return false if !contact
+  contact.time_to_ready = 0
+  contact.rematch_flag = 0
+  $game_self_switches[[contact.map_id, contact.event_id, "A"]] = true
+  $game_map.need_refresh = true
+  return true
+end
+
+# Called by events.
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneBattleCount(trainer_type, name)
+  Deprecation.warn_method("pbPhoneBattleCount", "v22", "Phone.variant(trainer_type, name)")
+  return Phone.variant(trainer_type, name)
+end
+
+# Called by events.
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneIncrement(trainer_type, name, versions_count)
+  Deprecation.warn_method("pbPhoneIncrement", "v22", "Phone.increment_version(trainer_type, name, start_version)")
+  Phone.increment_version(trainer_type, name, 0)
+end
+
+# Used in phone calls that say they're ready for a rematch, used in Debug function.
+# @deprecated This method is slated to be removed in v22.
+def pbSetReadyToBattle(contact)
+  Deprecation.warn_method("pbSetReadyToBattle", "v22", "contact.set_trainer_event_ready_for_rematch")
+  contact.set_trainer_event_ready_for_rematch
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbRandomPhoneTrainer
+  Deprecation.warn_method("pbRandomPhoneTrainer", "v22", "Phone::Call.get_random_trainer_for_incoming_call")
+  return Phone::Call.get_random_trainer_for_incoming_call
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbCallTrainer(trainer_type, name)
+  Deprecation.warn_method("pbCallTrainer", "v22", "Phone::Call.make_outgoing(trainer_type, name)")
+  Phone::Call.make_outgoing(trainer_type, name)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneGenerateCall(contact)
+  Deprecation.warn_method("pbPhoneGenerateCall", "v22", "Phone::Call.generate_trainer_dialogue(contact)")
+  return Phone::Call.generate_trainer_dialogue(contact)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbPhoneCall(dialogue, contact)
+  Deprecation.warn_method("pbPhoneCall", "v22", "Phone::Call.play(dialogue, contact)")
+  Phone::Call.play(dialogue, contact)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbEncounterSpecies(contact)
+  Deprecation.warn_method("pbEncounterSpecies", "v22", "Phone::Call.get_random_encounter_species(contact)")
+  return Phone::Call.get_random_encounter_species(contact)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbTrainerSpecies(contact)
+  Deprecation.warn_method("pbTrainerSpecies", "v22", "Phone::Call.get_random_contact_pokemon_species(contact)")
+  return Phone::Call.get_random_contact_pokemon_species(contact)
+end
+
+# @deprecated This method is slated to be removed in v22.
+def pbTrainerMapName(contact)
+  Deprecation.warn_method("pbTrainerMapName", "v22", "Phone::Call.get_map_name(contact)")
+  return Phone::Call.get_map_name(contact)
+end

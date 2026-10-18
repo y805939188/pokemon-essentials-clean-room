@@ -1,0 +1,232 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/001_MiscPBSData.rb RANGE 1-64
+#===============================================================================
+# Data caches.
+#===============================================================================
+class Game_Temp
+  attr_accessor :regional_dexes_data
+  attr_accessor :battle_animations_data
+  attr_accessor :move_to_battle_animation_data
+  attr_accessor :map_infos
+end
+
+def pbClearData
+  if $game_temp
+    $game_temp.regional_dexes_data           = nil
+    $game_temp.battle_animations_data        = nil
+    $game_temp.move_to_battle_animation_data = nil
+    $game_temp.map_infos                     = nil
+  end
+  MapFactoryHelper.clear
+  $PokemonEncounters.setup($game_map.map_id) if $game_map && $PokemonEncounters
+  if pbRgssExists?("Data/Tilesets.rxdata")
+    $data_tilesets = load_data("Data/Tilesets.rxdata")
+  end
+end
+
+#===============================================================================
+# Method to get Regional Dexes data.
+#===============================================================================
+def pbLoadRegionalDexes
+  $game_temp = Game_Temp.new if !$game_temp
+  if !$game_temp.regional_dexes_data
+    $game_temp.regional_dexes_data = load_data("Data/regional_dexes.dat")
+  end
+  return $game_temp.regional_dexes_data
+end
+
+#===============================================================================
+# Methods relating to battle animations data.
+#===============================================================================
+def pbLoadBattleAnimations
+  $game_temp = Game_Temp.new if !$game_temp
+  if !$game_temp.battle_animations_data && pbRgssExists?("Data/PkmnAnimations.rxdata")
+    $game_temp.battle_animations_data = load_data("Data/PkmnAnimations.rxdata")
+  end
+  return $game_temp.battle_animations_data
+end
+
+def pbLoadMoveToAnim
+  $game_temp = Game_Temp.new if !$game_temp
+  if !$game_temp.move_to_battle_animation_data
+    $game_temp.move_to_battle_animation_data = load_data("Data/move2anim.dat") || []
+  end
+  return $game_temp.move_to_battle_animation_data
+end
+
+#===============================================================================
+# Method relating to map infos data.
+#===============================================================================
+def pbLoadMapInfos
+  $game_temp = Game_Temp.new if !$game_temp
+  if !$game_temp.map_infos
+    $game_temp.map_infos = load_data("Data/MapInfos.rxdata")
+  end
+  return $game_temp.map_infos
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/004_Game classes/005_Game_MapFactory.rb RANGE 383-506
+module MapFactoryHelper
+  @@MapConnections = nil
+  @@MapDims        = nil
+
+  def self.clear
+    @@MapConnections = nil
+    @@MapDims        = nil
+  end
+
+  def self.getMapConnections
+    if !@@MapConnections
+      @@MapConnections = []
+      conns = load_data("Data/map_connections.dat")
+      conns.each do |conn|
+        # Ensure both maps in a connection are valid
+        dimensions = getMapDims(conn[0])
+        next if dimensions[0] == 0 || dimensions[1] == 0
+        dimensions = getMapDims(conn[3])
+        next if dimensions[0] == 0 || dimensions[1] == 0
+        # Convert first map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(conn[0], conn[1])
+        case conn[1]
+        when "N", "S"
+          conn[1] = conn[2]
+          conn[2] = edge
+        when "E", "W"
+          conn[1] = edge
+        end
+        # Convert second map's edge and coordinate to pair of coordinates
+        edge = getMapEdge(conn[3], conn[4])
+        case conn[4]
+        when "N", "S"
+          conn[4] = conn[5]
+          conn[5] = edge
+        when "E", "W"
+          conn[4] = edge
+        end
+        # Add connection to arrays for both maps
+        @@MapConnections[conn[0]] = [] if !@@MapConnections[conn[0]]
+        @@MapConnections[conn[0]].push(conn)
+        @@MapConnections[conn[3]] = [] if !@@MapConnections[conn[3]]
+        @@MapConnections[conn[3]].push(conn)
+      end
+    end
+    return @@MapConnections
+  end
+
+  def self.hasConnections?(id)
+    conns = MapFactoryHelper.getMapConnections
+    return conns[id] ? true : false
+  end
+
+  def self.mapsConnected?(id1, id2)
+    MapFactoryHelper.eachConnectionForMap(id1) do |conn|
+      return true if conn[0] == id2 || conn[3] == id2
+    end
+    return false
+  end
+
+  def self.eachConnectionForMap(id)
+    conns = MapFactoryHelper.getMapConnections
+    return if !conns[id]
+    conns[id].each { |conn| yield conn }
+  end
+
+  # Gets the height and width of the map with id
+  def self.getMapDims(id)
+    # Create cache if doesn't exist
+    @@MapDims = [] if !@@MapDims
+    # Add map to cache if can't be found
+    if !@@MapDims[id]
+      begin
+        map = load_data(sprintf("Data/Map%03d.rxdata", id))
+        @@MapDims[id] = [map.width, map.height]
+      rescue
+        @@MapDims[id] = [0, 0]
+      end
+    end
+    # Return map in cache
+    return @@MapDims[id]
+  end
+
+  # Returns the X or Y coordinate of an edge on the map with id.
+  # Considers the special strings "N","W","E","S"
+  def self.getMapEdge(id, edge)
+    return 0 if ["N", "W"].include?(edge)
+    dims = getMapDims(id)   # Get dimensions
+    return dims[0] if edge == "E"
+    return dims[1] if edge == "S"
+    return dims[0]   # real dimension (use width)
+  end
+
+  def self.mapInRange?(map)
+    range = 6   # Number of tiles
+    dispx = map.display_x
+    dispy = map.display_y
+    return false if dispx >= (map.width + range) * Game_Map::REAL_RES_X
+    return false if dispy >= (map.height + range) * Game_Map::REAL_RES_Y
+    return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+    return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+    return true
+  end
+
+  def self.mapInRangeById?(id, dispx, dispy)
+    range = 6   # Number of tiles
+    dims = MapFactoryHelper.getMapDims(id)
+    return false if dispx >= (dims[0] + range) * Game_Map::REAL_RES_X
+    return false if dispy >= (dims[1] + range) * Game_Map::REAL_RES_Y
+    return false if dispx <= -(Graphics.width + (range * Game_Map::TILE_WIDTH)) * Game_Map::X_SUBPIXELS
+    return false if dispy <= -(Graphics.height + (range * Game_Map::TILE_HEIGHT)) * Game_Map::Y_SUBPIXELS
+    return true
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+# Unused
+def updateTilesets
+  maps = $map_factory.maps
+  maps.each do |map|
+    map&.updateTileset
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb RANGE 1-39
+#===============================================================================
+# Records which file, section and line are currently being read
+#===============================================================================
+module FileLineData
+  @file     = ""
+  @linedata = ""
+  @lineno   = 0
+  @section  = nil
+  @key      = nil
+  @value    = nil
+
+  def self.file; return @file; end
+  def self.file=(value); @file = value; end
+
+  def self.clear
+    @file     = ""
+    @linedata = ""
+    @lineno   = ""
+    @section  = nil
+    @key      = nil
+    @value    = nil
+  end
+
+  def self.setSection(section, key, value)
+    @section = section
+    @key     = key
+    if value && value.length > 200
+      @value = value[0, 200].to_s + "..."
+    else
+      @value = (value) ? value.clone : ""
+    end
+  end
+
+  def self.setLine(line, lineno)
+    @section  = nil
+    @linedata = (line && line.length > 200) ? sprintf("%s...", line[0, 200]) : line.clone
+    @lineno   = lineno
+  end
+

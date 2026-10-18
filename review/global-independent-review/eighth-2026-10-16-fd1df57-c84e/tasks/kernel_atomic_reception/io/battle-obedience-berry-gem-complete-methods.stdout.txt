@@ -1,0 +1,156 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/009_Battler_UseMoveSuccessChecks.rb RANGE 107-181
+  def pbObedienceCheck?(choice)
+    return true if usingMultiTurnAttack?
+    return true if choice[0] != :UseMove
+    return true if !@battle.internalBattle
+    return true if !@battle.pbOwnedByPlayer?(@index)
+    disobedient = false
+    # Pokémon may be disobedient; calculate if it is
+    badge_level = 10 * (@battle.pbPlayer.badge_count + 1)
+    badge_level = GameData::GrowthRate.max_level if @battle.pbPlayer.badge_count >= 8
+    if Settings::ANY_HIGH_LEVEL_POKEMON_CAN_DISOBEY ||
+       (Settings::FOREIGN_HIGH_LEVEL_POKEMON_CAN_DISOBEY && @pokemon.foreign?(@battle.pbPlayer))
+      if @level > badge_level
+        a = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor
+        disobedient |= (a >= badge_level)
+      end
+    end
+    disobedient |= !pbHyperModeObedience(choice[2])
+    return true if !disobedient
+    # Pokémon is disobedient; make it do something else
+    return pbDisobey(choice, badge_level)
+  end
+
+  def pbDisobey(choice, badge_level)
+    move = choice[2]
+    PBDebug.log("[Disobedience] #{pbThis} disobeyed")
+    @effects[PBEffects::Rage] = false
+    # Do nothing if using Snore/Sleep Talk
+    if @status == :SLEEP && move.usableWhenAsleep?
+      @battle.pbDisplay(_INTL("{1} ignored orders and kept sleeping!", pbThis))
+      return false
+    end
+    b = ((@level + badge_level) * @battle.pbRandom(256) / 256).floor
+    # Use another move
+    if b < badge_level
+      @battle.pbDisplay(_INTL("{1} ignored orders!", pbThis))
+      return false if !@battle.pbCanShowFightMenu?(@index)
+      otherMoves = []
+      eachMoveWithIndex do |_m, i|
+        next if i == choice[1]
+        otherMoves.push(i) if @battle.pbCanChooseMove?(@index, i, false)
+      end
+      return false if otherMoves.length == 0   # No other move to use; do nothing
+      newChoice = otherMoves[@battle.pbRandom(otherMoves.length)]
+      choice[1] = newChoice
+      choice[2] = @moves[newChoice]
+      choice[3] = -1
+      return true
+    end
+    c = @level - badge_level
+    r = @battle.pbRandom(256)
+    # Fall asleep
+    if r < c && pbCanSleep?(self, false)
+      pbSleepSelf(_INTL("{1} began to nap!", pbThis))
+      return false
+    end
+    # Hurt self in confusion
+    r -= c
+    if r < c && @status != :SLEEP
+      pbConfusionDamage(_INTL("{1} won't obey! It hurt itself in its confusion!", pbThis))
+      return false
+    end
+    # Show refusal message and do nothing
+    case @battle.pbRandom(4)
+    when 0 then @battle.pbDisplay(_INTL("{1} won't obey!", pbThis))
+    when 1 then @battle.pbDisplay(_INTL("{1} turned away!", pbThis))
+    when 2 then @battle.pbDisplay(_INTL("{1} is loafing around!", pbThis))
+    when 3 then @battle.pbDisplay(_INTL("{1} pretended not to notice!", pbThis))
+    end
+    return false
+  end
+
+  #=============================================================================
+  # Check whether the user (self) is able to take action at all.
+  # If this returns true, and if PP isn't a problem, the move will be considered
+  # to have been used (even if it then fails for whatever reason).
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/002_Battler/006_Battler_AbilityAndItem.rb RANGE 399-999
+  def pbConfusionBerry(item_to_use, forced, confuse_stat, confuse_msg)
+    return false if !forced && !canHeal?
+    return false if !forced && !canConsumePinchBerry?(Settings::MECHANICS_GENERATION >= 7)
+    used_item_name = GameData::Item.get(item_to_use).name
+    fraction_to_heal = 8   # Gens 6 and lower
+    if Settings::MECHANICS_GENERATION == 7
+      fraction_to_heal = 2
+    elsif Settings::MECHANICS_GENERATION >= 8
+      fraction_to_heal = 3
+    end
+    amt = @totalhp / fraction_to_heal
+    ripening = false
+    if hasActiveAbility?(:RIPEN)
+      @battle.pbShowAbilitySplash(self, forced)
+      amt *= 2
+      ripening = true
+    end
+    @battle.pbCommonAnimation("EatBerry", self) if !forced
+    @battle.pbHideAbilitySplash(self) if ripening
+    amt = pbRecoverHP(amt)
+    if amt > 0
+      if forced
+        PBDebug.log("[Item triggered] Forced consuming of #{used_item_name}")
+        @battle.pbDisplay(_INTL("{1}'s HP was restored.", pbThis))
+      else
+        @battle.pbDisplay(_INTL("{1} restored its health using its {2}!", pbThis, used_item_name))
+      end
+    end
+    if self.nature.stat_changes.any? { |val| val[0] == confuse_stat && val[1] < 0 }
+      @battle.pbDisplay(confuse_msg)
+      pbConfuse if pbCanConfuseSelf?(false)
+    end
+    return true
+  end
+
+  def pbStatIncreasingBerry(item_to_use, forced, stat, increment = 1)
+    return false if !forced && !canConsumePinchBerry?
+    return false if !pbCanRaiseStatStage?(stat, self)
+    used_item_name = GameData::Item.get(item_to_use).name
+    ripening = false
+    if hasActiveAbility?(:RIPEN)
+      @battle.pbShowAbilitySplash(self, forced)
+      increment *= 2
+      ripening = true
+    end
+    @battle.pbCommonAnimation("EatBerry", self) if !forced
+    @battle.pbHideAbilitySplash(self) if ripening
+    return pbRaiseStatStageByCause(stat, increment, self, used_item_name) if !forced
+    PBDebug.log("[Item triggered] Forced consuming of #{used_item_name}")
+    return pbRaiseStatStage(stat, increment, self)
+  end
+
+  def pbMoveTypeWeakeningBerry(berry_type, move_type, mults)
+    return if move_type != berry_type
+    return if !Effectiveness.super_effective?(@damageState.typeMod) && move_type != :NORMAL
+    mults[:final_damage_multiplier] /= 2
+    @damageState.berryWeakened = true
+    ripening = false
+    if hasActiveAbility?(:RIPEN)
+      @battle.pbShowAbilitySplash(self)
+      mults[:final_damage_multiplier] /= 2
+      ripening = true
+    end
+    @battle.pbCommonAnimation("EatBerry", self)
+    @battle.pbHideAbilitySplash(self) if ripening
+  end
+
+  def pbMoveTypePoweringUpGem(gem_type, move, move_type, mults)
+    return if move.is_a?(Battle::Move::PledgeMove)   # Pledge moves never consume Gems
+    return if move_type != gem_type
+    @effects[PBEffects::GemConsumed] = @item_id
+    if Settings::MECHANICS_GENERATION >= 6
+      mults[:power_multiplier] *= 1.3
+    else
+      mults[:power_multiplier] *= 1.5
+    end
+  end
+end

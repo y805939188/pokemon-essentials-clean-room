@@ -1,0 +1,11 @@
+# CORE after-all-hits候选：真实非提出者有限反证
+
+实际reader为既有 /root/kernel_atomic_reception，与提出者 /root/core_atomic_reception 不同context。本额外任务新增context0、新增独立票0；不得用更名冒充新独立审者。完成当前自然阅读单元后进行，本人KERNEL完整合同和原主责不转移、不结束。请求模型gpt-6.1-sol/ultra/default普速/Fast off，实际无权威回显各UNVERIFIED。
+
+先按已有完整第八轮合同和技能执行；固定B8 fd1df570cad987dc3852a3b958f03916e317f7fe/formal tree f292698cdd4a8e725525a9be6dc34b75faaf151e；R 8c5911e4a4b07b07e832e4bb0d5d8859e88b4a9b/tree7589c800b61ba13a13040ed0d686979b80a84fd0。两个checkout与适用AGENTS只读，UPDATE_NOT_STARTED；不commit/push/install/spawn，不改main/formal/source。唯一新增写集tasks/counter_combat_after_all_hits_existing_kernel/，不改提出者原件和已有KERNEL内容。
+
+完整候选冻结原文 evidence/adjudication-inputs/fa57898f349ebe1a4c43f990a33ae9a6ca3dc19c1b555260b582c1bab4604fbc.json（77645 bytes，SHA256 fa57898f349ebe1a4c43f990a33ae9a6ca3dc19c1b555260b582c1bab4604fbc），其源原件tasks/core_atomic_reception/candidate-after-all-hits-wording.v1.json。必须实际全文读全部8节、全部必要完整方法/记录，核每个嵌入证据的fixedGit字节/blob/SHA/行范围及全文，不以本合同摘要代读。可先导航再小块完整读，截断必须补读；hash只给身份不授语义。
+
+问题WP40:170“招式每击后钩子” vs真实pbEffectAfterAllHits。独立尽力反证提出者：完整正式上下文和WP46:25/58正确详约可能使overview合理，不能因术语有更精确写法就required；实际普通多击/一击/无命中路径、ScaleShot家族、回调次数与条件、method owner和调用时序须按必要源独立确立。只讨论有界原子，不扩大到全战斗PASS。不得接受提出者口述或脚本pass作证明。若无法推翻，区分required/optional/no_change/OPEN并说明依据。修订建议最小、保留正确详约、正确既有用例无需强制新增；历史去重资格未读则OPEN。
+
+输出自足counterreview.json，按完整合同8节写：裁定与精确范围、身份、实际全读台账、独立derive控制/预期、最强反方/排除或保留、原写点/consumer/失败prefix、最小handoff与正确内容保护、真实执行及剩余。源语义静态read与未运行行为NOT_EXECUTED分开；实际UTC取工具，无权威opaqueID为UNVERIFIED。另提供精确byte/SHA和完整原I/O可恢复位置，不伪造本地工具回显。完成仅向root回传本有限反证；任何owner task-final仍OPEN。

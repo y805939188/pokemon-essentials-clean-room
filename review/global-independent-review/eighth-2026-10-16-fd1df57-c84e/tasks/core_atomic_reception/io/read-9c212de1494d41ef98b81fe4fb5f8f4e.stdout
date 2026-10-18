@@ -1,0 +1,43 @@
+00451:   def self.start(*args)
+00452:     # If there is another NPC trainer who spotted the player at the same time,
+00453:     # and it is possible to have a double battle (the player has 2+ able Pokémon
+00454:     # or has a partner trainer), then record this first NPC trainer into
+00455:     # $game_temp.waiting_trainer and end this method. That second NPC event will
+00456:     # then trigger and cause the battle to happen against this first trainer and
+00457:     # themselves.
+00458:     if !$game_temp.waiting_trainer && pbMapInterpreterRunning? && pbCanDoubleBattle?
+00459:       thisEvent = pbMapInterpreter.get_self
+00460:       # Find all other triggered trainer events
+00461:       triggeredEvents = $game_player.pbTriggeredTrainerEvents([2], false, true)
+00462:       otherEvent = []
+00463:       triggeredEvents.each do |i|
+00464:         next if i.id == thisEvent.id
+00465:         next if $game_self_switches[[$game_map.map_id, i.id, "A"]]
+00466:         otherEvent.push(i)
+00467:       end
+00468:       # If there is exactly 1 other triggered trainer event, this trainer can be
+00469:       # stored up to battle with that one
+00470:       if otherEvent.length == 1
+00471:         trainers, _items, _end_speeches, _party, _party_starts = TrainerBattle.generate_foes(*args)
+00472:         # If this is just 1 trainer with 6 or fewer Pokémon, it can be stored up
+00473:         # to battle alongside the other trainer
+00474:         if trainers.length == 1 && trainers[0].party.length <= Settings::MAX_PARTY_SIZE
+00475:           $game_temp.waiting_trainer = [trainers[0], thisEvent.id]
+00476:           return false
+00477:         end
+00478:       end
+00479:     end
+00480:     # Perform the battle
+00481:     if $game_temp.waiting_trainer
+00482:       new_args = args + [$game_temp.waiting_trainer[0]]
+00483:       outcome = TrainerBattle.start_core(*new_args)
+00484:       pbMapInterpreter.pbSetSelfSwitch($game_temp.waiting_trainer[1], "A", true) if outcome == 1
+00485:       $game_temp.waiting_trainer = nil
+00486:     else
+00487:       outcome = TrainerBattle.start_core(*args)
+00488:     end
+00489:     # Return true if the player won the battle, and false if any other result
+00490:     return outcome == 1
+00491:   end
+00492: 
+00493:   def self.start_core(*args)

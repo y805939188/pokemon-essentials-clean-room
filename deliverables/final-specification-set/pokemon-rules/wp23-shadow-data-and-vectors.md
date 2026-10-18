@@ -225,7 +225,7 @@ EV 恢复按登记主能力次序 HP、攻击、防御、特攻、特防、速�
 | SHADOWSHED | RemoveAllScreens |
 | SHADOWSKY | StartShadowSkyWeather |
 
-SHADOWHALF、SHADOWEND 的已绑定实际效果接收分别见 [WP46 §7.1](wp46-damage-multihit-and-healing.md#71-shadow-当前-hp-减半与当前-hp-反伤)，SHADOWSKY 见 [WP45 §4.4](../combat-requirements/wp45-weather-terrain-side-and-position-effects.md#44-暗影天空招式来源)；没有自动启用备份数据。SHADOWSHED 样本绑定 RemoveAllScreens，与 [WP45 §7.3.1](../combat-requirements/wp45-weather-terrain-side-and-position-effects.md#731-双侧四屏障清除的独立定义) 的 RemoveAllScreensAndSafeguard 不同。条件化地有效加载该变化招且无新增匹配实现时，按 [WP43 §2.1](wp43-types-accuracy-and-damage.md#21-效果身份缺省与无实现回退) 在整招门反馈失败、不清双方屏障；前序普通 PP 提交不自动退款。SHADOW 类型样本仅声明抵抗 SHADOW；实际 Shadow 攻击的特殊克制分支另查目标 Shadow 标志（战斗效果规格）。
+SHADOWHALF、SHADOWEND 的已绑定实际效果接收分别见 [WP46 §7.1](wp46-damage-multihit-and-healing.md#71-shadow-当前-hp-减半与当前-hp-反伤)，SHADOWSKY 见 [WP45 §4.4](../combat-requirements/wp45-weather-terrain-side-and-position-effects.md#44-暗影天空招式来源)；没有自动启用备份数据。SHADOWSHED 样本绑定 RemoveAllScreens，与 [WP45 §7.3.1](../combat-requirements/wp45-weather-terrain-side-and-position-effects.md#731-双侧四屏障清除的独立定义) 的 RemoveAllScreensAndSafeguard 不同。条件化地有效加载该变化招且无新增匹配实现时，按 [WP43 §2.1](wp43-types-accuracy-and-damage.md#21-效果身份缺省与无实现回退) 在整招门反馈失败、不清双方屏障；前序普通 PP 提交不自动退款。SHADOW 类型样本的旧式类别标记为特殊（IsSpecialType=true），仅声明抵抗 SHADOW。有效装入原 SHADOW/SHADOWRUSH 且有效类型仍为 SHADOW 时，开启逐招类别按其 Physical 分类，关闭则按类型作特殊分类；不改变样本的威力 55、总 PP 0 或备份默认未启用的前提。实际 Shadow 攻击的特殊克制分支另查目标 Shadow 标志（战斗效果规格）。
 
 | 物品 | 野外使用 | 战斗使用 | 价格 | Scent 旗标 |
 | --- | --- | --- | ---: | --- |

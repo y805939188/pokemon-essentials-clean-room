@@ -1,0 +1,86 @@
+00155:     # Boost Exp gained with high affection
+00156:     if Settings::AFFECTION_EFFECTS && @internalBattle && pkmn.affection_level >= 4 && !pkmn.mega?
+00157:       exp = exp * 6 / 5
+00158:       isOutsider = true   # To show the "boosted Exp" message
+00159:     end
+00160:     # Make sure Exp doesn't exceed the maximum
+00161:     expFinal = growth_rate.add_exp(pkmn.exp, exp)
+00162:     expGained = expFinal - pkmn.exp
+00163:     return if expGained <= 0
+00164:     # "Exp gained" message
+00165:     if showMessages
+00166:       if isOutsider
+00167:         pbDisplayPaused(_INTL("{1} got a boosted {2} Exp. Points!", pkmn.name, expGained))
+00168:       else
+00169:         pbDisplayPaused(_INTL("{1} got {2} Exp. Points!", pkmn.name, expGained))
+00170:       end
+00171:     end
+00172:     curLevel = pkmn.level
+00173:     newLevel = growth_rate.level_from_exp(expFinal)
+00174:     if newLevel < curLevel
+00175:       debugInfo = "Levels: #{curLevel}->#{newLevel} | Exp: #{pkmn.exp}->#{expFinal} | gain: #{expGained}"
+00176:       raise _INTL("{1}'s new level is less than its current level, which shouldn't happen.", pkmn.name) + "\n[#{debugInfo}]"
+00177:     end
+00178:     # Give Exp
+00179:     if pkmn.shadowPokemon?
+00180:       if pkmn.heartStage <= 3
+00181:         pkmn.exp += expGained
+00182:         $stats.total_exp_gained += expGained
+00183:       end
+00184:       return
+00185:     end
+00186:     $stats.total_exp_gained += expGained
+00187:     tempExp1 = pkmn.exp
+00188:     battler = pbFindBattler(idxParty)
+00189:     loop do   # For each level gained in turn...
+00190:       # EXP Bar animation
+00191:       levelMinExp = growth_rate.minimum_exp_for_level(curLevel)
+00192:       levelMaxExp = growth_rate.minimum_exp_for_level(curLevel + 1)
+00193:       tempExp2 = (levelMaxExp < expFinal) ? levelMaxExp : expFinal
+00194:       pkmn.exp = tempExp2
+00195:       @scene.pbEXPBar(battler, levelMinExp, levelMaxExp, tempExp1, tempExp2)
+00196:       tempExp1 = tempExp2
+00197:       curLevel += 1
+00198:       if curLevel > newLevel
+00199:         # Gained all the Exp now, end the animation
+00200:         pkmn.calc_stats
+00201:         battler&.pbUpdate(false)
+00202:         @scene.pbRefreshOne(battler.index) if battler
+00203:         break
+00204:       end
+00205:       # Levelled up
+00206:       pbCommonAnimation("LevelUp", battler) if battler
+00207:       oldTotalHP = pkmn.totalhp
+00208:       oldAttack  = pkmn.attack
+00209:       oldDefense = pkmn.defense
+00210:       oldSpAtk   = pkmn.spatk
+00211:       oldSpDef   = pkmn.spdef
+00212:       oldSpeed   = pkmn.speed
+00213:       battler.pokemon.changeHappiness("levelup") if battler&.pokemon
+00214:       pkmn.calc_stats
+00215:       battler&.pbUpdate(false)
+00216:       @scene.pbRefreshOne(battler.index) if battler
+00217:       pbDisplayPaused(_INTL("{1} grew to Lv. {2}!", pkmn.name, curLevel)) { pbSEPlay("Pkmn level up") }
+00218:       @scene.pbLevelUp(pkmn, battler, oldTotalHP, oldAttack, oldDefense,
+00219:                        oldSpAtk, oldSpDef, oldSpeed)
+00220:       # Learn all moves learned at this level
+00221:       moveList = pkmn.getMoveList
+00222:       moveList.each { |m| pbLearnMove(idxParty, m[1]) if m[0] == curLevel }
+00223:     end
+00224:   end
+00225: 
+00226:   #=============================================================================
+00227:   # Learning a move
+00228:   #=============================================================================
+00229:   def pbLearnMove(idxParty, newMove)
+00230:     pkmn = pbParty(0)[idxParty]
+00231:     return if !pkmn
+00232:     pkmnName = pkmn.name
+00233:     battler = pbFindBattler(idxParty)
+00234:     moveName = GameData::Move.get(newMove).name
+00235:     # Pokémon already knows the move
+00236:     return if pkmn.hasMove?(newMove)
+00237:     # Pokémon has space for the new move; just learn it
+00238:     if pkmn.numMoves < Pokemon::MAX_MOVES
+00239:       pkmn.learn_move(newMove)
+00240:       pbDisplay(_INTL("{1} learned {2}!", pkmnName, moveName)) { pbSEPlay("Pkmn move learnt") }

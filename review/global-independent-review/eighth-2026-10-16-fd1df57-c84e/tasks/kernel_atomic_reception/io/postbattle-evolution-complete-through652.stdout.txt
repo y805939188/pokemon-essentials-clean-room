@@ -1,0 +1,82 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/002_Battle triggering/001_Overworld_BattleStarting.rb RANGE 609-652
+  proc { |decision, canLose|
+    # Check for evolutions
+    pbEvolutionCheck if Settings::CHECK_EVOLUTION_AFTER_ALL_BATTLES ||
+                        (decision != 2 && decision != 5)   # not a loss or a draw
+    $game_temp.party_levels_before_battle = nil
+    $game_temp.party_critical_hits_dealt = nil
+    $game_temp.party_direct_damage_taken = nil
+    # Check for blacking out or gaining Pickup/Huney Gather items
+    case decision
+    when 1, 4   # Win, capture
+      $player.pokemon_party.each do |pkmn|
+        pbPickup(pkmn)
+        pbHoneyGather(pkmn)
+      end
+    when 2, 5   # Lose, draw
+      if !canLose
+        $game_system.bgm_unpause
+        $game_system.bgs_unpause
+        pbStartOver
+      end
+    end
+  }
+)
+
+def pbEvolutionCheck
+  $player.party.each_with_index do |pkmn, i|
+    next if !pkmn || pkmn.egg?
+    next if pkmn.fainted? && !Settings::CHECK_EVOLUTION_FOR_FAINTED_POKEMON
+    # Find an evolution
+    new_species = nil
+    if new_species.nil? && $game_temp.party_levels_before_battle &&
+       $game_temp.party_levels_before_battle[i] &&
+       $game_temp.party_levels_before_battle[i] < pkmn.level
+      new_species = pkmn.check_evolution_on_level_up
+    end
+    new_species = pkmn.check_evolution_after_battle(i) if new_species.nil?
+    next if new_species.nil?
+    # Evolve Pokémon if possible
+    evo = PokemonEvolutionScene.new
+    evo.pbStartScreen(pkmn, new_species)
+    evo.pbEvolution
+    evo.pbEndScreen
+  end
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon.rb RANGE 390-424
+  def shiny?
+    if @shiny.nil?
+      a = @personalID ^ @owner.id
+      b = a & 0xFFFF
+      c = (a >> 16) & 0xFFFF
+      d = b ^ c
+      @shiny = d < Settings::SHINY_POKEMON_CHANCE
+    end
+    return @shiny
+  end
+
+  # @return [Boolean] whether this Pokémon is super shiny (differently colored,
+  #   square sparkles)
+  def super_shiny?
+    if @super_shiny.nil?
+      a = @personalID ^ @owner.id
+      b = a & 0xFFFF
+      c = (a >> 16) & 0xFFFF
+      d = b ^ c
+      @super_shiny = (d == 0)
+    end
+    return @super_shiny
+  end
+
+  # @param value [Boolean] whether this Pokémon is super shiny
+  def super_shiny=(value)
+    @super_shiny = value
+    @shiny = true if @super_shiny
+  end
+
+  #=============================================================================
+  # Ability
+  #=============================================================================
+
+  # The index of this Pokémon's ability (0, 1 are natural abilities, 2+ are

@@ -1,0 +1,452 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb RANGE 1-168
+#===============================================================================
+# Constant checks
+#===============================================================================
+# Pokérus check
+EventHandlers.add(:on_frame_update, :pokerus_counter,
+  proc {
+    next if !$player || $player.party.none? { |pkmn| pkmn.pokerusStage == 1 }
+    last = $PokemonGlobal.pokerusTime
+    next if !last
+    now = pbGetTimeNow
+    if last.year != now.year || last.month != now.month || last.day != now.day
+      $player.pokemon_party.each { |pkmn| pkmn.lowerPokerusCount }
+      $PokemonGlobal.pokerusTime = now
+    end
+  }
+)
+
+# Returns whether the Poké Center should explain Pokérus to the player, if a
+# healed Pokémon has it.
+def pbPokerus?
+  return false if $game_switches[Settings::SEEN_POKERUS_SWITCH]
+  $player.party.each do |i|
+    return true if i.pokerusStage == 1
+  end
+  return false
+end
+
+class Game_Temp
+  attr_accessor :warned_low_battery
+  attr_accessor :cue_bgm
+  attr_accessor :cue_bgm_timer_start
+  attr_accessor :cue_bgm_delay
+end
+
+def pbBatteryLow?
+  pstate = System.power_state
+  # If it's not discharging, it doesn't matter if it's low
+  return false if !pstate[:discharging]
+  # Check for less than 10m, priority over the percentage
+  # Some laptops (Chromebooks, Macbooks) have very long lifetimes
+  return true if pstate[:seconds] && pstate[:seconds] <= 600
+  # Check for <=15%
+  return true if pstate[:percent] && pstate[:percent] <= 15
+  return false
+end
+
+EventHandlers.add(:on_frame_update, :low_battery_warning,
+  proc {
+    next if $game_temp.warned_low_battery || !pbBatteryLow?
+    next if $game_temp.in_menu || $game_temp.in_battle || $game_player.move_route_forcing ||
+            $game_temp.message_window_showing || pbMapInterpreterRunning?
+    $game_temp.warned_low_battery = true
+    pbMessage(_INTL("The game has detected that the battery is low. You should save soon to avoid losing your progress."))
+  }
+)
+
+EventHandlers.add(:on_frame_update, :cue_bgm_after_delay,
+  proc {
+    next if $game_temp.cue_bgm_delay.nil?
+    next if System.uptime - $game_temp.cue_bgm_timer_start < $game_temp.cue_bgm_delay
+    $game_temp.cue_bgm_delay = nil
+    pbBGMPlay($game_temp.cue_bgm) if $game_system.getPlayingBGM.nil?
+  }
+)
+
+#===============================================================================
+# Checks per step
+#===============================================================================
+# Party Pokémon gain happiness from walking
+EventHandlers.add(:on_player_step_taken, :gain_happiness,
+  proc {
+    $PokemonGlobal.happinessSteps = 0 if !$PokemonGlobal.happinessSteps
+    $PokemonGlobal.happinessSteps += 1
+    next if $PokemonGlobal.happinessSteps < 128
+    $player.able_party.each do |pkmn|
+      pkmn.changeHappiness("walking") if rand(2) == 0
+    end
+    $PokemonGlobal.happinessSteps = 0
+  }
+)
+
+# Poison party Pokémon
+EventHandlers.add(:on_player_step_taken_can_transfer, :poison_party,
+  proc { |handled|
+    # handled is an array: [nil]. If [true], a transfer has happened because of
+    # this event, so don't do anything that might cause another one
+    next if handled[0]
+    next if !Settings::POISON_IN_FIELD || $PokemonGlobal.stepcount % 4 != 0
+    flashed = false
+    $player.able_party.each do |pkmn|
+      next if pkmn.status != :POISON || pkmn.hasAbility?(:IMMUNITY)
+      if !flashed
+        pbSEPlay("Poison step")
+        pbFlash(Color.new(255, 0, 0, 128), 8)
+        flashed = true
+      end
+      pkmn.hp -= 1 if pkmn.hp > 1 || Settings::POISON_FAINT_IN_FIELD
+      if pkmn.hp == 1 && !Settings::POISON_FAINT_IN_FIELD
+        pkmn.status = :NONE
+        pbMessage(_INTL("{1} survived the poisoning.\\nThe poison faded away!", pkmn.name))
+        next
+      elsif pkmn.hp == 0
+        pkmn.changeHappiness("faint")
+        pkmn.status = :NONE
+        pbMessage(_INTL("{1} fainted...", pkmn.name))
+      end
+      if $player.able_pokemon_count == 0
+        handled[0] = true
+        pbCheckAllFainted
+      end
+    end
+  }
+)
+
+def pbCheckAllFainted
+  if $player.able_pokemon_count == 0
+    pbMessage(_INTL("You have no more Pokémon that can fight!") + "\1")
+    pbMessage(_INTL("You blacked out!"))
+    pbBGMFade(1.0)
+    pbBGSFade(1.0)
+    pbFadeOutIn { pbStartOver }
+  end
+end
+
+# Gather soot from soot grass
+EventHandlers.add(:on_step_taken, :pick_up_soot,
+  proc { |event|
+    thistile = $map_factory.getRealTilePos(event.map.map_id, event.x, event.y)
+    map = $map_factory.getMap(thistile[0])
+    [2, 1, 0].each do |i|
+      tile_id = map.data[thistile[1], thistile[2], i]
+      next if tile_id.nil?
+      next if GameData::TerrainTag.try_get(map.terrain_tags[tile_id]).id != :SootGrass
+      if event == $game_player && $bag.has?(:SOOTSACK)
+        old_soot = $player.soot
+        $player.soot += 1
+        $stats.soot_collected += $player.soot - old_soot if $player.soot > old_soot
+      end
+      map.erase_tile(thistile[1], thistile[2], i)
+      break
+    end
+  }
+)
+
+# Show grass rustle animation
+EventHandlers.add(:on_step_taken, :grass_rustling,
+  proc { |event|
+    next if !$scene.is_a?(Scene_Map)
+    event.each_occupied_tile do |x, y|
+      next if !$map_factory.getTerrainTagFromCoords(event.map.map_id, x, y, true).shows_grass_rustle
+      spriteset = $scene.spriteset(event.map_id)
+      spriteset&.addUserAnimation(Settings::GRASS_ANIMATION_ID, x, y, true, 1)
+    end
+  }
+)
+
+# Auto-move the player over waterfalls and ice
+EventHandlers.add(:on_step_taken, :auto_move_player,
+  proc { |event|
+    next if !$scene.is_a?(Scene_Map)
+    next if event != $game_player
+    currentTag = $game_player.pbTerrainTag
+    if currentTag.waterfall_crest || currentTag.waterfall ||
+       $PokemonGlobal.descending_waterfall || $PokemonGlobal.ascending_waterfall
+      pbTraverseWaterfall
+    elsif currentTag.ice || $PokemonGlobal.ice_sliding
+      pbSlideOnIce
+    end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb RANGE 270-338
+    if $game_map.metadata&.always_bicycle
+      pbMountBike
+    elsif !pbCanUseBike?($game_map.map_id)
+      pbDismountBike
+    end
+  }
+)
+
+# Display darkness circle on dark maps.
+EventHandlers.add(:on_map_or_spriteset_change, :show_darkness,
+  proc { |scene, _map_changed|
+    next if !scene || !scene.spriteset
+    map_metadata = $game_map.metadata
+    if map_metadata&.dark_map
+      $game_temp.darkness_sprite = DarknessSprite.new
+      scene.spriteset.addUserSprite($game_temp.darkness_sprite)
+      if $PokemonGlobal.flashUsed
+        $game_temp.darkness_sprite.radius = $game_temp.darkness_sprite.radiusMax
+      end
+    else
+      $PokemonGlobal.flashUsed = false
+      $game_temp.darkness_sprite&.dispose
+      $game_temp.darkness_sprite = nil
+    end
+  }
+)
+
+# Show location signpost.
+EventHandlers.add(:on_map_or_spriteset_change, :show_location_window,
+  proc { |scene, map_changed|
+    next if !scene || !scene.spriteset
+    next if !map_changed || !$game_map.metadata&.announce_location
+    nosignpost = false
+    if $PokemonGlobal.mapTrail[1]
+      (Settings::NO_SIGNPOSTS.length / 2).times do |i|
+        nosignpost = true if Settings::NO_SIGNPOSTS[2 * i] == $PokemonGlobal.mapTrail[1] &&
+                             Settings::NO_SIGNPOSTS[(2 * i) + 1] == $game_map.map_id
+        nosignpost = true if Settings::NO_SIGNPOSTS[(2 * i) + 1] == $PokemonGlobal.mapTrail[1] &&
+                             Settings::NO_SIGNPOSTS[2 * i] == $game_map.map_id
+        break if nosignpost
+      end
+      nosignpost = true if $game_map.name == pbGetMapNameFromId($PokemonGlobal.mapTrail[1])
+    end
+    scene.spriteset.addUserSprite(LocationWindow.new($game_map.name)) if !nosignpost
+  }
+)
+
+#===============================================================================
+# Event locations, terrain tags
+#===============================================================================
+# NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+def pbFacingTile(direction = nil, event = nil)
+  return $map_factory.getFacingTile(direction, event) if $map_factory
+  return pbFacingTileRegular(direction, event)
+end
+
+# NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+def pbFacingTileRegular(direction = nil, event = nil)
+  event = $game_player if !event
+  return [0, 0, 0] if !event
+  x = event.x
+  y = event.y
+  direction = event.direction if !direction
+  x_offset = [0, -1, 0, 1, -1, 0, 1, -1, 0, 1][direction]
+  y_offset = [0, 1, 1, 1, 0, 0, 0, -1, -1, -1][direction]
+  return [$game_map.map_id, x + x_offset, y + y_offset]
+end
+
+# Returns whether event is in line with the player, is facing the player and is
+
+PATH /workspace/pokemon-essentials/Data/Scripts/019_Utilities/001_Utilities.rb RANGE 183-283
+    timenow = pbGetTimeNow
+    ret = (timenow.to_f - value[0] > value[1])   # value[1] is age in seconds
+    ret = false if value[1] <= 0   # zero age
+  end
+  if !ret
+    $game_variables[variableNumber] = 0
+    $game_map&.refresh
+  end
+  return ret
+end
+
+def pbExclaim(event, id = Settings::EXCLAMATION_ANIMATION_ID, tinting = false)
+  if event.is_a?(Array)
+    sprite = nil
+    done = []
+    event.each do |i|
+      next if done.include?(i.id)
+      spriteset = $scene.spriteset(i.map_id)
+      sprite ||= spriteset&.addUserAnimation(id, i.x, i.y, tinting, 2)
+      done.push(i.id)
+    end
+  else
+    spriteset = $scene.spriteset(event.map_id)
+    sprite = spriteset&.addUserAnimation(id, event.x, event.y, tinting, 2)
+  end
+  until sprite.disposed?
+    Graphics.update
+    Input.update
+    pbUpdateSceneMap
+  end
+end
+
+def pbNoticePlayer(event, always_show_exclaim = false)
+  if always_show_exclaim || !pbFacingEachOther(event, $game_player)
+    pbExclaim(event)
+  end
+  pbTurnTowardEvent($game_player, event)
+  pbMoveTowardPlayer(event)
+end
+
+#===============================================================================
+# Player-related utilities, random name generator
+#===============================================================================
+# Unused
+def pbGetPlayerGraphic
+  id = $player.character_ID
+  return "" if id < 1
+  meta = GameData::PlayerMetadata.get(id)
+  return "" if !meta
+  return GameData::TrainerType.player_front_sprite_filename(meta.trainer_type)
+end
+
+def pbGetTrainerTypeGender(trainer_type)
+  return GameData::TrainerType.get(trainer_type).gender
+end
+
+def pbChangePlayer(id)
+  return false if id < 1
+  meta = GameData::PlayerMetadata.get(id)
+  return false if !meta
+  $player.character_ID = id
+  return true
+end
+
+def pbTrainerName(name = nil, outfit = 0)
+  pbChangePlayer(1) if $player.character_ID < 1
+  if name.nil?
+    name = pbEnterPlayerName(_INTL("Your name?"), 0, Settings::MAX_PLAYER_NAME_SIZE)
+    if name.nil? || name.empty?
+      player_metadata = GameData::PlayerMetadata.get($player.character_ID)
+      trainer_type = (player_metadata) ? player_metadata.trainer_type : nil
+      gender = pbGetTrainerTypeGender(trainer_type)
+      name = pbSuggestTrainerName(gender)
+    end
+  end
+  $player.name   = name
+  $player.outfit = outfit
+end
+
+def pbSuggestTrainerName(gender)
+  userName = pbGetUserName
+  userName = userName.gsub(/\s+.*$/, "")
+  if userName.length > 0 && userName.length < Settings::MAX_PLAYER_NAME_SIZE
+    userName[0, 1] = userName[0, 1].upcase
+    return userName
+  end
+  userName = userName.gsub(/\d+$/, "")
+  if userName.length > 0 && userName.length < Settings::MAX_PLAYER_NAME_SIZE
+    userName[0, 1] = userName[0, 1].upcase
+    return userName
+  end
+  userName = System.user_name.capitalize
+  userName = userName[0, Settings::MAX_PLAYER_NAME_SIZE]
+  return userName
+  # Unreachable
+#  return getRandomNameEx(gender, nil, 1, Settings::MAX_PLAYER_NAME_SIZE)
+end
+
+def pbGetUserName
+  return System.user_name
+end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/019_Utilities/001_Utilities.rb RANGE 418-494
+  return (dex_list) ? dex_list.length : 0
+end
+
+#===============================================================================
+# Other utilities
+#===============================================================================
+def pbTextEntry(helptext, minlength, maxlength, variableNumber)
+  $game_variables[variableNumber] = pbEnterText(helptext, minlength, maxlength)
+  $game_map.need_refresh = true if $game_map
+end
+
+def pbMoveTutorAnnotations(move, movelist = nil)
+  ret = []
+  $player.party.each_with_index do |pkmn, i|
+    if pkmn.egg?
+      ret[i] = _INTL("NOT ABLE")
+    elsif pkmn.hasMove?(move)
+      ret[i] = _INTL("LEARNED")
+    else
+      species = pkmn.species
+      if movelist&.any? { |j| j == species }
+        # Checked data from movelist given in parameter
+        ret[i] = _INTL("ABLE")
+      elsif pkmn.compatible_with_move?(move)
+        # Checked data from Pokémon's tutor moves in pokemon.txt
+        ret[i] = _INTL("ABLE")
+      else
+        ret[i] = _INTL("NOT ABLE")
+      end
+    end
+  end
+  return ret
+end
+
+def pbMoveTutorChoose(move, movelist = nil, bymachine = false, oneusemachine = false)
+  ret = false
+  move = GameData::Move.get(move).id
+  if movelist.is_a?(Array)
+    movelist.map! { |m| GameData::Move.get(m).id }
+  end
+  pbFadeOutIn do
+    movename = GameData::Move.get(move).name
+    annot = pbMoveTutorAnnotations(move, movelist)
+    scene = PokemonParty_Scene.new
+    screen = PokemonPartyScreen.new(scene, $player.party)
+    screen.pbStartScene(_INTL("Teach which Pokémon?"), false, annot)
+    loop do
+      chosen = screen.pbChoosePokemon
+      break if chosen < 0
+      pokemon = $player.party[chosen]
+      if pokemon.egg?
+        pbMessage(_INTL("Eggs can't be taught any moves.")) { screen.pbUpdate }
+      elsif pokemon.shadowPokemon?
+        pbMessage(_INTL("Shadow Pokémon can't be taught any moves.")) { screen.pbUpdate }
+      elsif movelist && movelist.none? { |j| j == pokemon.species }
+        pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
+      elsif !pokemon.compatible_with_move?(move)
+        pbMessage(_INTL("{1} can't learn {2}.", pokemon.name, movename)) { screen.pbUpdate }
+      elsif pbLearnMove(pokemon, move, false, bymachine) { screen.pbUpdate }
+        $stats.moves_taught_by_item += 1 if bymachine
+        $stats.moves_taught_by_tutor += 1 if !bymachine
+        pokemon.add_first_move(move) if oneusemachine
+        ret = true
+        break
+      end
+    end
+    screen.pbEndScene
+  end
+  return ret   # Returns whether the move was learned by a Pokemon
+end
+
+def pbConvertItemToItem(variable, array)
+  item = GameData::Item.get(pbGet(variable))
+  pbSet(variable, nil)
+  (array.length / 2).times do |i|
+    next if item != array[2 * i]
+    pbSet(variable, array[(2 * i) + 1])
+
+PATH /workspace/pokemon-essentials/Data/Scripts/019_Utilities/001_Utilities.rb RANGE 596-623
+  Graphics.freeze
+  $scene = oldscene
+  $scene.createSpritesets
+  pbShowObjects(visibleObjects)
+  Graphics.transition
+end
+
+def pbChooseLanguage
+  commands = []
+  Settings::LANGUAGES.each do |lang|
+    commands.push(lang[0])
+  end
+  return pbShowCommands(nil, commands)
+end
+
+def pbScreenCapture
+  t = Time.now
+  filestart = t.strftime("[%Y-%m-%d] %H_%M_%S.%L")
+  begin
+    folder_name = "Screenshots"
+    Dir.create(folder_name) if !Dir.safe?(folder_name)
+    capturefile = folder_name + "/" + sprintf("%s.png", filestart)
+    Graphics.screenshot(capturefile)
+  rescue
+    capturefile = RTP.getSaveFileName(sprintf("%s.png", filestart))
+    Graphics.screenshot(capturefile)
+  end
+  pbSEPlay("Pkmn exp full") if FileTest.audio_exist?("Audio/SE/Pkmn exp full")

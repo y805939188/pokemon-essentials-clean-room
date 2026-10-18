@@ -1,0 +1,401 @@
+00299: Battle::AbilityEffects::SpeedCalc.add(:CHLOROPHYLL,
+00300:   proc { |ability, battler, mult|
+00301:     next mult * 2 if [:Sun, :HarshSun].include?(battler.effectiveWeather)
+00302:   }
+00303: )
+00304: 
+00305: Battle::AbilityEffects::SpeedCalc.add(:QUICKFEET,
+00306:   proc { |ability, battler, mult|
+00307:     next mult * 1.5 if battler.pbHasAnyStatus?
+00308:   }
+00309: )
+00310: 
+00311: Battle::AbilityEffects::SpeedCalc.add(:SANDRUSH,
+00312:   proc { |ability, battler, mult|
+00313:     next mult * 2 if [:Sandstorm].include?(battler.effectiveWeather)
+00314:   }
+00315: )
+00316: 
+00317: Battle::AbilityEffects::SpeedCalc.add(:SLOWSTART,
+00318:   proc { |ability, battler, mult|
+00319:     next mult / 2 if battler.effects[PBEffects::SlowStart] > 0
+00320:   }
+00321: )
+00322: 
+00323: Battle::AbilityEffects::SpeedCalc.add(:SLUSHRUSH,
+00324:   proc { |ability, battler, mult|
+00325:     next mult * 2 if [:Hail].include?(battler.effectiveWeather)
+00326:   }
+00327: )
+00328: 
+00329: Battle::AbilityEffects::SpeedCalc.add(:SURGESURFER,
+00330:   proc { |ability, battler, mult|
+00331:     next mult * 2 if battler.battle.field.terrain == :Electric
+00332:   }
+00333: )
+00334: 
+00335: Battle::AbilityEffects::SpeedCalc.add(:SWIFTSWIM,
+00336:   proc { |ability, battler, mult|
+00337:     next mult * 2 if [:Rain, :HeavyRain].include?(battler.effectiveWeather)
+00338:   }
+00339: )
+00340: 
+00341: Battle::AbilityEffects::SpeedCalc.add(:UNBURDEN,
+00342:   proc { |ability, battler, mult|
+00343:     next mult * 2 if battler.effects[PBEffects::Unburden] && !battler.item
+00344:   }
+00345: )
+00346: 
+00347: #===============================================================================
+00348: # WeightCalcy handlers
+00349: #===============================================================================
+00350: 
+00351: Battle::AbilityEffects::WeightCalc.add(:HEAVYMETAL,
+00352:   proc { |ability, battler, w|
+00353:     next w * 2
+00354:   }
+00355: )
+00356: 
+00357: Battle::AbilityEffects::WeightCalc.add(:LIGHTMETAL,
+00358:   proc { |ability, battler, w|
+00359:     next [w / 2, 1].max
+00360:   }
+00361: )
+00362: 
+00363: #===============================================================================
+00364: # OnHPDroppedBelowHalf handlers
+00365: #===============================================================================
+00366: 
+00367: Battle::AbilityEffects::OnHPDroppedBelowHalf.add(:EMERGENCYEXIT,
+00368:   proc { |ability, battler, move_user, battle|
+00369:     next false if battler.effects[PBEffects::SkyDrop] >= 0 ||
+00370:                   battler.inTwoTurnAttack?("TwoTurnAttackInvulnerableInSkyTargetCannotAct")   # Sky Drop
+00371:     # In wild battles
+00372:     if battle.wildBattle?
+00373:       next false if battler.opposes? && battle.pbSideBattlerCount(battler.index) > 1
+00374:       next false if !battle.pbCanRun?(battler.index)
+00375:       battle.pbShowAbilitySplash(battler, true)
+00376:       battle.pbHideAbilitySplash(battler)
+00377:       pbSEPlay("Battle flee")
+00378:       battle.pbDisplay(_INTL("{1} fled from battle!", battler.pbThis))
+00379:       battle.decision = 3   # Escaped
+00380:       next true
+00381:     end
+00382:     # In trainer battles
+00383:     next false if battle.pbAllFainted?(battler.idxOpposingSide)
+00384:     next false if !battle.pbCanSwitchOut?(battler.index)   # Battler can't switch out
+00385:     next false if !battle.pbCanChooseNonActive?(battler.index)   # No Pokémon can switch in
+00386:     battle.pbShowAbilitySplash(battler, true)
+00387:     battle.pbHideAbilitySplash(battler)
+00388:     if !Battle::Scene::USE_ABILITY_SPLASH
+00389:       battle.pbDisplay(_INTL("{1}'s {2} activated!", battler.pbThis, battler.abilityName))
+00390:     end
+00391:     battle.pbDisplay(_INTL("{1} went back to {2}!",
+00392:        battler.pbThis, battle.pbGetOwnerName(battler.index)))
+00393:     if battle.endOfRound   # Just switch out
+00394:       battle.scene.pbRecall(battler.index) if !battler.fainted?
+00395:       battler.pbAbilitiesOnSwitchOut   # Inc. primordial weather check
+00396:       next true
+00397:     end
+00398:     newPkmn = battle.pbGetReplacementPokemonIndex(battler.index)   # Owner chooses
+00399:     next false if newPkmn < 0   # Shouldn't ever do this
+00400:     battle.pbRecallAndReplace(battler.index, newPkmn)
+00401:     battle.pbClearChoice(battler.index)   # Replacement Pokémon does nothing this round
+00402:     battle.moldBreaker = false if move_user && battler.index == move_user.index
+00403:     battle.pbOnBattlerEnteringBattle(battler.index)
+00404:     next true
+00405:   }
+00406: )
+00407: 
+00408: Battle::AbilityEffects::OnHPDroppedBelowHalf.copy(:EMERGENCYEXIT, :WIMPOUT)
+00409: 
+00410: #===============================================================================
+00411: # StatusCheckNonIgnorable handlers
+00412: #===============================================================================
+00413: 
+00414: Battle::AbilityEffects::StatusCheckNonIgnorable.add(:COMATOSE,
+00415:   proc { |ability, battler, status|
+00416:     next false if !battler.isSpecies?(:KOMALA)
+00417:     next true if status.nil? || status == :SLEEP
+00418:   }
+00419: )
+00420: 
+00421: #===============================================================================
+00422: # StatusImmunity handlers
+00423: #===============================================================================
+00424: 
+00425: Battle::AbilityEffects::StatusImmunity.add(:FLOWERVEIL,
+00426:   proc { |ability, battler, status|
+00427:     next true if battler.pbHasType?(:GRASS)
+00428:   }
+00429: )
+00430: 
+00431: Battle::AbilityEffects::StatusImmunity.add(:IMMUNITY,
+00432:   proc { |ability, battler, status|
+00433:     next true if status == :POISON
+00434:   }
+00435: )
+00436: 
+00437: Battle::AbilityEffects::StatusImmunity.copy(:IMMUNITY, :PASTELVEIL)
+00438: 
+00439: Battle::AbilityEffects::StatusImmunity.add(:INSOMNIA,
+00440:   proc { |ability, battler, status|
+00441:     next true if status == :SLEEP
+00442:   }
+00443: )
+00444: 
+00445: Battle::AbilityEffects::StatusImmunity.copy(:INSOMNIA, :SWEETVEIL, :VITALSPIRIT)
+00446: 
+00447: Battle::AbilityEffects::StatusImmunity.add(:LEAFGUARD,
+00448:   proc { |ability, battler, status|
+00449:     next true if [:Sun, :HarshSun].include?(battler.effectiveWeather)
+00450:   }
+00451: )
+00452: 
+00453: Battle::AbilityEffects::StatusImmunity.add(:LIMBER,
+00454:   proc { |ability, battler, status|
+00455:     next true if status == :PARALYSIS
+00456:   }
+00457: )
+00458: 
+00459: Battle::AbilityEffects::StatusImmunity.add(:MAGMAARMOR,
+00460:   proc { |ability, battler, status|
+00461:     next true if status == :FROZEN
+00462:   }
+00463: )
+00464: 
+00465: Battle::AbilityEffects::StatusImmunity.add(:WATERVEIL,
+00466:   proc { |ability, battler, status|
+00467:     next true if status == :BURN
+00468:   }
+00469: )
+00470: 
+00471: Battle::AbilityEffects::StatusImmunity.copy(:WATERVEIL, :WATERBUBBLE)
+00472: 
+00473: #===============================================================================
+00474: # StatusImmunityNonIgnorable handlers
+00475: #===============================================================================
+00476: 
+00477: Battle::AbilityEffects::StatusImmunityNonIgnorable.add(:COMATOSE,
+00478:   proc { |ability, battler, status|
+00479:     next true if battler.isSpecies?(:KOMALA)
+00480:   }
+00481: )
+00482: 
+00483: Battle::AbilityEffects::StatusImmunityNonIgnorable.add(:SHIELDSDOWN,
+00484:   proc { |ability, battler, status|
+00485:     next true if battler.isSpecies?(:MINIOR) && battler.form < 7
+00486:   }
+00487: )
+00488: 
+00489: #===============================================================================
+00490: # StatusImmunityFromAlly handlers
+00491: #===============================================================================
+00492: 
+00493: Battle::AbilityEffects::StatusImmunityFromAlly.add(:FLOWERVEIL,
+00494:   proc { |ability, battler, status|
+00495:     next true if battler.pbHasType?(:GRASS)
+00496:   }
+00497: )
+00498: 
+00499: Battle::AbilityEffects::StatusImmunityFromAlly.add(:PASTELVEIL,
+00500:   proc { |ability, battler, status|
+00501:     next true if status == :POISON
+00502:   }
+00503: )
+00504: 
+00505: Battle::AbilityEffects::StatusImmunityFromAlly.add(:SWEETVEIL,
+00506:   proc { |ability, battler, status|
+00507:     next true if status == :SLEEP
+00508:   }
+00509: )
+00510: 
+00511: #===============================================================================
+00512: # OnStatusInflicted handlers
+00513: #===============================================================================
+00514: 
+00515: Battle::AbilityEffects::OnStatusInflicted.add(:SYNCHRONIZE,
+00516:   proc { |ability, battler, user, status|
+00517:     next if !user || user.index == battler.index
+00518:     case status
+00519:     when :POISON
+00520:       if user.pbCanPoisonSynchronize?(battler)
+00521:         battler.battle.pbShowAbilitySplash(battler)
+00522:         msg = nil
+00523:         if !Battle::Scene::USE_ABILITY_SPLASH
+00524:           msg = _INTL("{1}'s {2} poisoned {3}!", battler.pbThis, battler.abilityName, user.pbThis(true))
+00525:         end
+00526:         user.pbPoison(nil, msg, (battler.statusCount > 0))
+00527:         battler.battle.pbHideAbilitySplash(battler)
+00528:       end
+00529:     when :BURN
+00530:       if user.pbCanBurnSynchronize?(battler)
+00531:         battler.battle.pbShowAbilitySplash(battler)
+00532:         msg = nil
+00533:         if !Battle::Scene::USE_ABILITY_SPLASH
+00534:           msg = _INTL("{1}'s {2} burned {3}!", battler.pbThis, battler.abilityName, user.pbThis(true))
+00535:         end
+00536:         user.pbBurn(nil, msg)
+00537:         battler.battle.pbHideAbilitySplash(battler)
+00538:       end
+00539:     when :PARALYSIS
+00540:       if user.pbCanParalyzeSynchronize?(battler)
+00541:         battler.battle.pbShowAbilitySplash(battler)
+00542:         msg = nil
+00543:         if !Battle::Scene::USE_ABILITY_SPLASH
+00544:           msg = _INTL("{1}'s {2} paralyzed {3}! It may be unable to move!",
+00545:              battler.pbThis, battler.abilityName, user.pbThis(true))
+00546:         end
+00547:         user.pbParalyze(nil, msg)
+00548:         battler.battle.pbHideAbilitySplash(battler)
+00549:       end
+00550:     end
+00551:   }
+00552: )
+00553: 
+00554: #===============================================================================
+00555: # StatusCure handlers
+00556: #===============================================================================
+00557: 
+00558: Battle::AbilityEffects::StatusCure.add(:IMMUNITY,
+00559:   proc { |ability, battler|
+00560:     next if battler.status != :POISON
+00561:     battler.battle.pbShowAbilitySplash(battler)
+00562:     battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+00563:     if !Battle::Scene::USE_ABILITY_SPLASH
+00564:       battler.battle.pbDisplay(_INTL("{1}'s {2} cured its poisoning!", battler.pbThis, battler.abilityName))
+00565:     end
+00566:     battler.battle.pbHideAbilitySplash(battler)
+00567:   }
+00568: )
+00569: 
+00570: Battle::AbilityEffects::StatusCure.copy(:IMMUNITY, :PASTELVEIL)
+00571: 
+00572: Battle::AbilityEffects::StatusCure.add(:INSOMNIA,
+00573:   proc { |ability, battler|
+00574:     next if battler.status != :SLEEP
+00575:     battler.battle.pbShowAbilitySplash(battler)
+00576:     battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+00577:     if !Battle::Scene::USE_ABILITY_SPLASH
+00578:       battler.battle.pbDisplay(_INTL("{1}'s {2} woke it up!", battler.pbThis, battler.abilityName))
+00579:     end
+00580:     battler.battle.pbHideAbilitySplash(battler)
+00581:   }
+00582: )
+00583: 
+00584: Battle::AbilityEffects::StatusCure.copy(:INSOMNIA, :VITALSPIRIT)
+00585: 
+00586: Battle::AbilityEffects::StatusCure.add(:LIMBER,
+00587:   proc { |ability, battler|
+00588:     next if battler.status != :PARALYSIS
+00589:     battler.battle.pbShowAbilitySplash(battler)
+00590:     battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+00591:     if !Battle::Scene::USE_ABILITY_SPLASH
+00592:       battler.battle.pbDisplay(_INTL("{1}'s {2} cured its paralysis!", battler.pbThis, battler.abilityName))
+00593:     end
+00594:     battler.battle.pbHideAbilitySplash(battler)
+00595:   }
+00596: )
+00597: 
+00598: Battle::AbilityEffects::StatusCure.add(:MAGMAARMOR,
+00599:   proc { |ability, battler|
+00600:     next if battler.status != :FROZEN
+00601:     battler.battle.pbShowAbilitySplash(battler)
+00602:     battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+00603:     if !Battle::Scene::USE_ABILITY_SPLASH
+00604:       battler.battle.pbDisplay(_INTL("{1}'s {2} defrosted it!", battler.pbThis, battler.abilityName))
+00605:     end
+00606:     battler.battle.pbHideAbilitySplash(battler)
+00607:   }
+00608: )
+00609: 
+00610: Battle::AbilityEffects::StatusCure.add(:OBLIVIOUS,
+00611:   proc { |ability, battler|
+00612:     next if battler.effects[PBEffects::Attract] < 0 &&
+00613:             (battler.effects[PBEffects::Taunt] == 0 || Settings::MECHANICS_GENERATION <= 5)
+00614:     battler.battle.pbShowAbilitySplash(battler)
+00615:     if battler.effects[PBEffects::Attract] >= 0
+00616:       battler.pbCureAttract
+00617:       if Battle::Scene::USE_ABILITY_SPLASH
+00618:         battler.battle.pbDisplay(_INTL("{1} got over its infatuation.", battler.pbThis))
+00619:       else
+00620:         battler.battle.pbDisplay(_INTL("{1}'s {2} cured its infatuation status!",
+00621:            battler.pbThis, battler.abilityName))
+00622:       end
+00623:     end
+00624:     if battler.effects[PBEffects::Taunt] > 0 && Settings::MECHANICS_GENERATION >= 6
+00625:       battler.effects[PBEffects::Taunt] = 0
+00626:       if Battle::Scene::USE_ABILITY_SPLASH
+00627:         battler.battle.pbDisplay(_INTL("{1}'s Taunt wore off!", battler.pbThis))
+00628:       else
+00629:         battler.battle.pbDisplay(_INTL("{1}'s {2} made its taunt wear off!",
+00630:            battler.pbThis, battler.abilityName))
+00631:       end
+00632:     end
+00633:     battler.battle.pbHideAbilitySplash(battler)
+00634:   }
+00635: )
+00636: 
+00637: Battle::AbilityEffects::StatusCure.add(:OWNTEMPO,
+00638:   proc { |ability, battler|
+00639:     next if battler.effects[PBEffects::Confusion] == 0
+00640:     battler.battle.pbShowAbilitySplash(battler)
+00641:     battler.pbCureConfusion
+00642:     if Battle::Scene::USE_ABILITY_SPLASH
+00643:       battler.battle.pbDisplay(_INTL("{1} snapped out of its confusion.", battler.pbThis))
+00644:     else
+00645:       battler.battle.pbDisplay(_INTL("{1}'s {2} snapped it out of its confusion!",
+00646:          battler.pbThis, battler.abilityName))
+00647:     end
+00648:     battler.battle.pbHideAbilitySplash(battler)
+00649:   }
+00650: )
+00651: 
+00652: Battle::AbilityEffects::StatusCure.add(:WATERVEIL,
+00653:   proc { |ability, battler|
+00654:     next if battler.status != :BURN
+00655:     battler.battle.pbShowAbilitySplash(battler)
+00656:     battler.pbCureStatus(Battle::Scene::USE_ABILITY_SPLASH)
+00657:     if !Battle::Scene::USE_ABILITY_SPLASH
+00658:       battler.battle.pbDisplay(_INTL("{1}'s {2} healed its burn!", battler.pbThis, battler.abilityName))
+00659:     end
+00660:     battler.battle.pbHideAbilitySplash(battler)
+00661:   }
+00662: )
+00663: 
+00664: Battle::AbilityEffects::StatusCure.copy(:WATERVEIL, :WATERBUBBLE)
+00665: 
+00666: #===============================================================================
+00667: # StatLossImmunity handlers
+00668: #===============================================================================
+00669: 
+00670: Battle::AbilityEffects::StatLossImmunity.add(:BIGPECKS,
+00671:   proc { |ability, battler, stat, battle, showMessages|
+00672:     next false if stat != :DEFENSE
+00673:     if showMessages
+00674:       battle.pbShowAbilitySplash(battler)
+00675:       if Battle::Scene::USE_ABILITY_SPLASH
+00676:         battle.pbDisplay(_INTL("{1}'s {2} cannot be lowered!", battler.pbThis, GameData::Stat.get(stat).name))
+00677:       else
+00678:         battle.pbDisplay(_INTL("{1}'s {2} prevents {3} loss!", battler.pbThis,
+00679:            battler.abilityName, GameData::Stat.get(stat).name))
+00680:       end
+00681:       battle.pbHideAbilitySplash(battler)
+00682:     end
+00683:     next true
+00684:   }
+00685: )
+00686: 
+00687: Battle::AbilityEffects::StatLossImmunity.add(:CLEARBODY,
+00688:   proc { |ability, battler, stat, battle, showMessages|
+00689:     if showMessages
+00690:       battle.pbShowAbilitySplash(battler)
+00691:       if Battle::Scene::USE_ABILITY_SPLASH
+00692:         battle.pbDisplay(_INTL("{1}'s stats cannot be lowered!", battler.pbThis))
+00693:       else
+00694:         battle.pbDisplay(_INTL("{1}'s {2} prevents stat loss!", battler.pbThis, battler.abilityName))
+00695:       end
+00696:       battle.pbHideAbilitySplash(battler)
+00697:     end
+00698:     next true
+00699:   }

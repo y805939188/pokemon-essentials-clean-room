@@ -1,0 +1,371 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/001_Overworld.rb", "range": [381, 750], "file_lines": 750, "bytes": 26664, "sha256": "23caecf210623ca8fde9224d4409dccd3817f6a341a7d3921848fa156476d7bd", "began_utc": "2026-10-16T03:53:44.604810+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00381   when 6   # Right
+00382     real_distance = player.x - event.x - event.width
+00383   when 8   # Up
+00384     real_distance = event.y - event.height - player.y
+00385   end
+00386   if real_distance > 0
+00387     real_distance.times do |i|
+00388       return false if !event.can_move_from_coordinate?(event.x + (i * delta_x), event.y + (i * delta_y), event.direction)
+00389     end
+00390   end
+00391   return true
+00392 end
+00393 
+00394 # Returns whether the two events are standing next to each other and facing each
+00395 # other.
+00396 def pbFacingEachOther(event1, event2)
+00397   return pbEventFacesPlayer?(event1, event2, 1) && pbEventFacesPlayer?(event2, event1, 1)
+00398 end
+00399 
+00400 #===============================================================================
+00401 # Audio playing
+00402 #===============================================================================
+00403 def pbCueBGM(bgm, seconds, volume = nil, pitch = nil)
+00404   return if !bgm
+00405   bgm = pbResolveAudioFile(bgm, volume, pitch)
+00406   playingBGM = $game_system.playing_bgm
+00407   if !playingBGM || playingBGM.name != bgm.name || playingBGM.pitch != bgm.pitch
+00408     pbBGMFade(seconds)
+00409     $game_temp.cue_bgm = bgm
+00410     if !$game_temp.cue_bgm_delay
+00411       $game_temp.cue_bgm_delay = seconds * 0.6
+00412       $game_temp.cue_bgm_timer_start = System.uptime
+00413     end
+00414   elsif playingBGM
+00415     pbBGMPlay(bgm)
+00416   end
+00417 end
+00418 
+00419 def pbAutoplayOnTransition
+00420   surfbgm = GameData::Metadata.get.surf_BGM
+00421   if $PokemonGlobal.surfing && surfbgm
+00422     pbBGMPlay(surfbgm)
+00423   else
+00424     $game_map.autoplayAsCue
+00425   end
+00426 end
+00427 
+00428 def pbAutoplayOnSave
+00429   surfbgm = GameData::Metadata.get.surf_BGM
+00430   if $PokemonGlobal.surfing && surfbgm
+00431     pbBGMPlay(surfbgm)
+00432   else
+00433     $game_map.autoplay
+00434   end
+00435 end
+00436 
+00437 #===============================================================================
+00438 # Event movement
+00439 #===============================================================================
+00440 module PBMoveRoute
+00441   DOWN                  = 1
+00442   LEFT                  = 2
+00443   RIGHT                 = 3
+00444   UP                    = 4
+00445   LOWER_LEFT            = 5
+00446   LOWER_RIGHT           = 6
+00447   UPPER_LEFT            = 7
+00448   UPPER_RIGHT           = 8
+00449   RANDOM                = 9
+00450   TOWARD_PLAYER         = 10
+00451   AWAY_FROM_PLAYER      = 11
+00452   FORWARD               = 12
+00453   BACKWARD              = 13
+00454   JUMP                  = 14   # xoffset, yoffset
+00455   WAIT                  = 15   # frames
+00456   TURN_DOWN             = 16
+00457   TURN_LEFT             = 17
+00458   TURN_RIGHT            = 18
+00459   TURN_UP               = 19
+00460   TURN_RIGHT90          = 20
+00461   TURN_LEFT90           = 21
+00462   TURN180               = 22
+00463   TURN_RIGHT_OR_LEFT90  = 23
+00464   TURN_RANDOM           = 24
+00465   TURN_TOWARD_PLAYER    = 25
+00466   TURN_AWAY_FROM_PLAYER = 26
+00467   SWITCH_ON             = 27   # 1 param
+00468   SWITCH_OFF            = 28   # 1 param
+00469   CHANGE_SPEED          = 29   # 1 param
+00470   CHANGE_FREQUENCY      = 30   # 1 param
+00471   WALK_ANIME_ON         = 31
+00472   WALK_ANIME_OFF        = 32
+00473   STEP_ANIME_ON         = 33
+00474   STEP_ANIME_OFF        = 34
+00475   DIRECTION_FIX_ON      = 35
+00476   DIRECTION_FIX_OFF     = 36
+00477   THROUGH_ON            = 37
+00478   THROUGH_OFF           = 38
+00479   ALWAYS_ON_TOP_ON      = 39
+00480   ALWAYS_ON_TOP_OFF     = 40
+00481   GRAPHIC               = 41   # Name, hue, direction, pattern
+00482   OPACITY               = 42   # 1 param
+00483   BLENDING              = 43   # 1 param
+00484   PLAY_SE               = 44   # 1 param
+00485   SCRIPT                = 45   # 1 param
+00486   SCRIPT_ASYNC          = 101   # 1 param
+00487 end
+00488 
+00489 def pbMoveRoute(event, commands, waitComplete = false)
+00490   route = RPG::MoveRoute.new
+00491   route.repeat    = false
+00492   route.skippable = true
+00493   route.list.clear
+00494   route.list.push(RPG::MoveCommand.new(PBMoveRoute::THROUGH_ON))
+00495   i = 0
+00496   while i < commands.length
+00497     case commands[i]
+00498     when PBMoveRoute::WAIT, PBMoveRoute::SWITCH_ON, PBMoveRoute::SWITCH_OFF,
+00499        PBMoveRoute::CHANGE_SPEED, PBMoveRoute::CHANGE_FREQUENCY, PBMoveRoute::OPACITY,
+00500        PBMoveRoute::BLENDING, PBMoveRoute::PLAY_SE, PBMoveRoute::SCRIPT
+00501       route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1]]))
+00502       i += 1
+00503     when PBMoveRoute::SCRIPT_ASYNC
+00504       route.list.push(RPG::MoveCommand.new(PBMoveRoute::SCRIPT, [commands[i + 1]]))
+00505       route.list.push(RPG::MoveCommand.new(PBMoveRoute::WAIT, [0]))
+00506       i += 1
+00507     when PBMoveRoute::JUMP
+00508       route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1], commands[i + 2]]))
+00509       i += 2
+00510     when PBMoveRoute::GRAPHIC
+00511       route.list.push(RPG::MoveCommand.new(commands[i],
+00512                                            [commands[i + 1], commands[i + 2],
+00513                                             commands[i + 3], commands[i + 4]]))
+00514       i += 4
+00515     else
+00516       route.list.push(RPG::MoveCommand.new(commands[i]))
+00517     end
+00518     i += 1
+00519   end
+00520   route.list.push(RPG::MoveCommand.new(PBMoveRoute::THROUGH_OFF))
+00521   route.list.push(RPG::MoveCommand.new(0))
+00522   event&.force_move_route(route)
+00523   return route
+00524 end
+00525 
+00526 # duration is in seconds
+00527 def pbWait(duration)
+00528   timer_start = System.uptime
+00529   until System.uptime - timer_start >= duration
+00530     yield System.uptime - timer_start if block_given?
+00531     Graphics.update
+00532     Input.update
+00533     pbUpdateSceneMap
+00534   end
+00535 end
+00536 
+00537 #===============================================================================
+00538 # Player/event movement in the field
+00539 #===============================================================================
+00540 def pbSlideOnIce
+00541   if !$DEBUG || !Input.press?(Input::CTRL)
+00542     if $game_player.pbTerrainTag.ice && $game_player.can_move_in_direction?($game_player.direction)
+00543       $PokemonGlobal.ice_sliding = true
+00544       $game_player.straighten
+00545       $game_player.walk_anime = false
+00546       return
+00547     end
+00548   end
+00549   $PokemonGlobal.ice_sliding = false
+00550   $game_player.walk_anime = true
+00551 end
+00552 
+00553 def pbTurnTowardEvent(event, otherEvent)
+00554   sx = 0
+00555   sy = 0
+00556   if $map_factory
+00557     relativePos = $map_factory.getThisAndOtherEventRelativePos(otherEvent, event)
+00558     sx = relativePos[0]
+00559     sy = relativePos[1]
+00560   else
+00561     sx = event.x - otherEvent.x
+00562     sy = event.y - otherEvent.y
+00563   end
+00564   sx += (event.width - otherEvent.width) / 2.0
+00565   sy -= (event.height - otherEvent.height) / 2.0
+00566   return if sx == 0 && sy == 0
+00567   if sx.abs > sy.abs
+00568     (sx > 0) ? event.turn_left : event.turn_right
+00569   else
+00570     (sy > 0) ? event.turn_up : event.turn_down
+00571   end
+00572 end
+00573 
+00574 def pbMoveTowardPlayer(event)
+00575   maxsize = [$game_map.width, $game_map.height].max
+00576   return if !pbEventCanReachPlayer?(event, $game_player, maxsize)
+00577   loop do
+00578     x = event.x
+00579     y = event.y
+00580     event.move_toward_player
+00581     break if event.x == x && event.y == y
+00582     while event.moving?
+00583       Graphics.update
+00584       Input.update
+00585       pbUpdateSceneMap
+00586     end
+00587   end
+00588   $PokemonMap&.addMovedEvent(event.id)
+00589 end
+00590 
+00591 #===============================================================================
+00592 # Bridges, cave escape points, and setting the heal point
+00593 #===============================================================================
+00594 def pbBridgeOn(height = 2)
+00595   $PokemonGlobal.bridge = height
+00596 end
+00597 
+00598 def pbBridgeOff
+00599   $PokemonGlobal.bridge = 0
+00600 end
+00601 
+00602 def pbSetEscapePoint
+00603   $PokemonGlobal.escapePoint = [] if !$PokemonGlobal.escapePoint
+00604   xco = $game_player.x
+00605   yco = $game_player.y
+00606   case $game_player.direction
+00607   when 2   # Down
+00608     yco -= 1
+00609     dir = 8
+00610   when 4   # Left
+00611     xco += 1
+00612     dir = 6
+00613   when 6   # Right
+00614     xco -= 1
+00615     dir = 4
+00616   when 8   # Up
+00617     yco += 1
+00618     dir = 2
+00619   end
+00620   $PokemonGlobal.escapePoint = [$game_map.map_id, xco, yco, dir]
+00621 end
+00622 
+00623 def pbEraseEscapePoint
+00624   $PokemonGlobal.escapePoint = []
+00625 end
+00626 
+00627 def pbSetPokemonCenter
+00628   $PokemonGlobal.pokecenterMapId     = $game_map.map_id
+00629   $PokemonGlobal.pokecenterX         = $game_player.x
+00630   $PokemonGlobal.pokecenterY         = $game_player.y
+00631   $PokemonGlobal.pokecenterDirection = $game_player.direction
+00632 end
+00633 
+00634 #===============================================================================
+00635 # Partner trainer
+00636 #===============================================================================
+00637 def pbRegisterPartner(tr_type, tr_name, tr_id = 0)
+00638   tr_type = GameData::TrainerType.get(tr_type).id
+00639   pbCancelVehicles
+00640   trainer = pbLoadTrainer(tr_type, tr_name, tr_id)
+00641   EventHandlers.trigger(:on_trainer_load, trainer)
+00642   trainer.party.each do |i|
+00643     i.owner = Pokemon::Owner.new_from_trainer(trainer)
+00644     i.calc_stats
+00645   end
+00646   $PokemonGlobal.partner = [tr_type, tr_name, trainer.id, trainer.party]
+00647 end
+00648 
+00649 def pbDeregisterPartner
+00650   $PokemonGlobal.partner = nil
+00651 end
+00652 
+00653 #===============================================================================
+00654 # Picking up an item found on the ground
+00655 #===============================================================================
+00656 def pbItemBall(item, quantity = 1)
+00657   item = GameData::Item.get(item)
+00658   return false if !item || quantity < 1
+00659   itemname = (quantity > 1) ? item.portion_name_plural : item.portion_name
+00660   pocket = item.pocket
+00661   move = item.move
+00662   if $bag.add(item, quantity)   # If item can be picked up
+00663     meName = (item.is_key_item?) ? "Key item get" : "Item get"
+00664     if item == :DNASPLICERS
+00665       pbMessage("\\me[#{meName}]" + _INTL("You found \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00666     elsif item.is_machine?   # TM or HM
+00667       if quantity > 1
+00668         pbMessage("\\me[Machine get]" + _INTL("You found {1} \\c[1]{2} {3}\\c[0]!",
+00669                                               quantity, itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+00670       else
+00671         pbMessage("\\me[Machine get]" + _INTL("You found \\c[1]{1} {2}\\c[0]!",
+00672                                               itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+00673       end
+00674     elsif quantity > 1
+00675       pbMessage("\\me[#{meName}]" + _INTL("You found {1} \\c[1]{2}\\c[0]!", quantity, itemname) + "\\wtnp[40]")
+00676     elsif itemname.starts_with_vowel?
+00677       pbMessage("\\me[#{meName}]" + _INTL("You found an \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00678     else
+00679       pbMessage("\\me[#{meName}]" + _INTL("You found a \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00680     end
+00681     pbMessage(_INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+00682                     itemname, pocket, PokemonBag.pocket_names[pocket - 1]))
+00683     return true
+00684   end
+00685   # Can't add the item
+00686   if item.is_machine?   # TM or HM
+00687     if quantity > 1
+00688       pbMessage(_INTL("You found {1} \\c[1]{2} {3}\\c[0]!", quantity, itemname, GameData::Move.get(move).name))
+00689     else
+00690       pbMessage(_INTL("You found \\c[1]{1} {2}\\c[0]!", itemname, GameData::Move.get(move).name))
+00691     end
+00692   elsif quantity > 1
+00693     pbMessage(_INTL("You found {1} \\c[1]{2}\\c[0]!", quantity, itemname))
+00694   elsif itemname.starts_with_vowel?
+00695     pbMessage(_INTL("You found an \\c[1]{1}\\c[0]!", itemname))
+00696   else
+00697     pbMessage(_INTL("You found a \\c[1]{1}\\c[0]!", itemname))
+00698   end
+00699   pbMessage(_INTL("But your Bag is full..."))
+00700   return false
+00701 end
+00702 
+00703 #===============================================================================
+00704 # Being given an item
+00705 #===============================================================================
+00706 def pbReceiveItem(item, quantity = 1)
+00707   item = GameData::Item.get(item)
+00708   return false if !item || quantity < 1
+00709   itemname = (quantity > 1) ? item.portion_name_plural : item.portion_name
+00710   pocket = item.pocket
+00711   move = item.move
+00712   meName = (item.is_key_item?) ? "Key item get" : "Item get"
+00713   if item == :DNASPLICERS
+00714     pbMessage("\\me[#{meName}]" + _INTL("You obtained \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00715   elsif item.is_machine?   # TM or HM
+00716     if quantity > 1
+00717       pbMessage("\\me[Machine get]" + _INTL("You obtained {1} \\c[1]{2} {3}\\c[0]!",
+00718                                             quantity, itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+00719     else
+00720       pbMessage("\\me[Machine get]" + _INTL("You obtained \\c[1]{1} {2}\\c[0]!",
+00721                                             itemname, GameData::Move.get(move).name) + "\\wtnp[70]")
+00722     end
+00723   elsif quantity > 1
+00724     pbMessage("\\me[#{meName}]" + _INTL("You obtained {1} \\c[1]{2}\\c[0]!", quantity, itemname) + "\\wtnp[40]")
+00725   elsif itemname.starts_with_vowel?
+00726     pbMessage("\\me[#{meName}]" + _INTL("You obtained an \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00727   else
+00728     pbMessage("\\me[#{meName}]" + _INTL("You obtained a \\c[1]{1}\\c[0]!", itemname) + "\\wtnp[40]")
+00729   end
+00730   if $bag.add(item, quantity)   # If item can be added
+00731     pbMessage(_INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+00732                     itemname, pocket, PokemonBag.pocket_names[pocket - 1]))
+00733     return true
+00734   end
+00735   return false   # Can't add the item
+00736 end
+00737 
+00738 #===============================================================================
+00739 # Buying a prize item from the Game Corner
+00740 #===============================================================================
+00741 def pbBuyPrize(item, quantity = 1)
+00742   item = GameData::Item.get(item)
+00743   return false if !item || quantity < 1
+00744   item_name = (quantity > 1) ? item.portion_name_plural : item.portion_name
+00745   pocket = item.pocket
+00746   return false if !$bag.add(item, quantity)
+00747   pbMessage("\\CN" + _INTL("You put the {1} in\\nyour Bag's <icon=bagPocket{2}>\\c[1]{3}\\c[0] pocket.",
+00748                            item_name, pocket, PokemonBag.pocket_names[pocket - 1]))
+00749   return true
+00750 end

@@ -1,0 +1,229 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/003_Game processing/003_Interpreter.rb RANGE 373-425
+  def pbSetEventTime(*arg)
+    $PokemonGlobal.eventvars = {} if !$PokemonGlobal.eventvars
+    time = pbGetTimeNow
+    time = time.to_i
+    pbSetSelfSwitch(@event_id, "A", true)
+    $PokemonGlobal.eventvars[[@map_id, @event_id]] = time
+    arg.each do |otherevt|
+      pbSetSelfSwitch(otherevt, "A", true)
+      $PokemonGlobal.eventvars[[@map_id, otherevt]] = time
+    end
+  end
+
+  # Used in boulder events. Allows an event to be pushed.
+  def pbPushThisEvent(strength = false)
+    event = get_self
+    old_x  = event.x
+    old_y  = event.y
+    # Apply strict version of passable, which treats tiles that are passable
+    # only from certain directions as fully impassible
+    return if !event.can_move_in_direction?($game_player.direction, true)
+    $stats.strength_push_count += 1
+    case $game_player.direction
+    when 2 then event.move_down
+    when 4 then event.move_left
+    when 6 then event.move_right
+    when 8 then event.move_up
+    end
+    $PokemonMap&.addMovedEvent(@event_id)
+    if old_x != event.x || old_y != event.y
+      pbSEPlay("Strength push") if strength
+      $game_player.lock
+      loop do
+        Graphics.update
+        Input.update
+        pbUpdateSceneMap
+        break if !event.moving?
+      end
+      $game_player.unlock
+    end
+  end
+
+  def pbPushThisBoulder
+    pbPushThisEvent(true) if $PokemonMap.strengthUsed
+    return true
+  end
+
+  def pbSmashThisEvent
+    event = get_self
+    pbSmashEvent(event) if event
+    @index += 1
+    return true
+  end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/003_Game processing/004_Interpreter_Commands.rb RANGE 552-681
+  def command_121
+    should_refresh = false
+    (@parameters[0]..@parameters[1]).each do |i|
+      next if $game_switches[i] == (@parameters[2] == 0)
+      $game_switches[i] = (@parameters[2] == 0)
+      should_refresh = true
+    end
+    # Refresh map
+    $game_map.need_refresh = true if should_refresh
+    return true
+  end
+
+  #-----------------------------------------------------------------------------
+  # * Control Variables
+  #-----------------------------------------------------------------------------
+  def command_122
+    value = 0
+    case @parameters[3]
+    when 0   # invariable (fixed value)
+      value = @parameters[4]
+    when 1   # variable
+      value = $game_variables[@parameters[4]]
+    when 2   # random number
+      value = @parameters[4] + rand(@parameters[5] - @parameters[4] + 1)
+#    when 3, 4, 5   # item, actor, enemy
+    when 6   # character
+      character = get_character(@parameters[4])
+      if character
+        case @parameters[5]
+        when 0 then value = character.x             # x-coordinate
+        when 1 then value = character.y             # y-coordinate
+        when 2 then value = character.direction     # direction
+        when 3 then value = character.screen_x      # screen x-coordinate
+        when 4 then value = character.screen_y      # screen y-coordinate
+        when 5 then value = character.terrain_tag.id_number   # terrain tag
+        end
+      end
+    when 7   # other
+      case @parameters[4]
+      when 0 then value = $game_map.map_id          # map ID
+      when 1 then value = $player.pokemon_count     # party members
+      when 2 then value = $player.money             # gold
+      when 3 then value = $stats.distance_moved     # steps
+      when 4 then value = $stats.play_time          # play time
+      when 5 then value = $game_system.timer        # timer
+      when 6 then value = $game_system.save_count   # save count
+      end
+    end
+    # Apply value and operation to all specified game variables
+    (@parameters[0]..@parameters[1]).each do |i|
+      case @parameters[2]
+      when 0   # set
+        next if $game_variables[i] == value
+        $game_variables[i] = value
+      when 1   # add
+        next if $game_variables[i] >= 99_999_999
+        $game_variables[i] += value
+      when 2   # subtract
+        next if $game_variables[i] <= -99_999_999
+        $game_variables[i] -= value
+      when 3   # multiply
+        next if value == 1
+        $game_variables[i] *= value
+      when 4   # divide
+        next if [0, 1].include?(value)
+        $game_variables[i] /= value
+      when 5   # remainder
+        next if [0, 1].include?(value)
+        $game_variables[i] %= value
+      end
+      $game_variables[i] = 99_999_999 if $game_variables[i] > 99_999_999
+      $game_variables[i] = -99_999_999 if $game_variables[i] < -99_999_999
+      $game_map.need_refresh = true
+    end
+    return true
+  end
+
+  #-----------------------------------------------------------------------------
+  # * Control Self Switch
+  #-----------------------------------------------------------------------------
+  def command_123
+    if @event_id > 0
+      new_value = (@parameters[1] == 0)
+      key = [$game_map.map_id, @event_id, @parameters[0]]
+      if $game_self_switches[key] != new_value
+        $game_self_switches[key] = new_value
+        $game_map.need_refresh = true
+      end
+    end
+    return true
+  end
+
+  #-----------------------------------------------------------------------------
+  # * Control Timer
+  #-----------------------------------------------------------------------------
+  def command_124
+    $game_system.timer_start = (@parameters[0] == 0) ? $stats.play_time : nil
+    $game_system.timer_duration = @parameters[1] if @parameters[0] == 0
+    return true
+  end
+
+  #-----------------------------------------------------------------------------
+  # * Change Gold
+  #-----------------------------------------------------------------------------
+  def command_125
+    value = (@parameters[1] == 0) ? @parameters[2] : $game_variables[@parameters[2]]
+    value = -value if @parameters[0] == 1   # Decrease
+    $player.money += value
+    return true
+  end
+
+  def command_126; command_dummy; end   # Change Items
+  def command_127; command_dummy; end   # Change Weapons
+  def command_128; command_dummy; end   # Change Armor
+  def command_129; command_dummy; end   # Change Party Member
+
+  #-----------------------------------------------------------------------------
+  # * Change Windowskin
+  #-----------------------------------------------------------------------------
+  def command_131
+    Settings::SPEECH_WINDOWSKINS.length.times do |i|
+      next if Settings::SPEECH_WINDOWSKINS[i] != @parameters[0]
+      $PokemonSystem.textskin = i
+      MessageConfig.pbSetSpeechFrame("Graphics/Windowskins/" + Settings::SPEECH_WINDOWSKINS[i])
+      return true
+    end
+    return true
+  end
+
+  #-----------------------------------------------------------------------------
+
+PATH /workspace/pokemon-essentials/Data/Scripts/003_Game processing/004_Interpreter_Commands.rb RANGE 1099-1108
+  def command_314
+    if @parameters[0] == 0
+      if Settings::HEAL_STORED_POKEMON   # No need to heal stored Pokémon
+        $player.heal_party
+      else
+        pbEachPokemon { |pkmn, box| pkmn.heal }   # Includes party Pokémon
+      end
+    end
+    return true
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/004_Game classes/007_Game_Event.rb RANGE 274-304
+  def update
+    @to_update = should_update?(true)
+    @updated_last_frame = false
+    return if !@to_update
+    @updated_last_frame = true
+    @moveto_happened = false
+    last_moving = moving?
+    super
+    check_event_trigger_after_moving if !moving? && last_moving
+    if @need_refresh
+      @need_refresh = false
+      refresh
+    end
+    check_event_trigger_auto
+    if @interpreter
+      @interpreter.setup(@list, @event.id, @map_id) if !@interpreter.running?
+      @interpreter.update
+    end
+  end
+
+  def update_move
+    was_jumping = jumping?
+    super
+    if was_jumping && !jumping? && !@transparent && (@tile_id > 0 || @character_name != "")
+      spriteset = $scene.spriteset(map_id)
+      spriteset&.addUserAnimation(Settings::DUST_ANIMATION_ID, self.x, self.y, true, 1)
+    end
+  end
+end

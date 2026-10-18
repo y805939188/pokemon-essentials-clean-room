@@ -1,0 +1,246 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/016_UI/021_UI_BattlePointShop.rb", "range": [281, 525], "file_lines": 525, "bytes": 16466, "sha256": "7304f4f212f523e414852032b1e2a313628f89602da76ef45b3ed79011335873", "began_utc": "2026-10-16T03:30:41.190221+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00281     loop do
+00282       Graphics.update
+00283       Input.update
+00284       wasbusy = cw.busy?
+00285       self.update
+00286       if !cw.busy? && !yielded
+00287         yield if block_given?   # For playing SE as soon as the message is all shown
+00288         yielded = true
+00289       end
+00290       pbRefresh if !cw.busy? && wasbusy
+00291       if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+00292         if cw.resume && !cw.busy?
+00293           @sprites["helpwindow"].visible = false
+00294           break
+00295         end
+00296       end
+00297     end
+00298   end
+00299 
+00300   def pbConfirm(msg)
+00301     dw = @sprites["helpwindow"]
+00302     dw.letterbyletter = true
+00303     dw.text = msg
+00304     dw.visible = true
+00305     pbBottomLeftLines(dw, 2)
+00306     commands = [_INTL("Yes"), _INTL("No")]
+00307     cw = Window_CommandPokemon.new(commands)
+00308     cw.viewport = @viewport
+00309     pbBottomRight(cw)
+00310     cw.y -= dw.height
+00311     cw.index = 0
+00312     pbPlayDecisionSE
+00313     loop do
+00314       cw.visible = !dw.busy?
+00315       Graphics.update
+00316       Input.update
+00317       cw.update
+00318       self.update
+00319       if Input.trigger?(Input::BACK) && dw.resume && !dw.busy?
+00320         cw.dispose
+00321         @sprites["helpwindow"].visible = false
+00322         return false
+00323       end
+00324       if Input.trigger?(Input::USE) && dw.resume && !dw.busy?
+00325         cw.dispose
+00326         @sprites["helpwindow"].visible = false
+00327         return (cw.index == 0)
+00328       end
+00329     end
+00330   end
+00331 
+00332   def pbChooseNumber(helptext, item, maximum)
+00333     curnumber = 1
+00334     ret = 0
+00335     helpwindow = @sprites["helpwindow"]
+00336     itemprice = @adapter.getPrice(item)
+00337     itemprice /= 2 if !@buying
+00338     pbDisplay(helptext, true)
+00339     using(numwindow = Window_AdvancedTextPokemon.new("")) do   # Showing number of items
+00340       pbPrepareWindow(numwindow)
+00341       numwindow.viewport = @viewport
+00342       numwindow.width = 224
+00343       numwindow.height = 64
+00344       numwindow.baseColor = Color.new(88, 88, 80)
+00345       numwindow.shadowColor = Color.new(168, 184, 184)
+00346       numwindow.text = _INTL("x{1}<r>{2} BP", curnumber, (curnumber * itemprice).to_s_formatted)
+00347       pbBottomRight(numwindow)
+00348       numwindow.y -= helpwindow.height
+00349       loop do
+00350         Graphics.update
+00351         Input.update
+00352         numwindow.update
+00353         update
+00354         oldnumber = curnumber
+00355         if Input.repeat?(Input::LEFT)
+00356           curnumber -= 10
+00357           curnumber = 1 if curnumber < 1
+00358           if curnumber != oldnumber
+00359             numwindow.text = _INTL("x{1}<r>{2} BP", curnumber, (curnumber * itemprice).to_s_formatted)
+00360             pbPlayCursorSE
+00361           end
+00362         elsif Input.repeat?(Input::RIGHT)
+00363           curnumber += 10
+00364           curnumber = maximum if curnumber > maximum
+00365           if curnumber != oldnumber
+00366             numwindow.text = _INTL("x{1}<r>{2} BP", curnumber, (curnumber * itemprice).to_s_formatted)
+00367             pbPlayCursorSE
+00368           end
+00369         elsif Input.repeat?(Input::UP)
+00370           curnumber += 1
+00371           curnumber = 1 if curnumber > maximum
+00372           if curnumber != oldnumber
+00373             numwindow.text = _INTL("x{1}<r>{2} BP", curnumber, (curnumber * itemprice).to_s_formatted)
+00374             pbPlayCursorSE
+00375           end
+00376         elsif Input.repeat?(Input::DOWN)
+00377           curnumber -= 1
+00378           curnumber = maximum if curnumber < 1
+00379           if curnumber != oldnumber
+00380             numwindow.text = _INTL("x{1}<r>{2} BP", curnumber, (curnumber * itemprice).to_s_formatted)
+00381             pbPlayCursorSE
+00382           end
+00383         elsif Input.trigger?(Input::USE)
+00384           ret = curnumber
+00385           break
+00386         elsif Input.trigger?(Input::BACK)
+00387           pbPlayCancelSE
+00388           ret = 0
+00389           break
+00390         end
+00391       end
+00392     end
+00393     helpwindow.visible = false
+00394     return ret
+00395   end
+00396 
+00397   def pbChooseItem
+00398     itemwindow = @sprites["itemwindow"]
+00399     @sprites["helpwindow"].visible = false
+00400     pbActivateWindow(@sprites, "itemwindow") do
+00401       pbRefresh
+00402       loop do
+00403         Graphics.update
+00404         Input.update
+00405         olditem = itemwindow.item
+00406         self.update
+00407         pbRefresh if itemwindow.item != olditem
+00408         if Input.trigger?(Input::BACK)
+00409           pbPlayCloseMenuSE
+00410           return nil
+00411         elsif Input.trigger?(Input::USE)
+00412           if itemwindow.index < @stock.length
+00413             pbRefresh
+00414             return @stock[itemwindow.index]
+00415           else
+00416             return nil
+00417           end
+00418         end
+00419       end
+00420     end
+00421   end
+00422 end
+00423 
+00424 #===============================================================================
+00425 #
+00426 #===============================================================================
+00427 class BattlePointShopScreen
+00428   def initialize(scene, stock)
+00429     @scene = scene
+00430     @stock = stock
+00431     @adapter = BattlePointShopAdapter.new
+00432   end
+00433 
+00434   def pbConfirm(msg)
+00435     return @scene.pbConfirm(msg)
+00436   end
+00437 
+00438   def pbDisplay(msg)
+00439     return @scene.pbDisplay(msg)
+00440   end
+00441 
+00442   def pbDisplayPaused(msg, &block)
+00443     return @scene.pbDisplayPaused(msg, &block)
+00444   end
+00445 
+00446   def pbBuyScreen
+00447     @scene.pbStartScene(@stock, @adapter)
+00448     item = nil
+00449     loop do
+00450       item = @scene.pbChooseItem
+00451       break if !item
+00452       quantity       = 0
+00453       itemname       = @adapter.getName(item)
+00454       itemnameplural = @adapter.getNamePlural(item)
+00455       price = @adapter.getPrice(item)
+00456       if @adapter.getBP < price
+00457         pbDisplayPaused(_INTL("You don't have enough BP."))
+00458         next
+00459       end
+00460       if GameData::Item.get(item).is_important?
+00461         next if !pbConfirm(_INTL("You would like the {1}?\nThat will be {2} BP.",
+00462                                  itemname, price.to_s_formatted))
+00463         quantity = 1
+00464       else
+00465         maxafford = (price <= 0) ? Settings::BAG_MAX_PER_SLOT : @adapter.getBP / price
+00466         maxafford = Settings::BAG_MAX_PER_SLOT if maxafford > Settings::BAG_MAX_PER_SLOT
+00467         quantity = @scene.pbChooseNumber(
+00468           _INTL("How many {1} would you like?", itemnameplural), item, maxafford
+00469         )
+00470         next if quantity == 0
+00471         price *= quantity
+00472         if quantity > 1
+00473           next if !pbConfirm(_INTL("You would like {1} {2}?\nThey'll be {3} BP.",
+00474                                    quantity, itemnameplural, price.to_s_formatted))
+00475         elsif quantity > 0
+00476           next if !pbConfirm(_INTL("So you want {1} {2}?\nIt'll be {3} BP.",
+00477                                    quantity, itemname, price.to_s_formatted))
+00478         end
+00479       end
+00480       if @adapter.getBP < price
+00481         pbDisplayPaused(_INTL("I'm sorry, you don't have enough BP."))
+00482         next
+00483       end
+00484       added = 0
+00485       quantity.times do
+00486         break if !@adapter.addItem(item)
+00487         added += 1
+00488       end
+00489       if added == quantity
+00490         $stats.battle_points_spent += price
+00491         $stats.mart_items_bought += quantity
+00492         @adapter.setBP(@adapter.getBP - price)
+00493         @stock.delete_if { |itm| GameData::Item.get(itm).is_important? && $bag.has?(itm) }
+00494         pbDisplayPaused(_INTL("Here you are! Thank you!")) { pbSEPlay("Mart buy item") }
+00495       else
+00496         added.times do
+00497           if !@adapter.removeItem(item)
+00498             raise _INTL("Failed to delete stored items")
+00499           end
+00500         end
+00501         pbDisplayPaused(_INTL("You have no room in your Bag."))
+00502       end
+00503     end
+00504     @scene.pbEndScene
+00505   end
+00506 end
+00507 
+00508 #===============================================================================
+00509 #
+00510 #===============================================================================
+00511 def pbBattlePointShop(stock, speech = nil)
+00512   stock.delete_if { |item| GameData::Item.get(item).is_important? && $bag.has?(item) }
+00513   if speech.nil?
+00514     pbMessage(_INTL("Welcome to the Exchange Service Corner!"))
+00515     pbMessage(_INTL("We can exchange your BP for fabulous items."))
+00516   else
+00517     pbMessage(speech)
+00518   end
+00519   scene = BattlePointShop_Scene.new
+00520   screen = BattlePointShopScreen.new(scene, stock)
+00521   screen.pbBuyScreen
+00522   pbMessage(_INTL("Thank you for visiting."))
+00523   pbMessage(_INTL("Please visit us again when you have saved up more BP."))
+00524   $game_temp.clear_mart_prices
+00525 end

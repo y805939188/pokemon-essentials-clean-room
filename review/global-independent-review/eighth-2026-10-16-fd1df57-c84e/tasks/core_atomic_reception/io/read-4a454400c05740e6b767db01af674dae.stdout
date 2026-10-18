@@ -1,0 +1,115 @@
+00136:   def pbUseMoveSimple(moveID, target = -1, idxMove = -1, specialUsage = true)
+00137:     choice = []
+00138:     choice[0] = :UseMove   # "Use move"
+00139:     choice[1] = idxMove    # Index of move to be used in user's moveset
+00140:     if idxMove >= 0
+00141:       choice[2] = @moves[idxMove]
+00142:     else
+00143:       choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(moveID))
+00144:       choice[2].pp = -1
+00145:     end
+00146:     choice[3] = target     # Target (-1 means no target yet)
+00147:     PBDebug.log("[Use move] #{pbThis} used the called/simple move #{choice[2].name}")
+00148:     pbUseMove(choice, specialUsage)
+00149:   end
+00150: 
+00151:   #=============================================================================
+00152:   # Master "use move" method
+00153:   #=============================================================================
+00154:   def pbUseMove(choice, specialUsage = false)
+00155:     # NOTE: This is intentionally determined before a multi-turn attack can
+00156:     #       set specialUsage to true.
+00157:     skipAccuracyCheck = (specialUsage && choice[2] != @battle.struggle)
+00158:     # Start using the move
+00159:     pbBeginTurn(choice)
+00160:     # Force the use of certain moves if they're already being used
+00161:     if !@battle.futureSight
+00162:       if usingMultiTurnAttack?
+00163:         choice[2] = Battle::Move.from_pokemon_move(@battle, Pokemon::Move.new(@currentMove))
+00164:         specialUsage = true
+00165:       elsif @effects[PBEffects::Encore] > 0 && choice[1] >= 0 &&
+00166:             @battle.pbCanShowCommands?(@index)
+00167:         idxEncoredMove = pbEncoredMoveIndex
+00168:         if idxEncoredMove >= 0 && choice[1] != idxEncoredMove &&
+00169:            @battle.pbCanChooseMove?(@index, idxEncoredMove, false)   # Change move if battler was Encored mid-round
+00170:           choice[1] = idxEncoredMove
+00171:           choice[2] = @moves[idxEncoredMove]
+00172:           choice[3] = -1   # No target chosen
+00173:         end
+00174:       end
+00175:     end
+00176:     # Labels the move being used as "move"
+00177:     move = choice[2]
+00178:     return if !move   # if move was not chosen somehow
+00179:     # Try to use the move (inc. disobedience)
+00180:     @lastMoveFailed = false
+00181:     if !pbTryUseMove(choice, move, specialUsage, skipAccuracyCheck)
+00182:       @lastMoveUsed     = nil
+00183:       @lastMoveUsedType = nil
+00184:       if !specialUsage
+00185:         @lastRegularMoveUsed   = nil
+00186:         @lastRegularMoveTarget = -1
+00187:       end
+00188:       @battle.pbGainExp   # In case self is KO'd due to confusion
+00189:       pbCancelMoves
+00190:       pbEndTurn(choice)
+00191:       return
+00192:     end
+00193:     move = choice[2]   # In case disobedience changed the move to be used
+00194:     return if !move   # if move was not chosen somehow
+00195:     # Subtract PP
+00196:     if !specialUsage && !pbReducePP(move)
+00197:       @battle.pbDisplay(_INTL("{1} used {2}!", pbThis, move.name))
+00198:       @battle.pbDisplay(_INTL("But there was no PP left for the move!"))
+00199:       @lastMoveUsed          = nil
+00200:       @lastMoveUsedType      = nil
+00201:       @lastRegularMoveUsed   = nil
+00202:       @lastRegularMoveTarget = -1
+00203:       @lastMoveFailed        = true
+00204:       pbCancelMoves
+00205:       pbEndTurn(choice)
+00206:       return
+00207:     end
+00208:     # Stance Change
+00209:     if isSpecies?(:AEGISLASH) && self.ability == :STANCECHANGE
+00210:       if move.damagingMove?
+00211:         pbChangeForm(1, _INTL("{1} changed to Blade Forme!", pbThis))
+00212:       elsif move.id == :KINGSSHIELD
+00213:         pbChangeForm(0, _INTL("{1} changed to Shield Forme!", pbThis))
+00214:       end
+00215:     end
+00216:     # Calculate the move's type during this usage
+00217:     move.calcType = move.pbCalcType(self)
+00218:     # Start effect of Mold Breaker
+00219:     @battle.moldBreaker = hasMoldBreaker?
+00220:     # Remember that user chose a two-turn move
+00221:     if move.pbIsChargingTurn?(self)
+00222:       # Beginning the use of a two-turn attack
+00223:       @effects[PBEffects::TwoTurnAttack] = move.id
+00224:       @currentMove = move.id
+00225:     else
+00226:       @effects[PBEffects::TwoTurnAttack] = nil   # Cancel use of two-turn attack
+00227:     end
+00228:     # Add to counters for moves which increase them when used in succession
+00229:     move.pbChangeUsageCounters(self, specialUsage)
+00230:     # Charge up Metronome item
+00231:     if hasActiveItem?(:METRONOME) && !move.callsAnotherMove?
+00232:       if @lastMoveUsed && @lastMoveUsed == move.id && !@lastMoveFailed
+00233:         @effects[PBEffects::Metronome] += 1
+00234:       else
+00235:         @effects[PBEffects::Metronome] = 0
+00236:       end
+00237:     end
+00238:     # Record move as having been used
+00239:     @lastMoveUsed     = move.id
+00240:     @lastMoveUsedType = move.calcType   # For Conversion 2
+00241:     if !specialUsage
+00242:       @lastRegularMoveUsed   = move.id   # For Disable, Encore, Instruct, Mimic, Mirror Move, Sketch, Spite
+00243:       @lastRegularMoveTarget = choice[3]   # For Instruct (remembering original target is fine)
+00244:       @movesUsed.push(move.id) if !@movesUsed.include?(move.id)   # For Last Resort
+00245:     end
+00246:     @battle.lastMoveUsed = move.id   # For Copycat
+00247:     @battle.lastMoveUser = @index   # For "self KO" battle clause to avoid draws
+00248:     @battle.successStates[@index].useState = 1   # Battle Arena - assume failure
+00249:     # Find the default user (self or Snatcher) and target(s)
+00250:     user = pbFindUser(choice, move)

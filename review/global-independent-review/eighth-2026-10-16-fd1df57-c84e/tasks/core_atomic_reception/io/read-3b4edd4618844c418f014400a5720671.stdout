@@ -1,0 +1,148 @@
+00801:       "TransformUserIntoTarget",                       # Transform
+00802:       # Moves that call other moves (see also below)
+00803:       "UseLastMoveUsedByTarget"                        # Mirror Move
+00804:     ]
+00805:     if Settings::MECHANICS_GENERATION >= 7
+00806:       @moveBlacklist += [
+00807:         # Moves that call other moves
+00808: #        "UseLastMoveUsedByTarget",                    # Mirror Move   # See above
+00809:         "UseLastMoveUsed",                             # Copycat
+00810:         "UseMoveTargetIsAboutToUse",                   # Me First
+00811:         "UseMoveDependingOnEnvironment",               # Nature Power
+00812:         "UseRandomUserMoveIfAsleep",                   # Sleep Talk
+00813:         "UseRandomMoveFromUserParty",                  # Assist
+00814:         "UseRandomMove"                                # Metronome
+00815:       ]
+00816:     end
+00817:   end
+00818: 
+00819:   def pbFailsAgainstTarget?(user, target, show_message)
+00820:     if target.effects[PBEffects::Encore] > 0
+00821:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00822:       return true
+00823:     end
+00824:     if !target.lastRegularMoveUsed ||
+00825:        !GameData::Move.exists?(target.lastRegularMoveUsed) ||
+00826:        @moveBlacklist.include?(GameData::Move.get(target.lastRegularMoveUsed).function_code)
+00827:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00828:       return true
+00829:     end
+00830:     if target.effects[PBEffects::ShellTrap]
+00831:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00832:       return true
+00833:     end
+00834:     return true if pbMoveFailedAromaVeil?(user, target, show_message)
+00835:     canEncore = false
+00836:     target.eachMove do |m|
+00837:       next if m.id != target.lastRegularMoveUsed
+00838:       next if m.pp == 0 && m.total_pp > 0
+00839:       canEncore = true
+00840:       break
+00841:     end
+00842:     if !canEncore
+00843:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00844:       return true
+00845:     end
+00846:     return false
+00847:   end
+00848: 
+00849:   def pbEffectAgainstTarget(user, target)
+00850:     target.effects[PBEffects::Encore]     = 4
+00851:     target.effects[PBEffects::EncoreMove] = target.lastRegularMoveUsed
+00852:     @battle.pbDisplay(_INTL("{1} received an encore!", target.pbThis))
+00853:     target.pbItemStatusCureCheck
+00854:   end
+00855: end
+00856: 
+00857: #===============================================================================
+00858: # For 4 rounds, disables the target's non-damaging moves. (Taunt)
+00859: #===============================================================================
+00860: class Battle::Move::DisableTargetStatusMoves < Battle::Move
+00861:   def ignoresSubstitute?(user); return true; end
+00862:   def canMagicCoat?;            return true; end
+00863: 
+00864:   def pbFailsAgainstTarget?(user, target, show_message)
+00865:     if target.effects[PBEffects::Taunt] > 0
+00866:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00867:       return true
+00868:     end
+00869:     return true if pbMoveFailedAromaVeil?(user, target, show_message)
+00870:     if Settings::MECHANICS_GENERATION >= 6 && target.hasActiveAbility?(:OBLIVIOUS) &&
+00871:        !@battle.moldBreaker
+00872:       if show_message
+00873:         @battle.pbShowAbilitySplash(target)
+00874:         if Battle::Scene::USE_ABILITY_SPLASH
+00875:           @battle.pbDisplay(_INTL("But it failed!"))
+00876:         else
+00877:           @battle.pbDisplay(_INTL("But it failed because of {1}'s {2}!",
+00878:                                   target.pbThis(true), target.abilityName))
+00879:         end
+00880:         @battle.pbHideAbilitySplash(target)
+00881:       end
+00882:       return true
+00883:     end
+00884:     return false
+00885:   end
+00886: 
+00887:   def pbEffectAgainstTarget(user, target)
+00888:     target.effects[PBEffects::Taunt] = 4
+00889:     @battle.pbDisplay(_INTL("{1} fell for the taunt!", target.pbThis))
+00890:     target.pbItemStatusCureCheck
+00891:   end
+00892: end
+00893: 
+00894: #===============================================================================
+00895: # For 5 rounds, disables the target's healing moves. (Heal Block)
+00896: #===============================================================================
+00897: class Battle::Move::DisableTargetHealingMoves < Battle::Move
+00898:   def canMagicCoat?; return true; end
+00899: 
+00900:   def pbFailsAgainstTarget?(user, target, show_message)
+00901:     if target.effects[PBEffects::HealBlock] > 0
+00902:       @battle.pbDisplay(_INTL("But it failed!")) if show_message
+00903:       return true
+00904:     end
+00905:     return true if pbMoveFailedAromaVeil?(user, target, show_message)
+00906:     return false
+00907:   end
+00908: 
+00909:   def pbEffectAgainstTarget(user, target)
+00910:     target.effects[PBEffects::HealBlock] = 5
+00911:     @battle.pbDisplay(_INTL("{1} was prevented from healing!", target.pbThis))
+00912:     target.pbItemStatusCureCheck
+00913:   end
+00914: end
+00915: 
+00916: #===============================================================================
+00917: # Target cannot use sound-based moves for 2 more rounds. (Throat Chop)
+00918: #===============================================================================
+00919: class Battle::Move::DisableTargetSoundMoves < Battle::Move
+00920:   def pbAdditionalEffect(user, target)
+00921:     return if target.fainted? || target.damageState.substitute
+00922:     if target.effects[PBEffects::ThroatChop] == 0
+00923:       @battle.pbDisplay(_INTL("The effects of {1} prevent {2} from using certain moves!",
+00924:                               @name, target.pbThis(true)))
+00925:     end
+00926:     target.effects[PBEffects::ThroatChop] = 3
+00927:   end
+00928: end
+00929: 
+00930: #===============================================================================
+00931: # Disables all target's moves that the user also knows. (Imprison)
+00932: #===============================================================================
+00933: class Battle::Move::DisableTargetMovesKnownByUser < Battle::Move
+00934:   def canSnatch?; return true; end
+00935: 
+00936:   def pbMoveFailed?(user, targets)
+00937:     if user.effects[PBEffects::Imprison]
+00938:       @battle.pbDisplay(_INTL("But it failed!"))
+00939:       return true
+00940:     end
+00941:     return false
+00942:   end
+00943: 
+00944:   def pbEffectGeneral(user)
+00945:     user.effects[PBEffects::Imprison] = true
+00946:     @battle.pbDisplay(_INTL("{1} sealed any moves its target shares with it!", user.pbThis))
+00947:   end
+00948: end

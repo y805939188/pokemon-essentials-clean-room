@@ -1,0 +1,679 @@
+     1	#===============================================================================
+     2	# ** Game_Picture
+     3	#-------------------------------------------------------------------------------
+     4	#  This class handles the picture. It's used within the Game_Screen class
+     5	#  ($game_screen).
+     6	#===============================================================================
+     7	class Game_Picture
+     8	  attr_reader   :number                   # picture number
+     9	  attr_reader   :name                     # file name
+    10	  attr_reader   :origin                   # starting point
+    11	  attr_reader   :x                        # x-coordinate
+    12	  attr_reader   :y                        # y-coordinate
+    13	  attr_reader   :zoom_x                   # x directional zoom rate
+    14	  attr_reader   :zoom_y                   # y directional zoom rate
+    15	  attr_reader   :opacity                  # opacity level
+    16	  attr_reader   :blend_type               # blend method
+    17	  attr_reader   :tone                     # color tone
+    18	  attr_reader   :angle                    # rotation angle
+    19	
+    20	  def initialize(number)
+    21	    @number = number
+    22	    @name = ""
+    23	    @origin = 0
+    24	    @x = 0.0
+    25	    @y = 0.0
+    26	    @zoom_x = 100.0
+    27	    @zoom_y = 100.0
+    28	    @opacity = 255.0
+    29	    @blend_type = 1
+    30	    @duration = 0
+    31	    @move_timer_start = nil
+    32	    @target_x = @x
+    33	    @target_y = @y
+    34	    @target_zoom_x = @zoom_x
+    35	    @target_zoom_y = @zoom_y
+    36	    @target_opacity = @opacity
+    37	    @tone = Tone.new(0, 0, 0, 0)
+    38	    @tone_target = Tone.new(0, 0, 0, 0)
+    39	    @tone_duration = 0
+    40	    @tone_timer_start = nil
+    41	    @angle = 0
+    42	    @rotate_speed = 0
+    43	  end
+    44	
+    45	  # Show Picture
+    46	  #     name       : file name
+    47	  #     origin     : starting point
+    48	  #     x          : x-coordinate
+    49	  #     y          : y-coordinate
+    50	  #     zoom_x     : x directional zoom rate
+    51	  #     zoom_y     : y directional zoom rate
+    52	  #     opacity    : opacity level
+    53	  #     blend_type : blend method
+    54	  def show(name, origin, x, y, zoom_x, zoom_y, opacity, blend_type)
+    55	    @name = name
+    56	    @origin = origin
+    57	    @x = x.to_f
+    58	    @y = y.to_f
+    59	    @zoom_x = zoom_x.to_f
+    60	    @zoom_y = zoom_y.to_f
+    61	    @opacity = opacity.to_f
+    62	    @blend_type = blend_type || 0
+    63	    @duration = 0
+    64	    @target_x = @x
+    65	    @target_y = @y
+    66	    @target_zoom_x = @zoom_x
+    67	    @target_zoom_y = @zoom_y
+    68	    @target_opacity = @opacity
+    69	    @tone = Tone.new(0, 0, 0, 0)
+    70	    @tone_target = Tone.new(0, 0, 0, 0)
+    71	    @tone_duration = 0
+    72	    @tone_timer_start = nil
+    73	    @angle = 0
+    74	    @rotate_speed = 0
+    75	  end
+    76	
+    77	  # Move Picture
+    78	  #     duration   : time in 1/20ths of a second
+    79	  #     origin     : starting point
+    80	  #     x          : x-coordinate
+    81	  #     y          : y-coordinate
+    82	  #     zoom_x     : x directional zoom rate
+    83	  #     zoom_y     : y directional zoom rate
+    84	  #     opacity    : opacity level
+    85	  #     blend_type : blend method
+    86	  def move(duration, origin, x, y, zoom_x, zoom_y, opacity, blend_type)
+    87	    @duration         = duration / 20.0
+    88	    @origin           = origin
+    89	    @initial_x        = @x
+    90	    @initial_y        = @y
+    91	    @target_x         = x.to_f
+    92	    @target_y         = y.to_f
+    93	    @initial_zoom_x   = @zoom_x
+    94	    @initial_zoom_y   = @zoom_y
+    95	    @target_zoom_x    = zoom_x.to_f
+    96	    @target_zoom_y    = zoom_y.to_f
+    97	    @initial_opacity  = @opacity
+    98	    @target_opacity   = opacity.to_f
+    99	    @blend_type       = blend_type || 0
+   100	    @move_timer_start = $stats.play_time
+   101	  end
+   102	
+   103	  # Change Rotation Speed
+   104	  #     speed : rotation speed (degrees to change per 1/20th of a second)
+   105	  def rotate(speed)
+   106	    @rotate_timer = (speed == 0) ? nil : System.uptime   # Time since last frame
+   107	    @rotate_speed = speed
+   108	  end
+   109	
+   110	  # Start Change of Color Tone
+   111	  #     tone     : color tone
+   112	  #     duration : time in 1/20ths of a second
+   113	  def start_tone_change(tone, duration)
+   114	    if duration == 0
+   115	      @tone = tone.clone
+   116	      return
+   117	    end
+   118	    @tone_initial = @tone.clone
+   119	    @tone_target = tone.clone
+   120	    @tone_duration = duration / 20.0
+   121	    @tone_timer_start = $stats.play_time
+   122	  end
+   123	
+   124	  def erase
+   125	    @name = ""
+   126	  end
+   127	
+   128	  def update
+   129	    return if @name == ""
+   130	    now = $stats.play_time
+   131	    if @move_timer_start
+   132	      @x = lerp(@initial_x, @target_x, @duration, @move_timer_start, now)
+   133	      @y = lerp(@initial_y, @target_y, @duration, @move_timer_start, now)
+   134	      @zoom_x = lerp(@initial_zoom_x, @target_zoom_x, @duration, @move_timer_start, now)
+   135	      @zoom_y = lerp(@initial_zoom_y, @target_zoom_y, @duration, @move_timer_start, now)
+   136	      @opacity = lerp(@initial_opacity, @target_opacity, @duration, @move_timer_start, now)
+   137	      if now - @move_timer_start >= @duration
+   138	        @initial_x        = nil
+   139	        @initial_y        = nil
+   140	        @initial_zoom_x   = nil
+   141	        @initial_zoom_y   = nil
+   142	        @initial_opacity  = nil
+   143	        @move_timer_start = nil
+   144	      end
+   145	    end
+   146	    if @tone_timer_start
+   147	      @tone.red = lerp(@tone_initial.red, @tone_target.red, @tone_duration, @tone_timer_start, now)
+   148	      @tone.green = lerp(@tone_initial.green, @tone_target.green, @tone_duration, @tone_timer_start, now)
+   149	      @tone.blue = lerp(@tone_initial.blue, @tone_target.blue, @tone_duration, @tone_timer_start, now)
+   150	      @tone.gray = lerp(@tone_initial.gray, @tone_target.gray, @tone_duration, @tone_timer_start, now)
+   151	      if now - @tone_timer_start >= @tone_duration
+   152	        @tone_initial = nil
+   153	        @tone_timer_start = nil
+   154	      end
+   155	    end
+   156	    if @rotate_speed != 0
+   157	      @rotate_timer = System.uptime if !@rotate_timer
+   158	      @angle += @rotate_speed * (System.uptime - @rotate_timer) * 20.0
+   159	      @rotate_timer = System.uptime
+   160	      while @angle < 0
+   161	        @angle += 360
+   162	      end
+   163	      @angle %= 360
+   164	    end
+   165	  end
+   166	end
+     1	class Sprite_Picture
+     2	  def initialize(viewport, picture)
+     3	    @viewport = viewport
+     4	    @picture = picture
+     5	    @sprite = nil
+     6	    update
+     7	  end
+     8	
+     9	  def dispose
+    10	    @sprite&.dispose
+    11	  end
+    12	
+    13	  def update
+    14	    @sprite&.update
+    15	    # If picture file name is different from current one
+    16	    if @picture_name != @picture.name
+    17	      # Remember file name to instance variables
+    18	      @picture_name = @picture.name
+    19	      # If file name is not empty
+    20	      if @picture_name != ""
+    21	        # Get picture graphic
+    22	        @sprite = IconSprite.new(0, 0, @viewport) if !@sprite
+    23	        @sprite.setBitmap("Graphics/Pictures/" + @picture_name)
+    24	      end
+    25	    end
+    26	    # If file name is empty
+    27	    if @picture_name == ""
+    28	      # Set sprite to invisible
+    29	      if @sprite
+    30	        @sprite&.dispose
+    31	        @sprite = nil
+    32	      end
+    33	      return
+    34	    end
+    35	    # Set sprite to visible
+    36	    @sprite.visible = true
+    37	    # Set transfer starting point
+    38	    if @picture.origin == 0
+    39	      @sprite.ox = 0
+    40	      @sprite.oy = 0
+    41	    else
+    42	      @sprite.ox = @sprite.bitmap.width / 2
+    43	      @sprite.oy = @sprite.bitmap.height / 2
+    44	    end
+    45	    # Set sprite coordinates
+    46	    @sprite.x = @picture.x
+    47	    @sprite.y = @picture.y
+    48	    @sprite.z = @picture.number
+    49	    # Set zoom rate, opacity level, and blend method
+    50	    @sprite.zoom_x = @picture.zoom_x / 100.0
+    51	    @sprite.zoom_y = @picture.zoom_y / 100.0
+    52	    @sprite.opacity = @picture.opacity
+    53	    @sprite.blend_type = @picture.blend_type
+    54	    # Set rotation angle and color tone
+    55	    @sprite.angle = @picture.angle
+    56	    @sprite.tone = @picture.tone
+    57	  end
+    58	end
+     1	class Sprite_Timer
+     2	  def initialize(viewport = nil)
+     3	    @viewport = viewport
+     4	    @timer = nil
+     5	    @total_sec = nil
+     6	    @disposed = false
+     7	  end
+     8	
+     9	  def dispose
+    10	    @timer&.dispose
+    11	    @timer = nil
+    12	    @disposed = true
+    13	  end
+    14	
+    15	  def disposed?
+    16	    @disposed
+    17	  end
+    18	
+    19	  def update
+    20	    return if disposed?
+    21	    if $game_system.timer_start
+    22	      @timer.visible = true if @timer
+    23	      if !@timer
+    24	        @timer = Window_AdvancedTextPokemon.newWithSize("", Graphics.width - 120, 0, 120, 64)
+    25	        @timer.width = @timer.borderX + 96
+    26	        @timer.x = Graphics.width - @timer.width
+    27	        @timer.viewport = @viewport
+    28	        @timer.z = 99998
+    29	      end
+    30	      curtime = $game_system.timer
+    31	      curtime = 0 if curtime < 0
+    32	      if curtime != @total_sec
+    33	        # Calculate total number of seconds
+    34	        @total_sec = curtime
+    35	        # Make a string for displaying the timer
+    36	        min = @total_sec / 60
+    37	        sec = @total_sec % 60
+    38	        @timer.text = _ISPRINTF("<ac>{1:02d}:{2:02d}", min, sec)
+    39	      end
+    40	      @timer.update
+    41	    elsif @timer
+    42	      @timer.visible = false
+    43	    end
+    44	  end
+    45	end
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class BushBitmap
+     5	  def initialize(bitmap, isTile, depth)
+     6	    @bitmaps  = []
+     7	    @bitmap   = bitmap
+     8	    @isTile   = isTile
+     9	    @isBitmap = @bitmap.is_a?(Bitmap)
+    10	    @depth    = depth
+    11	  end
+    12	
+    13	  def dispose
+    14	    @bitmaps.each { |b| b&.dispose }
+    15	  end
+    16	
+    17	  def bitmap
+    18	    thisBitmap = (@isBitmap) ? @bitmap : @bitmap.bitmap
+    19	    current = (@isBitmap) ? 0 : @bitmap.currentIndex
+    20	    if !@bitmaps[current]
+    21	      if @isTile
+    22	        @bitmaps[current] = pbBushDepthTile(thisBitmap, @depth)
+    23	      else
+    24	        @bitmaps[current] = pbBushDepthBitmap(thisBitmap, @depth)
+    25	      end
+    26	    end
+    27	    return @bitmaps[current]
+    28	  end
+    29	
+    30	  def pbBushDepthBitmap(bitmap, depth)
+    31	    ret = Bitmap.new(bitmap.width, bitmap.height)
+    32	    charheight = ret.height / 4
+    33	    cy = charheight - depth - 2
+    34	    4.times do |i|
+    35	      y = i * charheight
+    36	      if cy >= 0
+    37	        ret.blt(0, y, bitmap, Rect.new(0, y, ret.width, cy))
+    38	        ret.blt(0, y + cy, bitmap, Rect.new(0, y + cy, ret.width, 2), 170)
+    39	      end
+    40	      ret.blt(0, y + cy + 2, bitmap, Rect.new(0, y + cy + 2, ret.width, 2), 85) if cy + 2 >= 0
+    41	    end
+    42	    return ret
+    43	  end
+    44	
+    45	  def pbBushDepthTile(bitmap, depth)
+    46	    ret = Bitmap.new(bitmap.width, bitmap.height)
+    47	    charheight = ret.height
+    48	    cy = charheight - depth - 2
+    49	    y = charheight
+    50	    if cy >= 0
+    51	      ret.blt(0, y, bitmap, Rect.new(0, y, ret.width, cy))
+    52	      ret.blt(0, y + cy, bitmap, Rect.new(0, y + cy, ret.width, 2), 170)
+    53	    end
+    54	    ret.blt(0, y + cy + 2, bitmap, Rect.new(0, y + cy + 2, ret.width, 2), 85) if cy + 2 >= 0
+    55	    return ret
+    56	  end
+    57	end
+    58	
+    59	#===============================================================================
+    60	#
+    61	#===============================================================================
+    62	class Sprite_Character < RPG::Sprite
+    63	  attr_accessor :character
+    64	
+    65	  def initialize(viewport, character = nil)
+    66	    super(viewport)
+    67	    @character    = character
+    68	    @oldbushdepth = 0
+    69	    @spriteoffset = false
+    70	    if !character || character == $game_player || (character.name[/reflection/i] rescue false)
+    71	      @reflection = Sprite_Reflection.new(self, viewport)
+    72	    end
+    73	    @surfbase = Sprite_SurfBase.new(self, viewport) if character == $game_player
+    74	    self.zoom_x = TilemapRenderer::ZOOM_X
+    75	    self.zoom_y = TilemapRenderer::ZOOM_Y
+    76	    update
+    77	  end
+    78	
+    79	  def groundY
+    80	    return @character.screen_y_ground
+    81	  end
+    82	
+    83	  def visible=(value)
+    84	    super(value)
+    85	    @reflection.visible = value if @reflection
+    86	  end
+    87	
+    88	  def dispose
+    89	    @bushbitmap&.dispose
+    90	    @bushbitmap = nil
+    91	    @charbitmap&.dispose
+    92	    @charbitmap = nil
+    93	    @reflection&.dispose
+    94	    @reflection = nil
+    95	    @surfbase&.dispose
+    96	    @surfbase = nil
+    97	    @character = nil
+    98	    super
+    99	  end
+   100	
+   101	  def refresh_graphic
+   102	    return if @tile_id == @character.tile_id &&
+   103	              @character_name == @character.character_name &&
+   104	              @character_hue == @character.character_hue &&
+   105	              @oldbushdepth == @character.bush_depth
+   106	    @tile_id        = @character.tile_id
+   107	    @character_name = @character.character_name
+   108	    @character_hue  = @character.character_hue
+   109	    @oldbushdepth   = @character.bush_depth
+   110	    @charbitmap&.dispose
+   111	    @charbitmap = nil
+   112	    @bushbitmap&.dispose
+   113	    @bushbitmap = nil
+   114	    if @tile_id >= 384
+   115	      @charbitmap = pbGetTileBitmap(@character.map.tileset_name, @tile_id,
+   116	                                    @character_hue, @character.width, @character.height)
+   117	      @charbitmapAnimated = false
+   118	      @spriteoffset = false
+   119	      @cw = Game_Map::TILE_WIDTH * @character.width
+   120	      @ch = Game_Map::TILE_HEIGHT * @character.height
+   121	      self.src_rect.set(0, 0, @cw, @ch)
+   122	      self.ox = @cw / 2
+   123	      self.oy = @ch
+   124	    elsif @character_name != ""
+   125	      @charbitmap = AnimatedBitmap.new(
+   126	        "Graphics/Characters/" + @character_name, @character_hue
+   127	      )
+   128	      RPG::Cache.retain("Graphics/Characters/", @character_name, @character_hue) if @character == $game_player
+   129	      @charbitmapAnimated = true
+   130	      @spriteoffset = @character_name[/offset/i]
+   131	      @cw = @charbitmap.width / 4
+   132	      @ch = @charbitmap.height / 4
+   133	      self.ox = @cw / 2
+   134	    else
+   135	      self.bitmap = nil
+   136	      @cw = 0
+   137	      @ch = 0
+   138	    end
+   139	    @character.sprite_size = [@cw, @ch]
+   140	  end
+   141	
+   142	  def update
+   143	    return if @character.is_a?(Game_Event) && !@character.should_update?
+   144	    super
+   145	    refresh_graphic
+   146	    return if !@charbitmap
+   147	    @charbitmap.update if @charbitmapAnimated
+   148	    bushdepth = @character.bush_depth
+   149	    if bushdepth == 0
+   150	      self.bitmap = (@charbitmapAnimated) ? @charbitmap.bitmap : @charbitmap
+   151	    else
+   152	      @bushbitmap = BushBitmap.new(@charbitmap, (@tile_id >= 384), bushdepth) if !@bushbitmap
+   153	      self.bitmap = @bushbitmap.bitmap
+   154	    end
+   155	    self.visible = !@character.transparent
+   156	    if @tile_id == 0
+   157	      sx = @character.pattern * @cw
+   158	      sy = ((@character.direction - 2) / 2) * @ch
+   159	      self.src_rect.set(sx, sy, @cw, @ch)
+   160	      self.oy = (@spriteoffset rescue false) ? @ch - 16 : @ch
+   161	      self.oy -= @character.bob_height
+   162	    end
+   163	    if self.visible
+   164	      if @character.is_a?(Game_Event) && @character.name[/regulartone/i]
+   165	        self.tone.set(0, 0, 0, 0)
+   166	      else
+   167	        pbDayNightTint(self)
+   168	      end
+   169	    end
+   170	    this_x = @character.screen_x
+   171	    this_x = ((this_x - (Graphics.width / 2)) * TilemapRenderer::ZOOM_X) + (Graphics.width / 2) if TilemapRenderer::ZOOM_X != 1
+   172	    self.x = this_x
+   173	    this_y = @character.screen_y
+   174	    this_y = ((this_y - (Graphics.height / 2)) * TilemapRenderer::ZOOM_Y) + (Graphics.height / 2) if TilemapRenderer::ZOOM_Y != 1
+   175	    self.y = this_y
+   176	    self.z = @character.screen_z(@ch)
+   177	    self.opacity = @character.opacity
+   178	    self.blend_type = @character.blend_type
+   179	    if @character.animation_id != 0
+   180	      animation = $data_animations[@character.animation_id]
+   181	      animation(animation, true)
+   182	      @character.animation_id = 0
+   183	    end
+   184	    @reflection&.update
+   185	    @surfbase&.update
+   186	  end
+   187	end
+     1	class Sprite_Reflection
+     2	  attr_reader :visible
+     3	
+     4	  def initialize(parent_sprite, viewport = nil)
+     5	    @parent_sprite = parent_sprite
+     6	    @sprite = nil
+     7	    @height = 0
+     8	    @fixedheight = false
+     9	    if @parent_sprite.character && @parent_sprite.character != $game_player &&
+    10	       @parent_sprite.character.name[/reflection\((\d+)\)/i]
+    11	      @height = $~[1].to_i || 0
+    12	      @fixedheight = true
+    13	    end
+    14	    @viewport = viewport
+    15	    @disposed = false
+    16	    update
+    17	  end
+    18	
+    19	  def dispose
+    20	    return if @disposed
+    21	    @sprite&.dispose
+    22	    @sprite = nil
+    23	    @parent_sprite = nil
+    24	    @disposed = true
+    25	  end
+    26	
+    27	  def disposed?
+    28	    return @disposed
+    29	  end
+    30	
+    31	  def event
+    32	    return @parent_sprite.character
+    33	  end
+    34	
+    35	  def visible=(value)
+    36	    @visible = value
+    37	    @sprite.visible = value if @sprite && !@sprite.disposed?
+    38	  end
+    39	
+    40	  def update
+    41	    return if disposed?
+    42	    shouldShow = @parent_sprite.visible
+    43	    if !shouldShow
+    44	      # Just-in-time disposal of sprite
+    45	      if @sprite
+    46	        @sprite.dispose
+    47	        @sprite = nil
+    48	      end
+    49	      return
+    50	    end
+    51	    # Just-in-time creation of sprite
+    52	    @sprite = Sprite.new(@viewport) if !@sprite
+    53	    if @sprite
+    54	      x = @parent_sprite.x - (@parent_sprite.ox * TilemapRenderer::ZOOM_X)
+    55	      y = @parent_sprite.y - (@parent_sprite.oy * TilemapRenderer::ZOOM_Y)
+    56	      y -= Game_Map::TILE_HEIGHT * TilemapRenderer::ZOOM_Y if event.character_name[/offset/i]
+    57	      @height = $PokemonGlobal.bridge if !@fixedheight
+    58	      y += @height * TilemapRenderer::ZOOM_Y * Game_Map::TILE_HEIGHT / 2
+    59	      width  = @parent_sprite.src_rect.width
+    60	      height = @parent_sprite.src_rect.height
+    61	      @sprite.x        = x + ((width / 2) * TilemapRenderer::ZOOM_X)
+    62	      @sprite.y        = y + ((height + (height / 2)) * TilemapRenderer::ZOOM_Y)
+    63	      @sprite.ox       = width / 2
+    64	      @sprite.oy       = (height / 2) - 2   # Hard-coded 2 pixel shift up
+    65	      @sprite.oy       -= event.bob_height * 2
+    66	      @sprite.z        = -50   # Still water is -100, map is 0 and above
+    67	      @sprite.z        += 1 if event == $game_player
+    68	      @sprite.zoom_x   = @parent_sprite.zoom_x
+    69	      if Settings::ANIMATE_REFLECTIONS && !GameData::MapMetadata.try_get(event.map_id)&.still_reflections
+    70	        @sprite.zoom_x   += 0.05 * @sprite.zoom_x * Math.sin(2 * Math::PI * System.uptime)
+    71	      end
+    72	      @sprite.zoom_y   = @parent_sprite.zoom_y
+    73	      @sprite.angle    = 180.0
+    74	      @sprite.mirror   = true
+    75	      @sprite.bitmap   = @parent_sprite.bitmap
+    76	      @sprite.tone     = @parent_sprite.tone
+    77	      if @height > 0
+    78	        @sprite.color   = Color.new(48, 96, 160, 255)   # Dark still water
+    79	        @sprite.opacity = @parent_sprite.opacity
+    80	        @sprite.visible = !Settings::TIME_SHADING   # Can't time-tone a colored sprite
+    81	      else
+    82	        @sprite.color   = Color.new(224, 224, 224, 96)
+    83	        @sprite.opacity = @parent_sprite.opacity * 3 / 4
+    84	        @sprite.visible = true
+    85	      end
+    86	      @sprite.src_rect = @parent_sprite.src_rect
+    87	    end
+    88	  end
+    89	end
+     1	class Sprite_SurfBase
+     2	  attr_reader :visible
+     3	
+     4	  def initialize(parent_sprite, viewport = nil)
+     5	    @parent_sprite = parent_sprite
+     6	    @sprite = nil
+     7	    @viewport = viewport
+     8	    @disposed = false
+     9	    @surfbitmap = AnimatedBitmap.new("Graphics/Characters/base_surf")
+    10	    @divebitmap = AnimatedBitmap.new("Graphics/Characters/base_dive")
+    11	    RPG::Cache.retain("Graphics/Characters/base_surf")
+    12	    RPG::Cache.retain("Graphics/Characters/base_dive")
+    13	    @cws = @surfbitmap.width / 4
+    14	    @chs = @surfbitmap.height / 4
+    15	    @cwd = @divebitmap.width / 4
+    16	    @chd = @divebitmap.height / 4
+    17	    update
+    18	  end
+    19	
+    20	  def dispose
+    21	    return if @disposed
+    22	    @sprite&.dispose
+    23	    @sprite = nil
+    24	    @parent_sprite = nil
+    25	    @surfbitmap.dispose
+    26	    @divebitmap.dispose
+    27	    @disposed = true
+    28	  end
+    29	
+    30	  def disposed?
+    31	    return @disposed
+    32	  end
+    33	
+    34	  def event
+    35	    return @parent_sprite.character
+    36	  end
+    37	
+    38	  def visible=(value)
+    39	    @visible = value
+    40	    @sprite.visible = value if @sprite && !@sprite.disposed?
+    41	  end
+    42	
+    43	  def update
+    44	    return if disposed?
+    45	    if !$PokemonGlobal.surfing && !$PokemonGlobal.diving
+    46	      # Just-in-time disposal of sprite
+    47	      if @sprite
+    48	        @sprite.dispose
+    49	        @sprite = nil
+    50	      end
+    51	      return
+    52	    end
+    53	    # Just-in-time creation of sprite
+    54	    @sprite = Sprite.new(@viewport) if !@sprite
+    55	    return if !@sprite
+    56	    if $PokemonGlobal.surfing
+    57	      @sprite.bitmap = @surfbitmap.bitmap
+    58	      cw = @cws
+    59	      ch = @chs
+    60	    elsif $PokemonGlobal.diving
+    61	      @sprite.bitmap = @divebitmap.bitmap
+    62	      cw = @cwd
+    63	      ch = @chd
+    64	    end
+    65	    sx = event.pattern_surf * cw
+    66	    sy = ((event.direction - 2) / 2) * ch
+    67	    @sprite.src_rect.set(sx, sy, cw, ch)
+    68	    if $game_temp.surf_base_coords
+    69	      spr_x = ((($game_temp.surf_base_coords[0] * Game_Map::REAL_RES_X) - event.map.display_x).to_f / Game_Map::X_SUBPIXELS).round
+    70	      spr_x += (Game_Map::TILE_WIDTH / 2)
+    71	      spr_x = ((spr_x - (Graphics.width / 2)) * TilemapRenderer::ZOOM_X) + (Graphics.width / 2) if TilemapRenderer::ZOOM_X != 1
+    72	      @sprite.x = spr_x
+    73	      spr_y = ((($game_temp.surf_base_coords[1] * Game_Map::REAL_RES_Y) - event.map.display_y).to_f / Game_Map::Y_SUBPIXELS).round
+    74	      spr_y += (Game_Map::TILE_HEIGHT / 2) + 16
+    75	      spr_y = ((spr_y - (Graphics.height / 2)) * TilemapRenderer::ZOOM_Y) + (Graphics.height / 2) if TilemapRenderer::ZOOM_Y != 1
+    76	      @sprite.y = spr_y
+    77	    else
+    78	      @sprite.x = @parent_sprite.x
+    79	      @sprite.y = @parent_sprite.y
+    80	    end
+    81	    @sprite.ox      = cw / 2
+    82	    @sprite.oy      = ch - 16   # Assume base needs offsetting
+    83	    @sprite.oy      -= event.bob_height
+    84	    @sprite.z       = event.screen_z(ch) - 1
+    85	    @sprite.zoom_x  = @parent_sprite.zoom_x
+    86	    @sprite.zoom_y  = @parent_sprite.zoom_y
+    87	    @sprite.tone    = @parent_sprite.tone
+    88	    @sprite.color   = @parent_sprite.color
+    89	    @sprite.opacity = @parent_sprite.opacity
+    90	  end
+    91	end
+     1	module ScreenPosHelper
+     2	  def self.pbScreenZoomX(ch)
+     3	    return Game_Map::TILE_WIDTH / 32.0
+     4	  end
+     5	
+     6	  def self.pbScreenZoomY(ch)
+     7	    return Game_Map::TILE_HEIGHT / 32.0
+     8	  end
+     9	
+    10	  def self.pbScreenX(ch)
+    11	    return ch.screen_x
+    12	  end
+    13	
+    14	  def self.pbScreenY(ch)
+    15	    return ch.screen_y
+    16	  end
+    17	
+    18	  @heightcache = {}
+    19	
+    20	  def self.bmHeight(bm)
+    21	    h = @heightcache[bm]
+    22	    if !h
+    23	      bmap = AnimatedBitmap.new("Graphics/Characters/" + bm, 0)
+    24	      h = bmap.height
+    25	      @heightcache[bm] = h
+    26	      bmap.dispose
+    27	    end
+    28	    return h
+    29	  end
+    30	
+    31	  def self.pbScreenZ(ch, height = nil)
+    32	    if height.nil?
+    33	      height = 0
+    34	      if ch.tile_id > 0
+    35	        height = 32
+    36	      elsif ch.character_name != ""
+    37	        height = bmHeight(ch.character_name) / 4
+    38	      end
+    39	    end
+    40	    ret = ch.screen_z(height)
+    41	    return ret
+    42	  end
+    43	end

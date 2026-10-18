@@ -1,0 +1,762 @@
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class SpriteAnimation
+     5	  @@_animations      = []
+     6	  @@_reference_count = {}
+     7	
+     8	  def initialize(sprite)
+     9	    @sprite = sprite
+    10	  end
+    11	
+    12	  def x(*arg);        @sprite.x(*arg);        end
+    13	  def y(*arg);        @sprite.y(*arg);        end
+    14	  def ox(*arg);       @sprite.ox(*arg);       end
+    15	  def oy(*arg);       @sprite.oy(*arg);       end
+    16	  def viewport(*arg); @sprite.viewport(*arg); end
+    17	  def flash(*arg);    @sprite.flash(*arg);    end
+    18	  def src_rect(*arg); @sprite.src_rect(*arg); end
+    19	  def opacity(*arg);  @sprite.opacity(*arg);  end
+    20	  def tone(*arg);     @sprite.tone(*arg);     end
+    21	
+    22	  def self.clear
+    23	    @@_animations.clear
+    24	  end
+    25	
+    26	  def dispose
+    27	    dispose_animation
+    28	    dispose_loop_animation
+    29	  end
+    30	
+    31	  def animation(animation, hit, height = 3)
+    32	    dispose_animation
+    33	    @_animation = animation
+    34	    return if @_animation.nil?
+    35	    @_animation_hit      = hit
+    36	    @_animation_height   = height
+    37	    @_animation_duration = @_animation.frame_max
+    38	    @_animation_index    = -1
+    39	    fr = 20
+    40	    if @_animation.name[/\[\s*(\d+?)\s*\]\s*$/]
+    41	      fr = $~[1].to_i
+    42	    end
+    43	    @_animation_time_per_frame = 1.0 / fr
+    44	    @_animation_timer_start = System.uptime
+    45	    animation_name = @_animation.animation_name
+    46	    animation_hue  = @_animation.animation_hue
+    47	    bitmap = pbGetAnimation(animation_name, animation_hue)
+    48	    if @@_reference_count.include?(bitmap)
+    49	      @@_reference_count[bitmap] += 1
+    50	    else
+    51	      @@_reference_count[bitmap] = 1
+    52	    end
+    53	    @_animation_sprites = []
+    54	    if @_animation.position != 3 || !@@_animations.include?(animation)
+    55	      16.times do
+    56	        sprite = ::Sprite.new(self.viewport)
+    57	        sprite.bitmap = bitmap
+    58	        sprite.visible = false
+    59	        @_animation_sprites.push(sprite)
+    60	      end
+    61	      @@_animations.push(animation) unless @@_animations.include?(animation)
+    62	    end
+    63	    update_animation
+    64	  end
+    65	
+    66	  def loop_animation(animation)
+    67	    return if animation == @_loop_animation
+    68	    dispose_loop_animation
+    69	    @_loop_animation = animation
+    70	    return if @_loop_animation.nil?
+    71	    @_loop_animation_duration = @_animation.frame_max
+    72	    @_loop_animation_index = -1
+    73	    fr = 20
+    74	    if @_animation.name[/\[\s*(\d+?)\s*\]\s*$/]
+    75	      fr = $~[1].to_i
+    76	    end
+    77	    @_loop_animation_time_per_frame = 1.0 / fr
+    78	    @_loop_animation_timer_start = System.uptime
+    79	    animation_name = @_loop_animation.animation_name
+    80	    animation_hue  = @_loop_animation.animation_hue
+    81	    bitmap = pbGetAnimation(animation_name, animation_hue)
+    82	    if @@_reference_count.include?(bitmap)
+    83	      @@_reference_count[bitmap] += 1
+    84	    else
+    85	      @@_reference_count[bitmap] = 1
+    86	    end
+    87	    @_loop_animation_sprites = []
+    88	    16.times do
+    89	      sprite = ::Sprite.new(self.viewport)
+    90	      sprite.bitmap = bitmap
+    91	      sprite.visible = false
+    92	      @_loop_animation_sprites.push(sprite)
+    93	    end
+    94	    update_loop_animation
+    95	  end
+    96	
+    97	  def dispose_animation
+    98	    return if @_animation_sprites.nil?
+    99	    sprite = @_animation_sprites[0]
+   100	    if sprite
+   101	      @@_reference_count[sprite.bitmap] -= 1
+   102	      sprite.bitmap.dispose if @@_reference_count[sprite.bitmap] == 0
+   103	    end
+   104	    @_animation_sprites.each { |s| s.dispose }
+   105	    @_animation_sprites = nil
+   106	    @_animation = nil
+   107	    @_animation_duration = 0
+   108	  end
+   109	
+   110	  def dispose_loop_animation
+   111	    return if @_loop_animation_sprites.nil?
+   112	    sprite = @_loop_animation_sprites[0]
+   113	    if sprite
+   114	      @@_reference_count[sprite.bitmap] -= 1
+   115	      sprite.bitmap.dispose if @@_reference_count[sprite.bitmap] == 0
+   116	    end
+   117	    @_loop_animation_sprites.each { |s| s.dispose }
+   118	    @_loop_animation_sprites = nil
+   119	    @_loop_animation = nil
+   120	  end
+   121	
+   122	  def active?
+   123	    return @_loop_animation_sprites || @_animation_sprites
+   124	  end
+   125	
+   126	  def effect?
+   127	    return @_animation_duration > 0
+   128	  end
+   129	
+   130	  def update
+   131	    update_animation if @_animation
+   132	    update_loop_animation if @_loop_animation
+   133	  end
+   134	
+   135	  def update_animation
+   136	    new_index = ((System.uptime - @_animation_timer_start) / @_animation_time_per_frame).to_i
+   137	    if new_index >= @_animation_duration
+   138	      dispose_animation
+   139	      return
+   140	    end
+   141	    quick_update = (@_animation_index == new_index)
+   142	    @_animation_index = new_index
+   143	    frame_index = @_animation_index
+   144	    cell_data   = @_animation.frames[frame_index].cell_data
+   145	    position    = @_animation.position
+   146	    animation_set_sprites(@_animation_sprites, cell_data, position, quick_update)
+   147	    return if quick_update
+   148	    @_animation.timings.each do |timing|
+   149	      next if timing.frame != frame_index
+   150	      animation_process_timing(timing, @_animation_hit)
+   151	    end
+   152	  end
+   153	
+   154	  def update_loop_animation
+   155	    new_index = ((System.uptime - @_loop_animation_timer_start) / @_loop_animation_time_per_frame).to_i
+   156	    new_index %= @_loop_animation_duration
+   157	    quick_update = (@_loop_animation_index == new_index)
+   158	    @_loop_animation_index = new_index
+   159	    frame_index = @_loop_animation_index
+   160	    cell_data   = @_loop_animation.frames[frame_index].cell_data
+   161	    position    = @_loop_animation.position
+   162	    animation_set_sprites(@_loop_animation_sprites, cell_data, position, quick_update)
+   163	    return if quick_update
+   164	    @_loop_animation.timings.each do |timing|
+   165	      next if timing.frame != frame_index
+   166	      animation_process_timing(timing, true)
+   167	    end
+   168	  end
+   169	
+   170	  def animation_set_sprites(sprites, cell_data, position, quick_update = false)
+   171	    sprite_x = 320
+   172	    sprite_y = 240
+   173	    if position == 3   # Screen
+   174	      if self.viewport
+   175	        sprite_x = self.viewport.rect.width / 2
+   176	        sprite_y = self.viewport.rect.height - 160
+   177	      end
+   178	    else
+   179	      sprite_x = self.x - self.ox + (self.src_rect.width / 2)
+   180	      sprite_y = self.y - self.oy
+   181	      if self.src_rect.height > 1
+   182	        sprite_y += self.src_rect.height / 2 if position == 1   # Middle
+   183	        sprite_y += self.src_rect.height if position == 2   # Bottom
+   184	      end
+   185	    end
+   186	    16.times do |i|
+   187	      sprite = sprites[i]
+   188	      pattern = cell_data[i, 0]
+   189	      if sprite.nil? || pattern.nil? || pattern == -1
+   190	        sprite.visible = false if sprite
+   191	        next
+   192	      end
+   193	      sprite.x = sprite_x + cell_data[i, 1]
+   194	      sprite.y = sprite_y + cell_data[i, 2]
+   195	      next if quick_update
+   196	      sprite.visible = true
+   197	      sprite.src_rect.set((pattern % 5) * 192, (pattern / 5) * 192, 192, 192)
+   198	      case @_animation_height
+   199	      when 0 then sprite.z = 1
+   200	      when 1 then sprite.z = sprite.y + (Game_Map::TILE_HEIGHT * 3 / 2) + 1
+   201	      when 2 then sprite.z = sprite.y + (Game_Map::TILE_HEIGHT * 3) + 1
+   202	      else        sprite.z = 2000
+   203	      end
+   204	      sprite.ox         = 96
+   205	      sprite.oy         = 96
+   206	      sprite.zoom_x     = cell_data[i, 3] / 100.0
+   207	      sprite.zoom_y     = cell_data[i, 3] / 100.0
+   208	      sprite.angle      = cell_data[i, 4]
+   209	      sprite.mirror     = (cell_data[i, 5] == 1)
+   210	      sprite.tone       = self.tone
+   211	      sprite.opacity    = cell_data[i, 6] * self.opacity / 255.0
+   212	      sprite.blend_type = cell_data[i, 7]
+   213	    end
+   214	  end
+   215	
+   216	  def animation_process_timing(timing, hit)
+   217	    if timing.condition == 0 ||
+   218	       (timing.condition == 1 && hit == true) ||
+   219	       (timing.condition == 2 && hit == false)
+   220	      if timing.se.name != ""
+   221	        se = timing.se
+   222	        pbSEPlay(se)
+   223	      end
+   224	      case timing.flash_scope
+   225	      when 1
+   226	        self.flash(timing.flash_color, timing.flash_duration * 2)
+   227	      when 2
+   228	        self.viewport.flash(timing.flash_color, timing.flash_duration * 2) if self.viewport
+   229	      when 3
+   230	        self.flash(nil, timing.flash_duration * 2)
+   231	      end
+   232	    end
+   233	  end
+   234	
+   235	  def x=(x)
+   236	    sx = x - self.x
+   237	    return if sx == 0
+   238	    if @_animation_sprites
+   239	      16.times { |i| @_animation_sprites[i].x += sx }
+   240	    end
+   241	    if @_loop_animation_sprites
+   242	      16.times { |i| @_loop_animation_sprites[i].x += sx }
+   243	    end
+   244	  end
+   245	
+   246	  def y=(y)
+   247	    sy = y - self.y
+   248	    return if sy == 0
+   249	    if @_animation_sprites
+   250	      16.times { |i| @_animation_sprites[i].y += sy }
+   251	    end
+   252	    if @_loop_animation_sprites
+   253	      16.times { |i| @_loop_animation_sprites[i].y += sy }
+   254	    end
+   255	  end
+   256	end
+   257	
+   258	#===============================================================================
+   259	# A sprite whose sole purpose is to display an animation (a SpriteAnimation).
+   260	# This sprite can be displayed anywhere on the map and is disposed automatically
+   261	# when its animation is finished. Used for grass rustling and so forth.
+   262	#===============================================================================
+   263	class AnimationContainerSprite < RPG::Sprite
+   264	  def initialize(animID, map, tileX, tileY, viewport = nil, tinting = false, height = 3)
+   265	    super(viewport)
+   266	    @tileX = tileX
+   267	    @tileY = tileY
+   268	    @map = map
+   269	    setCoords
+   270	    pbDayNightTint(self) if tinting
+   271	    self.animation($data_animations[animID], true, height)
+   272	  end
+   273	
+   274	  def setCoords
+   275	    self.x = (((@tileX * Game_Map::REAL_RES_X) - @map.display_x) / Game_Map::X_SUBPIXELS).ceil
+   276	    self.x += Game_Map::TILE_WIDTH / 2
+   277	    self.y = (((@tileY * Game_Map::REAL_RES_Y) - @map.display_y) / Game_Map::Y_SUBPIXELS).ceil
+   278	    self.y += Game_Map::TILE_HEIGHT
+   279	  end
+   280	
+   281	  def update
+   282	    return if disposed?
+   283	    setCoords
+   284	    super
+   285	    dispose if !effect?
+   286	  end
+   287	end
+   288	
+   289	#===============================================================================
+   290	#
+   291	#===============================================================================
+   292	class Spriteset_Map
+   293	  attr_reader :usersprites
+   294	
+   295	  alias _animationSprite_initialize initialize unless private_method_defined?(:_animationSprite_initialize)
+   296	  alias _animationSprite_update update unless method_defined?(:_animationSprite_update)
+   297	  alias _animationSprite_dispose dispose unless method_defined?(:_animationSprite_dispose)
+   298	
+   299	  def initialize(map = nil)
+   300	    @usersprites = []
+   301	    _animationSprite_initialize(map)
+   302	  end
+   303	
+   304	  def addUserAnimation(animID, x, y, tinting = false, height = 3)
+   305	    sprite = AnimationContainerSprite.new(animID, self.map, x, y, @@viewport1, tinting, height)
+   306	    addUserSprite(sprite)
+   307	    return sprite
+   308	  end
+   309	
+   310	  def addUserSprite(new_sprite)
+   311	    @usersprites.each_with_index do |sprite, i|
+   312	      next if sprite && !sprite.disposed?
+   313	      @usersprites[i] = new_sprite
+   314	      return
+   315	    end
+   316	    @usersprites.push(new_sprite)
+   317	  end
+   318	
+   319	  def dispose
+   320	    _animationSprite_dispose
+   321	    @usersprites.each { |sprite| sprite.dispose }
+   322	    @usersprites.clear
+   323	  end
+   324	
+   325	  def update
+   326	    @@viewport3.tone.set(0, 0, 0, 0)
+   327	    _animationSprite_update
+   328	    @usersprites.each { |sprite| sprite.update if !sprite.disposed? }
+   329	    @usersprites.delete_if { |sprite| sprite.disposed? }
+   330	  end
+   331	end
+     1	#===============================================================================
+     2	# Sprite_Shadow (Sprite_Ombre )
+     3	# Based on Genzai Kawakami's shadows, dynamisme & features by Rataime, extra
+     4	# features Boushy
+     5	# Modified by Peter O. to be compatible with Pokémon Essentials
+     6	#===============================================================================
+     7	class Sprite_Shadow < RPG::Sprite
+     8	  attr_accessor :character
+     9	
+    10	  def initialize(viewport, character = nil, params = [])
+    11	    super(viewport)
+    12	    @source       = params[0]
+    13	    @anglemin     = (params.size > 1) ? params[1] : 0
+    14	    @anglemax     = (params.size > 2) ? params[2] : 0
+    15	    @self_opacity = (params.size > 4) ? params[4] : 100
+    16	    @distancemax  = (params.size > 3) ? params[3] : 350
+    17	    @character    = character
+    18	    update
+    19	  end
+    20	
+    21	  def dispose
+    22	    @chbitmap&.dispose
+    23	    super
+    24	  end
+    25	
+    26	  def update
+    27	    if !in_range?(@character, @source, @distancemax)
+    28	      self.opacity = 0
+    29	      return
+    30	    end
+    31	    super
+    32	    if @tile_id != @character.tile_id ||
+    33	       @character_name != @character.character_name ||
+    34	       @character_hue != @character.character_hue
+    35	      @tile_id        = @character.tile_id
+    36	      @character_name = @character.character_name
+    37	      @character_hue  = @character.character_hue
+    38	      @chbitmap&.dispose
+    39	      if @tile_id >= 384
+    40	        @chbitmap = pbGetTileBitmap(@character.map.tileset_name,
+    41	                                    @tile_id, @character.character_hue)
+    42	        self.src_rect.set(0, 0, 32, 32)
+    43	        @ch = 32
+    44	        @cw = 32
+    45	        self.ox = 16
+    46	        self.oy = 32
+    47	      else
+    48	        @chbitmap = AnimatedBitmap.new("Graphics/Characters/" + @character.character_name,
+    49	                                       @character.character_hue)
+    50	        @cw = @chbitmap.width / 4
+    51	        @ch = @chbitmap.height / 4
+    52	        self.ox = @cw / 2
+    53	        self.oy = @ch
+    54	      end
+    55	    end
+    56	    if @chbitmap.is_a?(AnimatedBitmap)
+    57	      @chbitmap.update
+    58	      self.bitmap = @chbitmap.bitmap
+    59	    else
+    60	      self.bitmap = @chbitmap
+    61	    end
+    62	    self.visible = !@character.transparent
+    63	    if @tile_id == 0
+    64	      sx = @character.pattern * @cw
+    65	      sy = (@character.direction - 2) / 2 * @ch
+    66	      if self.angle > 90 || angle < -90
+    67	        case @character.direction
+    68	        when 2 then sy = @ch * 3
+    69	        when 4 then sy = @ch * 2
+    70	        when 6 then sy = @ch
+    71	        when 8 then sy = 0
+    72	        end
+    73	      end
+    74	      self.src_rect.set(sx, sy, @cw, @ch)
+    75	    end
+    76	    self.x = ScreenPosHelper.pbScreenX(@character)
+    77	    self.y = ScreenPosHelper.pbScreenY(@character) - 5
+    78	    self.z = ScreenPosHelper.pbScreenZ(@character, @ch) - 1
+    79	    self.zoom_x = ScreenPosHelper.pbScreenZoomX(@character)
+    80	    self.zoom_y = ScreenPosHelper.pbScreenZoomY(@character)
+    81	    self.blend_type = @character.blend_type
+    82	    self.bush_depth = @character.bush_depth
+    83	    if @character.animation_id != 0
+    84	      animation = $data_animations[@character.animation_id]
+    85	      animation(animation, true)
+    86	      @character.animation_id = 0
+    87	    end
+    88	    @deltax = ScreenPosHelper.pbScreenX(@source) - self.x
+    89	    @deltay = ScreenPosHelper.pbScreenY(@source) - self.y
+    90	    self.color = Color.black
+    91	    @distance = ((@deltax**2) + (@deltay**2))
+    92	    self.opacity = @self_opacity * 13_000 / ((@distance * 370 / @distancemax) + 6000)
+    93	    self.angle = 57.3 * Math.atan2(@deltax, @deltay)
+    94	    @angle_trigo = self.angle + 90
+    95	    @angle_trigo += 360 if @angle_trigo < 0
+    96	    if @anglemin != 0 || @anglemax != 0
+    97	      if (@angle_trigo < @anglemin || @angle_trigo > @anglemax) && @anglemin < @anglemax
+    98	        self.opacity = 0
+    99	        return
+   100	      end
+   101	      if @angle_trigo < @anglemin && @angle_trigo > @anglemax && @anglemin > @anglemax
+   102	        self.opacity = 0
+   103	        return
+   104	      end
+   105	    end
+   106	  end
+   107	
+   108	  # From Near's Anti Lag Script, edited.
+   109	  def in_range?(element, object, range)
+   110	    elemScreenX = ScreenPosHelper.pbScreenX(element)
+   111	    elemScreenY = ScreenPosHelper.pbScreenY(element)
+   112	    objScreenX  = ScreenPosHelper.pbScreenX(object)
+   113	    objScreenY  = ScreenPosHelper.pbScreenY(object)
+   114	    x = (elemScreenX - objScreenX) * (elemScreenX - objScreenX)
+   115	    y = (elemScreenY - objScreenY) * (elemScreenY - objScreenY)
+   116	    r = x + y
+   117	    return r <= range * range
+   118	  end
+   119	end
+   120	
+   121	#===============================================================================
+   122	# ? CLASS Sprite_Character edit
+   123	#===============================================================================
+   124	class Sprite_Character < RPG::Sprite
+   125	  alias shadow_initialize initialize unless private_method_defined?(:shadow_initialize)
+   126	
+   127	  def initialize(viewport, character = nil)
+   128	    @ombrelist = []
+   129	    @character = character
+   130	    shadow_initialize(viewport, @character)
+   131	  end
+   132	
+   133	  def setShadows(map, shadows)
+   134	    if character.is_a?(Game_Event) && shadows.length > 0
+   135	      params = XPML_read(map, "Shadow", @character, 4)
+   136	      if params
+   137	        shadows.each do |shadow|
+   138	          @ombrelist.push(Sprite_Shadow.new(viewport, @character, shadows))
+   139	        end
+   140	      end
+   141	    end
+   142	    if character.is_a?(Game_Player) && shadows.length > 0
+   143	      shadows.each do |shadow|
+   144	        @ombrelist.push(Sprite_Shadow.new(viewport, $game_player, shadow))
+   145	      end
+   146	    end
+   147	    update
+   148	  end
+   149	
+   150	  def clearShadows
+   151	    @ombrelist.each { |s| s&.dispose }
+   152	    @ombrelist.clear
+   153	  end
+   154	
+   155	  alias shadow_update update unless method_defined?(:shadow_update)
+   156	
+   157	  def update
+   158	    shadow_update
+   159	    @ombrelist.each { |ombre| ombre.update }
+   160	  end
+   161	end
+   162	
+   163	#===============================================================================
+   164	# ? CLASS Game_Event edit
+   165	#===============================================================================
+   166	class Game_Event
+   167	  attr_accessor :id
+   168	end
+   169	
+   170	#===============================================================================
+   171	# ? CLASS Spriteset_Map edit
+   172	#===============================================================================
+   173	class Spriteset_Map
+   174	  attr_accessor :shadows
+   175	
+   176	  alias shadow_initialize initialize unless private_method_defined?(:shadow_initialize)
+   177	
+   178	  def initialize(map = nil)
+   179	    @shadows = []
+   180	    warn = false
+   181	    map = $game_map if !map
+   182	    map.events.keys.sort.each do |k|
+   183	      ev = map.events[k]
+   184	      warn = true if ev.list && ev.list.length > 0 && ev.list[0].code == 108 &&
+   185	                     (ev.list[0].parameters == ["s"] || ev.list[0].parameters == ["o"])
+   186	      params = XPML_read(map, "Shadow Source", ev, 4)
+   187	      @shadows.push([ev] + params) if params
+   188	    end
+   189	    if warn == true
+   190	      p "Warning : At least one event on this map uses the obsolete way to add shadows"
+   191	    end
+   192	    shadow_initialize(map)
+   193	    @character_sprites.each do |sprite|
+   194	      sprite.setShadows(map, @shadows)
+   195	    end
+   196	    $scene.spritesetGlobal.playersprite.setShadows(map, @shadows)
+   197	  end
+   198	end
+   199	
+   200	#===============================================================================
+   201	# ? XPML Definition, by Rataime, using ideas from Near Fantastica
+   202	#
+   203	#   Returns nil if the markup wasn't present at all,
+   204	#   returns [] if there wasn't any parameters, else
+   205	#   returns a parameters list with "int" converted as int
+   206	#   eg :
+   207	#   begin first
+   208	#   begin second
+   209	#   param1 1
+   210	#   param2 two
+   211	#   begin third
+   212	#   anything 3
+   213	#
+   214	#   p XPML_read("first", event_id) -> []
+   215	#   p XPML_read("second", event_id) -> [1, "two"]
+   216	#   p XPML_read("third", event_id) -> [3]
+   217	#   p XPML_read("forth", event_id) -> nil
+   218	#===============================================================================
+   219	def XPML_read(map, markup, event, max_param_number = 0)
+   220	  parameter_list = nil
+   221	  return nil if !event || event.list.nil?
+   222	  event.list.size.times do |i|
+   223	    next unless event.list[i].code == 108 &&
+   224	                event.list[i].parameters[0].downcase == "begin " + markup.downcase
+   225	    parameter_list = [] if parameter_list.nil?
+   226	    ((i + 1)...event.list.size).each do |j|
+   227	      return parameter_list if event.list[j].code != 108
+   228	      parts = event.list[j].parameters[0].split
+   229	      return parameter_list if parts.size == 1 || parts[0].downcase == "begin"
+   230	      if parts[1].to_i != 0 || parts[1] == "0"
+   231	        parameter_list.push(parts[1].to_i)
+   232	      else
+   233	        parameter_list.push(parts[1])
+   234	      end
+   235	      return parameter_list if max_param_number != 0 && j == i + max_param_number
+   236	    end
+   237	  end
+   238	  return parameter_list
+   239	end
+     1	#===============================================================================
+     2	#
+     3	#===============================================================================
+     4	class PictureSprite < Sprite
+     5	  def initialize(viewport, picture)
+     6	    super(viewport)
+     7	    @picture = picture
+     8	    @pictureBitmap = nil
+     9	    @customBitmap = nil
+    10	    @customBitmapIsBitmap = true
+    11	    @hue = 0
+    12	    update
+    13	  end
+    14	
+    15	  def dispose
+    16	    @pictureBitmap&.dispose
+    17	    super
+    18	  end
+    19	
+    20	  # Doesn't free the bitmap
+    21	  def setCustomBitmap(bitmap)
+    22	    @customBitmap = bitmap
+    23	    @customBitmapIsBitmap = @customBitmap.is_a?(Bitmap)
+    24	  end
+    25	
+    26	  def update
+    27	    super
+    28	    @pictureBitmap&.update
+    29	    # If picture file name is different from current one
+    30	    if @customBitmap && @picture.name == ""
+    31	      self.bitmap = (@customBitmapIsBitmap) ? @customBitmap : @customBitmap.bitmap
+    32	    elsif @picture_name != @picture.name || @picture.hue.to_i != @hue.to_i
+    33	      # Remember file name to instance variables
+    34	      @picture_name = @picture.name
+    35	      @hue = @picture.hue.to_i
+    36	      # If file name is not empty
+    37	      if @picture_name == ""
+    38	        @pictureBitmap&.dispose
+    39	        @pictureBitmap = nil
+    40	        self.visible = false
+    41	        return
+    42	      end
+    43	      # Get picture graphic
+    44	      @pictureBitmap&.dispose
+    45	      @pictureBitmap = AnimatedBitmap.new(@picture_name, @hue)
+    46	      self.bitmap = (@pictureBitmap) ? @pictureBitmap.bitmap : nil
+    47	    elsif @picture_name == ""
+    48	      # Set sprite to invisible
+    49	      self.visible = false
+    50	      return
+    51	    end
+    52	    setPictureSprite(self, @picture)
+    53	  end
+    54	end
+    55	
+    56	def pbTextBitmap(text, maxwidth = Graphics.width)
+    57	  tmp = Bitmap.new(maxwidth, Graphics.height)
+    58	  pbSetSystemFont(tmp)
+    59	  drawFormattedTextEx(tmp, 0, 4, maxwidth, text, Color.new(248, 248, 248), Color.new(168, 184, 184))
+    60	  return tmp
+    61	end
+    62	
+    63	#===============================================================================
+    64	#
+    65	#===============================================================================
+    66	class EventScene
+    67	  attr_accessor :onCTrigger, :onBTrigger, :onUpdate
+    68	
+    69	  def initialize(viewport = nil)
+    70	    @viewport       = viewport
+    71	    @onCTrigger     = Event.new
+    72	    @onBTrigger     = Event.new
+    73	    @onUpdate       = Event.new
+    74	    @pictures       = []
+    75	    @picturesprites = []
+    76	    @usersprites    = []
+    77	    @disposed       = false
+    78	  end
+    79	
+    80	  def dispose
+    81	    return if disposed?
+    82	    @picturesprites.each { |sprite| sprite.dispose }
+    83	    @usersprites.each { |sprite| sprite.dispose }
+    84	    @onCTrigger.clear
+    85	    @onBTrigger.clear
+    86	    @onUpdate.clear
+    87	    @pictures.clear
+    88	    @picturesprites.clear
+    89	    @usersprites.clear
+    90	    @disposed = true
+    91	  end
+    92	
+    93	  def disposed?
+    94	    return @disposed
+    95	  end
+    96	
+    97	  def addBitmap(x, y, bitmap)
+    98	    # _bitmap_ can be a Bitmap or an AnimatedBitmap
+    99	    # (update method isn't called if it's animated)
+   100	    # EventScene doesn't take ownership of the passed-in bitmap
+   101	    num = @pictures.length
+   102	    picture = PictureEx.new(num)
+   103	    picture.setXY(0, x, y)
+   104	    picture.setVisible(0, true)
+   105	    @pictures[num] = picture
+   106	    @picturesprites[num] = PictureSprite.new(@viewport, picture)
+   107	    @picturesprites[num].setCustomBitmap(bitmap)
+   108	    return picture
+   109	  end
+   110	
+   111	  def addLabel(x, y, width, text)
+   112	    addBitmap(x, y, pbTextBitmap(text, width))
+   113	  end
+   114	
+   115	  def addImage(x, y, name)
+   116	    num = @pictures.length
+   117	    picture = PictureEx.new(num)
+   118	    picture.name = name
+   119	    picture.setXY(0, x, y)
+   120	    picture.setVisible(0, true)
+   121	    @pictures[num] = picture
+   122	    @picturesprites[num] = PictureSprite.new(@viewport, picture)
+   123	    return picture
+   124	  end
+   125	
+   126	  def addUserSprite(sprite)
+   127	    @usersprites.push(sprite)
+   128	  end
+   129	
+   130	  def getPicture(num)
+   131	    return @pictures[num]
+   132	  end
+   133	
+   134	  # ticks is in 1/20ths of a second.
+   135	  def wait(ticks)
+   136	    return if ticks <= 0
+   137	    timer_start = System.uptime
+   138	    loop do
+   139	      update
+   140	      break if System.uptime - timer_start >= ticks / 20.0
+   141	    end
+   142	  end
+   143	
+   144	  # extra_ticks is in 1/20ths of a second.
+   145	  def pictureWait(extra_ticks = 0)
+   146	    loop do
+   147	      hasRunning = false
+   148	      @pictures.each { |pic| hasRunning = true if pic.running? }
+   149	      break if !hasRunning
+   150	      update
+   151	    end
+   152	    wait(extra_ticks)
+   153	  end
+   154	
+   155	  def update
+   156	    return if disposed?
+   157	    Graphics.update
+   158	    Input.update
+   159	    @pictures.each { |picture| picture.update }
+   160	    @picturesprites.each { |sprite| sprite.update }
+   161	    @usersprites.each do |sprite|
+   162	      next if !sprite || sprite.disposed? || !sprite.is_a?(Sprite)
+   163	      sprite.update
+   164	    end
+   165	    @usersprites.delete_if { |sprite| sprite.disposed? }
+   166	    @onUpdate.trigger(self)
+   167	    if Input.trigger?(Input::BACK)
+   168	      @onBTrigger.trigger(self)
+   169	    elsif Input.trigger?(Input::USE)
+   170	      @onCTrigger.trigger(self)
+   171	    end
+   172	  end
+   173	
+   174	  def main
+   175	    loop do
+   176	      update
+   177	      break if disposed?
+   178	    end
+   179	  end
+   180	end
+   181	
+   182	#===============================================================================
+   183	#
+   184	#===============================================================================
+   185	def pbEventScreen(cls)
+   186	  pbFadeOutIn do
+   187	    viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+   188	    viewport.z = 99999
+   189	    PBDebug.logonerr { cls.new(viewport).main }
+   190	    viewport.dispose
+   191	  end
+   192	end

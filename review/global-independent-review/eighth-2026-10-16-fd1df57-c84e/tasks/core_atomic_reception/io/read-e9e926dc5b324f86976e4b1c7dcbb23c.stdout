@@ -1,0 +1,145 @@
+00203:     # Status-curing ability check
+00204:     pbAbilityStatusCureCheck
+00205:     # Check for end of primordial weather
+00206:     @battle.pbEndPrimordialWeather
+00207:   end
+00208: 
+00209:   #=============================================================================
+00210:   # Held item consuming/removing
+00211:   #=============================================================================
+00212:   def canConsumeBerry?
+00213:     return false if @battle.pbCheckOpposingAbility([:UNNERVE, :ASONECHILLINGNEIGH, :ASONEGRIMNEIGH], @index)
+00214:     return true
+00215:   end
+00216: 
+00217:   def canConsumePinchBerry?(check_gluttony = true)
+00218:     return false if !canConsumeBerry?
+00219:     return true if @hp <= @totalhp / 4
+00220:     return true if @hp <= @totalhp / 2 && (!check_gluttony || hasActiveAbility?(:GLUTTONY))
+00221:     return false
+00222:   end
+00223: 
+00224:   # permanent is whether the item is lost even after battle. Is false for Knock
+00225:   # Off.
+00226:   def pbRemoveItem(permanent = true)
+00227:     @effects[PBEffects::ChoiceBand] = nil if !hasActiveAbility?(:GORILLATACTICS)
+00228:     @effects[PBEffects::Unburden]   = true if self.item && hasActiveAbility?(:UNBURDEN)
+00229:     setInitialItem(nil) if permanent && self.item == self.initialItem
+00230:     self.item = nil
+00231:   end
+00232: 
+00233:   def pbConsumeItem(recoverable = true, symbiosis = true, belch = true)
+00234:     PBDebug.log("[Item consumed] #{pbThis} consumed its held #{itemName}")
+00235:     if recoverable
+00236:       setRecycleItem(@item_id)
+00237:       @effects[PBEffects::PickupItem] = @item_id
+00238:       @effects[PBEffects::PickupUse]  = @battle.nextPickupUse
+00239:     end
+00240:     setBelched if belch && self.item.is_berry?
+00241:     pbRemoveItem
+00242:     pbSymbiosis if symbiosis
+00243:   end
+00244: 
+00245:   def pbSymbiosis
+00246:     return if fainted?
+00247:     return if self.item
+00248:     @battle.pbPriority(true).each do |b|
+00249:       next if b.opposes?(self)
+00250:       next if !b.hasActiveAbility?(:SYMBIOSIS)
+00251:       next if !b.item || b.unlosableItem?(b.item)
+00252:       next if unlosableItem?(b.item)
+00253:       @battle.pbShowAbilitySplash(b)
+00254:       if Battle::Scene::USE_ABILITY_SPLASH
+00255:         @battle.pbDisplay(_INTL("{1} shared its {2} with {3}!",
+00256:                                 b.pbThis, b.itemName, pbThis(true)))
+00257:       else
+00258:         @battle.pbDisplay(_INTL("{1}'s {2} let it share its {3} with {4}!",
+00259:                                 b.pbThis, b.abilityName, b.itemName, pbThis(true)))
+00260:       end
+00261:       self.item = b.item
+00262:       b.item = nil
+00263:       b.effects[PBEffects::Unburden] = true if b.hasActiveAbility?(:UNBURDEN)
+00264:       @battle.pbHideAbilitySplash(b)
+00265:       pbHeldItemTriggerCheck
+00266:       break
+00267:     end
+00268:   end
+00269: 
+00270:   # item_to_use is an item ID or GameData::Item object. own_item is whether the
+00271:   # item is held by self. fling is for Fling only.
+00272:   def pbHeldItemTriggered(item_to_use, own_item = true, fling = false)
+00273:     # Cheek Pouch
+00274:     if hasActiveAbility?(:CHEEKPOUCH) && GameData::Item.get(item_to_use).is_berry? && canHeal?
+00275:       @battle.pbShowAbilitySplash(self)
+00276:       pbRecoverHP(@totalhp / 3)
+00277:       if Battle::Scene::USE_ABILITY_SPLASH
+00278:         @battle.pbDisplay(_INTL("{1}'s HP was restored.", pbThis))
+00279:       else
+00280:         @battle.pbDisplay(_INTL("{1}'s {2} restored its HP.", pbThis, abilityName))
+00281:       end
+00282:       @battle.pbHideAbilitySplash(self)
+00283:     end
+00284:     pbConsumeItem if own_item
+00285:     pbSymbiosis if !own_item && !fling   # Bug Bite/Pluck users trigger Symbiosis
+00286:   end
+00287: 
+00288:   #=============================================================================
+00289:   # Held item trigger checks
+00290:   #=============================================================================
+00291:   # NOTE: A Pokémon using Bug Bite/Pluck, and a Pokémon having an item thrown at
+00292:   #       it via Fling, will gain the effect of the item even if the Pokémon is
+00293:   #       affected by item-negating effects.
+00294:   # item_to_use is an item ID for Stuff Cheeks, Teatime, Bug Bite/Pluck and
+00295:   # Fling, and nil otherwise.
+00296:   # fling is for Fling only.
+00297:   def pbHeldItemTriggerCheck(item_to_use = nil, fling = false)
+00298:     return if fainted?
+00299:     return if !item_to_use && !itemActive?
+00300:     pbItemHPHealCheck(item_to_use, fling)
+00301:     pbItemStatusCureCheck(item_to_use, fling)
+00302:     pbItemEndOfMoveCheck(item_to_use, fling)
+00303:     # For Enigma Berry, Kee Berry and Maranga Berry, which have their effects
+00304:     # when forcibly consumed by Pluck/Fling.
+00305:     if item_to_use
+00306:       itm = item_to_use || self.item
+00307:       if Battle::ItemEffects.triggerOnBeingHitPositiveBerry(itm, self, @battle, true)
+00308:         pbHeldItemTriggered(itm, false, fling)
+00309:       end
+00310:     end
+00311:   end
+00312: 
+00313:   # item_to_use is an item ID for Bug Bite/Pluck and Fling, and nil otherwise.
+00314:   # fling is for Fling only.
+00315:   def pbItemHPHealCheck(item_to_use = nil, fling = false)
+00316:     return if !item_to_use && !itemActive?
+00317:     itm = item_to_use || self.item
+00318:     if Battle::ItemEffects.triggerHPHeal(itm, self, @battle, !item_to_use.nil?)
+00319:       pbHeldItemTriggered(itm, item_to_use.nil?, fling)
+00320:     elsif !item_to_use
+00321:       pbItemTerrainStatBoostCheck
+00322:     end
+00323:   end
+00324: 
+00325:   # Cures status conditions, confusion, infatuation and the other effects cured
+00326:   # by Mental Herb.
+00327:   # item_to_use is an item ID for Bug Bite/Pluck and Fling, and nil otherwise.
+00328:   # fling is for Fling only.
+00329:   def pbItemStatusCureCheck(item_to_use = nil, fling = false)
+00330:     return if fainted?
+00331:     return if !item_to_use && !itemActive?
+00332:     itm = item_to_use || self.item
+00333:     if Battle::ItemEffects.triggerStatusCure(itm, self, @battle, !item_to_use.nil?)
+00334:       pbHeldItemTriggered(itm, item_to_use.nil?, fling)
+00335:     end
+00336:   end
+00337: 
+00338:   # Called at the end of using a move.
+00339:   # item_to_use is an item ID for Bug Bite/Pluck and Fling, and nil otherwise.
+00340:   # fling is for Fling only.
+00341:   def pbItemEndOfMoveCheck(item_to_use = nil, fling = false)
+00342:     return if fainted?
+00343:     return if !item_to_use && !itemActive?
+00344:     itm = item_to_use || self.item
+00345:     if Battle::ItemEffects.triggerOnEndOfUsingMove(itm, self, @battle, !item_to_use.nil?)
+00346:       pbHeldItemTriggered(itm, item_to_use.nil?, fling)
+00347:     elsif Battle::ItemEffects.triggerOnEndOfUsingMoveStatRestore(itm, self, @battle, !item_to_use.nil?)

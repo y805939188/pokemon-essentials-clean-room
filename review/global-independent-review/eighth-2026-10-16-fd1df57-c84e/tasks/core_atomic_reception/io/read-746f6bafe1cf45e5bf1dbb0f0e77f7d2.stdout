@@ -1,0 +1,141 @@
+00001: #===============================================================================
+00002: # Battle preparation
+00003: #===============================================================================
+00004: class PokemonGlobalMetadata
+00005:   attr_accessor :nextBattleBGM
+00006:   attr_accessor :nextBattleVictoryBGM
+00007:   attr_accessor :nextBattleCaptureME
+00008:   attr_accessor :nextBattleBack
+00009: end
+00010: 
+00011: #===============================================================================
+00012: #
+00013: #===============================================================================
+00014: class Game_Temp
+00015:   attr_accessor :encounter_triggered
+00016:   attr_accessor :encounter_type
+00017:   attr_accessor :party_levels_before_battle
+00018:   attr_accessor :party_critical_hits_dealt
+00019:   attr_accessor :party_direct_damage_taken
+00020: 
+00021:   def battle_rules
+00022:     @battle_rules = {} if !@battle_rules
+00023:     return @battle_rules
+00024:   end
+00025: 
+00026:   def clear_battle_rules
+00027:     self.battle_rules.clear
+00028:   end
+00029: 
+00030:   def add_battle_rule(rule, var = nil)
+00031:     rules = self.battle_rules
+00032:     case rule.to_s.downcase
+00033:     when "single", "1v1", "1v2", "2v1", "1v3", "3v1",
+00034:          "double", "2v2", "2v3", "3v2", "triple", "3v3"
+00035:       rules["size"] = rule.to_s.downcase
+00036:     when "canlose"                then rules["canLose"]             = true
+00037:     when "cannotlose"             then rules["canLose"]             = false
+00038:     when "canrun"                 then rules["canRun"]              = true
+00039:     when "cannotrun"              then rules["canRun"]              = false
+00040:     when "roamerflees"            then rules["roamerFlees"]         = true
+00041:     when "canswitch"              then rules["canSwitch"]           = true
+00042:     when "cannotswitch"           then rules["canSwitch"]           = false
+00043:     when "noexp"                  then rules["expGain"]             = false
+00044:     when "nomoney"                then rules["moneyGain"]           = false
+00045:     when "disablepokeballs"       then rules["disablePokeBalls"]    = true
+00046:     when "forcecatchintoparty"    then rules["forceCatchIntoParty"] = true
+00047:     when "switchstyle"            then rules["switchStyle"]         = true
+00048:     when "setstyle"               then rules["switchStyle"]         = false
+00049:     when "anims"                  then rules["battleAnims"]         = true
+00050:     when "noanims"                then rules["battleAnims"]         = false
+00051:     when "terrain"
+00052:       rules["defaultTerrain"] = GameData::BattleTerrain.try_get(var)&.id
+00053:     when "weather"
+00054:       rules["defaultWeather"] = GameData::BattleWeather.try_get(var)&.id
+00055:     when "environment", "environ"
+00056:       rules["environment"] = GameData::Environment.try_get(var)&.id
+00057:     when "backdrop", "battleback" then rules["backdrop"]            = var
+00058:     when "base"                   then rules["base"]                = var
+00059:     when "outcome", "outcomevar"  then rules["outcomeVar"]          = var
+00060:     when "nopartner"              then rules["noPartner"]           = true
+00061:     else
+00062:       raise _INTL("Battle rule \"{1}\" does not exist.", rule)
+00063:     end
+00064:   end
+00065: end
+00066: 
+00067: #===============================================================================
+00068: #
+00069: #===============================================================================
+00070: def setBattleRule(*args)
+00071:   r = nil
+00072:   args.each do |arg|
+00073:     if r
+00074:       $game_temp.add_battle_rule(r, arg)
+00075:       r = nil
+00076:     else
+00077:       case arg.downcase
+00078:       when "terrain", "weather", "environment", "environ", "backdrop",
+00079:            "battleback", "base", "outcome", "outcomevar"
+00080:         r = arg
+00081:         next
+00082:       end
+00083:       $game_temp.add_battle_rule(arg)
+00084:     end
+00085:   end
+00086:   raise _INTL("Argument {1} expected a variable after it but didn't have one.", r) if r
+00087: end
+00088: 
+00089: # Used to determine the environment in battle, and also the form of Burmy/
+00090: # Wormadam.
+00091: def pbGetEnvironment
+00092:   ret = :None
+00093:   map_env = $game_map.metadata&.battle_environment
+00094:   ret = map_env if map_env
+00095:   if $game_temp.encounter_type &&
+00096:      GameData::EncounterType.get($game_temp.encounter_type).type == :fishing
+00097:     terrainTag = $game_player.pbFacingTerrainTag
+00098:   else
+00099:     terrainTag = $game_player.terrain_tag
+00100:   end
+00101:   tile_environment = terrainTag.battle_environment
+00102:   if ret == :Forest && [:Grass, :TallGrass].include?(tile_environment)
+00103:     ret = :ForestGrass
+00104:   elsif tile_environment
+00105:     ret = tile_environment
+00106:   end
+00107:   return ret
+00108: end
+00109: 
+00110: # Record current levels of Pokémon in party, to see if they gain a level during
+00111: # battle and may need to evolve afterwards
+00112: EventHandlers.add(:on_start_battle, :record_party_status,
+00113:   proc {
+00114:     $game_temp.party_levels_before_battle = []
+00115:     $game_temp.party_critical_hits_dealt = []
+00116:     $game_temp.party_direct_damage_taken = []
+00117:     $player.party.each_with_index do |pkmn, i|
+00118:       $game_temp.party_levels_before_battle[i] = pkmn.level
+00119:       $game_temp.party_critical_hits_dealt[i] = 0
+00120:       $game_temp.party_direct_damage_taken[i] = 0
+00121:     end
+00122:   }
+00123: )
+00124: 
+00125: def pbCanDoubleBattle?
+00126:   return true if $player.able_pokemon_count >= 2
+00127:   return $PokemonGlobal.partner && $player.able_pokemon_count >= 1
+00128: end
+00129: 
+00130: def pbCanTripleBattle?
+00131:   return true if $player.able_pokemon_count >= 3
+00132:   return $PokemonGlobal.partner && $player.able_pokemon_count >= 2
+00133: end
+00134: 
+00135: #===============================================================================
+00136: # Helper methods for setting up and closing down battles
+00137: #===============================================================================
+00138: module BattleCreationHelperMethods
+00139:   module_function
+00140: 
+00141:   # Skip battle if the player has no able Pokémon, or if holding Ctrl in Debug mode

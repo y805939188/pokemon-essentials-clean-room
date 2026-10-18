@@ -1,0 +1,245 @@
+00001: #===============================================================================
+00002: #
+00003: #===============================================================================
+00004: class BattlePalaceBattle < Battle
+00005:   # Percentage chances of choosing attack, defense, support moves
+00006:   @@BattlePalaceUsualTable = {
+00007:     :HARDY   => [61,  7, 32],
+00008:     :LONELY  => [20, 25, 55],
+00009:     :BRAVE   => [70, 15, 15],
+00010:     :ADAMANT => [38, 31, 31],
+00011:     :NAUGHTY => [20, 70, 10],
+00012:     :BOLD    => [30, 20, 50],
+00013:     :DOCILE  => [56, 22, 22],
+00014:     :RELAXED => [25, 15, 60],
+00015:     :IMPISH  => [69,  6, 25],
+00016:     :LAX     => [35, 10, 55],
+00017:     :TIMID   => [62, 10, 28],
+00018:     :HASTY   => [58, 37,  5],
+00019:     :SERIOUS => [34, 11, 55],
+00020:     :JOLLY   => [35,  5, 60],
+00021:     :NAIVE   => [56, 22, 22],
+00022:     :MODEST  => [35, 45, 20],
+00023:     :MILD    => [44, 50,  6],
+00024:     :QUIET   => [56, 22, 22],
+00025:     :BASHFUL => [30, 58, 12],
+00026:     :RASH    => [30, 13, 57],
+00027:     :CALM    => [40, 50, 10],
+00028:     :GENTLE  => [18, 70, 12],
+00029:     :SASSY   => [88,  6,  6],
+00030:     :CAREFUL => [42, 50,  8],
+00031:     :QUIRKY  => [56, 22, 22]
+00032:   }
+00033:   @@BattlePalacePinchTable = {
+00034:     :HARDY   => [61,  7, 32],
+00035:     :LONELY  => [84,  8,  8],
+00036:     :BRAVE   => [32, 60,  8],
+00037:     :ADAMANT => [70, 15, 15],
+00038:     :NAUGHTY => [70, 22,  8],
+00039:     :BOLD    => [32, 58, 10],
+00040:     :DOCILE  => [56, 22, 22],
+00041:     :RELAXED => [75, 15, 10],
+00042:     :IMPISH  => [28, 55, 17],
+00043:     :LAX     => [29,  6, 65],
+00044:     :TIMID   => [30, 20, 50],
+00045:     :HASTY   => [88,  6,  6],
+00046:     :SERIOUS => [29, 11, 60],
+00047:     :JOLLY   => [35, 60,  5],
+00048:     :NAIVE   => [56, 22, 22],
+00049:     :MODEST  => [34, 60,  6],
+00050:     :MILD    => [34,  6, 60],
+00051:     :QUIET   => [56, 22, 22],
+00052:     :BASHFUL => [30, 58, 12],
+00053:     :RASH    => [27,  6, 67],
+00054:     :CALM    => [25, 62, 13],
+00055:     :GENTLE  => [90,  5,  5],
+00056:     :SASSY   => [22, 20, 58],
+00057:     :CAREFUL => [42,  5, 53],
+00058:     :QUIRKY  => [56, 22, 22]
+00059:   }
+00060: 
+00061:   def initialize(*arg)
+00062:     super
+00063:     @justswitched          = [false, false, false, false]
+00064:     @battleAI.battlePalace = true
+00065:   end
+00066: 
+00067:   def pbMoveCategory(move)
+00068:     if move.target == :User || move.function_code == "MultiTurnAttackBideThenReturnDoubleDamage"
+00069:       return 1
+00070:     elsif move.statusMove? ||
+00071:           move.function_code == "CounterPhysicalDamage" || move.function_code == "CounterSpecialDamage"
+00072:       return 2
+00073:     else
+00074:       return 0
+00075:     end
+00076:   end
+00077: 
+00078:   # Different implementation of pbCanChooseMove, ignores Imprison/Torment/Taunt/Disable/Encore
+00079:   def pbCanChooseMovePartial?(idxPokemon, idxMove)
+00080:     thispkmn = @battlers[idxPokemon]
+00081:     thismove = thispkmn.moves[idxMove]
+00082:     return false if !thismove
+00083:     return false if thismove.pp <= 0
+00084:     if thispkmn.effects[PBEffects::ChoiceBand] &&
+00085:        thismove.id != thispkmn.effects[PBEffects::ChoiceBand] &&
+00086:        thispkmn.hasActiveItem?(:CHOICEBAND)
+00087:       return false
+00088:     end
+00089:     # though incorrect, just for convenience (actually checks Torment later)
+00090:     if thispkmn.effects[PBEffects::Torment] &&
+00091:        thispkmn.lastMoveUsed && thismove.id == thispkmn.lastMoveUsed
+00092:       return false
+00093:     end
+00094:     return true
+00095:   end
+00096: 
+00097:   def pbRegisterMove(idxBattler, idxMove, _showMessages = true)
+00098:     this_battler = @battlers[idxBattler]
+00099:     @choices[idxBattler][0] = :UseMove
+00100:     @choices[idxBattler][1] = idxMove   # Index of move to be used (-2="Incapable of using its power...")
+00101:     @choices[idxBattler][2] = (idxMove == -2) ? @struggle : this_battler.moves[idxMove]   # Battle::Move object
+00102:     @choices[idxBattler][3] = -1   # No target chosen yet
+00103:   end
+00104: 
+00105:   def pbAutoFightMenu(idxBattler)
+00106:     this_battler = @battlers[idxBattler]
+00107:     nature = this_battler.nature.id
+00108:     randnum = @battleAI.pbAIRandom(100)
+00109:     category = 0
+00110:     atkpercent = 0
+00111:     defpercent = 0
+00112:     if this_battler.effects[PBEffects::Pinch]
+00113:       atkpercent = @@BattlePalacePinchTable[nature][0]
+00114:       defpercent = atkpercent + @@BattlePalacePinchTable[nature][1]
+00115:     else
+00116:       atkpercent = @@BattlePalaceUsualTable[nature][0]
+00117:       defpercent = atkpercent + @@BattlePalaceUsualTable[nature][1]
+00118:     end
+00119:     if randnum < atkpercent
+00120:       category = 0
+00121:     elsif randnum < atkpercent + defpercent
+00122:       category = 1
+00123:     else
+00124:       category = 2
+00125:     end
+00126:     moves = []
+00127:     this_battler.moves.length.times do |i|
+00128:       next if !pbCanChooseMovePartial?(idxBattler, i)
+00129:       next if pbMoveCategory(this_battler.moves[i]) != category
+00130:       moves[moves.length] = i
+00131:     end
+00132:     if moves.length == 0
+00133:       # No moves of selected category
+00134:       pbRegisterMove(idxBattler, -2)
+00135:     else
+00136:       chosenmove = moves[@battleAI.pbAIRandom(moves.length)]
+00137:       pbRegisterMove(idxBattler, chosenmove)
+00138:     end
+00139:     return true
+00140:   end
+00141: 
+00142:   def pbPinchChange(battler)
+00143:     return if !battler || battler.fainted?
+00144:     return if battler.effects[PBEffects::Pinch] || battler.status == :SLEEP
+00145:     return if battler.hp > battler.totalhp / 2
+00146:     nature = battler.nature.id
+00147:     battler.effects[PBEffects::Pinch] = true
+00148:     case nature
+00149:     when :QUIET, :BASHFUL, :NAIVE, :QUIRKY, :HARDY, :DOCILE, :SERIOUS
+00150:       pbDisplay(_INTL("{1} is eager for more!", battler.pbThis))
+00151:     when :CAREFUL, :RASH, :LAX, :SASSY, :MILD, :TIMID
+00152:       pbDisplay(_INTL("{1} began growling deeply!", battler.pbThis))
+00153:     when :GENTLE, :ADAMANT, :HASTY, :LONELY, :RELAXED, :NAUGHTY
+00154:       pbDisplay(_INTL("A glint appears in {1}'s eyes!", battler.pbThis(true)))
+00155:     when :JOLLY, :BOLD, :BRAVE, :CALM, :IMPISH, :MODEST
+00156:       pbDisplay(_INTL("{1} is getting into position!", battler.pbThis))
+00157:     end
+00158:   end
+00159: 
+00160:   def pbEndOfRoundPhase
+00161:     super
+00162:     return if @decision != 0
+00163:     allBattlers.each { |b| pbPinchChange(b) }
+00164:   end
+00165: end
+00166: 
+00167: #===============================================================================
+00168: #
+00169: #===============================================================================
+00170: class Battle::AI
+00171:   attr_accessor :battlePalace
+00172: 
+00173:   alias _battlePalace_initialize initialize unless private_method_defined?(:_battlePalace_initialize)
+00174: 
+00175:   def initialize(*arg)
+00176:     _battlePalace_initialize(*arg)
+00177:     @justswitched = [false, false, false, false]
+00178:   end
+00179: 
+00180:   unless method_defined?(:_battlePalace_pbChooseToSwitchOut)
+00181:     alias _battlePalace_pbChooseToSwitchOut pbChooseToSwitchOut
+00182:   end
+00183: 
+00184:   def pbChooseToSwitchOut(force_switch = false)
+00185:     return _battlePalace_pbChooseToSwitchOut(force_switch) if !@battlePalace
+00186:     thispkmn = @user
+00187:     idxBattler = @user.index
+00188:     shouldswitch = false
+00189:     if thispkmn.effects[PBEffects::PerishSong] == 1
+00190:       shouldswitch = true
+00191:     elsif !@battle.pbCanChooseAnyMove?(idxBattler) &&
+00192:           thispkmn.turnCount && thispkmn.turnCount > 5
+00193:       shouldswitch = true
+00194:     else
+00195:       hppercent = thispkmn.hp * 100 / thispkmn.totalhp
+00196:       percents = []
+00197:       maxindex = -1
+00198:       maxpercent = 0
+00199:       factor = 0
+00200:       @battle.pbParty(idxBattler).each_with_index do |pkmn, i|
+00201:         if @battle.pbCanSwitch?(idxBattler, i)
+00202:           percents[i] = 100 * pkmn.hp / pkmn.totalhp
+00203:           if percents[i] > maxpercent
+00204:             maxindex = i
+00205:             maxpercent = percents[i]
+00206:           end
+00207:         else
+00208:           percents[i] = 0
+00209:         end
+00210:       end
+00211:       if hppercent < 50
+00212:         factor = (maxpercent < hppercent) ? 20 : 40
+00213:       end
+00214:       if hppercent < 25
+00215:         factor = (maxpercent < hppercent) ? 30 : 50
+00216:       end
+00217:       case thispkmn.status
+00218:       when :SLEEP, :FROZEN
+00219:         factor += 20
+00220:       when :POISON, :BURN
+00221:         factor += 10
+00222:       when :PARALYSIS
+00223:         factor += 15
+00224:       end
+00225:       if @justswitched[idxBattler]
+00226:         factor -= 60
+00227:         factor = 0 if factor < 0
+00228:       end
+00229:       shouldswitch = (pbAIRandom(100) < factor)
+00230:       if shouldswitch && maxindex >= 0
+00231:         @battle.pbRegisterSwitch(idxBattler, maxindex)
+00232:         return true
+00233:       end
+00234:     end
+00235:     @justswitched[idxBattler] = shouldswitch
+00236:     if shouldswitch
+00237:       @battle.pbParty(idxBattler).each_with_index do |_pkmn, i|
+00238:         next if !@battle.pbCanSwitch?(idxBattler, i)
+00239:         @battle.pbRegisterSwitch(idxBattler, i)
+00240:         return true
+00241:       end
+00242:     end
+00243:     return false
+00244:   end
+00245: end

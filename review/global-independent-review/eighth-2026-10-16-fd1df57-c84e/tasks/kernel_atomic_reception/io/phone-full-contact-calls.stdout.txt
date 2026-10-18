@@ -1,0 +1,233 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/013_Items/004_Item_Phone.rb RANGE 215-446
+class Phone
+  class Contact
+    attr_accessor :map_id, :event_id
+    attr_accessor :name
+    attr_accessor :trainer_type
+    attr_accessor :start_version, :versions_count, :version   # :version is the last trainer version that was beaten
+    attr_accessor :time_to_ready, :rematch_flag
+    attr_accessor :common_event_id
+    attr_reader   :visible
+
+    # Map ID, event ID, trainer type, name, versions count = 1, start version = 0
+    # Map ID, name, common event ID
+    def initialize(trainer, *args)
+      @trainer = trainer
+      @map_id = args[0]
+      if @trainer
+        # Trainer
+        @event_id        = args[1]
+        @trainer_type    = args[2]
+        @name            = args[3]
+        @versions_count  = [args[4] || 1, 1].max   # Includes the original version
+        @start_version   = args[5] || 0
+        @version         = @start_version
+        @time_to_ready   = 0
+        @rematch_flag    = 0   # 0=counting down, 1=ready for rematch, 2=ready and told player
+        @common_event_id = args[6] || 0
+      else
+        # Non-trainer
+        @name            = args[1]
+        @common_event_id = args[2] || 0
+      end
+      @visible = true
+    end
+
+    def trainer?
+      return @trainer
+    end
+
+    def visible?
+      return @visible
+    end
+
+    def visible=(value)
+      return if @visible == value
+      @visible = value
+      if !value && trainer?
+        @time_to_ready = 0
+        @rematch_flag = 0
+        $game_self_switches[[@map_id, @event_id, "A"]] = true
+        $game_map.need_refresh = true
+      end
+    end
+
+    def can_hide?
+      return trainer?
+    end
+
+    def common_event_call?
+      return @common_event_id > 0
+    end
+
+    def can_rematch?
+      return trainer? && @rematch_flag >= 1
+    end
+
+    def display_name
+      if trainer?
+        return sprintf("%s %s", GameData::TrainerType.get(@trainer_type).name,
+                       pbGetMessageFromHash(MessageTypes::TRAINER_NAMES, @name))
+      end
+      return _INTL(@name)
+    end
+
+    # Original battle is 0, first rematch is 1, etc.
+    def variant
+      return 0 if !trainer?
+      return @version - @start_version
+    end
+
+    # Returns the version of this trainer to be battled next.
+    def next_version
+      var = variant + 1
+      var = [var, $PokemonGlobal.phone.rematch_variant, @versions_count - 1].min
+      return @start_version + var
+    end
+
+    def increment_version
+      return if !trainer?
+      @version = next_version
+    end
+
+    def set_trainer_event_ready_for_rematch
+      return if !@trainer
+      $game_self_switches[[@map_id, @event_id, "A"]] = false
+      $game_self_switches[[@map_id, @event_id, "B"]] = true
+      $game_map.need_refresh = true
+    end
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+class Phone
+  module Call
+    module_function
+
+    def can_make?
+      return false if $game_map.metadata&.has_flag?("NoPhoneSignal")
+      return true
+    end
+
+    # For the player initiating the call.
+    def can_call_contact?(contact)
+      return false if !contact
+      if !can_make?
+        pbMessage(_INTL("There is no phone signal here..."))
+        return false
+      end
+      return true if !contact.trainer?
+      if contact.map_id == $game_map.map_id
+        pbMessage(_INTL("The Trainer is close by.\nTalk to the Trainer in person!"))
+        return false
+      end
+      caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+      this_map_metadata = $game_map.metadata
+      if !caller_map_metadata || !caller_map_metadata.town_map_position ||
+         !this_map_metadata || !this_map_metadata.town_map_position ||
+         caller_map_metadata.town_map_position[0] != this_map_metadata.town_map_position[0]
+        pbMessage(_INTL("The Trainer is out of range."))
+        return false
+      end
+      return true
+    end
+
+    # Get a random trainer contact from the region the player is currently in,
+    # but is not in the same map as the player.
+    def get_random_trainer_for_incoming_call
+      player_location = $game_map.metadata&.town_map_position
+      return nil if !player_location
+      player_region = player_location[0]
+      valid_contacts = []
+      $PokemonGlobal.phone.contacts.each do |contact|
+        next if !contact.trainer? || !contact.visible?
+        next if contact.map_id == $game_map.map_id ||
+                pbGetMapNameFromId(contact.map_id) == $game_map.name
+        caller_map_metadata = GameData::MapMetadata.try_get(contact.map_id)
+        next if !caller_map_metadata || !caller_map_metadata.town_map_position
+        next if caller_map_metadata.town_map_position[0] != player_region
+        valid_contacts.push(contact)
+      end
+      return valid_contacts.sample
+    end
+
+    #===========================================================================
+
+    def make_incoming
+      return if !can_make?
+      contact = get_random_trainer_for_incoming_call
+      return if !contact
+      if contact.common_event_call?
+        if !pbCommonEvent(contact.common_event_id)
+          pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+                          contact.display_name, contact.common_event_id))
+        end
+      else
+        call = generate_trainer_dialogue(contact)
+        play(call, contact)
+      end
+    end
+
+    # Phone::Contact
+    # Trainer type, name[, start_version]
+    # Name (for non-trainers)
+    def make_outgoing(*args)
+      if args[0].is_a?(Phone::Contact)
+        contact = args[0]
+      elsif args.length > 1
+        contact = Phone.get(true, args[0], args[1], args[2] || 0)   # Trainer
+      else
+        contact = Phone.get(false, args[0])   # Non-trainer
+      end
+      raise _INTL("Couldn't find phone contact given: {1}.", args.inspect) if !contact
+      return if !can_call_contact?(contact)
+      if contact.common_event_call?
+        if !pbCommonEvent(contact.common_event_id)
+          pbMessage(_INTL("{1}'s messages not defined.\nCouldn't call common event {2}.",
+                          contact.display_name, contact.common_event_id))
+        end
+      else
+        call = generate_trainer_dialogue(contact)
+        play(call, contact)
+      end
+    end
+
+    def start_message(contact = nil)
+      pbMessage("......\\wt[5] ......\1")
+    end
+
+    def play(dialogue, contact)
+      start_message(contact)
+      contact_pokemon_species  = get_random_contact_pokemon_species(contact)
+      random_encounter_species = get_random_encounter_species(contact)
+      contact_map_name         = get_map_name(contact)
+      gender_colour_text       = ""
+      if Settings::COLOR_PHONE_CALL_MESSAGES_BY_CONTACT_GENDER && contact.trainer?
+        data = GameData::TrainerType.try_get(contact.trainer_type)
+        if data
+          case data.gender
+          when 0 then gender_colour_text = "\\b"
+          when 1 then gender_colour_text = "\\r"
+          end
+        end
+      end
+      messages = dialogue.split("\\m")
+      messages.each_with_index do |message, i|
+        message.gsub!(/\\TN/, _INTL(contact.name))
+        message.gsub!(/\\TP/, contact_pokemon_species)
+        message.gsub!(/\\TE/, random_encounter_species)
+        message.gsub!(/\\TM/, contact_map_name)
+        message += "\1" if i < messages.length - 1
+        pbMessage(gender_colour_text + message)
+      end
+      end_message(contact)
+    end
+
+    def end_message(contact = nil)
+      pbMessage(_INTL("Click!") + "\\wt[10]\n......\\wt[5] ......\1")
+    end
+
+    #===========================================================================
+

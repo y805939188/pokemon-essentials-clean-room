@@ -1,0 +1,651 @@
+   110	  :id            => :LevelMorning,
+   111	  :parameter     => Integer,
+   112	  :level_up_proc => proc { |pkmn, parameter|
+   113	    next pkmn.level >= parameter && PBDayNight.isMorning?
+   114	  }
+   115	})
+   116	
+   117	GameData::Evolution.register({
+   118	  :id            => :LevelAfternoon,
+   119	  :parameter     => Integer,
+   120	  :level_up_proc => proc { |pkmn, parameter|
+   121	    next pkmn.level >= parameter && PBDayNight.isAfternoon?
+   122	  }
+   123	})
+   124	
+   125	GameData::Evolution.register({
+   126	  :id            => :LevelEvening,
+   127	  :parameter     => Integer,
+   128	  :level_up_proc => proc { |pkmn, parameter|
+   129	    next pkmn.level >= parameter && PBDayNight.isEvening?
+   130	  }
+   131	})
+   132	
+   133	GameData::Evolution.register({
+   134	  :id            => :LevelNoWeather,
+   135	  :parameter     => Integer,
+   136	  :level_up_proc => proc { |pkmn, parameter|
+   137	    next pkmn.level >= parameter && $game_screen && $game_screen.weather_type == :None
+   138	  }
+   139	})
+   140	
+   141	GameData::Evolution.register({
+   142	  :id            => :LevelSun,
+   143	  :parameter     => Integer,
+   144	  :level_up_proc => proc { |pkmn, parameter|
+   145	    next pkmn.level >= parameter && $game_screen &&
+   146	         GameData::Weather.get($game_screen.weather_type).category == :Sun
+   147	  }
+   148	})
+   149	
+   150	GameData::Evolution.register({
+   151	  :id            => :LevelRain,
+   152	  :parameter     => Integer,
+   153	  :level_up_proc => proc { |pkmn, parameter|
+   154	    next pkmn.level >= parameter && $game_screen &&
+   155	         [:Rain, :Fog].include?(GameData::Weather.get($game_screen.weather_type).category)
+   156	  }
+   157	})
+   158	
+   159	GameData::Evolution.register({
+   160	  :id            => :LevelSnow,
+   161	  :parameter     => Integer,
+   162	  :level_up_proc => proc { |pkmn, parameter|
+   163	    next pkmn.level >= parameter && $game_screen &&
+   164	         GameData::Weather.get($game_screen.weather_type).category == :Hail
+   165	  }
+   166	})
+   167	
+   168	GameData::Evolution.register({
+   169	  :id            => :LevelSandstorm,
+   170	  :parameter     => Integer,
+   171	  :level_up_proc => proc { |pkmn, parameter|
+   172	    next pkmn.level >= parameter && $game_screen &&
+   173	         GameData::Weather.get($game_screen.weather_type).category == :Sandstorm
+   174	  }
+   175	})
+   176	
+   177	GameData::Evolution.register({
+   178	  :id            => :LevelCycling,
+   179	  :parameter     => Integer,
+   180	  :level_up_proc => proc { |pkmn, parameter|
+   181	    next pkmn.level >= parameter && $PokemonGlobal && $PokemonGlobal.bicycle
+   182	  }
+   183	})
+   184	
+     1	#===============================================================================
+     2	# Represents a planted berry. Stored in $PokemonGlobal.eventvars.
+     3	#===============================================================================
+     4	class BerryPlantData
+     5	  attr_accessor :new_mechanics        # false for Gen 3, true for Gen 4
+     6	  attr_accessor :berry_id
+     7	  attr_accessor :mulch_id             # Gen 4 mechanics
+     8	  attr_accessor :time_alive
+     9	  attr_accessor :time_last_updated
+    10	  attr_accessor :growth_stage
+    11	  attr_accessor :replant_count
+    12	  attr_accessor :watered_this_stage   # Gen 3 mechanics
+    13	  attr_accessor :watering_count       # Gen 3 mechanics
+    14	  attr_accessor :moisture_level       # Gen 4 mechanics
+    15	  attr_accessor :yield_penalty        # Gen 4 mechanics
+    16	
+    17	  def initialize
+    18	    reset
+    19	  end
+    20	
+    21	  def reset(planting = false)
+    22	    @new_mechanics      = Settings::NEW_BERRY_PLANTS
+    23	    @berry_id           = nil
+    24	    @mulch_id           = nil if !planting
+    25	    @time_alive         = 0
+    26	    @time_last_updated  = 0
+    27	    @growth_stage       = 0
+    28	    @replant_count      = 0
+    29	    @watered_this_stage = false
+    30	    @watering_count     = 0
+    31	    @moisture_level     = 100
+    32	    @yield_penalty      = 0
+    33	  end
+    34	
+    35	  def plant(berry_id)
+    36	    reset(true)
+    37	    @berry_id          = berry_id
+    38	    @growth_stage      = 1
+    39	    @time_last_updated = pbGetTimeNow.to_i
+    40	  end
+    41	
+    42	  def replant
+    43	    @time_alive         = 0
+    44	    @growth_stage       = 2
+    45	    @replant_count      += 1
+    46	    @watered_this_stage = false
+    47	    @watering_count     = 0
+    48	    @moisture_level     = 100
+    49	    @yield_penalty      = 0
+    50	  end
+    51	
+    52	  def planted?
+    53	    return @growth_stage > 0
+    54	  end
+    55	
+    56	  def growing?
+    57	    return @growth_stage > 0 && @growth_stage < 5
+    58	  end
+    59	
+    60	  def grown?
+    61	    return @growth_stage >= 5
+    62	  end
+    63	
+    64	  def replanted?
+    65	    return @replant_count > 0
+    66	  end
+    67	
+    68	  def moisture_stage
+    69	    return 0 if !@new_mechanics
+    70	    return 2 if @moisture_level > 50
+    71	    return 1 if @moisture_level > 0
+    72	    return 0
+    73	  end
+    74	
+    75	  def water
+    76	    @moisture_level = 100
+    77	    if !@watered_this_stage
+    78	      @watered_this_stage = true
+    79	      @watering_count += 1
+    80	    end
+    81	  end
+    82	
+    83	  def berry_yield
+    84	    data = GameData::BerryPlant.get(@berry_id)
+    85	    if @new_mechanics
+    86	      return [data.maximum_yield * (5 - @yield_penalty) / 5, data.minimum_yield].max
+    87	    elsif @watering_count > 0
+    88	      ret = (data.maximum_yield - data.minimum_yield) * (@watering_count - 1)
+    89	      ret += rand(1 + data.maximum_yield - data.minimum_yield)
+    90	      return (ret / 4) + data.minimum_yield
+    91	    end
+    92	    return data.minimum_yield
+    93	  end
+    94	
+    95	  # Old mechanics only update a plant when its map is loaded. New mechanics
+    96	  # update it every frame while its map is loaded.
+    97	  def update
+    98	    return if !planted?
+    99	    time_now = pbGetTimeNow
+   100	    time_delta = time_now.to_i - @time_last_updated
+   101	    return if time_delta <= 0
+   102	    new_time_alive = @time_alive + time_delta
+   103	    # Get all growth data
+   104	    plant_data = GameData::BerryPlant.get(@berry_id)
+   105	    time_per_stage = plant_data.hours_per_stage * 3600   # In seconds
+   106	    drying_per_hour = plant_data.drying_per_hour
+   107	    max_replants = GameData::BerryPlant::NUMBER_OF_REPLANTS
+   108	    stages_growing = GameData::BerryPlant::NUMBER_OF_GROWTH_STAGES
+   109	    stages_fully_grown = GameData::BerryPlant::NUMBER_OF_FULLY_GROWN_STAGES
+   110	    case @mulch_id
+   111	    when :GROWTHMULCH
+   112	      time_per_stage = (time_per_stage * 0.75).to_i
+   113	      drying_per_hour = (drying_per_hour * 1.5).ceil
+   114	    when :DAMPMULCH
+   115	      time_per_stage = (time_per_stage * 1.25).to_i
+   116	      drying_per_hour /= 2
+   117	    when :GOOEYMULCH
+   118	      max_replants = (max_replants * 1.5).ceil
+   119	    when :STABLEMULCH
+   120	      stages_fully_grown = (stages_fully_grown * 1.5).ceil
+   121	    end
+   122	    # Do replants
+   123	    done_replant = false
+   124	    loop do
+   125	      stages_this_life = stages_growing + stages_fully_grown - (replanted? ? 1 : 0)
+   126	      break if new_time_alive < stages_this_life * time_per_stage
+   127	      if @replant_count >= max_replants
+   128	        reset
+   129	        return
+   130	      end
+   131	      replant
+   132	      done_replant = true
+   133	      new_time_alive -= stages_this_life * time_per_stage
+   134	    end
+   135	    # Update how long plant has been alive for
+   136	    old_growth_stage = @growth_stage
+   137	    @time_alive = new_time_alive
+   138	    @growth_stage = 1 + (@time_alive / time_per_stage)
+   139	    @growth_stage += 1 if replanted?   # Replants start at stage 2
+   140	    @time_last_updated = time_now.to_i
+   141	    # Record watering (old mechanics), and apply drying out per hour (new mechanics)
+   142	    if @new_mechanics
+   143	      old_growth_hour = (done_replant) ? 0 : (@time_alive - time_delta) / 3600
+   144	      new_growth_hour = @time_alive / 3600
+   145	      if new_growth_hour > old_growth_hour
+   146	        (new_growth_hour - old_growth_hour).times do
+   147	          if @moisture_level > 0
+   148	            @moisture_level -= drying_per_hour
+   149	          else
+   150	            @yield_penalty += 1
+   151	          end
+   152	        end
+   153	      end
+   154	    else
+   155	      old_growth_stage = 0 if done_replant
+   156	      new_growth_stage = [@growth_stage, stages_growing + 1].min
+   157	      @watered_this_stage = false if new_growth_stage > old_growth_stage
+   158	      water if $game_screen && GameData::Weather.get($game_screen.weather_type).category == :Rain
+   159	    end
+   160	  end
+   161	end
+   162	
+   163	#===============================================================================
+   164	#
+   165	#===============================================================================
+   166	class BerryPlantMoistureSprite
+   167	  def initialize(event, map, viewport = nil)
+   168	    @event          = event
+   169	    @map            = map
+   170	    @sprite         = IconSprite.new(0, 0, viewport)
+   171	    @sprite.ox      = 16
+   172	    @sprite.oy      = 24
+   173	    @moisture_stage = -1   # -1 = none, 0 = dry, 1 = damp, 2 = wet
+   174	    @disposed       = false
+   175	    update_graphic
+   176	  end
+   177	
+   178	  def dispose
+   179	    @sprite.dispose
+   180	    @map      = nil
+    72	    GameData::EncounterType.each do |enc_type|
+    73	      return true if enc_type.type == :cave && has_encounter_type?(enc_type.id)
+    74	    end
+    75	    return false
+    76	  end
+    77	
+    78	  # Returns whether water-like encounters have been defined for the current map.
+    79	  # Applies only to encounters triggered by moving around (i.e. not fishing).
+    80	  def has_water_encounters?
+    81	    GameData::EncounterType.each do |enc_type|
+    82	      return true if enc_type.type == :water && has_encounter_type?(enc_type.id)
+    83	    end
+    84	    return false
+    85	  end
+    86	
+    87	  #-----------------------------------------------------------------------------
+    88	
+    89	  # Returns whether the player's current location allows wild encounters to
+    90	  # trigger upon taking a step.
+    91	  def encounter_possible_here?
+    92	    return true if $PokemonGlobal.surfing
+    93	    terrain_tag = $game_map.terrain_tag($game_player.x, $game_player.y)
+    94	    return false if terrain_tag.ice
+    95	    return true if has_cave_encounters?   # i.e. this map is a cave
+    96	    return true if has_land_encounters? && terrain_tag.land_wild_encounters
+    97	    return false
+    98	  end
+    99	
+   100	  # Returns whether a wild encounter should happen, based on its encounter
+   101	  # chance. Called when taking a step and by Rock Smash.
+   102	  def encounter_triggered?(enc_type, repel_active = false, triggered_by_step = true)
+   103	    if !enc_type || !GameData::EncounterType.exists?(enc_type)
+   104	      raise ArgumentError.new(_INTL("Encounter type {1} does not exist", enc_type))
+   105	    end
+   106	    return false if $game_system.encounter_disabled
+   107	    return false if !$player
+   108	    return false if $DEBUG && Input.press?(Input::CTRL)
+   109	    # Check if enc_type has a defined step chance/encounter table
+   110	    return false if !@step_chances[enc_type] || @step_chances[enc_type] == 0
+   111	    return false if !has_encounter_type?(enc_type)
+   112	    # Poké Radar encounters always happen, ignoring the minimum step period and
+   113	    # trigger probabilities
+   114	    return true if pbPokeRadarOnShakingGrass
+   115	    # Get base encounter chance and minimum steps grace period
+   116	    encounter_chance = @step_chances[enc_type].to_f
+   117	    min_steps_needed = (8 - (encounter_chance / 10)).clamp(0, 8).to_f
+   118	    # Apply modifiers to the encounter chance and the minimum steps amount
+   119	    if triggered_by_step
+   120	      encounter_chance += @chance_accumulator / 200
+   121	      encounter_chance *= 0.8 if $PokemonGlobal.bicycle
+   122	    end
+   123	    if $PokemonMap.lower_encounter_rate
+   124	      encounter_chance /= 2
+   125	      min_steps_needed *= 2
+   126	    elsif $PokemonMap.higher_encounter_rate
+   127	      encounter_chance *= 1.5
+   128	      min_steps_needed /= 2
+   129	    end
+   130	    first_pkmn = $player.first_pokemon
+   131	    if first_pkmn
+   132	      case first_pkmn.item_id
+   133	      when :CLEANSETAG
+   134	        encounter_chance *= 2.0 / 3
+   135	        min_steps_needed *= 4 / 3.0
+   136	      when :PUREINCENSE
+   137	        encounter_chance *= 2.0 / 3
+   138	        min_steps_needed *= 4 / 3.0
+   139	      else   # Ignore ability effects if an item effect applies
+   140	        case first_pkmn.ability_id
+   141	        when :STENCH, :WHITESMOKE, :QUICKFEET
+   142	          encounter_chance /= 2
+   143	          min_steps_needed *= 2
+   144	        when :INFILTRATOR
+   145	          if Settings::MORE_ABILITIES_AFFECT_WILD_ENCOUNTERS
+   146	            encounter_chance /= 2
+   147	            min_steps_needed *= 2
+   148	          end
+   149	        when :SNOWCLOAK
+   150	          if GameData::Weather.get($game_screen.weather_type).category == :Hail
+   151	            encounter_chance /= 2
+   152	            min_steps_needed *= 2
+   153	          end
+   154	        when :SANDVEIL
+   155	          if GameData::Weather.get($game_screen.weather_type).category == :Sandstorm
+   156	            encounter_chance /= 2
+   157	            min_steps_needed *= 2
+   158	          end
+   159	        when :SWARM
+   160	          encounter_chance *= 1.5
+   161	          min_steps_needed /= 2
+   162	        when :ILLUMINATE, :ARENATRAP, :NOGUARD
+   163	          encounter_chance *= 2
+   164	          min_steps_needed /= 2
+   165	        end
+   166	      end
+   167	    end
+   168	    # Wild encounters are much less likely to happen for the first few steps
+   169	    # after a previous wild encounter
+   170	    if triggered_by_step && @step_count < min_steps_needed
+   171	      @step_count += 1
+   172	      return false if rand(100) >= encounter_chance * 5 / (@step_chances[enc_type] + (@chance_accumulator / 200))
+   173	    end
+   174	    # Decide whether the wild encounter should actually happen
+   175	    return true if rand(100) < encounter_chance
+   176	    # If encounter didn't happen, make the next step more likely to produce one
+   177	    if triggered_by_step
+   178	      @chance_accumulator += @step_chances[enc_type]
+   179	      @chance_accumulator = 0 if repel_active
+   180	    end
+   181	    return false
+   182	  end
+   183	
+   198	      ally.party.each { |pkmn| pokemon_array.push(pkmn) }
+   199	      setBattleRule("double") if $game_temp.battle_rules["size"].nil?
+   200	    end
+   201	    return trainer_array, ally_items, pokemon_array, party_starts
+   202	  end
+   203	
+   204	  def create_battle_scene
+   205	    return Battle::Scene.new
+   206	  end
+   207	
+   208	  # Sets up various battle parameters and applies special rules.
+   209	  def prepare_battle(battle)
+   210	    battleRules = $game_temp.battle_rules
+   211	    # The size of the battle, i.e. how many Pokémon on each side (default: "single")
+   212	    battle.setBattleMode(battleRules["size"]) if !battleRules["size"].nil?
+   213	    # Whether the game won't black out even if the player loses (default: false)
+   214	    battle.canLose = battleRules["canLose"] if !battleRules["canLose"].nil?
+   215	    # Whether the player can choose to run from the battle (default: true)
+   216	    battle.canRun = battleRules["canRun"] if !battleRules["canRun"].nil?
+   217	    # Whether the player can manually choose to switch out Pokémon (default: true)
+   218	    battle.canSwitch = battleRules["canSwitch"] if !battleRules["canSwitch"].nil?
+   219	    # Whether wild Pokémon always try to run from battle (default: nil)
+   220	    battle.rules["alwaysflee"] = battleRules["roamerFlees"]
+   221	    # Whether Pokémon gain Exp/EVs from defeating/catching a Pokémon (default: true)
+   222	    battle.expGain = battleRules["expGain"] if !battleRules["expGain"].nil?
+   223	    # Whether the player gains/loses money at the end of the battle (default: true)
+   224	    battle.moneyGain = battleRules["moneyGain"] if !battleRules["moneyGain"].nil?
+   225	    # Whether Poké Balls cannot be thrown at all
+   226	    battle.disablePokeBalls = battleRules["disablePokeBalls"] if !battleRules["disablePokeBalls"].nil?
+   227	    # Whether the player is asked what to do with a new Pokémon when their party is full
+   228	    battle.sendToBoxes = $PokemonSystem.sendtoboxes if Settings::NEW_CAPTURE_CAN_REPLACE_PARTY_MEMBER
+   229	    battle.sendToBoxes = 2 if battleRules["forceCatchIntoParty"]
+   230	    # Whether the player is able to switch when an opponent's Pokémon faints
+   231	    battle.switchStyle = ($PokemonSystem.battlestyle == 0)
+   232	    battle.switchStyle = battleRules["switchStyle"] if !battleRules["switchStyle"].nil?
+   233	    # Whether battle animations are shown
+   234	    battle.showAnims = ($PokemonSystem.battlescene == 0)
+   235	    battle.showAnims = battleRules["battleAnims"] if !battleRules["battleAnims"].nil?
+   236	    # Terrain
+   237	    if battleRules["defaultTerrain"].nil?
+   238	      if Settings::OVERWORLD_WEATHER_SETS_BATTLE_TERRAIN
+   239	        case $game_screen.weather_type
+   240	        when :Storm
+   241	          battle.defaultTerrain = :Electric
+   242	        when :Fog
+   243	          battle.defaultTerrain = :Misty
+   244	        end
+   245	      end
+   246	    else
+   247	      battle.defaultTerrain = battleRules["defaultTerrain"]
+   248	    end
+   249	    # Weather
+   250	    if battleRules["defaultWeather"].nil?
+   251	      case GameData::Weather.get($game_screen.weather_type).category
+   252	      when :Rain, :Storm
+   253	        battle.defaultWeather = :Rain
+   254	      when :Hail
+   255	        battle.defaultWeather = :Hail
+   256	      when :Sandstorm
+   257	        battle.defaultWeather = :Sandstorm
+   258	      when :Sun
+   259	        battle.defaultWeather = :Sun
+   260	      end
+   261	    else
+   262	      battle.defaultWeather = battleRules["defaultWeather"]
+   263	    end
+   264	    # Environment
+   265	    if battleRules["environment"].nil?
+   266	      battle.environment = pbGetEnvironment
+   267	    else
+   268	      battle.environment = battleRules["environment"]
+   269	    end
+   270	    # Backdrop graphic filename
+   271	    if !battleRules["backdrop"].nil?
+   272	      backdrop = battleRules["backdrop"]
+   273	    elsif $PokemonGlobal.nextBattleBack
+   274	      backdrop = $PokemonGlobal.nextBattleBack
+   275	    elsif $PokemonGlobal.surfing
+   276	      backdrop = "water"   # This applies wherever you are, including in caves
+   277	    elsif $game_map.metadata
+   278	      back = $game_map.metadata.battle_background
+   279	      backdrop = back if back && back != ""
+   280	    end
+   876	  #-----------------------------------------------------------------------------
+   877	  # * Prepare for Transition
+   878	  #-----------------------------------------------------------------------------
+   879	  def command_221
+   880	    return false if $game_temp.message_window_showing
+   881	    Graphics.freeze
+   882	    return true
+   883	  end
+   884	
+   885	  #-----------------------------------------------------------------------------
+   886	  # * Execute Transition
+   887	  #-----------------------------------------------------------------------------
+   888	  def command_222
+   889	    return false if $game_temp.transition_processing
+   890	    $game_temp.transition_processing = true
+   891	    $game_temp.transition_name       = @parameters[0]
+   892	    @index += 1
+   893	    return false
+   894	  end
+   895	
+   896	  #-----------------------------------------------------------------------------
+   897	  # * Change Screen Color Tone
+   898	  #-----------------------------------------------------------------------------
+   899	  def command_223
+   900	    $game_screen.start_tone_change(@parameters[0], @parameters[1])
+   901	    return true
+   902	  end
+   903	
+   904	  #-----------------------------------------------------------------------------
+   905	  # * Screen Flash
+   906	  #-----------------------------------------------------------------------------
+   907	  def command_224
+   908	    $game_screen.start_flash(@parameters[0], @parameters[1])
+   909	    return true
+   910	  end
+   911	
+   912	  #-----------------------------------------------------------------------------
+   913	  # * Screen Shake
+   914	  #-----------------------------------------------------------------------------
+   915	  def command_225
+   916	    $game_screen.start_shake(@parameters[0], @parameters[1], @parameters[2])
+   917	    return true
+   918	  end
+   919	
+   920	  #-----------------------------------------------------------------------------
+   921	  # * Show Picture
+   922	  #-----------------------------------------------------------------------------
+   923	  def command_231
+   924	    number = @parameters[0] + ($game_temp.in_battle ? 50 : 0)
+   925	    if @parameters[3] == 0   # Direct appointment
+   926	      x = @parameters[4]
+   927	      y = @parameters[5]
+   928	    else   # Appoint with variables
+   929	      x = $game_variables[@parameters[4]]
+   930	      y = $game_variables[@parameters[5]]
+   931	    end
+   932	    $game_screen.pictures[number].show(@parameters[1], @parameters[2],
+   933	                                       x, y, @parameters[6], @parameters[7], @parameters[8], @parameters[9])
+   934	    return true
+   935	  end
+   936	
+   937	  #-----------------------------------------------------------------------------
+   938	  # * Move Picture
+   939	  #-----------------------------------------------------------------------------
+   940	  def command_232
+   941	    number = @parameters[0] + ($game_temp.in_battle ? 50 : 0)
+   942	    if @parameters[3] == 0   # Direct appointment
+   943	      x = @parameters[4]
+   944	      y = @parameters[5]
+   945	    else   # Appoint with variables
+   946	      x = $game_variables[@parameters[4]]
+   947	      y = $game_variables[@parameters[5]]
+   948	    end
+   949	    $game_screen.pictures[number].move(@parameters[1], @parameters[2], x, y,
+   950	                                       @parameters[6], @parameters[7],
+   951	                                       @parameters[8], @parameters[9])
+   952	    return true
+   953	  end
+   954	
+   955	  #-----------------------------------------------------------------------------
+   956	  # * Rotate Picture
+   957	  #-----------------------------------------------------------------------------
+   958	  def command_233
+   959	    number = @parameters[0] + ($game_temp.in_battle ? 50 : 0)
+   960	    $game_screen.pictures[number].rotate(@parameters[1])
+   961	    return true
+   962	  end
+   963	
+   964	  #-----------------------------------------------------------------------------
+   965	  # * Change Picture Color Tone
+   966	  #-----------------------------------------------------------------------------
+   967	  def command_234
+   968	    number = @parameters[0] + ($game_temp.in_battle ? 50 : 0)
+   969	    $game_screen.pictures[number].start_tone_change(@parameters[1], @parameters[2])
+   970	    return true
+   971	  end
+   972	
+   973	  #-----------------------------------------------------------------------------
+   974	  # * Erase Picture
+   975	  #-----------------------------------------------------------------------------
+   976	  def command_235
+   977	    number = @parameters[0] + ($game_temp.in_battle ? 50 : 0)
+   978	    $game_screen.pictures[number].erase
+   979	    return true
+   980	  end
+   981	
+   982	  #-----------------------------------------------------------------------------
+   983	  # * Set Weather Effects
+   984	  #-----------------------------------------------------------------------------
+   985	  def command_236
+   986	    $game_screen.weather(@parameters[0], @parameters[1], @parameters[2])
+   987	    return true
+   988	  end
+   989	
+   990	  #-----------------------------------------------------------------------------
+   991	  # * Play BGM
+   992	  #-----------------------------------------------------------------------------
+   993	  def command_241
+   994	    pbBGMPlay(@parameters[0])
+   995	    return true
+   996	  end
+   997	
+   998	  #-----------------------------------------------------------------------------
+   999	  # * Fade Out BGM
+  1000	  #-----------------------------------------------------------------------------
+  1001	  def command_242
+  1002	    pbBGMFade(@parameters[0])
+  1003	    return true
+  1004	  end
+  1005	
+  1006	  #-----------------------------------------------------------------------------
+  1007	  # * Play BGS
+  1008	  #-----------------------------------------------------------------------------
+  1009	  def command_245
+  1010	    pbBGSPlay(@parameters[0])
+  1011	    return true
+  1012	  end
+  1013	
+  1014	  #-----------------------------------------------------------------------------
+  1015	  # * Fade Out BGS
+  1016	  #-----------------------------------------------------------------------------
+  1017	  def command_246
+  1018	    pbBGSFade(@parameters[0])
+  1019	    return true
+  1020	  end
+  1021	
+  1022	  #-----------------------------------------------------------------------------
+  1023	  # * Memorize BGM/BGS
+  1024	  #-----------------------------------------------------------------------------
+  1025	  def command_247
+  1026	    $game_system.bgm_memorize
+  1027	    $game_system.bgs_memorize
+  1028	    return true
+  1029	  end
+  1030	
+  1031	  #-----------------------------------------------------------------------------
+  1032	  # * Restore BGM/BGS
+  1033	  #-----------------------------------------------------------------------------
+  1034	  def command_248
+  1035	    $game_system.bgm_restore
+  1036	    $game_system.bgs_restore
+  1037	    return true
+  1038	  end
+  1039	
+  1040	  #-----------------------------------------------------------------------------
+  1041	  # * Play ME
+  1042	  #-----------------------------------------------------------------------------
+  1043	  def command_249
+  1044	    pbMEPlay(@parameters[0])
+  1045	    return true
+  1046	  end
+  1047	
+  1048	  #-----------------------------------------------------------------------------
+  1049	  # * Play SE
+  1050	  #-----------------------------------------------------------------------------
+  1051	  def command_250
+  1052	    pbSEPlay(@parameters[0])
+  1053	    return true
+  1054	  end
+  1055	
+   267	    option.givenicknames = 0 if option.givenicknames.nil?
+   268	    option.sendtoboxes = 0 if option.sendtoboxes.nil?
+   269	  end
+   270	end
+   271	
+   272	#===============================================================================
+   273	
+   274	SaveData.register_conversion(:v20_fix_default_weather_type) do
+   275	  essentials_version 20
+   276	  display_title "Fixing weather type 0 in effect"
+   277	  to_value :game_screen do |game_screen|
+   278	    game_screen.instance_eval do
+   279	      @weather_type = :None if @weather_type == 0
+   280	    end
+   281	  end
+   282	end
+   283	
+   284	#===============================================================================
+   285	
+   286	SaveData.register_conversion(:v20_add_stats) do
+   287	  essentials_version 20

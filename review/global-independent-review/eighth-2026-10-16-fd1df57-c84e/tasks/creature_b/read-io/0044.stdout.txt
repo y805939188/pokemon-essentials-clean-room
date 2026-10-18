@@ -1,0 +1,251 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/014_Pokemon/001_Pokemon-related/002_ShadowPokemon_Other.rb", "range": [1, 250], "file_lines": 460, "bytes": 15747, "sha256": "2c51301c6b96c59fe969eba2aafefb757fc1373f173bb16124d1b4ee391b0ff4", "began_utc": "2026-10-16T03:31:30.695273+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 # All types except Shadow have Shadow as a weakness.
+00002 # Shadow has Shadow as a resistance.
+00003 # On a side note, the Shadow moves in Colosseum will not be affected by
+00004 # Weaknesses or Resistances, while in XD the Shadow-type is Super-Effective
+00005 # against all other types.
+00006 # 2/5 - display nature
+00007 #
+00008 # XD - Shadow Rush -- 55, 100 - Deals damage.
+00009 # Colosseum - Shadow Rush -- 90, 100
+00010 # If this attack is successful, user loses half of HP lost by opponent due to
+00011 # this attack (recoil). If user is in Hyper Mode, this attack has a good chance
+00012 # for a critical hit.
+00013 
+00014 #===============================================================================
+00015 # Purify a Shadow Pokémon.
+00016 #===============================================================================
+00017 def pbPurify(pkmn, scene)
+00018   return if !pkmn.shadowPokemon? || pkmn.heart_gauge != 0
+00019   $stats.shadow_pokemon_purified += 1
+00020   pkmn.shadow = false
+00021   pkmn.hyper_mode = false
+00022   pkmn.giveRibbon(:NATIONAL)
+00023   scene.pbDisplay(_INTL("{1} opened the door to its heart!", pkmn.name))
+00024   old_moves = []
+00025   pkmn.moves.each { |m| old_moves.push(m.id) }
+00026   pkmn.update_shadow_moves
+00027   pkmn.moves.each_with_index do |m, i|
+00028     next if m.id == old_moves[i]
+00029     scene.pbDisplay(_INTL("{1} regained the move {2}!", pkmn.name, m.name))
+00030   end
+00031   pkmn.record_first_moves
+00032   if pkmn.saved_ev
+00033     pkmn.add_evs(pkmn.saved_ev)
+00034     pkmn.saved_ev = nil
+00035   end
+00036   if pkmn.saved_exp
+00037     newexp = pkmn.growth_rate.add_exp(pkmn.exp, (pkmn.saved_exp * 4 / 5) || 0)
+00038     pkmn.saved_exp = nil
+00039     newlevel = pkmn.growth_rate.level_from_exp(newexp)
+00040     curlevel = pkmn.level
+00041     if newexp != pkmn.exp
+00042       scene.pbDisplay(_INTL("{1} regained {2} Exp. Points!", pkmn.name, newexp - pkmn.exp))
+00043     end
+00044     if newlevel == curlevel
+00045       pkmn.exp = newexp
+00046       pkmn.calc_stats
+00047     else
+00048       pbChangeLevel(pkmn, newlevel, scene)   # for convenience
+00049       pkmn.exp = newexp
+00050     end
+00051   end
+00052   if $PokemonSystem.givenicknames == 0 &&
+00053      scene.pbConfirm(_INTL("Would you like to give a nickname to {1}?", pkmn.speciesName))
+00054     newname = pbEnterPokemonName(_INTL("{1}'s nickname?", pkmn.speciesName),
+00055                                  0, Pokemon::MAX_NAME_SIZE, "", pkmn)
+00056     pkmn.name = newname
+00057   end
+00058 end
+00059 
+00060 #===============================================================================
+00061 # Relic Stone scene.
+00062 #===============================================================================
+00063 class RelicStoneScene
+00064   def pbPurify; end
+00065 
+00066   def pbUpdate
+00067     pbUpdateSpriteHash(@sprites)
+00068   end
+00069 
+00070   def pbEndScene
+00071     pbFadeOutAndHide(@sprites) { pbUpdate }
+00072     pbDisposeSpriteHash(@sprites)
+00073     @viewport.dispose
+00074   end
+00075 
+00076   def pbDisplay(msg, brief = false)
+00077     UIHelper.pbDisplay(@sprites["msgwindow"], msg, brief) { pbUpdate }
+00078   end
+00079 
+00080   def pbConfirm(msg)
+00081     UIHelper.pbConfirm(@sprites["msgwindow"], msg) { pbUpdate }
+00082   end
+00083 
+00084   def pbStartScene(pokemon)
+00085     @sprites = {}
+00086     @viewport = Viewport.new(0, 0, Graphics.width, Graphics.height)
+00087     @viewport.z = 99999
+00088     @pokemon = pokemon
+00089     addBackgroundPlane(@sprites, "bg", "relicstonebg", @viewport)
+00090     @sprites["msgwindow"] = Window_AdvancedTextPokemon.new("")
+00091     @sprites["msgwindow"].viewport = @viewport
+00092     @sprites["msgwindow"].x        = 0
+00093     @sprites["msgwindow"].y        = Graphics.height - 96
+00094     @sprites["msgwindow"].width    = Graphics.width
+00095     @sprites["msgwindow"].height   = 96
+00096     @sprites["msgwindow"].text     = ""
+00097     @sprites["msgwindow"].visible  = true
+00098     pbDeactivateWindows(@sprites)
+00099     pbFadeInAndShow(@sprites) { pbUpdate }
+00100   end
+00101 end
+00102 
+00103 #===============================================================================
+00104 #
+00105 #===============================================================================
+00106 class RelicStoneScreen
+00107   def initialize(scene)
+00108     @scene = scene
+00109   end
+00110 
+00111   def pbDisplay(x)
+00112     @scene.pbDisplay(x)
+00113   end
+00114 
+00115   def pbConfirm(x)
+00116     @scene.pbConfirm(x)
+00117   end
+00118 
+00119   def pbUpdate; end
+00120 
+00121   def pbRefresh; end
+00122 
+00123   def pbStartScreen(pokemon)
+00124     @scene.pbStartScene(pokemon)
+00125     @scene.pbPurify
+00126     pbPurify(pokemon, self)
+00127     @scene.pbEndScene
+00128   end
+00129 end
+00130 
+00131 #===============================================================================
+00132 #
+00133 #===============================================================================
+00134 def pbRelicStoneScreen(pkmn)
+00135   retval = true
+00136   pbFadeOutIn do
+00137     scene = RelicStoneScene.new
+00138     screen = RelicStoneScreen.new(scene)
+00139     retval = screen.pbStartScreen(pkmn)
+00140   end
+00141   return retval
+00142 end
+00143 
+00144 #===============================================================================
+00145 #
+00146 #===============================================================================
+00147 def pbRelicStone
+00148   if $player.party.none? { |pkmn| pkmn.purifiable? }
+00149     pbMessage(_INTL("You have no Pokémon that can be purified."))
+00150     return
+00151   end
+00152   pbMessage(_INTL("There's a Pokémon that may open the door to its heart!"))
+00153   # Choose a purifiable Pokemon
+00154   pbChoosePokemon(1, 2, proc { |pkmn|
+00155     pkmn.able? && pkmn.shadowPokemon? && pkmn.heart_gauge == 0
+00156   })
+00157   if $game_variables[1] >= 0
+00158     pbRelicStoneScreen($player.party[$game_variables[1]])
+00159   end
+00160 end
+00161 
+00162 #===============================================================================
+00163 # Shadow Pokémon in battle.
+00164 #===============================================================================
+00165 class Battle
+00166   unless method_defined?(:__shadow__pbCanUseItemOnPokemon?)
+00167     alias __shadow__pbCanUseItemOnPokemon? pbCanUseItemOnPokemon?
+00168   end
+00169 
+00170   def pbCanUseItemOnPokemon?(item, pkmn, battler, scene, showMessages = true)
+00171     ret = __shadow__pbCanUseItemOnPokemon?(item, pkmn, battler, scene, showMessages)
+00172     if ret && pkmn.hyper_mode && ![:JOYSCENT, :EXCITESCENT, :VIVIDSCENT].include?(item)
+00173       scene.pbDisplay(_INTL("This item can't be used on that Pokémon."))
+00174       return false
+00175     end
+00176     return ret
+00177   end
+00178 end
+00179 
+00180 #===============================================================================
+00181 #
+00182 #===============================================================================
+00183 class Battle::Battler
+00184   alias __shadow__pbInitPokemon pbInitPokemon unless method_defined?(:__shadow__pbInitPokemon)
+00185 
+00186   def pbInitPokemon(*arg)
+00187     self.pokemon.hyper_mode = false if self.pokemonIndex > 0 && inHyperMode?
+00188     __shadow__pbInitPokemon(*arg)
+00189     # Called into battle
+00190     if shadowPokemon?
+00191       self.types = [:SHADOW] if GameData::Type.exists?(:SHADOW)
+00192       self.pokemon.change_heart_gauge("battle") if pbOwnedByPlayer?
+00193     end
+00194   end
+00195 
+00196   def shadowPokemon?
+00197     p = self.pokemon
+00198     return p&.shadowPokemon?
+00199   end
+00200 
+00201   def inHyperMode?
+00202     return false if fainted?
+00203     p = self.pokemon
+00204     return p&.hyper_mode
+00205   end
+00206 
+00207   def pbHyperMode
+00208     return if fainted? || !shadowPokemon? || inHyperMode? || !pbOwnedByPlayer?
+00209     p = self.pokemon
+00210     if @battle.pbRandom(p.heart_gauge) <= p.max_gauge_size / 4
+00211       p.hyper_mode = true
+00212       @battle.pbDisplay(_INTL("{1}'s emotions rose to a fever pitch!\nIt entered Hyper Mode!", self.pbThis))
+00213     end
+00214   end
+00215 
+00216   def pbHyperModeObedience(move)
+00217     return true if !inHyperMode?
+00218     return true if !move || move.type == :SHADOW
+00219     return rand(100) < 20
+00220   end
+00221 end
+00222 
+00223 #===============================================================================
+00224 # Shadow item effects.
+00225 #===============================================================================
+00226 def pbRaiseHappinessAndReduceHeart(pkmn, scene, multiplier, show_fail_message = true)
+00227   if !pkmn.shadowPokemon? || (pkmn.happiness == 255 && pkmn.heart_gauge == 0)
+00228     scene.pbDisplay(_INTL("It won't have any effect.")) if show_fail_message
+00229     return false
+00230   end
+00231   old_gauge = pkmn.heart_gauge
+00232   old_happiness = pkmn.happiness
+00233   pkmn.changeHappiness("vitamin")
+00234   pkmn.change_heart_gauge("scent", multiplier)
+00235   if pkmn.heart_gauge == old_gauge
+00236     scene.pbDisplay(_INTL("{1} turned friendly.", pkmn.name))
+00237   elsif pkmn.happiness == old_happiness
+00238     scene.pbDisplay(_INTL("{1} adores you!\nThe door to its heart opened a little.", pkmn.name))
+00239     pkmn.check_ready_to_purify
+00240   else
+00241     scene.pbDisplay(_INTL("{1} turned friendly.\nThe door to its heart opened a little.", pkmn.name))
+00242     pkmn.check_ready_to_purify
+00243   end
+00244   return true
+00245 end
+00246 
+00247 ItemHandlers::UseOnPokemon.add(:JOYSCENT, proc { |item, qty, pkmn, scene|
+00248   ret = false
+00249   if pkmn.hyper_mode
+00250     scene.pbDisplay(_INTL("{1} came to its senses from the {2}.", pkmn.name, GameData::Item.get(item).name))

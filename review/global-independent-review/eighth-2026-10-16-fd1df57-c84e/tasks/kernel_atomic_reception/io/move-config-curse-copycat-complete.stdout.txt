@@ -1,0 +1,244 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/012_MoveEffects_ChangeMoveEffect.rb RANGE 140-223
+class Battle::Move::CurseTargetOrLowerUserSpd1RaiseUserAtkDef1 < Battle::Move
+  attr_reader :statUp, :statDown
+
+  def ignoresSubstitute?(user); return true; end
+
+  def initialize(battle, move)
+    super
+    @statUp   = [:ATTACK, 1, :DEFENSE, 1]
+    @statDown = [:SPEED, 1]
+  end
+
+  def pbTarget(user)
+    if user.pbHasType?(:GHOST)
+      ghost_target = (Settings::MECHANICS_GENERATION >= 8) ? :RandomNearFoe : :NearFoe
+      return GameData::Target.get(ghost_target)
+    end
+    return super
+  end
+
+  def pbMoveFailed?(user, targets)
+    return false if user.pbHasType?(:GHOST)
+    failed = true
+    (@statUp.length / 2).times do |i|
+      next if !user.pbCanRaiseStatStage?(@statUp[i * 2], user, self)
+      failed = false
+      break
+    end
+    (@statDown.length / 2).times do |i|
+      next if !user.pbCanLowerStatStage?(@statDown[i * 2], user, self)
+      failed = false
+      break
+    end
+    if failed
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbFailsAgainstTarget?(user, target, show_message)
+    if user.pbHasType?(:GHOST) && target.effects[PBEffects::Curse]
+      @battle.pbDisplay(_INTL("But it failed!")) if show_message
+      return true
+    end
+    return false
+  end
+
+  def pbEffectGeneral(user)
+    return if user.pbHasType?(:GHOST)
+    # Non-Ghost effect
+    showAnim = true
+    (@statDown.length / 2).times do |i|
+      next if !user.pbCanLowerStatStage?(@statDown[i * 2], user, self)
+      if user.pbLowerStatStage(@statDown[i * 2], @statDown[(i * 2) + 1], user, showAnim)
+        showAnim = false
+      end
+    end
+    showAnim = true
+    (@statUp.length / 2).times do |i|
+      next if !user.pbCanRaiseStatStage?(@statUp[i * 2], user, self)
+      if user.pbRaiseStatStage(@statUp[i * 2], @statUp[(i * 2) + 1], user, showAnim)
+        showAnim = false
+      end
+    end
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    return if !user.pbHasType?(:GHOST)
+    # Ghost effect
+    @battle.pbDisplay(_INTL("{1} cut its own HP and laid a curse on {2}!", user.pbThis, target.pbThis(true)))
+    target.effects[PBEffects::Curse] = true
+    user.pbReduceHP(user.totalhp / 2, false, false)
+    user.pbItemHPHealCheck
+  end
+
+  def pbShowAnimation(id, user, targets, hitNum = 0, showAnimation = true)
+    hitNum = 1 if !user.pbHasType?(:GHOST)   # Non-Ghost anim
+    super
+  end
+end
+
+#===============================================================================
+# Effect depends on the environment. (Secret Power)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/012_MoveEffects_ChangeMoveEffect.rb RANGE 694-786
+class Battle::Move::UseLastMoveUsed < Battle::Move
+  attr_reader :moveBlacklist
+
+  def callsAnotherMove?; return true; end
+
+  def initialize(battle, move)
+    super
+    @moveBlacklist = [
+      # Struggle, Belch
+      "Struggle",                                          # Struggle
+      "FailsIfUserNotConsumedBerry",                       # Belch              # Not listed on Bulbapedia
+      # Moves that affect the moveset
+      "ReplaceMoveThisBattleWithTargetLastMoveUsed",       # Mimic
+      "ReplaceMoveWithTargetLastMoveUsed",                 # Sketch
+      "TransformUserIntoTarget",                           # Transform
+      # Counter moves
+      "CounterPhysicalDamage",                             # Counter
+      "CounterSpecialDamage",                              # Mirror Coat
+      "CounterDamagePlusHalf",                             # Metal Burst        # Not listed on Bulbapedia
+      # Helping Hand, Feint (always blacklisted together, don't know why)
+      "PowerUpAllyMove",                                   # Helping Hand
+      "RemoveProtections",                                 # Feint
+      # Protection moves
+      "ProtectUser",                                       # Detect, Protect
+      "ProtectUserSideFromPriorityMoves",                  # Quick Guard        # Not listed on Bulbapedia
+      "ProtectUserSideFromMultiTargetDamagingMoves",       # Wide Guard         # Not listed on Bulbapedia
+      "UserEnduresFaintingThisTurn",                       # Endure
+      "ProtectUserSideFromDamagingMovesIfUserFirstTurn",   # Mat Block
+      "ProtectUserSideFromStatusMoves",                    # Crafty Shield      # Not listed on Bulbapedia
+      "ProtectUserFromDamagingMovesKingsShield",           # King's Shield
+      "ProtectUserFromDamagingMovesObstruct",              # Obstruct           # Not listed on Bulbapedia
+      "ProtectUserFromTargetingMovesSpikyShield",          # Spiky Shield
+      "ProtectUserBanefulBunker",                          # Baneful Bunker
+      # Moves that call other moves
+      "UseLastMoveUsedByTarget",                           # Mirror Move
+      "UseLastMoveUsed",                                   # Copycat (this move)
+      "UseMoveTargetIsAboutToUse",                         # Me First
+      "UseMoveDependingOnEnvironment",                     # Nature Power       # Not listed on Bulbapedia
+      "UseRandomUserMoveIfAsleep",                         # Sleep Talk
+      "UseRandomMoveFromUserParty",                        # Assist
+      "UseRandomMove",                                     # Metronome
+      # Move-redirecting and stealing moves
+      "BounceBackProblemCausingStatusMoves",               # Magic Coat         # Not listed on Bulbapedia
+      "StealAndUseBeneficialStatusMove",                   # Snatch
+      "RedirectAllMovesToUser",                            # Follow Me, Rage Powder
+      "RedirectAllMovesToTarget",                          # Spotlight
+      # Set up effects that trigger upon KO
+      "ReduceAttackerMovePPTo0IfUserFaints",               # Grudge             # Not listed on Bulbapedia
+      "AttackerFaintsIfUserFaints",                        # Destiny Bond
+      # Held item-moving moves
+      "UserTakesTargetItem",                               # Covet, Thief
+      "UserTargetSwapItems",                               # Switcheroo, Trick
+      "TargetTakesUserItem",                               # Bestow
+      # Moves that start focussing at the start of the round
+      "FailsIfUserDamagedThisTurn",                        # Focus Punch
+      "UsedAfterUserTakesPhysicalDamage",                  # Shell Trap
+      "BurnAttackerBeforeUserActs",                        # Beak Blast
+      # Event moves that do nothing
+      "DoesNothingFailsIfNoAlly",                          # Hold Hands
+      "DoesNothingCongratulations"                         # Celebrate
+    ]
+    if Settings::MECHANICS_GENERATION >= 6
+      @moveBlacklist += [
+        # Target-switching moves
+        "SwitchOutTargetStatusMove",                       # Roar, Whirlwind
+        "SwitchOutTargetDamagingMove"                      # Circle Throw, Dragon Tail
+      ]
+    end
+  end
+
+  def pbChangeUsageCounters(user, specialUsage)
+    super
+    @copied_move = @battle.lastMoveUsed
+  end
+
+  def pbMoveFailed?(user, targets)
+    if !@copied_move ||
+       !GameData::Move.exists?(@copied_move) ||
+       @moveBlacklist.include?(GameData::Move.get(@copied_move).function_code)
+      @battle.pbDisplay(_INTL("But it failed!"))
+      return true
+    end
+    return false
+  end
+
+  def pbEffectGeneral(user)
+    user.pbUseMoveSimple(@copied_move)
+  end
+end
+
+#===============================================================================
+# Uses the last move that the target used. (Mirror Move)
+#===============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/011_Battle/003_Move/012_MoveEffects_ChangeMoveEffect.rb RANGE 861-922
+class Battle::Move::UseMoveDependingOnEnvironment < Battle::Move
+  attr_reader :npMove
+
+  def callsAnotherMove?; return true; end
+
+  def pbOnStartUse(user, targets)
+    # NOTE: It's possible in theory to not have the move Nature Power wants to
+    #       turn into, but what self-respecting game wouldn't at least have Tri
+    #       Attack in it?
+    @npMove = :TRIATTACK
+    case @battle.field.terrain
+    when :Electric
+      @npMove = :THUNDERBOLT if GameData::Move.exists?(:THUNDERBOLT)
+    when :Grassy
+      @npMove = :ENERGYBALL if GameData::Move.exists?(:ENERGYBALL)
+    when :Misty
+      @npMove = :MOONBLAST if GameData::Move.exists?(:MOONBLAST)
+    when :Psychic
+      @npMove = :PSYCHIC if GameData::Move.exists?(:PSYCHIC)
+    else
+      try_move = nil
+      case @battle.environment
+      when :Grass, :TallGrass, :Forest, :ForestGrass
+        try_move = (Settings::MECHANICS_GENERATION >= 6) ? :ENERGYBALL : :SEEDBOMB
+      when :MovingWater, :StillWater, :Underwater
+        try_move = :HYDROPUMP
+      when :Puddle
+        try_move = :MUDBOMB
+      when :Cave
+        try_move = (Settings::MECHANICS_GENERATION >= 6) ? :POWERGEM : :ROCKSLIDE
+      when :Rock, :Sand
+        try_move = (Settings::MECHANICS_GENERATION >= 6) ? :EARTHPOWER : :EARTHQUAKE
+      when :Snow
+        try_move = :BLIZZARD
+        try_move = :FROSTBREATH if Settings::MECHANICS_GENERATION == 6
+        try_move = :ICEBEAM if Settings::MECHANICS_GENERATION >= 7
+      when :Ice
+        try_move = :ICEBEAM
+      when :Volcano
+        try_move = :LAVAPLUME
+      when :Graveyard
+        try_move = :SHADOWBALL
+      when :Sky
+        try_move = :AIRSLASH
+      when :Space
+        try_move = :DRACOMETEOR
+      when :UltraSpace
+        try_move = :PSYSHOCK
+      end
+      @npMove = try_move if GameData::Move.exists?(try_move)
+    end
+  end
+
+  def pbEffectAgainstTarget(user, target)
+    @battle.pbDisplay(_INTL("{1} turned into {2}!", @name, GameData::Move.get(@npMove).name))
+    user.pbUseMoveSimple(@npMove, target.index)
+  end
+end
+
+#===============================================================================
+# Uses a random move that exists. (Metronome)
+#===============================================================================

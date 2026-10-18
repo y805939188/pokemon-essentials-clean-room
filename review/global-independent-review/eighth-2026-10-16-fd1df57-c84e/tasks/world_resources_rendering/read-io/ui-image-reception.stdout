@@ -1,0 +1,45 @@
+dict_keys(['schema', 'reader', 'utc', 'semantic_units', 'hand_authored_unit_count', 'fact_count', 'warning'])
+    74	| **空字符串命中** | 空字符串是**有效命中**（真值判断），**直接返回空串，不触发回退**——空译不会被原文/核心译文替补 |
+    75	| 文件载入失败 | 载入入口的异常捕获把语言/核心消息置空，效果同回退；**加载器仅检验外层为数组**，内层形态不符仍可能在查找处出错 |
+    76	| 查找结构异常 | 数据形态异常（如内层非预期类型）按常规异常传播，不被查找入口捕获 |
+    77	| 格式化异常 | 脚本翻译入口的异常捕获**只包住查找部分**；后续格式化在捕获之外，**格式化错误向外传播** |
+    78	| 地图翻译入口的格式化 | 地图翻译入口**没有**同样的查找捕获——其格式化/查找错误**均不被该入口捕获**（不能套用脚本入口的捕获保证） |
+    79	
+    80	**地图名的查找值消费**：哈希查找返回所选译文值或原输入，不给每个消费者独立模板副本。地图命名服务会直接展开所选材料中的大写`\PN`，材料保留、改变后的查找键、别名及恢复规则集中于[WP11§5.3.1](../engine-overworld/wp11-map-topology-transfer.md)；空译在语言层不转core，地图消费者随后可转基本名。继续预览另按WP65，通用消息复制输入的控制处理不能套为地图名状态规则。当前替换参数与其捕获/格式化边界仍按下节。
+    81	
+    82	### 5.3 占位参数
+    83	
+    84	脚本翻译入口在取回文本后按参数次序替换 `{1}`、`{2}` 等占位；常规参数如Q直接插入，但**不承诺任意参数逐字保留**。格式化翻译入口支持 `{1:d}` 形式的格式占位（按格式化规则求值）；地图翻译入口为地图事件文本的对应入口（先按地图回退链取文本，再替换占位）。查找失败时脚本翻译入口回原文（见 §5.2 捕获范围）。
+    85	
+    86	正常主入口已定义、无插件覆写，当前语言各层均无命中时，在进入任何消息窗口**之前**观察返回字符串：
+    87	
+    88	| 入口与原文 | 参数的真实字符 | 返回字符串 |
+    89	| --- | --- | --- |
+    90	| 普通脚本，X{1}Y | Q | XQY |
+    91	| 普通脚本，X{1}Y | U+005C后接U+0026（反斜线与&） | X{1}Y，恢复被匹配的占位文本 |
+    92	| 普通脚本，X{1}Y | U+005C后接U+0031（反斜线与数字1） | XY |
+    93	| 地图5普通入口，X{1}Y | U+005C后接U+0026／U+0031，各例独立 | 分别X{1}Y／XY，同样解释替换参数 |
+    94	| 脚本／地图格式化字符串入口，X{1:s}Y | U+005C后接U+0026 | X后接这两个参数字符再接Y，保留反斜线与& |
+    95	
+    96	反斜线与数字1是两个字符，**不是U+0001**；这些结果属于本地化插入阶段，与 [WP17](../user-interface/wp17-messages-windows-input.md) 后续显示控制/暂停转换分开。第四审查的Ruby 2.6.10隔离原函数回执支持所列脚本结果及地图反斜线&结果；地图反斜线1与地图格式化对照另由同样的源路径静态推导。本次未重跑，新增向量为DERIVED_VECTOR、NOT_EXECUTED_THIS_UPDATE；随附宿主及窗口呈现未执行，更多转义/嵌套组合未穷尽。未来是否采用任意参数字面插入须另作兼容决策。
+    97	
+    98	## 6. 作者翻译工作流
+    99	
+   100	### 6.1 文本收集（编译流程末段）
+   101	
+   102	- 普通脚本先扫描已加载脚本归档的全部节；归档恰一节才额外扫描Data/Scripts递归列举返回的所有文件，不承诺只扫.rb，也不因目录存在就无条件扫描。插件归档存在且可读时随后扫描其中脚本，再处理公共事件和有效地图事件。普通脚本识别旧输入标记_INTL/_ISPRINTF后、左括号后的双引号首字符串片段；事件脚本识别_I的对应双引号片段。单引号不由该识别器收集，注释里的匹配文本仍可成为候选，不证明运行可达。这些名称是参考作者输入词汇，不要求未来提供同名API。
+   103	- 普通脚本片段按回车、换行、控制字符1、转义引号、双反斜线的次序解码；事件脚本只解码转义引号与双反斜线，字面反斜线n不按普通脚本路径变LF。显示文本续行在非空旧文本后以一个空格接合。非续行命令触发提交时，非句点/感叹号/问号字符后的连续空白另作规整；列表确以显示文本结束时的末尾提交不做该步。普通A双ASCII空格B在前路成为A单空格B，末路保留双空格；后续规范键可相同但登记原文值不同，不将此有限例扩为所有句读组合。
+   104	- 脚本文本入 SCRIPT_TEXTS 哈希域；公共事件文本入 EVENT_TEXTS 的 0 号共享桶；地图事件文本按地图编号入各自桶（仅非空时登记）。
+   105	- **超时捕获后返回，已收集内容可能只是部分**——进入收集函数不保证完整收集；其他未捕获错误按实际调用路径传播。
+/workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/003_Debug_MenuExtraCode.rb:569:          graphicname = RTP.getImagePath("Graphics/Animations/" + anim.graphic)
+/workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/003_Debug_MenuExtraCode.rb:580:              graphicname = RTP.getImagePath("Graphics/Animations/" + timing.name)
+/workspace/pokemon-essentials/Data/Scripts/020_Debug/003_Debug menus/003_Debug_MenuExtraCode.rb:631:        pbSafeCopyFile(image, RTP.getImagePath("Graphics/Animations/" + File.basename(image)), "Graphics/Animations/" + File.basename(image))
+/workspace/pokemon-essentials/Data/Scripts/020_Debug/002_Animation editor/001_AnimEditor_SceneElements.rb:388:      @target = AnimatedBitmap.new("Graphics/UI/Debug/anim_editor_battler_front").deanimate
+/workspace/pokemon-essentials/Data/Scripts/016_UI/005_UI_Party.rb:497:    @sprites["storagetext"].y           = Graphics.height - @sprites["messagebox"].height - 16
+/workspace/pokemon-essentials/Data/Scripts/016_UI/004_UI_Pokedex_Entry.rb:417:      [GameData::Species.get(@species).name, Graphics.width / 2, Graphics.height - 82, :center, base, shadow],
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:471:      @zoom_x_target = Graphics.width.to_f / (@black_bitmap.width * NUM_SPRITES_X)
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:472:      @zoom_y_target = Graphics.height.to_f / (@black_bitmap.height * NUM_SPRITES_Y)
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:539:      @zoom_x_target = Graphics.width.to_f / (@bitmap.width * NUM_SPRITES_X)
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:540:      @zoom_y_target = Graphics.height.to_f / (@bitmap.height * NUM_SPRITES_Y)
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:858:      @zoom_x_target = Graphics.width.to_f / (@black_bitmap.width * NUM_SPRITES_X)
+/workspace/pokemon-essentials/Data/Scripts/009_Scenes/001_Transitions.rb:859:      @zoom_y_target = Graphics.height.to_f / (@black_bitmap.height * NUM_SPRITES_Y)

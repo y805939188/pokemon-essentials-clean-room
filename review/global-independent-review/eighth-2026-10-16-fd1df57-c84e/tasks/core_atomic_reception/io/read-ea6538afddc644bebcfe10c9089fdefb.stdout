@@ -1,0 +1,148 @@
+00509:   #=============================================================================
+00510:   def pbEOREndBattlerSelfEffects(battler)
+00511:     return if battler.fainted?
+00512:     # Hyper Mode (Shadow Pokémon)
+00513:     if battler.inHyperMode?
+00514:       if pbRandom(100) < 10
+00515:         battler.pokemon.hyper_mode = false
+00516:         pbDisplay(_INTL("{1} came to its senses!", battler.pbThis))
+00517:       else
+00518:         pbDisplay(_INTL("{1} is in Hyper Mode!", battler.pbThis))
+00519:       end
+00520:     end
+00521:     # Uproar
+00522:     if battler.effects[PBEffects::Uproar] > 0
+00523:       battler.effects[PBEffects::Uproar] -= 1
+00524:       if battler.effects[PBEffects::Uproar] == 0
+00525:         pbDisplay(_INTL("{1} calmed down.", battler.pbThis))
+00526:       else
+00527:         pbDisplay(_INTL("{1} is making an uproar!", battler.pbThis))
+00528:       end
+00529:     end
+00530:     # Slow Start's end message
+00531:     if battler.effects[PBEffects::SlowStart] > 0
+00532:       battler.effects[PBEffects::SlowStart] -= 1
+00533:       if battler.effects[PBEffects::SlowStart] == 0
+00534:         pbDisplay(_INTL("{1} finally got its act together!", battler.pbThis))
+00535:       end
+00536:     end
+00537:   end
+00538: 
+00539:   #=============================================================================
+00540:   # End Of Round shift distant battlers to middle positions
+00541:   #=============================================================================
+00542:   def pbEORShiftDistantBattlers
+00543:     # Move battlers around if none are near to each other
+00544:     # NOTE: This code assumes each side has a maximum of 3 battlers on it, and
+00545:     #       is not generalised to larger side sizes.
+00546:     if !singleBattle?
+00547:       swaps = []   # Each element is an array of two battler indices to swap
+00548:       2.times do |side|
+00549:         next if pbSideSize(side) == 1   # Only battlers on sides of size 2+ need to move
+00550:         # Check if any battler on this side is near any battler on the other side
+00551:         anyNear = false
+00552:         allSameSideBattlers(side).each do |battler|
+00553:           anyNear = allOtherSideBattlers(battler).any? { |other| nearBattlers?(other.index, battler.index) }
+00554:           break if anyNear
+00555:         end
+00556:         break if anyNear
+00557:         # No battlers on this side are near any battlers on the other side; try
+00558:         # to move them
+00559:         # NOTE: If we get to here (assuming both sides are of size 3 or less),
+00560:         #       there is definitely only 1 able battler on this side, so we
+00561:         #       don't need to worry about multiple battlers trying to move into
+00562:         #       the same position. If you add support for a side of size 4+,
+00563:         #       this code will need revising to account for that, as well as to
+00564:         #       add more complex code to ensure battlers will end up near each
+00565:         #       other.
+00566:         allSameSideBattlers(side).each do |battler|
+00567:           # Get the position to move to
+00568:           pos = -1
+00569:           case pbSideSize(side)
+00570:           when 2 then pos = [2, 3, 0, 1][battler.index]   # The unoccupied position
+00571:           when 3 then pos = (side == 0) ? 2 : 3    # The centre position
+00572:           end
+00573:           next if pos < 0
+00574:           # Can't move if the same trainer doesn't control both positions
+00575:           idxOwner = pbGetOwnerIndexFromBattlerIndex(battler.index)
+00576:           next if pbGetOwnerIndexFromBattlerIndex(pos) != idxOwner
+00577:           swaps.push([battler.index, pos])
+00578:         end
+00579:       end
+00580:       # Move battlers around
+00581:       swaps.each do |pair|
+00582:         next if pbSideSize(pair[0]) == 2 && swaps.length > 1
+00583:         next if !pbSwapBattlers(pair[0], pair[1])
+00584:         case pbSideSize(pair[1])
+00585:         when 2
+00586:           pbDisplay(_INTL("{1} moved across!", @battlers[pair[1]].pbThis))
+00587:         when 3
+00588:           pbDisplay(_INTL("{1} moved to the center!", @battlers[pair[1]].pbThis))
+00589:         end
+00590:       end
+00591:     end
+00592:   end
+00593: 
+00594:   #=============================================================================
+00595:   # Main End Of Round phase method
+00596:   #=============================================================================
+00597:   def pbEndOfRoundPhase
+00598:     PBDebug.log("")
+00599:     PBDebug.log("[End of round #{@turnCount + 1}]")
+00600:     @endOfRound = true
+00601:     @scene.pbBeginEndOfRoundPhase
+00602:     pbCalculatePriority           # recalculate speeds
+00603:     priority = pbPriority(true)   # in order of fastest -> slowest speeds only
+00604:     # Weather
+00605:     pbEOREndWeather(priority)
+00606:     # Future Sight/Doom Desire
+00607:     @positions.each_with_index { |pos, idxPos| pbEORUseFutureSight(pos, idxPos) }
+00608:     # Wish
+00609:     pbEORWishHealing
+00610:     # Sea of Fire damage (Fire Pledge + Grass Pledge combination)
+00611:     pbEORSeaOfFireDamage(priority)
+00612:     # Status-curing effects/abilities and HP-healing items
+00613:     priority.each do |battler|
+00614:       pbEORTerrainHealing(battler)
+00615:       # Healer, Hydration, Shed Skin
+00616:       if battler.abilityActive?
+00617:         Battle::AbilityEffects.triggerEndOfRoundHealing(battler.ability, battler, self)
+00618:       end
+00619:       # Black Sludge, Leftovers
+00620:       if battler.itemActive?
+00621:         Battle::ItemEffects.triggerEndOfRoundHealing(battler.item, battler, self)
+00622:       end
+00623:     end
+00624:     # Self-curing of status due to affection
+00625:     if Settings::AFFECTION_EFFECTS && @internalBattle
+00626:       priority.each do |battler|
+00627:         next if battler.fainted? || battler.status == :NONE
+00628:         next if !battler.pbOwnedByPlayer? || battler.affection_level < 4 || battler.mega?
+00629:         next if pbRandom(100) < 80
+00630:         old_status = battler.status
+00631:         battler.pbCureStatus(false)
+00632:         case old_status
+00633:         when :SLEEP
+00634:           pbDisplay(_INTL("{1} shook itself awake so you wouldn't worry!", battler.pbThis))
+00635:         when :POISON
+00636:           pbDisplay(_INTL("{1} managed to expel the poison so you wouldn't worry!", battler.pbThis))
+00637:         when :BURN
+00638:           pbDisplay(_INTL("{1} healed its burn with its sheer determination so you wouldn't worry!", battler.pbThis))
+00639:         when :PARALYSIS
+00640:           pbDisplay(_INTL("{1} gathered all its energy to break through its paralysis so you wouldn't worry!", battler.pbThis))
+00641:         when :FROZEN
+00642:           pbDisplay(_INTL("{1} melted the ice with its fiery determination so you wouldn't worry!", battler.pbThis))
+00643:         end
+00644:       end
+00645:     end
+00646:     # Healing from Aqua Ring, Ingrain, Leech Seed
+00647:     pbEORHealingEffects(priority)
+00648:     # Damage from Hyper Mode (Shadow Pokémon)
+00649:     priority.each do |battler|
+00650:       next if !battler.inHyperMode? || @choices[battler.index][0] != :UseMove
+00651:       hpLoss = battler.totalhp / 24
+00652:       @scene.pbDamageAnimation(battler)
+00653:       battler.pbReduceHP(hpLoss, false)
+00654:       pbDisplay(_INTL("The Hyper Mode attack hurts {1}!", battler.pbThis(true)))
+00655:       battler.pbFaint if battler.fainted?
+00656:     end

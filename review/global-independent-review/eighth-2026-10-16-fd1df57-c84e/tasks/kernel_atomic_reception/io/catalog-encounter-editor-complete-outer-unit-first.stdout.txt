@@ -1,0 +1,256 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/001_Editor screens/001_EditorScreens.rb RANGE 1-255
+#===============================================================================
+# Wild encounters editor
+#===============================================================================
+# Main editor method for editing wild encounters. Lists all defined encounter
+# sets, and edits them.
+def pbEncountersEditor
+  map_infos = pbLoadMapInfos
+  commands = []
+  maps = []
+  list = pbListWindow([])
+  help_window = Window_UnformattedTextPokemon.newWithSize(
+    _INTL("Edit wild encounters"), Graphics.width / 2, 0, Graphics.width / 2, 96
+  )
+  help_window.z = 99999
+  ret = 0
+  need_refresh = true
+  loop do
+    if need_refresh
+      commands.clear
+      maps.clear
+      commands.push(_INTL("[Add new encounter set]"))
+      GameData::Encounter.each do |enc_data|
+        name = (map_infos[enc_data.map]) ? map_infos[enc_data.map].name : nil
+        if enc_data.version > 0 && name
+          commands.push(sprintf("%03d (v.%d): %s", enc_data.map, enc_data.version, name))
+        elsif enc_data.version > 0
+          commands.push(sprintf("%03d (v.%d)", enc_data.map, enc_data.version))
+        elsif name
+          commands.push(sprintf("%03d: %s", enc_data.map, name))
+        else
+          commands.push(sprintf("%03d", enc_data.map))
+        end
+        maps.push([enc_data.map, enc_data.version])
+      end
+      need_refresh = false
+    end
+    ret = pbCommands2(list, commands, -1, ret)
+    if ret == 0   # Add new encounter set
+      new_map_ID = pbListScreen(_INTL("Choose a map"), MapLister.new(pbDefaultMap))
+      if new_map_ID > 0
+        new_version = LimitProperty2.new(999).set(_INTL("version number"), 0)
+        if new_version && new_version >= 0
+          if GameData::Encounter.exists?(new_map_ID, new_version)
+            pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", new_map_ID, new_version))
+          else
+            # Construct encounter hash
+            key = sprintf("%s_%d", new_map_ID, new_version).to_sym
+            encounter_hash = {
+              :id           => key,
+              :map          => new_map_ID,
+              :version      => new_version,
+              :step_chances => {},
+              :types        => {}
+            }
+            GameData::Encounter.register(encounter_hash)
+            maps.push([new_map_ID, new_version])
+            maps.sort! { |a, b| (a[0] == b[0]) ? a[1] <=> b[1] : a[0] <=> b[0] }
+            ret = maps.index([new_map_ID, new_version]) + 1
+            need_refresh = true
+          end
+        end
+      end
+    elsif ret > 0   # Edit an encounter set
+      this_set = maps[ret - 1]
+      case pbShowCommands(nil, [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+      when 0   # Edit
+        pbEncounterMapVersionEditor(GameData::Encounter.get(this_set[0], this_set[1]))
+        need_refresh = true
+      when 1   # Copy
+        new_map_ID = pbListScreen(_INTL("Copy to which map?"), MapLister.new(this_set[0]))
+        if new_map_ID > 0
+          new_version = LimitProperty2.new(999).set(_INTL("version number"), 0)
+          if new_version && new_version >= 0
+            if GameData::Encounter.exists?(new_map_ID, new_version)
+              pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", new_map_ID, new_version))
+            else
+              # Construct encounter hash
+              key = sprintf("%s_%d", new_map_ID, new_version).to_sym
+              encounter_hash = {
+                :id              => key,
+                :map             => new_map_ID,
+                :version         => new_version,
+                :step_chances    => {},
+                :types           => {},
+                :pbs_file_suffix => GameData::Encounter.get(this_set[0], this_set[1]).pbs_file_suffix
+              }
+              GameData::Encounter.get(this_set[0], this_set[1]).step_chances.each do |type, value|
+                encounter_hash[:step_chances][type] = value
+              end
+              GameData::Encounter.get(this_set[0], this_set[1]).types.each do |type, slots|
+                next if !type || !slots || slots.length == 0
+                encounter_hash[:types][type] = []
+                slots.each { |slot| encounter_hash[:types][type].push(slot.clone) }
+              end
+              GameData::Encounter.register(encounter_hash)
+              maps.push([new_map_ID, new_version])
+              maps.sort! { |a, b| (a[0] == b[0]) ? a[1] <=> b[1] : a[0] <=> b[0] }
+              ret = maps.index([new_map_ID, new_version]) + 1
+              need_refresh = true
+            end
+          end
+        end
+      when 2   # Delete
+        if pbConfirmMessage(_INTL("Delete the encounter set for map {1} version {2}?", this_set[0], this_set[1]))
+          key = sprintf("%s_%d", this_set[0], this_set[1]).to_sym
+          GameData::Encounter::DATA.delete(key)
+          ret -= 1
+          need_refresh = true
+        end
+      end
+    else
+      break
+    end
+  end
+  if pbConfirmMessage(_INTL("Save changes?"))
+    GameData::Encounter.save
+    Compiler.write_encounters   # Rewrite PBS file encounters.txt
+  else
+    GameData::Encounter.load
+  end
+  list.dispose
+  help_window.dispose
+  Input.update
+end
+
+# Lists the map ID, version number and defined encounter types for the given
+# encounter data (a GameData::Encounter instance), and edits them.
+def pbEncounterMapVersionEditor(enc_data)
+  map_infos = pbLoadMapInfos
+  commands = []
+  enc_types = []
+  list = pbListWindow([])
+  help_window = Window_UnformattedTextPokemon.newWithSize(
+    _INTL("Edit map's encounters"), Graphics.width / 2, 0, Graphics.width / 2, 96
+  )
+  help_window.z = 99999
+  ret = 0
+  need_refresh = true
+  loop do
+    if need_refresh
+      commands.clear
+      enc_types.clear
+      map_name = (map_infos[enc_data.map]) ? map_infos[enc_data.map].name : nil
+      if map_name
+        commands.push(_INTL("Map ID={1} ({2})", enc_data.map, map_name))
+      else
+        commands.push(_INTL("Map ID={1}", enc_data.map))
+      end
+      commands.push(_INTL("Version={1}", enc_data.version))
+      enc_data.types.each do |enc_type, slots|
+        next if !enc_type
+        commands.push(_INTL("{1} (x{2})", enc_type.to_s, slots.length))
+        enc_types.push(enc_type)
+      end
+      commands.push(_INTL("[Add new encounter type]"))
+      need_refresh = false
+    end
+    ret = pbCommands2(list, commands, -1, ret)
+    if ret == 0   # Edit map ID
+      old_map_ID = enc_data.map
+      new_map_ID = pbListScreen(_INTL("Choose a new map"), MapLister.new(old_map_ID))
+      if new_map_ID > 0 && new_map_ID != old_map_ID
+        if GameData::Encounter.exists?(new_map_ID, enc_data.version)
+          pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", new_map_ID, enc_data.version))
+        else
+          GameData::Encounter::DATA.delete(enc_data.id)
+          enc_data.map = new_map_ID
+          enc_data.id = sprintf("%s_%d", enc_data.map, enc_data.version).to_sym
+          GameData::Encounter::DATA[enc_data.id] = enc_data
+          need_refresh = true
+        end
+      end
+    elsif ret == 1   # Edit version number
+      old_version = enc_data.version
+      new_version = LimitProperty2.new(999).set(_INTL("version number"), old_version)
+      if new_version && new_version != old_version
+        if GameData::Encounter.exists?(enc_data.map, new_version)
+          pbMessage(_INTL("A set of encounters for map {1} version {2} already exists.", enc_data.map, new_version))
+        else
+          GameData::Encounter::DATA.delete(enc_data.id)
+          enc_data.version = new_version
+          enc_data.id = sprintf("%s_%d", enc_data.map, enc_data.version).to_sym
+          GameData::Encounter::DATA[enc_data.id] = enc_data
+          need_refresh = true
+        end
+      end
+    elsif ret == commands.length - 1   # Add new encounter type
+      new_type_commands = []
+      new_types = []
+      GameData::EncounterType.each_alphabetically do |enc|
+        next if enc_data.types[enc.id]
+        new_type_commands.push(enc.real_name)
+        new_types.push(enc.id)
+      end
+      if new_type_commands.length > 0
+        chosen_type_cmd = pbShowCommands(nil, new_type_commands, -1)
+        if chosen_type_cmd >= 0
+          new_type = new_types[chosen_type_cmd]
+          enc_data.step_chances[new_type] = GameData::EncounterType.get(new_type).trigger_chance
+          enc_data.types[new_type] = []
+          pbEncounterTypeEditor(enc_data, new_type)
+          enc_types.push(new_type)
+          ret = enc_types.sort.index(new_type) + 2
+          need_refresh = true
+        end
+      else
+        pbMessage(_INTL("There are no unused encounter types to add."))
+      end
+    elsif ret > 0   # Edit an encounter type (its step chance and slots)
+      this_type = enc_types[ret - 2]
+      case pbShowCommands(nil, [_INTL("Edit"), _INTL("Copy"), _INTL("Delete"), _INTL("Cancel")], 4)
+      when 0   # Edit
+        pbEncounterTypeEditor(enc_data, this_type)
+        need_refresh = true
+      when 1   # Copy
+        new_type_commands = []
+        new_types = []
+        GameData::EncounterType.each_alphabetically do |enc|
+          next if enc_data.types[enc.id]
+          new_type_commands.push(enc.real_name)
+          new_types.push(enc.id)
+        end
+        if new_type_commands.length > 0
+          chosen_type_cmd = pbMessage(_INTL("Choose an encounter type to copy to."),
+                                      new_type_commands, -1)
+          if chosen_type_cmd >= 0
+            new_type = new_types[chosen_type_cmd]
+            enc_data.step_chances[new_type] = enc_data.step_chances[this_type]
+            enc_data.types[new_type] = []
+            enc_data.types[this_type].each { |slot| enc_data.types[new_type].push(slot.clone) }
+            enc_types.push(new_type)
+            ret = enc_types.sort.index(new_type) + 2
+            need_refresh = true
+          end
+        else
+          pbMessage(_INTL("There are no unused encounter types to copy to."))
+        end
+      when 2   # Delete
+        if pbConfirmMessage(_INTL("Delete the encounter type {1}?", GameData::EncounterType.get(this_type).real_name))
+          enc_data.step_chances.delete(this_type)
+          enc_data.types.delete(this_type)
+          need_refresh = true
+        end
+      end
+    else
+      break
+    end
+  end
+  list.dispose
+  help_window.dispose
+  Input.update
+end
+
+# Lists the step chance and encounter slots for the given encounter type in the
+# given encounter data (a GameData::Encounter instance), and edits them.

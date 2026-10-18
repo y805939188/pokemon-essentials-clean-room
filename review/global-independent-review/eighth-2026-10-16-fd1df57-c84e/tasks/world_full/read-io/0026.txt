@@ -1,0 +1,250 @@
+  261       $PokemonGlobal.mapTrail.pop
+  262     end
+  263     $PokemonGlobal.mapTrail = [$game_map.map_id] + $PokemonGlobal.mapTrail
+  264   }
+  265 )
+  266 
+  267 # Force cycling/walking.
+  268 EventHandlers.add(:on_enter_map, :force_cycling,
+  269   proc { |_old_map_id|
+  270     if $game_map.metadata&.always_bicycle
+  271       pbMountBike
+  272     elsif !pbCanUseBike?($game_map.map_id)
+  273       pbDismountBike
+  274     end
+  275   }
+  276 )
+  277 
+  278 # Display darkness circle on dark maps.
+  279 EventHandlers.add(:on_map_or_spriteset_change, :show_darkness,
+  280   proc { |scene, _map_changed|
+  281     next if !scene || !scene.spriteset
+  282     map_metadata = $game_map.metadata
+  283     if map_metadata&.dark_map
+  284       $game_temp.darkness_sprite = DarknessSprite.new
+  285       scene.spriteset.addUserSprite($game_temp.darkness_sprite)
+  286       if $PokemonGlobal.flashUsed
+  287         $game_temp.darkness_sprite.radius = $game_temp.darkness_sprite.radiusMax
+  288       end
+  289     else
+  290       $PokemonGlobal.flashUsed = false
+  291       $game_temp.darkness_sprite&.dispose
+  292       $game_temp.darkness_sprite = nil
+  293     end
+  294   }
+  295 )
+  296 
+  297 # Show location signpost.
+  298 EventHandlers.add(:on_map_or_spriteset_change, :show_location_window,
+  299   proc { |scene, map_changed|
+  300     next if !scene || !scene.spriteset
+  301     next if !map_changed || !$game_map.metadata&.announce_location
+  302     nosignpost = false
+  303     if $PokemonGlobal.mapTrail[1]
+  304       (Settings::NO_SIGNPOSTS.length / 2).times do |i|
+  305         nosignpost = true if Settings::NO_SIGNPOSTS[2 * i] == $PokemonGlobal.mapTrail[1] &&
+  306                              Settings::NO_SIGNPOSTS[(2 * i) + 1] == $game_map.map_id
+  307         nosignpost = true if Settings::NO_SIGNPOSTS[(2 * i) + 1] == $PokemonGlobal.mapTrail[1] &&
+  308                              Settings::NO_SIGNPOSTS[2 * i] == $game_map.map_id
+  309         break if nosignpost
+  310       end
+  311       nosignpost = true if $game_map.name == pbGetMapNameFromId($PokemonGlobal.mapTrail[1])
+  312     end
+  313     scene.spriteset.addUserSprite(LocationWindow.new($game_map.name)) if !nosignpost
+  314   }
+  315 )
+  316 
+  317 #===============================================================================
+  318 # Event locations, terrain tags
+  319 #===============================================================================
+  320 # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+  321 def pbFacingTile(direction = nil, event = nil)
+  322   return $map_factory.getFacingTile(direction, event) if $map_factory
+  323   return pbFacingTileRegular(direction, event)
+  324 end
+  325 
+  326 # NOTE: Assumes the event is 1x1 tile in size. Only returns one tile.
+  327 def pbFacingTileRegular(direction = nil, event = nil)
+  328   event = $game_player if !event
+  329   return [0, 0, 0] if !event
+  330   x = event.x
+  331   y = event.y
+  332   direction = event.direction if !direction
+  333   x_offset = [0, -1, 0, 1, -1, 0, 1, -1, 0, 1][direction]
+  334   y_offset = [0, 1, 1, 1, 0, 0, 0, -1, -1, -1][direction]
+  335   return [$game_map.map_id, x + x_offset, y + y_offset]
+  336 end
+  337 
+  338 # Returns whether event is in line with the player, is facing the player and is
+  339 # within distance tiles of the player.
+  340 def pbEventFacesPlayer?(event, player, distance)
+  341   return false if !event || !player || distance <= 0
+  342   x_min = x_max = y_min = y_max = -1
+  343   case event.direction
+  344   when 2   # Down
+  345     x_min = event.x
+  346     x_max = event.x + event.width - 1
+  347     y_min = event.y + 1
+  348     y_max = event.y + distance
+  349   when 4   # Left
+  350     x_min = event.x - distance
+  351     x_max = event.x - 1
+  352     y_min = event.y - event.height + 1
+  353     y_max = event.y
+  354   when 6   # Right
+  355     x_min = event.x + event.width
+  356     x_max = event.x + event.width - 1 + distance
+  357     y_min = event.y - event.height + 1
+  358     y_max = event.y
+  359   when 8   # Up
+  360     x_min = event.x
+  361     x_max = event.x + event.width - 1
+  362     y_min = event.y - event.height + 1 - distance
+  363     y_max = event.y - event.height
+  364   else
+  365     return false
+  366   end
+  367   return player.x >= x_min && player.x <= x_max &&
+  368          player.y >= y_min && player.y <= y_max
+  369 end
+  370 
+  371 # Returns whether event is able to walk up to the player.
+  372 def pbEventCanReachPlayer?(event, player, distance)
+  373   return false if !pbEventFacesPlayer?(event, player, distance)
+  374   delta_x = (event.direction == 6) ? 1 : (event.direction == 4) ? -1 : 0
+  375   delta_y = (event.direction == 2) ? 1 : (event.direction == 8) ? -1 : 0
+  376   case event.direction
+  377   when 2   # Down
+  378     real_distance = player.y - event.y - 1
+  379   when 4   # Left
+  380     real_distance = event.x - player.x - 1
+  381   when 6   # Right
+  382     real_distance = player.x - event.x - event.width
+  383   when 8   # Up
+  384     real_distance = event.y - event.height - player.y
+  385   end
+  386   if real_distance > 0
+  387     real_distance.times do |i|
+  388       return false if !event.can_move_from_coordinate?(event.x + (i * delta_x), event.y + (i * delta_y), event.direction)
+  389     end
+  390   end
+  391   return true
+  392 end
+  393 
+  394 # Returns whether the two events are standing next to each other and facing each
+  395 # other.
+  396 def pbFacingEachOther(event1, event2)
+  397   return pbEventFacesPlayer?(event1, event2, 1) && pbEventFacesPlayer?(event2, event1, 1)
+  398 end
+  399 
+  400 #===============================================================================
+  401 # Audio playing
+  402 #===============================================================================
+  403 def pbCueBGM(bgm, seconds, volume = nil, pitch = nil)
+  404   return if !bgm
+  405   bgm = pbResolveAudioFile(bgm, volume, pitch)
+  406   playingBGM = $game_system.playing_bgm
+  407   if !playingBGM || playingBGM.name != bgm.name || playingBGM.pitch != bgm.pitch
+  408     pbBGMFade(seconds)
+  409     $game_temp.cue_bgm = bgm
+  410     if !$game_temp.cue_bgm_delay
+  411       $game_temp.cue_bgm_delay = seconds * 0.6
+  412       $game_temp.cue_bgm_timer_start = System.uptime
+  413     end
+  414   elsif playingBGM
+  415     pbBGMPlay(bgm)
+  416   end
+  417 end
+  418 
+  419 def pbAutoplayOnTransition
+  420   surfbgm = GameData::Metadata.get.surf_BGM
+  421   if $PokemonGlobal.surfing && surfbgm
+  422     pbBGMPlay(surfbgm)
+  423   else
+  424     $game_map.autoplayAsCue
+  425   end
+  426 end
+  427 
+  428 def pbAutoplayOnSave
+  429   surfbgm = GameData::Metadata.get.surf_BGM
+  430   if $PokemonGlobal.surfing && surfbgm
+  431     pbBGMPlay(surfbgm)
+  432   else
+  433     $game_map.autoplay
+  434   end
+  435 end
+  436 
+  437 #===============================================================================
+  438 # Event movement
+  439 #===============================================================================
+  440 module PBMoveRoute
+  441   DOWN                  = 1
+  442   LEFT                  = 2
+  443   RIGHT                 = 3
+  444   UP                    = 4
+  445   LOWER_LEFT            = 5
+  446   LOWER_RIGHT           = 6
+  447   UPPER_LEFT            = 7
+  448   UPPER_RIGHT           = 8
+  449   RANDOM                = 9
+  450   TOWARD_PLAYER         = 10
+  451   AWAY_FROM_PLAYER      = 11
+  452   FORWARD               = 12
+  453   BACKWARD              = 13
+  454   JUMP                  = 14   # xoffset, yoffset
+  455   WAIT                  = 15   # frames
+  456   TURN_DOWN             = 16
+  457   TURN_LEFT             = 17
+  458   TURN_RIGHT            = 18
+  459   TURN_UP               = 19
+  460   TURN_RIGHT90          = 20
+  461   TURN_LEFT90           = 21
+  462   TURN180               = 22
+  463   TURN_RIGHT_OR_LEFT90  = 23
+  464   TURN_RANDOM           = 24
+  465   TURN_TOWARD_PLAYER    = 25
+  466   TURN_AWAY_FROM_PLAYER = 26
+  467   SWITCH_ON             = 27   # 1 param
+  468   SWITCH_OFF            = 28   # 1 param
+  469   CHANGE_SPEED          = 29   # 1 param
+  470   CHANGE_FREQUENCY      = 30   # 1 param
+  471   WALK_ANIME_ON         = 31
+  472   WALK_ANIME_OFF        = 32
+  473   STEP_ANIME_ON         = 33
+  474   STEP_ANIME_OFF        = 34
+  475   DIRECTION_FIX_ON      = 35
+  476   DIRECTION_FIX_OFF     = 36
+  477   THROUGH_ON            = 37
+  478   THROUGH_OFF           = 38
+  479   ALWAYS_ON_TOP_ON      = 39
+  480   ALWAYS_ON_TOP_OFF     = 40
+  481   GRAPHIC               = 41   # Name, hue, direction, pattern
+  482   OPACITY               = 42   # 1 param
+  483   BLENDING              = 43   # 1 param
+  484   PLAY_SE               = 44   # 1 param
+  485   SCRIPT                = 45   # 1 param
+  486   SCRIPT_ASYNC          = 101   # 1 param
+  487 end
+  488 
+  489 def pbMoveRoute(event, commands, waitComplete = false)
+  490   route = RPG::MoveRoute.new
+  491   route.repeat    = false
+  492   route.skippable = true
+  493   route.list.clear
+  494   route.list.push(RPG::MoveCommand.new(PBMoveRoute::THROUGH_ON))
+  495   i = 0
+  496   while i < commands.length
+  497     case commands[i]
+  498     when PBMoveRoute::WAIT, PBMoveRoute::SWITCH_ON, PBMoveRoute::SWITCH_OFF,
+  499        PBMoveRoute::CHANGE_SPEED, PBMoveRoute::CHANGE_FREQUENCY, PBMoveRoute::OPACITY,
+  500        PBMoveRoute::BLENDING, PBMoveRoute::PLAY_SE, PBMoveRoute::SCRIPT
+  501       route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1]]))
+  502       i += 1
+  503     when PBMoveRoute::SCRIPT_ASYNC
+  504       route.list.push(RPG::MoveCommand.new(PBMoveRoute::SCRIPT, [commands[i + 1]]))
+  505       route.list.push(RPG::MoveCommand.new(PBMoveRoute::WAIT, [0]))
+  506       i += 1
+  507     when PBMoveRoute::JUMP
+  508       route.list.push(RPG::MoveCommand.new(commands[i], [commands[i + 1], commands[i + 2]]))
+  509       i += 2
+  510     when PBMoveRoute::GRAPHIC

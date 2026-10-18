@@ -1,0 +1,275 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/010_Data/002_PBS data/008_Species.rb RANGE 102–112
+      ret["WildItemRare"]     = [:wild_item_rare,     "*e", :Item]
+      if compiling_forms
+        ret["Evolutions"]     = [:evolutions,         "*ees", :Species, :Evolution]
+        ret["Evolution"]      = [:evolutions,         "^eeS", :Species, :Evolution]
+      else
+        ret["Evolutions"]     = [:evolutions,         "*ses", nil, :Evolution]
+        ret["Evolution"]      = [:evolutions,         "^seS", nil, :Evolution]
+      end
+      return ret
+    end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/001_Compiler.rb RANGE 690–741
+  def get_csv_record(rec, schema)
+    ret = []
+    repeat = false
+    start = 0
+    schema_length = schema[1].length
+    case schema[1][0, 1]   # First character in schema
+    when "*"
+      repeat = true
+      start = 1
+    when "^"
+      start = 1
+      schema_length -= 1
+    end
+    subarrays = repeat && schema[1].length - start > 1   # Whether ret is an array of arrays
+    # Split the string on commas into an array of values to apply the schema to
+    values = split_csv_line(rec)
+    # Apply the schema to each value in the line
+    idx = -1   # Index of value to look at in values
+    loop do
+      record = []
+      (start...schema[1].length).each do |i|
+        idx += 1
+        sche = schema[1][i, 1]
+        if sche[/[A-Z]/]   # Upper case = optional
+          if nil_or_empty?(values[idx])
+            record.push(nil)
+            next
+          end
+        end
+        if sche.downcase == "q"   # Unformatted text
+          record.push(rec)
+          idx = values.length
+          break
+        else
+          record.push(cast_csv_value(values[idx], sche, schema[2 + i - start]))
+        end
+      end
+      if !record.empty?
+        if subarrays
+          ret.push(record)
+        else
+          ret.concat(record)
+        end
+      end
+      break if !repeat || idx >= values.length - 1
+    end
+    return (!repeat && schema_length == 1) ? ret[0] : ret
+  end
+
+  #=============================================================================
+  # Write values to a file using a schema
+  #=============================================================================
+
+PATH /workspace/pokemon-essentials/Data/Scripts/021_Compiler/002_Compiler_CompilePBS.rb RANGE 1–68
+module Compiler
+  module_function
+
+  def compile_PBS_file_generic(game_data, *paths)
+    if game_data.const_defined?(:OPTIONAL) && game_data::OPTIONAL
+      return if paths.none? { |p| FileTest.exist?(p) }
+    end
+    game_data::DATA.clear
+    schema = game_data.schema
+    # Read from PBS file(s)
+    paths.each do |path|
+      compile_pbs_file_message_start(path)
+      base_filename = game_data::PBS_BASE_FILENAME
+      base_filename = base_filename[0] if base_filename.is_a?(Array)   # For Species
+      file_suffix = File.basename(path, ".txt")[base_filename.length + 1, path.length] || ""
+      File.open(path, "rb") do |f|
+        FileLineData.file = path   # For error reporting
+        # Read a whole section's lines at once, then run through this code.
+        # contents is a hash containing all the XXX=YYY lines in that section, where
+        # the keys are the XXX and the values are the YYY (as unprocessed strings).
+        idx = 0
+        pbEachFileSection(f, schema) do |contents, section_name|
+          echo "." if idx % 100 == 0
+          Graphics.update if idx % 500 == 0
+          idx += 1
+          data_hash = {
+            :id              => section_name.to_sym,
+            :pbs_file_suffix => file_suffix
+          }
+          # Go through schema hash of compilable data and compile this section
+          schema.each_key do |key|
+            FileLineData.setSection(section_name, key, contents[key])   # For error reporting
+            if key == "SectionName"
+              data_hash[schema[key][0]] = get_csv_record(section_name, schema[key])
+              next
+            end
+            # Skip empty properties
+            next if contents[key].nil?
+            # Compile value for key
+            if schema[key][1][0] == "^"
+              contents[key].each do |val|
+                value = get_csv_record(val, schema[key])
+                value = nil if value.is_a?(Array) && value.empty?
+                data_hash[schema[key][0]] ||= []
+                data_hash[schema[key][0]].push(value)
+              end
+              data_hash[schema[key][0]].compact!
+            else
+              value = get_csv_record(contents[key], schema[key])
+              value = nil if value.is_a?(Array) && value.empty?
+              data_hash[schema[key][0]] = value
+            end
+          end
+          # Validate and modify the compiled data
+          yield false, data_hash if block_given?
+          if game_data.exists?(data_hash[:id])
+            raise _INTL("Section name '{1}' is used twice.", data_hash[:id]) + "\n" + FileLineData.linereport
+          end
+          # Add section's data to records
+          game_data.register(data_hash)
+        end
+      end
+      process_pbs_file_message_end
+    end
+    yield true, nil if block_given?
+    # Save all data
+    game_data.save
+  end
+
+PATH /workspace/pokemon-essentials/Data/Scripts/020_Debug/002_Editor_DataTypes.rb RANGE 1040–1176
+class GameDataPoolProperty
+  def initialize(game_data, allow_multiple = true, auto_sort = false)
+    if !GameData.const_defined?(game_data.to_sym)
+      raise _INTL("Couldn't find class {1} in module GameData.", game_data.to_s)
+    end
+    @game_data = game_data
+    @game_data_module = GameData.const_get(game_data.to_sym)
+    @allow_multiple = allow_multiple
+    @auto_sort = auto_sort   # Alphabetically
+  end
+
+  def set(setting_name, old_setting)
+    ret = old_setting
+    old_setting.uniq! if !@allow_multiple
+    old_setting.sort! if @auto_sort
+    # Get all values already in the pool
+    values = []
+    values.push([nil, _INTL("[ADD VALUE]")])   # Value ID, name
+    old_setting.each do |value|
+      values.push([value, @game_data_module.get(value).real_name])
+    end
+    # Set things up
+    command_window = pbListWindow([], 200)
+    cmd = [0, 0]   # [input type, list index] (input type: 0=select, 1=swap up, 2=swap down)
+    commands = []
+    need_refresh = true
+    # Edit value pool
+    loop do
+      if need_refresh
+        if @auto_sort
+          values.sort! { |a, b| (a[0].nil?) ? -1 : b[0].nil? ? 1 : a[1] <=> b[1] }
+        end
+        commands = values.map { |entry| entry[1] }
+        need_refresh = false
+      end
+      # Choose a value
+      cmd = pbCommands3(command_window, commands, -1, cmd[1], true)
+      case cmd[0]   # 0=selected/cancelled, 1=pressed Action+Up, 2=pressed Action+Down
+      when 1   # Swap value up
+        if cmd[1] > 0 && cmd[1] < values.length - 1
+          values[cmd[1] + 1], values[cmd[1]] = values[cmd[1]], values[cmd[1] + 1]
+          need_refresh = true
+        end
+      when 2   # Swap value down
+        if cmd[1] > 1
+          values[cmd[1] - 1], values[cmd[1]] = values[cmd[1]], values[cmd[1] - 1]
+          need_refresh = true
+        end
+      when 0
+        if cmd[1] >= 0   # Chose an entry
+          entry = values[cmd[1]]
+          if entry[0].nil?   # Add new value
+            new_value = pbChooseFromGameDataList(@game_data)
+            if new_value
+              if !@allow_multiple && values.any? { |val| val[0] == new_value }
+                cmd[1] = values.index { |val| val[0] == new_value }
+                next
+              end
+              values.push([new_value, @game_data_module.get(new_value).real_name])
+              need_refresh = true
+            end
+          else   # Edit existing value
+            case pbMessage("\\ts[]" + _INTL("Do what with this value?"),
+                           [_INTL("Change value"), _INTL("Delete"), _INTL("Cancel")], 3)
+            when 0   # Change value
+              new_value = pbChooseFromGameDataList(@game_data, entry[0])
+              if new_value && new_value != entry[0]
+                if !@allow_multiple && values.any? { |val| val[0] == new_value }
+                  values.delete_at(cmd[1])
+                  cmd[1] = values.index { |val| val[0] == new_value }
+                  need_refresh = true
+                  next
+                end
+                entry[0] = new_value
+                entry[1] = @game_data_module.get(new_value).real_name
+                if @auto_sort
+                  values.sort! { |a, b| a[1] <=> b[1] }
+                  cmd[1] = values.index { |val| val[0] == new_value }
+                end
+                need_refresh = true
+              end
+            when 1   # Delete
+              values.delete_at(cmd[1])
+              cmd[1] = [cmd[1], values.length - 1].min
+              need_refresh = true
+            end
+          end
+        else   # Cancel/quit
+          case pbMessage(_INTL("Apply changes?"),
+                         [_INTL("Yes"), _INTL("No"), _INTL("Cancel")], 3)
+          when 0
+            values.shift   # Remove the "add value" option
+            values.length.times do |i|
+              values[i] = values[i][0]
+            end
+            values.compact!
+            ret = values
+            break
+          when 1
+            break
+          end
+        end
+      end
+    end
+    command_window.dispose
+    return ret
+  end
+
+  def defaultValue
+    return []
+  end
+
+  def format(value)
+    return value.map { |val| @game_data_module.get(val).real_name }.join(",")
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+class EggMovesProperty < GameDataPoolProperty
+  def initialize
+    super(:Move, false, true)
+  end
+end
+
+#===============================================================================
+#
+#===============================================================================
+class EggGroupsProperty < GameDataPoolProperty
+  def initialize
+    super(:EggGroup, false, false)
+  end
+end
+
+#===============================================================================
+#

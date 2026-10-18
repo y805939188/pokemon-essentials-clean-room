@@ -1,0 +1,111 @@
+{"path": "/workspace/pokemon-essentials/Data/Scripts/012_Overworld/005_Overworld_Fishing.rb", "range": [1, 110], "file_lines": 110, "bytes": 3507, "sha256": "047760640dbeb5238eaa43d2d37692022518c8b16fa96c65adcacb98778c6216", "began_utc": "2026-10-16T03:53:20.285894+00:00", "evidence": "READ_DISPLAY_ONLY", "semantic_acceptance": "REQUIRES_REVIEWER_JUDGMENT"}
+00001 #===============================================================================
+00002 # Fishing
+00003 #===============================================================================
+00004 def pbFishingBegin
+00005   $PokemonGlobal.fishing = true
+00006   if !pbCommonEvent(Settings::FISHING_BEGIN_COMMON_EVENT)
+00007     $game_player.set_movement_type(($PokemonGlobal.surfing) ? :surf_fishing : :fishing)
+00008     $game_player.lock_pattern = true
+00009     4.times do |pattern|
+00010       $game_player.pattern = 3 - pattern
+00011       pbWait(0.05)
+00012     end
+00013   end
+00014 end
+00015 
+00016 def pbFishingEnd
+00017   if !pbCommonEvent(Settings::FISHING_END_COMMON_EVENT)
+00018     4.times do |pattern|
+00019       $game_player.pattern = pattern
+00020       pbWait(0.05)
+00021     end
+00022   end
+00023   yield if block_given?
+00024   $game_player.set_movement_type(($PokemonGlobal.surfing) ? :surfing_stopped : :walking_stopped)
+00025   $game_player.lock_pattern = false
+00026   $game_player.straighten
+00027   $PokemonGlobal.fishing = false
+00028 end
+00029 
+00030 def pbFishing(hasEncounter, rodType = 1)
+00031   $stats.fishing_count += 1
+00032   speedup = ($player.first_pokemon && [:STICKYHOLD, :SUCTIONCUPS].include?($player.first_pokemon.ability_id))
+00033   biteChance = 20 + (25 * rodType)   # 45, 70, 95
+00034   biteChance *= 1.5 if speedup   # 67.5, 100, 100
+00035   hookChance = 100
+00036   pbFishingBegin
+00037   msgWindow = pbCreateMessageWindow
+00038   ret = false
+00039   loop do
+00040     time = rand(5..10)
+00041     time = [time, rand(5..10)].min if speedup
+00042     message = ""
+00043     time.times { message += ".   " }
+00044     if pbWaitMessage(msgWindow, time)
+00045       pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("Not even a nibble...")) }
+00046       break
+00047     end
+00048     if hasEncounter && rand(100) < biteChance
+00049       $scene.spriteset.addUserAnimation(Settings::EXCLAMATION_ANIMATION_ID, $game_player.x, $game_player.y, true, 3)
+00050       duration = rand(5..10) / 10.0   # 0.5-1 seconds
+00051       if !pbWaitForInput(msgWindow, message + "\n" + _INTL("Oh! A bite!"), duration)
+00052         pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("The Pokémon got away...")) }
+00053         break
+00054       end
+00055       if Settings::FISHING_AUTO_HOOK || rand(100) < hookChance
+00056         pbFishingEnd do
+00057           pbMessageDisplay(msgWindow, _INTL("Landed a Pokémon!")) if !Settings::FISHING_AUTO_HOOK
+00058         end
+00059         ret = true
+00060         break
+00061       end
+00062 #      biteChance += 15
+00063 #      hookChance += 15
+00064     else
+00065       pbFishingEnd { pbMessageDisplay(msgWindow, _INTL("Not even a nibble...")) }
+00066       break
+00067     end
+00068   end
+00069   pbDisposeMessageWindow(msgWindow)
+00070   return ret
+00071 end
+00072 
+00073 # Show waiting dots before a Pokémon bites
+00074 def pbWaitMessage(msgWindow, time)
+00075   message = ""
+00076   (time + 1).times do |i|
+00077     message += ".   " if i > 0
+00078     pbMessageDisplay(msgWindow, message, false)
+00079     pbWait(0.4) do |delta_t|
+00080       return true if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+00081     end
+00082   end
+00083   return false
+00084 end
+00085 
+00086 # A Pokémon is biting, reflex test to reel it in
+00087 def pbWaitForInput(msgWindow, message, duration)
+00088   pbMessageDisplay(msgWindow, message, false)
+00089   twitch_frame_duration = 0.2   # 0.2 seconds
+00090   timer_start = System.uptime
+00091   loop do
+00092     Graphics.update
+00093     Input.update
+00094     pbUpdateSceneMap
+00095     # Twitch cycle: 1,0,1,0,0,0,0,0
+00096     twitch_frame = ((System.uptime - timer_start) / twitch_frame_duration).to_i % 8
+00097     case twitch_frame
+00098     when 0, 2
+00099       $game_player.pattern = 1
+00100     else
+00101       $game_player.pattern = 0
+00102     end
+00103     if Input.trigger?(Input::USE) || Input.trigger?(Input::BACK)
+00104       $game_player.pattern = 0
+00105       return true
+00106     end
+00107     break if !Settings::FISHING_AUTO_HOOK && System.uptime - timer_start > duration
+00108   end
+00109   return false
+00110 end

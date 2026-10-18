@@ -1,0 +1,189 @@
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 318-451
+  class Dungeon
+    attr_accessor :width, :height
+    alias xsize width
+    alias ysize height
+    attr_accessor :parameters, :rng_seed
+    attr_accessor :tileset
+
+    # 0 is none (index 0 only) or corridor/floor
+    # -1 are tile combinations that need special attention
+    # Other numbers correspond to tile types (see def get_wall_tile_for_coord)
+    FLOOR_NEIGHBOURS_TO_WALL = [
+      0, 2, 1, 2, 4, 11, 4, 11, 7, 9, 4, 11, 4, 11, 4, 11,
+      8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      9, 13, -1, 13, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      8, 0, 17, 0, 17, 0, 17, 0, 8, 0, 17, 0, 17, 0, 17, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      3, 2, 2, 2, 11, 11, 11, 11, -1, 11, 11, 11, 11, 11, 11, 11,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      6, 13, 13, 13, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0,
+      19, 0, 0, 0, 0, 0, 0, 0, 19, 0, 0, 0, 0, 0, 0, 0
+    ]
+
+    def initialize(width, height, tileset, parameters = nil)
+      @tileset     = tileset
+      @buffer_x    = ((Graphics.width.to_f / Game_Map::TILE_WIDTH) / 2).ceil
+      @buffer_y    = ((Graphics.height.to_f / Game_Map::TILE_HEIGHT) / 2).ceil
+      if @tileset.snap_to_large_grid
+        @buffer_x += 1 if @buffer_x.odd?
+        @buffer_y += 1 if @buffer_x.odd?
+      end
+      @parameters = parameters || GameData::DungeonParameters.new({})
+      if @tileset.snap_to_large_grid
+        @parameters.cell_width -= 1 if @parameters.cell_width.odd?
+        @parameters.cell_height -= 1 if @parameters.cell_height.odd?
+        @parameters.corridor_width += (@parameters.corridor_width == 1) ? 1 : -1 if @parameters.corridor_width.odd?
+      end
+      if width >= 20
+        @width = width
+      else
+        @width = (width * @parameters.cell_width) + (2 * @buffer_x)
+        @width += 1 if @tileset.snap_to_large_grid && @width.odd?
+      end
+      if height >= 20
+        @height = height
+      else
+        @height = (height * @parameters.cell_height) + (2 * @buffer_y)
+        @height += 1 if @tileset.snap_to_large_grid && @height.odd?
+      end
+      @usable_width = @width
+      @usable_height = @height
+      if @tileset.snap_to_large_grid
+        @usable_width  -= 1 if @usable_width.odd?
+        @usable_height -= 1 if @usable_height.odd?
+      end
+      @room_rects = []
+      @map_data    = DungeonLayout.new(@width, @height)
+      @need_redraw = false
+    end
+
+    def [](x, y, layer = nil)
+      return @map_data.value(x, y) if layer.nil?
+      return @map_data[x, y, layer]
+    end
+
+    def []=(x, y, layer, value)
+      @map_data[x, y, layer] = value
+    end
+
+    def write
+      return @map_data.write
+    end
+
+    #===========================================================================
+
+    # Returns whether the given coordinates are a room floor that isn't too
+    # close to a corridor. For positioning events/the player upon entering.
+    def isRoom?(x, y)
+      return false if @map_data.value(x, y) != :room
+      (-1..1).each do |i|
+        (-1..1).each do |j|
+          next if i == 0 && j == 0
+          return false if @map_data.value(x + i, y + j) == :corridor
+        end
+      end
+      return true   # No surrounding tiles are corridor floor
+    end
+
+    def tile_is_ground?(value)
+      return [:room, :corridor].include?(value)
+    end
+
+    # Lower wall tiles only.
+    def tile_is_wall?(value)
+      return [:wall_1, :wall_2, :wall_3, :wall_4, :wall_6, :wall_7, :wall_8, :wall_9,
+              :wall_in_1, :wall_in_3, :wall_in_7, :wall_in_9].include?(value)
+    end
+
+    def coord_is_ground?(x, y)
+      return tile_is_ground?(@map_data[x, y, 0]) && !tile_is_wall?(@map_data[x, y, 1])
+    end
+
+    #===========================================================================
+
+    def generate
+      @rng_seed = @parameters.rng_seed || $PokemonGlobal.dungeon_rng_seed || Random.new_seed
+      $PokemonGlobal.dungeon_rng_seed = nil
+      Random.srand(@rng_seed)
+      maxWidth = @usable_width - (@buffer_x * 2)
+      maxHeight = @usable_height - (@buffer_y * 2)
+      return if maxWidth < 0 || maxHeight < 0
+      loop do
+        @need_redraw = false
+        @map_data.clear
+        # Generate the basic layout of the map
+        generate_layout(maxWidth, maxHeight)
+        next if @need_redraw
+        # Draw walls
+        generate_walls(maxWidth, maxHeight)
+        next if @need_redraw
+        # Draw decorations
+        paint_decorations(maxWidth, maxHeight)
+        # Draw wall top tiles
+        paint_wall_top_tiles(maxWidth, maxHeight)
+        break   # if !@need_redraw
+      end
+    end
+
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 982-1010
+    def generateMapInPlace(map)
+      map.width.times do |i|
+        map.height.times do |j|
+          3.times do |layer|
+            tile_type = @map_data[i, j, layer]
+            tile_type = :floor if [:room, :corridor].include?(tile_type)
+            case tile_type
+            when :ignore
+            when :none
+              map.data[i, j, layer] = 0
+            when :void_decoration_large, :floor_decoration_large
+              4.times do |c|
+                tile = @tileset.get_random_tile_of_type(tile_type, self, i, j, layer)
+                tile += (c % 2) + (8 * (c / 2)) if tile >= 384   # Regular tile
+                map.data[i + (c % 2), j + (c / 2), layer] = tile
+              end
+            else
+              tile = @tileset.get_random_tile_of_type(tile_type, self, i, j, layer)
+              map.data[i, j, layer] = tile
+            end
+          end
+        end
+      end
+    end
+
+    # Returns a random room tile a random room where an event of the given size
+    # can be placed. Events cannot be placed adjacent to or overlapping each
+    # other, and can't be placed right next to the wall of a room (to prevent
+    # them blocking a corridor).
+
+PATH /workspace/pokemon-essentials/Data/Scripts/012_Overworld/008_Overworld_RandomDungeons.rb RANGE 1040-1060
+  end
+end
+
+#===============================================================================
+# Variables that determine which dungeon parameters to use to generate a random
+# dungeon.
+#===============================================================================
+class PokemonGlobalMetadata
+  attr_writer   :dungeon_area, :dungeon_version
+  attr_accessor :dungeon_rng_seed
+
+  def dungeon_area
+    return @dungeon_area || :none
+  end
+
+  def dungeon_version
+    return @dungeon_version || 0
+  end
+end
+
+#===============================================================================
