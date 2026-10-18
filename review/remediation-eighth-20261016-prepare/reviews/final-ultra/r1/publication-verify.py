@@ -50,7 +50,7 @@ def main():
         fresh=Path(tmp)/'remote.git'
         run(['git','init','--bare',str(fresh)])
         assert not (fresh/'objects/info/alternates').exists()
-        run(['git','-C',str(fresh),'fetch','--no-tags',remote,'refs/heads/'+branch])
+        run(['git','-C',str(fresh),'fetch','--depth=1','--no-tags',remote,'refs/heads/'+branch])
         assert run(['git','-C',str(fresh),'rev-parse','FETCH_HEAD']).decode().strip()==a.commit
         assert tree(fresh)==expected
         for path,mode,blob in expected:

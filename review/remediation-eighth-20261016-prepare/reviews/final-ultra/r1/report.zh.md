@@ -27,23 +27,23 @@
 | GR8-COM-001 | R8-U06 | PASS | WP40 §6.1 |
 | GR8-COM-002 | R8-U06 | PASS | WP39 §4.3.1; WP67-A §3.2/§12; Z01–05 |
 | GR8-COM-003 | R8-U06 | PASS | WP39 §4.3.1; WP40 §6.1; WP67-A; M01–04 |
-| GR8-PBSW-001 | R8-U03 | PASS | WP60 §3.3 L45 |
+| GR8-PBSW-001 | R8-U03 | PASS | pokemon-rules/wp60-berry-plants.md §3.3 L45 |
 | GR8-PBSW-002 | R8-U04 | PASS | WP11 L37; WP14 L48/L284; world catalog R8-PBS01 |
-| GR8-WORLD-001 | R8-U04 | PASS | WP11 §4 neighbor placement; world catalog NP01–05 |
-| GR8-WORLD-002 | R8-U04 | PASS | WP11 §4/§6; world catalog MP13/RP01–08 |
-| GR8-AI-001 | R8-U06 | PASS | WP52-A §6; AI catalog T02/CV01–05 |
+| GR8-WORLD-001 | R8-U04 | PASS | engine-overworld/wp11-map-topology-transfer.md §5.2.2 L110–115; world catalog NP01–05 |
+| GR8-WORLD-002 | R8-U04 | PASS | engine-overworld/wp11-map-topology-transfer.md §5.2.1/§6; world catalog MP13/RP01–08 |
+| GR8-AI-001 | R8-U06 | PASS | combat-requirements/wp52-a-generic-numerical-and-status-evaluation.md §6; AI catalog T02/CV01–05 |
 | GR8-HIST-001 | R8-U07 | PASS | current-r7-metadata-qualification.json /stage_counts |
 | GR8-HIST-R2-BINDING-001 | R8-U07 | PASS | overlay /candidate_r2_bindings |
 | GR8-HIST-U06-CONTINUATION-001 | R8-U07 | PASS | overlay /u06_continuation |
-| GR8-WORLD-003 | R8-U04 | PASS | WP12 §7.2; WP13 event L131; final UI65 L152/L210; JT01–06 |
-| GR8-WORLD-INT-001 | R8-U04 | PASS | WP13 event §4; command117; CE01–05 |
-| GR8-WORLD-INT-002 | R8-U04 | PASS | WP13 command119; event §7; LB01–05 |
+| GR8-WORLD-003 | R8-U04 | PASS | engine-overworld/wp12-terrain-movement-vehicles.md L174–185; WP13 event L131; final UI65 L152/L210; JT01–06 |
+| GR8-WORLD-INT-001 | R8-U04 | PASS | engine-overworld/wp13-map-events-npc-followers.md §4; wp13-interpreter-command-matrix.md command117; CE01–05 |
+| GR8-WORLD-INT-002 | R8-U04 | PASS | engine-overworld/wp13-interpreter-command-matrix.md command119 L42/L144–153; wp13-map-events-npc-followers.md §5 L149–150/L218; LB01–05 |
 | GR8-WORLD-004 | R8-U05 | PASS | WP61 §3.3 L56; WP36 §4.3 consumer |
 | GR8-COM-004 | R8-U06 | PASS | WP39 §3.4 |
 | GR8-COM-005 | R8-U06 | PASS | WP39 §7.4; WP42 §7.1 |
 | GR8-COM-006 | R8-U06 | PASS | WP40 §5.2 step14 |
 | GR8-COM-007 | R8-U06 | PASS | WP40 §10 |
-| GR8-ELR-001 | R8-U08 | PASS | WP08 §5.1.1; WP15 §3/§5; WP69 §2.2/§6.1 |
+| GR8-ELR-001 | R8-U08 | PASS | WP08 §5.1.1; WP15 §3/§5; user-interface/wp69-slot-machine.md §2.2/§6.1 |
 | GR8-COM-008 | R8-U06 | PASS | WP41 §9 step4 |
 | GR8-EXT-CD-002 | R8-U05 | PASS | WP36 §4.2 L132 |
 | GR8-PBS-EGGGROUP-DOMAIN-001 | R8-U09 | PASS | WP03 §6.2/L313–339/§metadata; WP18 §3.1 |
@@ -52,8 +52,8 @@
 
 | 已选optional | 主批次 | actual | 最终位置 |
 | --- | --- | --- | --- |
-| GR8-UI-001 | R8-U01 | PASS | final UI65 §4.1 L88/L90 |
-| GR8-AI-002 | R8-U06 | PASS | WP52-A §6 count sentence |
+| GR8-UI-001 | R8-U01 | PASS | user-interface/wp65-title-load-options-pause-and-pc.md §4.1 L88/L90 |
+| GR8-AI-002 | R8-U06 | PASS | combat-requirements/wp52-a-generic-numerical-and-status-evaluation.md §6 count sentence |
 | GR8-HIST-U12-RECEIPT-SCOPE-001 | R8-U07 | PASS | overlay /u12_input_receipt_scope |
 | GR8-UI-003 | R8-U09 | PASS | WP66-A L145 |
 | GR8-EXT-CD-004 | R8-U09 | PASS | WP34 L158 → BR23 |
