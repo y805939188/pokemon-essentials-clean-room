@@ -25,3 +25,7 @@
 `inputs/investigation-r1/` 六文件及 `inputs/INVESTIGATION-REVIEW.zh.md` 从原调查按字节复制，只有行为/向量/定位/哈希，无Ruby片段、实现TS或源码快照。原调查根与其SHA清单不改。`SOURCES.json`内本地路径仅供审计，实施者不应打开原版路径。
 
 所有行为仍为 SOURCE_STATIC／DERIVED_VECTOR／**NOT_EXECUTED**。本轮仅进行Git、哈希、计数、导航与文档差异检查，不运行原版、GUI、NW、框架或其测试，不新增源调查。请求独立gpt-6-sol/ultra与Standard/nonFast；有效配置无完整回显则UNVERIFIED。
+
+## CSV 原始行尾与空白检查资格
+
+初次全包默认 `git diff --cached --check` 把封存CSV的CRLF报为尾部空白；同一shell命令未在此停止，已形成内容提交，未amend或隐藏该失败。默认全包检查不是PASS。五份正式文档检查为PASS；保持通常三种空白检查、仅显式允许CRLF数据行尾的临时命令检查全包PASS。原CSV与调查封印字节一致，不规范化或改全局/仓库配置。两检查退出、2912条行尾诊断计数及摘要见 `CHECK-QUALIFICATION.json`；这只是数据运输格式资格，不是行为运行验证。
