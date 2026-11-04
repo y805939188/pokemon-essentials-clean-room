@@ -1,3 +1,22 @@
+## 当前阅读入口（2026-11-04）
+
+这里是正式净化规格，共 131 份文档（111 正文、17 测试族目录、3 共享）。当前限定接受范围以仓库[当前交付](../../CURRENT-DELIVERY.md)、[R8 开发使用说明](../../review/remediation-eighth-20261016-prepare/handoff/development-handoff.md)和[已知限制](../../review/remediation-eighth-20261016-prepare/handoff/known-limits.md)为准。2026-10-25 的进化整数参数补充另按[接受登记](../../review/step5-3-evolution-integer-20261025/acceptance-20261025/ACCEPTANCE.zh.md)读取。
+
+| 领域 | 目录 |
+| --- | --- |
+| 通用内核 | [generic-kernel](generic-kernel/) |
+| 生物 RPG | [creature-rpg](creature-rpg/) |
+| Pokémon 规则 | [pokemon-rules](pokemon-rules/) |
+| 战斗要求 | [combat-requirements](combat-requirements/) |
+| 引擎与地图 | [engine-overworld](engine-overworld/) |
+| 用户界面 | [user-interface](user-interface/) |
+| 示例与开发者体验 | [demo-dx](demo-dx/) |
+| 测试与范围 | [测试目录](test-catalog/README.md)、[范围声明](scope-statement.md) |
+
+以下保留早期批次的原记录和时点状态，不能据其“下一门”“待审”或旧计数重新派发任务。此次只增加阅读导航，所有行为正文、附表、测试族和范围声明保持原字节。
+
+---
+
 ## B21 当前全集使用与审查状态
 
 本层是 B21 作者候选后继（2026-10-11），等待独立 R-B21；不是复审接受或关闭登记。正式输入 B20 C `e9c140dc33de1cb0662521318b051174909e4509`，tree `5baa01c8a604400b73f560bb06fa5d770089502a`；派发 `eb1885265fcde2a52767077de3193862036c3a71`，tree `c85948f536d7444bfe83d3c323ea6a48ba15d143`。B01–B20 全部已接受，共327条贡献、228触及ID、220项主责最低修订、215/229项控制的全部分配贡献已接受；另14项贡献/9项主责由B21候选承接。229 OPEN/0 CLOSED保持。
