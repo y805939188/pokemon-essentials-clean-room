@@ -1,5 +1,18 @@
 # Pokémon Essentials 净室行为规格
 
+**阅读行为规格从[正式规格集](deliverables/final-specification-set/README.md)开始。** 正式交付共 131 份文档：111 份正文、17 份测试族目录、3 份共享文档。目录按七个概念领域组织，不要求沿用参考实现的架构。
+
+| 用途 | 入口 |
+| --- | --- |
+| 行为、规则、状态与场景 | [正式规格](deliverables/final-specification-set/README.md)、[测试目录](deliverables/final-specification-set/test-catalog/README.md)、[范围声明](deliverables/final-specification-set/scope-statement.md) |
+| 当前接受范围与限制 | [当前交付](CURRENT-DELIVERY.md)、[R8 已知限制](review/remediation-eighth-20261016-prepare/handoff/known-limits.md) |
+| 实现去向与路线 | [去向清单](planning/implementation-routing/README.md)、[路线图](planning/framework-roadmap/README.md) |
+| 来源与历史审计 | [来源追溯](audit/source-traceability.md) |
+
+`specs/` 是提取原稿；`review/`、`delivery/` 和 `handoff/` 保留审查、来源及过程材料，按各自记录时点理解。开发使用正式规格和当前接受记录。本次只补充阅读导航，原有文件、原路径、行为条款、测试向量和封印均保留。
+
+## 交付状态与历史
+
 本项目提取Pokémon Essentials的功能、游戏规则、逻辑、状态变化和用户行为，为未来从零开发独立TypeScript实现提供规格依据。参考只读，规格保持实现无关，战斗／AI保留完整范围。
 
 **当前交付：第八轮29项必改（2P2／27P3）、10项选入可选、9批实际整合已在限定R8静态内容范围内接受闭环；10组接合获最终独立PASS，内容阻塞0。** 第八轮已于2026-10-18经[PR #1](https://github.com/y805939188/pokemon-essentials-clean-room/pull/1)正常合入main，合并提交为 `dae67763071cfe135b99f90639d71425410b1ed3`。

@@ -1,5 +1,7 @@
 # 当前交付：第八轮有限静态整改闭环
 
+当前行为正文从[正式规格集](deliverables/final-specification-set/README.md)读取；其中旧批次的候选/待审文字是历史层，当前接受范围按本页和具名后继记录读取。2026-10-25 的进化整数参数补充见[接受登记](review/step5-3-evolution-integer-20261025/acceptance-20261025/ACCEPTANCE.zh.md)。
+
 **29项必改（2P2／27P3）、10项选入可选、9批实际整合已接受并在限定R8静态内容范围关闭；10组接合获最终独立PASS，内容阻塞0。** 依据为[第八轮交付导航](review/remediation-eighth-20261016-prepare/DELIVERY.md)、[最终整合报告](review/remediation-eighth-20261016-prepare/final-report.md)、[最终关闭决定](review/remediation-eighth-20261016-prepare/closure/final/decision.json)及[39项逐项记录](review/remediation-eighth-20261016-prepare/closure/final/per-id.json)。
 
 第八轮已于2026-10-18通过[PR #1](https://github.com/y805939188/pokemon-essentials-clean-room/pull/1)正常合入main，合并提交 `dae67763071cfe135b99f90639d71425410b1ed3`。[实际合并、精确CI观察及可恢复仓库收尾](https://github.com/y805939188/pokemon-essentials-clean-room/blob/8fdb6f093ed6aed65e840b8b616c1184f8d2c59b/review/remediation-eighth-20261016-prepare/closure/final/repository-closeout/README.md)由固定后继记录承载；原关闭决定与发布快照中的PREMERGE／PENDING为其冻结时点，不覆盖或改写它们。该记录未观察到CI检查，不能称为CI通过；其用户本地同步资格亦不扩大。
