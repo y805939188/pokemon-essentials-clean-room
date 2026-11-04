@@ -7,9 +7,9 @@
 | 行为、规则、状态与场景 | [正式规格](deliverables/final-specification-set/README.md)、[测试目录](deliverables/final-specification-set/test-catalog/README.md)、[范围声明](deliverables/final-specification-set/scope-statement.md) |
 | 当前接受范围与限制 | [当前交付](CURRENT-DELIVERY.md)、[R8 已知限制](review/remediation-eighth-20261016-prepare/handoff/known-limits.md) |
 | 实现去向与路线 | [去向清单](planning/implementation-routing/README.md)、[路线图](planning/framework-roadmap/README.md) |
-| 来源与历史审计 | [来源追溯](audit/source-traceability.md)、[历史会话材料及整理清单](audit/historical-handoffs/README.md) |
+| 来源与历史审计 | [来源追溯](audit/source-traceability.md) |
 
-`specs/` 是提取原稿；`review/`、`delivery/` 和历史会话材料用于追溯，按各自冻结时点理解。开发时使用正式规格和当前接受记录。2026-11-04 的整理只删除经逐字节核对的重复运输快照，含独有内容的旧交接已集中到审计目录；正式行为条款、测试向量及原审查结论保持原字节。
+`specs/` 是提取原稿；`review/`、`delivery/` 和 `handoff/` 保留审查、来源及过程材料，按各自记录时点理解。开发使用正式规格和当前接受记录。本次只补充阅读导航，原有文件、原路径、行为条款、测试向量和封印均保留。
 
 ## 交付状态与历史
 
