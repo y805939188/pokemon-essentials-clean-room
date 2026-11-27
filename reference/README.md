@@ -1,0 +1,22 @@
+# 术语、版本与兼容边界
+
+- [作者数据的读取范围与启用条件](authoring-data-coverage.md)
+- [备份作者数据的字段合同](backup-author-fields.md)
+- [跨功能案例与适用条件](behavior-case-qualifications.md)
+- [跨功能流程的状态与失败顺序](behavior-sequences.md)
+- [条件化的资源、工具与评分行为](conditional-behavior-profiles.md)
+- [跨功能规则与失败顺序](cross-domain-contracts.md)
+- [进化整数参数的版本与兼容模式](evolution-parameter-compatibility.md)
+- [选用旧世代数据的条件](generation-data-compatibility.md)
+- [机制世代与配置默认值](generation-settings.md)
+- [界面流程与静态场景](interface-scenario-coverage.md)
+- [旧输入兼容范围](legacy-compatibility-choices.md)
+- [观察范围与依赖条件](observation-limits.md)
+- [参考材料的适用范围](reference-scope.md)
+- [适用范围与证据等级](scope-and-evidence.md)
+- [跨领域的异常、未验证项与案例范围](shared-qualifications.md)
+- [术语](terms.md)
+- [验证范围与缺口](verification-boundaries.md)
+- [适用版本与兼容模式](versions-and-compatibility.md)
+
+[任务入口](../README.md)
